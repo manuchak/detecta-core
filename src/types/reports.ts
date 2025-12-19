@@ -11,7 +11,8 @@ export type ReportModule =
   | 'conversion'    // Tasa de Conversión
   | 'capacity'      // Capacidad Operativa
   | 'operational'   // Operaciones (servicios, GMV)
-  | 'projections';  // Forecast vs Real
+  | 'projections'   // Forecast vs Real
+  | 'clients';      // Análisis de Clientes
 
 export interface HistoricalReportConfig {
   granularity: ReportGranularity;
@@ -35,6 +36,7 @@ export const MODULE_GRANULARITY_SUPPORT: Record<ReportModule, ReportGranularity[
   capacity: ['year', 'month', 'week', 'day'],
   operational: ['year', 'month', 'week', 'day'],
   projections: ['year', 'month', 'week', 'day'],
+  clients: ['year', 'month'],
 };
 
 // Module display names
@@ -48,6 +50,7 @@ export const MODULE_LABELS: Record<ReportModule, string> = {
   capacity: 'Capacidad Operativa',
   operational: 'Operacional',
   projections: 'Proyecciones',
+  clients: 'Análisis de Clientes',
 };
 
 // Granularity display names
@@ -359,6 +362,47 @@ export interface ProjectionsReportData {
   }[];
 }
 
+// Client Analysis Report Data
+export interface ClientsReportData {
+  summary: {
+    totalClients: number;
+    activeClients: number;
+    newClientsThisPeriod: number;
+    avgServicesPerClient: number;
+    avgGmvPerClient: number;
+    totalGMV: number;
+  };
+  topClients: {
+    rank: number;
+    name: string;
+    services: number;
+    gmv: number;
+    aov: number;
+    completionRate: number;
+    growth: number;
+  }[];
+  serviceTypeAnalysis: {
+    foraneo: { count: number; percentage: number; avgValue: number };
+    local: { count: number; percentage: number; avgValue: number };
+  };
+  clientConcentration: {
+    top5Percent: number;
+    top10Percent: number;
+    hhi: number;
+  };
+  atRiskClients: {
+    name: string;
+    lastServiceDate: string;
+    daysSinceLastService: number;
+    historicalGmv: number;
+  }[];
+  monthlyGMVEvolution: {
+    month: string;
+    gmv: number;
+    clientCount: number;
+  }[];
+}
+
 // Complete report data structure
 export interface HistoricalReportData {
   config: HistoricalReportConfig;
@@ -373,4 +417,5 @@ export interface HistoricalReportData {
   capacity?: CapacityReportData;
   operational?: OperationalReportData;
   projections?: ProjectionsReportData;
+  clients?: ClientsReportData;
 }

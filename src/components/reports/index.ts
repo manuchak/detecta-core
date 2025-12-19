@@ -7,3 +7,4 @@ export { ConversionReportSection } from './sections/ConversionReportSection';
 export { CapacityReportSection } from './sections/CapacityReportSection';
 export { OperationalReportSection } from './sections/OperationalReportSection';
 export { ProjectionsReportSection } from './sections/ProjectionsReportSection';
+export { ClientsReportSection } from './sections/ClientsReportSection';

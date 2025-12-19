@@ -8,6 +8,7 @@ import { useSupplyGrowthDetails } from './useSupplyGrowthDetails';
 import { useConversionRateDetails } from './useConversionRateDetails';
 import { useServiceCapacity } from './useServiceCapacity';
 import { useOperationalMetrics } from './useOperationalMetrics';
+import { useClientsData, useClientMetrics, useClientTableData } from './useClientAnalytics';
 import {
   HistoricalReportConfig,
   HistoricalReportData,
@@ -22,6 +23,7 @@ import {
   CapacityReportData,
   OperationalReportData,
   ProjectionsReportData,
+  ClientsReportData,
 } from '@/types/reports';
 
 export interface UseHistoricalReportDataReturn {
@@ -31,6 +33,13 @@ export interface UseHistoricalReportDataReturn {
 }
 
 export function useHistoricalReportData(config: HistoricalReportConfig): UseHistoricalReportDataReturn {
+  // Create date range for client data based on config
+  const dateRange = useMemo(() => {
+    const startDate = new Date(config.year, 0, 1);
+    const endDate = new Date(config.year, 11, 31, 23, 59, 59);
+    return { from: startDate, to: endDate };
+  }, [config.year]);
+
   // Fetch all data from existing hooks
   const { cpaDetails, loading: cpaLoading } = useCPADetails();
   const ltvDetails = useLTVDetails();
@@ -39,6 +48,11 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
   const supplyGrowthDetails = useSupplyGrowthDetails();
   const conversionDetails = useConversionRateDetails();
   const { capacityData, loading: capacityLoading } = useServiceCapacity();
+  
+  // Client data hooks with year filter
+  const { data: clientsData, isLoading: clientsLoading } = useClientsData(dateRange);
+  const { data: clientMetrics, isLoading: clientMetricsLoading } = useClientMetrics(dateRange);
+  const { data: clientTableData, isLoading: clientTableLoading } = useClientTableData(dateRange);
   
   // Pass year/month filter to operational metrics based on config
   const operationalOptions = {
@@ -49,7 +63,8 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
 
   const loading = cpaLoading || ltvDetails.loading || retentionDetails.loading || 
                   engagementLoading || supplyGrowthDetails.loading || 
-                  conversionDetails.loading || capacityLoading || operationalLoading;
+                  conversionDetails.loading || capacityLoading || operationalLoading ||
+                  clientsLoading || clientMetricsLoading || clientTableLoading;
 
   const reportData = useMemo((): HistoricalReportData | null => {
     if (loading) return null;
@@ -68,42 +83,46 @@ export function useHistoricalReportData(config: HistoricalReportConfig): UseHist
       periodLabel,
     };
 
-    // Populate each module's data
+    // Populate each module's data - pass config.year to filter monthly data
     supportedModules.forEach(module => {
       switch (module) {
         case 'cpa':
-          report.cpa = transformCPAData(cpaDetails);
+          report.cpa = transformCPAData(cpaDetails, config.year);
           break;
         case 'ltv':
-          report.ltv = transformLTVData(ltvDetails);
+          report.ltv = transformLTVData(ltvDetails, config.year);
           break;
         case 'retention':
-          report.retention = transformRetentionData(retentionDetails);
+          report.retention = transformRetentionData(retentionDetails, config.year);
           break;
         case 'engagement':
-          report.engagement = transformEngagementData(engagementDetails);
+          report.engagement = transformEngagementData(engagementDetails, config.year);
           break;
         case 'supply_growth':
-          report.supplyGrowth = transformSupplyGrowthData(supplyGrowthDetails);
+          report.supplyGrowth = transformSupplyGrowthData(supplyGrowthDetails, config.year);
           break;
         case 'conversion':
-          report.conversion = transformConversionData(conversionDetails);
+          report.conversion = transformConversionData(conversionDetails, config.year);
           break;
         case 'capacity':
           report.capacity = transformCapacityData(capacityData);
           break;
         case 'operational':
-          report.operational = transformOperationalData(operationalData);
+          report.operational = transformOperationalData(operationalData, config.year);
           break;
         case 'projections':
           report.projections = transformProjectionsData(capacityData, operationalData);
+          break;
+        case 'clients':
+          report.clients = transformClientsData(clientsData, clientMetrics, clientTableData, config.year);
           break;
       }
     });
 
     return report;
   }, [config, loading, cpaDetails, ltvDetails, retentionDetails, engagementDetails, 
-      supplyGrowthDetails, conversionDetails, capacityData, operationalData]);
+      supplyGrowthDetails, conversionDetails, capacityData, operationalData, 
+      clientsData, clientMetrics, clientTableData]);
 
   return {
     data: reportData,
@@ -134,7 +153,7 @@ function generatePeriodLabel(config: HistoricalReportConfig): string {
   }
 }
 
-function transformCPAData(cpaDetails: any): CPAReportData {
+function transformCPAData(cpaDetails: any, year: number): CPAReportData {
   const costBreakdownArray = cpaDetails?.currentMonthCostBreakdown || [];
   const yearlyBreakdown = Object.entries(cpaDetails?.costBreakdownByCategory || {}).map(([category, amount]) => ({
     category,
@@ -143,6 +162,12 @@ function transformCPAData(cpaDetails: any): CPAReportData {
       ? ((Number(amount) || 0) / cpaDetails.yearlyData.totalCosts) * 100 
       : 0,
   }));
+
+  // Filter monthly data by year
+  const filteredMonthlyData = (cpaDetails?.monthlyData || []).filter((item: any) => {
+    const itemYear = parseInt(item.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
 
   return {
     formula: 'CPA = Costos Totales de Adquisición / Número de Custodios Nuevos',
@@ -162,17 +187,23 @@ function transformCPAData(cpaDetails: any): CPAReportData {
         amount: item.amount || 0,
       })),
     },
-    monthlyEvolution: cpaDetails?.monthlyData?.map((item: any) => ({
+    monthlyEvolution: filteredMonthlyData.map((item: any) => ({
       month: item.month || '',
       costs: item.costs || 0,
       newCustodians: item.newCustodians || 0,
       cpa: item.cpa || 0,
-    })) || [],
+    })),
   };
 }
 
-function transformLTVData(ltvDetails: any): LTVReportData {
+function transformLTVData(ltvDetails: any, year: number): LTVReportData {
   const ltvGeneral = ltvDetails?.yearlyData?.ltvGeneral || 0;
+  
+  // Filter monthly breakdown by year
+  const filteredMonthlyBreakdown = (ltvDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
+    const itemYear = parseInt(m.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
   
   return {
     formula: `LTV = Ingreso Promedio Mensual × Tiempo de Vida Promedio (${ltvDetails?.tiempoVidaPromedio?.toFixed(1) || 0} meses)`,
@@ -202,17 +233,29 @@ function transformLTVData(ltvDetails: any): LTVReportData {
       actual: ltvGeneral,
       conservador: Math.round(ltvGeneral * 0.85),
     },
-    monthlyBreakdown: ltvDetails?.yearlyData?.monthlyBreakdown?.map((m: any) => ({
+    monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
       month: m.month || '',
       custodiosActivos: m.custodiosActivos || 0,
       ingresosTotales: m.ingresosTotales || 0,
       ingresoPromedioPorCustodio: m.ingresoPromedioPorCustodio || 0,
       ltvCalculado: m.ltvCalculado || 0,
-    })) || [],
+    })),
   };
 }
 
-function transformRetentionData(retentionDetails: any): RetentionReportData {
+function transformRetentionData(retentionDetails: any, year: number): RetentionReportData {
+  // Filter monthly breakdown by year
+  const filteredMonthlyBreakdown = (retentionDetails?.monthlyBreakdown || []).filter((m: any) => {
+    const itemYear = parseInt(m.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
+  // Filter cohort analysis by year
+  const filteredCohortAnalysis = (retentionDetails?.cohortAnalysis || []).filter((c: any) => {
+    const itemYear = parseInt(c.cohortMonth?.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
   return {
     formula: 'Tasa de Retención = (Custodios Retenidos / Custodios Mes Anterior) × 100',
     yearlyData: {
@@ -233,7 +276,7 @@ function transformRetentionData(retentionDetails: any): RetentionReportData {
       tasaRetencion: retentionDetails?.currentMonthData?.tasaRetencion || 0,
       tiempoPromedioPermanencia: retentionDetails?.currentMonthData?.tiempoPromedioPermanencia || 0,
     },
-    cohortAnalysis: retentionDetails?.cohortAnalysis?.map((c: any) => ({
+    cohortAnalysis: filteredCohortAnalysis.map((c: any) => ({
       cohortMonth: c.cohortMonth || '',
       month0: c.month0 || 0,
       month1: c.month1 || 0,
@@ -242,7 +285,7 @@ function transformRetentionData(retentionDetails: any): RetentionReportData {
       month4: c.month4 || 0,
       month5: c.month5 || 0,
       month6: c.month6 || 0,
-    })) || [],
+    })),
     quarterlyData: retentionDetails?.quarterlyData?.map((q: any) => ({
       quarter: q.quarter || '',
       avgRetention: q.avgRetention || 0,
@@ -250,7 +293,7 @@ function transformRetentionData(retentionDetails: any): RetentionReportData {
       custodians: q.custodians || 0,
       trend: q.trend || 'stable',
     })) || [],
-    monthlyBreakdown: retentionDetails?.monthlyBreakdown?.map((m: any) => ({
+    monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
       month: m.month || '',
       monthName: m.monthName || '',
       custodiosAnterior: m.custodiosAnterior || 0,
@@ -259,11 +302,17 @@ function transformRetentionData(retentionDetails: any): RetentionReportData {
       custodiosPerdidos: m.custodiosPerdidos || 0,
       tasaRetencion: m.tasaRetencion || 0,
       tiempoPromedioPermanencia: m.tiempoPromedioPermanencia || 0,
-    })) || [],
+    })),
   };
 }
 
-function transformEngagementData(engagementDetails: any): EngagementReportData {
+function transformEngagementData(engagementDetails: any, year: number): EngagementReportData {
+  // Filter monthly evolution by year
+  const filteredMonthlyEvolution = (engagementDetails?.yearlyData?.monthlyEvolution || []).filter((m: any) => {
+    const itemYear = parseInt(m.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
   return {
     formula: 'Engagement = Total Servicios ÷ Total Custodios Activos',
     yearlyData: {
@@ -277,16 +326,22 @@ function transformEngagementData(engagementDetails: any): EngagementReportData {
       custodians: engagementDetails?.currentMonthData?.custodians || 0,
       engagement: engagementDetails?.currentMonthData?.engagement || 0,
     },
-    monthlyEvolution: engagementDetails?.yearlyData?.monthlyEvolution?.map((m: any) => ({
+    monthlyEvolution: filteredMonthlyEvolution.map((m: any) => ({
       month: m.month || '',
       services: m.services || 0,
       custodians: m.custodians || 0,
       engagement: m.engagement || 0,
-    })) || [],
+    })),
   };
 }
 
-function transformSupplyGrowthData(supplyGrowthDetails: any): SupplyGrowthReportData {
+function transformSupplyGrowthData(supplyGrowthDetails: any, year: number): SupplyGrowthReportData {
+  // Filter monthly data by year
+  const filteredMonthlyData = (supplyGrowthDetails?.monthlyData || []).filter((m: any) => {
+    const itemYear = parseInt(m.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
   return {
     summary: {
       crecimientoPromedioMensual: supplyGrowthDetails?.summary?.crecimientoPromedioMensual || 0,
@@ -307,7 +362,7 @@ function transformSupplyGrowthData(supplyGrowthDetails: any): SupplyGrowthReport
       ingresoPromedioPorCustodio: supplyGrowthDetails?.qualityMetrics?.ingresoPromedioPorCustodio || 0,
       custodiosConIngresosCero: supplyGrowthDetails?.qualityMetrics?.custodiosConIngresosCero || 0,
     },
-    monthlyData: supplyGrowthDetails?.monthlyData?.map((m: any) => ({
+    monthlyData: filteredMonthlyData.map((m: any) => ({
       month: m.month || '',
       monthName: m.monthName || '',
       custodiosActivos: m.custodiosActivos || 0,
@@ -315,11 +370,17 @@ function transformSupplyGrowthData(supplyGrowthDetails: any): SupplyGrowthReport
       custodiosPerdidos: m.custodiosPerdidos || 0,
       crecimientoNeto: m.crecimientoNeto || 0,
       crecimientoPorcentual: m.crecimientoPorcentual || 0,
-    })) || [],
+    })),
   };
 }
 
-function transformConversionData(conversionDetails: any): ConversionReportData {
+function transformConversionData(conversionDetails: any, year: number): ConversionReportData {
+  // Filter monthly breakdown by year
+  const filteredMonthlyBreakdown = (conversionDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
+    const itemYear = parseInt(m.month?.split('-')[0] || '0');
+    return itemYear === year;
+  });
+
   return {
     formula: 'Tasa de Conversión = (Custodios con 1er Servicio / Total Leads) × 100',
     yearlyData: {
@@ -333,12 +394,12 @@ function transformConversionData(conversionDetails: any): ConversionReportData {
       newCustodians: conversionDetails?.currentMonthData?.newCustodians || 0,
       conversionRate: conversionDetails?.currentMonthData?.conversionRate || 0,
     },
-    monthlyBreakdown: conversionDetails?.yearlyData?.monthlyBreakdown?.map((m: any) => ({
+    monthlyBreakdown: filteredMonthlyBreakdown.map((m: any) => ({
       month: m.month || '',
       leads: m.leads || 0,
       newCustodians: m.newCustodians || 0,
       conversionRate: m.conversionRate || 0,
-    })) || [],
+    })),
   };
 }
 
