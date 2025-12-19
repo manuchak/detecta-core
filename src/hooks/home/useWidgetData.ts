@@ -9,208 +9,211 @@ interface WidgetData {
 }
 
 const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
-  switch (type) {
-    case 'pendingCandidates': {
-      const { count } = await supabase
-        .from('candidatos_custodios')
-        .select('*', { count: 'exact', head: true })
-        .in('estado_proceso', ['contacto_inicial', 'en_evaluacion', 'pendiente']);
-      
-      return { value: count || 0 };
-    }
-
-    case 'activeCustodians': {
-      const { count } = await supabase
-        .from('pc_custodios')
-        .select('*', { count: 'exact', head: true })
-        .eq('estado', 'liberado');
-      
-      return { value: count || 0 };
-    }
-
-    case 'monthlyGMV': {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      
-      const { data } = await supabase
-        .from('servicios')
-        .select('precio_cliente')
-        .gte('fecha_servicio', startOfMonth.toISOString().split('T')[0])
-        .eq('estado', 'completado');
-      
-      const total = data?.reduce((sum, s) => sum + (s.precio_cliente || 0), 0) || 0;
-      
-      // Format as currency
-      if (total >= 1000000) {
-        return { value: `$${(total / 1000000).toFixed(1)}M` };
-      } else if (total >= 1000) {
-        return { value: `$${(total / 1000).toFixed(0)}K` };
+  try {
+    switch (type) {
+      case 'pendingCandidates': {
+        const { count } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .in('estado_proceso', ['lead', 'entrevista', 'documentacion', 'en_liberacion']);
+        
+        return { value: count || 0 };
       }
-      return { value: `$${total.toLocaleString()}` };
-    }
 
-    case 'todayServices': {
-      const today = new Date().toISOString().split('T')[0];
-      const { count } = await supabase
-        .from('servicios')
-        .select('*', { count: 'exact', head: true })
-        .eq('fecha_servicio', today)
-        .neq('estado', 'cancelado');
-      
-      return { value: count || 0 };
-    }
+      case 'activeCustodians': {
+        const { count } = await supabase
+          .from('pc_custodios')
+          .select('*', { count: 'exact', head: true })
+          .eq('estado', 'activo');
+        
+        return { value: count || 0 };
+      }
 
-    case 'weekServices': {
-      const today = new Date();
-      const weekEnd = new Date(today);
-      weekEnd.setDate(today.getDate() + 7);
-      
-      const { count } = await supabase
-        .from('servicios')
-        .select('*', { count: 'exact', head: true })
-        .gte('fecha_servicio', today.toISOString().split('T')[0])
-        .lte('fecha_servicio', weekEnd.toISOString().split('T')[0])
-        .neq('estado', 'cancelado');
-      
-      return { value: count || 0 };
-    }
+      case 'monthlyGMV': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        
+        const { data } = await supabase
+          .from('pc_servicios')
+          .select('valor_estimado')
+          .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
+          .eq('estado', 'completado');
+        
+        const total = data?.reduce((sum, s) => sum + (s.valor_estimado || 0), 0) || 0;
+        
+        if (total >= 1000000) {
+          return { value: `$${(total / 1000000).toFixed(1)}M` };
+        } else if (total >= 1000) {
+          return { value: `$${(total / 1000).toFixed(0)}K` };
+        }
+        return { value: `$${total.toLocaleString()}` };
+      }
 
-    case 'completionRate': {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      
-      const { count: total } = await supabase
-        .from('servicios')
-        .select('*', { count: 'exact', head: true })
-        .gte('fecha_servicio', startOfMonth.toISOString().split('T')[0])
-        .lte('fecha_servicio', new Date().toISOString().split('T')[0]);
-      
-      const { count: completed } = await supabase
-        .from('servicios')
-        .select('*', { count: 'exact', head: true })
-        .gte('fecha_servicio', startOfMonth.toISOString().split('T')[0])
-        .lte('fecha_servicio', new Date().toISOString().split('T')[0])
-        .eq('estado', 'completado');
-      
-      const rate = total ? Math.round((completed || 0) / total * 100) : 0;
-      return { value: `${rate}%` };
-    }
+      case 'todayServices': {
+        const today = new Date().toISOString().split('T')[0];
+        const { count } = await supabase
+          .from('pc_servicios')
+          .select('*', { count: 'exact', head: true })
+          .eq('fecha_programada', today)
+          .neq('estado', 'cancelado');
+        
+        return { value: count || 0 };
+      }
 
-    case 'unassignedServices': {
-      const today = new Date().toISOString().split('T')[0];
-      const { count } = await supabase
-        .from('servicios')
-        .select('*', { count: 'exact', head: true })
-        .gte('fecha_servicio', today)
-        .is('custodio_telefono', null)
-        .neq('estado', 'cancelado');
-      
-      return { value: count || 0 };
-    }
+      case 'weekServices': {
+        const today = new Date();
+        const weekEnd = new Date(today);
+        weekEnd.setDate(today.getDate() + 7);
+        
+        const { count } = await supabase
+          .from('pc_servicios')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_programada', today.toISOString().split('T')[0])
+          .lte('fecha_programada', weekEnd.toISOString().split('T')[0])
+          .neq('estado', 'cancelado');
+        
+        return { value: count || 0 };
+      }
 
-    case 'newLeads': {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      const { count } = await supabase
-        .from('candidatos_custodios')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', weekAgo.toISOString());
-      
-      return { value: count || 0 };
-    }
+      case 'completionRate': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        
+        const { count: total } = await supabase
+          .from('pc_servicios')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
+          .lte('fecha_programada', new Date().toISOString().split('T')[0]);
+        
+        const { count: completed } = await supabase
+          .from('pc_servicios')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
+          .lte('fecha_programada', new Date().toISOString().split('T')[0])
+          .eq('estado', 'completado');
+        
+        const rate = total ? Math.round((completed || 0) / total * 100) : 0;
+        return { value: `${rate}%` };
+      }
 
-    case 'conversionRate': {
-      const monthAgo = new Date();
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      
-      const { count: total } = await supabase
-        .from('candidatos_custodios')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', monthAgo.toISOString());
-      
-      const { count: converted } = await supabase
-        .from('candidatos_custodios')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', monthAgo.toISOString())
-        .eq('estado_proceso', 'aprobado');
-      
-      const rate = total ? Math.round((converted || 0) / total * 100) : 0;
-      return { value: `${rate}%` };
-    }
+      case 'unassignedServices': {
+        const today = new Date().toISOString().split('T')[0];
+        const { count } = await supabase
+          .from('pc_servicios')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_programada', today)
+          .is('custodio_asignado_id', null)
+          .neq('estado', 'cancelado');
+        
+        return { value: count || 0 };
+      }
 
-    case 'myAssigned': {
-      // For now, return total pending - in real implementation, filter by user
-      const { count } = await supabase
-        .from('candidatos_custodios')
-        .select('*', { count: 'exact', head: true })
-        .eq('estado_proceso', 'en_evaluacion');
-      
-      return { value: count || 0 };
-    }
+      case 'newLeads': {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        
+        const { count } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', weekAgo.toISOString());
+        
+        return { value: count || 0 };
+      }
 
-    case 'activeAlerts': {
-      const { count } = await supabase
-        .from('alertas_sistema_nacional')
-        .select('*', { count: 'exact', head: true })
-        .eq('estado', 'pendiente');
-      
-      return { value: count || 0 };
-    }
+      case 'conversionRate': {
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        
+        const { count: total } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', monthAgo.toISOString());
+        
+        const { count: converted } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', monthAgo.toISOString())
+          .eq('estado_proceso', 'liberado');
+        
+        const rate = total ? Math.round((converted || 0) / total * 100) : 0;
+        return { value: `${rate}%` };
+      }
 
-    case 'vehiclesOnline': {
-      const { count } = await supabase
-        .from('activos_monitoreo')
-        .select('*', { count: 'exact', head: true })
-        .eq('integrado_sistema', true);
-      
-      return { value: count || 0 };
-    }
+      case 'myAssigned': {
+        const { count } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .in('estado_proceso', ['entrevista', 'documentacion']);
+        
+        return { value: count || 0 };
+      }
 
-    case 'offlineVehicles': {
-      const { count } = await supabase
-        .from('activos_monitoreo')
-        .select('*', { count: 'exact', head: true })
-        .eq('integrado_sistema', false);
-      
-      return { value: count || 0 };
-    }
+      case 'activeAlerts': {
+        const { count } = await supabase
+          .from('alertas_sistema_nacional')
+          .select('*', { count: 'exact', head: true })
+          .eq('estado', 'pendiente');
+        
+        return { value: count || 0 };
+      }
 
-    case 'openTickets': {
-      const { count } = await supabase
-        .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['abierto', 'en_progreso']);
-      
-      return { value: count || 0 };
-    }
+      case 'vehiclesOnline': {
+        const { count } = await supabase
+          .from('activos_monitoreo')
+          .select('*', { count: 'exact', head: true })
+          .eq('integrado_sistema', true);
+        
+        return { value: count || 0 };
+      }
 
-    case 'pendingInstallations': {
-      const today = new Date().toISOString().split('T')[0];
-      const { count } = await supabase
-        .from('programacion_instalaciones')
-        .select('*', { count: 'exact', head: true })
-        .eq('fecha_programada', today)
-        .eq('estado', 'pendiente');
-      
-      return { value: count || 0 };
-    }
+      case 'offlineVehicles': {
+        const { count } = await supabase
+          .from('activos_monitoreo')
+          .select('*', { count: 'exact', head: true })
+          .eq('integrado_sistema', false);
+        
+        return { value: count || 0 };
+      }
 
-    case 'completedInstallations': {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      
-      const { count } = await supabase
-        .from('programacion_instalaciones')
-        .select('*', { count: 'exact', head: true })
-        .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
-        .eq('estado', 'completada');
-      
-      return { value: count || 0 };
-    }
+      case 'openTickets': {
+        const { count } = await supabase
+          .from('tickets')
+          .select('*', { count: 'exact', head: true })
+          .in('status', ['abierto', 'en_progreso']);
+        
+        return { value: count || 0 };
+      }
 
-    default:
-      return { value: 0 };
+      case 'pendingInstallations': {
+        const today = new Date().toISOString().split('T')[0];
+        const { count } = await supabase
+          .from('programacion_instalaciones')
+          .select('*', { count: 'exact', head: true })
+          .eq('fecha_programada', today)
+          .eq('estado', 'pendiente');
+        
+        return { value: count || 0 };
+      }
+
+      case 'completedInstallations': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        
+        const { count } = await supabase
+          .from('programacion_instalaciones')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
+          .eq('estado', 'completada');
+        
+        return { value: count || 0 };
+      }
+
+      default:
+        return { value: 0 };
+    }
+  } catch (error) {
+    console.error(`Error fetching widget data for type ${type}:`, error);
+    return { value: 0 };
   }
 };
 
