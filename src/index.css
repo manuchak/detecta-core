@@ -737,3 +737,178 @@
 .apple-empty-state {
   @apply text-center py-8;
 }
+
+/* ============================================
+   iOS 26 Liquid Glass Design System
+   ============================================ */
+
+/* Glass Mesh Background */
+.glass-mesh-background {
+  @apply min-h-screen;
+  background: 
+    radial-gradient(ellipse at 20% 20%, hsla(240, 30%, 60%, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, hsla(210, 60%, 55%, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, hsla(0, 0%, 100%, 0.02) 0%, transparent 70%),
+    hsl(var(--background));
+}
+
+.dark .glass-mesh-background {
+  background: 
+    radial-gradient(ellipse at 20% 20%, hsla(240, 30%, 60%, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, hsla(210, 60%, 55%, 0.08) 0%, transparent 50%),
+    hsl(var(--background));
+}
+
+/* Liquid Glass Hero Card */
+.liquid-glass-hero {
+  @apply relative overflow-hidden rounded-3xl p-6;
+  background: hsla(0, 0%, 100%, 0.65);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid hsla(0, 0%, 100%, 0.4);
+  box-shadow: 
+    0 8px 32px hsla(0, 0%, 0%, 0.08),
+    0 0 0 1px hsla(0, 0%, 100%, 0.2) inset,
+    0 1px 0 hsla(0, 0%, 100%, 0.6) inset;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.dark .liquid-glass-hero {
+  background: hsla(0, 0%, 12%, 0.6);
+  border: 1px solid hsla(0, 0%, 100%, 0.1);
+  box-shadow: 
+    0 8px 32px hsla(0, 0%, 0%, 0.3),
+    0 0 0 1px hsla(0, 0%, 100%, 0.05) inset,
+    0 1px 0 hsla(0, 0%, 100%, 0.1) inset;
+}
+
+.liquid-glass-hero:hover {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: 
+    0 16px 48px hsla(0, 0%, 0%, 0.12),
+    0 0 0 1px hsla(0, 0%, 100%, 0.3) inset,
+    0 1px 0 hsla(0, 0%, 100%, 0.8) inset;
+}
+
+/* Liquid Glass Widget */
+.liquid-glass-widget {
+  @apply relative overflow-hidden rounded-2xl p-5;
+  background: hsla(0, 0%, 100%, 0.5);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid hsla(0, 0%, 100%, 0.3);
+  box-shadow: 
+    0 4px 16px hsla(0, 0%, 0%, 0.05),
+    0 0 0 1px hsla(0, 0%, 100%, 0.15) inset;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.dark .liquid-glass-widget {
+  background: hsla(0, 0%, 16%, 0.5);
+  border: 1px solid hsla(0, 0%, 100%, 0.08);
+  box-shadow: 
+    0 4px 16px hsla(0, 0%, 0%, 0.2),
+    0 0 0 1px hsla(0, 0%, 100%, 0.03) inset;
+}
+
+.liquid-glass-widget:hover {
+  transform: translateY(-1px);
+  background: hsla(0, 0%, 100%, 0.6);
+}
+
+.dark .liquid-glass-widget:hover {
+  background: hsla(0, 0%, 18%, 0.6);
+}
+
+/* Liquid Glass App Icon */
+.liquid-glass-app {
+  @apply relative overflow-hidden rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer;
+  background: hsla(0, 0%, 100%, 0.45);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid hsla(0, 0%, 100%, 0.25);
+  box-shadow: 0 2px 12px hsla(0, 0%, 0%, 0.04);
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  aspect-ratio: 1;
+  min-height: 88px;
+}
+
+.dark .liquid-glass-app {
+  background: hsla(0, 0%, 20%, 0.45);
+  border: 1px solid hsla(0, 0%, 100%, 0.06);
+}
+
+.liquid-glass-app:hover {
+  transform: scale(1.05);
+  background: hsla(0, 0%, 100%, 0.55);
+  box-shadow: 0 4px 20px hsla(0, 0%, 0%, 0.08);
+}
+
+.dark .liquid-glass-app:hover {
+  background: hsla(0, 0%, 22%, 0.55);
+}
+
+.liquid-glass-app:active {
+  transform: scale(0.95);
+}
+
+/* Hero Urgency Variants */
+.liquid-glass-hero.urgency-normal {
+  background: hsla(0, 0%, 100%, 0.65);
+}
+
+.liquid-glass-hero.urgency-warning {
+  background: linear-gradient(135deg, hsla(0, 0%, 100%, 0.65) 0%, hsla(45, 93%, 47%, 0.1) 100%);
+  border-color: hsla(45, 93%, 47%, 0.3);
+}
+
+.liquid-glass-hero.urgency-critical {
+  background: linear-gradient(135deg, hsla(0, 0%, 100%, 0.65) 0%, hsla(0, 84%, 60%, 0.1) 100%);
+  border-color: hsla(0, 84%, 60%, 0.3);
+  animation: pulse-critical 3s infinite;
+}
+
+.dark .liquid-glass-hero.urgency-warning {
+  background: linear-gradient(135deg, hsla(0, 0%, 12%, 0.6) 0%, hsla(45, 93%, 47%, 0.15) 100%);
+}
+
+.dark .liquid-glass-hero.urgency-critical {
+  background: linear-gradient(135deg, hsla(0, 0%, 12%, 0.6) 0%, hsla(0, 84%, 60%, 0.15) 100%);
+}
+
+@keyframes pulse-critical {
+  0%, 100% { box-shadow: 0 8px 32px hsla(0, 84%, 60%, 0.1); }
+  50% { box-shadow: 0 8px 40px hsla(0, 84%, 60%, 0.2); }
+}
+
+/* Glass Skeleton Loading */
+.glass-skeleton {
+  @apply relative overflow-hidden rounded-2xl;
+  background: hsla(0, 0%, 100%, 0.3);
+  backdrop-filter: blur(20px);
+}
+
+.glass-skeleton::after {
+  content: '';
+  @apply absolute inset-0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsla(0, 0%, 100%, 0.4) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Stagger Animation Delays */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 50ms; }
+.stagger-3 { animation-delay: 100ms; }
+.stagger-4 { animation-delay: 150ms; }
+.stagger-5 { animation-delay: 200ms; }
+.stagger-6 { animation-delay: 250ms; }

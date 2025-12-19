@@ -115,6 +115,8 @@ export default {
 			},
 			backdropBlur: {
 				'apple': '20px',
+				'glass': '24px',
+				'glass-hero': '40px',
 			},
 			keyframes: {
 				'accordion-down': {
