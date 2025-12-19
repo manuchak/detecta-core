@@ -10,15 +10,18 @@ import type { UserRole } from '@/config/roleHomeConfig';
 
 const Home = () => {
   const { user, userRole, signOut } = useAuth();
-  const { hero, widgets, modules, shouldRedirect, isLoading } = useHomeData(userRole as UserRole);
+  const { hero, contextWidgets, widgets, modules, shouldRedirect, isLoading } = useHomeData(userRole as UserRole);
 
   // Redirect for roles with dedicated portals (custodio)
   if (shouldRedirect) {
     return <Navigate to={shouldRedirect} replace />;
   }
 
+  // Determine which widgets to show (prefer contextWidgets, fallback to widgets)
+  const displayWidgets = contextWidgets.length > 0 ? contextWidgets : widgets;
+
   // Show loading state
-  if (isLoading && !hero && widgets.length === 0) {
+  if (isLoading && !hero && displayWidgets.length === 0) {
     return (
       <div className="glass-mesh-background min-h-screen">
         <MainNavigation />
@@ -62,19 +65,28 @@ const Home = () => {
           />
         )}
 
-        {/* Widgets - Key Metrics */}
-        {widgets.length > 0 && (
-          <div className="grid grid-cols-3 gap-4">
-            {widgets.map((widget, index) => (
-              <MetricWidget
-                key={index}
-                label={widget.label}
-                value={widget.value}
-                isLoading={widget.isLoading}
-                index={index}
-              />
-            ))}
-          </div>
+        {/* Context Widgets - System Metrics */}
+        {displayWidgets.length > 0 && (
+          <section className="pt-2">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider">
+                Contexto del Sistema
+              </span>
+              <div className="flex-1 h-px bg-border/30" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              {displayWidgets.map((widget, index) => (
+                <MetricWidget
+                  key={index}
+                  label={widget.label}
+                  value={widget.value}
+                  isLoading={widget.isLoading}
+                  index={index}
+                  isContext={true}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Modules - Quick Access */}
@@ -88,7 +100,7 @@ const Home = () => {
         )}
 
         {/* Fallback for roles without configuration */}
-        {!hero && widgets.length === 0 && modules.length === 0 && (
+        {!hero && displayWidgets.length === 0 && modules.length === 0 && (
           <div className="liquid-glass-widget text-center py-12">
             <p className="text-muted-foreground">
               Tu rol aún no tiene configuración de home personalizada.

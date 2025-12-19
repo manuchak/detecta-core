@@ -22,35 +22,50 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
       }
 
       case 'activeCustodians': {
-        const { count, error } = await supabase
-          .from('pc_custodios')
-          .select('*', { count: 'exact', head: true })
-          .eq('estado', 'activo');
+        // Custodios únicos con servicios en el mes actual (excluyendo cancelados)
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        const { data, error } = await supabase
+          .from('servicios_custodia')
+          .select('nombre_custodio')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .neq('estado', 'Cancelado')
+          .not('nombre_custodio', 'is', null);
         
         if (error) throw error;
-        return { count: count || 0 };
+        const uniqueCustodians = new Set(data?.map(d => d.nombre_custodio) || []);
+        return { count: uniqueCustodians.size };
       }
 
       case 'unassignedServices': {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
         const { count, error } = await supabase
-          .from('pc_servicios')
+          .from('servicios_custodia')
           .select('*', { count: 'exact', head: true })
-          .gte('fecha_programada', today)
-          .is('custodio_asignado_id', null)
-          .neq('estado', 'cancelado');
+          .gte('fecha_hora_cita', today.toISOString())
+          .or('nombre_custodio.is.null,nombre_custodio.eq.')
+          .neq('estado', 'Cancelado');
         
         if (error) throw error;
         return { count: count || 0 };
       }
 
       case 'todayServices': {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
         const { count, error } = await supabase
-          .from('pc_servicios')
+          .from('servicios_custodia')
           .select('*', { count: 'exact', head: true })
-          .eq('fecha_programada', today)
-          .neq('estado', 'cancelado');
+          .gte('fecha_hora_cita', today.toISOString())
+          .lt('fecha_hora_cita', tomorrow.toISOString())
+          .neq('estado', 'Cancelado');
         
         if (error) throw error;
         return { count: count || 0 };
@@ -58,15 +73,34 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
 
       case 'weekServices': {
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const weekEnd = new Date(today);
         weekEnd.setDate(today.getDate() + 7);
         
         const { count, error } = await supabase
-          .from('pc_servicios')
+          .from('servicios_custodia')
           .select('*', { count: 'exact', head: true })
-          .gte('fecha_programada', today.toISOString().split('T')[0])
-          .lte('fecha_programada', weekEnd.toISOString().split('T')[0])
-          .neq('estado', 'cancelado');
+          .gte('fecha_hora_cita', today.toISOString())
+          .lt('fecha_hora_cita', weekEnd.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        if (error) throw error;
+        return { count: count || 0 };
+      }
+
+      case 'monthlyServices': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        const { count, error } = await supabase
+          .from('servicios_custodia')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .neq('estado', 'Cancelado');
         
         if (error) throw error;
         return { count: count || 0 };
@@ -110,16 +144,20 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
         
         const { data, error } = await supabase
-          .from('pc_servicios')
-          .select('valor_estimado')
-          .gte('fecha_programada', startOfMonth.toISOString().split('T')[0])
-          .eq('estado', 'completado');
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .neq('estado', 'Cancelado')
+          .gt('cobro_cliente', 0);
         
         if (error) throw error;
         
-        const total = data?.reduce((sum, s) => sum + (s.valor_estimado || 0), 0) || 0;
+        const total = data?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
         return { count: Math.round(total) };
       }
 
@@ -134,11 +172,16 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
       }
 
       case 'pendingInstallations': {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
         const { count, error } = await supabase
           .from('programacion_instalaciones')
           .select('*', { count: 'exact', head: true })
-          .eq('fecha_programada', today)
+          .gte('fecha_programada', today.toISOString().split('T')[0])
+          .lt('fecha_programada', tomorrow.toISOString().split('T')[0])
           .eq('estado', 'pendiente');
         
         if (error) throw error;
