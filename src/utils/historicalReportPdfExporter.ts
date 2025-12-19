@@ -12,7 +12,8 @@ import type {
   ConversionReportData,
   CapacityReportData,
   OperationalReportData,
-  ProjectionsReportData
+  ProjectionsReportData,
+  ClientsReportData
 } from '@/types/reports';
 
 // ============================================
@@ -446,7 +447,8 @@ const renderTableOfContents = (ctx: PDFContext, config: HistoricalReportConfig):
     conversion: { name: 'Conversión', desc: 'Eficiencia del funnel' },
     capacity: { name: 'Capacidad Operativa', desc: 'Utilización y disponibilidad' },
     operational: { name: 'Operacional', desc: 'Servicios, GMV y rankings' },
-    projections: { name: 'Proyecciones', desc: 'Forecast y precisión' }
+    projections: { name: 'Proyecciones', desc: 'Forecast y precisión' },
+    clients: { name: 'Análisis de Clientes', desc: 'Concentración, ranking y riesgos' }
   };
   
   config.modules.forEach((module, i) => {
@@ -1024,6 +1026,98 @@ const renderProjectionsSection = (ctx: PDFContext, data: ProjectionsReportData, 
 };
 
 // ============================================
+// SECTION: CLIENTS ANALYSIS
+// ============================================
+const renderClientsSection = (ctx: PDFContext, data: ClientsReportData, sectionNumber: number): void => {
+  startNewSection(ctx, 'Análisis de Clientes', sectionNumber);
+  
+  addSectionTitle(ctx, 'Análisis de Clientes');
+  
+  // ---- RESUMEN GENERAL ----
+  addSubsectionTitle(ctx, 'Resumen General');
+  addKeyValue(ctx, 'Total Clientes', formatNumber(data.summary.totalClients));
+  addKeyValue(ctx, 'Clientes Activos', formatNumber(data.summary.activeClients));
+  addKeyValue(ctx, 'Nuevos Clientes (Período)', formatNumber(data.summary.newClientsThisPeriod));
+  addKeyValue(ctx, 'GMV Total', formatCurrency(data.summary.totalGMV));
+  addKeyValue(ctx, 'Servicios Prom./Cliente', data.summary.avgServicesPerClient.toFixed(1));
+  addKeyValue(ctx, 'GMV Prom./Cliente', formatCurrency(data.summary.avgGmvPerClient));
+  ctx.y += SPACING.SUBSECTION_GAP;
+  
+  // ---- CONCENTRACIÓN DE INGRESOS ----
+  addSubsectionTitle(ctx, 'Concentración de Ingresos');
+  
+  const boxY = ctx.y;
+  ctx.pdf.setFillColor(...BACKGROUND_SUBTLE);
+  ctx.pdf.setDrawColor(...BORDER_LIGHT);
+  ctx.pdf.roundedRect(ctx.marginLeft, boxY, ctx.contentWidth, 40, 2, 2, 'FD');
+  
+  ctx.pdf.setFontSize(9);
+  ctx.pdf.setTextColor(...CORPORATE_GRAY);
+  ctx.pdf.text('ANÁLISIS DE CONCENTRACIÓN', ctx.marginLeft + 5, boxY + 10);
+  
+  ctx.pdf.setFontSize(10);
+  ctx.pdf.setTextColor(...CORPORATE_BLACK);
+  ctx.pdf.text(`Top 5% de clientes genera: ${formatPercent(data.clientConcentration.top5Percent)} del GMV`, 
+    ctx.marginLeft + 5, boxY + 20);
+  ctx.pdf.text(`Top 10% de clientes genera: ${formatPercent(data.clientConcentration.top10Percent)} del GMV`, 
+    ctx.marginLeft + 5, boxY + 28);
+  
+  const hhi = data.clientConcentration.hhi;
+  const hhiLevel = hhi < 1500 ? 'Baja' : hhi < 2500 ? 'Moderada' : 'Alta';
+  ctx.pdf.text(`Índice HHI: ${formatNumber(hhi)} (Concentración ${hhiLevel})`, 
+    ctx.marginLeft + 5, boxY + 36);
+  
+  ctx.y = boxY + 48;
+  
+  // ---- TOP CLIENTES ----
+  if (data.topClients && data.topClients.length > 0) {
+    checkNewPage(ctx, 100);
+    addSubsectionTitle(ctx, 'Top 10 Clientes por GMV');
+    
+    const headers = ['#', 'Cliente', 'Servicios', 'GMV', 'AOV', 'Compl.'];
+    const rows = data.topClients.slice(0, 10).map(c => [
+      c.rank.toString(),
+      c.name.substring(0, 22),
+      formatNumber(c.services),
+      formatCurrency(c.gmv),
+      formatCurrency(c.aov),
+      formatPercent(c.completionRate)
+    ]);
+    
+    addTable(ctx, headers, rows, [12, 55, 25, 35, 35, 20]);
+    ctx.y += SPACING.TABLE_AFTER;
+  }
+  
+  // ---- ANÁLISIS POR TIPO DE SERVICIO ----
+  if (data.serviceTypeAnalysis) {
+    checkNewPage(ctx, 60);
+    addSubsectionTitle(ctx, 'Análisis por Tipo de Servicio');
+    
+    const foraneo = data.serviceTypeAnalysis.foraneo;
+    const local = data.serviceTypeAnalysis.local;
+    const totalGMV = (foraneo?.gmv || 0) + (local?.gmv || 0);
+    
+    const typeHeaders = ['Tipo', 'Servicios', 'GMV', '% GMV', 'Valor Prom.'];
+    const typeRows = [
+      ['Foráneo', 
+        formatNumber(foraneo?.count || 0),
+        formatCurrency(foraneo?.gmv || 0),
+        totalGMV > 0 ? formatPercent((foraneo?.gmv || 0) / totalGMV * 100) : '0%',
+        formatCurrency(foraneo?.avgValue || 0)
+      ],
+      ['Local', 
+        formatNumber(local?.count || 0),
+        formatCurrency(local?.gmv || 0),
+        totalGMV > 0 ? formatPercent((local?.gmv || 0) / totalGMV * 100) : '0%',
+        formatCurrency(local?.avgValue || 0)
+      ]
+    ];
+    
+    addTable(ctx, typeHeaders, typeRows, [30, 30, 40, 30, 40]);
+  }
+};
+
+// ============================================
 // MAIN EXPORT FUNCTION
 // ============================================
 export const exportHistoricalReportToPDF = async (
@@ -1105,6 +1199,9 @@ export const exportHistoricalReportToPDF = async (
           break;
         case 'projections':
           if (data.projections) renderProjectionsSection(ctx, data.projections, sectionNumber);
+          break;
+        case 'clients':
+          if (data.clients) renderClientsSection(ctx, data.clients, sectionNumber);
           break;
       }
     });
