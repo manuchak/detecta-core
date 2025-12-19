@@ -28,6 +28,7 @@ export type WidgetType =
   | 'pendingCandidates'
   | 'activeCustodians'
   | 'monthlyGMV'
+  | 'monthlyServices'
   | 'unassignedServices'
   | 'todayServices'
   | 'weekServices'
@@ -57,6 +58,7 @@ export interface WidgetConfig {
   type: WidgetType;
   label: string;
   icon?: LucideIcon;
+  isContext?: boolean; // Para indicar que es contexto del sistema vs tarea personal
 }
 
 export interface ModuleConfig {
@@ -70,6 +72,7 @@ export interface ModuleConfig {
 export interface RoleHomeConfiguration {
   hero?: HeroConfig;
   widgets?: WidgetConfig[];
+  contextWidgets?: WidgetConfig[]; // Widgets de contexto del sistema
   modules: string[];
   redirect?: string;
 }
@@ -182,16 +185,16 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
   supply_admin: {
     hero: {
       type: 'pendingCandidates',
-      title: 'Candidatos pendientes',
-      description: 'Hay candidatos esperando revisión o aprobación',
-      cta: { label: 'Revisar ahora', route: '/leads' },
+      title: 'Candidatos en proceso',
+      description: 'Candidatos que requieren seguimiento o acción',
+      cta: { label: 'Gestionar', route: '/leads' },
       icon: Users,
       urgencyThreshold: { warning: 5, critical: 10 }
     },
-    widgets: [
-      { type: 'activeCustodians', label: 'Activos' },
-      { type: 'pendingCandidates', label: 'Pendientes' },
-      { type: 'monthlyGMV', label: 'GMV Mes' }
+    contextWidgets: [
+      { type: 'monthlyGMV', label: 'GMV Mes', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios Activos', isContext: true },
+      { type: 'monthlyServices', label: 'Servicios Mes', isContext: true }
     ],
     modules: ['leads', 'liberacion', 'wms', 'reports', 'bi', 'settings']
   },
@@ -206,10 +209,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Users,
       urgencyThreshold: { warning: 3, critical: 8 }
     },
-    widgets: [
-      { type: 'activeCustodians', label: 'Activos' },
-      { type: 'pendingCandidates', label: 'Pendientes' },
-      { type: 'todayServices', label: 'Hoy' }
+    contextWidgets: [
+      { type: 'monthlyGMV', label: 'GMV Mes', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios Activos', isContext: true },
+      { type: 'monthlyServices', label: 'Servicios Mes', isContext: true }
     ],
     modules: ['leads', 'liberacion', 'wms', 'settings']
   },
@@ -219,15 +222,15 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
     hero: {
       type: 'unassignedServices',
       title: 'Servicios sin asignar',
-      description: 'Servicios programados sin custodio asignado',
+      description: 'Servicios programados que requieren custodio',
       cta: { label: 'Asignar', route: '/planeacion' },
       icon: Calendar,
       urgencyThreshold: { warning: 3, critical: 8 }
     },
-    widgets: [
-      { type: 'todayServices', label: 'Hoy' },
-      { type: 'weekServices', label: 'Semana' },
-      { type: 'completionRate', label: 'Completados' }
+    contextWidgets: [
+      { type: 'todayServices', label: 'Hoy', isContext: true },
+      { type: 'weekServices', label: 'Semana', isContext: true },
+      { type: 'completionRate', label: 'Completados', isContext: true }
     ],
     modules: ['planeacion', 'services', 'monitoring', 'settings']
   },
@@ -242,10 +245,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: UserPlus,
       urgencyThreshold: { warning: 5, critical: 12 }
     },
-    widgets: [
-      { type: 'newLeads', label: 'Esta semana' },
-      { type: 'conversionRate', label: 'Conversión' },
-      { type: 'myAssigned', label: 'Asignados' }
+    contextWidgets: [
+      { type: 'newLeads', label: 'Esta semana', isContext: true },
+      { type: 'conversionRate', label: 'Conversión', isContext: true },
+      { type: 'myAssigned', label: 'Asignados', isContext: true }
     ],
     modules: ['leads', 'reports', 'settings']
   },
@@ -260,10 +263,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: AlertTriangle,
       urgencyThreshold: { warning: 3, critical: 10 }
     },
-    widgets: [
-      { type: 'vehiclesOnline', label: 'En línea' },
-      { type: 'activeAlerts', label: 'Alertas' },
-      { type: 'offlineVehicles', label: 'Sin señal' }
+    contextWidgets: [
+      { type: 'vehiclesOnline', label: 'En línea', isContext: true },
+      { type: 'activeAlerts', label: 'Alertas', isContext: true },
+      { type: 'offlineVehicles', label: 'Sin señal', isContext: true }
     ],
     modules: ['monitoring', 'services', 'tickets', 'incidentes', 'settings']
   },
@@ -278,10 +281,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Monitor,
       urgencyThreshold: { warning: 5, critical: 15 }
     },
-    widgets: [
-      { type: 'vehiclesOnline', label: 'En línea' },
-      { type: 'activeAlerts', label: 'Alertas' },
-      { type: 'todayServices', label: 'Servicios hoy' }
+    contextWidgets: [
+      { type: 'vehiclesOnline', label: 'En línea', isContext: true },
+      { type: 'activeAlerts', label: 'Alertas', isContext: true },
+      { type: 'todayServices', label: 'Servicios hoy', isContext: true }
     ],
     modules: ['monitoring', 'services', 'tickets', 'reports', 'settings']
   },
@@ -295,10 +298,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       cta: { label: 'Ver análisis', route: '/executive-dashboard' },
       icon: TrendingUp
     },
-    widgets: [
-      { type: 'monthlyGMV', label: 'GMV' },
-      { type: 'activeCustodians', label: 'Activos' },
-      { type: 'completionRate', label: 'Completados' }
+    contextWidgets: [
+      { type: 'monthlyGMV', label: 'GMV', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios', isContext: true },
+      { type: 'completionRate', label: 'Completados', isContext: true }
     ],
     modules: ['bi', 'reports', 'monitoring', 'settings']
   },
@@ -313,10 +316,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Wrench,
       urgencyThreshold: { warning: 2, critical: 5 }
     },
-    widgets: [
-      { type: 'pendingInstallations', label: 'Pendientes' },
-      { type: 'completedInstallations', label: 'Completadas' },
-      { type: 'todayServices', label: 'Hoy' }
+    contextWidgets: [
+      { type: 'pendingInstallations', label: 'Pendientes', isContext: true },
+      { type: 'completedInstallations', label: 'Completadas', isContext: true },
+      { type: 'todayServices', label: 'Hoy', isContext: true }
     ],
     modules: ['installers', 'services', 'wms', 'settings']
   },
@@ -325,16 +328,16 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
   admin: {
     hero: {
       type: 'pendingCandidates',
-      title: 'Acciones pendientes',
-      description: 'Resumen de actividad del sistema',
+      title: 'Candidatos en pipeline',
+      description: 'Resumen de candidatos en proceso',
       cta: { label: 'Ver dashboard', route: '/executive-dashboard' },
       icon: TrendingUp,
       urgencyThreshold: { warning: 10, critical: 20 }
     },
-    widgets: [
-      { type: 'monthlyGMV', label: 'GMV Mes' },
-      { type: 'activeCustodians', label: 'Custodios' },
-      { type: 'todayServices', label: 'Servicios' }
+    contextWidgets: [
+      { type: 'monthlyGMV', label: 'GMV Mes', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios', isContext: true },
+      { type: 'monthlyServices', label: 'Servicios', isContext: true }
     ],
     modules: ['bi', 'leads', 'planeacion', 'monitoring', 'wms', 'settings']
   },
@@ -348,10 +351,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       cta: { label: 'Dashboard ejecutivo', route: '/executive-dashboard' },
       icon: TrendingUp
     },
-    widgets: [
-      { type: 'monthlyGMV', label: 'GMV' },
-      { type: 'activeCustodians', label: 'Custodios' },
-      { type: 'completionRate', label: 'Eficiencia' }
+    contextWidgets: [
+      { type: 'monthlyGMV', label: 'GMV', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios', isContext: true },
+      { type: 'monthlyServices', label: 'Servicios', isContext: true }
     ],
     modules: ['bi', 'reports', 'leads', 'monitoring', 'settings']
   },
@@ -366,10 +369,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: ClipboardList,
       urgencyThreshold: { warning: 5, critical: 10 }
     },
-    widgets: [
-      { type: 'todayServices', label: 'Hoy' },
-      { type: 'unassignedServices', label: 'Sin asignar' },
-      { type: 'activeAlerts', label: 'Alertas' }
+    contextWidgets: [
+      { type: 'todayServices', label: 'Hoy', isContext: true },
+      { type: 'unassignedServices', label: 'Sin asignar', isContext: true },
+      { type: 'activeAlerts', label: 'Alertas', isContext: true }
     ],
     modules: ['planeacion', 'services', 'monitoring', 'tickets', 'settings']
   },
@@ -384,10 +387,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Shield,
       urgencyThreshold: { warning: 3, critical: 8 }
     },
-    widgets: [
-      { type: 'activeAlerts', label: 'Alertas' },
-      { type: 'vehiclesOnline', label: 'Monitoreo' },
-      { type: 'todayServices', label: 'Servicios' }
+    contextWidgets: [
+      { type: 'activeAlerts', label: 'Alertas', isContext: true },
+      { type: 'vehiclesOnline', label: 'Monitoreo', isContext: true },
+      { type: 'todayServices', label: 'Servicios', isContext: true }
     ],
     modules: ['monitoring', 'incidentes', 'reports', 'bi', 'settings']
   },
@@ -402,10 +405,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Shield,
       urgencyThreshold: { warning: 5, critical: 12 }
     },
-    widgets: [
-      { type: 'activeAlerts', label: 'Alertas' },
-      { type: 'pendingCandidates', label: 'Evaluaciones' },
-      { type: 'completionRate', label: 'Completadas' }
+    contextWidgets: [
+      { type: 'activeAlerts', label: 'Alertas', isContext: true },
+      { type: 'pendingCandidates', label: 'Evaluaciones', isContext: true },
+      { type: 'completionRate', label: 'Completadas', isContext: true }
     ],
     modules: ['monitoring', 'leads', 'incidentes', 'settings']
   },
@@ -420,10 +423,10 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       icon: Bell,
       urgencyThreshold: { warning: 5, critical: 15 }
     },
-    widgets: [
-      { type: 'openTickets', label: 'Abiertos' },
-      { type: 'todayServices', label: 'Hoy' },
-      { type: 'completionRate', label: 'Resueltos' }
+    contextWidgets: [
+      { type: 'openTickets', label: 'Abiertos', isContext: true },
+      { type: 'todayServices', label: 'Hoy', isContext: true },
+      { type: 'completionRate', label: 'Resueltos', isContext: true }
     ],
     modules: ['tickets', 'monitoring', 'services', 'settings']
   },

@@ -7,6 +7,7 @@ interface MetricWidgetProps {
   trendDirection?: 'up' | 'down' | 'neutral';
   isLoading?: boolean;
   index?: number;
+  isContext?: boolean; // Indica si es un widget de contexto del sistema
 }
 
 export const MetricWidget = ({
@@ -16,6 +17,7 @@ export const MetricWidget = ({
   trendDirection,
   isLoading,
   index = 0,
+  isContext = false,
 }: MetricWidgetProps) => {
   if (isLoading) {
     return (
@@ -31,11 +33,17 @@ export const MetricWidget = ({
 
   return (
     <div 
-      className="liquid-glass-widget text-center animate-apple-slide-in"
+      className={`
+        liquid-glass-widget text-center animate-apple-slide-in
+        ${isContext ? 'opacity-90 border-border/20' : ''}
+      `}
       style={{ animationDelay: `${(index + 1) * 50}ms` }}
     >
       <div className="space-y-1">
-        <p className="text-3xl font-bold tracking-tight text-foreground">
+        <p className={`
+          text-3xl font-bold tracking-tight
+          ${isContext ? 'text-foreground/90' : 'text-foreground'}
+        `}>
           {value}
         </p>
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">

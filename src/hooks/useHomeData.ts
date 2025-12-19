@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ROLE_HOME_CONFIG, MODULES, getUrgencyLevel } from '@/config/roleHomeConfig';
 import { useHeroData } from '@/hooks/home/useHeroData';
 import { useWidgetData } from '@/hooks/home/useWidgetData';
-import type { UserRole, WidgetConfig, ModuleConfig } from '@/config/roleHomeConfig';
+import type { UserRole, ModuleConfig } from '@/config/roleHomeConfig';
 
 interface UseHomeDataResult {
   hero: {
@@ -19,6 +19,11 @@ interface UseHomeDataResult {
     value: number | string;
     isLoading: boolean;
   }>;
+  contextWidgets: Array<{
+    label: string;
+    value: number | string;
+    isLoading: boolean;
+  }>;
   modules: ModuleConfig[];
   shouldRedirect: string | null;
   isLoading: boolean;
@@ -30,7 +35,15 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
   // Hero data
   const heroQuery = useHeroData(config?.hero?.type);
   
-  // Widget data - we need to call hooks unconditionally
+  // Context widget data - we need to call hooks unconditionally
+  const contextTypes = config?.contextWidgets?.map(w => w.type) || [];
+  const context1 = useWidgetData(contextTypes[0] || 'monthlyGMV');
+  const context2 = useWidgetData(contextTypes[1] || 'activeCustodians');
+  const context3 = useWidgetData(contextTypes[2] || 'monthlyServices');
+  
+  const contextQueries = [context1, context2, context3];
+
+  // Legacy widget support (for backwards compatibility)
   const widgetTypes = config?.widgets?.map(w => w.type) || [];
   const widget1 = useWidgetData(widgetTypes[0] || 'todayServices');
   const widget2 = useWidgetData(widgetTypes[1] || 'todayServices');
@@ -43,6 +56,7 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
       return {
         hero: null,
         widgets: [],
+        contextWidgets: [],
         modules: [],
         shouldRedirect: null,
         isLoading: false,
@@ -54,6 +68,7 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
       return {
         hero: null,
         widgets: [],
+        contextWidgets: [],
         modules: [],
         shouldRedirect: config.redirect,
         isLoading: false,
@@ -74,7 +89,14 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
       isLoading: heroQuery.isLoading,
     } : null;
 
-    // Build widgets
+    // Build context widgets (new pattern)
+    const contextWidgets = (config.contextWidgets || []).map((w, i) => ({
+      label: w.label,
+      value: contextQueries[i]?.data?.value ?? 0,
+      isLoading: contextQueries[i]?.isLoading ?? false,
+    }));
+
+    // Build legacy widgets (backwards compatibility)
     const widgets = (config.widgets || []).map((w, i) => ({
       label: w.label,
       value: widgetQueries[i]?.data?.value ?? 0,
@@ -86,12 +108,25 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
       .map(id => MODULES[id])
       .filter(Boolean);
 
+    const allLoading = heroQuery.isLoading || 
+      contextQueries.some(q => q.isLoading) ||
+      widgetQueries.some(q => q.isLoading);
+
     return {
       hero,
       widgets,
+      contextWidgets,
       modules,
       shouldRedirect: null,
-      isLoading: heroQuery.isLoading || widgetQueries.some(q => q.isLoading),
+      isLoading: allLoading,
     };
-  }, [config, heroQuery.data, heroQuery.isLoading, widget1.data, widget2.data, widget3.data, widget1.isLoading, widget2.isLoading, widget3.isLoading]);
+  }, [
+    config, 
+    heroQuery.data, 
+    heroQuery.isLoading, 
+    context1.data, context2.data, context3.data,
+    context1.isLoading, context2.isLoading, context3.isLoading,
+    widget1.data, widget2.data, widget3.data, 
+    widget1.isLoading, widget2.isLoading, widget3.isLoading
+  ]);
 };
