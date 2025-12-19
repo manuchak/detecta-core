@@ -121,27 +121,48 @@ export const useCustodioLiberacion = () => {
     }
   });
 
-  // Actualizar checklist
+  // Actualizar checklist (incluye datos de contacto del candidato)
   const updateChecklist = useMutation({
     mutationFn: async ({ 
       id, 
-      updates 
+      updates,
+      candidatoUpdates
     }: { 
       id: string; 
-      updates: Partial<CustodioLiberacion> 
+      updates: Partial<CustodioLiberacion>;
+      candidatoUpdates?: { nombre?: string; telefono?: string; email?: string; vehiculo_propio?: boolean };
     }) => {
+      // Actualizar liberación
       const { data, error } = await supabase
         .from('custodio_liberacion')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select('candidato_id')
         .single();
       
       if (error) throw error;
+
+      // Si hay updates del candidato, actualizar candidatos_custodios
+      if (candidatoUpdates && Object.keys(candidatoUpdates).length > 0 && data?.candidato_id) {
+        const { error: candidatoError } = await supabase
+          .from('candidatos_custodios')
+          .update({
+            ...candidatoUpdates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.candidato_id);
+        
+        if (candidatoError) {
+          console.error('Error actualizando datos del candidato:', candidatoError);
+          throw new Error('Error actualizando datos del candidato: ' + candidatoError.message);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custodio-liberacion'] });
+      queryClient.invalidateQueries({ queryKey: ['candidatos-custodios'] });
       toast({
         title: 'Actualizado',
         description: 'Checklist actualizado correctamente'
