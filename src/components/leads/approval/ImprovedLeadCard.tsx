@@ -30,12 +30,13 @@ interface ImprovedLeadCardProps {
   onLogCall: (lead: AssignedLead) => void;
   onMoveToPool?: (lead: AssignedLead) => void;
   onIniciarLiberacion?: (lead: AssignedLead) => void;
+  onRetryVinculacion?: (lead: AssignedLead) => void;
 }
 
 export const ImprovedLeadCard = ({
   lead, callLogs, onVapiCall, onManualInterview, onEditLead, onViewCallHistory,
   onApproveLead, onSendToSecondInterview, onReject, onCompleteMissingInfo,
-  onLogCall, onMoveToPool, onIniciarLiberacion
+  onLogCall, onMoveToPool, onIniciarLiberacion, onRetryVinculacion
 }: ImprovedLeadCardProps) => {
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
@@ -173,9 +174,15 @@ export const ImprovedLeadCard = ({
           )}
 
           {lead.final_decision === 'approved' && onIniciarLiberacion && (
-            <Button size="default" onClick={() => onIniciarLiberacion(lead)} className="h-10 px-5 bg-amber-500 hover:bg-amber-600 text-white font-medium">
-              <Rocket className="h-4 w-4 mr-2" />Liberar Custodio
-            </Button>
+            lead.candidato_custodio_id ? (
+              <Button size="default" onClick={() => onIniciarLiberacion(lead)} className="h-10 px-5 bg-amber-500 hover:bg-amber-600 text-white font-medium">
+                <Rocket className="h-4 w-4 mr-2" />Liberar Custodio
+              </Button>
+            ) : onRetryVinculacion && (
+              <Button size="default" variant="outline" onClick={() => onRetryVinculacion(lead)} className="h-10 px-5 border-amber-300 text-amber-700 hover:bg-amber-50 font-medium">
+                <AlertTriangle className="h-4 w-4 mr-2" />Re-vincular
+              </Button>
+            )
           )}
 
           <DropdownMenu>

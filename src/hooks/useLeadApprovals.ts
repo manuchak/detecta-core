@@ -579,6 +579,55 @@ export const useLeadApprovals = () => {
     await fetchCallLogs();
   };
 
+  // Re-vincular leads aprobados que quedaron sin candidato
+  const retryVinculacion = async (lead: AssignedLead) => {
+    try {
+      console.log('🔗 Intentando re-vincular lead:', lead.lead_id);
+      
+      const { data: candidatoId, error: syncError } = await supabase
+        .rpc('sync_lead_to_candidato', {
+          p_lead_id: lead.lead_id,
+          p_nombre: lead.lead_nombre,
+          p_email: lead.lead_email,
+          p_telefono: lead.lead_telefono || '',
+          p_fuente: 'Plataforma Detecta',
+          p_estado_proceso: 'aprobado'
+        });
+
+      if (syncError) {
+        console.error('❌ Error re-vinculando candidato:', syncError);
+        throw new Error(`Error vinculando candidato: ${syncError.message}`);
+      }
+
+      // Actualizar estado del lead a aprobado si no lo está
+      const { error: leadError } = await sbx.update('leads', {
+        estado: 'aprobado',
+        updated_at: new Date().toISOString()
+      }).eq('id', lead.lead_id);
+
+      if (leadError) {
+        console.error('Error actualizando lead:', leadError);
+      }
+
+      console.log('✅ Lead re-vinculado exitosamente:', candidatoId);
+
+      toast({
+        title: "Candidato vinculado",
+        description: "El candidato ha sido vinculado correctamente. Ahora puedes liberarlo.",
+      });
+
+      await refreshAfterCall();
+    } catch (error) {
+      console.error('Error completo al re-vincular lead:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      toast({
+        title: "Error",
+        description: `No se pudo vincular el candidato: ${errorMessage}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   // Funciones de paginación
   const goToPage = (newPage: number) => {
     fetchAssignedLeads(newPage, dateFilter);
@@ -607,6 +656,7 @@ export const useLeadApprovals = () => {
     handleApproveLead,
     handleSendToSecondInterview,
     handleRejectWithReasons,
+    retryVinculacion,
     goToPage,
     applyDateFilter
   };
