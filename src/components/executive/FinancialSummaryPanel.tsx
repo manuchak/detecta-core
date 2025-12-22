@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFinancialMetrics } from '@/hooks/useFinancialMetrics';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Percent, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,12 +74,18 @@ export const FinancialSummaryPanel = () => {
     fullDate: format(parseISO(d.fecha), 'dd MMM', { locale: es }),
     margen: d.margenPorcentaje,
     gmv: d.gmv,
-    costos: d.costos
+    costos: d.costos,
+    costoCustodios: d.costoCustodios,
+    costoCasetas: d.costoCasetas,
+    costoArmados: d.costoArmados
   }));
 
   const avgMargin = metrics.dailyMargins.length > 0
     ? metrics.dailyMargins.reduce((sum, d) => sum + d.margenPorcentaje, 0) / metrics.dailyMargins.length
     : 0;
+
+  // Find max cost for Y axis scale
+  const maxCost = Math.max(...chartData.map(d => d.costoCustodios + d.costoCasetas + d.costoArmados));
 
   return (
     <Card>
@@ -124,20 +130,31 @@ export const FinancialSummaryPanel = () => {
           })}
         </div>
 
-        {/* Daily Margin Chart */}
+        {/* Daily Margin Chart with Cost Breakdown */}
         <div>
           <h4 className="text-sm font-medium text-foreground mb-3">
-            Margen Bruto Diario (últimos 14 días)
+            Margen Bruto y Composición de Costos (últimos 14 días)
           </h4>
-          <div className="h-[180px]">
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <XAxis 
                   dataKey="fecha" 
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                   axisLine={{ stroke: 'hsl(var(--border))' }}
                 />
                 <YAxis 
+                  yAxisId="left"
+                  orientation="left"
+                  domain={[0, maxCost * 1.2]}
+                  tickFormatter={(v) => formatCurrency(v)}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  width={55}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
@@ -145,6 +162,7 @@ export const FinancialSummaryPanel = () => {
                   width={45}
                 />
                 <ReferenceLine 
+                  yAxisId="right"
                   y={avgMargin} 
                   stroke="hsl(var(--muted-foreground))" 
                   strokeDasharray="3 3" 
@@ -155,38 +173,113 @@ export const FinancialSummaryPanel = () => {
                     position: 'right'
                   }}
                 />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium text-foreground">{data.fullDate}</p>
-                          <p className="text-sm text-emerald-500">
-                            Margen: {data.margen.toFixed(1)}%
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            GMV: {formatCurrency(data.gmv)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Costos: {formatCurrency(data.costos)}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
+                
+                {/* Stacked areas with 50% opacity - subtle background */}
+                <Area 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="costoCustodios" 
+                  stackId="costos"
+                  fill="hsl(var(--chart-1))"
+                  fillOpacity={0.5}
+                  stroke="none"
+                  name="Custodios"
                 />
+                <Area 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="costoCasetas" 
+                  stackId="costos"
+                  fill="hsl(var(--chart-2))"
+                  fillOpacity={0.5}
+                  stroke="none"
+                  name="Casetas"
+                />
+                <Area 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="costoArmados" 
+                  stackId="costos"
+                  fill="hsl(var(--chart-3))"
+                  fillOpacity={0.5}
+                  stroke="none"
+                  name="Armados"
+                />
+
+                {/* Main margin line - protagonist */}
                 <Line 
+                  yAxisId="right"
                   type="monotone" 
                   dataKey="margen" 
                   stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }}
                   activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+                  name="Margen %"
                 />
-              </LineChart>
+
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-popover border border-border rounded-lg p-3 shadow-lg text-sm">
+                          <p className="font-medium text-foreground mb-2">{data.fullDate}</p>
+                          <div className="space-y-1">
+                            <p className="text-muted-foreground">
+                              GMV: <span className="text-foreground font-medium">{formatCurrency(data.gmv)}</span>
+                            </p>
+                            <div className="border-t border-border pt-1 mt-1">
+                              <p className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
+                                <span className="text-muted-foreground">Custodios:</span>
+                                <span className="text-foreground">{formatCurrency(data.costoCustodios)}</span>
+                              </p>
+                              <p className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
+                                <span className="text-muted-foreground">Casetas:</span>
+                                <span className="text-foreground">{formatCurrency(data.costoCasetas)}</span>
+                              </p>
+                              <p className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-3))' }} />
+                                <span className="text-muted-foreground">Armados:</span>
+                                <span className="text-foreground">{formatCurrency(data.costoArmados)}</span>
+                              </p>
+                            </div>
+                            <div className="border-t border-border pt-1 mt-1">
+                              <p className="text-primary font-medium">
+                                Margen: {data.margen.toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
+          </div>
+          
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-3 justify-center">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(var(--chart-1) / 0.5)' }} />
+              Custodios
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.5)' }} />
+              Casetas
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(var(--chart-3) / 0.5)' }} />
+              Armados
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-4 h-0.5 rounded" style={{ backgroundColor: 'hsl(var(--primary))' }} />
+              Margen %
+            </span>
           </div>
         </div>
       </CardContent>

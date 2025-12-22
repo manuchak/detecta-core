@@ -33,6 +33,9 @@ export interface DailyMargin {
   fecha: string;
   gmv: number;
   costos: number;
+  costoCustodios: number;
+  costoCasetas: number;
+  costoArmados: number;
   margen: number;
   margenPorcentaje: number;
 }
@@ -63,16 +66,23 @@ interface ServicioConCostos {
   km_recorridos: number | null;
 }
 
-function calcularCostoServicio(servicio: ServicioConCostos): number {
-  const costoCustodio = parseFloat(String(servicio.costo_custodio || 0));
-  const costoCasetas = parseFloat(String(servicio.casetas || 0));
+interface CostosDesglosados {
+  custodio: number;
+  casetas: number;
+  armado: number;
+  total: number;
+}
+
+function calcularCostosDesglosados(servicio: ServicioConCostos): CostosDesglosados {
+  const custodio = parseFloat(String(servicio.costo_custodio || 0));
+  const casetas = parseFloat(String(servicio.casetas || 0));
   
-  let costoArmado = 0;
+  let armado = 0;
   if (servicio.nombre_armado && servicio.km_recorridos && servicio.km_recorridos > 0) {
-    costoArmado = calcularCostoArmadoPorKm(servicio.km_recorridos);
+    armado = calcularCostoArmadoPorKm(servicio.km_recorridos);
   }
   
-  return costoCustodio + costoCasetas + costoArmado;
+  return { custodio, casetas, armado, total: custodio + casetas + armado };
 }
 
 export function useFinancialMetrics() {
@@ -109,8 +119,8 @@ export function useFinancialMetrics() {
       const gmvVariacion = gmvAnterior > 0 ? ((gmvMTD - gmvAnterior) / gmvAnterior) * 100 : 0;
 
       // Calculate costs from servicios_custodia (costo_custodio + casetas + costo_armado)
-      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostoServicio(s as ServicioConCostos), 0);
-      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostoServicio(s as ServicioConCostos), 0);
+      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos).total, 0);
+      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos).total, 0);
       const costosVariacion = costosAnterior > 0 ? ((costosMTD - costosAnterior) / costosAnterior) * 100 : 0;
 
       // Calculate margin
@@ -132,26 +142,37 @@ export function useFinancialMetrics() {
       });
 
       const gmvByDay: Record<string, number> = {};
-      const costosByDay: Record<string, number> = {};
+      const costosCustodiosByDay: Record<string, number> = {};
+      const costosCasetasByDay: Record<string, number> = {};
+      const costosArmadosByDay: Record<string, number> = {};
       
       (serviciosCurrent || []).forEach(s => {
         const fecha = s.fecha_hora_cita ? format(new Date(s.fecha_hora_cita), 'yyyy-MM-dd') : null;
         if (fecha) {
+          const desglose = calcularCostosDesglosados(s as ServicioConCostos);
           gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
-          costosByDay[fecha] = (costosByDay[fecha] || 0) + calcularCostoServicio(s as ServicioConCostos);
+          costosCustodiosByDay[fecha] = (costosCustodiosByDay[fecha] || 0) + desglose.custodio;
+          costosCasetasByDay[fecha] = (costosCasetasByDay[fecha] || 0) + desglose.casetas;
+          costosArmadosByDay[fecha] = (costosArmadosByDay[fecha] || 0) + desglose.armado;
         }
       });
 
       const dailyMargins: DailyMargin[] = last14Days.map(day => {
         const fecha = format(day, 'yyyy-MM-dd');
         const gmv = gmvByDay[fecha] || 0;
-        const costos = costosByDay[fecha] || 0;
+        const costoCustodios = costosCustodiosByDay[fecha] || 0;
+        const costoCasetas = costosCasetasByDay[fecha] || 0;
+        const costoArmados = costosArmadosByDay[fecha] || 0;
+        const costos = costoCustodios + costoCasetas + costoArmados;
         const margen = gmv - costos;
         const margenPct = gmv > 0 ? (margen / gmv) * 100 : 0;
         return {
           fecha,
           gmv,
           costos,
+          costoCustodios,
+          costoCasetas,
+          costoArmados,
           margen,
           margenPorcentaje: margenPct
         };
