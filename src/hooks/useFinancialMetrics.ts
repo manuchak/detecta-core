@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, endOfMonth, subMonths, format, eachDayOfInterval, subDays } from 'date-fns';
+import { format, eachDayOfInterval, subDays } from 'date-fns';
+import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
 
 export interface DailyMargin {
   fecha: string;
@@ -32,47 +33,45 @@ export function useFinancialMetrics() {
     queryKey: ['financial-metrics-mtd'],
     queryFn: async () => {
       const now = new Date();
-      const currentMonthStart = startOfMonth(now);
-      const currentMonthEnd = endOfMonth(now);
-      const previousMonthStart = startOfMonth(subMonths(now, 1));
-      const previousMonthEnd = endOfMonth(subMonths(now, 1));
+      const currentRange = getCurrentMTDRange(now);
+      const prevRange = getPreviousMTDRange(now);
 
-      // Get GMV current month
+      // Get GMV current month (MTD)
       const { data: gmvCurrent, error: gmvError } = await supabase
         .from('servicios_custodia')
         .select('fecha_servicio, cobro_cliente')
-        .gte('fecha_servicio', format(currentMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(currentMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', currentRange.start)
+        .lte('fecha_servicio', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (gmvError) throw gmvError;
 
-      // Get GMV previous month
+      // Get GMV previous month (MTD - same day range)
       const { data: gmvPrevious, error: gmvPrevError } = await supabase
         .from('servicios_custodia')
         .select('cobro_cliente')
-        .gte('fecha_servicio', format(previousMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(previousMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', prevRange.start)
+        .lte('fecha_servicio', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (gmvPrevError) throw gmvPrevError;
 
-      // Get costs current month
+      // Get costs current month (MTD)
       const { data: costosCurrent, error: costosError } = await supabase
         .from('gastos_externos')
         .select('fecha_gasto, monto, categoria, estado')
-        .gte('fecha_gasto', format(currentMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_gasto', format(currentMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_gasto', currentRange.start)
+        .lte('fecha_gasto', currentRange.end)
         .eq('estado', 'aprobado');
 
       if (costosError) throw costosError;
 
-      // Get costs previous month
+      // Get costs previous month (MTD - same day range)
       const { data: costosPrevious, error: costosPrevError } = await supabase
         .from('gastos_externos')
         .select('monto, categoria')
-        .gte('fecha_gasto', format(previousMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_gasto', format(previousMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_gasto', prevRange.start)
+        .lte('fecha_gasto', prevRange.end)
         .eq('estado', 'aprobado');
 
       if (costosPrevError) throw costosPrevError;
