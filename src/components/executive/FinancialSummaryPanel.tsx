@@ -9,7 +9,8 @@ import { es } from 'date-fns/locale';
 export const FinancialSummaryPanel = () => {
   const { metrics, loading } = useFinancialMetrics();
 
-  const formatCurrency = (n: number) => {
+  const formatCurrency = (n: number | undefined) => {
+    if (n === undefined || n === null) return '$0';
     if (n >= 1000000) return `$${(n / 1000000).toFixed(2)}M`;
     if (n >= 1000) return `$${(n / 1000).toFixed(0)}K`;
     return `$${n.toFixed(0)}`;
