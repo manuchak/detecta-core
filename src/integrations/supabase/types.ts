@@ -12634,6 +12634,24 @@ export type Database = {
         }
         Relationships: []
       }
+      kpis_operacionales_cache: {
+        Row: {
+          anio: number | null
+          aov: number | null
+          avg_km: number | null
+          cancelados: number | null
+          clientes_activos: number | null
+          completados: number | null
+          costo_total_custodios: number | null
+          custodios_activos: number | null
+          gmv: number | null
+          mes: string | null
+          mes_numero: number | null
+          pendientes: number | null
+          total_servicios: number | null
+        }
+        Relationships: []
+      }
       user_skills_view: {
         Row: {
           display_name: string | null
@@ -14841,6 +14859,7 @@ export type Database = {
         Returns: undefined
       }
       refresh_custodios_operativos_activos: { Args: never; Returns: undefined }
+      refresh_kpis_cache: { Args: never; Returns: undefined }
       renew_invitation_token: {
         Args: { p_invitation_id: string }
         Returns: {

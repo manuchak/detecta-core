@@ -38,6 +38,11 @@ import { ExpensesList } from '@/components/recruitment/ExpensesList';
 import { ExpenseMetricsCards } from '@/components/recruitment/ExpenseMetricsCards';
 import { ExpenseDistributionChart } from '@/components/recruitment/ExpenseDistributionChart';
 
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
   const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
@@ -50,6 +55,10 @@ const KPIDashboard = () => {
   const activeTab = searchParams.get('tab') || 'operacional';
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
+
+  // Dynamic date label for current month
+  const now = new Date();
+  const currentMonthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const handleTabChange = (value: string) => {
     if (value === 'kpis') {
@@ -396,7 +405,7 @@ const KPIDashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Resumen Septiembre 2025
+                    Resumen {currentMonthLabel}
                   </CardTitle>
                   <CardDescription>
                     Métricas consolidadas del mes actual

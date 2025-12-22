@@ -125,8 +125,24 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
     queryKey: ['operational-metrics', filterYear, filterMonth],
     enabled,
     queryFn: async (): Promise<OperationalMetrics> => {
-      // Build query with optional year/month filter
-      let query = supabase.from('servicios_custodia').select('*');
+      // Optimized: Only select required columns
+      const selectColumns = `
+        id,
+        fecha_hora_cita,
+        estado,
+        cobro_cliente,
+        nombre_custodio,
+        nombre_cliente,
+        km_recorridos,
+        costo_custodio
+      `;
+      
+      // Default to 2 years of data max for performance
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const defaultStartDate = twoYearsAgo.toISOString().split('T')[0];
+      
+      let query = supabase.from('servicios_custodia').select(selectColumns);
       
       if (filterYear) {
         const startDate = filterMonth 
@@ -139,6 +155,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
           : `${filterYear + 1}-01-01`;
         
         query = query.gte('fecha_hora_cita', startDate).lt('fecha_hora_cita', endDate);
+      } else {
+        // Limit to 2 years when no filter specified
+        query = query.gte('fecha_hora_cita', defaultStartDate);
       }
       
       const { data: services, error: servicesError } = await query;
@@ -154,7 +173,7 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       
       const { data: prevYearData, error: prevYearError } = await supabase
         .from('servicios_custodia')
-        .select('*')
+        .select(selectColumns)
         .gte('fecha_hora_cita', prevYearStartDate)
         .lt('fecha_hora_cita', prevYearEndDate);
       
