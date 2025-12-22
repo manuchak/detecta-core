@@ -42,7 +42,7 @@ export function useFinancialMetrics() {
         .select('fecha_hora_cita, cobro_cliente')
         .gte('fecha_hora_cita', currentRange.start)
         .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       if (gmvError) throw gmvError;
 
@@ -52,14 +52,14 @@ export function useFinancialMetrics() {
         .select('cobro_cliente')
         .gte('fecha_hora_cita', prevRange.start)
         .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       if (gmvPrevError) throw gmvPrevError;
 
       // Get costs current month (MTD)
       const { data: costosCurrent, error: costosError } = await supabase
         .from('gastos_externos')
-        .select('fecha_gasto, monto, categoria, estado')
+        .select('fecha_gasto, monto, estado')
         .gte('fecha_gasto', currentRange.start)
         .lte('fecha_gasto', currentRange.end)
         .eq('estado', 'aprobado');
@@ -69,7 +69,7 @@ export function useFinancialMetrics() {
       // Get costs previous month (MTD - same day range)
       const { data: costosPrevious, error: costosPrevError } = await supabase
         .from('gastos_externos')
-        .select('monto, categoria')
+        .select('monto')
         .gte('fecha_gasto', prevRange.start)
         .lte('fecha_gasto', prevRange.end)
         .eq('estado', 'aprobado');
@@ -93,16 +93,10 @@ export function useFinancialMetrics() {
       const margenAnterior = gmvAnterior > 0 ? (margenAnteriorAbs / gmvAnterior) * 100 : 0;
       const margenVariacion = margenPorcentaje - margenAnterior;
 
-      // Calculate extraordinary support (filter by category)
-      const apoyosExtraordinarios = (costosCurrent || [])
-        .filter(c => c.categoria?.toLowerCase().includes('apoyo') || c.categoria?.toLowerCase().includes('extraordinario'))
-        .reduce((sum, c) => sum + parseFloat(String(c.monto || 0)), 0);
-      
-      const apoyosAnterior = (costosPrevious || [])
-        .filter(c => c.categoria?.toLowerCase().includes('apoyo') || c.categoria?.toLowerCase().includes('extraordinario'))
-        .reduce((sum, c) => sum + parseFloat(String(c.monto || 0)), 0);
-      
-      const apoyosVariacion = apoyosAnterior > 0 ? ((apoyosExtraordinarios - apoyosAnterior) / apoyosAnterior) * 100 : 0;
+      // Extraordinary support - set to 0 as category data is not available
+      const apoyosExtraordinarios = 0;
+      const apoyosAnterior = 0;
+      const apoyosVariacion = 0;
 
       // Calculate daily margins for last 14 days
       const last14Days = eachDayOfInterval({
