@@ -7,6 +7,11 @@ import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard'
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
 import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+import { ExecutiveKPIsBar } from '@/components/executive/ExecutiveKPIsBar';
+import { TopClientsMTD } from '@/components/executive/TopClientsMTD';
+import { ServiceDistributionChart } from '@/components/executive/ServiceDistributionChart';
+import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
+import { QuarterlyServicesChart } from '@/components/executive/QuarterlyServicesChart';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
 
 const ExecutiveDashboard = () => {
@@ -57,13 +62,26 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
+        {/* NEW: Executive KPIs Bar (Looker Style - Page 1) */}
+        <ExecutiveKPIsBar />
+
         {/* Barra de Alertas Críticas */}
         <CriticalAlertsBar />
 
         {/* Componente Principal Unificado */}
         <UnifiedGMVDashboard />
 
-        {/* Grid Secundario */}
+        {/* NEW: Grid de 3 columnas con nuevos componentes (Looker Style) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <TopClientsMTD />
+          <ServiceDistributionChart />
+          <QuarterlyServicesChart />
+        </div>
+
+        {/* NEW: Panel de Finanzas (Looker Style - Page 3) */}
+        <FinancialSummaryPanel />
+
+        {/* Grid Secundario - Existente */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AnnualComparisonCard />
           <AdvancedForecastDashboard />
