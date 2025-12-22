@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,27 @@ import {
 } from 'lucide-react';
 import { useOperationalMetrics } from '@/hooks/useOperationalMetrics';
 
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
 export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
+  
+  // Dynamic date calculations
+  const { currentMonthLabel, quarterLabel } = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.ceil((currentMonth + 1) / 3);
+    const previousQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
+    
+    return {
+      currentMonthLabel: `${MONTH_NAMES[currentMonth]} ${currentYear}`,
+      quarterLabel: `Q${currentQuarter} vs Q${previousQuarter}`
+    };
+  }, []);
 
   if (isLoading || !metrics || !metrics.comparatives) {
     return (
@@ -48,7 +67,7 @@ export const OperationalOverview = () => {
     {
       title: 'Servicios Este Mes',
       value: metrics.comparatives.servicesThisMonth.current.toLocaleString(),
-      description: 'Septiembre 2025',
+      description: currentMonthLabel,
       icon: Clock,
       trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
       trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
@@ -108,7 +127,7 @@ export const OperationalOverview = () => {
     {
       title: 'Custodios Este Trimestre',
       value: metrics.comparatives.activeCustodiansQuarter.current.toLocaleString(),
-      description: 'Q3 vs Q2',
+      description: quarterLabel,
       icon: Users,
       trend: `${metrics.comparatives.activeCustodiansQuarter.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansQuarter.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansQuarter.changePercent >= 0,
