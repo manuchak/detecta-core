@@ -21,9 +21,9 @@ export function useTopClientsMTD() {
       // Get current month services (MTD)
       const { data: currentMonth, error: currentError } = await supabase
         .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente')
-        .gte('fecha_servicio', currentRange.start)
-        .lte('fecha_servicio', currentRange.end)
+        .select('nombre_cliente, cobro_cliente, fecha_hora_cita')
+        .gte('fecha_hora_cita', currentRange.start)
+        .lte('fecha_hora_cita', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (currentError) throw currentError;
@@ -32,8 +32,8 @@ export function useTopClientsMTD() {
       const { data: previousMonth, error: prevError } = await supabase
         .from('servicios_custodia')
         .select('nombre_cliente, cobro_cliente')
-        .gte('fecha_servicio', prevRange.start)
-        .lte('fecha_servicio', prevRange.end)
+        .gte('fecha_hora_cita', prevRange.start)
+        .lte('fecha_hora_cita', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (prevError) throw prevError;

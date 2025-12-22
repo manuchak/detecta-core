@@ -39,9 +39,9 @@ export function useFinancialMetrics() {
       // Get GMV current month (MTD)
       const { data: gmvCurrent, error: gmvError } = await supabase
         .from('servicios_custodia')
-        .select('fecha_servicio, cobro_cliente')
-        .gte('fecha_servicio', currentRange.start)
-        .lte('fecha_servicio', currentRange.end)
+        .select('fecha_hora_cita, cobro_cliente')
+        .gte('fecha_hora_cita', currentRange.start)
+        .lte('fecha_hora_cita', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (gmvError) throw gmvError;
@@ -50,8 +50,8 @@ export function useFinancialMetrics() {
       const { data: gmvPrevious, error: gmvPrevError } = await supabase
         .from('servicios_custodia')
         .select('cobro_cliente')
-        .gte('fecha_servicio', prevRange.start)
-        .lte('fecha_servicio', prevRange.end)
+        .gte('fecha_hora_cita', prevRange.start)
+        .lte('fecha_hora_cita', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (gmvPrevError) throw gmvPrevError;
@@ -112,8 +112,10 @@ export function useFinancialMetrics() {
 
       const gmvByDay: Record<string, number> = {};
       (gmvCurrent || []).forEach(s => {
-        const fecha = s.fecha_servicio;
-        gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
+        const fecha = s.fecha_hora_cita ? format(new Date(s.fecha_hora_cita), 'yyyy-MM-dd') : null;
+        if (fecha) {
+          gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
+        }
       });
 
       const costosByDay: Record<string, number> = {};
