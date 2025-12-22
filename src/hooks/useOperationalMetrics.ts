@@ -3,6 +3,28 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getUTCMonth, getUTCYear, getUTCDayOfMonth } from '@/utils/timezoneUtils';
 
+// Daily trend data for DoD chart
+export interface DailyTrendData {
+  fecha: string;
+  fechaLabel: string;
+  solicitados: number;
+  realizados: number;
+  fillRate: number;
+  aTiempo: number;
+  conRetraso: number;
+  otpRate: number;
+}
+
+// Operational alert type
+export interface OperationalAlert {
+  id: string;
+  type: 'critical' | 'warning' | 'info' | 'success';
+  title: string;
+  description: string;
+  value?: string;
+  timestamp?: string;
+}
+
 export interface OperationalMetrics {
   totalServices: number;
   completedServices: number;
@@ -56,6 +78,25 @@ export interface OperationalMetrics {
     aov: number;
     completionRate: number;
   }>;
+  // NEW: Fill Rate metrics
+  fillRate: {
+    mtd: number;
+    yesterday: number;
+    changeVsYesterday: number;
+    changeVsPrevMonth: number;
+    target: number;
+  };
+  // NEW: On-Time Performance metrics
+  onTimePerformance: {
+    mtd: number;
+    previousMonth: number;
+    changePercent: number;
+    target: number;
+  };
+  // NEW: Daily trend data for DoD chart
+  dailyTrend: DailyTrendData[];
+  // NEW: Operational alerts
+  alerts: OperationalAlert[];
   // Comparativos temporales
   comparatives: {
     servicesThisMonth: {
@@ -553,6 +594,189 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         });
       }
 
+      // ============== NEW: FILL RATE CALCULATIONS ==============
+      // Fill Rate = Servicios Realizados (completados + finalizados) / Servicios Solicitados (todos excepto cancelados antes de ejecución)
+      const fillRateMTD = currentMonthServices.length > 0 
+        ? (currentMTDCompleted / (currentMonthServices.length - currentMTDCancelled)) * 100 
+        : 0;
+      
+      // Yesterday's fill rate
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+      
+      const yesterdayServices = services?.filter(s => {
+        if (!s.fecha_hora_cita) return false;
+        return s.fecha_hora_cita.startsWith(yesterdayStr);
+      }) || [];
+      
+      const yesterdayCompleted = yesterdayServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      ).length;
+      const yesterdayCancelled = yesterdayServices.filter(s => 
+        s.estado?.toLowerCase() === 'cancelado'
+      ).length;
+      const yesterdayFillRate = yesterdayServices.length > yesterdayCancelled 
+        ? (yesterdayCompleted / (yesterdayServices.length - yesterdayCancelled)) * 100 
+        : 0;
+      
+      // Previous month fill rate
+      const prevMonthFillRate = previousMonthMTDServices.length > prevMTDCancelled 
+        ? (prevMTDCompleted / (previousMonthMTDServices.length - prevMTDCancelled)) * 100 
+        : 0;
+
+      const fillRate = {
+        mtd: Math.round(fillRateMTD * 10) / 10,
+        yesterday: Math.round(yesterdayFillRate * 10) / 10,
+        changeVsYesterday: Math.round(calculateChangePercent(fillRateMTD, yesterdayFillRate) * 10) / 10,
+        changeVsPrevMonth: Math.round(calculateChangePercent(fillRateMTD, prevMonthFillRate) * 10) / 10,
+        target: 95
+      };
+
+      // ============== NEW: ON-TIME PERFORMANCE CALCULATIONS ==============
+      // OTP = Servicios sin retraso / Total servicios finalizados
+      // Using tiempo_retraso field where 0 = on time
+      const currentMonthOnTime = currentMonthCompletedServices.filter(s => 
+        (s as any).tiempo_retraso === 0 || (s as any).tiempo_retraso === null || (s as any).tiempo_retraso === undefined
+      ).length;
+      const otpMTD = currentMonthCompletedServices.length > 0 
+        ? (currentMonthOnTime / currentMonthCompletedServices.length) * 100 
+        : 0;
+      
+      const prevMonthOnTime = prevMonthCompletedServices.filter(s => 
+        (s as any).tiempo_retraso === 0 || (s as any).tiempo_retraso === null || (s as any).tiempo_retraso === undefined
+      ).length;
+      const otpPrevMonth = prevMonthCompletedServices.length > 0 
+        ? (prevMonthOnTime / prevMonthCompletedServices.length) * 100 
+        : 0;
+
+      const onTimePerformance = {
+        mtd: Math.round(otpMTD * 10) / 10,
+        previousMonth: Math.round(otpPrevMonth * 10) / 10,
+        changePercent: Math.round(calculateChangePercent(otpMTD, otpPrevMonth) * 10) / 10,
+        target: 90
+      };
+
+      // ============== NEW: DAILY TREND DATA (Last 14 days) ==============
+      const dailyTrend: DailyTrendData[] = [];
+      const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      
+      for (let i = 13; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i - 1); // -1 porque los datos tienen 1 día de retraso
+        const dateStr = date.toISOString().split('T')[0];
+        const dayName = dayNames[date.getDay()];
+        const dayNum = date.getDate();
+        
+        const dayServices = services?.filter(s => 
+          s.fecha_hora_cita?.startsWith(dateStr)
+        ) || [];
+        
+        const dayCompleted = dayServices.filter(s => 
+          s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+        ).length;
+        const dayCancelled = dayServices.filter(s => 
+          s.estado?.toLowerCase() === 'cancelado'
+        ).length;
+        const dayOnTime = dayServices.filter(s => 
+          (s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado') &&
+          ((s as any).tiempo_retraso === 0 || (s as any).tiempo_retraso === null)
+        ).length;
+        const dayWithDelay = dayCompleted - dayOnTime;
+        
+        const dayFillRate = dayServices.length > dayCancelled 
+          ? (dayCompleted / (dayServices.length - dayCancelled)) * 100 
+          : 0;
+        const dayOtpRate = dayCompleted > 0 
+          ? (dayOnTime / dayCompleted) * 100 
+          : 0;
+        
+        dailyTrend.push({
+          fecha: dateStr,
+          fechaLabel: `${dayName} ${dayNum}`,
+          solicitados: dayServices.length - dayCancelled,
+          realizados: dayCompleted,
+          fillRate: Math.round(dayFillRate * 10) / 10,
+          aTiempo: dayOnTime,
+          conRetraso: dayWithDelay,
+          otpRate: Math.round(dayOtpRate * 10) / 10
+        });
+      }
+
+      // ============== NEW: OPERATIONAL ALERTS ==============
+      const alerts: OperationalAlert[] = [];
+      
+      // Alert: Low Fill Rate MTD
+      if (fillRateMTD < 90) {
+        alerts.push({
+          id: 'fill-rate-critical',
+          type: 'critical',
+          title: 'Fill Rate bajo crítico',
+          description: `Fill Rate MTD en ${fillRate.mtd}%, por debajo del 90%`,
+          value: `${fillRate.mtd}%`
+        });
+      } else if (fillRateMTD < 95) {
+        alerts.push({
+          id: 'fill-rate-warning',
+          type: 'warning',
+          title: 'Fill Rate por debajo de meta',
+          description: `Fill Rate MTD en ${fillRate.mtd}%, meta: 95%`,
+          value: `${fillRate.mtd}%`
+        });
+      }
+      
+      // Alert: Low OTP
+      if (otpMTD < 80) {
+        alerts.push({
+          id: 'otp-critical',
+          type: 'critical',
+          title: 'On-Time Performance crítico',
+          description: `Solo ${onTimePerformance.mtd}% de servicios a tiempo`,
+          value: `${onTimePerformance.mtd}%`
+        });
+      } else if (otpMTD < 90) {
+        alerts.push({
+          id: 'otp-warning',
+          type: 'warning',
+          title: 'On-Time Performance bajo',
+          description: `${onTimePerformance.mtd}% de servicios a tiempo, meta: 90%`,
+          value: `${onTimePerformance.mtd}%`
+        });
+      }
+      
+      // Alert: Yesterday's drop
+      if (yesterdayFillRate < fillRateMTD - 5) {
+        alerts.push({
+          id: 'yesterday-drop',
+          type: 'warning',
+          title: 'Caída de Fill Rate ayer',
+          description: `Fill Rate ayer: ${fillRate.yesterday}%, -${(fillRateMTD - yesterdayFillRate).toFixed(1)}% vs MTD`,
+          value: `${fillRate.yesterday}%`
+        });
+      }
+      
+      // Alert: Services pending without custodian
+      if (currentMTDPending > 5) {
+        alerts.push({
+          id: 'pending-services',
+          type: 'info',
+          title: 'Servicios pendientes',
+          description: `${currentMTDPending} servicios aún sin completar este mes`,
+          value: currentMTDPending.toString()
+        });
+      }
+      
+      // Success alert if everything is on track
+      if (fillRateMTD >= 95 && otpMTD >= 90) {
+        alerts.push({
+          id: 'on-track',
+          type: 'success',
+          title: 'Operación en meta',
+          description: 'Fill Rate y On-Time Performance dentro de objetivos',
+          value: '✓'
+        });
+      }
+
       return {
         totalServices,
         completedServices,
@@ -571,6 +795,11 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         topCustodians,
         topClients,
         monthlyBreakdown,
+        // NEW metrics
+        fillRate,
+        onTimePerformance,
+        dailyTrend,
+        alerts,
         comparatives: {
           servicesThisMonth: {
             current: servicesThisMonth, // Ya excluye cancelados
