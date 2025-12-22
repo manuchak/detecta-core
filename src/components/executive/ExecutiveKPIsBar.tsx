@@ -81,6 +81,10 @@ export const ExecutiveKPIsBar = () => {
     return `$${n.toFixed(0)}`;
   };
 
+  const formatInteger = (n: number) => {
+    return `$${new Intl.NumberFormat('es-MX').format(Math.round(n))}`;
+  };
+
   const kpiCards: KPIData[] = [
     { 
       label: 'Servicios', 
@@ -96,7 +100,7 @@ export const ExecutiveKPIsBar = () => {
     },
     { 
       label: 'AOV', 
-      value: formatCurrency(kpis?.aov.value || 0), 
+      value: formatInteger(kpis?.aov.value || 0), 
       variation: kpis?.aov.var || 0,
       icon: <TrendingUp className="h-4 w-4" />,
       showVariation: false
