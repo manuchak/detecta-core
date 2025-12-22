@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Users, Truck, Shield, UserCheck } from 'lucide-react';
-import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { getCurrentMTDRange, getPreviousMTDRange, getCurrentDay } from '@/utils/mtdDateUtils';
 
 interface KPIData {
   label: string;
@@ -13,29 +13,29 @@ interface KPIData {
 }
 
 export const ExecutiveKPIsBar = () => {
+  const currentDay = getCurrentDay();
+  
   const { data: kpis, isLoading } = useQuery({
     queryKey: ['executive-kpis-bar'],
     queryFn: async () => {
       const now = new Date();
-      const currentStart = startOfMonth(now);
-      const currentEnd = endOfMonth(now);
-      const prevStart = startOfMonth(subMonths(now, 1));
-      const prevEnd = endOfMonth(subMonths(now, 1));
+      const currentRange = getCurrentMTDRange(now);
+      const prevRange = getPreviousMTDRange(now);
 
-      // Current month services
+      // Current month services (MTD)
       const { data: currentServices } = await supabase
         .from('servicios_custodia')
         .select('id, cobro_cliente, custodio_nombre, armado_asignado, nombre_cliente')
-        .gte('fecha_servicio', format(currentStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(currentEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', currentRange.start)
+        .lte('fecha_servicio', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
-      // Previous month services
+      // Previous month services (MTD - same day range)
       const { data: prevServices } = await supabase
         .from('servicios_custodia')
         .select('id, cobro_cliente, custodio_nombre, armado_asignado, nombre_cliente')
-        .gte('fecha_servicio', format(prevStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(prevEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', prevRange.start)
+        .lte('fecha_servicio', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       const current = currentServices || [];
@@ -151,7 +151,7 @@ export const ExecutiveKPIsBar = () => {
             ) : (
               <TrendingDown className="h-3 w-3 mr-1" />
             )}
-            <span>{kpi.variation >= 0 ? '+' : ''}{kpi.variation.toFixed(1)}% MoM</span>
+            <span>{kpi.variation >= 0 ? '+' : ''}{kpi.variation.toFixed(1)}% MTD</span>
           </div>
         </Card>
       ))}

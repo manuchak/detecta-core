@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
 
 export interface ClientGMVData {
   cliente: string;
@@ -15,27 +15,25 @@ export function useTopClientsMTD() {
     queryKey: ['top-clients-mtd'],
     queryFn: async () => {
       const now = new Date();
-      const currentMonthStart = startOfMonth(now);
-      const currentMonthEnd = endOfMonth(now);
-      const previousMonthStart = startOfMonth(subMonths(now, 1));
-      const previousMonthEnd = endOfMonth(subMonths(now, 1));
+      const currentRange = getCurrentMTDRange(now);
+      const prevRange = getPreviousMTDRange(now);
 
-      // Get current month services
+      // Get current month services (MTD)
       const { data: currentMonth, error: currentError } = await supabase
         .from('servicios_custodia')
         .select('nombre_cliente, cobro_cliente')
-        .gte('fecha_servicio', format(currentMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(currentMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', currentRange.start)
+        .lte('fecha_servicio', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (currentError) throw currentError;
 
-      // Get previous month services
+      // Get previous month services (MTD - same day range)
       const { data: previousMonth, error: prevError } = await supabase
         .from('servicios_custodia')
         .select('nombre_cliente, cobro_cliente')
-        .gte('fecha_servicio', format(previousMonthStart, 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(previousMonthEnd, 'yyyy-MM-dd'))
+        .gte('fecha_servicio', prevRange.start)
+        .lte('fecha_servicio', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (prevError) throw prevError;
