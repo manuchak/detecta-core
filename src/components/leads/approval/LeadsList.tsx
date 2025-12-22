@@ -27,6 +27,7 @@ interface LeadsListProps {
   onLogCall: (lead: AssignedLead) => void;
   onMoveToPool?: (lead: AssignedLead) => void;
   onIniciarLiberacion?: (lead: AssignedLead) => void;
+  onRetryVinculacion?: (lead: AssignedLead) => void;
 }
 
 export const LeadsList = ({
@@ -51,6 +52,7 @@ export const LeadsList = ({
   onLogCall,
   onMoveToPool,
   onIniciarLiberacion,
+  onRetryVinculacion,
 }: LeadsListProps) => {
   const getLeadCallLogs = (leadId: string) => {
     return callLogs.filter(log => log.id === leadId);
@@ -234,6 +236,7 @@ export const LeadsList = ({
                 onLogCall={onLogCall}
                 onMoveToPool={onMoveToPool}
                 onIniciarLiberacion={onIniciarLiberacion}
+                onRetryVinculacion={onRetryVinculacion}
               />
             );
           })}

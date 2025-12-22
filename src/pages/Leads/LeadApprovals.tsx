@@ -59,6 +59,7 @@ export const LeadApprovals = () => {
     handleApproveLead,
     handleSendToSecondInterview,
     handleRejectWithReasons,
+    retryVinculacion,
     goToPage,
     applyDateFilter
   } = useLeadApprovals();
@@ -477,6 +478,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
+                  onRetryVinculacion={retryVinculacion}
                 />
                 <LeadsPagination
                   currentPage={page}
@@ -506,6 +508,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
+                  onRetryVinculacion={retryVinculacion}
                 />
               </TabsContent>
 
@@ -527,6 +530,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
+                  onRetryVinculacion={retryVinculacion}
                 />
               </TabsContent>
 
