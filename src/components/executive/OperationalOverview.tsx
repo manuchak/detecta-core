@@ -13,6 +13,9 @@ import {
   Target
 } from 'lucide-react';
 import { useOperationalMetrics } from '@/hooks/useOperationalMetrics';
+import { OperationalHeroBar } from './OperationalHeroBar';
+import { DoDTrendChart } from './DoDTrendChart';
+import { OperationalAlerts } from './OperationalAlerts';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -42,23 +45,29 @@ export const OperationalOverview = () => {
 
   if (isLoading || !metrics || !metrics.comparatives || metrics.servicesDistribution?.completedCount === undefined) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader className="pb-2">
-              <div className="h-4 bg-muted rounded w-3/4"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-muted rounded w-1/2 mb-2"></div>
-              <div className="h-3 bg-muted rounded w-full"></div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        {/* Hero skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-28 bg-muted rounded-lg animate-pulse" />
+          ))}
+        </div>
+        {/* Chart skeleton */}
+        <div className="h-64 bg-muted rounded-lg animate-pulse" />
+        {/* Grid skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
@@ -67,169 +76,155 @@ export const OperationalOverview = () => {
     }).format(value);
   };
 
-  const kpiCards = [
-    {
-      title: 'Servicios Este Mes',
+  // Hero bar metrics
+  const heroMetrics = {
+    fillRate: {
+      label: 'Fill Rate MTD',
+      value: `${metrics.fillRate.mtd}%`,
+      actual: metrics.fillRate.mtd,
+      target: metrics.fillRate.target,
+      change: metrics.fillRate.changeVsPrevMonth,
+      changeLabel: `vs ${previousMonthLabel}`,
+    },
+    onTimePerformance: {
+      label: 'On-Time MTD',
+      value: `${metrics.onTimePerformance.mtd}%`,
+      actual: metrics.onTimePerformance.mtd,
+      target: metrics.onTimePerformance.target,
+      change: metrics.onTimePerformance.changePercent,
+      changeLabel: `vs ${previousMonthLabel}`,
+    },
+    servicesMTD: {
+      label: 'Servicios MTD',
       value: metrics.comparatives.servicesThisMonth.current.toLocaleString(),
-      description: currentMonthLabel,
-      icon: Clock,
-      trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
-      trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
-      color: 'text-pink-600',
-      bgColor: 'bg-pink-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
+      actual: metrics.comparatives.servicesThisMonth.current,
+      change: metrics.comparatives.servicesThisMonth.changePercent,
+      changeLabel: `vs ${previousMonthLabel}`,
     },
-    {
-      title: 'Servicios YTD',
-      value: metrics.comparatives.servicesYTD.current.toLocaleString(),
-      description: 'vs mismo período año anterior',
-      icon: Target,
-      trend: `${metrics.comparatives.servicesYTD.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesYTD.changePercent}%`,
-      trendPositive: metrics.comparatives.servicesYTD.changePercent >= 0,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      comparisonLabel: 'YTD vs YTD'
+    gmvMTD: {
+      label: 'GMV MTD',
+      value: formatCurrency(metrics.comparatives.totalGMV.current),
+      actual: metrics.comparatives.totalGMV.current,
+      change: metrics.comparatives.totalGMV.changePercent,
+      changeLabel: `vs ${previousMonthLabel}`,
     },
+  };
+
+  // Secondary KPI cards (simplified from original 8 to 4)
+  const secondaryKpis = [
     {
-      title: 'Tasa de Cumplimiento',
+      title: 'Tasa Cumplimiento',
       value: `${metrics.comparatives.completionRate.current}%`,
-      description: 'Este mes vs anterior',
-      icon: CheckCircle,
       trend: `${metrics.comparatives.completionRate.changePercent >= 0 ? '+' : ''}${metrics.comparatives.completionRate.changePercent}%`,
       trendPositive: metrics.comparatives.completionRate.changePercent >= 0,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
+      icon: CheckCircle,
     },
     {
-      title: 'Custodios Activos Este Mes',
+      title: 'Custodios Activos',
       value: metrics.comparatives.activeCustodiansMonth.current.toLocaleString(),
-      description: 'Con servicios este mes',
-      icon: Users,
       trend: `${metrics.comparatives.activeCustodiansMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansMonth.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansMonth.changePercent >= 0,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
+      icon: Users,
     },
     {
-      title: 'GMV Este Mes',
-      value: formatCurrency(metrics.comparatives.totalGMV.current),
-      description: currentMonthLabel,
-      icon: DollarSign,
-      trend: `${metrics.comparatives.totalGMV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.totalGMV.changePercent}%`,
-      trendPositive: metrics.comparatives.totalGMV.changePercent >= 0,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
-    },
-    {
-      title: 'AOV Este Mes',
+      title: 'AOV',
       value: formatCurrency(metrics.comparatives.averageAOV.current),
-      description: 'Valor promedio por orden',
-      icon: TrendingUp,
       trend: `${metrics.comparatives.averageAOV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageAOV.changePercent}%`,
       trendPositive: metrics.comparatives.averageAOV.changePercent >= 0,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
+      icon: DollarSign,
     },
     {
-      title: 'Custodios Este Trimestre',
-      value: metrics.comparatives.activeCustodiansQuarter.current.toLocaleString(),
-      description: quarterLabel,
-      icon: Users,
-      trend: `${metrics.comparatives.activeCustodiansQuarter.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansQuarter.changePercent}%`,
-      trendPositive: metrics.comparatives.activeCustodiansQuarter.changePercent >= 0,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
-      comparisonLabel: quarterLabel
-    },
-    {
-      title: 'KM Promedio Este Mes',
-      value: `${metrics.comparatives.averageKmPerService.current}`,
-      description: 'Kilómetros por servicio',
-      icon: Route,
+      title: 'KM Promedio',
+      value: metrics.comparatives.averageKmPerService.current.toLocaleString(),
       trend: `${metrics.comparatives.averageKmPerService.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageKmPerService.changePercent}%`,
       trendPositive: metrics.comparatives.averageKmPerService.changePercent >= 0,
-      color: 'text-cyan-600',
-      bgColor: 'bg-cyan-50',
-      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
-    }
+      icon: Route,
+    },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Main KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpiCards.map((kpi, index) => {
-          const Icon = kpi.icon;
-          
-          return (
-            <Card key={index} className="relative overflow-hidden hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {kpi.title}
-                </CardTitle>
-                <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
-                  <Icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold mb-1">{kpi.value}</div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {kpi.description}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Badge 
-                    className={`text-xs px-2 py-0 ${
-                      kpi.trendPositive 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-red-100 text-red-800 hover:bg-red-200'
-                    }`}
-                  >
-                    {kpi.trend}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">{kpi.comparisonLabel}</span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Section 1: Hero Bar with Semaphores */}
+      <OperationalHeroBar
+        fillRate={heroMetrics.fillRate}
+        onTimePerformance={heroMetrics.onTimePerformance}
+        servicesMTD={heroMetrics.servicesMTD}
+        gmvMTD={heroMetrics.gmvMTD}
+      />
+
+      {/* Section 2: DoD Trend Chart */}
+      <DoDTrendChart 
+        data={metrics.dailyTrend}
+        fillRateTarget={95}
+        otpTarget={90}
+      />
+
+      {/* Section 3: Secondary Metrics + Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Secondary KPIs - 4 cards in 2x2 grid */}
+        <div className="lg:col-span-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {secondaryKpis.map((kpi, index) => {
+              const Icon = kpi.icon;
+              return (
+                <Card key={index} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <Badge 
+                        className={`text-xs px-1.5 py-0 ${
+                          kpi.trendPositive 
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        }`}
+                      >
+                        {kpi.trend}
+                      </Badge>
+                    </div>
+                    <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{kpi.title}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Operational Alerts */}
+        <div className="lg:col-span-1">
+          <OperationalAlerts alerts={metrics.alerts} maxAlerts={4} />
+        </div>
       </div>
 
-      {/* Services Distribution and Top Custodians */}
+      {/* Section 4: Services Distribution and Top Custodians */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Services Distribution */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Distribución de Servicios
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Target className="h-4 w-4" />
+              Estado de Servicios MTD
             </CardTitle>
-            <CardDescription>
-              Estado actual de los servicios
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
                   <span className="text-sm">Completados</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.completedChange >= 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}
                   >
                     {metrics.servicesDistribution.completedChange >= 0 ? '+' : ''}{metrics.servicesDistribution.completedChange}%
                   </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.completed}%</span>
-                  <div className="w-24">
+                  <div className="w-20">
                     <Progress value={metrics.servicesDistribution.completed} className="h-2" />
                   </div>
                 </div>
@@ -237,21 +232,21 @@ export const OperationalOverview = () => {
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-yellow-500" />
+                  <Clock className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">Pendientes</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.pendingChange <= 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}
                   >
                     {metrics.servicesDistribution.pendingChange >= 0 ? '+' : ''}{metrics.servicesDistribution.pendingChange}%
                   </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.pending}%</span>
-                  <div className="w-24">
+                  <div className="w-20">
                     <Progress value={metrics.servicesDistribution.pending} className="h-2" />
                   </div>
                 </div>
@@ -266,42 +261,39 @@ export const OperationalOverview = () => {
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.cancelledChange <= 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                     }`}
                   >
                     {metrics.servicesDistribution.cancelledChange >= 0 ? '+' : ''}{metrics.servicesDistribution.cancelledChange}%
                   </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.cancelled}%</span>
-                  <div className="w-24">
+                  <div className="w-20">
                     <Progress value={metrics.servicesDistribution.cancelled} className="h-2" />
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="pt-4 border-t">
+            <div className="pt-3 border-t">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-lg font-bold text-green-600">
+                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                     {metrics.servicesDistribution.completedCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Completados</div>
-                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-yellow-600">
+                  <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
                     {metrics.servicesDistribution.pendingCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Pendientes</div>
-                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-red-600">
+                  <div className="text-lg font-bold text-red-600 dark:text-red-400">
                     {metrics.servicesDistribution.cancelledCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Cancelados</div>
-                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
               </div>
             </div>
@@ -310,21 +302,29 @@ export const OperationalOverview = () => {
 
         {/* Top Custodians */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Top Custodios
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4" />
+              Top 5 Custodios del Mes
             </CardTitle>
-            <CardDescription>
-              Custodios con mejor rendimiento
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {metrics.topCustodians.slice(0, 5).map((custodian, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                <div 
+                  key={index} 
+                  className={`flex items-center justify-between p-2.5 rounded-lg transition-colors ${
+                    index === 0 
+                      ? 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800' 
+                      : 'bg-muted/50 hover:bg-muted'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                      index === 0 
+                        ? 'bg-amber-500 text-white' 
+                        : 'bg-primary text-primary-foreground'
+                    }`}>
                       {index + 1}
                     </div>
                     <div>
