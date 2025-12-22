@@ -10,6 +10,7 @@ interface KPIData {
   value: string;
   variation: number;
   icon: React.ReactNode;
+  showVariation?: boolean;
 }
 
 export const ExecutiveKPIsBar = () => {
@@ -97,7 +98,8 @@ export const ExecutiveKPIsBar = () => {
       label: 'AOV', 
       value: formatCurrency(kpis?.aov.value || 0), 
       variation: kpis?.aov.var || 0,
-      icon: <TrendingUp className="h-4 w-4" />
+      icon: <TrendingUp className="h-4 w-4" />,
+      showVariation: false
     },
     { 
       label: 'Clientes', 
@@ -145,14 +147,16 @@ export const ExecutiveKPIsBar = () => {
           <div className="text-xl font-semibold text-foreground mb-1">
             {kpi.value}
           </div>
-          <div className={`flex items-center text-xs ${kpi.variation >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-            {kpi.variation >= 0 ? (
-              <TrendingUp className="h-3 w-3 mr-1" />
-            ) : (
-              <TrendingDown className="h-3 w-3 mr-1" />
-            )}
-            <span>{kpi.variation >= 0 ? '+' : ''}{kpi.variation.toFixed(1)}% MTD</span>
-          </div>
+          {kpi.showVariation !== false && (
+            <div className={`flex items-center text-xs ${kpi.variation >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {kpi.variation >= 0 ? (
+                <TrendingUp className="h-3 w-3 mr-1" />
+              ) : (
+                <TrendingDown className="h-3 w-3 mr-1" />
+              )}
+              <span>{kpi.variation >= 0 ? '+' : ''}{kpi.variation.toFixed(1)}% MTD</span>
+            </div>
+          )}
         </Card>
       ))}
     </div>
