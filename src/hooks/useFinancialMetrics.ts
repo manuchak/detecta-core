@@ -3,6 +3,32 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, eachDayOfInterval, subDays } from 'date-fns';
 import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
 
+// Tope máximo de km por servicio (ruta más larga: Manzanillo-CDMX ~700km)
+const MAX_KM_POR_SERVICIO = 700;
+
+// Esquema de tarifas escalonadas por km para armados
+const RANGOS_KM = [
+  { km_min: 0, km_max: 100, tarifa: 6.0 },
+  { km_min: 100, km_max: 250, tarifa: 5.5 },
+  { km_min: 250, km_max: 400, tarifa: 5.0 },
+  { km_min: 400, km_max: Infinity, tarifa: 4.6 },
+];
+
+function calcularCostoArmadoPorKm(kmRecorridos: number): number {
+  const km = Math.min(Math.max(kmRecorridos, 0), MAX_KM_POR_SERVICIO);
+  let costoTotal = 0;
+  let kmRestantes = km;
+
+  for (const rango of RANGOS_KM) {
+    if (kmRestantes <= 0) break;
+    const kmEnRango = Math.min(kmRestantes, rango.km_max - rango.km_min);
+    costoTotal += kmEnRango * rango.tarifa;
+    kmRestantes -= kmEnRango;
+  }
+
+  return costoTotal;
+}
+
 export interface DailyMargin {
   fecha: string;
   gmv: number;
@@ -28,6 +54,27 @@ export interface FinancialMetricsData {
   dailyMargins: DailyMargin[];
 }
 
+interface ServicioConCostos {
+  fecha_hora_cita: string | null;
+  cobro_cliente: number | null;
+  costo_custodio: number | null;
+  casetas: string | null;
+  nombre_armado: string | null;
+  km_recorridos: number | null;
+}
+
+function calcularCostoServicio(servicio: ServicioConCostos): number {
+  const costoCustodio = parseFloat(String(servicio.costo_custodio || 0));
+  const costoCasetas = parseFloat(String(servicio.casetas || 0));
+  
+  let costoArmado = 0;
+  if (servicio.nombre_armado && servicio.km_recorridos && servicio.km_recorridos > 0) {
+    costoArmado = calcularCostoArmadoPorKm(servicio.km_recorridos);
+  }
+  
+  return costoCustodio + costoCasetas + costoArmado;
+}
+
 export function useFinancialMetrics() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['financial-metrics-mtd'],
@@ -36,54 +83,34 @@ export function useFinancialMetrics() {
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
-      // Get GMV current month (MTD)
-      const { data: gmvCurrent, error: gmvError } = await supabase
+      // Get services current month (MTD) with all cost fields
+      const { data: serviciosCurrent, error: currentError } = await supabase
         .from('servicios_custodia')
-        .select('fecha_hora_cita, cobro_cliente')
+        .select('fecha_hora_cita, cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
         .gte('fecha_hora_cita', currentRange.start)
         .lte('fecha_hora_cita', currentRange.end)
         .not('estado', 'eq', 'Cancelado');
 
-      if (gmvError) throw gmvError;
+      if (currentError) throw currentError;
 
-      // Get GMV previous month (MTD - same day range)
-      const { data: gmvPrevious, error: gmvPrevError } = await supabase
+      // Get services previous month (MTD - same day range)
+      const { data: serviciosPrevious, error: prevError } = await supabase
         .from('servicios_custodia')
-        .select('cobro_cliente')
+        .select('cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
         .gte('fecha_hora_cita', prevRange.start)
         .lte('fecha_hora_cita', prevRange.end)
         .not('estado', 'eq', 'Cancelado');
 
-      if (gmvPrevError) throw gmvPrevError;
-
-      // Get costs current month (MTD)
-      const { data: costosCurrent, error: costosError } = await supabase
-        .from('gastos_externos')
-        .select('fecha_gasto, monto, estado')
-        .gte('fecha_gasto', currentRange.start)
-        .lte('fecha_gasto', currentRange.end)
-        .eq('estado', 'aprobado');
-
-      if (costosError) throw costosError;
-
-      // Get costs previous month (MTD - same day range)
-      const { data: costosPrevious, error: costosPrevError } = await supabase
-        .from('gastos_externos')
-        .select('monto')
-        .gte('fecha_gasto', prevRange.start)
-        .lte('fecha_gasto', prevRange.end)
-        .eq('estado', 'aprobado');
-
-      if (costosPrevError) throw costosPrevError;
+      if (prevError) throw prevError;
 
       // Calculate GMV totals
-      const gmvMTD = (gmvCurrent || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
-      const gmvAnterior = (gmvPrevious || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
+      const gmvMTD = (serviciosCurrent || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
+      const gmvAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
       const gmvVariacion = gmvAnterior > 0 ? ((gmvMTD - gmvAnterior) / gmvAnterior) * 100 : 0;
 
-      // Calculate costs totals
-      const costosMTD = (costosCurrent || []).reduce((sum, c) => sum + parseFloat(String(c.monto || 0)), 0);
-      const costosAnterior = (costosPrevious || []).reduce((sum, c) => sum + parseFloat(String(c.monto || 0)), 0);
+      // Calculate costs from servicios_custodia (costo_custodio + casetas + costo_armado)
+      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostoServicio(s as ServicioConCostos), 0);
+      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostoServicio(s as ServicioConCostos), 0);
       const costosVariacion = costosAnterior > 0 ? ((costosMTD - costosAnterior) / costosAnterior) * 100 : 0;
 
       // Calculate margin
@@ -105,17 +132,14 @@ export function useFinancialMetrics() {
       });
 
       const gmvByDay: Record<string, number> = {};
-      (gmvCurrent || []).forEach(s => {
+      const costosByDay: Record<string, number> = {};
+      
+      (serviciosCurrent || []).forEach(s => {
         const fecha = s.fecha_hora_cita ? format(new Date(s.fecha_hora_cita), 'yyyy-MM-dd') : null;
         if (fecha) {
           gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
+          costosByDay[fecha] = (costosByDay[fecha] || 0) + calcularCostoServicio(s as ServicioConCostos);
         }
-      });
-
-      const costosByDay: Record<string, number> = {};
-      (costosCurrent || []).forEach(c => {
-        const fecha = c.fecha_gasto;
-        costosByDay[fecha] = (costosByDay[fecha] || 0) + parseFloat(String(c.monto || 0));
       });
 
       const dailyMargins: DailyMargin[] = last14Days.map(day => {
