@@ -25,7 +25,7 @@ export function useServiceDistribution() {
         .select('local_foraneo, cobro_cliente')
         .gte('fecha_hora_cita', currentRange.start)
         .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       if (currentError) throw currentError;
 
@@ -35,7 +35,7 @@ export function useServiceDistribution() {
         .select('local_foraneo')
         .gte('fecha_hora_cita', prevRange.start)
         .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       if (prevError) throw prevError;
 
