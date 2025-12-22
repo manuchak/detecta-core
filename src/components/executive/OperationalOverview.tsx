@@ -40,7 +40,7 @@ export const OperationalOverview = () => {
     };
   }, []);
 
-  if (isLoading || !metrics || !metrics.comparatives) {
+  if (isLoading || !metrics || !metrics.comparatives || metrics.servicesDistribution?.completedCount === undefined) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(8)].map((_, i) => (
