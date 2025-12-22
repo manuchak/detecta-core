@@ -25,17 +25,17 @@ export const ExecutiveKPIsBar = () => {
       // Current month services (MTD)
       const { data: currentServices } = await supabase
         .from('servicios_custodia')
-        .select('id, cobro_cliente, custodio_nombre, armado_asignado, nombre_cliente')
-        .gte('fecha_servicio', currentRange.start)
-        .lte('fecha_servicio', currentRange.end)
+        .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
+        .gte('fecha_hora_cita', currentRange.start)
+        .lte('fecha_hora_cita', currentRange.end)
         .not('estado', 'eq', 'cancelado');
 
       // Previous month services (MTD - same day range)
       const { data: prevServices } = await supabase
         .from('servicios_custodia')
-        .select('id, cobro_cliente, custodio_nombre, armado_asignado, nombre_cliente')
-        .gte('fecha_servicio', prevRange.start)
-        .lte('fecha_servicio', prevRange.end)
+        .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
+        .gte('fecha_hora_cita', prevRange.start)
+        .lte('fecha_hora_cita', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       const current = currentServices || [];
@@ -54,11 +54,11 @@ export const ExecutiveKPIsBar = () => {
       const clientesCurrent = new Set(current.map(s => s.nombre_cliente).filter(Boolean)).size;
       const clientesPrev = new Set(prev.map(s => s.nombre_cliente).filter(Boolean)).size;
       
-      const custodiosCurrent = new Set(current.map(s => s.custodio_nombre).filter(Boolean)).size;
-      const custodiosPrev = new Set(prev.map(s => s.custodio_nombre).filter(Boolean)).size;
+      const custodiosCurrent = new Set(current.map(s => s.nombre_custodio).filter(Boolean)).size;
+      const custodiosPrev = new Set(prev.map(s => s.nombre_custodio).filter(Boolean)).size;
       
-      const armadosCurrent = new Set(current.map(s => s.armado_asignado).filter(Boolean)).size;
-      const armadosPrev = new Set(prev.map(s => s.armado_asignado).filter(Boolean)).size;
+      const armadosCurrent = new Set(current.map(s => s.nombre_armado).filter(Boolean)).size;
+      const armadosPrev = new Set(prev.map(s => s.nombre_armado).filter(Boolean)).size;
 
       const calcVar = (curr: number, prev: number) => prev > 0 ? ((curr - prev) / prev) * 100 : 0;
 
