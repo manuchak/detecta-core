@@ -21,6 +21,14 @@ export interface OperationalMetrics {
     completed: number;
     pending: number;
     cancelled: number;
+    // Conteos absolutos del mes actual
+    completedCount: number;
+    pendingCount: number;
+    cancelledCount: number;
+    // Comparación vs mes anterior
+    completedChange: number;
+    pendingChange: number;
+    cancelledChange: number;
   };
   topCustodians: Array<{
     rank: number;
@@ -240,7 +248,11 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
       );
 
-      const servicesThisMonth = currentMonthServices.length;
+      // CORREGIDO: Excluir cancelados de la tarjeta de KPIs
+      const currentMonthNonCancelled = currentMonthServices.filter(s => 
+        s.estado?.toLowerCase() !== 'cancelado'
+      );
+      const servicesThisMonth = currentMonthNonCancelled.length;
       // GMV del mes actual solo de completados
       const gmvThisMonth = currentMonthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
 
@@ -377,11 +389,45 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         return ((current - previous) / previous) * 100;
       };
 
-      // Services distribution
+      // Services distribution - MTD del mes actual vs mes anterior
+      const currentMTDCompleted = currentMonthServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      ).length;
+      const currentMTDPending = currentMonthServices.filter(s => 
+        s.estado?.toLowerCase() !== 'completado' && 
+        s.estado?.toLowerCase() !== 'finalizado' && 
+        s.estado?.toLowerCase() !== 'cancelado'
+      ).length;
+      const currentMTDCancelled = currentMonthServices.filter(s => 
+        s.estado?.toLowerCase() === 'cancelado'
+      ).length;
+      const totalCurrentMTD = currentMonthServices.length;
+
+      // Mes anterior MTD
+      const prevMTDCompleted = previousMonthMTDServices.filter(s => 
+        s.estado?.toLowerCase() === 'completado' || s.estado?.toLowerCase() === 'finalizado'
+      ).length;
+      const prevMTDPending = previousMonthMTDServices.filter(s => 
+        s.estado?.toLowerCase() !== 'completado' && 
+        s.estado?.toLowerCase() !== 'finalizado' && 
+        s.estado?.toLowerCase() !== 'cancelado'
+      ).length;
+      const prevMTDCancelled = previousMonthMTDServices.filter(s => 
+        s.estado?.toLowerCase() === 'cancelado'
+      ).length;
+
       const servicesDistribution = {
-        completed: Math.round((completedServices / totalServices) * 100) || 0,
-        pending: Math.round((pendingServices / totalServices) * 100) || 0,
-        cancelled: Math.round((cancelledServices / totalServices) * 100) || 0,
+        completed: totalCurrentMTD > 0 ? Math.round((currentMTDCompleted / totalCurrentMTD) * 100) : 0,
+        pending: totalCurrentMTD > 0 ? Math.round((currentMTDPending / totalCurrentMTD) * 100) : 0,
+        cancelled: totalCurrentMTD > 0 ? Math.round((currentMTDCancelled / totalCurrentMTD) * 100) : 0,
+        // Conteos absolutos del mes actual
+        completedCount: currentMTDCompleted,
+        pendingCount: currentMTDPending,
+        cancelledCount: currentMTDCancelled,
+        // Comparación vs mes anterior
+        completedChange: Math.round(calculateChangePercent(currentMTDCompleted, prevMTDCompleted) * 10) / 10,
+        pendingChange: Math.round(calculateChangePercent(currentMTDPending, prevMTDPending) * 10) / 10,
+        cancelledChange: Math.round(calculateChangePercent(currentMTDCancelled, prevMTDCancelled) * 10) / 10,
       };
 
       // Top custodians by costo_custodio with verifiable metrics
@@ -527,9 +573,12 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         monthlyBreakdown,
         comparatives: {
           servicesThisMonth: {
-            current: servicesThisMonth,
-            previousMonth: previousMonthMTDServices.length,
-            changePercent: Math.round(calculateChangePercent(servicesThisMonth, previousMonthMTDServices.length) * 10) / 10
+            current: servicesThisMonth, // Ya excluye cancelados
+            previousMonth: previousMonthMTDServices.filter(s => s.estado?.toLowerCase() !== 'cancelado').length,
+            changePercent: Math.round(calculateChangePercent(
+              servicesThisMonth, 
+              previousMonthMTDServices.filter(s => s.estado?.toLowerCase() !== 'cancelado').length
+            ) * 10) / 10
           },
           servicesYTD: {
             current: ytdServices.length,
