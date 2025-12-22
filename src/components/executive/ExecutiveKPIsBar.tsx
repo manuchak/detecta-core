@@ -28,7 +28,7 @@ export const ExecutiveKPIsBar = () => {
         .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
         .gte('fecha_hora_cita', currentRange.start)
         .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       // Previous month services (MTD - same day range)
       const { data: prevServices } = await supabase
@@ -36,7 +36,7 @@ export const ExecutiveKPIsBar = () => {
         .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
         .gte('fecha_hora_cita', prevRange.start)
         .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'cancelado');
+        .not('estado', 'eq', 'Cancelado');
 
       const current = currentServices || [];
       const prev = prevServices || [];
