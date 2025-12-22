@@ -218,7 +218,16 @@ export const OperationalOverview = () => {
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span className="text-sm">Completados</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <Badge 
+                    className={`text-xs px-1.5 py-0 ${
+                      metrics.servicesDistribution.completedChange >= 0 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {metrics.servicesDistribution.completedChange >= 0 ? '+' : ''}{metrics.servicesDistribution.completedChange}%
+                  </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.completed}%</span>
                   <div className="w-24">
                     <Progress value={metrics.servicesDistribution.completed} className="h-2" />
@@ -231,7 +240,16 @@ export const OperationalOverview = () => {
                   <Clock className="h-4 w-4 text-yellow-500" />
                   <span className="text-sm">Pendientes</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <Badge 
+                    className={`text-xs px-1.5 py-0 ${
+                      metrics.servicesDistribution.pendingChange <= 0 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {metrics.servicesDistribution.pendingChange >= 0 ? '+' : ''}{metrics.servicesDistribution.pendingChange}%
+                  </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.pending}%</span>
                   <div className="w-24">
                     <Progress value={metrics.servicesDistribution.pending} className="h-2" />
@@ -244,7 +262,16 @@ export const OperationalOverview = () => {
                   <XCircle className="h-4 w-4 text-red-500" />
                   <span className="text-sm">Cancelados</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <Badge 
+                    className={`text-xs px-1.5 py-0 ${
+                      metrics.servicesDistribution.cancelledChange <= 0 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {metrics.servicesDistribution.cancelledChange >= 0 ? '+' : ''}{metrics.servicesDistribution.cancelledChange}%
+                  </Badge>
                   <span className="text-sm font-medium">{metrics.servicesDistribution.cancelled}%</span>
                   <div className="w-24">
                     <Progress value={metrics.servicesDistribution.cancelled} className="h-2" />
@@ -257,21 +284,24 @@ export const OperationalOverview = () => {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <div className="text-lg font-bold text-green-600">
-                    {metrics.completedServices.toLocaleString()}
+                    {metrics.servicesDistribution.completedCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Completados</div>
+                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-yellow-600">
-                    {metrics.pendingServices.toLocaleString()}
+                    {metrics.servicesDistribution.pendingCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Pendientes</div>
+                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-red-600">
-                    {metrics.cancelledServices.toLocaleString()}
+                    {metrics.servicesDistribution.cancelledCount.toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">Cancelados</div>
+                  <span className="text-xs text-muted-foreground">vs {previousMonthLabel}</span>
                 </div>
               </div>
             </div>
