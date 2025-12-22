@@ -249,10 +249,16 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevMonthYear = currentMonth === 1 ? reportYear - 1 : reportYear;
       // CORREGIDO: Usar datos del año anterior si el mes anterior es diciembre del año pasado
       const prevMonthDataSource = prevMonthYear === reportYear ? services : prevYearServices;
+      // CORREGIDO: Validar AÑO explícitamente para MTD del mes anterior
       const previousMonthMTDServices = prevMonthDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        return getUTCMonth(s.fecha_hora_cita) + 1 === prevMonth && 
-               getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
+        const serviceYear = getUTCYear(s.fecha_hora_cita);
+        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
+        const serviceDay = getUTCDayOfMonth(s.fecha_hora_cita);
+        
+        return serviceYear === prevMonthYear && 
+               serviceMonth === prevMonth && 
+               serviceDay <= currentDay;
       }) || [];
 
       const prevMonthCompletedServices = previousMonthMTDServices.filter(s => 
