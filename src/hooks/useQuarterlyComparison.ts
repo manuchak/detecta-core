@@ -20,15 +20,15 @@ export function useQuarterlyComparison() {
     queryFn: async () => {
       const now = new Date();
       const currentYear = getYear(now);
-      const years = [currentYear, currentYear - 1, currentYear - 2];
+      const years = [currentYear, currentYear - 1];
       
-      // Get services for last 3 years
+      // Get services for last 2 years (current vs previous)
       const { data: services, error: servicesError } = await supabase
         .from('servicios_custodia')
-        .select('fecha_servicio, cobro_cliente')
-        .gte('fecha_servicio', format(startOfYear(new Date(years[2], 0, 1)), 'yyyy-MM-dd'))
-        .lte('fecha_servicio', format(endOfYear(new Date(years[0], 0, 1)), 'yyyy-MM-dd'))
-        .not('estado', 'eq', 'cancelado');
+        .select('fecha_hora_cita, cobro_cliente')
+        .gte('fecha_hora_cita', format(startOfYear(new Date(years[1], 0, 1)), 'yyyy-MM-dd'))
+        .lte('fecha_hora_cita', format(endOfYear(new Date(years[0], 0, 1)), 'yyyy-MM-dd'))
+        .not('estado', 'eq', 'Cancelado');
 
       if (servicesError) throw servicesError;
 
@@ -36,8 +36,8 @@ export function useQuarterlyComparison() {
       const quarterlyData: Record<string, { servicios: number; gmv: number }> = {};
       
       (services || []).forEach(s => {
-        if (!s.fecha_servicio) return;
-        const date = new Date(s.fecha_servicio);
+        if (!s.fecha_hora_cita) return;
+        const date = new Date(s.fecha_hora_cita);
         const year = getYear(date);
         const quarter = getQuarter(date);
         const key = `Q${quarter}-${year}`;
