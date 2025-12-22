@@ -478,88 +478,117 @@ export function CreateRouteModal({
     }
   };
 
-  const handleCreateError = (err: unknown) => {
+  const handleCreateError = async (err: unknown) => {
     // Capture Supabase error with proper typing
     const supabaseError = err as { message?: string; code?: string; details?: string; hint?: string };
     
-    (async () => {
-      // Enhanced error logging with user context
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      let userRole = 'unknown';
-      try {
-        const { data } = await supabase.rpc('get_current_user_role_secure');
-        userRole = data || 'unknown';
-      } catch (roleErr) {
-        console.warn('⚠️ Could not fetch user role in error handler:', roleErr);
-      }
-      
-      // ✅ DETECCIÓN ESPECÍFICA DE ERROR DE DUPLICADO
-      const isDuplicateError = 
-        supabaseError.code === '23505' || 
-        supabaseError.message?.includes('duplicate key') ||
-        supabaseError.message?.includes('matriz_precios_rutas_cliente_destino_unique');
+    // Enhanced error logging with user context
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    let userRole = 'unknown';
+    try {
+      const { data } = await supabase.rpc('get_current_user_role_secure');
+      userRole = data || 'unknown';
+    } catch (roleErr) {
+      console.warn('⚠️ Could not fetch user role in error handler:', roleErr);
+    }
+    
+    // ✅ DETECCIÓN ESPECÍFICA DE ERROR DE DUPLICADO
+    const isDuplicateError = 
+      supabaseError.code === '23505' || 
+      supabaseError.message?.includes('duplicate key') ||
+      supabaseError.message?.includes('matriz_precios_rutas_cliente_destino_unique');
 
-      if (isDuplicateError) {
-        console.error('🔴 [CreateRouteModal] Error de ruta duplicada detectado:', supabaseError);
-        toast.error('Ruta duplicada', {
-          description: `Ya existe una ruta para ${clientName} → ${formData.destino_texto.trim()}. Por favor, edita la ruta existente o usa un destino diferente.`,
-          duration: 8000
+    if (isDuplicateError) {
+      console.error('🔴 [CreateRouteModal] Error de ruta duplicada detectado:', supabaseError);
+      toast.error('Ruta duplicada', {
+        description: `Ya existe una ruta para ${clientName} → ${formData.destino_texto.trim()}. Por favor, edita la ruta existente o usa un destino diferente.`,
+        duration: 8000
+      });
+      return;
+    }
+
+    // ✅ DETECCIÓN DE ERROR DE PERMISOS (42501) con contexto mejorado
+    const isPermissionError = supabaseError.code === '42501' || 
+      supabaseError.message?.toLowerCase().includes('permission') ||
+      supabaseError.message?.toLowerCase().includes('row-level security');
+
+    if (isPermissionError) {
+      // Buscar si existe una ruta con el mismo cliente+destino pero diferente origen
+      const { data: existingRoute } = await supabase
+        .from('matriz_precios_rutas')
+        .select('id, origen_texto, destino_texto')
+        .eq('cliente_nombre', clientName)
+        .eq('destino_texto', formData.destino_texto.trim())
+        .maybeSingle();
+
+      if (existingRoute && existingRoute.origen_texto !== formData.origen_texto.trim()) {
+        console.error('🔴 [CreateRouteModal] Ruta existente con diferente origen:', {
+          existente: existingRoute.origen_texto,
+          intentando: formData.origen_texto.trim()
+        });
+        
+        toast.error('Ruta existente con diferente origen', {
+          description: `Ya existe la ruta ${clientName} → ${formData.destino_texto.trim()} con origen "${existingRoute.origen_texto}". El sistema intentó actualizarla pero no tienes permisos de UPDATE. Contacta a un coordinador.`,
+          duration: 10000
         });
         return;
       }
-
-      console.error('❌ [CreateRouteModal] Error completo al crear ruta:', {
-        timestamp: new Date().toISOString(),
-        error: err,
-        errorMessage: supabaseError.message || (err instanceof Error ? err.message : 'Unknown'),
-        errorCode: supabaseError.code,
-        errorDetails: supabaseError.details || (err instanceof Error ? err.stack : null),
-        errorHint: supabaseError.hint,
-        userData: {
-          email: user?.email || 'unknown',
-          user_id: user?.id || 'unknown',
-          role: userRole
-        },
-        formData: {
-          cliente: clientName,
-          origen: formData.origen_texto,
-          destino: formData.destino_texto,
-          valor_bruto: formData.valor_bruto,
-          precio_custodio: formData.precio_custodio,
-          distancia_km: formData.distancia_km,
-          dias_operacion_type: typeof formData.dias_operacion,
-          dias_operacion: formData.dias_operacion,
-          dias_operacion_length: formData.dias_operacion.length,
-          justificacion_length: formData.justificacion.length,
-          es_ruta_reparto: formData.es_ruta_reparto
-        }
-      });
       
-      // Build more informative error message
-      let errorDescription = 'Error desconocido. Contacta a soporte técnico.';
-      
-      if (supabaseError.message) {
-        errorDescription = supabaseError.message;
-        
-        // Add hint if exists
-        if (supabaseError.hint) {
-          errorDescription += `\n\n💡 Sugerencia: ${supabaseError.hint}`;
-        }
-        
-        // If it's a permission error, give specific message
-        if (supabaseError.code === '42501' || errorDescription.toLowerCase().includes('permission')) {
-          errorDescription = 'No tienes permisos para crear rutas. Contacta a un coordinador o administrador.';
-        }
-      } else if (err instanceof Error) {
-        errorDescription = err.message;
-      }
-      
-      toast.error('Error al crear la ruta', {
-        description: errorDescription,
+      // Error de permisos genérico
+      console.error('🔴 [CreateRouteModal] Error de permisos:', supabaseError);
+      toast.error('Sin permisos para esta operación', {
+        description: `Tu rol (${userRole}) no tiene permisos para crear o actualizar rutas. Contacta a un coordinador o administrador.`,
         duration: 8000
       });
-    })();
+      return;
+    }
+
+    console.error('❌ [CreateRouteModal] Error completo al crear ruta:', {
+      timestamp: new Date().toISOString(),
+      error: err,
+      errorMessage: supabaseError.message || (err instanceof Error ? err.message : 'Unknown'),
+      errorCode: supabaseError.code,
+      errorDetails: supabaseError.details || (err instanceof Error ? err.stack : null),
+      errorHint: supabaseError.hint,
+      userData: {
+        email: user?.email || 'unknown',
+        user_id: user?.id || 'unknown',
+        role: userRole
+      },
+      formData: {
+        cliente: clientName,
+        origen: formData.origen_texto,
+        destino: formData.destino_texto,
+        valor_bruto: formData.valor_bruto,
+        precio_custodio: formData.precio_custodio,
+        distancia_km: formData.distancia_km,
+        dias_operacion_type: typeof formData.dias_operacion,
+        dias_operacion: formData.dias_operacion,
+        dias_operacion_length: formData.dias_operacion.length,
+        justificacion_length: formData.justificacion.length,
+        es_ruta_reparto: formData.es_ruta_reparto
+      }
+    });
+    
+    // Build more informative error message
+    let errorDescription = 'Error desconocido. Contacta a soporte técnico.';
+    
+    if (supabaseError.message) {
+      errorDescription = supabaseError.message;
+      
+      // Add hint if exists
+      if (supabaseError.hint) {
+        errorDescription += ` 💡 ${supabaseError.hint}`;
+      }
+    } else if (err instanceof Error) {
+      errorDescription = err.message;
+    }
+    
+    toast.error('Error al crear la ruta', {
+      description: errorDescription,
+      duration: 8000
+    });
   };
 
   const handleDuplicateConfirm = () => {
