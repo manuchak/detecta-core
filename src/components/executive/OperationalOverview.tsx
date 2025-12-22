@@ -23,16 +23,20 @@ export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
   
   // Dynamic date calculations
-  const { currentMonthLabel, quarterLabel } = useMemo(() => {
+  const { currentMonthLabel, quarterLabel, mtdLabel, previousMonthLabel } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const currentQuarter = Math.ceil((currentMonth + 1) / 3);
     const previousQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
+    const currentDay = now.getDate() - 1; // Data con 1 día de retraso
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     
     return {
       currentMonthLabel: `${MONTH_NAMES[currentMonth]} ${currentYear}`,
-      quarterLabel: `Q${currentQuarter} vs Q${previousQuarter}`
+      quarterLabel: `Q${currentQuarter} vs Q${previousQuarter}`,
+      mtdLabel: `MTD día ${currentDay}`,
+      previousMonthLabel: MONTH_NAMES[prevMonth]
     };
   }, []);
 
@@ -72,7 +76,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.servicesThisMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesThisMonth.changePercent}%`,
       trendPositive: metrics.comparatives.servicesThisMonth.changePercent >= 0,
       color: 'text-pink-600',
-      bgColor: 'bg-pink-50'
+      bgColor: 'bg-pink-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     },
     {
       title: 'Servicios YTD',
@@ -82,7 +87,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.servicesYTD.changePercent >= 0 ? '+' : ''}${metrics.comparatives.servicesYTD.changePercent}%`,
       trendPositive: metrics.comparatives.servicesYTD.changePercent >= 0,
       color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
+      bgColor: 'bg-blue-50',
+      comparisonLabel: 'YTD vs YTD'
     },
     {
       title: 'Tasa de Cumplimiento',
@@ -92,7 +98,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.completionRate.changePercent >= 0 ? '+' : ''}${metrics.comparatives.completionRate.changePercent}%`,
       trendPositive: metrics.comparatives.completionRate.changePercent >= 0,
       color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      bgColor: 'bg-green-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     },
     {
       title: 'Custodios Activos Este Mes',
@@ -102,17 +109,19 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.activeCustodiansMonth.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansMonth.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansMonth.changePercent >= 0,
       color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      bgColor: 'bg-purple-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     },
     {
       title: 'GMV Este Mes',
       value: formatCurrency(metrics.comparatives.totalGMV.current),
-      description: 'vs mes anterior',
+      description: currentMonthLabel,
       icon: DollarSign,
       trend: `${metrics.comparatives.totalGMV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.totalGMV.changePercent}%`,
       trendPositive: metrics.comparatives.totalGMV.changePercent >= 0,
       color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50'
+      bgColor: 'bg-emerald-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     },
     {
       title: 'AOV Este Mes',
@@ -122,7 +131,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.averageAOV.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageAOV.changePercent}%`,
       trendPositive: metrics.comparatives.averageAOV.changePercent >= 0,
       color: 'text-orange-600',
-      bgColor: 'bg-orange-50'
+      bgColor: 'bg-orange-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     },
     {
       title: 'Custodios Este Trimestre',
@@ -132,7 +142,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.activeCustodiansQuarter.changePercent >= 0 ? '+' : ''}${metrics.comparatives.activeCustodiansQuarter.changePercent}%`,
       trendPositive: metrics.comparatives.activeCustodiansQuarter.changePercent >= 0,
       color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50'
+      bgColor: 'bg-indigo-50',
+      comparisonLabel: quarterLabel
     },
     {
       title: 'KM Promedio Este Mes',
@@ -142,7 +153,8 @@ export const OperationalOverview = () => {
       trend: `${metrics.comparatives.averageKmPerService.changePercent >= 0 ? '+' : ''}${metrics.comparatives.averageKmPerService.changePercent}%`,
       trendPositive: metrics.comparatives.averageKmPerService.changePercent >= 0,
       color: 'text-cyan-600',
-      bgColor: 'bg-cyan-50'
+      bgColor: 'bg-cyan-50',
+      comparisonLabel: `${mtdLabel} vs ${previousMonthLabel}`
     }
   ];
 
@@ -178,7 +190,7 @@ export const OperationalOverview = () => {
                   >
                     {kpi.trend}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">vs mes anterior</span>
+                  <span className="text-xs text-muted-foreground">{kpi.comparisonLabel}</span>
                 </div>
               </CardContent>
             </Card>
