@@ -19,10 +19,10 @@ export function useServiceDistribution() {
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
-      // Get current month services with route type info (MTD)
+      // Get current month services with local/foraneo classification (MTD)
       const { data: currentMonth, error: currentError } = await supabase
         .from('servicios_custodia')
-        .select('tipo_servicio, cobro_cliente')
+        .select('local_foraneo, cobro_cliente')
         .gte('fecha_hora_cita', currentRange.start)
         .lte('fecha_hora_cita', currentRange.end)
         .not('estado', 'eq', 'cancelado');
@@ -32,26 +32,27 @@ export function useServiceDistribution() {
       // Get previous month services (MTD - same day range)
       const { data: previousMonth, error: prevError } = await supabase
         .from('servicios_custodia')
-        .select('tipo_servicio')
+        .select('local_foraneo')
         .gte('fecha_hora_cita', prevRange.start)
         .lte('fecha_hora_cita', prevRange.end)
         .not('estado', 'eq', 'cancelado');
 
       if (prevError) throw prevError;
 
-      // Classify services by type
-      const classifyService = (tipo: string | null): string => {
-        if (!tipo) return 'Local';
-        const tipoLower = tipo.toLowerCase();
-        if (tipoLower.includes('reparto')) return 'Reparto';
-        if (tipoLower.includes('foráneo') || tipoLower.includes('foraneo')) return 'Foráneo';
+      // Classify services by local_foraneo field
+      const classifyService = (localForaneo: string | null): string => {
+        if (!localForaneo) return 'Sin clasificar';
+        const valor = localForaneo.toLowerCase();
+        if (valor.includes('foráneo') || valor.includes('foraneo')) {
+          return 'Foráneo';
+        }
         return 'Local';
       };
 
       // Aggregate current month
       const currentByType: Record<string, { count: number; gmv: number }> = {};
       (currentMonth || []).forEach(s => {
-        const tipo = classifyService(s.tipo_servicio);
+        const tipo = classifyService(s.local_foraneo);
         if (!currentByType[tipo]) {
           currentByType[tipo] = { count: 0, gmv: 0 };
         }
@@ -62,7 +63,7 @@ export function useServiceDistribution() {
       // Aggregate previous month
       const previousByType: Record<string, number> = {};
       (previousMonth || []).forEach(s => {
-        const tipo = classifyService(s.tipo_servicio);
+        const tipo = classifyService(s.local_foraneo);
         previousByType[tipo] = (previousByType[tipo] || 0) + 1;
       });
 
