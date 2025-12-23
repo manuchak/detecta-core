@@ -219,9 +219,8 @@ const MobileDashboardLayout = () => {
   // Get resolved tickets not dismissed
   const resolvedTicketsToShow = getRecentlyResolvedTickets(48).filter(t => !dismissedTickets.has(t.id));
 
-  // Get pending tickets with urgency calculation (2+ days old)
-  const { getOpenTickets } = useCustodianTicketsEnhanced(profile?.phone);
-  const openTickets = getOpenTickets();
+  // Get open tickets - use allTickets already fetched above instead of calling hook again
+  const openTickets = allTickets.filter(t => t.status === 'abierto' || t.status === 'en_progreso');
   const pendingTicketsWithAge = useMemo(() => {
     const now = new Date();
     return openTickets
