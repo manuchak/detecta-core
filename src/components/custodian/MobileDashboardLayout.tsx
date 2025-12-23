@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
@@ -7,6 +7,8 @@ import { useCustodianTicketsEnhanced, CustodianTicket } from "@/hooks/useCustodi
 import { useCustodianMaintenance } from "@/hooks/useCustodianMaintenance";
 import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserRole } from "@/utils/authHelpers";
 import DashboardHeroAlert from "./DashboardHeroAlert";
 import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
@@ -43,6 +45,36 @@ const MobileDashboardLayout = () => {
   const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
   const [selectedResolvedTicket, setSelectedResolvedTicket] = useState<CustodianTicket | null>(null);
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
+  const [realCustodioId, setRealCustodioId] = useState<string | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+
+  // Detect if user is admin and find real custodio ID
+  useEffect(() => {
+    const checkUserRole = async () => {
+      const role = await getCurrentUserRole();
+      const isAdmin = role === 'admin' || role === 'owner';
+      setIsAdminMode(isAdmin);
+      
+      if (isAdmin && profile?.phone) {
+        // Try to find a real custodio by phone
+        const cleanPhone = profile.phone.replace(/\s/g, '');
+        const { data } = await supabase
+          .from('custodios_operativos')
+          .select('id')
+          .or(`telefono.eq.${cleanPhone},telefono.ilike.%${cleanPhone.slice(-10)}%`)
+          .limit(1)
+          .maybeSingle();
+        
+        if (data?.id) {
+          setRealCustodioId(data.id);
+        }
+      }
+    };
+    
+    if (profile) {
+      checkUserRole();
+    }
+  }, [profile]);
 
   const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 
@@ -87,12 +119,23 @@ const MobileDashboardLayout = () => {
   };
 
   const handleReportUnavailability = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
-    if (!profile?.id) {
-      toast({
-        title: "Error",
-        description: "No se encontró tu perfil de custodio",
-        variant: "destructive",
-      });
+    // Get the correct custodio ID to use
+    const custodioIdToUse = isAdminMode ? realCustodioId : profile?.id;
+    
+    if (!custodioIdToUse) {
+      if (isAdminMode) {
+        toast({
+          title: "⚠️ Modo Demo",
+          description: "Esta funcionalidad requiere estar logueado como un custodio real o tener un custodio vinculado por teléfono",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se encontró tu perfil de custodio",
+          variant: "destructive",
+        });
+      }
       return false;
     }
 
@@ -111,7 +154,7 @@ const MobileDashboardLayout = () => {
       };
       
       await crearIndisponibilidad.mutateAsync({
-        custodio_id: profile.id,
+        custodio_id: custodioIdToUse,
         tipo_indisponibilidad: (tipoMap[data.tipo] || 'otro') as any,
         motivo: data.motivo || 'Sin detalle proporcionado',
         fecha_inicio: new Date().toISOString(),
