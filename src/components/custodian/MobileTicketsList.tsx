@@ -47,36 +47,31 @@ export const MobileTicketsList = ({
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-140px)]">
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <h1 className="text-2xl font-bold text-foreground mb-4">Mis Quejas</h1>
-        
-        {/* Simple filter tabs */}
-        <div className="flex gap-2">
-          <FilterButton
-            active={filter === 'todos'}
-            onClick={() => setFilter('todos')}
-            label="Todos"
-            count={tickets.length}
-          />
-          <FilterButton
-            active={filter === 'pendientes'}
-            onClick={() => setFilter('pendientes')}
-            label="Pendientes"
-            count={pendingCount}
-          />
-          <FilterButton
-            active={filter === 'resueltos'}
-            onClick={() => setFilter('resueltos')}
-            label="Resueltos"
-            count={resolvedCount}
-          />
-        </div>
+    <div className="flex flex-col">
+      {/* Filter tabs */}
+      <div className="flex gap-2 mb-4">
+        <FilterButton
+          active={filter === 'todos'}
+          onClick={() => setFilter('todos')}
+          label="Todos"
+          count={tickets.length}
+        />
+        <FilterButton
+          active={filter === 'pendientes'}
+          onClick={() => setFilter('pendientes')}
+          label="Pendientes"
+          count={pendingCount}
+        />
+        <FilterButton
+          active={filter === 'resueltos'}
+          onClick={() => setFilter('resueltos')}
+          label="Resueltos"
+          count={resolvedCount}
+        />
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
