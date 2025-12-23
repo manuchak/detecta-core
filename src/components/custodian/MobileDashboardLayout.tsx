@@ -87,6 +87,27 @@ const MobileDashboardLayout = () => {
     return services.filter(s => new Date(s.fecha_hora_cita) >= startOfMonth).length;
   }, [services]);
 
+  // Get open tickets for urgency calculation - MUST be before any conditional returns
+  const openTickets = useMemo(() => 
+    allTickets.filter(t => t.status === 'abierto' || t.status === 'en_progreso'), 
+    [allTickets]
+  );
+  
+  const pendingTicketsWithAge = useMemo(() => {
+    const now = new Date();
+    return openTickets
+      .map(t => ({
+        ...t,
+        diasAbierto: Math.floor((now.getTime() - new Date(t.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+      .filter(t => t.diasAbierto >= 2);
+  }, [openTickets]);
+  
+  // Check if there are urgent pending tickets (5+ days)
+  const hasUrgentTickets = pendingTicketsWithAge.some(t => t.diasAbierto >= 5);
+  // Check if there are any old pending tickets (2+ days)
+  const hasOldPendingTickets = pendingTicketsWithAge.length > 0;
+
   // Check unavailability for current custodian from the already-loaded list
   const currentUnavailability = profile?.id 
     ? indisponibilidadesActivas.find((i: any) => i.custodio_id === profile.id)
@@ -218,23 +239,6 @@ const MobileDashboardLayout = () => {
   
   // Get resolved tickets not dismissed
   const resolvedTicketsToShow = getRecentlyResolvedTickets(48).filter(t => !dismissedTickets.has(t.id));
-
-  // Get open tickets - use allTickets already fetched above instead of calling hook again
-  const openTickets = allTickets.filter(t => t.status === 'abierto' || t.status === 'en_progreso');
-  const pendingTicketsWithAge = useMemo(() => {
-    const now = new Date();
-    return openTickets
-      .map(t => ({
-        ...t,
-        diasAbierto: Math.floor((now.getTime() - new Date(t.created_at).getTime()) / (1000 * 60 * 60 * 24))
-      }))
-      .filter(t => t.diasAbierto >= 2); // Only show tickets 2+ days old as "pending alerts"
-  }, [openTickets]);
-  
-  // Check if there are urgent pending tickets (5+ days)
-  const hasUrgentTickets = pendingTicketsWithAge.some(t => t.diasAbierto >= 5);
-  // Check if there are any old pending tickets (2+ days)
-  const hasOldPendingTickets = pendingTicketsWithAge.length > 0;
 
   const handleViewResolvedTicket = (ticket: CustodianTicket) => {
     setSelectedResolvedTicket(ticket);
