@@ -31,7 +31,7 @@ const MobileDashboardLayout = () => {
   const { profile, loading: profileLoading } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
-  const { getRecentlyResolvedTickets, markTicketAsSeen } = useCustodianTicketsEnhanced(profile?.phone);
+  const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
   const { maintenanceStatus, pendingMaintenance, createMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const { 
     indisponibilidadesActivas,
@@ -382,6 +382,9 @@ const MobileDashboardLayout = () => {
       <SupportContactModal
         open={showContactModal}
         onOpenChange={setShowContactModal}
+        tickets={allTickets}
+        custodianPhone={profile?.phone || ''}
+        onRefresh={refetchTickets}
       />
 
       {/* Unavailability Dialog */}
