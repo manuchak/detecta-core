@@ -17,6 +17,7 @@ import ResolvedTicketAlert from "./ResolvedTicketAlert";
 import PendingTicketAlert from "./PendingTicketAlert";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
 import SupportContactModal from "./SupportContactModal";
+import InternalChatModal from "./InternalChatModal";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { CustodianTicketDetail } from "./CustodianTicketDetail";
@@ -43,6 +44,7 @@ const MobileDashboardLayout = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showSaraChat, setShowSaraChat] = useState(false);
   const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
   const [selectedResolvedTicket, setSelectedResolvedTicket] = useState<CustodianTicket | null>(null);
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
@@ -387,6 +389,17 @@ const MobileDashboardLayout = () => {
         onOpenChange={setShowContactModal}
         tickets={allTickets}
         custodianPhone={profile?.phone || ''}
+        onRefresh={refetchTickets}
+        onOpenSaraChat={() => setShowSaraChat(true)}
+      />
+
+      {/* Sara Chat Modal - Independent lifecycle */}
+      <InternalChatModal
+        open={showSaraChat}
+        onOpenChange={setShowSaraChat}
+        tickets={allTickets}
+        custodianPhone={profile?.phone || ''}
+        onCreateTicket={() => navigate('/custodian/support')}
         onRefresh={refetchTickets}
       />
 
