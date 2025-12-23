@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, MessageSquareWarning, Clock, ChevronRight, Ticket } from "lucide-react";
+import { AlertTriangle, MessageSquareWarning, ChevronRight } from "lucide-react";
 import { CustodianTicket } from "@/hooks/useCustodianTicketsEnhanced";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -34,55 +34,48 @@ const PendingTicketAlert = ({ tickets, onViewTicket }: PendingTicketAlertProps) 
   const isCritical = oldestTicket.diasAbierto >= 5;
   const isWarning = oldestTicket.diasAbierto >= 2 && oldestTicket.diasAbierto < 5;
   
-  // Determine severity level
+  // Simplified severity styles - solid backgrounds, better contrast
   const getSeverityStyles = () => {
     if (isCritical) {
       return {
-        bg: "bg-gradient-to-r from-destructive/15 to-red-500/10",
-        border: "border-destructive/30",
-        icon: "bg-destructive/20",
-        iconColor: "text-destructive",
-        titleColor: "text-destructive",
-        textColor: "text-destructive/80",
-        badgeColor: "bg-destructive/20 text-destructive"
+        bg: "bg-red-50 dark:bg-red-950/30",
+        border: "border-red-200 dark:border-red-800/50",
+        iconColor: "text-red-500",
+        accentColor: "text-red-600 dark:text-red-400",
+        badgeColor: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
       };
     }
     if (isWarning) {
       return {
-        bg: "bg-gradient-to-r from-amber-500/15 to-yellow-500/10",
-        border: "border-amber-500/30",
-        icon: "bg-amber-500/20",
-        iconColor: "text-amber-600",
-        titleColor: "text-amber-700",
-        textColor: "text-amber-600/80",
-        badgeColor: "bg-amber-500/20 text-amber-700"
+        bg: "bg-amber-50 dark:bg-amber-950/30",
+        border: "border-amber-200 dark:border-amber-800/50",
+        iconColor: "text-amber-500",
+        accentColor: "text-amber-600 dark:text-amber-400",
+        badgeColor: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
       };
     }
     return {
-      bg: "bg-gradient-to-r from-blue-500/10 to-primary/10",
-      border: "border-blue-500/20",
-      icon: "bg-blue-500/20",
-      iconColor: "text-blue-600",
-      titleColor: "text-blue-700",
-      textColor: "text-blue-600/80",
-      badgeColor: "bg-blue-500/20 text-blue-700"
+      bg: "bg-blue-50 dark:bg-blue-950/30",
+      border: "border-blue-200 dark:border-blue-800/50",
+      iconColor: "text-blue-500",
+      accentColor: "text-blue-600 dark:text-blue-400",
+      badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
     };
   };
 
   const styles = getSeverityStyles();
 
   const getTitle = () => {
-    if (isCritical) return "⚠️ Ticket requiere atención urgente";
+    if (isCritical) return "Ticket requiere atención urgente";
     if (isWarning) return "Tienes un ticket pendiente";
     return "Ticket abierto";
   };
 
-  const getSubtitle = () => {
-    const timeAgo = formatDistanceToNow(new Date(oldestTicket.created_at), { 
+  const getTimeAgo = () => {
+    return formatDistanceToNow(new Date(oldestTicket.created_at), { 
       locale: es, 
       addSuffix: true 
     });
-    return `Abierto ${timeAgo}`;
   };
 
   const handleClick = () => {
@@ -97,26 +90,23 @@ const PendingTicketAlert = ({ tickets, onViewTicket }: PendingTicketAlertProps) 
     <button
       onClick={handleClick}
       className={cn(
-        "w-full rounded-2xl p-5 border text-left transition-all active:scale-[0.98]",
+        "w-full rounded-2xl p-4 border text-left transition-all active:scale-[0.98]",
         styles.bg,
         styles.border
       )}
     >
-      <div className="flex items-start gap-4">
-        <div className={cn(
-          "w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0",
-          styles.icon
-        )}>
-          {isCritical ? (
-            <AlertTriangle className={cn("w-7 h-7", styles.iconColor)} />
-          ) : (
-            <MessageSquareWarning className={cn("w-7 h-7", styles.iconColor)} />
-          )}
-        </div>
+      <div className="flex items-start gap-3">
+        {/* Icon - simplified, no circle */}
+        {isCritical ? (
+          <AlertTriangle className={cn("w-6 h-6 flex-shrink-0 mt-0.5", styles.iconColor)} />
+        ) : (
+          <MessageSquareWarning className={cn("w-6 h-6 flex-shrink-0 mt-0.5", styles.iconColor)} />
+        )}
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h3 className={cn("text-lg font-bold", styles.titleColor)}>
+          {/* Title row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-semibold text-foreground">
               {getTitle()}
             </h3>
             {ticketsWithAge.length > 1 && (
@@ -129,28 +119,21 @@ const PendingTicketAlert = ({ tickets, onViewTicket }: PendingTicketAlertProps) 
             )}
           </div>
           
-          <p className={cn("text-base font-medium mb-1 line-clamp-1", styles.textColor)}>
+          {/* Subject */}
+          <p className={cn("text-sm font-medium mt-1 line-clamp-1", styles.accentColor)}>
             {oldestTicket.subject}
           </p>
           
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-1.5">
-              <Ticket className={cn("w-3.5 h-3.5", styles.iconColor)} />
-              <span className={cn("font-medium", styles.textColor)}>
-                #{oldestTicket.ticket_number}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-1.5">
-              <Clock className={cn("w-3.5 h-3.5", styles.iconColor)} />
-              <span className={cn(styles.textColor)}>
-                {getSubtitle()}
-              </span>
-            </div>
-            
-            <ChevronRight className={cn("w-4 h-4 ml-auto", styles.iconColor)} />
+          {/* Meta info */}
+          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+            <span className="font-medium">#{oldestTicket.ticket_number}</span>
+            <span>•</span>
+            <span>Abierto {getTimeAgo()}</span>
           </div>
         </div>
+        
+        {/* Arrow */}
+        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
       </div>
     </button>
   );
