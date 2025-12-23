@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,18 +35,11 @@ serve(async (req) => {
       
       const { error: updateError } = await supabase
         .from('tickets')
-        .update({ 
-          status: 'en_progreso',
-          priority: 'alta'
-        })
+        .update({ status: 'en_progreso', priority: 'alta' })
         .eq('id', ticket_id);
 
-      if (updateError) {
-        console.error('Error escalating ticket:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Add system message about escalation
       await supabase.from('ticket_respuestas').insert({
         ticket_id,
         autor_id: '00000000-0000-0000-0000-000000000000',
@@ -63,10 +55,67 @@ serve(async (req) => {
       });
     }
 
-    // Fetch knowledge base context
+    // ===== FETCH KNOWLEDGE BASE =====
     console.log('Fetching knowledge base context...');
 
-    // 1. Get ticket categories and subcategories with templates
+    // Get KB categories with intents
+    const { data: kbCategories } = await supabase
+      .from('knowledge_base_categories')
+      .select('id, nombre, descripcion, prioridad_default')
+      .eq('activo', true);
+
+    // Get KB intents with triggers
+    const { data: kbIntents } = await supabase
+      .from('knowledge_base_intents')
+      .select('id, nombre, descripcion, disparadores, prioridad, sla_minutos, nivel_escalamiento, category_id')
+      .eq('activo', true);
+
+    // Get KB templates
+    const { data: kbTemplates } = await supabase
+      .from('knowledge_base_templates')
+      .select('intent_id, nombre, template')
+      .eq('activo', true);
+
+    // Get KB glossary
+    const { data: kbGlossary } = await supabase
+      .from('knowledge_base_glossary')
+      .select('termino, definicion')
+      .eq('activo', true);
+
+    // Get KB guardrails
+    const { data: kbGuardrails } = await supabase
+      .from('knowledge_base_guardrails')
+      .select('tipo, regla, accion_recomendada')
+      .eq('activo', true);
+
+    // Get escalation matrix
+    const { data: kbEscalation } = await supabase
+      .from('knowledge_base_escalation_matrix')
+      .select('nivel, responsable, descripcion, sla_sugerido')
+      .eq('activo', true);
+
+    // Detect intent from message
+    const messageLower = mensaje.toLowerCase();
+    let detectedIntent = null;
+    let detectedPriority = 'P3';
+    let detectedLevel = 'L1';
+
+    for (const intent of (kbIntents || [])) {
+      const triggers = intent.disparadores || [];
+      for (const trigger of triggers) {
+        if (messageLower.includes(trigger.toLowerCase())) {
+          detectedIntent = intent;
+          detectedPriority = intent.prioridad;
+          detectedLevel = intent.nivel_escalamiento;
+          break;
+        }
+      }
+      if (detectedIntent) break;
+    }
+
+    console.log('Detected intent:', detectedIntent?.nombre || 'none', 'Priority:', detectedPriority);
+
+    // Get ticket categories and templates
     const { data: categorias } = await supabase
       .from('ticket_categorias_custodio')
       .select('id, nombre, descripcion, sla_horas_respuesta, sla_horas_resolucion');
@@ -75,22 +124,18 @@ serve(async (req) => {
       .from('ticket_subcategorias_custodio')
       .select('id, categoria_id, nombre, descripcion, plantilla_respuesta');
 
-    // 2. Get current ticket info if exists
+    // Get current ticket info
     let ticketContext = null;
     if (ticket_id) {
       const { data: ticket } = await supabase
         .from('tickets')
-        .select(`
-          *,
-          categoria:ticket_categorias_custodio(nombre, descripcion),
-          subcategoria:ticket_subcategorias_custodio(nombre, plantilla_respuesta)
-        `)
+        .select(`*, categoria:ticket_categorias_custodio(nombre, descripcion), subcategoria:ticket_subcategorias_custodio(nombre, plantilla_respuesta)`)
         .eq('id', ticket_id)
         .single();
       ticketContext = ticket;
     }
 
-    // 3. Get ticket history for this conversation
+    // Get conversation history
     let conversationHistory: any[] = [];
     if (ticket_id) {
       const { data: respuestas } = await supabase
@@ -103,7 +148,7 @@ serve(async (req) => {
       conversationHistory = respuestas || [];
     }
 
-    // 4. Get custodian info and recent services
+    // Get custodian info
     let custodioInfo = null;
     let serviciosRecientes: any[] = [];
     if (custodio_telefono) {
@@ -125,78 +170,73 @@ serve(async (req) => {
       }
     }
 
-    // 5. Get training modules for reference
+    // Get training modules
     const { data: modulos } = await supabase
       .from('modulos_capacitacion')
       .select('nombre, descripcion')
       .eq('activo', true)
       .limit(10);
 
-    // Build comprehensive system prompt
-    const systemPrompt = `Eres el asistente de soporte de Detecta, una empresa de custodia y monitoreo GPS. Tu rol es:
-- Ayudar a los custodios con dudas sobre sus servicios, pagos, equipos GPS, y procesos
-- Responder de forma amigable, profesional y concisa en español
-- Usar las plantillas de respuesta cuando apliquen
-- Escalar a un agente humano cuando el tema sea muy complejo o el custodio lo solicite
+    // Build comprehensive system prompt with KB
+    const systemPrompt = `Eres el asistente de soporte de Detecta Security, empresa de custodia y monitoreo GPS en México.
 
-CATEGORÍAS DE SOPORTE DISPONIBLES:
-${(categorias || []).map(c => `- ${c.nombre}: ${c.descripcion || 'Sin descripción'} (Respuesta SLA: ${c.sla_horas_respuesta}h, Resolución: ${c.sla_horas_resolucion}h)`).join('\n')}
+REGLAS DE SEGURIDAD (OBLIGATORIAS):
+${(kbGuardrails || []).map(g => `- [${g.tipo.toUpperCase()}] ${g.regla}: ${g.accion_recomendada}`).join('\n')}
 
-RESPUESTAS MODELO (usa estas como base cuando apliquen):
-${(subcategorias || []).filter(s => s.plantilla_respuesta).map(s => `- [${s.nombre}]: "${s.plantilla_respuesta}"`).join('\n')}
+GLOSARIO DETECTA:
+${(kbGlossary || []).map(g => `- ${g.termino}: ${g.definicion}`).join('\n')}
 
-MÓDULOS DE CAPACITACIÓN (puedes referenciar):
+MATRIZ DE ESCALAMIENTO:
+${(kbEscalation || []).map(e => `- ${e.nivel} (${e.responsable}): ${e.descripcion} - SLA: ${e.sla_sugerido}`).join('\n')}
+
+${detectedIntent ? `
+INTENT DETECTADO: ${detectedIntent.nombre}
+- Prioridad: ${detectedPriority}
+- Nivel escalamiento: ${detectedLevel}
+- Descripción: ${detectedIntent.descripcion}
+${detectedPriority === 'P0' ? '⚠️ PRIORIDAD CRÍTICA: Activa protocolo de emergencia inmediatamente.' : ''}
+` : ''}
+
+PLANTILLAS DE RESPUESTA KB:
+${(kbTemplates || []).slice(0, 10).map(t => `- [${t.nombre}]: "${t.template}"`).join('\n')}
+
+CATEGORÍAS DE TICKETS:
+${(categorias || []).map(c => `- ${c.nombre}: ${c.descripcion || ''} (SLA: ${c.sla_horas_respuesta}h respuesta, ${c.sla_horas_resolucion}h resolución)`).join('\n')}
+
+MÓDULOS DE CAPACITACIÓN:
 ${(modulos || []).map(m => `- ${m.nombre}: ${m.descripcion || ''}`).join('\n')}
 
 ${custodioInfo ? `
-CONTEXTO DEL CUSTODIO:
+CUSTODIO:
 - Nombre: ${custodioInfo.nombre_completo || 'No disponible'}
 - Teléfono: ${custodioInfo.telefono}
-- Estado: ${custodioInfo.estado || 'Activo'}
 - Zona: ${custodioInfo.zona_operacion || 'No especificada'}
-${serviciosRecientes.length > 0 ? `
-Servicios recientes:
-${serviciosRecientes.slice(0, 3).map(s => `  • ${s.tipo_servicio || 'Servicio'} - ${s.origen || '?'} → ${s.destino || '?'} (${s.estado})`).join('\n')}
-` : ''}
+${serviciosRecientes.length > 0 ? `Servicios recientes:\n${serviciosRecientes.slice(0, 3).map(s => `  • ${s.tipo_servicio || 'Servicio'}: ${s.origen || '?'} → ${s.destino || '?'} (${s.estado})`).join('\n')}` : ''}
 ` : ''}
 
 ${ticketContext ? `
-TICKET ACTUAL:
-- Número: ${ticketContext.ticket_number}
+TICKET ACTUAL #${ticketContext.ticket_number}:
 - Asunto: ${ticketContext.subject}
-- Descripción: ${ticketContext.description || 'Sin descripción'}
 - Categoría: ${ticketContext.categoria?.nombre || 'Sin categoría'}
 - Estado: ${ticketContext.status}
-${ticketContext.monto_reclamado ? `- Monto reclamado: $${ticketContext.monto_reclamado} MXN` : ''}
 ` : ''}
 
 INSTRUCCIONES:
-1. Responde siempre en español de forma amigable y profesional
-2. Si el tema es sobre pagos/finanzas, menciona los tiempos de SLA
-3. Si necesitas documentos adicionales, especifica cuáles
-4. Si el custodio menciona "hablar con humano", "agente", "persona real" o parece muy frustrado, sugiere amablemente escalar a un agente humano
-5. Mantén las respuestas concisas (máximo 3-4 oraciones)
-6. Si usas información de las plantillas, adáptala al contexto específico
+1. Responde en español, amigable y conciso (máx 4 oraciones)
+2. Si es emergencia P0: prioriza seguridad, instruye 911 si hay riesgo de vida, ofrece escalar a C4
+3. Para pagos: menciona SLA y pide folio/fecha para verificar
+4. Si el custodio pide "hablar con humano" o está frustrado: ofrece escalar
+5. Usa el glosario cuando mencionen términos técnicos
+6. NO inventes información de pagos, montos o fechas no confirmados`;
 
-IMPORTANTE: No inventes información sobre pagos específicos, fechas o montos que no tengas confirmados.`;
-
-    // Build messages array with conversation history
-    const messages = [
-      { role: 'system', content: systemPrompt }
-    ];
-
-    // Add conversation history
+    const messages = [{ role: 'system', content: systemPrompt }];
     for (const resp of conversationHistory) {
-      const role = resp.autor_tipo === 'custodio' ? 'user' : 'assistant';
-      messages.push({ role, content: resp.mensaje });
+      messages.push({ role: resp.autor_tipo === 'custodio' ? 'user' : 'assistant', content: resp.mensaje });
     }
-
-    // Add current message
     messages.push({ role: 'user', content: mensaje });
 
-    console.log('Calling Lovable AI Gateway...');
+    console.log('Calling Lovable AI Gateway with KB context...');
 
-    // Call Lovable AI Gateway
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -214,55 +254,43 @@ IMPORTANTE: No inventes información sobre pagos específicos, fechas o montos q
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI Gateway error:', aiResponse.status, errorText);
-      
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Demasiadas solicitudes, por favor espera un momento.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: 'Servicio de IA no disponible temporalmente.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        return new Response(JSON.stringify({ error: 'Demasiadas solicitudes, espera un momento.' }), {
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       throw new Error(`AI Gateway error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
-    const botMessage = aiData.choices?.[0]?.message?.content || 'Lo siento, no pude procesar tu mensaje. Por favor intenta de nuevo.';
+    const botMessage = aiData.choices?.[0]?.message?.content || 'Lo siento, no pude procesar tu mensaje. Intenta de nuevo.';
 
-    console.log('Bot response generated:', botMessage.substring(0, 100) + '...');
+    console.log('Bot response:', botMessage.substring(0, 100) + '...');
 
-    // Save bot response to database
+    // Save bot response
     if (ticket_id) {
-      const { error: insertError } = await supabase
-        .from('ticket_respuestas')
-        .insert({
-          ticket_id,
-          autor_id: '00000000-0000-0000-0000-000000000000',
-          autor_tipo: 'sistema',
-          autor_nombre: 'Asistente IA',
-          mensaje: botMessage,
-          es_resolucion: false,
-          es_interno: false
-        });
-
-      if (insertError) {
-        console.error('Error saving bot response:', insertError);
-      }
+      await supabase.from('ticket_respuestas').insert({
+        ticket_id,
+        autor_id: '00000000-0000-0000-0000-000000000000',
+        autor_tipo: 'sistema',
+        autor_nombre: 'Asistente IA',
+        mensaje: botMessage,
+        es_resolucion: false,
+        es_interno: false
+      });
     }
 
-    // Check if bot suggests escalation
-    const shouldEscalate = botMessage.toLowerCase().includes('agente humano') || 
-                           botMessage.toLowerCase().includes('transferir') ||
-                           botMessage.toLowerCase().includes('escalar');
+    // Auto-escalate P0 priorities
+    const shouldEscalate = detectedPriority === 'P0' || 
+                           botMessage.toLowerCase().includes('agente humano') || 
+                           botMessage.toLowerCase().includes('transferir');
 
     return new Response(JSON.stringify({ 
       success: true, 
       message: botMessage,
-      suggestsEscalation: shouldEscalate
+      suggestsEscalation: shouldEscalate,
+      detectedIntent: detectedIntent?.nombre,
+      priority: detectedPriority
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

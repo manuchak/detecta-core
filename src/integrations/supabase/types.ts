@@ -6271,6 +6271,276 @@ export type Database = {
           },
         ]
       }
+      knowledge_base_categories: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          icono: string | null
+          id: string
+          nombre: string
+          orden: number | null
+          prioridad_default: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre: string
+          orden?: number | null
+          prioridad_default?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          icono?: string | null
+          id?: string
+          nombre?: string
+          orden?: number | null
+          prioridad_default?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      knowledge_base_escalation_matrix: {
+        Row: {
+          activo: boolean | null
+          casos_tipicos: string[] | null
+          contacto_escalamiento: string | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nivel: string
+          responsable: string
+          sla_sugerido: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          casos_tipicos?: string[] | null
+          contacto_escalamiento?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nivel: string
+          responsable: string
+          sla_sugerido?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          casos_tipicos?: string[] | null
+          contacto_escalamiento?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nivel?: string
+          responsable?: string
+          sla_sugerido?: string | null
+        }
+        Relationships: []
+      }
+      knowledge_base_glossary: {
+        Row: {
+          activo: boolean | null
+          categoria: string | null
+          created_at: string | null
+          definicion: string
+          id: string
+          termino: string
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria?: string | null
+          created_at?: string | null
+          definicion: string
+          id?: string
+          termino: string
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string | null
+          created_at?: string | null
+          definicion?: string
+          id?: string
+          termino?: string
+        }
+        Relationships: []
+      }
+      knowledge_base_guardrails: {
+        Row: {
+          accion_recomendada: string | null
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          regla: string
+          tipo: string
+        }
+        Insert: {
+          accion_recomendada?: string | null
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          regla: string
+          tipo: string
+        }
+        Update: {
+          accion_recomendada?: string | null
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          regla?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
+      knowledge_base_intents: {
+        Row: {
+          activo: boolean | null
+          category_id: string | null
+          created_at: string | null
+          descripcion: string | null
+          disparadores: string[]
+          id: string
+          nivel_escalamiento: string | null
+          nombre: string
+          prioridad: string | null
+          sla_minutos: number | null
+          slots_requeridos: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          category_id?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          disparadores?: string[]
+          id?: string
+          nivel_escalamiento?: string | null
+          nombre: string
+          prioridad?: string | null
+          sla_minutos?: number | null
+          slots_requeridos?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          category_id?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          disparadores?: string[]
+          id?: string
+          nivel_escalamiento?: string | null
+          nombre?: string
+          prioridad?: string | null
+          sla_minutos?: number | null
+          slots_requeridos?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_intents_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base_playbooks: {
+        Row: {
+          acciones_sistema: string[] | null
+          condicion_siguiente: string | null
+          contenido: string
+          created_at: string | null
+          id: string
+          intent_id: string | null
+          paso_numero: number
+          preguntas: string[] | null
+          tipo: string
+          titulo: string | null
+        }
+        Insert: {
+          acciones_sistema?: string[] | null
+          condicion_siguiente?: string | null
+          contenido: string
+          created_at?: string | null
+          id?: string
+          intent_id?: string | null
+          paso_numero: number
+          preguntas?: string[] | null
+          tipo?: string
+          titulo?: string | null
+        }
+        Update: {
+          acciones_sistema?: string[] | null
+          condicion_siguiente?: string | null
+          contenido?: string
+          created_at?: string | null
+          id?: string
+          intent_id?: string | null
+          paso_numero?: number
+          preguntas?: string[] | null
+          tipo?: string
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_playbooks_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_base_templates: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          id: string
+          intent_id: string | null
+          nombre: string
+          template: string
+          tipo: string | null
+          variables: string[] | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          intent_id?: string | null
+          nombre: string
+          template: string
+          tipo?: string | null
+          variables?: string[] | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          intent_id?: string | null
+          nombre?: string
+          template?: string
+          tipo?: string | null
+          variables?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_templates_intent_id_fkey"
+            columns: ["intent_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_intents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_approval_process: {
         Row: {
           analyst_id: string
