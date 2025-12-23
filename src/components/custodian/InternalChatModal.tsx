@@ -95,11 +95,16 @@ const InternalChatModal = ({
           const newResp = payload.new as TicketRespuesta;
           if (newResp.es_interno) return;
           
+          // ALWAYS reset botTyping when Sara or agent responds
+          if (newResp.autor_tipo === 'sistema' || newResp.autor_tipo === 'agente') {
+            setBotTyping(false);
+          }
+          
+          // Add message if not already exists
           setRespuestas(prev => {
             if (prev.some(r => r.id === newResp.id)) return prev;
             return [...prev, newResp];
           });
-          setBotTyping(false);
           scrollToBottom();
         }
       )
@@ -122,12 +127,17 @@ const InternalChatModal = ({
     const messageToSend = newMessage;
     setNewMessage('');
     setSending(true);
+    setBotTyping(true);
+    
+    // Safety timeout: reset botTyping after 30 seconds if no response
+    const typingTimeout = setTimeout(() => {
+      setBotTyping(false);
+      console.warn('Bot typing timeout - resetting after 30s');
+    }, 30000);
     
     const success = await addResponse(selectedTicket.id, messageToSend);
     
     if (success) {
-      setBotTyping(true);
-      
       try {
         const response = await supabase.functions.invoke('support-chat-bot', {
           body: {
@@ -139,6 +149,8 @@ const InternalChatModal = ({
 
         if (response.error) {
           console.error('Bot error:', response.error);
+          clearTimeout(typingTimeout);
+          setBotTyping(false);
           toast({
             title: 'Error del asistente',
             description: 'No se pudo obtener respuesta del asistente',
@@ -147,8 +159,12 @@ const InternalChatModal = ({
         }
       } catch (error) {
         console.error('Error calling bot:', error);
+        clearTimeout(typingTimeout);
         setBotTyping(false);
       }
+    } else {
+      clearTimeout(typingTimeout);
+      setBotTyping(false);
     }
     
     setSending(false);
