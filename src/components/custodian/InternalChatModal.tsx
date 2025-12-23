@@ -61,11 +61,23 @@ const InternalChatModal = ({
   useEffect(() => {
     if (selectedTicket) {
       loadResponses();
-      setupRealtime();
+      const cleanup = setupRealtime();
+      return () => {
+        cleanup?.();
+        supabase.removeAllChannels();
+      };
     }
-    return () => {
-      supabase.removeAllChannels();
-    };
+  }, [selectedTicket?.id]);
+
+  // Polling fallback: reload messages every 5 seconds in case realtime fails
+  useEffect(() => {
+    if (!selectedTicket) return;
+    
+    const pollInterval = setInterval(() => {
+      loadResponses();
+    }, 5000);
+    
+    return () => clearInterval(pollInterval);
   }, [selectedTicket?.id]);
 
   const loadResponses = async () => {
@@ -108,7 +120,9 @@ const InternalChatModal = ({
           scrollToBottom();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -128,6 +142,22 @@ const InternalChatModal = ({
     setNewMessage('');
     setSending(true);
     setBotTyping(true);
+    
+    // OPTIMISTIC UPDATE: Add user message immediately to UI
+    const tempMessage: TicketRespuesta = {
+      id: crypto.randomUUID(),
+      ticket_id: selectedTicket.id,
+      autor_id: '',
+      autor_tipo: 'custodio',
+      autor_nombre: 'Tú',
+      mensaje: messageToSend,
+      created_at: new Date().toISOString(),
+      es_interno: false,
+      es_resolucion: false,
+      adjuntos_urls: null
+    };
+    setRespuestas(prev => [...prev, tempMessage]);
+    scrollToBottom();
     
     // Safety timeout: reset botTyping after 30 seconds if no response
     const typingTimeout = setTimeout(() => {
