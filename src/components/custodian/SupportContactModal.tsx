@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Ticket, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CustodianTicket } from "@/hooks/useCustodianTicketsEnhanced";
-import InternalChatModal from "./InternalChatModal";
 
 interface SupportContactModalProps {
   open: boolean;
@@ -12,6 +10,7 @@ interface SupportContactModalProps {
   tickets?: CustodianTicket[];
   custodianPhone?: string;
   onRefresh?: () => void;
+  onOpenSaraChat?: () => void;
 }
 
 const SupportContactModal = ({ 
@@ -19,10 +18,10 @@ const SupportContactModal = ({
   onOpenChange, 
   tickets = [],
   custodianPhone = '',
-  onRefresh
+  onRefresh,
+  onOpenSaraChat
 }: SupportContactModalProps) => {
   const navigate = useNavigate();
-  const [showChatModal, setShowChatModal] = useState(false);
 
   const openTickets = tickets.filter(t => ['abierto', 'en_progreso'].includes(t.status));
 
@@ -31,13 +30,9 @@ const SupportContactModal = ({
     navigate('/custodian/support');
   };
 
-  const handleCopyEmail = () => {
-    navigator.clipboard.writeText('soporte@detecta.app');
-  };
-
   const handleOpenChat = () => {
     onOpenChange(false);
-    setShowChatModal(true);
+    onOpenSaraChat?.();
   };
 
   return (
@@ -99,16 +94,6 @@ const SupportContactModal = ({
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Internal Chat Modal */}
-      <InternalChatModal
-        open={showChatModal}
-        onOpenChange={setShowChatModal}
-        tickets={tickets}
-        custodianPhone={custodianPhone}
-        onCreateTicket={handleCreateTicket}
-        onRefresh={onRefresh || (() => {})}
-      />
     </>
   );
 };
