@@ -4,17 +4,15 @@ import { format } from 'date-fns';
 
 export interface ServicioPlanificado {
   id: string;
-  folio: string | null;
-  cliente_nombre: string | null;
-  destino_texto: string | null;
+  id_servicio: string | null;
+  nombre_cliente: string | null;
+  origen: string | null;
+  destino: string | null;
   fecha_hora_cita: string | null;
-  hora_ventana_inicio: string | null;
-  hora_ventana_fin: string | null;
   estado_planeacion: string | null;
   custodio_asignado: string | null;
   requiere_armado: boolean | null;
-  armado: string | null;
-  zona_destino: string | null;
+  armado_asignado: string | null;
   created_at: string;
 }
 
@@ -27,10 +25,10 @@ export const useServiciosHoy = () => {
       
       const { data, error } = await supabase
         .from('servicios_planificados')
-        .select('*')
+        .select('id, id_servicio, nombre_cliente, origen, destino, fecha_hora_cita, estado_planeacion, custodio_asignado, requiere_armado, armado_asignado, created_at')
         .gte('fecha_hora_cita', `${hoy}T00:00:00`)
         .lt('fecha_hora_cita', `${hoy}T23:59:59`)
-        .order('fecha_hora_cita');
+        .order('fecha_hora_cita', { ascending: true });
       
       if (error) throw error;
       return (data || []) as ServicioPlanificado[];
