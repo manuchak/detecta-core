@@ -17,6 +17,7 @@ import SupportContactModal from "./SupportContactModal";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { CustodianTicketDetail } from "./CustodianTicketDetail";
+import ReportUnavailabilityCard from "./ReportUnavailabilityCard";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -29,12 +30,17 @@ const MobileDashboardLayout = () => {
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
   const { getRecentlyResolvedTickets, markTicketAsSeen } = useCustodianTicketsEnhanced(profile?.phone);
   const { maintenanceStatus, pendingMaintenance, createMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
-  const { crearIndisponibilidad, cancelarIndisponibilidad, custodioTieneIndisponibilidadActiva } = useCustodioIndisponibilidades();
+  const { 
+    indisponibilidadesActivas,
+    crearIndisponibilidad, 
+    cancelarIndisponibilidad,
+  } = useCustodioIndisponibilidades();
   
   const [activeNav, setActiveNav] = useState<NavItem>('home');
   const [refreshing, setRefreshing] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
   const [selectedResolvedTicket, setSelectedResolvedTicket] = useState<CustodianTicket | null>(null);
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
 
@@ -48,8 +54,10 @@ const MobileDashboardLayout = () => {
     return services.filter(s => new Date(s.fecha_hora_cita) >= startOfMonth).length;
   }, [services]);
 
-  // Check unavailability (simplified - would need custodio_id in real implementation)
-  const currentUnavailability = null; // Placeholder
+  // Check unavailability for current custodian from the already-loaded list
+  const currentUnavailability = profile?.id 
+    ? indisponibilidadesActivas.find((i: any) => i.custodio_id === profile.id)
+    : null;
 
   const handleNavigation = (item: NavItem) => {
     setActiveNav(item);
@@ -76,6 +84,78 @@ const MobileDashboardLayout = () => {
 
   const handleRecordMaintenance = async (data: any) => {
     return await createMaintenance(data);
+  };
+
+  const handleReportUnavailability = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
+    if (!profile?.id) {
+      toast({
+        title: "Error",
+        description: "No se encontró tu perfil de custodio",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const fechaFin = data.dias 
+        ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+      
+      // Map tipo to tipo_indisponibilidad enum values
+      const tipoMap: Record<string, string> = {
+        'falla_mecanica': 'falla_mecanica',
+        'enfermedad': 'enfermedad',
+        'emergencia_familiar': 'familiar',
+        'capacitacion': 'capacitacion',
+        'otro': 'otro',
+      };
+      
+      await crearIndisponibilidad.mutateAsync({
+        custodio_id: profile.id,
+        tipo_indisponibilidad: (tipoMap[data.tipo] || 'otro') as any,
+        motivo: data.motivo || 'Sin detalle proporcionado',
+        fecha_inicio: new Date().toISOString(),
+        fecha_fin_estimada: fechaFin || undefined,
+        severidad: 'media',
+      });
+      
+      toast({
+        title: "✅ Indisponibilidad registrada",
+        description: "Planeación ha sido notificada de tu estado",
+      });
+      setShowUnavailabilityDialog(false);
+      return true;
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo registrar la indisponibilidad",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const handleCancelUnavailability = async () => {
+    if (!currentUnavailability) return false;
+    
+    try {
+      await cancelarIndisponibilidad.mutateAsync({
+        id: currentUnavailability.id,
+        motivo_cancelacion: 'Cancelado por el custodio'
+      });
+      toast({
+        title: "✅ Disponibilidad restaurada",
+        description: "Ya estás disponible para recibir servicios",
+      });
+      return true;
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la indisponibilidad",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   if (loading) {
@@ -190,7 +270,7 @@ const MobileDashboardLayout = () => {
         <section className="animate-fade-in" style={{ animationDelay: '100ms' }}>
           <QuickActionsGrid
             onRegisterService={() => setShowBatchDialog(true)}
-            onReportUnavailability={() => navigate('/custodian/support')}
+            onReportUnavailability={() => setShowUnavailabilityDialog(true)}
             onContactSupport={() => setShowContactModal(true)}
             pendingTickets={ticketStats?.abiertos || 0}
           />
@@ -224,6 +304,21 @@ const MobileDashboardLayout = () => {
       <SupportContactModal
         open={showContactModal}
         onOpenChange={setShowContactModal}
+      />
+
+      {/* Unavailability Dialog */}
+      <ReportUnavailabilityCard
+        open={showUnavailabilityDialog}
+        onOpenChange={setShowUnavailabilityDialog}
+        onReportUnavailability={handleReportUnavailability}
+        isCurrentlyUnavailable={!!currentUnavailability}
+        currentUnavailability={currentUnavailability ? {
+          tipo: currentUnavailability.tipo_indisponibilidad,
+          fecha_fin: currentUnavailability.fecha_fin_estimada || undefined,
+          motivo: currentUnavailability.motivo || undefined,
+        } : undefined}
+        onCancelUnavailability={handleCancelUnavailability}
+        showTriggerButton={false}
       />
     </div>
   );

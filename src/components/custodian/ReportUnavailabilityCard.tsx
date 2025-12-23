@@ -24,6 +24,8 @@ const DURATION_OPTIONS = [
 ];
 
 interface ReportUnavailabilityCardProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onReportUnavailability: (data: {
     tipo: string;
     motivo?: string;
@@ -36,20 +38,34 @@ interface ReportUnavailabilityCardProps {
     motivo?: string;
   } | null;
   onCancelUnavailability?: () => Promise<boolean>;
+  showTriggerButton?: boolean;
 }
 
 const ReportUnavailabilityCard = ({
+  open: controlledOpen,
+  onOpenChange,
   onReportUnavailability,
   isCurrentlyUnavailable = false,
   currentUnavailability = null,
   onCancelUnavailability,
+  showTriggerButton = true,
 }: ReportUnavailabilityCardProps) => {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [selectedDuration, setSelectedDuration] = useState<string>('hoy');
   const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Support both controlled and uncontrolled modes
+  const dialogOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setDialogOpen = (value: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(value);
+    } else {
+      setInternalOpen(value);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedReason) {
@@ -131,6 +147,161 @@ const ReportUnavailabilityCard = ({
           </p>
         )}
       </div>
+    );
+  }
+
+  // If no trigger button needed (controlled mode), just render dialog
+  if (!showTriggerButton) {
+    return (
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {isCurrentlyUnavailable ? 'Estado de Indisponibilidad' : 'Reportar indisponibilidad'}
+            </DialogTitle>
+            <DialogDescription>
+              {isCurrentlyUnavailable 
+                ? 'Tu estado actual de disponibilidad' 
+                : 'Planeación verá tu estado y no te asignarán servicios'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isCurrentlyUnavailable && currentUnavailability ? (
+            <div className="py-4">
+              {(() => {
+                const reason = UNAVAILABILITY_REASONS.find(r => r.id === currentUnavailability.tipo);
+                const ReasonIcon = reason?.icon || AlertCircle;
+                return (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                        <ReasonIcon className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-red-600">No disponible</p>
+                        <p className="text-sm text-muted-foreground">
+                          {reason?.label || currentUnavailability.tipo}
+                        </p>
+                        {currentUnavailability.fecha_fin && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Hasta: {new Date(currentUnavailability.fecha_fin).toLocaleDateString('es-MX')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {currentUnavailability.motivo && (
+                      <p className="text-xs text-muted-foreground mt-2 pl-15">
+                        "{currentUnavailability.motivo}"
+                      </p>
+                    )}
+                    {onCancelUnavailability && (
+                      <Button
+                        variant="outline"
+                        onClick={handleCancelUnavailability}
+                        disabled={loading}
+                        className="w-full mt-4"
+                      >
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Cancelar Indisponibilidad
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-6 py-4">
+                {/* Motivo */}
+                <div className="space-y-3">
+                  <Label>¿Cuál es el motivo?</Label>
+                  <div className="space-y-2">
+                    {UNAVAILABILITY_REASONS.map((reason) => (
+                      <button
+                        key={reason.id}
+                        type="button"
+                        onClick={() => setSelectedReason(reason.id)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left",
+                          selectedReason === reason.id
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", reason.color)}>
+                          <reason.icon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground text-sm">{reason.label}</p>
+                          <p className="text-xs text-muted-foreground">{reason.sublabel}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Duración */}
+                <div className="space-y-3">
+                  <Label>¿Por cuánto tiempo?</Label>
+                  <RadioGroup value={selectedDuration} onValueChange={setSelectedDuration}>
+                    <div className="grid grid-cols-2 gap-2">
+                      {DURATION_OPTIONS.map((option) => (
+                        <label
+                          key={option.id}
+                          className={cn(
+                            "flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all",
+                            selectedDuration === option.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <RadioGroupItem value={option.id} className="sr-only" />
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Notas */}
+                <div className="space-y-2">
+                  <Label htmlFor="notas-dialog">Notas adicionales (opcional)</Label>
+                  <Textarea
+                    id="notas-dialog"
+                    value={notas}
+                    onChange={(e) => setNotas(e.target.value)}
+                    placeholder="Algún detalle que quieras compartir..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                  className="flex-1 h-12"
+                  disabled={loading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  className="flex-1 h-12 bg-red-600 hover:bg-red-700"
+                  disabled={loading || !selectedReason}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'Reportar'
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     );
   }
 
