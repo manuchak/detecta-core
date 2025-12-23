@@ -14,6 +14,7 @@ import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
 import RecentServicesCollapsible from "./RecentServicesCollapsible";
 import ResolvedTicketAlert from "./ResolvedTicketAlert";
+import PendingTicketAlert from "./PendingTicketAlert";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
 import SupportContactModal from "./SupportContactModal";
 import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
@@ -218,8 +219,30 @@ const MobileDashboardLayout = () => {
   // Get resolved tickets not dismissed
   const resolvedTicketsToShow = getRecentlyResolvedTickets(48).filter(t => !dismissedTickets.has(t.id));
 
+  // Get pending tickets with urgency calculation (2+ days old)
+  const { getOpenTickets } = useCustodianTicketsEnhanced(profile?.phone);
+  const openTickets = getOpenTickets();
+  const pendingTicketsWithAge = useMemo(() => {
+    const now = new Date();
+    return openTickets
+      .map(t => ({
+        ...t,
+        diasAbierto: Math.floor((now.getTime() - new Date(t.created_at).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+      .filter(t => t.diasAbierto >= 2); // Only show tickets 2+ days old as "pending alerts"
+  }, [openTickets]);
+  
+  // Check if there are urgent pending tickets (5+ days)
+  const hasUrgentTickets = pendingTicketsWithAge.some(t => t.diasAbierto >= 5);
+  // Check if there are any old pending tickets (2+ days)
+  const hasOldPendingTickets = pendingTicketsWithAge.length > 0;
+
   const handleViewResolvedTicket = (ticket: CustodianTicket) => {
     setSelectedResolvedTicket(ticket);
+  };
+
+  const handleViewPendingTicket = (ticket: CustodianTicket) => {
+    navigate('/custodian/support');
   };
 
   const handleDismissTicket = (ticketId: string) => {
@@ -272,9 +295,19 @@ const MobileDashboardLayout = () => {
 
       {/* Content */}
       <main className="px-5 py-4 space-y-4">
-        {/* Resolved ticket alert - Good news first! */}
-        {resolvedTicketsToShow.length > 0 && (
+        {/* 1. URGENT: Pending tickets alert (2+ days old) - HIGHEST PRIORITY */}
+        {hasOldPendingTickets && (
           <section className="animate-fade-in">
+            <PendingTicketAlert
+              tickets={openTickets}
+              onViewTicket={handleViewPendingTicket}
+            />
+          </section>
+        )}
+
+        {/* 2. Resolved ticket alert - Good news! */}
+        {resolvedTicketsToShow.length > 0 && (
+          <section className="animate-fade-in" style={{ animationDelay: hasOldPendingTickets ? '50ms' : '0ms' }}>
             <ResolvedTicketAlert
               tickets={resolvedTicketsToShow}
               onViewTicket={handleViewResolvedTicket}
@@ -292,13 +325,15 @@ const MobileDashboardLayout = () => {
           />
         )}
 
-        {/* Hero Alert - Lo más importante primero */}
-        <section className="animate-fade-in" style={{ animationDelay: resolvedTicketsToShow.length > 0 ? '50ms' : '0ms' }}>
-          <DashboardHeroAlert
-            maintenanceStatus={maintenanceStatus}
-            onRegisterService={() => setShowBatchDialog(true)}
-          />
-        </section>
+        {/* 3. Hero Alert - Maintenance status (only show "all OK" if no urgent tickets) */}
+        {!hasUrgentTickets && (
+          <section className="animate-fade-in" style={{ animationDelay: (resolvedTicketsToShow.length > 0 || hasOldPendingTickets) ? '100ms' : '0ms' }}>
+            <DashboardHeroAlert
+              maintenanceStatus={maintenanceStatus}
+              onRegisterService={() => setShowBatchDialog(true)}
+            />
+          </section>
+        )}
 
         {/* Stats compactos */}
         <section className="animate-fade-in" style={{ animationDelay: '50ms' }}>
