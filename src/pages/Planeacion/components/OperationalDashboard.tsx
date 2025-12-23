@@ -151,10 +151,16 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <p className="apple-list-title">
-                        {servicio.folio || 'Sin folio'}
+                        {servicio.nombre_cliente || servicio.id_servicio || 'Sin identificar'}
                       </p>
                       <p className="apple-list-description">
-                        {servicio.destino_texto || 'Sin destino'} • {servicio.hora_ventana_inicio || 'Sin horario'}
+                        {servicio.origen && servicio.destino 
+                          ? `${servicio.origen} → ${servicio.destino}` 
+                          : servicio.destino || servicio.origen || 'Sin ruta'}
+                        {' • '}
+                        {servicio.fecha_hora_cita 
+                          ? format(new Date(servicio.fecha_hora_cita), 'HH:mm') 
+                          : 'Sin horario'}
                       </p>
                     </div>
                     <div className="apple-list-actions">
@@ -162,20 +168,19 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
                         size="sm" 
                         className="apple-button"
                         onClick={() => {
-                          // Transformar ServicioPlanificado a formato PendingService
                           const serviceForModal = {
                             id: servicio.id,
-                            id_servicio: servicio.id,
-                            nombre_cliente: servicio.cliente_nombre || servicio.folio || 'Sin cliente',
-                            origen: servicio.destino_texto || '', // Usar destino como origen si no hay campo separado
-                            destino: servicio.destino_texto || '',
+                            id_servicio: servicio.id_servicio || '',
+                            nombre_cliente: servicio.nombre_cliente || 'Sin cliente',
+                            origen: servicio.origen || '',
+                            destino: servicio.destino || '',
                             fecha_hora_cita: servicio.fecha_hora_cita || '',
                             tipo_servicio: 'custodia',
                             requiere_armado: servicio.requiere_armado ?? false,
                             observaciones: '',
                             created_at: servicio.created_at || new Date().toISOString(),
                             custodio_asignado: servicio.custodio_asignado || undefined,
-                            armado_asignado: servicio.armado || undefined,
+                            armado_asignado: servicio.armado_asignado || undefined,
                             estado: servicio.estado_planeacion || 'pendiente'
                           };
                           setSelectedService(serviceForModal);
