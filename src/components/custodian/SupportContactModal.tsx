@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Mail, Ticket, Clock, Bot } from "lucide-react";
+import { Sparkles, Ticket, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CustodianTicket } from "@/hooks/useCustodianTicketsEnhanced";
 import InternalChatModal from "./InternalChatModal";
@@ -55,55 +55,26 @@ const SupportContactModal = ({
               ¿Necesitas ayuda? Estamos aquí para apoyarte.
             </p>
 
-            {/* Chat Interno con Bot IA - NUEVO */}
+            {/* Hablar con Sara */}
             <button
               onClick={handleOpenChat}
               className="w-full flex items-center gap-4 bg-purple-500/10 hover:bg-purple-500/20 active:scale-[0.98] transition-all rounded-xl p-4 relative"
             >
               <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-purple-600" />
+                <Sparkles className="w-6 h-6 text-purple-600" />
               </div>
               <div className="flex-1 text-left">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-foreground">Chat Interno</p>
+                  <p className="font-semibold text-foreground">Hablar con Sara</p>
                   {openTickets.length > 0 && (
                     <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs">
                       {openTickets.length} activo{openTickets.length > 1 ? 's' : ''}
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Asistente IA + Agentes</p>
+                <p className="text-xs text-muted-foreground">Tu asistente de soporte</p>
               </div>
               <span className="text-xs text-purple-600 font-medium">24/7</span>
-            </button>
-
-            {/* WhatsApp - Próximamente */}
-            <button
-              disabled
-              className="w-full flex items-center gap-4 bg-muted/50 rounded-xl p-4 opacity-60 cursor-not-allowed"
-            >
-              <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-                <MessageCircle className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-foreground">WhatsApp</p>
-                <p className="text-xs text-muted-foreground">Próximamente</p>
-              </div>
-            </button>
-
-            {/* Correo */}
-            <button
-              onClick={handleCopyEmail}
-              className="w-full flex items-center gap-4 bg-blue-500/10 hover:bg-blue-500/20 active:scale-[0.98] transition-all rounded-xl p-4"
-            >
-              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                <Mail className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-foreground">Correo</p>
-                <p className="text-xs text-muted-foreground">soporte@detecta.app</p>
-              </div>
-              <span className="text-xs text-muted-foreground">Copiar</span>
             </button>
 
             {/* Crear Ticket */}
@@ -115,8 +86,8 @@ const SupportContactModal = ({
                 <Ticket className="w-6 h-6 text-muted-foreground" />
               </div>
               <div className="flex-1 text-left">
-                <p className="font-semibold text-foreground">Ver Tickets</p>
-                <p className="text-xs text-muted-foreground">Historial completo</p>
+                <p className="font-semibold text-foreground">Crear Ticket</p>
+                <p className="text-xs text-muted-foreground">Solicitud detallada</p>
               </div>
             </button>
 
