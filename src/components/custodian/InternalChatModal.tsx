@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  ArrowLeft, Send, Loader2, Bot, User, Headphones, 
+  ArrowLeft, Send, Loader2, Sparkles, User, Headphones, 
   MessageSquare, Clock, Plus, UserCog 
 } from 'lucide-react';
 import { CustodianTicket, TicketRespuesta, useCustodianTicketsEnhanced } from '@/hooks/useCustodianTicketsEnhanced';
@@ -27,7 +27,7 @@ interface InternalChatModalProps {
 const autorIcons = {
   custodio: User,
   agente: Headphones,
-  sistema: Bot
+  sistema: Sparkles
 };
 
 const InternalChatModal = ({ 
@@ -254,7 +254,7 @@ const InternalChatModal = ({
         variant={openTickets.length > 0 ? "outline" : "default"}
       >
         <Plus className="w-4 h-4" />
-        Iniciar nueva conversación
+        Nueva consulta con Sara
       </Button>
     </div>
   );
@@ -293,9 +293,9 @@ const InternalChatModal = ({
             </div>
           ) : respuestas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Bot className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Escribe un mensaje para comenzar</p>
-              <p className="text-xs">Un asistente IA te responderá al instante</p>
+              <Sparkles className="w-12 h-12 mx-auto mb-2 opacity-50 text-purple-400" />
+              <p className="text-sm">Escribe tu pregunta o comentario</p>
+              <p className="text-xs">Sara te responderá al instante ✨</p>
             </div>
           ) : (
             respuestas.map(resp => {
@@ -336,7 +336,7 @@ const InternalChatModal = ({
                       <p className="whitespace-pre-wrap">{resp.mensaje}</p>
                     </div>
                     <p className="text-[10px] text-muted-foreground px-1">
-                      {resp.autor_nombre || (isUser ? 'Tú' : isBot ? 'Asistente IA' : 'Agente')}
+                      {resp.autor_nombre || (isUser ? 'Tú' : isBot ? 'Sara' : 'Agente')}
                       {' • '}
                       {formatDistanceToNow(new Date(resp.created_at), { addSuffix: true, locale: es })}
                     </p>
@@ -346,11 +346,11 @@ const InternalChatModal = ({
             })
           )}
 
-          {/* Bot typing indicator */}
+          {/* Sara typing indicator */}
           {botTyping && (
             <div className="flex gap-2">
               <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="bg-purple-50 dark:bg-purple-950/50 px-4 py-2 rounded-2xl rounded-tl-sm">
                 <div className="flex gap-1">
@@ -403,8 +403,8 @@ const InternalChatModal = ({
       <DialogContent className="max-w-md mx-4 rounded-2xl p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <Bot className="w-6 h-6 text-purple-600" />
-            {selectedTicket ? 'Chat de Soporte' : 'Chats Activos'}
+            <Sparkles className="w-6 h-6 text-purple-600" />
+            {selectedTicket ? 'Conversación con Sara' : 'Sara - Tu Asistente'}
           </DialogTitle>
         </DialogHeader>
 
