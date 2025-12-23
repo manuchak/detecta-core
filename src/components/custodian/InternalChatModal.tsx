@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, Send, Loader2, Sparkles, User, Headphones, 
-  MessageSquare, Clock, Plus, UserCog 
+  MessageSquare, Clock, Plus, UserCog, Ticket 
 } from 'lucide-react';
 import { CustodianTicket, TicketRespuesta, useCustodianTicketsEnhanced } from '@/hooks/useCustodianTicketsEnhanced';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +39,7 @@ const InternalChatModal = ({
   onRefresh
 }: InternalChatModalProps) => {
   const { toast } = useToast();
-  const { getTicketResponses, addResponse } = useCustodianTicketsEnhanced(custodianPhone);
+  const { getTicketResponses, addResponse, createTicket } = useCustodianTicketsEnhanced(custodianPhone);
   
   const [selectedTicket, setSelectedTicket] = useState<CustodianTicket | null>(null);
   const [respuestas, setRespuestas] = useState<TicketRespuesta[]>([]);
@@ -47,6 +47,11 @@ const InternalChatModal = ({
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
+  
+  // New state for creating a new conversation without navigating
+  const [creatingNewConversation, setCreatingNewConversation] = useState(false);
+  const [firstMessage, setFirstMessage] = useState('');
+  const [creatingTicket, setCreatingTicket] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +64,6 @@ const InternalChatModal = ({
       setupRealtime();
     }
     return () => {
-      // Cleanup realtime subscription
       supabase.removeAllChannels();
     };
   }, [selectedTicket?.id]);
@@ -89,10 +93,9 @@ const InternalChatModal = ({
         (payload) => {
           console.log('New message received:', payload);
           const newResp = payload.new as TicketRespuesta;
-          if (newResp.es_interno) return; // Skip internal messages
+          if (newResp.es_interno) return;
           
           setRespuestas(prev => {
-            // Avoid duplicates
             if (prev.some(r => r.id === newResp.id)) return prev;
             return [...prev, newResp];
           });
@@ -120,14 +123,11 @@ const InternalChatModal = ({
     setNewMessage('');
     setSending(true);
     
-    // First add the custodian's message
     const success = await addResponse(selectedTicket.id, messageToSend);
     
     if (success) {
-      // Show bot typing indicator
       setBotTyping(true);
       
-      // Call bot for response
       try {
         const response = await supabase.functions.invoke('support-chat-bot', {
           body: {
@@ -145,8 +145,6 @@ const InternalChatModal = ({
             variant: 'destructive'
           });
         }
-        
-        // Response will come through realtime subscription
       } catch (error) {
         console.error('Error calling bot:', error);
         setBotTyping(false);
@@ -154,6 +152,81 @@ const InternalChatModal = ({
     }
     
     setSending(false);
+  };
+
+  // Handle starting a new conversation with Sara (creates ticket + first message)
+  const handleStartNewConversation = async () => {
+    if (!firstMessage.trim()) return;
+    
+    setCreatingTicket(true);
+    
+    try {
+      // Get first available category or use null
+      const { data: categories } = await supabase
+        .from('categorias_ticket_custodio')
+        .select('id')
+        .eq('activo', true)
+        .limit(1);
+      
+      const categoryId = categories?.[0]?.id || null;
+      
+      // Create a new ticket with the first message as description
+      const ticketData = {
+        subject: 'Consulta con Sara',
+        description: firstMessage.trim(),
+        priority: 'media' as const,
+        status: 'abierto' as const,
+        categoria_custodio_id: categoryId
+      };
+      
+      const newTicket = await createTicket(ticketData);
+      
+      if (newTicket) {
+        // Add the first message as a response
+        await addResponse(newTicket.id, firstMessage.trim());
+        
+        // Call Sara bot to respond
+        setBotTyping(true);
+        try {
+          await supabase.functions.invoke('support-chat-bot', {
+            body: {
+              ticket_id: newTicket.id,
+              mensaje: firstMessage.trim(),
+              custodio_telefono: custodianPhone
+            }
+          });
+        } catch (error) {
+          console.error('Error calling bot:', error);
+          setBotTyping(false);
+        }
+        
+        // Switch to chat view with the new ticket
+        setSelectedTicket(newTicket);
+        setCreatingNewConversation(false);
+        setFirstMessage('');
+        onRefresh();
+        
+        toast({
+          title: 'Conversación iniciada',
+          description: 'Sara te responderá en un momento'
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'No se pudo crear la conversación',
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo iniciar la conversación',
+        variant: 'destructive'
+      });
+    } finally {
+      setCreatingTicket(false);
+    }
   };
 
   const handleEscalate = async () => {
@@ -187,17 +260,80 @@ const InternalChatModal = ({
   };
 
   const handleBack = () => {
-    setSelectedTicket(null);
-    setRespuestas([]);
-    setNewMessage('');
+    if (creatingNewConversation) {
+      setCreatingNewConversation(false);
+      setFirstMessage('');
+    } else {
+      setSelectedTicket(null);
+      setRespuestas([]);
+      setNewMessage('');
+    }
   };
 
-  const handleClose = () => {
-    setSelectedTicket(null);
-    setRespuestas([]);
-    setNewMessage('');
-    onOpenChange(false);
+  // Fix: Properly handle Dialog close - only clean state when actually closing
+  const handleDialogChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      // Reset all states when closing
+      setSelectedTicket(null);
+      setRespuestas([]);
+      setNewMessage('');
+      setBotTyping(false);
+      setCreatingNewConversation(false);
+      setFirstMessage('');
+      onOpenChange(false);
+    }
   };
+
+  // New conversation input view
+  const renderNewConversation = () => (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 pb-3 border-b">
+        <Button variant="ghost" size="icon" onClick={handleBack}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
+          <p className="font-medium">Nueva consulta</p>
+          <p className="text-xs text-muted-foreground">Escribe tu pregunta para Sara</p>
+        </div>
+      </div>
+      
+      <div className="text-center py-4">
+        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Sara está lista para ayudarte con cualquier duda o problema
+        </p>
+      </div>
+
+      <Textarea
+        value={firstMessage}
+        onChange={e => setFirstMessage(e.target.value)}
+        placeholder="¿En qué puedo ayudarte hoy?"
+        rows={3}
+        className="resize-none"
+        disabled={creatingTicket}
+      />
+
+      <Button
+        onClick={handleStartNewConversation}
+        disabled={!firstMessage.trim() || creatingTicket}
+        className="w-full gap-2"
+      >
+        {creatingTicket ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Iniciando...
+          </>
+        ) : (
+          <>
+            <Send className="w-4 h-4" />
+            Enviar a Sara
+          </>
+        )}
+      </Button>
+    </div>
+  );
 
   // Chat list view
   const renderChatList = () => (
@@ -248,14 +384,26 @@ const InternalChatModal = ({
         </div>
       ) : null}
 
-      <Button 
-        onClick={() => { handleClose(); onCreateTicket(); }} 
-        className="w-full gap-2"
-        variant={openTickets.length > 0 ? "outline" : "default"}
-      >
-        <Plus className="w-4 h-4" />
-        Nueva consulta con Sara
-      </Button>
+      {/* Two separate CTAs */}
+      <div className="space-y-2 pt-2">
+        <Button 
+          onClick={() => setCreatingNewConversation(true)} 
+          className="w-full gap-2"
+          variant={openTickets.length > 0 ? "outline" : "default"}
+        >
+          <Sparkles className="w-4 h-4" />
+          Nueva consulta con Sara
+        </Button>
+        
+        <Button 
+          onClick={() => { handleDialogChange(false); onCreateTicket(); }} 
+          variant="ghost"
+          className="w-full gap-2 text-muted-foreground"
+        >
+          <Ticket className="w-4 h-4" />
+          Crear ticket detallado
+        </Button>
+      </div>
     </div>
   );
 
@@ -398,18 +546,32 @@ const InternalChatModal = ({
     </div>
   );
 
+  // Determine which view to render
+  const renderContent = () => {
+    if (selectedTicket) return renderChat();
+    if (creatingNewConversation) return renderNewConversation();
+    return renderChatList();
+  };
+
+  // Determine title
+  const getTitle = () => {
+    if (selectedTicket) return 'Conversación con Sara';
+    if (creatingNewConversation) return 'Nueva consulta';
+    return 'Sara - Tu Asistente';
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleDialogChange}>
       <DialogContent className="max-w-md mx-4 rounded-2xl p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-0">
           <DialogTitle className="text-xl font-bold flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-purple-600" />
-            {selectedTicket ? 'Conversación con Sara' : 'Sara - Tu Asistente'}
+            {getTitle()}
           </DialogTitle>
         </DialogHeader>
 
         <div className="p-4 pt-2">
-          {selectedTicket ? renderChat() : renderChatList()}
+          {renderContent()}
         </div>
       </DialogContent>
     </Dialog>
