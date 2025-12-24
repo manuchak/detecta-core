@@ -106,12 +106,16 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
 
       // Fetch responses for first response time
       const ticketIds = (tickets || []).map(t => t.id);
-      const { data: responses } = await supabase
+      const { data: responses, error: responsesError } = await supabase
         .from('ticket_respuestas')
-        .select('ticket_id, created_at, es_interna')
+        .select('ticket_id, created_at, es_interno')
         .in('ticket_id', ticketIds.length > 0 ? ticketIds : ['none'])
-        .eq('es_interna', false)
+        .eq('es_interno', false)
         .order('created_at', { ascending: true });
+
+      if (responsesError) {
+        console.warn('Error fetching responses:', responsesError);
+      }
 
       // Calculate first response times
       const firstResponses = new Map<string, Date>();
