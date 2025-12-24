@@ -183,6 +183,16 @@ export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: num
   const createBatchMaintenance = async (data: BatchMaintenanceData): Promise<boolean> => {
     if (data.tipos.length === 0) return false;
     
+    // Validate custodianPhone before proceeding
+    if (!custodianPhone) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo identificar al custodio. Por favor, recarga la página.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
     try {
       const costPerItem = data.costo_total 
         ? Math.round(data.costo_total / data.tipos.length) 

@@ -819,9 +819,22 @@ const InternalChatModal = ({
         <div className="mx-2 mb-2 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl animate-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-            <p className="text-sm text-amber-800 dark:text-amber-200">
+            <p className="text-sm text-amber-800 dark:text-amber-200 flex-1">
               Hubo un problema al enviar tu mensaje
             </p>
+            <Button
+              onClick={() => {
+                setErrorState(false);
+                setLastFailedMessage(null);
+                // Remove error message from chat
+                setRespuestas(prev => prev.filter(r => !r.mensaje.includes('⚠️ Sara está tardando')));
+              }}
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
           <div className="flex gap-2">
             <Button
@@ -841,6 +854,15 @@ const InternalChatModal = ({
             >
               <UserCog className="w-3 h-3" />
               Hablar con agente
+            </Button>
+            <Button
+              onClick={handleBack}
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              Volver
             </Button>
           </div>
         </div>
