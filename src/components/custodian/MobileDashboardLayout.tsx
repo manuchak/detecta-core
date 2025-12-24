@@ -33,7 +33,7 @@ const MobileDashboardLayout = () => {
   const { services, stats, loading: servicesLoading, getRecentServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
   const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
-  const { maintenanceStatus, pendingMaintenance, createMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+  const { maintenanceStatus, pendingMaintenance, createMaintenance, createBatchMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const { 
     indisponibilidadesActivas,
     crearIndisponibilidad, 
@@ -372,7 +372,7 @@ const MobileDashboardLayout = () => {
         open={showBatchDialog}
         onOpenChange={setShowBatchDialog}
         currentKm={stats.km_totales}
-        onConfirm={handleRecordMaintenance}
+        onConfirm={createBatchMaintenance}
       />
 
       {/* Support Contact Modal */}
