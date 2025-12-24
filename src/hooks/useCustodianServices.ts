@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -137,7 +136,8 @@ export const useCustodianServices = (custodianPhone?: string) => {
     return services.filter(service => {
       if (!service.fecha_hora_cita) return false;
       const serviceDate = new Date(service.fecha_hora_cita);
-      return serviceDate > now && ['pendiente', 'programado', 'Pendiente', 'Programado'].includes(service.estado);
+      const status = service.estado?.toLowerCase() || '';
+      return serviceDate > now && ['pendiente', 'programado'].includes(status);
     });
   };
 

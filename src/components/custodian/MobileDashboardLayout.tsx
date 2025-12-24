@@ -30,10 +30,10 @@ const MobileDashboardLayout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile, loading: profileLoading } = useCustodianProfile();
-  const { services, stats, loading: servicesLoading, getRecentServices } = useCustodianServices(profile?.phone);
-  const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
+  const { services, stats, loading: servicesLoading, getRecentServices, refetch: refetchServices } = useCustodianServices(profile?.phone);
+  const { stats: ticketStats, loading: ticketsLoading, refetch: refetchTicketStats } = useCustodianTickets(profile?.phone);
   const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
-  const { maintenanceStatus, pendingMaintenance, createMaintenance, createBatchMaintenance, loading: maintenanceLoading } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+  const { maintenanceStatus, pendingMaintenance, createMaintenance, createBatchMaintenance, loading: maintenanceLoading, refetch: refetchMaintenance } = useCustodianMaintenance(profile?.phone, stats.km_totales);
   const { 
     indisponibilidadesActivas,
     crearIndisponibilidad, 
@@ -134,8 +134,18 @@ const MobileDashboardLayout = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setRefreshing(false);
+    try {
+      await Promise.all([
+        refetchServices?.(),
+        refetchTickets?.(),
+        refetchTicketStats?.(),
+        refetchMaintenance?.(),
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleRecordMaintenance = async (data: any) => {
