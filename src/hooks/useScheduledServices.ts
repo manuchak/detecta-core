@@ -31,6 +31,9 @@ export interface ScheduledService {
   planner_name?: string;
   observaciones?: string;
   created_at?: string;
+  // Campos para estado operativo
+  hora_inicio_real?: string;
+  hora_fin_real?: string;
 }
 
 export interface ScheduledServicesSummary {

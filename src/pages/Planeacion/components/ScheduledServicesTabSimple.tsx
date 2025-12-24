@@ -14,7 +14,7 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleInfo';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -53,6 +53,102 @@ export function ScheduledServicesTab() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
+
+  // Estado operativo basado en hora_inicio_real y hora_fin_real
+  const getOperationalStatus = (service: any) => {
+    const now = new Date();
+    const citaTime = new Date(service.fecha_hora_cita);
+    const isFullyAssigned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
+    
+    // Servicio completado (tiene hora_fin_real)
+    if (service.hora_fin_real) {
+      return { 
+        status: 'completado', 
+        color: 'bg-emerald-500', 
+        textColor: 'text-emerald-700 dark:text-emerald-400',
+        bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+        icon: CheckCircle2, 
+        label: 'Completado',
+        priority: 5
+      };
+    }
+    
+    // Custodio en sitio (tiene hora_inicio_real pero no hora_fin)
+    if (service.hora_inicio_real) {
+      return { 
+        status: 'en_sitio', 
+        color: 'bg-blue-500', 
+        textColor: 'text-blue-700 dark:text-blue-400',
+        bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+        icon: MapPinCheck, 
+        label: 'En sitio',
+        priority: 4
+      };
+    }
+    
+    // Sin custodio asignado (crítico)
+    if (!service.custodio_nombre) {
+      return { 
+        status: 'sin_asignar', 
+        color: 'bg-red-500', 
+        textColor: 'text-red-700 dark:text-red-400',
+        bgColor: 'bg-red-100 dark:bg-red-900/30',
+        icon: AlertCircle, 
+        label: 'Sin asignar',
+        priority: 1
+      };
+    }
+    
+    // Falta armado (crítico)
+    if (service.incluye_armado && !service.armado_asignado) {
+      return { 
+        status: 'armado_pendiente', 
+        color: 'bg-orange-500', 
+        textColor: 'text-orange-700 dark:text-orange-400',
+        bgColor: 'bg-orange-100 dark:bg-orange-900/30',
+        icon: Shield, 
+        label: 'Armado pendiente',
+        priority: 2
+      };
+    }
+    
+    // Servicio debería haber iniciado (pasó la hora de cita y está asignado)
+    if (citaTime < now && isFullyAssigned) {
+      return { 
+        status: 'pendiente_inicio', 
+        color: 'bg-amber-500', 
+        textColor: 'text-amber-700 dark:text-amber-400',
+        bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+        icon: Clock, 
+        label: 'Pendiente inicio',
+        priority: 3
+      };
+    }
+    
+    // Servicio futuro, completamente asignado y listo
+    if (isFullyAssigned) {
+      return { 
+        status: 'programado', 
+        color: 'bg-slate-400', 
+        textColor: 'text-slate-600 dark:text-slate-400',
+        bgColor: 'bg-slate-100 dark:bg-slate-800/50',
+        icon: Calendar, 
+        label: 'Programado',
+        priority: 6
+      };
+    }
+    
+    // Caso por defecto
+    return { 
+      status: 'pendiente', 
+      color: 'bg-yellow-500', 
+      textColor: 'text-yellow-700 dark:text-yellow-400',
+      bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+      icon: CircleDot, 
+      label: 'Pendiente',
+      priority: 3
+    };
+  };
 
   const getStatusConfig = (service: any) => {
     const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
@@ -365,17 +461,50 @@ export function ScheduledServicesTab() {
           </div>
         )}
 
+        {/* Leyenda de estados operativos */}
+        {!error && summary?.services_data && summary.services_data.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
+            <span className="text-muted-foreground font-medium">Estados:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-muted-foreground">Completado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-muted-foreground">En sitio</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="text-muted-foreground">Pendiente inicio</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-slate-400" />
+              <span className="text-muted-foreground">Programado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="text-muted-foreground">Armado pendiente</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">Sin asignar</span>
+            </div>
+          </div>
+        )}
+
         {!error && summary?.services_data && summary.services_data.length > 0 && (
           <div className="space-y-4">
             {summary.services_data.map((service, index) => {
               const statusConfig = getStatusConfig(service);
+              const operationalStatus = getOperationalStatus(service);
               const StatusIcon = statusConfig.icon;
               const ActionIcon = statusConfig.actionIcon;
+              const OperationalIcon = operationalStatus.icon;
               
               return (
                 <div 
                   key={service.id || index} 
-                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group"
+                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative overflow-hidden"
                   onClick={(e) => {
                     const target = (e.target as HTMLElement);
                     if (target.closest('.service-card-actions')) return;
@@ -385,16 +514,16 @@ export function ScheduledServicesTab() {
                     handleEditService(service);
                   }}
                 >
-                  {/* Línea 1: Estado + Hora + Cliente + Acción */}
-                  <div className="flex items-center justify-between mb-3">
+                  {/* Barra de estado operativo en el lado izquierdo */}
+                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${operationalStatus.color}`} />
+                  
+                  {/* Línea 1: Estado + Hora + Cliente + Badge Operativo + Acción */}
+                  <div className="flex items-center justify-between mb-3 pl-3">
                     <div className="flex items-center space-x-3">
-                      {/* Estado visual */}
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${statusConfig.color}`} />
-                        <span className="apple-text-caption font-medium text-muted-foreground">
-                          {format(new Date(service.fecha_hora_cita), 'HH:mm')}
-                        </span>
-                      </div>
+                      {/* Hora */}
+                      <span className="apple-text-headline font-semibold text-foreground tabular-nums">
+                        {format(new Date(service.fecha_hora_cita), 'HH:mm')}
+                      </span>
                       
                       {/* Cliente */}
                       <div className="flex flex-col">
@@ -405,6 +534,15 @@ export function ScheduledServicesTab() {
                           {service.id_servicio}
                         </span>
                       </div>
+                      
+                      {/* Badge de estado operativo */}
+                      <Badge 
+                        variant="secondary" 
+                        className={`${operationalStatus.bgColor} ${operationalStatus.textColor} border-0 gap-1 text-xs font-medium`}
+                      >
+                        <OperationalIcon className="w-3 h-3" />
+                        {operationalStatus.label}
+                      </Badge>
                     </div>
                     
                     {/* Íconos de acción */}
@@ -433,7 +571,7 @@ export function ScheduledServicesTab() {
                   </div>
                   
                   {/* Línea 2: Ruta */}
-                  <div className="flex items-center space-x-2 mb-3">
+                  <div className="flex items-center space-x-2 mb-3 pl-3">
                     <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <div className="flex items-center space-x-1 min-w-0">
                       <span className="apple-text-caption text-muted-foreground truncate">
@@ -447,21 +585,25 @@ export function ScheduledServicesTab() {
                   </div>
                   
                   {/* Línea 3: Custodio + Vehículo */}
-                  <CustodianVehicleInfo 
-                    custodioNombre={service.custodio_nombre}
-                    className="mb-3"
-                  />
+                  <div className="pl-3">
+                    <CustodianVehicleInfo 
+                      custodioNombre={service.custodio_nombre}
+                      className="mb-3"
+                    />
+                  </div>
                   
                   {/* Armado Adicional */}
-                  <AdditionalArmedGuard 
-                    custodioNombre={service.custodio_nombre}
-                    armadoAsignado={service.armado_asignado}
-                    armadoNombre={service.armado_nombre}
-                  />
+                  <div className="pl-3">
+                    <AdditionalArmedGuard 
+                      custodioNombre={service.custodio_nombre}
+                      armadoAsignado={service.armado_asignado}
+                      armadoNombre={service.armado_nombre}
+                    />
+                  </div>
                   
                   {/* Línea 3.5: Planificador (solo si existe) */}
                   {service.planner_name && (
-                    <div className="flex items-center space-x-1.5 mb-3">
+                    <div className="flex items-center space-x-1.5 mb-3 pl-3">
                       <UserCircle className="w-3.5 h-3.5 text-muted-foreground/70" />
                       <span className="apple-text-caption text-muted-foreground/70">
                         Asignado por {service.planner_name}
@@ -471,7 +613,7 @@ export function ScheduledServicesTab() {
                   
                   {/* Línea 4: Mensaje de estado (solo si hay algo pendiente) */}
                   {(statusConfig.message && statusConfig.color !== 'bg-green-500') && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 pl-3">
                       <StatusIcon className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="apple-text-caption text-muted-foreground">
                         {statusConfig.message}
