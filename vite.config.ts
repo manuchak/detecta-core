@@ -47,8 +47,23 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Only cache static assets - exclude JS/CSS for fresh code updates
+        globPatterns: ['**/*.{ico,png,svg,woff2}'],
+        skipWaiting: true, // Activate new SW immediately
+        clientsClaim: true, // Take control immediately
         runtimeCaching: [
+          {
+            // JS/CSS files - NetworkFirst for fresh code
+            urlPattern: /\.(?:js|css)$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'static-resources',
+              expiration: {
+                maxAgeSeconds: 60 * 60 // 1 hour
+              },
+              networkTimeoutSeconds: 3
+            }
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
