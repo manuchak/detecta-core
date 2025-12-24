@@ -141,9 +141,10 @@ const LoadingFallback = () => (
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 1 * 60 * 1000, // 1 minute - reduced for fresher data
       retry: 1,
-      refetchOnWindowFocus: false, // Disable aggressive refetch on tab switch
+      refetchOnWindowFocus: true, // Enable refetch on tab switch for fresh data
+      refetchOnMount: true, // Enable refetch when component mounts
     },
   },
 });

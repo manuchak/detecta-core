@@ -181,8 +181,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
       }
     },
     enabled: true,
-    staleTime: 2 * 60 * 1000, // Reducido a 2 minutos para datos más frescos
-    gcTime: 5 * 60 * 1000, // Cache durante 5 minutos
+    staleTime: 30 * 1000, // 30 seconds - reduced for fresher dashboard data
+    gcTime: 2 * 60 * 1000, // Cache for 2 minutes
     retry: (failureCount, error) => {
       // Don't retry on permission errors
       if (error?.message?.includes('permission') || error?.message?.includes('Access denied')) {
@@ -191,8 +191,8 @@ export const useDashboardData = (timeframe: TimeframeOption = "month", serviceTy
       return failureCount < 2;
     },
     retryDelay: 1000,
-    refetchOnMount: false, // Evitar refetch innecesario
-    refetchOnWindowFocus: false, // No refetch al cambiar de ventana
+    refetchOnMount: true, // Always refetch when navigating to dashboard
+    refetchOnWindowFocus: true, // Refetch when tab becomes active
   });
 
   console.log(`Hook - allServicesData length: ${allServicesData.length} for timeframe: ${timeframe}`);

@@ -6,14 +6,14 @@ export const createOptimizedQueryClient = () => {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        // Cache por 3 minutos por defecto
-        staleTime: 3 * 60 * 1000,
-        // Mantener en memoria por 10 minutos
-        gcTime: 10 * 60 * 1000,
-        // No refetch automático en focus
-        refetchOnWindowFocus: false,
-        // No refetch automático al montar
-        refetchOnMount: false,
+        // Cache por 1 minuto - reduced for fresher data
+        staleTime: 1 * 60 * 1000,
+        // Mantener en memoria por 3 minutos
+        gcTime: 3 * 60 * 1000,
+        // Refetch automático en focus - ENABLED for fresh data
+        refetchOnWindowFocus: true,
+        // Refetch automático al montar - ENABLED for navigation updates
+        refetchOnMount: true,
         // Retry solo 2 veces
         retry: 2,
         // Delay progresivo en retries
