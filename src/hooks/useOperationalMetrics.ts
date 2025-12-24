@@ -471,60 +471,52 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         cancelledChange: Math.round(calculateChangePercent(currentMTDCancelled, prevMTDCancelled) * 10) / 10,
       };
 
-      // Top custodians by costo_custodio with verifiable metrics
-      const custodianStats: Record<string, { 
+      // TOP CUSTODIANS DEL MES ACTUAL (MTD) - Solo servicios completados del mes en curso
+      const custodianStatsMTD: Record<string, { 
         name: string; 
         services: number; 
         servicesWithCost: number;
         gmv: number;
         costoCustodio: number;
-        mesesActivos: Set<string>;
       }> = {};
       
-      completedServicesArray.forEach(service => {
+      // Usar currentMonthCompletedServices para datos solo del mes actual
+      currentMonthCompletedServices.forEach(service => {
         const custodian = service.nombre_custodio;
         if (!custodian || custodian === '#N/A') return;
 
-        if (!custodianStats[custodian]) {
-          custodianStats[custodian] = { 
+        if (!custodianStatsMTD[custodian]) {
+          custodianStatsMTD[custodian] = { 
             name: custodian, 
             services: 0, 
             servicesWithCost: 0,
             gmv: 0,
-            costoCustodio: 0,
-            mesesActivos: new Set()
+            costoCustodio: 0
           };
         }
 
-        custodianStats[custodian].services++;
-        custodianStats[custodian].gmv += service.cobro_cliente || 0;
+        custodianStatsMTD[custodian].services++;
+        custodianStatsMTD[custodian].gmv += service.cobro_cliente || 0;
         
         // Solo sumar costo si existe y es válido
         const costo = parseFloat(service.costo_custodio) || 0;
         if (costo > 0) {
-          custodianStats[custodian].costoCustodio += costo;
-          custodianStats[custodian].servicesWithCost++;
-        }
-        
-        // Registrar mes activo
-        if (service.fecha_hora_cita) {
-          const mes = service.fecha_hora_cita.substring(0, 7); // "2025-01"
-          custodianStats[custodian].mesesActivos.add(mes);
+          custodianStatsMTD[custodian].costoCustodio += costo;
+          custodianStatsMTD[custodian].servicesWithCost++;
         }
       });
 
-      // Ordenar por costo custodio y calcular métricas verificables
-      const topCustodians = Object.values(custodianStats)
-        .filter(c => c.servicesWithCost > 0) // Solo custodios con datos de costo
-        .sort((a, b) => b.costoCustodio - a.costoCustodio)
+      // Ordenar por GMV del mes actual y calcular métricas
+      const topCustodians = Object.values(custodianStatsMTD)
+        .sort((a, b) => b.gmv - a.gmv) // Ordenar por GMV del mes
         .slice(0, 10)
         .map((c, index) => ({
           rank: index + 1,
           name: c.name,
           services: c.services,
           costoCustodio: c.costoCustodio,
-          promedioCostoMes: c.mesesActivos.size > 0 ? c.costoCustodio / c.mesesActivos.size : 0,
-          mesesActivos: c.mesesActivos.size,
+          promedioCostoMes: c.costoCustodio, // Es solo del mes actual, no necesita dividir
+          mesesActivos: 1, // Siempre 1 (mes actual)
           gmv: c.gmv,
           margen: c.gmv - c.costoCustodio,
           coberturaDatos: c.services > 0 ? Math.round((c.servicesWithCost / c.services) * 100) : 0
