@@ -90,6 +90,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
   const loadTickets = useCallback(async () => {
     if (!custodianPhone) {
       setLoading(false);
+      setTickets([]);
       return;
     }
 
@@ -107,7 +108,24 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
         .eq('tipo_ticket', 'custodio')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // Handle RLS permission errors gracefully
+        if (error.code === '42501' || error.message?.includes('permission denied')) {
+          console.warn('RLS permission issue for tickets, user may not have phone linked:', error);
+          setTickets([]);
+          setStats({
+            total: 0,
+            abiertos: 0,
+            en_progreso: 0,
+            resueltos: 0,
+            cerrados: 0,
+            sla_vencidos: 0,
+            resueltos_sin_calificar: 0
+          });
+          return;
+        }
+        throw error;
+      }
 
       const formattedTickets: CustodianTicket[] = (data || []).map(ticket => ({
         ...ticket,
@@ -138,9 +156,11 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
 
     } catch (error) {
       console.error('Error loading custodian tickets:', error);
+      // Set empty state instead of leaving stale data
+      setTickets([]);
       toast({
         title: 'Error',
-        description: 'No se pudieron cargar los tickets',
+        description: 'No se pudieron cargar los tickets. Por favor, intenta de nuevo.',
         variant: 'destructive'
       });
     } finally {
