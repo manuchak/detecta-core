@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, Send, Loader2, Sparkles, User, Headphones, 
-  MessageSquare, Clock, Plus, UserCog, Ticket 
+  MessageSquare, Clock, Plus, UserCog, Ticket, CheckCircle2, X
 } from 'lucide-react';
 import { CustodianTicket, TicketRespuesta, useCustodianTicketsEnhanced } from '@/hooks/useCustodianTicketsEnhanced';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +52,11 @@ const InternalChatModal = ({
   const [creatingNewConversation, setCreatingNewConversation] = useState(false);
   const [firstMessage, setFirstMessage] = useState('');
   const [creatingTicket, setCreatingTicket] = useState(false);
+  
+  // State for ticket creation confirmation and close suggestion
+  const [showTicketConfirmation, setShowTicketConfirmation] = useState(false);
+  const [suggestClose, setSuggestClose] = useState(false);
+  const [closingConversation, setClosingConversation] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +191,15 @@ const InternalChatModal = ({
             description: 'No se pudo obtener respuesta del asistente',
             variant: 'destructive'
           });
+        } else if (response.data) {
+          // Check if Sara created a ticket or suggests closing
+          if (response.data.ticketCreated) {
+            setShowTicketConfirmation(true);
+            setTimeout(() => setShowTicketConfirmation(false), 5000);
+          }
+          if (response.data.suggestClose) {
+            setSuggestClose(true);
+          }
         }
       } catch (error) {
         console.error('Error calling bot:', error);
@@ -305,6 +319,47 @@ const InternalChatModal = ({
     }
   };
 
+  // Handle close conversation
+  const handleCloseConversation = async () => {
+    if (!selectedTicket) return;
+    
+    setClosingConversation(true);
+    
+    try {
+      const response = await supabase.functions.invoke('support-chat-bot', {
+        body: {
+          ticket_id: selectedTicket.id,
+          action: 'close_conversation',
+          custodio_telefono: custodianPhone
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: '✅ Conversación cerrada',
+        description: 'Tu ticket ha sido registrado. ¡Gracias!'
+      });
+      
+      setSuggestClose(false);
+      onRefresh();
+      
+      // Close modal after a short delay
+      setTimeout(() => {
+        handleDialogChange(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Error closing conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo cerrar la conversación',
+        variant: 'destructive'
+      });
+    } finally {
+      setClosingConversation(false);
+    }
+  };
+
   const handleBack = () => {
     if (creatingNewConversation) {
       setCreatingNewConversation(false);
@@ -313,6 +368,8 @@ const InternalChatModal = ({
       setSelectedTicket(null);
       setRespuestas([]);
       setNewMessage('');
+      setSuggestClose(false);
+      setShowTicketConfirmation(false);
     }
   };
 
@@ -326,6 +383,9 @@ const InternalChatModal = ({
       setBotTyping(false);
       setCreatingNewConversation(false);
       setFirstMessage('');
+      setSuggestClose(false);
+      setShowTicketConfirmation(false);
+      setClosingConversation(false);
       onOpenChange(false);
     }
   };
@@ -558,6 +618,49 @@ const InternalChatModal = ({
         </div>
       </ScrollArea>
 
+      {/* Ticket confirmation banner */}
+      {showTicketConfirmation && (
+        <div className="mx-2 mb-2 p-3 bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 rounded-xl flex items-center gap-2 animate-in slide-in-from-bottom-2">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <p className="text-sm text-green-800 dark:text-green-200 flex-1">
+            ¡Ticket registrado exitosamente!
+          </p>
+        </div>
+      )}
+
+      {/* Close conversation suggestion */}
+      {suggestClose && !showTicketConfirmation && (
+        <div className="mx-2 mb-2 p-3 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-xl">
+          <p className="text-sm text-purple-800 dark:text-purple-200 mb-2">
+            Tu ticket ha sido registrado. ¿Deseas cerrar la conversación?
+          </p>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleCloseConversation}
+              disabled={closingConversation}
+              size="sm"
+              className="flex-1 gap-1 bg-purple-600 hover:bg-purple-700"
+            >
+              {closingConversation ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+              Cerrar conversación
+            </Button>
+            <Button
+              onClick={() => setSuggestClose(false)}
+              size="sm"
+              variant="outline"
+              className="gap-1"
+            >
+              <X className="w-3 h-3" />
+              Continuar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="pt-3 border-t">
         <div className="flex gap-2">
@@ -567,7 +670,7 @@ const InternalChatModal = ({
             placeholder="Escribe tu mensaje..."
             rows={1}
             className="min-h-[44px] max-h-[100px] resize-none"
-            disabled={sending || botTyping}
+            disabled={sending || botTyping || closingConversation}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -577,7 +680,7 @@ const InternalChatModal = ({
           />
           <Button
             onClick={handleSendMessage}
-            disabled={!newMessage.trim() || sending || botTyping}
+            disabled={!newMessage.trim() || sending || botTyping || closingConversation}
             size="icon"
             className="h-[44px] w-[44px] flex-shrink-0"
           >
