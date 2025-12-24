@@ -12,8 +12,10 @@ interface ResolvedTicketAlertProps {
 }
 
 const ResolvedTicketAlert = ({ tickets, onViewTicket, onDismiss }: ResolvedTicketAlertProps) => {
+  // Only show tickets that were actually resolved by an agent (not just closed by the user)
+  // The backend now correctly only marks tickets as 'resuelto' when an agent resolves them
   if (tickets.length === 0) return null;
-
+  
   const latestTicket = tickets[0];
   const hasMultiple = tickets.length > 1;
 

@@ -462,7 +462,8 @@ const InternalChatModal = ({
     }
   };
 
-  // Handle close conversation
+  // Handle close conversation - NO longer marks ticket as resolved
+  // Just closes the chat UI, ticket stays in 'en_progreso'
   const handleCloseConversation = async () => {
     if (!selectedTicket) return;
     
@@ -480,17 +481,15 @@ const InternalChatModal = ({
       if (response.error) throw response.error;
 
       toast({
-        title: '✅ Conversación cerrada',
-        description: 'Tu ticket ha sido registrado. ¡Gracias!'
+        title: '📝 Ticket registrado',
+        description: 'Un agente revisará tu caso pronto. Te notificaremos cuando haya novedades.'
       });
       
       setSuggestClose(false);
       onRefresh();
       
-      // Close modal after a short delay
-      setTimeout(() => {
-        handleDialogChange(false);
-      }, 1500);
+      // Go back to ticket list instead of closing modal entirely
+      handleBack();
     } catch (error) {
       console.error('Error closing conversation:', error);
       toast({

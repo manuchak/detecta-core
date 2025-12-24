@@ -114,13 +114,16 @@ serve(async (req) => {
       });
     }
 
-    // Handle close conversation action
+    // Handle close conversation action - NO longer marks as 'resuelto'
+    // Just confirms the ticket was registered and keeps it 'en_progreso'
     if (action === 'close_conversation') {
-      console.log('Closing conversation for ticket:', ticket_id);
+      console.log('Closing conversation for ticket (keeping as en_progreso):', ticket_id);
       
+      // Keep ticket in 'en_progreso' - NOT 'resuelto'
+      // Only agents can mark tickets as 'resuelto'
       const { error: updateError } = await supabase
         .from('tickets')
-        .update({ status: 'resuelto' })
+        .update({ status: 'en_progreso' })
         .eq('id', ticket_id);
 
       if (updateError) throw updateError;
@@ -129,9 +132,9 @@ serve(async (req) => {
         ticket_id,
         autor_id: '00000000-0000-0000-0000-000000000000',
         autor_tipo: 'sistema',
-        autor_nombre: 'Asistente IA',
-        mensaje: '✅ Conversación cerrada. Tu ticket ha sido registrado y si necesitas algo más, estaré aquí para ayudarte. ¡Gracias por usar el soporte de Detecta!',
-        es_resolucion: true,
+        autor_nombre: 'Sara',
+        mensaje: '👋 ¡Gracias por contactarnos! Tu ticket ha sido registrado y un agente lo revisará pronto. Si necesitas algo más, puedes iniciar una nueva conversación.',
+        es_resolucion: false, // NOT a resolution - just closing the chat
         es_interno: false
       });
 
@@ -385,7 +388,8 @@ REGLAS:
             } else {
               ticketUpdated = true;
               ticketCreated = true;
-              suggestClose = true;
+              // DO NOT suggest close automatically - let the user decide
+              // suggestClose = false; (already false by default)
 
               // Get SLA info for category
               const { data: categoryData } = await supabase
