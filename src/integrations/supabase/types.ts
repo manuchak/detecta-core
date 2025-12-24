@@ -15091,6 +15091,7 @@ export type Database = {
         Args: { p_referido_id: string }
         Returns: boolean
       }
+      procesar_indisponibilidades_expiradas: { Args: never; Returns: Json }
       puede_acceder_planeacion: { Args: never; Returns: boolean }
       reactivate_lead_from_pool: {
         Args: { p_lead_id: string; p_nuevo_estado?: string }
