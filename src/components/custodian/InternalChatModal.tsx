@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, Send, Loader2, Sparkles, User, Headphones, 
-  MessageSquare, Clock, Plus, UserCog, Ticket, CheckCircle2, X
+  MessageSquare, Clock, Plus, UserCog, Ticket, CheckCircle2, X,
+  RefreshCw, AlertTriangle, DollarSign, Package, Smartphone, HelpCircle
 } from 'lucide-react';
 import { CustodianTicket, TicketRespuesta, useCustodianTicketsEnhanced } from '@/hooks/useCustodianTicketsEnhanced';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +15,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+
+// Quick reply categories for Sara
+const QUICK_CATEGORIES = [
+  { id: 'pagos', label: '💰 Pagos', icon: DollarSign, color: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-900/50 dark:hover:bg-emerald-800 dark:text-emerald-200' },
+  { id: 'servicios', label: '📦 Servicios', icon: Package, color: 'bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900/50 dark:hover:bg-blue-800 dark:text-blue-200' },
+  { id: 'gps', label: '📱 App/GPS', icon: Smartphone, color: 'bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-900/50 dark:hover:bg-purple-800 dark:text-purple-200' },
+  { id: 'otro', label: '❓ Otro', icon: HelpCircle, color: 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-800/50 dark:hover:bg-gray-700 dark:text-gray-200' },
+];
 
 interface InternalChatModalProps {
   open: boolean;
@@ -57,6 +66,13 @@ const InternalChatModal = ({
   const [showTicketConfirmation, setShowTicketConfirmation] = useState(false);
   const [suggestClose, setSuggestClose] = useState(false);
   const [closingConversation, setClosingConversation] = useState(false);
+  
+  // Error recovery state
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState(false);
+  
+  // Quick replies visibility
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -140,13 +156,16 @@ const InternalChatModal = ({
     }, 100);
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedTicket) return;
+  const handleSendMessage = async (messageOverride?: string) => {
+    const messageToSend = messageOverride || newMessage.trim();
+    if (!messageToSend || !selectedTicket) return;
     
-    const messageToSend = newMessage;
     setNewMessage('');
     setSending(true);
     setBotTyping(true);
+    setErrorState(false);
+    setLastFailedMessage(null);
+    setShowQuickReplies(false);
     
     // OPTIMISTIC UPDATE: Add user message immediately to UI
     const tempMessage: TicketRespuesta = {
@@ -164,11 +183,28 @@ const InternalChatModal = ({
     setRespuestas(prev => [...prev, tempMessage]);
     scrollToBottom();
     
-    // Safety timeout: reset botTyping after 30 seconds if no response
+    // Reduced safety timeout: 15 seconds with error message
     const typingTimeout = setTimeout(() => {
       setBotTyping(false);
-      console.warn('Bot typing timeout - resetting after 30s');
-    }, 30000);
+      setErrorState(true);
+      setLastFailedMessage(messageToSend);
+      console.warn('Bot typing timeout - resetting after 15s');
+      // Add visible error message in chat
+      const errorMessage: TicketRespuesta = {
+        id: crypto.randomUUID(),
+        ticket_id: selectedTicket.id,
+        autor_id: '',
+        autor_tipo: 'sistema',
+        autor_nombre: 'Sistema',
+        mensaje: '⚠️ Sara está tardando en responder. Puedes reintentar o hablar con un agente.',
+        created_at: new Date().toISOString(),
+        es_interno: false,
+        es_resolucion: false,
+        adjuntos_urls: null
+      };
+      setRespuestas(prev => [...prev, errorMessage]);
+      scrollToBottom();
+    }, 15000);
     
     const success = await addResponse(selectedTicket.id, messageToSend);
     
@@ -182,16 +218,52 @@ const InternalChatModal = ({
           }
         });
 
+        clearTimeout(typingTimeout);
+
         if (response.error) {
           console.error('Bot error:', response.error);
-          clearTimeout(typingTimeout);
           setBotTyping(false);
+          setErrorState(true);
+          setLastFailedMessage(messageToSend);
           toast({
             title: 'Error del asistente',
-            description: 'No se pudo obtener respuesta del asistente',
+            description: 'No se pudo obtener respuesta. Puedes reintentar.',
             variant: 'destructive'
           });
         } else if (response.data) {
+          // IMMEDIATELY reset botTyping and add message locally
+          setBotTyping(false);
+          setErrorState(false);
+          
+          // Add bot message locally without waiting for Realtime
+          if (response.data.message) {
+            const botMessage: TicketRespuesta = {
+              id: crypto.randomUUID(),
+              ticket_id: selectedTicket.id,
+              autor_id: '00000000-0000-0000-0000-000000000000',
+              autor_tipo: 'sistema',
+              autor_nombre: 'Sara',
+              mensaje: response.data.message,
+              created_at: new Date().toISOString(),
+              es_interno: false,
+              es_resolucion: false,
+              adjuntos_urls: null
+            };
+            setRespuestas(prev => {
+              // Avoid duplicates if Realtime already added it
+              if (prev.some(r => r.mensaje === response.data.message && r.autor_tipo === 'sistema')) {
+                return prev;
+              }
+              return [...prev, botMessage];
+            });
+            scrollToBottom();
+            
+            // Show quick replies after Sara's greeting
+            if (respuestas.length <= 1) {
+              setShowQuickReplies(true);
+            }
+          }
+          
           // Check if Sara created a ticket or suggests closing
           if (response.data.ticketCreated) {
             setShowTicketConfirmation(true);
@@ -205,18 +277,43 @@ const InternalChatModal = ({
         console.error('Error calling bot:', error);
         clearTimeout(typingTimeout);
         setBotTyping(false);
+        setErrorState(true);
+        setLastFailedMessage(messageToSend);
       }
     } else {
       clearTimeout(typingTimeout);
       setBotTyping(false);
+      setErrorState(true);
+      setLastFailedMessage(messageToSend);
     }
     
     setSending(false);
   };
 
+  // Retry last failed message
+  const handleRetry = () => {
+    if (lastFailedMessage) {
+      // Remove the error message from chat
+      setRespuestas(prev => prev.filter(r => !r.mensaje.includes('⚠️ Sara está tardando')));
+      handleSendMessage(lastFailedMessage);
+    }
+  };
+
+  // Handle quick category selection
+  const handleQuickCategory = (categoryId: string) => {
+    const categoryMessages: Record<string, string> = {
+      'pagos': 'Tengo una duda sobre mis pagos',
+      'servicios': 'Necesito ayuda con un servicio',
+      'gps': 'Tengo un problema con la app o GPS',
+      'otro': 'Tengo otra consulta'
+    };
+    handleSendMessage(categoryMessages[categoryId] || 'Hola, necesito ayuda');
+  };
+
   // Handle starting a new conversation with Sara (creates ticket + first message)
-  const handleStartNewConversation = async () => {
-    if (!firstMessage.trim()) return;
+  const handleStartNewConversation = async (categoryOverride?: string) => {
+    const messageToSend = categoryOverride || firstMessage.trim();
+    if (!messageToSend) return;
     
     setCreatingTicket(true);
     
@@ -233,7 +330,7 @@ const InternalChatModal = ({
       // Create a new ticket with the first message as description
       const ticketData = {
         subject: 'Consulta con Sara',
-        description: firstMessage.trim(),
+        description: messageToSend,
         priority: 'media' as const,
         status: 'abierto' as const,
         categoria_custodio_id: categoryId
@@ -243,18 +340,53 @@ const InternalChatModal = ({
       
       if (newTicket) {
         // Add the first message as a response
-        await addResponse(newTicket.id, firstMessage.trim());
+        await addResponse(newTicket.id, messageToSend);
         
         // Call Sara bot to respond
         setBotTyping(true);
         try {
-          await supabase.functions.invoke('support-chat-bot', {
+          const response = await supabase.functions.invoke('support-chat-bot', {
             body: {
               ticket_id: newTicket.id,
-              mensaje: firstMessage.trim(),
+              mensaje: messageToSend,
               custodio_telefono: custodianPhone
             }
           });
+          
+          // IMMEDIATELY reset botTyping and add message locally
+          setBotTyping(false);
+          
+          if (response.data?.message) {
+            // Add user message first
+            const userMessage: TicketRespuesta = {
+              id: crypto.randomUUID(),
+              ticket_id: newTicket.id,
+              autor_id: '',
+              autor_tipo: 'custodio',
+              autor_nombre: 'Tú',
+              mensaje: messageToSend,
+              created_at: new Date().toISOString(),
+              es_interno: false,
+              es_resolucion: false,
+              adjuntos_urls: null
+            };
+            
+            const botMessage: TicketRespuesta = {
+              id: crypto.randomUUID(),
+              ticket_id: newTicket.id,
+              autor_id: '00000000-0000-0000-0000-000000000000',
+              autor_tipo: 'sistema',
+              autor_nombre: 'Sara',
+              mensaje: response.data.message,
+              created_at: new Date().toISOString(),
+              es_interno: false,
+              es_resolucion: false,
+              adjuntos_urls: null
+            };
+            
+            setRespuestas([userMessage, botMessage]);
+            setShowQuickReplies(true);
+          }
         } catch (error) {
           console.error('Error calling bot:', error);
           setBotTyping(false);
@@ -287,6 +419,17 @@ const InternalChatModal = ({
     } finally {
       setCreatingTicket(false);
     }
+  };
+
+  // Handle quick start with category
+  const handleQuickStart = (categoryId: string) => {
+    const categoryMessages: Record<string, string> = {
+      'pagos': 'Tengo una duda sobre mis pagos',
+      'servicios': 'Necesito ayuda con un servicio',
+      'gps': 'Tengo un problema con la app o GPS',
+      'otro': 'Hola, necesito ayuda'
+    };
+    handleStartNewConversation(categoryMessages[categoryId]);
   };
 
   const handleEscalate = async () => {
@@ -370,6 +513,9 @@ const InternalChatModal = ({
       setNewMessage('');
       setSuggestClose(false);
       setShowTicketConfirmation(false);
+      setErrorState(false);
+      setLastFailedMessage(null);
+      setShowQuickReplies(false);
     }
   };
 
@@ -386,11 +532,14 @@ const InternalChatModal = ({
       setSuggestClose(false);
       setShowTicketConfirmation(false);
       setClosingConversation(false);
+      setErrorState(false);
+      setLastFailedMessage(null);
+      setShowQuickReplies(false);
       onOpenChange(false);
     }
   };
 
-  // New conversation input view
+  // New conversation input view with quick categories
   const renderNewConversation = () => (
     <div className="space-y-4">
       <div className="flex items-center gap-3 pb-3 border-b">
@@ -399,30 +548,60 @@ const InternalChatModal = ({
         </Button>
         <div className="flex-1">
           <p className="font-medium">Nueva consulta</p>
-          <p className="text-xs text-muted-foreground">Escribe tu pregunta para Sara</p>
+          <p className="text-xs text-muted-foreground">Selecciona o escribe tu consulta</p>
         </div>
       </div>
       
-      <div className="text-center py-4">
-        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-          <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+      <div className="text-center py-3">
+        <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+          <Sparkles className="w-7 h-7 text-purple-600 dark:text-purple-400" />
         </div>
-        <p className="text-sm text-muted-foreground">
-          Sara está lista para ayudarte con cualquier duda o problema
+        <p className="text-sm font-medium mb-1">¿Sobre qué necesitas ayuda?</p>
+        <p className="text-xs text-muted-foreground">
+          Selecciona una categoría para empezar más rápido
         </p>
+      </div>
+
+      {/* Quick category buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        {QUICK_CATEGORIES.map(cat => {
+          const Icon = cat.icon;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => handleQuickStart(cat.id)}
+              disabled={creatingTicket}
+              className={cn(
+                "flex items-center gap-2 p-3 rounded-xl text-sm font-medium transition-all",
+                "border border-transparent",
+                cat.color,
+                creatingTicket && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {cat.label.replace(/^[^\s]+\s/, '')}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="relative flex items-center py-2">
+        <div className="flex-1 border-t border-muted" />
+        <span className="px-3 text-xs text-muted-foreground">o escribe tu consulta</span>
+        <div className="flex-1 border-t border-muted" />
       </div>
 
       <Textarea
         value={firstMessage}
         onChange={e => setFirstMessage(e.target.value)}
-        placeholder="¿En qué puedo ayudarte hoy?"
-        rows={3}
+        placeholder="Describe tu problema o duda..."
+        rows={2}
         className="resize-none"
         disabled={creatingTicket}
       />
 
       <Button
-        onClick={handleStartNewConversation}
+        onClick={() => handleStartNewConversation()}
         disabled={!firstMessage.trim() || creatingTicket}
         className="w-full gap-2"
       >
@@ -615,8 +794,58 @@ const InternalChatModal = ({
               </div>
             </div>
           )}
+
+          {/* Quick replies after Sara greeting */}
+          {showQuickReplies && !botTyping && !suggestClose && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {QUICK_CATEGORIES.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => handleQuickCategory(cat.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                    cat.color
+                  )}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </ScrollArea>
+
+      {/* Error recovery bar */}
+      {errorState && lastFailedMessage && (
+        <div className="mx-2 mb-2 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl animate-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Hubo un problema al enviar tu mensaje
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleRetry}
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-1 border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Reintentar
+            </Button>
+            <Button
+              onClick={handleEscalate}
+              size="sm"
+              variant="outline"
+              className="gap-1"
+            >
+              <UserCog className="w-3 h-3" />
+              Hablar con agente
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Ticket confirmation banner */}
       {showTicketConfirmation && (
@@ -679,7 +908,7 @@ const InternalChatModal = ({
             }}
           />
           <Button
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             disabled={!newMessage.trim() || sending || botTyping || closingConversation}
             size="icon"
             className="h-[44px] w-[44px] flex-shrink-0"
