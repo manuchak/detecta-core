@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
@@ -22,6 +22,7 @@ import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { CustodianTicketDetail } from "./CustodianTicketDetail";
 import ReportUnavailabilityCard from "./ReportUnavailabilityCard";
+import PhoneUpdatePrompt from "./PhoneUpdatePrompt";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -29,7 +30,7 @@ import { es } from "date-fns/locale";
 const MobileDashboardLayout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { profile, loading: profileLoading } = useCustodianProfile();
+  const { profile, loading: profileLoading, updateProfile, refetch: refetchProfile } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, refetch: refetchServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading, refetch: refetchTicketStats } = useCustodianTickets(profile?.phone);
   const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
@@ -50,6 +51,24 @@ const MobileDashboardLayout = () => {
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
   const [realCustodioId, setRealCustodioId] = useState<string | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  
+  // Phone update flow state
+  const [showPhoneUpdatePrompt, setShowPhoneUpdatePrompt] = useState(false);
+  const [phoneUpdateError, setPhoneUpdateError] = useState<string | null>(null);
+  const [pendingUnavailabilityData, setPendingUnavailabilityData] = useState<{ tipo: string; motivo?: string; dias: number | null } | null>(null);
+
+  // Helper function to find custodio by phone
+  const findCustodioByPhone = useCallback(async (phone: string): Promise<string | null> => {
+    const cleanPhone = phone.replace(/\s/g, '');
+    const { data } = await supabase
+      .from('custodios_operativos')
+      .select('id')
+      .or(`telefono.eq.${cleanPhone},telefono.ilike.%${cleanPhone.slice(-10)}%`)
+      .limit(1)
+      .maybeSingle();
+    
+    return data?.id || null;
+  }, []);
 
   // Always find real custodio ID by phone (for all users, not just admins)
   useEffect(() => {
@@ -60,16 +79,9 @@ const MobileDashboardLayout = () => {
       
       // Always try to find custodio by phone, regardless of role
       if (profile?.phone) {
-        const cleanPhone = profile.phone.replace(/\s/g, '');
-        const { data } = await supabase
-          .from('custodios_operativos')
-          .select('id')
-          .or(`telefono.eq.${cleanPhone},telefono.ilike.%${cleanPhone.slice(-10)}%`)
-          .limit(1)
-          .maybeSingle();
-        
-        if (data?.id) {
-          setRealCustodioId(data.id);
+        const custodioId = await findCustodioByPhone(profile.phone);
+        if (custodioId) {
+          setRealCustodioId(custodioId);
         }
       }
     };
@@ -77,7 +89,7 @@ const MobileDashboardLayout = () => {
     if (profile) {
       findCustodioId();
     }
-  }, [profile]);
+  }, [profile, findCustodioByPhone]);
 
   const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 
@@ -152,19 +164,51 @@ const MobileDashboardLayout = () => {
     return await createMaintenance(data);
   };
 
-  const handleReportUnavailability = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
-    // Always use realCustodioId (found by phone lookup)
-    const custodioIdToUse = realCustodioId;
+  // Handle phone update and retry unavailability report
+  const handlePhoneUpdate = async (newPhone: string): Promise<boolean> => {
+    setPhoneUpdateError(null);
     
-    if (!custodioIdToUse) {
-      toast({
-        title: "⚠️ No se encontró tu perfil de custodio",
-        description: "Asegúrate de que tu teléfono esté registrado en el sistema",
-        variant: "destructive",
-      });
+    // Update profile with new phone
+    const updateSuccess = await updateProfile({ phone: newPhone });
+    if (!updateSuccess) {
+      setPhoneUpdateError("No se pudo actualizar el teléfono. Intenta de nuevo.");
       return false;
     }
+    
+    // Refetch profile to get updated data
+    await refetchProfile();
+    
+    // Try to find custodio with new phone
+    const custodioId = await findCustodioByPhone(newPhone);
+    
+    if (!custodioId) {
+      setPhoneUpdateError(
+        "Este número no está registrado como custodio activo. Contacta a Planeación para que te vincule al sistema."
+      );
+      return false;
+    }
+    
+    // Success! Update state
+    setRealCustodioId(custodioId);
+    setShowPhoneUpdatePrompt(false);
+    
+    // If we have pending unavailability data, submit it now
+    if (pendingUnavailabilityData) {
+      const result = await submitUnavailability(pendingUnavailabilityData, custodioId);
+      setPendingUnavailabilityData(null);
+      return result;
+    }
+    
+    // Re-open unavailability dialog for user to continue
+    setShowUnavailabilityDialog(true);
+    return true;
+  };
 
+  // Core unavailability submission logic
+  const submitUnavailability = async (
+    data: { tipo: string; motivo?: string; dias: number | null },
+    custodioId: string
+  ): Promise<boolean> => {
     try {
       const fechaFin = data.dias 
         ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString()
@@ -180,7 +224,7 @@ const MobileDashboardLayout = () => {
       };
       
       await crearIndisponibilidad.mutateAsync({
-        custodio_id: custodioIdToUse,
+        custodio_id: custodioId,
         tipo_indisponibilidad: (tipoMap[data.tipo] || 'otro') as any,
         motivo: data.motivo || 'Sin detalle proporcionado',
         fecha_inicio: new Date().toISOString(),
@@ -202,6 +246,22 @@ const MobileDashboardLayout = () => {
       });
       return false;
     }
+  };
+
+  const handleReportUnavailability = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
+    // Always use realCustodioId (found by phone lookup)
+    const custodioIdToUse = realCustodioId;
+    
+    if (!custodioIdToUse) {
+      // No custodio found - show phone update prompt instead of error
+      setPendingUnavailabilityData(data);
+      setShowUnavailabilityDialog(false);
+      setPhoneUpdateError(null);
+      setShowPhoneUpdatePrompt(true);
+      return false;
+    }
+
+    return await submitUnavailability(data, custodioIdToUse);
   };
 
   const handleCancelUnavailability = async () => {
@@ -418,6 +478,21 @@ const MobileDashboardLayout = () => {
         } : undefined}
         onCancelUnavailability={handleCancelUnavailability}
         showTriggerButton={false}
+      />
+
+      {/* Phone Update Prompt - shown when custodio not found by phone */}
+      <PhoneUpdatePrompt
+        open={showPhoneUpdatePrompt}
+        onOpenChange={(open) => {
+          setShowPhoneUpdatePrompt(open);
+          if (!open) {
+            setPhoneUpdateError(null);
+            setPendingUnavailabilityData(null);
+          }
+        }}
+        currentPhone={profile?.phone}
+        onPhoneUpdated={handlePhoneUpdate}
+        errorMessage={phoneUpdateError}
       />
     </div>
   );
