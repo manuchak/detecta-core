@@ -493,18 +493,94 @@ function transformCapacityData(capacityData: any): CapacityReportData {
 }
 
 function transformOperationalData(operationalData: any, year: number): OperationalReportData {
+  const totalServices = operationalData?.totalServices || 0;
+  const completedServices = operationalData?.completedServices || 0;
+  const cancelledServices = operationalData?.cancelledServices || 0;
+  const pendingServices = Math.max(0, totalServices - completedServices - cancelledServices);
+
   return {
-    totalServices: operationalData?.totalServices || 0,
-    completedServices: operationalData?.completedServices || 0,
-    cancelledServices: operationalData?.cancelledServices || 0,
-    completionRate: operationalData?.completionRate || 0,
-    averageKmPerService: operationalData?.averageKmPerService || 0,
-    totalGMV: operationalData?.totalGMV || 0,
-    averageAOV: operationalData?.averageAOV || 0,
-    topCustodians: operationalData?.topCustodians || [],
-    topClients: operationalData?.topClients || [],
-    comparatives: operationalData?.comparatives || {},
-    monthlyBreakdown: operationalData?.monthlyBreakdown || [],
+    services: {
+      total: totalServices,
+      completed: completedServices,
+      completedPercent: totalServices > 0 ? Math.round((completedServices / totalServices) * 100) : 0,
+      cancelled: cancelledServices,
+      cancelledPercent: totalServices > 0 ? Math.round((cancelledServices / totalServices) * 100) : 0,
+      pending: pendingServices,
+      pendingPercent: totalServices > 0 ? Math.round((pendingServices / totalServices) * 100) : 0,
+    },
+    gmv: {
+      total: operationalData?.totalGMV || 0,
+      aov: operationalData?.averageAOV || 0,
+    },
+    comparatives: {
+      servicesThisMonth: {
+        current: operationalData?.comparatives?.servicesThisMonth?.current || 0,
+        previous: operationalData?.comparatives?.servicesThisMonth?.previousMonth || operationalData?.comparatives?.servicesThisMonth?.previous || 0,
+        changePercent: operationalData?.comparatives?.servicesThisMonth?.changePercent || 0,
+      },
+      servicesYTD: {
+        current: operationalData?.comparatives?.servicesYTD?.current || 0,
+        previous: operationalData?.comparatives?.servicesYTD?.previousYear || operationalData?.comparatives?.servicesYTD?.previous || 0,
+        changePercent: operationalData?.comparatives?.servicesYTD?.changePercent || 0,
+      },
+      gmvThisMonth: {
+        current: operationalData?.comparatives?.totalGMV?.current || operationalData?.comparatives?.gmvThisMonth?.current || 0,
+        previous: operationalData?.comparatives?.totalGMV?.previousMonth || operationalData?.comparatives?.gmvThisMonth?.previous || 0,
+        changePercent: operationalData?.comparatives?.totalGMV?.changePercent || operationalData?.comparatives?.gmvThisMonth?.changePercent || 0,
+      },
+      aovThisMonth: {
+        current: operationalData?.comparatives?.averageAOV?.current || operationalData?.comparatives?.aovThisMonth?.current || 0,
+        previous: operationalData?.comparatives?.averageAOV?.previousMonth || operationalData?.comparatives?.aovThisMonth?.previous || 0,
+        changePercent: operationalData?.comparatives?.averageAOV?.changePercent || operationalData?.comparatives?.aovThisMonth?.changePercent || 0,
+      },
+      completionRate: {
+        current: operationalData?.comparatives?.completionRate?.current || operationalData?.completionRate || 0,
+        previous: operationalData?.comparatives?.completionRate?.previousMonth || operationalData?.comparatives?.completionRate?.previous || 0,
+        changePercent: operationalData?.comparatives?.completionRate?.changePercent || 0,
+      },
+      avgKmPerService: {
+        current: operationalData?.comparatives?.averageKmPerService?.current || operationalData?.averageKmPerService || 0,
+        previous: operationalData?.comparatives?.averageKmPerService?.previousMonth || operationalData?.comparatives?.avgKmPerService?.previous || 0,
+        changePercent: operationalData?.comparatives?.averageKmPerService?.changePercent || operationalData?.comparatives?.avgKmPerService?.changePercent || 0,
+      },
+      gmvYTD: {
+        current: operationalData?.comparatives?.gmvYTD?.current || 0,
+        previous: operationalData?.comparatives?.gmvYTD?.previousYear || operationalData?.comparatives?.gmvYTD?.previous || 0,
+        changePercent: operationalData?.comparatives?.gmvYTD?.changePercent || 0,
+      },
+      avgDailyGMV: {
+        current: operationalData?.comparatives?.avgDailyGMV?.current || 0,
+        previous: operationalData?.comparatives?.avgDailyGMV?.previousYear || operationalData?.comparatives?.avgDailyGMV?.previous || 0,
+        changePercent: operationalData?.comparatives?.avgDailyGMV?.changePercent || 0,
+      },
+    },
+    topCustodians: (operationalData?.topCustodians || []).map((c: any, i: number) => ({
+      rank: i + 1,
+      name: c.name || c.custodian_name || '',
+      services: c.services || c.total_services || 0,
+      costoCustodio: c.costoCustodio || c.costo_custodio || 0,
+      promedioCostoMes: c.promedioCostoMes || c.promedio_costo_mes || 0,
+      mesesActivos: c.mesesActivos || c.meses_activos || 0,
+      gmv: c.gmv || c.total_gmv || 0,
+      margen: c.margen || c.margin || 0,
+      coberturaDatos: c.coberturaDatos || c.cobertura_datos || 0,
+    })),
+    topClients: (operationalData?.topClients || []).map((c: any, i: number) => ({
+      rank: i + 1,
+      name: c.name || c.client_name || '',
+      services: c.services || c.total_services || 0,
+      gmv: c.gmv || c.total_gmv || 0,
+      aov: c.aov || c.average_order_value || 0,
+    })),
+    monthlyBreakdown: (operationalData?.monthlyBreakdown || []).map((m: any) => ({
+      month: m.month || '',
+      monthNumber: m.monthNumber || m.month_number || 0,
+      services: m.services || m.total_services || 0,
+      completedServices: m.completedServices || m.completed_services || 0,
+      gmv: m.gmv || m.total_gmv || 0,
+      aov: m.aov || m.average_order_value || 0,
+      completionRate: m.completionRate || m.completion_rate || 0,
+    })),
   };
 }
 
