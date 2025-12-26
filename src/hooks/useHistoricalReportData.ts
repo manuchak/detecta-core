@@ -482,13 +482,44 @@ function transformConversionData(conversionDetails: any, year: number): Conversi
 }
 
 function transformCapacityData(capacityData: any): CapacityReportData {
+  const activeCustodians = capacityData?.activeCustodians || 0;
+  const availableCustodians = capacityData?.availableCustodians || 0;
+  const dailyCapacity = capacityData?.dailyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 };
+  const monthlyCapacityRaw = capacityData?.monthlyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 };
+  const utilizationMetrics = capacityData?.utilizationMetrics || { current: 0, healthy: 75, maxSafe: 85 };
+  
   return {
-    dailyCapacity: capacityData?.dailyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 },
-    monthlyCapacity: capacityData?.monthlyCapacity || { total: 0, local: 0, regional: 0, foraneo: 0 },
-    utilizationMetrics: capacityData?.utilizationMetrics || { current: 0, healthy: 75, maxSafe: 85 },
-    alerts: capacityData?.alerts || { type: 'healthy', message: '', recommendations: [] },
-    activeCustodians: capacityData?.activeCustodians || 0,
-    availableCustodians: capacityData?.availableCustodians || 0,
+    currentCapacity: {
+      totalCustodians: activeCustodians,
+      availableToday: availableCustodians,
+      unavailable: {
+        returningFromForeign: capacityData?.unavailable?.returningFromForeign || 0,
+        currentlyOnRoute: capacityData?.unavailable?.currentlyOnRoute || Math.max(0, activeCustodians - availableCustodians),
+      },
+    },
+    capacityByServiceType: {
+      local: dailyCapacity.local || 0,
+      regional: dailyCapacity.regional || 0,
+      foraneo: dailyCapacity.foraneo || 0,
+    },
+    monthlyCapacity: {
+      total: monthlyCapacityRaw.total || 0,
+      forecastCurrentMonth: capacityData?.forecastCurrentMonth || monthlyCapacityRaw.total || 0,
+      servicesMTD: capacityData?.servicesMTD || 0,
+      utilizationVsForecast: capacityData?.utilizationVsForecast || (utilizationMetrics.current || 0),
+      gap: capacityData?.gap || 0,
+    },
+    utilizationMetrics: {
+      current: utilizationMetrics.current || 0,
+      healthy: utilizationMetrics.healthy || 75,
+      maxSafe: utilizationMetrics.maxSafe || 85,
+    },
+    fleetEfficiency: {
+      averageServicesPerCustodian: capacityData?.fleetEfficiency?.averageServicesPerCustodian || 0,
+      utilizationRate: utilizationMetrics.current || 0,
+      idleRate: 100 - (utilizationMetrics.current || 0),
+    },
+    alerts: capacityData?.alerts || [],
   };
 }
 
