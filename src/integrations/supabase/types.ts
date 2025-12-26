@@ -13819,30 +13819,18 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
-          analista_email: string
-          analista_nombre: string
-          asignado_a: string
+          approval_stage: string
           candidato_custodio_id: string
-          contact_attempts_count: number
-          fecha_entrada_pool: string
           final_decision: string
-          has_scheduled_call: boolean
-          has_successful_call: boolean
-          interview_in_progress: boolean
-          interview_interrupted: boolean
-          interview_session_id: string
-          interview_started_at: string
-          last_contact_outcome: string
           lead_email: string
           lead_estado: string
           lead_fecha_creacion: string
           lead_id: string
           lead_nombre: string
           lead_telefono: string
-          motivo_pool: string
-          scheduled_call_datetime: string
-          zona_nombre: string
-          zona_preferida_id: string
+          notas: string
+          phone_interview_completed: boolean
+          second_interview_required: boolean
         }[]
       }
       get_analyst_assigned_leads_v2: {
@@ -13855,6 +13843,7 @@ export type Database = {
         }
         Returns: {
           approval_stage: string
+          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string
