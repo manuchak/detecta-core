@@ -6557,6 +6557,7 @@ export type Database = {
           phone_interview_completed: boolean | null
           phone_interview_date: string | null
           phone_interview_notes: string | null
+          scheduled_call_datetime: string | null
           second_interview_completed: boolean | null
           second_interview_date: string | null
           second_interview_notes: string | null
@@ -6578,6 +6579,7 @@ export type Database = {
           phone_interview_completed?: boolean | null
           phone_interview_date?: string | null
           phone_interview_notes?: string | null
+          scheduled_call_datetime?: string | null
           second_interview_completed?: boolean | null
           second_interview_date?: string | null
           second_interview_notes?: string | null
@@ -6599,6 +6601,7 @@ export type Database = {
           phone_interview_completed?: boolean | null
           phone_interview_date?: string | null
           phone_interview_notes?: string | null
+          scheduled_call_datetime?: string | null
           second_interview_completed?: boolean | null
           second_interview_date?: string | null
           second_interview_notes?: string | null
@@ -13820,7 +13823,6 @@ export type Database = {
         }
         Returns: {
           approval_stage: string
-          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -13830,6 +13832,7 @@ export type Database = {
           lead_telefono: string
           notas: string
           phone_interview_completed: boolean
+          scheduled_call_datetime: string
           second_interview_required: boolean
         }[]
       }
@@ -13843,7 +13846,6 @@ export type Database = {
         }
         Returns: {
           approval_stage: string
-          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string
