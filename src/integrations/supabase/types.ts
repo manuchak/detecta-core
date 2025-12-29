@@ -13474,10 +13474,19 @@ export type Database = {
         Args: { p_date_from?: string; p_date_to?: string }
         Returns: number
       }
-      count_analyst_assigned_leads_v2: {
-        Args: { p_date_from?: string; p_date_to?: string; p_is_test?: boolean }
-        Returns: number
-      }
+      count_analyst_assigned_leads_v2:
+        | {
+            Args: { p_date_from?: string; p_date_to?: string }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_is_test?: boolean
+            }
+            Returns: number
+          }
       crear_kit_instalacion: {
         Args: {
           p_gps_id: string
@@ -13823,6 +13832,7 @@ export type Database = {
         }
         Returns: {
           approval_stage: string
+          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -13836,29 +13846,53 @@ export type Database = {
           second_interview_required: boolean
         }[]
       }
-      get_analyst_assigned_leads_v2: {
-        Args: {
-          p_date_from?: string
-          p_date_to?: string
-          p_is_test?: boolean
-          p_limit?: number
-          p_offset?: number
-        }
-        Returns: {
-          approval_stage: string
-          final_decision: string
-          lead_email: string
-          lead_estado: string
-          lead_fecha_creacion: string
-          lead_id: string
-          lead_nombre: string
-          lead_telefono: string
-          notas: string
-          phone_interview_completed: boolean
-          scheduled_call_datetime: string
-          second_interview_required: boolean
-        }[]
-      }
+      get_analyst_assigned_leads_v2:
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_limit?: number
+              p_offset?: number
+            }
+            Returns: {
+              approval_stage: string
+              candidato_custodio_id: string
+              final_decision: string
+              lead_email: string
+              lead_estado: string
+              lead_fecha_creacion: string
+              lead_id: string
+              lead_nombre: string
+              lead_telefono: string
+              notas: string
+              phone_interview_completed: boolean
+              scheduled_call_datetime: string
+              second_interview_required: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_date_from?: string
+              p_date_to?: string
+              p_is_test?: boolean
+              p_limit?: number
+              p_offset?: number
+            }
+            Returns: {
+              approval_stage: string
+              final_decision: string
+              lead_email: string
+              lead_estado: string
+              lead_fecha_creacion: string
+              lead_id: string
+              lead_nombre: string
+              lead_telefono: string
+              notas: string
+              phone_interview_completed: boolean
+              scheduled_call_datetime: string
+              second_interview_required: boolean
+            }[]
+          }
       get_available_roles_secure: { Args: never; Returns: string[] }
       get_ciudades_safe: {
         Args: { estado_uuid: string }
