@@ -128,7 +128,7 @@ export const useLeadApprovals = () => {
         lead_telefono: lead.lead_telefono,
         lead_estado: lead.lead_estado as LeadEstado,
         lead_fecha_creacion: lead.lead_fecha_creacion,
-        current_stage: lead.current_stage || 'phone_interview',
+        current_stage: lead.approval_stage || 'phone_interview',
         phone_interview_completed: lead.phone_interview_completed || false,
         second_interview_required: lead.second_interview_required || false,
         final_decision: lead.final_decision,
