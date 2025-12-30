@@ -18,11 +18,12 @@ type SandboxAwareTable = typeof SANDBOX_AWARE_TABLES[number];
 
 /**
  * Mapeo de funciones RPC a sus versiones Sandbox-aware (_v2)
- * Solo se usan en modo Sandbox para garantizar aislamiento
+ * 
+ * IMPORTANTE: Solo incluir funciones que REALMENTE aceptan p_is_test en su firma.
+ * Las funciones get_analyst_assigned_leads_v2 y count_analyst_assigned_leads_v2
+ * ya NO aceptan p_is_test (filtran internamente), así que NO deben estar aquí.
  */
 const SANDBOX_RPC_MAPPINGS: Record<string, string> = {
-  'get_analyst_assigned_leads': 'get_analyst_assigned_leads_v2',
-  'count_analyst_assigned_leads': 'count_analyst_assigned_leads_v2',
   'check_zone_capacity': 'check_zone_capacity_v2',
   'move_lead_to_pool': 'move_lead_to_pool_v2',
   'reactivate_lead_from_pool': 'reactivate_lead_from_pool_v2'
@@ -173,41 +174,46 @@ export function useSandboxAwareSupabase() {
     },
     
     /**
-     * RPC calls con inyección automática de is_test y mapeo a funciones _v2
+     * RPC calls con mapeo opcional a funciones _v2
      * 
-     * SEGURIDAD: En Sandbox, usa automáticamente versiones _v2 que filtran por ambiente
+     * IMPORTANTE: Solo inyecta p_is_test para RPCs que explícitamente lo requieren
+     * (definidos en SANDBOX_RPC_MAPPINGS). Para el resto, pasa los parámetros sin modificar.
      * 
      * @example
      * ```typescript
-     * // En Sandbox:
-     * await sbx.rpc('get_analyst_assigned_leads', {})
-     * // Automáticamente llama a 'get_analyst_assigned_leads_v2' con p_is_test: true
+     * // RPCs mapeados (con p_is_test):
+     * await sbx.rpc('check_zone_capacity', { p_zona_id: '...' })
+     * // Llama a 'check_zone_capacity_v2' con p_is_test agregado
      * 
-     * // En Producción:
-     * await sbx.rpc('get_analyst_assigned_leads', {})
-     * // Llama a 'get_analyst_assigned_leads_v2' con p_is_test: false
+     * // RPCs no mapeados (sin p_is_test):
+     * await sbx.rpc('get_analyst_assigned_leads_v2', { p_limit: 10 })
+     * // Llama directamente sin modificar parámetros
      * ```
      */
     rpc: (functionName: string, params: Record<string, any> = {}) => {
-      // Si está en Sandbox y existe mapeo a _v2, usar la versión segura
-      const actualFunctionName = SANDBOX_RPC_MAPPINGS[functionName] 
-        ? SANDBOX_RPC_MAPPINGS[functionName]
-        : functionName;
+      // Verificar si esta función tiene mapeo a versión _v2 con p_is_test
+      const hasSandboxMapping = SANDBOX_RPC_MAPPINGS[functionName];
       
-      // Inyectar p_is_test en parámetros
-      const enhancedParams = {
-        ...params,
-        p_is_test: isSandboxMode
-      };
+      if (hasSandboxMapping) {
+        // Para RPCs mapeados: usar versión _v2 e inyectar p_is_test
+        const actualFunctionName = SANDBOX_RPC_MAPPINGS[functionName];
+        const enhancedParams = {
+          ...params,
+          p_is_test: isSandboxMode
+        };
+        
+        console.log(`🔧 RPC Call [${isSandboxMode ? 'SANDBOX' : 'PROD'}]: ${actualFunctionName}`, {
+          originalFunction: functionName,
+          mappedFunction: actualFunctionName,
+          p_is_test: isSandboxMode
+        });
+        
+        return supabase.rpc(actualFunctionName, enhancedParams);
+      }
       
-      console.log(`🔧 RPC Call [${isSandboxMode ? 'SANDBOX' : 'PROD'}]: ${actualFunctionName}`, {
-        originalFunction: functionName,
-        mappedFunction: actualFunctionName,
-        p_is_test: isSandboxMode,
-        params: enhancedParams
-      });
-      
-      return supabase.rpc(actualFunctionName, enhancedParams);
+      // Para RPCs no mapeados: pasar directamente sin modificar
+      console.log(`🔧 RPC Call [DIRECT]: ${functionName}`, { params });
+      return supabase.rpc(functionName, params);
     },
     
     // Exponer modo actual para validaciones condicionales
