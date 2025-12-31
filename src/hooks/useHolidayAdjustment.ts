@@ -17,25 +17,15 @@ interface ExtendedImpactConfig {
   afterFactor: number;      // Factor de operación días posteriores
 }
 
+// EXTENDED_IMPACT_CONFIG ya no se usa - los días puente ahora están en calendario_feriados_mx
+// La migración agregó todos los días del período 24-dic al 2-ene con factores específicos
+// Esto permite mayor precisión y configuración desde la base de datos
 const EXTENDED_IMPACT_CONFIG: ExtendedImpactConfig[] = [
-  { 
-    holidayPattern: 'Navidad', 
-    daysBefore: 1,      // 24 dic (Nochebuena) es feriado separado ahora
-    daysAfter: 1,       // 26 dic tiene impacto leve
-    beforeFactor: 0.85, // Impacto reducido día 23 (ajustado de 0.70)
-    afterFactor: 0.90   // 10% reducción día después
-  },
-  { 
-    holidayPattern: 'Año Nuevo', 
-    daysBefore: 0,      // 31 dic es feriado separado ahora
-    daysAfter: 1,       // 2 enero
-    beforeFactor: 1.0,  // Ya no aplica, es feriado explícito
-    afterFactor: 0.85 
-  },
+  // Configuración legacy para feriados que no estén explícitos en la BD
   { 
     holidayPattern: 'Semana Santa',
-    daysBefore: 1,
-    daysAfter: 1,
+    daysBefore: 2,
+    daysAfter: 2,
     beforeFactor: 0.75,
     afterFactor: 0.80
   },
@@ -44,6 +34,13 @@ const EXTENDED_IMPACT_CONFIG: ExtendedImpactConfig[] = [
     daysBefore: 1,
     daysAfter: 0,
     beforeFactor: 0.80,
+    afterFactor: 1.0
+  },
+  {
+    holidayPattern: 'Revolución',
+    daysBefore: 1,
+    daysAfter: 0,
+    beforeFactor: 0.85,
     afterFactor: 1.0
   }
 ];

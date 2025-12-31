@@ -4,6 +4,7 @@ import { useDynamicServiceData } from './useDynamicServiceData';
 import { useAdvancedForecastEngine } from './useAdvancedForecastEngine';
 import { useHistoricalMonthlyProjection } from './useHistoricalMonthlyProjection';
 import { useHolidayAdjustment } from './useHolidayAdjustment';
+import { usePhysicalCapacityGuardrails, validateProjectionRealism, calculatePhysicalCeiling, calculatePhysicalFloor } from './usePhysicalCapacityGuardrails';
 import { getCurrentMonthInfo, getPreviousMonthInfo } from '@/utils/dynamicDateUtils';
 import { calculateIntelligentEnsemble } from '@/utils/intelligentEnsemble';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ interface ProjectionScenario {
   description: string;
   color: 'destructive' | 'warning' | 'success';
   confidenceLevel: 'low' | 'medium' | 'high';
+  isPhysicallyImpossible?: boolean;  // NUEVO: marca escenarios imposibles
 }
 
 interface RealisticProjections {
@@ -57,6 +59,13 @@ interface RealisticProjections {
     reasoning: string[];
     daysUntilRealtime: number;
   };
+  physicalCapacity?: {
+    maxDailyServices: number;
+    maxMonthlyServices: number;
+    physicalCeiling: number;
+    physicalFloor: number;
+    dataQuality: string;
+  };
 }
 
 export const useRealisticProjectionsWithGuardrails = () => {
@@ -64,6 +73,9 @@ export const useRealisticProjectionsWithGuardrails = () => {
   const { data: dynamicData, isLoading: dynamicDataLoading } = useDynamicServiceData();
   const { data: advancedForecast } = useAdvancedForecastEngine();
   const { data: historicalProjection, isLoading: historicalLoading } = useHistoricalMonthlyProjection();
+  
+  // NUEVO: Guardrails de capacidad física
+  const { data: capacityData, isLoading: capacityLoading } = usePhysicalCapacityGuardrails();
   
   // Get days remaining and daily pace for holiday adjustment
   const now = new Date();
@@ -311,16 +323,25 @@ export const useRealisticProjectionsWithGuardrails = () => {
         warnings.push('Pocos días restantes - margen de error muy bajo');
       }
 
-      // ========== MATHEMATICALLY-GROUNDED SCENARIOS ==========
-      // Scenarios now based on uncertainty bounds from ensemble
+      // ========== PHYSICAL CAPACITY GUARDRAILS ==========
       const lowerBound = Math.max(
         currentServices,
         ensembleResult.uncertainty_bounds.lower
       );
-      const upperBound = Math.min(
+      let upperBound = Math.min(
         ensembleResult.adaptive_guardrails.upper_limit,
         ensembleResult.uncertainty_bounds.upper
       );
+      
+      // Aplicar límite físico: no puede exceder máximo histórico × 1.2
+      if (capacityData?.guardrails) {
+        const physicalCeiling = currentServices + (daysRemaining * capacityData.metrics.maxDailyServices * 1.2);
+        if (upperBound > physicalCeiling) {
+          console.warn(`⚠️ Optimistic scenario ${upperBound} exceeds physical ceiling ${Math.round(physicalCeiling)}`);
+          upperBound = physicalCeiling;
+          warnings.push(`Escenario optimista limitado por capacidad física (máx ${capacityData.metrics.maxDailyServices} servicios/día)`);
+        }
+      }
       
       const scenarios: ProjectionScenario[] = [
         {
