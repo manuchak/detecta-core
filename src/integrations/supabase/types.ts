@@ -1637,6 +1637,45 @@ export type Database = {
           },
         ]
       }
+      capacidad_operativa_historica: {
+        Row: {
+          avg_daily_gmv: number
+          avg_daily_services: number
+          calculated_at: string | null
+          days_with_data: number
+          id: string
+          max_daily_gmv: number
+          max_daily_services: number
+          total_gmv: number
+          total_services: number
+          year_month: string
+        }
+        Insert: {
+          avg_daily_gmv: number
+          avg_daily_services: number
+          calculated_at?: string | null
+          days_with_data: number
+          id?: string
+          max_daily_gmv: number
+          max_daily_services: number
+          total_gmv: number
+          total_services: number
+          year_month: string
+        }
+        Update: {
+          avg_daily_gmv?: number
+          avg_daily_services?: number
+          calculated_at?: string | null
+          days_with_data?: number
+          id?: string
+          max_daily_gmv?: number
+          max_daily_services?: number
+          total_gmv?: number
+          total_services?: number
+          year_month?: string
+        }
+        Relationships: []
+      }
       categorias_gastos: {
         Row: {
           activo: boolean | null
@@ -8819,6 +8858,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      periodos_ajuste_operativo: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          factor_promedio: number
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          nombre: string
+          tipo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          factor_promedio?: number
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          nombre: string
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          factor_promedio?: number
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          nombre?: string
+          tipo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       personal_proveedor_armados: {
         Row: {
