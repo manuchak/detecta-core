@@ -1,8 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { XCircle } from 'lucide-react';
+
+// Predefined cancellation reasons - "Cancelado por cliente" allows cancelling started services
+const CANCEL_REASONS = [
+  { value: 'cliente_cancelo', label: 'Cancelado por cliente', allowsStartedCancellation: true },
+  { value: 'cambio_fecha', label: 'Cambio de fecha/hora', allowsStartedCancellation: false },
+  { value: 'falta_disponibilidad', label: 'Falta de disponibilidad', allowsStartedCancellation: false },
+  { value: 'error_datos', label: 'Error en datos del servicio', allowsStartedCancellation: false },
+  { value: 'duplicado', label: 'Servicio duplicado', allowsStartedCancellation: false },
+  { value: 'otro', label: 'Otro motivo', allowsStartedCancellation: false },
+] as const;
 
 interface CancelServiceButtonProps {
   serviceId: string;
@@ -10,6 +21,7 @@ interface CancelServiceButtonProps {
   onCancel: (serviceId: string, reason?: string) => Promise<void>;
   disabled?: boolean;
   className?: string;
+  serviceStarted?: boolean; // Optional: indicate if service has started
 }
 
 export function CancelServiceButton({ 
@@ -17,10 +29,12 @@ export function CancelServiceButton({
   serviceName, 
   onCancel, 
   disabled = false, 
-  className = "" 
+  className = "",
+  serviceStarted = false
 }: CancelServiceButtonProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
+  const [selectedReason, setSelectedReason] = useState<string>('');
+  const [customReason, setCustomReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -31,12 +45,35 @@ export function CancelServiceButton({
     }
   }, [showConfirmDialog]);
 
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!showConfirmDialog) {
+      setSelectedReason('');
+      setCustomReason('');
+    }
+  }, [showConfirmDialog]);
+
+  const selectedReasonConfig = CANCEL_REASONS.find(r => r.value === selectedReason);
+  const canCancelStarted = selectedReasonConfig?.allowsStartedCancellation ?? false;
+  
+  // If service started, only allow cancellation with specific reasons
+  const canProceed = selectedReason && (!serviceStarted || canCancelStarted);
+
+  const getFinalReason = () => {
+    if (selectedReason === 'otro') {
+      return customReason.trim() || 'Otro motivo';
+    }
+    const reason = CANCEL_REASONS.find(r => r.value === selectedReason);
+    return reason?.label || selectedReason;
+  };
+
   const handleCancel = async () => {
+    if (!canProceed) return;
+    
     setIsProcessing(true);
     try {
-      await onCancel(serviceId, cancelReason.trim() || undefined);
+      await onCancel(serviceId, getFinalReason());
       setShowConfirmDialog(false);
-      setCancelReason('');
     } catch (error) {
       console.error('Error cancelling service:', error);
     } finally {
@@ -80,17 +117,55 @@ export function CancelServiceButton({
             </AlertDialogDescription>
           </AlertDialogHeader>
           
-          <div className="py-4">
-            <label htmlFor="cancel-reason" className="apple-text-caption text-muted-foreground mb-2 block">
-              Motivo de cancelación (opcional)
-            </label>
-            <Textarea
-              id="cancel-reason"
-              placeholder="Ejemplo: Cliente canceló, cambio de fecha, etc."
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              className="apple-input resize-none h-20"
-            />
+          <div className="py-4 space-y-4">
+            {/* Reason selector */}
+            <div className="space-y-2">
+              <label className="apple-text-caption text-muted-foreground block">
+                Motivo de cancelación <span className="text-destructive">*</span>
+              </label>
+              <Select value={selectedReason} onValueChange={setSelectedReason}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona un motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CANCEL_REASONS.map((reason) => (
+                    <SelectItem key={reason.value} value={reason.value}>
+                      {reason.label}
+                      {reason.allowsStartedCancellation && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (permite cancelar iniciados)
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom reason text area - only show when "Otro" is selected */}
+            {selectedReason === 'otro' && (
+              <div className="space-y-2">
+                <label htmlFor="custom-reason" className="apple-text-caption text-muted-foreground block">
+                  Especificar motivo
+                </label>
+                <Textarea
+                  id="custom-reason"
+                  placeholder="Describe el motivo de cancelación..."
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  className="apple-input resize-none h-20"
+                />
+              </div>
+            )}
+
+            {/* Warning for started services */}
+            {serviceStarted && selectedReason && !canCancelStarted && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  ⚠️ Este servicio ya inició. Solo se puede cancelar si el motivo es "Cancelado por cliente".
+                </p>
+              </div>
+            )}
           </div>
 
           <AlertDialogFooter className="space-x-2">
@@ -106,8 +181,8 @@ export function CancelServiceButton({
                 e.stopPropagation();
                 handleCancel();
               }}
-              disabled={isProcessing}
-              className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isProcessing || !canProceed}
+              className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
             >
               {isProcessing ? 'Cancelando...' : 'Confirmar cancelación'}
             </AlertDialogAction>

@@ -76,10 +76,15 @@ export function ScheduledServicesTab() {
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
 
   // Estado operativo basado en hora_inicio_real y hora_fin_real
+  // FIX: Use armado_nombre as primary indicator (comes from RPC with COALESCE fallback)
   const getOperationalStatus = (service: any) => {
     const now = new Date();
     const citaTime = new Date(service.fecha_hora_cita);
-    const isFullyAssigned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
+    
+    // FIX: Check armado_nombre first (comes from RPC), then armado_asignado as fallback
+    const hasArmedGuard = !!(service.armado_nombre || service.armado_asignado);
+    const needsArmedGuard = service.incluye_armado || service.requiere_armado;
+    const isFullyAssigned = service.custodio_nombre && (!needsArmedGuard || hasArmedGuard);
     
     // Servicio completado (tiene hora_fin_real)
     if (service.hora_fin_real) {
@@ -120,8 +125,8 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // Falta armado (crítico)
-    if (service.incluye_armado && !service.armado_asignado) {
+    // FIX: Falta armado - use improved detection
+    if (needsArmedGuard && !hasArmedGuard) {
       return { 
         status: 'armado_pendiente', 
         color: 'bg-orange-500', 
