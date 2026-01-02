@@ -601,7 +601,7 @@ export function ScheduledServicesTab() {
                       </Button>
                       <QuickCommentButton
                         serviceId={service.id}
-                        currentComment={(service as any).comentarios_planeacion}
+                        currentComment={service.comentarios_planeacion}
                       />
                     </div>
                   </div>
