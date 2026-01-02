@@ -3,6 +3,9 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { isValidUuid, safeUuidForDatabase } from '@/utils/uuidHelpers';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('useServiciosPlanificados');
 
 export interface ServicioPlanificadoData {
   id_servicio: string;
@@ -782,7 +785,7 @@ export function useServiciosPlanificados() {
   // Cancel service mutation
   const cancelService = useMutation({
     mutationFn: async ({ serviceId, reason }: { serviceId: string; reason?: string }) => {
-      console.log('Cancelling service:', serviceId, reason);
+      logger.operation('cancelService', 'start', { serviceId, reason });
       
       // Validate service exists and can be cancelled
       const { data: service, error: fetchError } = await supabase
@@ -792,10 +795,12 @@ export function useServiciosPlanificados() {
         .maybeSingle();
 
       if (fetchError) {
+        logger.error('cancelService', 'Error fetching service', fetchError);
         throw new Error('Error al verificar el servicio');
       }
 
       if (!service) {
+        logger.warn('cancelService', 'Service not found', { serviceId });
         throw new Error('Servicio no encontrado');
       }
 
@@ -814,6 +819,7 @@ export function useServiciosPlanificados() {
       );
 
       if (hoursUntilService < -1 && !isClientCancellation) {
+        logger.warn('cancelService', 'Cannot cancel started service without client reason', { hoursUntilService });
         throw new Error('Para cancelar un servicio ya iniciado, indica "Cancelado por cliente" como motivo');
       }
 
@@ -829,9 +835,11 @@ export function useServiciosPlanificados() {
         .eq('id', serviceId);
 
       if (error) {
+        logger.error('cancelService', 'Error updating service', error);
         throw new Error(`Error al cancelar servicio: ${error.message}`);
       }
 
+      logger.operation('cancelService', 'success', { serviceId });
       return { serviceId };
     },
     onSuccess: () => {
@@ -840,7 +848,7 @@ export function useServiciosPlanificados() {
       queryClient.invalidateQueries({ queryKey: ['planned-services'] });
     },
     onError: (error) => {
-      console.error('Error cancelling service:', error);
+      logger.error('cancelService', 'Mutation failed', error);
       toast.error('Error al cancelar servicio', {
         description: error.message || 'Error desconocido'
       });
@@ -890,6 +898,8 @@ export function useServiciosPlanificados() {
       serviceId: string; 
       action: 'mark_on_site' | 'revert_to_scheduled';
     }) => {
+      logger.operation('updateOperationalStatus', 'start', { serviceId, action });
+      
       const updateData = action === 'mark_on_site' 
         ? { hora_inicio_real: new Date().toISOString() }
         : { hora_inicio_real: null };
@@ -899,7 +909,12 @@ export function useServiciosPlanificados() {
         .update(updateData)
         .eq('id', serviceId);
       
-      if (error) throw error;
+      if (error) {
+        logger.error('updateOperationalStatus', 'Failed to update', error);
+        throw error;
+      }
+      
+      logger.operation('updateOperationalStatus', 'success', { serviceId, action });
     },
     onSuccess: (_, variables) => {
       const message = variables.action === 'mark_on_site' 
@@ -909,7 +924,7 @@ export function useServiciosPlanificados() {
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
     },
     onError: (error) => {
-      console.error('Error updating operational status:', error);
+      logger.error('updateOperationalStatus', 'Mutation failed', error);
       toast.error('Error al actualizar estado operativo');
     }
   });

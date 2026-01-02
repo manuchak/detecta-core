@@ -215,8 +215,21 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
 
     } catch (err) {
       console.error('Error searching services:', err);
-      setError('Error al buscar servicios');
-      toast.error('Error al buscar servicios');
+      
+      // Mensajes de error específicos
+      let errorMessage = 'Error al buscar servicios';
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Error de conexión. Verifica tu internet e intenta de nuevo.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'La búsqueda tardó demasiado. Intenta con términos más específicos.';
+        } else if (err.message.includes('permission') || err.message.includes('RLS')) {
+          errorMessage = 'No tienes permisos para realizar esta búsqueda.';
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -378,8 +391,21 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
 
     } catch (err) {
       console.error('Error searching services:', err);
-      setError('Error al buscar servicios');
-      toast.error('Error al buscar servicios');
+      
+      // Mensajes de error específicos
+      let errorMessage = 'Error al buscar servicios';
+      if (err instanceof Error) {
+        if (err.message.includes('network') || err.message.includes('fetch')) {
+          errorMessage = 'Error de conexión. Verifica tu internet e intenta de nuevo.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'La búsqueda tardó demasiado. Intenta con términos más específicos.';
+        } else if (err.message.includes('permission') || err.message.includes('RLS')) {
+          errorMessage = 'No tienes permisos para realizar esta búsqueda.';
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
