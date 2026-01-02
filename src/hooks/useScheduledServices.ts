@@ -34,6 +34,9 @@ export interface ScheduledService {
   // Campos para estado operativo
   hora_inicio_real?: string;
   hora_fin_real?: string;
+  // Campo para comentarios internos de planeación
+  comentarios_planeacion?: string;
+  id_interno_cliente?: string;
 }
 
 export interface ScheduledServicesSummary {
