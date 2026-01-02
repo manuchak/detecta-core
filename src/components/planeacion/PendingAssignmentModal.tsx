@@ -39,48 +39,47 @@ export function PendingAssignmentModal({
   const [isAssigning, setIsAssigning] = useState(false);
   const [showContextualEdit, setShowContextualEdit] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  // Helper function to normalize custodio_asignado to string
+  const normalizeCustodioName = (custodio: any): string | null => {
+    if (!custodio) return null;
+    if (typeof custodio === 'string') return custodio.trim() || null;
+    if (typeof custodio === 'object') {
+      return custodio.nombre?.trim() || custodio.custodio_nombre?.trim() || null;
+    }
+    return null;
+  };
+
   const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
     // Priority 1: Explicit mode passed from caller
     if (mode === 'direct_armed') return 'armed';
     if (mode === 'direct_custodian') return 'custodian';
     
     // Priority 2: Check if service already has a custodian assigned
-    // Handle both string format and object format for custodio_asignado
-    const hasCustodio = service && service.custodio_asignado && (
-      typeof service.custodio_asignado === 'string' 
-        ? service.custodio_asignado.trim() !== ''
-        : !!(service.custodio_asignado as any)?.nombre
-    );
+    // FIX: Use normalized helper for robust detection
+    const hasCustodio = !!normalizeCustodioName(service?.custodio_asignado);
+    
+    console.log('🔍 [PendingAssignmentModal] Initial step calculation:', {
+      mode,
+      rawCustodio: service?.custodio_asignado,
+      normalizedCustodio: normalizeCustodioName(service?.custodio_asignado),
+      hasCustodio,
+      initialStep: hasCustodio ? 'armed' : 'custodian'
+    });
     
     return hasCustodio ? 'armed' : 'custodian';
   });
-  // 🛡️ LÓGICA DEFENSIVA: Manejar ambos formatos (string u objeto)
+  
+  // 🛡️ DEFENSIVE LOGIC: Handle both formats (string or object)
   const [custodianAssigned, setCustodianAssigned] = useState<any>(() => {
-    // 🔍 DEBUG LOG: Verificar inicialización de custodianAssigned
-    console.log('🔍 [PendingAssignmentModal] Inicializando custodianAssigned:', {
-      service_custodio_asignado: service?.custodio_asignado,
-      tipo: typeof service?.custodio_asignado,
-      es_null: service?.custodio_asignado === null,
-      es_undefined: service?.custodio_asignado === undefined,
-      es_string: typeof service?.custodio_asignado === 'string',
-      valor_directo: service?.custodio_asignado
+    const custodioNombre = normalizeCustodioName(service?.custodio_asignado);
+    
+    console.log('🔍 [PendingAssignmentModal] Initializing custodianAssigned:', {
+      rawValue: service?.custodio_asignado,
+      normalizedName: custodioNombre,
+      result: custodioNombre ? { custodio_nombre: custodioNombre } : null
     });
     
-    if (!service?.custodio_asignado) {
-      console.log('⚠️ [PendingAssignmentModal] custodio_asignado es null/undefined, retornando null');
-      return null;
-    }
-    
-    // Manejar ambos formatos para máxima compatibilidad
-    const custodioNombre = typeof service.custodio_asignado === 'string'
-      ? service.custodio_asignado
-      : (service.custodio_asignado as any).nombre;
-    
-    console.log('✅ [PendingAssignmentModal] custodianAssigned construido:', {
-      custodio_nombre: custodioNombre,
-      objeto_completo: { custodio_nombre: custodioNombre }
-    });
-      
+    if (!custodioNombre) return null;
     return { custodio_nombre: custodioNombre };
   });
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
