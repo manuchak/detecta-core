@@ -14,14 +14,35 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleInfo';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2 } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
+import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export function ScheduledServicesTab() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  // Persist selected date in localStorage
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const saved = localStorage.getItem('planeacion_selected_date');
+    if (saved) {
+      const parsed = new Date(saved);
+      // Only use saved date if it's within reasonable range (last 30 days to next 30 days)
+      const now = new Date();
+      const daysDiff = Math.abs((parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff <= 30) {
+        return parsed;
+      }
+    }
+    return new Date();
+  });
+  
+  // Persist date changes
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
+    localStorage.setItem('planeacion_selected_date', date.toISOString());
+  };
+  
   const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
@@ -413,7 +434,7 @@ export function ScheduledServicesTab() {
         <div className="flex items-center gap-4">
           <AirlineDateSelector 
             selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
+            onDateChange={handleDateChange}
           />
           <button
             onClick={() => refetch()}
@@ -494,7 +515,10 @@ export function ScheduledServicesTab() {
 
         {!error && summary?.services_data && summary.services_data.length > 0 && (
           <div className="space-y-4">
-            {summary.services_data.map((service, index) => {
+            {/* Sort services chronologically by fecha_hora_cita */}
+            {[...summary.services_data]
+              .sort((a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime())
+              .map((service, index) => {
               const statusConfig = getStatusConfig(service);
               const operationalStatus = getOperationalStatus(service);
               const StatusIcon = statusConfig.icon;
@@ -543,6 +567,14 @@ export function ScheduledServicesTab() {
                         <OperationalIcon className="w-3 h-3" />
                         {operationalStatus.label}
                       </Badge>
+                      
+                      {/* Badge PF (Persona Física) */}
+                      {service.tipo_servicio?.toLowerCase() === 'pf' && (
+                        <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800 gap-1 text-xs font-medium">
+                          <Building2 className="w-3 h-3" />
+                          PF
+                        </Badge>
+                      )}
                     </div>
                     
                     {/* Íconos de acción */}
@@ -567,6 +599,10 @@ export function ScheduledServicesTab() {
                       >
                         <History className="h-3.5 w-3.5" />
                       </Button>
+                      <QuickCommentButton
+                        serviceId={service.id}
+                        currentComment={(service as any).comentarios_planeacion}
+                      />
                     </div>
                   </div>
                   

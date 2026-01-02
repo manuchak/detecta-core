@@ -25,12 +25,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
 export default function PlanningHub() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Persist active tab in URL params
+  const [activeTab, setActiveTab] = useState(() => {
+    return searchParams.get('tab') || 'dashboard';
+  });
+  
+  // Sync tab with URL
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', value);
+    setSearchParams(newParams, { replace: true });
+  };
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateWorkflow, setShowCreateWorkflow] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
@@ -268,7 +280,7 @@ export default function PlanningHub() {
         </Alert>
       )}
       
-      <Tabs defaultValue="dashboard" className="h-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full">
         <TabsList className="apple-tabs-minimal">
           <TabsTrigger value="dashboard" className="apple-tab">Dashboard</TabsTrigger>
           <TabsTrigger value="services" className="apple-tab relative">

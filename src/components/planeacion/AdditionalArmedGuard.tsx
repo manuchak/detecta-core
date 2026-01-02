@@ -12,9 +12,12 @@ export function AdditionalArmedGuard({ custodioNombre, armadoAsignado, armadoNom
   const isHybridCustodian = custodianData.isHybridCustodian();
   
   // Solo mostrar armado adicional si:
-  // 1. Hay un armado asignado con nombre
+  // 1. Hay un armado nombre (puede ser string directo o flag boolean + nombre)
   // 2. El custodio NO es híbrido (porque ya tiene porte de arma)
-  if (!armadoAsignado || !armadoNombre || isHybridCustodian) {
+  // FIX: armadoNombre is the primary indicator, armadoAsignado is legacy boolean
+  const hasArmedGuard = !!armadoNombre && armadoNombre.trim() !== '';
+  
+  if (!hasArmedGuard || isHybridCustodian) {
     return null;
   }
 
