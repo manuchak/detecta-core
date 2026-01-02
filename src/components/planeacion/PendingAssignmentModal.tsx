@@ -40,9 +40,18 @@ export function PendingAssignmentModal({
   const [showContextualEdit, setShowContextualEdit] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
+    // Priority 1: Explicit mode passed from caller
     if (mode === 'direct_armed') return 'armed';
     if (mode === 'direct_custodian') return 'custodian';
-    const hasCustodio = service && 'custodio_asignado' in service && service.custodio_asignado;
+    
+    // Priority 2: Check if service already has a custodian assigned
+    // Handle both string format and object format for custodio_asignado
+    const hasCustodio = service && service.custodio_asignado && (
+      typeof service.custodio_asignado === 'string' 
+        ? service.custodio_asignado.trim() !== ''
+        : !!(service.custodio_asignado as any)?.nombre
+    );
+    
     return hasCustodio ? 'armed' : 'custodian';
   });
   // 🛡️ LÓGICA DEFENSIVA: Manejar ambos formatos (string u objeto)

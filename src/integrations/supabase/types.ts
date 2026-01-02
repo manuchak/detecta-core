@@ -11382,6 +11382,7 @@ export type Database = {
           auto: string | null
           cancelado_por: string | null
           comentarios_adicionales: string | null
+          comentarios_planeacion: string | null
           comunicacion_enviada: boolean | null
           condiciones_especiales: string[] | null
           created_at: string
@@ -11430,6 +11431,7 @@ export type Database = {
           auto?: string | null
           cancelado_por?: string | null
           comentarios_adicionales?: string | null
+          comentarios_planeacion?: string | null
           comunicacion_enviada?: boolean | null
           condiciones_especiales?: string[] | null
           created_at?: string
@@ -11478,6 +11480,7 @@ export type Database = {
           auto?: string | null
           cancelado_por?: string | null
           comentarios_adicionales?: string | null
+          comentarios_planeacion?: string | null
           comunicacion_enviada?: boolean | null
           condiciones_especiales?: string[] | null
           created_at?: string

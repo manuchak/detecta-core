@@ -92,21 +92,24 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     setLoading(true);
     setError(null);
 
+    // Normalize search input: trim whitespace, convert to uppercase for case-insensitive matching
+    const normalizedId = serviceId.trim().toUpperCase();
+
     try {
-      // Buscar en servicios_custodia primero
+      // Buscar en servicios_custodia - search in multiple fields
       const { data: custodiaData, error: custodiaError } = await supabase
         .from('servicios_custodia')
         .select('*')
-        .ilike('id_servicio', `%${serviceId}%`)
+        .or(`id_servicio.ilike.%${normalizedId}%,id_interno_cliente.ilike.%${normalizedId}%`)
         .order('fecha_hora_cita', { ascending: false });
 
       if (custodiaError) throw custodiaError;
 
-      // Buscar en servicios_planificados
+      // Buscar en servicios_planificados - search in multiple fields
       const { data: planificadosData, error: planificadosError } = await supabase
         .from('servicios_planificados')
         .select('*')
-        .ilike('id_servicio', `%${serviceId}%`)
+        .or(`id_servicio.ilike.%${normalizedId}%,id_interno_cliente.ilike.%${normalizedId}%`)
         .order('fecha_hora_cita', { ascending: false });
 
       if (planificadosError) throw planificadosError;

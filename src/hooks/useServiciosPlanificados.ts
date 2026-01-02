@@ -799,14 +799,22 @@ export function useServiciosPlanificados() {
         throw new Error('Servicio no encontrado');
       }
 
-      // Check if service has already started (shouldn't cancel services in progress)
+      // Check if service has already started (allow cancellation if reason is client-initiated)
       const serviceTime = new Date(service.fecha_hora_cita);
       const currentTime = new Date();
       const timeDiff = serviceTime.getTime() - currentTime.getTime();
       const hoursUntilService = timeDiff / (1000 * 60 * 60);
 
-      if (hoursUntilService < -1) { // Service started more than 1 hour ago
-        throw new Error('No se puede cancelar un servicio que ya ha iniciado');
+      // Allow cancellation of started services if the reason indicates client cancellation
+      const isClientCancellation = reason && (
+        reason.toLowerCase().includes('cliente cancel') ||
+        reason.toLowerCase().includes('cancelado por cliente') ||
+        reason.toLowerCase().includes('cliente no') ||
+        reason === 'cliente_cancelo'
+      );
+
+      if (hoursUntilService < -1 && !isClientCancellation) {
+        throw new Error('Para cancelar un servicio ya iniciado, indica "Cancelado por cliente" como motivo');
       }
 
       // Cancel the service
