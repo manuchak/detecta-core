@@ -27,14 +27,20 @@ import type { EditableService } from '@/components/planeacion/EditServiceModal';
 export default function PlanningHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Persist active tab in URL params
+  // Persist active tab in URL params with sessionStorage backup
   const [activeTab, setActiveTab] = useState(() => {
-    return searchParams.get('tab') || 'dashboard';
+    // Priority: URL params > sessionStorage > default 'services'
+    const urlTab = searchParams.get('tab');
+    if (urlTab) return urlTab;
+    
+    const sessionTab = sessionStorage.getItem('planeacion_active_tab');
+    return sessionTab || 'services';
   });
   
-  // Sync tab with URL
+  // Sync tab with URL and sessionStorage
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    sessionStorage.setItem('planeacion_active_tab', value);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', value);
     setSearchParams(newParams, { replace: true });

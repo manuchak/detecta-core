@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
+import { useScrollPersistence, getScrollKeyForDate } from '@/hooks/useScrollPersistence';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { AdditionalArmedGuard } from '@/components/planeacion/AdditionalArmedGuard';
 import { EditServiceModal, type EditableService } from '@/components/planeacion/EditServiceModal';
@@ -14,12 +16,16 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleInfo';
+import { StatusUpdateButton, type OperationalStatus } from '@/components/planeacion/StatusUpdateButton';
+import { HourDivider } from '@/components/planeacion/HourDivider';
+import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/planeacion/UpcomingServiceBadge';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2 } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function ScheduledServicesTab() {
   // Persist selected date in localStorage
@@ -37,8 +43,25 @@ export function ScheduledServicesTab() {
     return new Date();
   });
   
+  // Auto-refresh timer for upcoming service badges
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Scroll persistence
+  const scrollKey = getScrollKeyForDate(selectedDate);
+  const { containerRef, clearScrollPosition } = useScrollPersistence({
+    key: scrollKey,
+    enabled: true
+  });
+  
   // Persist date changes
   const handleDateChange = (date: Date) => {
+    clearScrollPosition(); // Clear scroll when changing date
     setSelectedDate(date);
     localStorage.setItem('planeacion_selected_date', date.toISOString());
   };
@@ -49,6 +72,8 @@ export function ScheduledServicesTab() {
   const { 
     updateServiceConfiguration, 
     isUpdatingConfiguration,
+    updateOperationalStatus,
+    isUpdatingOperationalStatus,
     reassignCustodian,
     reassignArmedGuard,
     removeAssignment,
@@ -373,12 +398,35 @@ export function ScheduledServicesTab() {
 
   const handleCancelService = async (serviceId: string, reason?: string) => {
     await cancelService.mutateAsync({ serviceId, reason });
-    await Promise.all([
-      refetch(),
-      refetchPending(),
-      refetchPendingArmado()
-    ]);
+    await Promise.all([refetch(), refetchPending(), refetchPendingArmado()]);
   };
+
+  const handleStatusUpdate = async (serviceId: string, action: 'mark_on_site' | 'revert_to_scheduled') => {
+    await updateOperationalStatus.mutateAsync({ serviceId, action });
+    await refetch();
+  };
+
+  // Group services by hour for chronological visualization
+  const groupedServices = useMemo(() => {
+    if (!summary?.services_data || summary.services_data.length === 0) {
+      return {};
+    }
+    
+    const sorted = [...summary.services_data].sort(
+      (a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime()
+    );
+    
+    const grouped: Record<string, typeof sorted> = {};
+    sorted.forEach(service => {
+      const hour = format(new Date(service.fecha_hora_cita), 'HH:00');
+      if (!grouped[hour]) grouped[hour] = [];
+      grouped[hour].push(service);
+    });
+    
+    return grouped;
+  }, [summary?.services_data]);
+
+  const currentHour = format(now, 'HH:00');
 
   if (loading) {
     return (
@@ -487,53 +535,55 @@ export function ScheduledServicesTab() {
           </div>
         )}
 
-        {/* Leyenda de estados operativos */}
+        {/* Leyenda de estados operativos - Simplificada */}
         {!error && summary?.services_data && summary.services_data.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
             <span className="text-muted-foreground font-medium">Estados:</span>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-muted-foreground">Completado</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-muted-foreground">En sitio</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-muted-foreground">Pendiente inicio</span>
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">Sin asignar</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-slate-400" />
               <span className="text-muted-foreground">Programado</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-orange-500" />
-              <span className="text-muted-foreground">Armado pendiente</span>
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-muted-foreground">En sitio</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">Sin asignar</span>
-            </div>
+            <Separator orientation="vertical" className="h-3 mx-1" />
+            <span className="text-muted-foreground/70 text-[10px]">Auto: Completado, Armado pendiente, Pendiente inicio</span>
           </div>
         )}
 
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div className="space-y-4">
-            {/* Sort services chronologically by fecha_hora_cita */}
-            {[...summary.services_data]
-              .sort((a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime())
-              .map((service, index) => {
+          <div ref={containerRef} className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+            {Object.entries(groupedServices).map(([hour, services]) => (
+              <div key={hour} className="space-y-3">
+                {/* Hour Divider */}
+                <HourDivider 
+                  hour={hour} 
+                  serviceCount={services.length}
+                  isCurrentHour={hour === currentHour}
+                />
+                
+                {/* Services for this hour */}
+                {services.map((service, index) => {
               const statusConfig = getStatusConfig(service);
               const operationalStatus = getOperationalStatus(service);
               const StatusIcon = statusConfig.icon;
               const ActionIcon = statusConfig.actionIcon;
               const OperationalIcon = operationalStatus.icon;
+              const citaTime = new Date(service.fecha_hora_cita);
+              const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
               
               return (
                 <div 
                   key={service.id || index} 
-                  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative overflow-hidden"
+                  className={cn(
+                    "apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative overflow-hidden",
+                    upcomingHighlight
+                  )}
                   onClick={(e) => {
                     const target = (e.target as HTMLElement);
                     if (target.closest('.service-card-actions')) return;
@@ -564,6 +614,9 @@ export function ScheduledServicesTab() {
                         </span>
                       </div>
                       
+                      {/* Badge de próximo servicio */}
+                      <UpcomingServiceBadge citaTime={citaTime} now={now} />
+                      
                       {/* Badge de estado operativo */}
                       <Badge 
                         variant="secondary" 
@@ -584,12 +637,22 @@ export function ScheduledServicesTab() {
                     
                     {/* Íconos de acción */}
                     <div className="flex items-center space-x-1 service-card-actions" onClick={(e) => e.stopPropagation()}>
+                      {/* Status Update Button */}
+                      <StatusUpdateButton
+                        serviceId={service.id}
+                        currentStatus={operationalStatus.status as OperationalStatus}
+                        onStatusChange={handleStatusUpdate}
+                        disabled={isCancelling || isUpdatingOperationalStatus}
+                        isLoading={isUpdatingOperationalStatus}
+                      />
+                      
                       {ActionIcon && (
                         <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
                       )}
                       <CancelServiceButton
                         serviceId={service.id}
                         serviceName={service.cliente_nombre}
+                        serviceStarted={operationalStatus.status === 'en_sitio'}
                         onCancel={handleCancelService}
                         disabled={service.estado_asignacion === 'cancelado' || isCancelling}
                       />
@@ -667,6 +730,8 @@ export function ScheduledServicesTab() {
                 </div>
               );
             })}
+              </div>
+            ))}
           </div>
         )}
       </div>

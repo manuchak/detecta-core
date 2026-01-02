@@ -881,6 +881,39 @@ export function useServiciosPlanificados() {
     }
   };
 
+  // SPRINT 2: Update operational status (mark as "En sitio" or revert to "Programado")
+  const updateOperationalStatus = useMutation({
+    mutationFn: async ({ 
+      serviceId, 
+      action 
+    }: { 
+      serviceId: string; 
+      action: 'mark_on_site' | 'revert_to_scheduled';
+    }) => {
+      const updateData = action === 'mark_on_site' 
+        ? { hora_inicio_real: new Date().toISOString() }
+        : { hora_inicio_real: null };
+      
+      const { error } = await supabase
+        .from('servicios_planificados')
+        .update(updateData)
+        .eq('id', serviceId);
+      
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      const message = variables.action === 'mark_on_site' 
+        ? 'Servicio marcado como "En sitio"' 
+        : 'Servicio revertido a "Programado"';
+      toast.success(message);
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+    },
+    onError: (error) => {
+      console.error('Error updating operational status:', error);
+      toast.error('Error al actualizar estado operativo');
+    }
+  });
+
   return {
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
@@ -891,9 +924,11 @@ export function useServiciosPlanificados() {
     reassignArmedGuard: reassignArmedGuard.mutate,
     removeAssignment: removeAssignment.mutate,
     cancelService,
+    updateOperationalStatus,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
     isUpdatingConfiguration: updateServiceConfiguration.isPending,
+    isUpdatingOperationalStatus: updateOperationalStatus.isPending,
     isReassigning: reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
     isCancelling: cancelService.isPending,
     isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending || reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
