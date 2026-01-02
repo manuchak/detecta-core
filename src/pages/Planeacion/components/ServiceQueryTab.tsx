@@ -1,12 +1,34 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useServiceQuery } from '@/hooks/useServiceQuery';
 import { ServiceQueryCard } from './ServiceQueryCard';
 import { ServiceDetailsModal } from './ServiceDetailsModal';
-import { Search, Calendar, X, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Calendar, X, Loader2, AlertCircle, Clock, Lightbulb } from 'lucide-react';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Manejo de búsquedas recientes en sessionStorage
+const RECENT_SEARCHES_KEY = 'planeacion_recent_searches';
+const MAX_RECENT_SEARCHES = 5;
+
+function getRecentSearches(): string[] {
+  try {
+    const stored = sessionStorage.getItem(RECENT_SEARCHES_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentSearch(search: string) {
+  if (!search.trim()) return;
+  const recent = getRecentSearches();
+  const filtered = recent.filter(s => s !== search);
+  const updated = [search, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+  sessionStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+}
 
 export function ServiceQueryTab() {
   const [searchMode, setSearchMode] = useState<'id' | 'client'>('id');
@@ -16,6 +38,12 @@ export function ServiceQueryTab() {
   const [endDate, setEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<ServiceQueryResult | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Cargar búsquedas recientes al montar
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
 
   const {
     results,
@@ -28,13 +56,31 @@ export function ServiceQueryTab() {
 
   const handleSearch = useCallback(() => {
     if (searchMode === 'id') {
+      if (serviceId.trim()) {
+        addRecentSearch(serviceId.trim());
+        setRecentSearches(getRecentSearches());
+      }
       searchByServiceId(serviceId);
     } else {
+      if (clientName.trim()) {
+        addRecentSearch(clientName.trim());
+        setRecentSearches(getRecentSearches());
+      }
       const start = startDate ? new Date(startDate) : undefined;
       const end = endDate ? new Date(endDate) : undefined;
       searchByClientAndDate(clientName, start, end);
     }
   }, [searchMode, serviceId, clientName, startDate, endDate, searchByServiceId, searchByClientAndDate]);
+
+  const handleRecentSearchClick = useCallback((search: string) => {
+    if (searchMode === 'id') {
+      setServiceId(search);
+      searchByServiceId(search);
+    } else {
+      setClientName(search);
+      searchByClientAndDate(search);
+    }
+  }, [searchMode, searchByServiceId, searchByClientAndDate]);
 
   const handleClear = useCallback(() => {
     setServiceId('');
@@ -201,17 +247,45 @@ export function ServiceQueryTab() {
         </div>
       </div>
 
+      {/* Búsquedas recientes */}
+      {recentSearches.length > 0 && !loading && results.length === 0 && (
+        <div className="apple-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className="apple-text-caption text-muted-foreground font-medium">Búsquedas recientes</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {recentSearches.map((search, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="cursor-pointer hover:bg-primary/10 transition-colors"
+                onClick={() => handleRecentSearchClick(search)}
+              >
+                {search}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Results Section */}
       {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="apple-card p-5 space-y-3">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
-              <Skeleton className="h-3 w-full" />
-            </div>
-          ))}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="apple-text-body">Buscando en servicios planificados y de custodia...</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="apple-card p-5 space-y-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -227,8 +301,26 @@ export function ServiceQueryTab() {
         <div className="apple-empty-state">
           <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <div className="apple-text-headline text-foreground">No se encontraron resultados</div>
-          <div className="apple-text-body text-muted-foreground">
-            Intenta con otros criterios de búsqueda
+          <div className="apple-text-body text-muted-foreground mb-4">
+            No hay servicios que coincidan con tu búsqueda
+          </div>
+          
+          {/* Sugerencias útiles */}
+          <div className="bg-muted/30 rounded-lg p-4 text-left max-w-md mx-auto">
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              <span className="apple-text-caption font-medium">Sugerencias</span>
+            </div>
+            <ul className="apple-text-caption text-muted-foreground space-y-2">
+              <li>• Verifica que el ID esté escrito correctamente</li>
+              <li>• Intenta con una parte del ID (búsqueda parcial)</li>
+              {searchMode === 'id' && (
+                <li>• Prueba buscando por nombre de cliente en su lugar</li>
+              )}
+              {searchMode === 'client' && (
+                <li>• Amplía el rango de fechas o déjalas vacías</li>
+              )}
+            </ul>
           </div>
         </div>
       )}

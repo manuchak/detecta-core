@@ -99,6 +99,9 @@ export function ScheduledServicesTab() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
+  
+  // Sprint 3: PF Filter state
+  const [tipoClienteFilter, setTipoClienteFilter] = useState<'todos' | 'empresarial' | 'pf'>('todos');
 
   // Estado operativo basado en hora_inicio_real y hora_fin_real
   // FIX: Use armado_nombre as primary indicator (comes from RPC with COALESCE fallback)
@@ -407,12 +410,23 @@ export function ScheduledServicesTab() {
   };
 
   // Group services by hour for chronological visualization
+  // Sprint 3: Include PF filter in grouping
   const groupedServices = useMemo(() => {
     if (!summary?.services_data || summary.services_data.length === 0) {
       return {};
     }
     
-    const sorted = [...summary.services_data].sort(
+    // Apply PF filter
+    let filteredData = summary.services_data;
+    if (tipoClienteFilter !== 'todos') {
+      filteredData = summary.services_data.filter(service => {
+        const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
+        const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
+        return tipoClienteFilter === 'pf' ? isPF : !isPF;
+      });
+    }
+    
+    const sorted = [...filteredData].sort(
       (a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime()
     );
     
@@ -424,7 +438,12 @@ export function ScheduledServicesTab() {
     });
     
     return grouped;
-  }, [summary?.services_data]);
+  }, [summary?.services_data, tipoClienteFilter]);
+
+  // Count filtered services
+  const filteredCount = useMemo(() => {
+    return Object.values(groupedServices).flat().length;
+  }, [groupedServices]);
 
   const currentHour = format(now, 'HH:00');
 
@@ -535,24 +554,65 @@ export function ScheduledServicesTab() {
           </div>
         )}
 
-        {/* Leyenda de estados operativos - Simplificada */}
+        {/* Sprint 3: PF Filter Buttons + Status Legend */}
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
-            <span className="text-muted-foreground font-medium">Estados:</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">Sin asignar</span>
+          <div className="space-y-3">
+            {/* PF Filter Buttons */}
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs text-muted-foreground font-medium">Tipo cliente:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={tipoClienteFilter === 'todos' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTipoClienteFilter('todos')}
+                  className="h-7 text-xs"
+                >
+                  Todos ({summary.services_data.length})
+                </Button>
+                <Button
+                  variant={tipoClienteFilter === 'empresarial' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTipoClienteFilter('empresarial')}
+                  className="h-7 text-xs"
+                >
+                  <Building2 className="w-3 h-3 mr-1" />
+                  Empresarial
+                </Button>
+                <Button
+                  variant={tipoClienteFilter === 'pf' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTipoClienteFilter('pf')}
+                  className="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                >
+                  <User className="w-3 h-3 mr-1" />
+                  PF
+                </Button>
+              </div>
+              {tipoClienteFilter !== 'todos' && (
+                <span className="text-xs text-muted-foreground">
+                  ({filteredCount} de {summary.services_data.length})
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-slate-400" />
-              <span className="text-muted-foreground">Programado</span>
+            
+            {/* Status Legend */}
+            <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
+              <span className="text-muted-foreground font-medium">Estados:</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-muted-foreground">Sin asignar</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                <span className="text-muted-foreground">Programado</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-muted-foreground">En sitio</span>
+              </div>
+              <Separator orientation="vertical" className="h-3 mx-1" />
+              <span className="text-muted-foreground/70 text-[10px]">Auto: Completado, Armado pendiente, Pendiente inicio</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-muted-foreground">En sitio</span>
-            </div>
-            <Separator orientation="vertical" className="h-3 mx-1" />
-            <span className="text-muted-foreground/70 text-[10px]">Auto: Completado, Armado pendiente, Pendiente inicio</span>
           </div>
         )}
 
@@ -626,13 +686,17 @@ export function ScheduledServicesTab() {
                         {operationalStatus.label}
                       </Badge>
                       
-                      {/* Badge PF (Persona Física) */}
-                      {service.tipo_servicio?.toLowerCase() === 'pf' && (
-                        <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800 gap-1 text-xs font-medium">
-                          <Building2 className="w-3 h-3" />
-                          PF
-                        </Badge>
-                      )}
+                      {/* Badge PF (Persona Física) - Sprint 3 */}
+                      {(() => {
+                        const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
+                        const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
+                        return isPF ? (
+                          <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800 gap-1 text-xs font-medium">
+                            <User className="w-3 h-3" />
+                            PF
+                          </Badge>
+                        ) : null;
+                      })()}
                     </div>
                     
                     {/* Íconos de acción */}

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Save, X, AlertTriangle, MapPin, User, Shield, Loader2 } from 'lucide-react';
+import { Save, X, AlertTriangle, MapPin, User, Shield, Loader2, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,21 +103,32 @@ export function EditServiceForm({
   // Initialize form data when service changes
   useEffect(() => {
     if (service) {
+      // Sprint 3: Detect if it's a PF service
+      const tipoServicioRaw = service.tipo_servicio || '';
+      const isPF = tipoServicioRaw.toLowerCase().startsWith('pf_') || tipoServicioRaw.toLowerCase() === 'pf';
+      const tipoServicioClean = isPF 
+        ? tipoServicioRaw.toLowerCase().replace(/^pf_/, '') 
+        : tipoServicioRaw;
+      
       setFormData({
         id_servicio: service.id_servicio,
         nombre_cliente: service.nombre_cliente,
         origen: service.origen,
         destino: service.destino,
         fecha_hora_cita: service.fecha_hora_cita,
-        tipo_servicio: service.tipo_servicio,
+        tipo_servicio: tipoServicioClean,
         requiere_armado: service.requiere_armado,
         observaciones: service.observaciones || ''
       });
       setServiceIdInput(service.id_servicio);
+      setTipoCliente(isPF ? 'persona_fisica' : 'empresarial');
       setHasChanges(false);
       setRequiresArmadoChanged(false);
     }
   }, [service]);
+
+  // Sprint 3: Tipo de cliente state
+  const [tipoCliente, setTipoCliente] = useState<'empresarial' | 'persona_fisica'>('empresarial');
   
   // Validación asíncrona con debounce para ID de servicio
   useEffect(() => {
@@ -318,7 +329,16 @@ export function EditServiceForm({
         if (!isValid) return;
       }
       
-      await onSave(service.id, formData);
+      // Sprint 3: Apply PF prefix if persona_fisica
+      const finalFormData = { ...formData };
+      if (finalFormData.tipo_servicio) {
+        const cleanTipo = finalFormData.tipo_servicio.replace(/^pf_/, '');
+        finalFormData.tipo_servicio = tipoCliente === 'persona_fisica' 
+          ? `pf_${cleanTipo}` 
+          : cleanTipo;
+      }
+      
+      await onSave(service.id, finalFormData);
       setValidationErrors({});
     } catch (error) {
       console.error('Error saving service:', error);
@@ -595,6 +615,54 @@ export function EditServiceForm({
           </h3>
           
           <div className="space-y-4">
+            {/* Sprint 3: Tipo de Cliente (Empresarial/PF) */}
+            <div className="flex items-center justify-between p-4 border border-purple-200 dark:border-purple-800 rounded-lg bg-purple-50/50 dark:bg-purple-900/20">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  {tipoCliente === 'persona_fisica' ? (
+                    <User className="h-4 w-4 text-purple-600" />
+                  ) : (
+                    <Building2 className="h-4 w-4" />
+                  )}
+                  Tipo de Cliente
+                </Label>
+                <div className="text-caption text-slate-600">
+                  {tipoCliente === 'persona_fisica' 
+                    ? 'Servicio para persona física (PF)'
+                    : 'Servicio para cliente empresarial'
+                  }
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={tipoCliente === 'empresarial' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setTipoCliente('empresarial');
+                    setHasChanges(true);
+                  }}
+                  className="h-7 text-xs"
+                >
+                  <Building2 className="h-3 w-3 mr-1" />
+                  Empresarial
+                </Button>
+                <Button
+                  type="button"
+                  variant={tipoCliente === 'persona_fisica' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setTipoCliente('persona_fisica');
+                    setHasChanges(true);
+                  }}
+                  className={tipoCliente === 'persona_fisica' ? 'h-7 text-xs bg-purple-600 hover:bg-purple-700' : 'h-7 text-xs'}
+                >
+                  <User className="h-3 w-3 mr-1" />
+                  PF
+                </Button>
+              </div>
+            </div>
+            
             <div className="flex items-center justify-between p-4 border border-slate-200/60 rounded-lg bg-slate-50/30">
               <div className="space-y-1">
                 <Label htmlFor="requiere_armado" className="text-sm font-medium">
