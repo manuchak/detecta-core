@@ -2,11 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X, RotateCcw } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { SavedViewsSection } from "./SavedViewsSection";
+import { SavedView } from "@/hooks/useFilterPersistence";
 
 export interface ApprovalAdvancedFiltersState {
   creationDateFrom: string;
@@ -29,14 +32,23 @@ interface ApprovalAdvancedFiltersProps {
   filters: ApprovalAdvancedFiltersState;
   onFiltersChange: (filters: ApprovalAdvancedFiltersState) => void;
   onResetFilters: () => void;
-  leads?: any[]; // Optional prop for displaying counts
+  leads?: any[];
+  // Saved views props
+  savedViews?: SavedView[];
+  onSaveView?: (name: string) => void;
+  onLoadView?: (view: SavedView) => void;
+  onDeleteView?: (viewId: string) => void;
 }
 
 export const ApprovalAdvancedFilters = ({ 
   filters, 
   onFiltersChange, 
   onResetFilters,
-  leads = []
+  leads = [],
+  savedViews = [],
+  onSaveView,
+  onLoadView,
+  onDeleteView
 }: ApprovalAdvancedFiltersProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -86,213 +98,217 @@ export const ApprovalAdvancedFilters = ({
   };
 
   const counts = getCounts();
-
   const activeFiltersCount = getActiveFiltersCount();
 
   return (
-    <Card className="mb-4">
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4" />
-                <CardTitle className="text-sm font-medium">Filtros Avanzados</CardTitle>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {activeFiltersCount} activo{activeFiltersCount > 1 ? 's' : ''}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                {activeFiltersCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onResetFilters();
-                    }}
-                    className="h-6 px-2"
-                  >
-                    <RotateCcw className="h-3 w-3 mr-1" />
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent>
-          <CardContent className="pt-0 space-y-6">
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5">
+          <Filter className="h-3.5 w-3.5" />
+          Filtros
+          {activeFiltersCount > 0 && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">
+              {activeFiltersCount}
+            </Badge>
+          )}
+        </Button>
+      </SheetTrigger>
+      
+      <SheetContent className="w-[380px] sm:w-[440px] p-0">
+        <SheetHeader className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-base font-medium">Filtros Avanzados</SheetTitle>
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onResetFilters}
+                className="h-7 px-2 text-xs"
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Limpiar
+              </Button>
+            )}
+          </div>
+        </SheetHeader>
+
+        <ScrollArea className="h-[calc(100vh-140px)]">
+          <div className="px-6 py-4 space-y-6">
+            {/* Saved Views Section */}
+            {onSaveView && onLoadView && onDeleteView && (
+              <>
+                <SavedViewsSection
+                  savedViews={savedViews}
+                  onSaveView={onSaveView}
+                  onLoadView={(view) => {
+                    onLoadView(view);
+                    setIsOpen(false);
+                  }}
+                  onDeleteView={onDeleteView}
+                />
+                <Separator />
+              </>
+            )}
+
             {/* Filtros por fechas */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground">Fechas</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="creationDateFrom">Creación desde</Label>
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Fechas</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="creationDateFrom" className="text-xs">Creación desde</Label>
                   <Input
                     id="creationDateFrom"
                     type="date"
                     value={filters.creationDateFrom}
                     onChange={(e) => handleFilterChange('creationDateFrom', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="creationDateTo">Creación hasta</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="creationDateTo" className="text-xs">Creación hasta</Label>
                   <Input
                     id="creationDateTo"
                     type="date"
                     value={filters.creationDateTo}
                     onChange={(e) => handleFilterChange('creationDateTo', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="lastContactDateFrom">Último contacto desde</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lastContactDateFrom" className="text-xs">Último contacto desde</Label>
                   <Input
                     id="lastContactDateFrom"
                     type="date"
                     value={filters.lastContactDateFrom}
                     onChange={(e) => handleFilterChange('lastContactDateFrom', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastContactDateTo">Último contacto hasta</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lastContactDateTo" className="text-xs">Último contacto hasta</Label>
                   <Input
                     id="lastContactDateTo"
                     type="date"
                     value={filters.lastContactDateTo}
                     onChange={(e) => handleFilterChange('lastContactDateTo', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="scheduledCallDateFrom">Cita programada desde</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="scheduledCallDateFrom" className="text-xs">Cita desde</Label>
                   <Input
                     id="scheduledCallDateFrom"
                     type="date"
                     value={filters.scheduledCallDateFrom}
                     onChange={(e) => handleFilterChange('scheduledCallDateFrom', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="scheduledCallDateTo">Cita programada hasta</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="scheduledCallDateTo" className="text-xs">Cita hasta</Label>
                   <Input
                     id="scheduledCallDateTo"
                     type="date"
                     value={filters.scheduledCallDateTo}
                     onChange={(e) => handleFilterChange('scheduledCallDateTo', e.target.value)}
+                    className="h-8 text-sm"
                   />
                 </div>
               </div>
             </div>
 
+            <Separator />
+
             {/* Filtros por contacto */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground">Contacto y Llamadas</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactAttempts">Intentos de contacto</Label>
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contacto</h4>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contactAttempts" className="text-xs">Intentos de contacto</Label>
                   <Select value={filters.contactAttempts} onValueChange={(value) => handleFilterChange('contactAttempts', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Cualquier cantidad" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Cualquier cantidad</SelectItem>
                       <SelectItem value="0">
-                        Sin contactar (0) {counts.contactAttempts?.none ? `· ${counts.contactAttempts.none}` : ''}
+                        Sin contactar {counts.contactAttempts?.none ? `(${counts.contactAttempts.none})` : ''}
                       </SelectItem>
                       <SelectItem value="1-2">
-                        1-2 intentos {counts.contactAttempts?.one ? `· ${counts.contactAttempts.one}` : ''}
+                        1-2 intentos {counts.contactAttempts?.one ? `(${counts.contactAttempts.one})` : ''}
                       </SelectItem>
                       <SelectItem value="3-5">
-                        3-5 intentos {counts.contactAttempts?.twoToFive ? `· ${counts.contactAttempts.twoToFive}` : ''}
+                        3-5 intentos {counts.contactAttempts?.twoToFive ? `(${counts.contactAttempts.twoToFive})` : ''}
                       </SelectItem>
                       <SelectItem value="5+">
-                        5+ intentos {counts.contactAttempts?.moreThanFive ? `· ${counts.contactAttempts.moreThanFive}` : ''}
+                        5+ intentos {counts.contactAttempts?.moreThanFive ? `(${counts.contactAttempts.moreThanFive})` : ''}
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="lastContactOutcome">Resultado último contacto</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lastContactOutcome" className="text-xs">Resultado último contacto</Label>
                   <Select value={filters.lastContactOutcome} onValueChange={(value) => handleFilterChange('lastContactOutcome', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Cualquier resultado" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Cualquier resultado</SelectItem>
-                      <SelectItem value="successful">
-                        Exitoso {counts.lastContactOutcome?.successful ? `· ${counts.lastContactOutcome.successful}` : ''}
-                      </SelectItem>
-                      <SelectItem value="no_answer">
-                        Sin respuesta {counts.lastContactOutcome?.no_answer ? `· ${counts.lastContactOutcome.no_answer}` : ''}
-                      </SelectItem>
-                      <SelectItem value="voicemail">
-                        Buzón de voz {counts.lastContactOutcome?.voicemail ? `· ${counts.lastContactOutcome.voicemail}` : ''}
-                      </SelectItem>
-                      <SelectItem value="busy">
-                        Línea ocupada {counts.lastContactOutcome?.busy ? `· ${counts.lastContactOutcome.busy}` : ''}
-                      </SelectItem>
-                      <SelectItem value="wrong_number">
-                        Número equivocado {counts.lastContactOutcome?.wrong_number ? `· ${counts.lastContactOutcome.wrong_number}` : ''}
-                      </SelectItem>
-                      <SelectItem value="call_failed">
-                        Llamada fallida {counts.lastContactOutcome?.call_failed ? `· ${counts.lastContactOutcome.call_failed}` : ''}
-                      </SelectItem>
+                      <SelectItem value="successful">Exitoso {counts.lastContactOutcome?.successful ? `(${counts.lastContactOutcome.successful})` : ''}</SelectItem>
+                      <SelectItem value="no_answer">Sin respuesta {counts.lastContactOutcome?.no_answer ? `(${counts.lastContactOutcome.no_answer})` : ''}</SelectItem>
+                      <SelectItem value="voicemail">Buzón {counts.lastContactOutcome?.voicemail ? `(${counts.lastContactOutcome.voicemail})` : ''}</SelectItem>
+                      <SelectItem value="busy">Ocupado {counts.lastContactOutcome?.busy ? `(${counts.lastContactOutcome.busy})` : ''}</SelectItem>
+                      <SelectItem value="wrong_number">Número equivocado {counts.lastContactOutcome?.wrong_number ? `(${counts.lastContactOutcome.wrong_number})` : ''}</SelectItem>
+                      <SelectItem value="call_failed">Fallida {counts.lastContactOutcome?.call_failed ? `(${counts.lastContactOutcome.call_failed})` : ''}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="hasSuccessfulCall">Llamada exitosa</Label>
-                  <Select value={filters.hasSuccessfulCall} onValueChange={(value) => handleFilterChange('hasSuccessfulCall', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="true">
-                        Solo con llamada exitosa {counts.hasSuccessfulCall?.true ? `· ${counts.hasSuccessfulCall.true}` : ''}
-                      </SelectItem>
-                      <SelectItem value="false">
-                        Sin llamada exitosa {counts.hasSuccessfulCall?.false ? `· ${counts.hasSuccessfulCall.false}` : ''}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="hasSuccessfulCall" className="text-xs">Llamada exitosa</Label>
+                    <Select value={filters.hasSuccessfulCall} onValueChange={(value) => handleFilterChange('hasSuccessfulCall', value)}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="true">Sí {counts.hasSuccessfulCall?.true ? `(${counts.hasSuccessfulCall.true})` : ''}</SelectItem>
+                        <SelectItem value="false">No {counts.hasSuccessfulCall?.false ? `(${counts.hasSuccessfulCall.false})` : ''}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="hasScheduledCall">Cita programada</Label>
-                  <Select value={filters.hasScheduledCall} onValueChange={(value) => handleFilterChange('hasScheduledCall', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="true">
-                        Solo con cita programada {counts.hasScheduledCall?.true ? `· ${counts.hasScheduledCall.true}` : ''}
-                      </SelectItem>
-                      <SelectItem value="false">
-                        Sin cita programada {counts.hasScheduledCall?.false ? `· ${counts.hasScheduledCall.false}` : ''}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="hasScheduledCall" className="text-xs">Cita programada</Label>
+                    <Select value={filters.hasScheduledCall} onValueChange={(value) => handleFilterChange('hasScheduledCall', value)}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="true">Sí {counts.hasScheduledCall?.true ? `(${counts.hasScheduledCall.true})` : ''}</SelectItem>
+                        <SelectItem value="false">No {counts.hasScheduledCall?.false ? `(${counts.hasScheduledCall.false})` : ''}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </div>
 
+            <Separator />
+
             {/* Filtros por estado */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground">Estado y Aprobación</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="currentStage">Etapa de aprobación</Label>
+            <div className="space-y-3">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estado</h4>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currentStage" className="text-xs">Etapa de aprobación</Label>
                   <Select value={filters.currentStage} onValueChange={(value) => handleFilterChange('currentStage', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Todas las etapas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -305,14 +321,14 @@ export const ApprovalAdvancedFilters = ({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="finalDecision">Decisión final</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="finalDecision" className="text-xs">Decisión final</Label>
                   <Select value={filters.finalDecision} onValueChange={(value) => handleFilterChange('finalDecision', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Todas las decisiones" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Todas las decisiones</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       <SelectItem value="pending">Pendiente</SelectItem>
                       <SelectItem value="approved">Aprobado</SelectItem>
                       <SelectItem value="rejected">Rechazado</SelectItem>
@@ -320,10 +336,10 @@ export const ApprovalAdvancedFilters = ({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="interviewInterrupted">Entrevista interrumpida</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="interviewInterrupted" className="text-xs">Entrevista interrumpida</Label>
                   <Select value={filters.interviewInterrupted} onValueChange={(value) => handleFilterChange('interviewInterrupted', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
@@ -334,16 +350,15 @@ export const ApprovalAdvancedFilters = ({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="assignedAnalyst">Analista asignado</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="assignedAnalyst" className="text-xs">Analista asignado</Label>
                   <Select value={filters.assignedAnalyst} onValueChange={(value) => handleFilterChange('assignedAnalyst', value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Todos los analistas" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos los analistas</SelectItem>
                       <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {/* Lista dinámica de analistas extraída de los leads cargados */}
                       {(() => {
                         const uniqueAnalysts = new Map<string, string>();
                         leads.forEach((lead: any) => {
@@ -360,26 +375,31 @@ export const ApprovalAdvancedFilters = ({
                 </div>
               </div>
             </div>
+          </div>
+        </ScrollArea>
 
-            {activeFiltersCount > 0 && (
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{activeFiltersCount} filtro{activeFiltersCount > 1 ? 's' : ''} aplicado{activeFiltersCount > 1 ? 's' : ''}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onResetFilters}
-                    className="h-6 px-2 text-xs"
-                  >
-                    <X className="h-3 w-3 mr-1" />
-                    Limpiar todos
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+        {activeFiltersCount > 0 && (
+          <SheetFooter className="px-6 py-3 border-t bg-muted/30">
+            <div className="flex items-center justify-between w-full text-sm">
+              <span className="text-muted-foreground">
+                {activeFiltersCount} filtro{activeFiltersCount > 1 ? 's' : ''} activo{activeFiltersCount > 1 ? 's' : ''}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  onResetFilters();
+                  setIsOpen(false);
+                }}
+                className="h-7 px-2 text-xs"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Limpiar todos
+              </Button>
+            </div>
+          </SheetFooter>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 };

@@ -14,6 +14,8 @@ import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval } from "@/utils/leadValidation";
 import { cn } from "@/lib/utils";
+import { LeadAgeBadge } from "./LeadAgeBadge";
+import { getLeadAge, getPriorityBorderColor } from "@/utils/leadAgeUtils";
 
 interface ImprovedLeadCardProps {
   lead: AssignedLead;
@@ -56,9 +58,11 @@ export const ImprovedLeadCard = ({
 
   const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
   const statusBadge = getStatusBadge(lead.current_stage, lead.final_decision);
+  const leadAge = getLeadAge(lead.lead_fecha_creacion);
+  const priorityBorder = getPriorityBorderColor(leadAge.urgency);
 
   return (
-    <div className="apple-card p-4 group">
+    <div className={cn("apple-card p-4 group border-l-[3px]", priorityBorder)}>
       {/* Header: Avatar + Info + Status */}
       <div className="flex items-start gap-3">
         <Avatar className="h-10 w-10 shrink-0">
@@ -70,13 +74,24 @@ export const ImprovedLeadCard = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <h3 className="font-medium text-sm truncate">{lead.lead_nombre}</h3>
+            <LeadAgeBadge createdAt={lead.lead_fecha_creacion} />
             {statusBadge}
             {hasMissingInfo && (
               <Tooltip>
                 <TooltipTrigger>
                   <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
                 </TooltipTrigger>
-                <TooltipContent>Información incompleta</TooltipContent>
+                <TooltipContent className="max-w-[280px]">
+                  <div className="space-y-1">
+                    <p className="font-medium text-warning text-xs">Faltan {validation.missingFields.length} campos:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {validation.missingFields.slice(0, 5).map(f => <li key={f}>• {f}</li>)}
+                      {validation.missingFields.length > 5 && (
+                        <li className="text-muted-foreground">+ {validation.missingFields.length - 5} más</li>
+                      )}
+                    </ul>
+                  </div>
+                </TooltipContent>
               </Tooltip>
             )}
           </div>

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,11 +16,12 @@ import { AssignedLead } from "@/types/leadTypes";
 import { useLeadApprovals } from "@/hooks/useLeadApprovals";
 import { usePoolReserva } from "@/hooks/usePoolReserva";
 import { useCustodioLiberacion } from "@/hooks/useCustodioLiberacion";
+import { useFilterPersistence } from "@/hooks/useFilterPersistence";
 import { LeadsList } from "@/components/leads/approval/LeadsList";
 import { LeadDialogs } from "@/components/leads/approval/LeadDialogs";
 import { ScheduledCallsView } from "@/components/leads/approval/ScheduledCallsView";
 import { PoolReservaView } from "@/components/leads/pool/PoolReservaView";
-import { ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
+import { ApprovalAdvancedFilters, ApprovalAdvancedFiltersState } from "@/components/leads/approval/ApprovalAdvancedFilters";
 import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
@@ -61,6 +62,7 @@ export const LeadApprovals = () => {
   
   const { moveToPool } = usePoolReserva();
   const { createLiberacion } = useCustodioLiberacion();
+  const { savedViews, saveCurrentFilters, saveView, deleteView, getLastFilters } = useFilterPersistence();
   const navigate = useNavigate();
 
   // Validación de ambiente vs conteo de datos
@@ -99,13 +101,16 @@ export const LeadApprovals = () => {
     data?: Record<string, any>;
     interruptionReason?: string;
   }>({ hasRecoveryData: false });
+  
+  // Initialize from persisted filters
+  const lastFilters = getLastFilters();
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState(lastFilters.activeTab || "pending");
   const [currentFilteredLeads, setCurrentFilteredLeads] = useState<AssignedLead[]>([]);
   
   // Estados para los filtros
-  const [quickFilter, setQuickFilter] = useState<string | null>(null);
-  const [advancedFilters, setAdvancedFilters] = useState<ApprovalAdvancedFiltersState>({
+  const [quickFilter, setQuickFilter] = useState<string | null>(lastFilters.quickFilter);
+  const [advancedFilters, setAdvancedFilters] = useState<ApprovalAdvancedFiltersState>(lastFilters.filters || {
     creationDateFrom: '',
     creationDateTo: '',
     lastContactDateFrom: '',
@@ -121,6 +126,37 @@ export const LeadApprovals = () => {
     interviewInterrupted: 'all',
     assignedAnalyst: 'all'
   });
+
+  // Persist filters when they change
+  useEffect(() => {
+    saveCurrentFilters(advancedFilters, quickFilter, activeTab);
+  }, [advancedFilters, quickFilter, activeTab, saveCurrentFilters]);
+
+  // Tab counts
+  const tabCounts = useMemo(() => {
+    return {
+      pending: assignedLeads.filter(l => l.final_decision === 'pending' || !l.final_decision).length,
+      approved: assignedLeads.filter(l => l.final_decision === 'approved').length,
+      rejected: assignedLeads.filter(l => l.final_decision === 'rejected').length,
+      scheduled: assignedLeads.filter(l => l.has_scheduled_call).length,
+    };
+  }, [assignedLeads]);
+
+  // Handle loading saved view
+  const handleLoadView = (view: { filters: ApprovalAdvancedFiltersState; quickFilter: string | null; activeTab: string }) => {
+    setAdvancedFilters(view.filters);
+    setQuickFilter(view.quickFilter);
+    setActiveTab(view.activeTab);
+  };
+
+  // Handle saving current view
+  const handleSaveView = (name: string) => {
+    saveView(name, advancedFilters, quickFilter, activeTab);
+    toast({
+      title: "Vista guardada",
+      description: `La vista "${name}" se guardó correctamente.`,
+    });
+  };
 
   const handleVapiCall = (lead: AssignedLead) => {
     setSelectedLead(lead);
@@ -415,7 +451,7 @@ export const LeadApprovals = () => {
         </div>
 
         {/* Search + Filters - Inline */}
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <Input
             placeholder="Buscar..."
             value={searchTerm}
@@ -423,12 +459,43 @@ export const LeadApprovals = () => {
             className="max-w-[200px] h-8 text-sm"
           />
           
+          <ApprovalAdvancedFilters
+            filters={advancedFilters}
+            onFiltersChange={setAdvancedFilters}
+            onResetFilters={handleResetAdvancedFilters}
+            leads={assignedLeads}
+            savedViews={savedViews}
+            onSaveView={handleSaveView}
+            onLoadView={handleLoadView}
+            onDeleteView={deleteView}
+          />
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
             <TabsList className="h-8">
-              <TabsTrigger value="pending" className="text-xs h-7 px-3">Pendientes</TabsTrigger>
-              <TabsTrigger value="approved" className="text-xs h-7 px-3">Aprobados</TabsTrigger>
-              <TabsTrigger value="rejected" className="text-xs h-7 px-3">Rechazados</TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-xs h-7 px-3">Programadas</TabsTrigger>
+              <TabsTrigger value="pending" className="text-xs h-7 px-3 gap-1.5">
+                Pendientes
+                {tabCounts.pending > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{tabCounts.pending}</span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="approved" className="text-xs h-7 px-3 gap-1.5">
+                Aprobados
+                {tabCounts.approved > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{tabCounts.approved}</span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs h-7 px-3 gap-1.5">
+                Rechazados
+                {tabCounts.rejected > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{tabCounts.rejected}</span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="scheduled" className="text-xs h-7 px-3 gap-1.5">
+                Programadas
+                {tabCounts.scheduled > 0 && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{tabCounts.scheduled}</span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="pool" className="text-xs h-7 px-3">Pool</TabsTrigger>
             </TabsList>
 
