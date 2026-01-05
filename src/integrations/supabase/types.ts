@@ -13928,12 +13928,17 @@ export type Database = {
         Args: {
           p_date_from?: string
           p_date_to?: string
+          p_is_test?: boolean
           p_limit?: number
           p_offset?: number
         }
         Returns: {
+          analista_email: string
+          analista_nombre: string
           approval_stage: string
+          asignado_a: string
           candidato_custodio_id: string
+          fecha_entrada_pool: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -13945,6 +13950,8 @@ export type Database = {
           phone_interview_completed: boolean
           scheduled_call_datetime: string
           second_interview_required: boolean
+          zona_nombre: string
+          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: { Args: never; Returns: string[] }
