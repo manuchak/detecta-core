@@ -102,17 +102,17 @@ export const ApprovalAdvancedFilters = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5">
-          <Filter className="h-3.5 w-3.5" />
-          Filtros
-          {activeFiltersCount > 0 && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">
-              {activeFiltersCount}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
+    <SheetTrigger asChild>
+      <Button variant="outline" size="sm" className="h-8 gap-1.5 shrink-0">
+        <Filter className="h-3.5 w-3.5" />
+        <span>Filtros</span>
+        {activeFiltersCount > 0 && (
+          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] tabular-nums">
+            {activeFiltersCount}
+          </Badge>
+        )}
+      </Button>
+    </SheetTrigger>
       
       <SheetContent className="w-[380px] sm:w-[440px] p-0">
         <SheetHeader className="px-6 py-4 border-b">
