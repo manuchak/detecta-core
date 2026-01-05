@@ -343,7 +343,18 @@ export const ApprovalAdvancedFilters = ({
                     <SelectContent>
                       <SelectItem value="all">Todos los analistas</SelectItem>
                       <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {/* Aquí se pueden agregar analistas específicos dinámicamente */}
+                      {/* Lista dinámica de analistas extraída de los leads cargados */}
+                      {(() => {
+                        const uniqueAnalysts = new Map<string, string>();
+                        leads.forEach((lead: any) => {
+                          if (lead.asignado_a && lead.analista_nombre) {
+                            uniqueAnalysts.set(lead.asignado_a, lead.analista_nombre);
+                          }
+                        });
+                        return Array.from(uniqueAnalysts.entries()).map(([id, name]) => (
+                          <SelectItem key={id} value={id}>{name}</SelectItem>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
