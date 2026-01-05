@@ -153,8 +153,8 @@ export const useUserRoles = () => {
       console.log(`Archiving user ${userId} with reason: ${reason}`);
       
       const { data, error } = await supabase.rpc('archive_user_role_secure', {
-        target_user_id: userId,
-        reason: reason || null
+        p_user_id: userId,
+        p_reason: reason || null
       });
       
       if (error) {
@@ -186,7 +186,7 @@ export const useUserRoles = () => {
       console.log(`Reactivating user ${userId}`);
       
       const { data, error } = await supabase.rpc('reactivate_user_role_secure', {
-        target_user_id: userId
+        p_user_id: userId
       });
       
       if (error) {
