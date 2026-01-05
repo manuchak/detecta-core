@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { PageSizeSelector } from "./PageSizeSelector";
 
 interface LeadsPaginationProps {
   currentPage: number;
@@ -20,55 +19,37 @@ export const LeadsPagination = ({
   loading = false
 }: LeadsPaginationProps) => {
   const totalPages = Math.ceil(totalCount / pageSize);
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalCount);
 
-  if (totalCount === 0) {
-    return null;
-  }
+  if (totalCount === 0) return null;
 
   return (
-    <div className="flex items-center justify-between border-t border-border pt-4">
-      <div className="flex items-center gap-6">
-        <p className="text-sm text-muted-foreground">
-          Mostrando <span className="font-medium text-foreground">{startItem}</span> - <span className="font-medium text-foreground">{endItem}</span> de <span className="font-medium text-foreground">{totalCount}</span> candidatos
-        </p>
-        
-        {onPageSizeChange && (
-          <PageSizeSelector
-            pageSize={pageSize}
-            onPageSizeChange={onPageSizeChange}
-            loading={loading}
-          />
-        )}
-      </div>
+    <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {totalCount} total
+      </span>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1 || loading}
-          className="gap-1"
+          className="h-8 w-8 p-0"
         >
           <ChevronLeft className="h-4 w-4" />
-          Anterior
         </Button>
         
-        <div className="flex items-center gap-1 px-2">
-          <span className="text-sm text-muted-foreground">
-            Página <span className="font-medium text-foreground">{currentPage}</span> de <span className="font-medium text-foreground">{totalPages}</span>
-          </span>
-        </div>
+        <span className="text-xs text-muted-foreground px-2 tabular-nums">
+          {currentPage} / {totalPages}
+        </span>
         
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages || loading}
-          className="gap-1"
+          className="h-8 w-8 p-0"
         >
-          Siguiente
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

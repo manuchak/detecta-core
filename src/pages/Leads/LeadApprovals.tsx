@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Download } from "lucide-react";
-import { 
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Tabs,
   TabsContent,
@@ -380,80 +373,64 @@ export const LeadApprovals = () => {
         <div className="space-y-6 p-6">
         <SandboxBanner dataCount={assignedLeads.length} />
         
+        {/* Header - Lean */}
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight">Aprobación de Candidatos</h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="apple-text-title">Aprobaciones</h1>
               <Badge 
-                variant={isSandboxMode ? "outline" : "default"}
+                variant="outline"
                 className={isSandboxMode 
-                  ? "border-warning text-warning bg-warning/10" 
-                  : "bg-primary text-primary-foreground"
+                  ? "border-warning/30 text-warning text-xs" 
+                  : "border-success/30 text-success text-xs"
                 }
               >
-                {isSandboxMode ? '🧪 SANDBOX' : '🛡️ PRODUCCIÓN'}
+                {isSandboxMode ? 'SANDBOX' : 'PROD'}
               </Badge>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {totalCount} candidatos
+              </span>
             </div>
-            <p className="text-muted-foreground">
-              Gestiona las entrevistas y aprobaciones de los candidatos asignados.
-            </p>
           </div>
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={handleExportCSV}
               disabled={currentFilteredLeads.length === 0}
-              className="gap-2"
+              className="h-8 text-xs"
             >
-              <Download className="h-4 w-4" />
-              Exportar CSV
-              {currentFilteredLeads.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {currentFilteredLeads.length}
-                </Badge>
-              )}
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              CSV
             </Button>
             <Button
-              variant="outline"
-              onClick={() => {
-                console.log('🔄 LeadApprovals: Manual refresh clicked');
-                fetchAssignedLeads();
-              }}
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchAssignedLeads()}
+              className="h-8 text-xs"
             >
               Actualizar
             </Button>
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Candidatos Asignados</CardTitle>
-            <CardDescription>
-              Total: {totalCount} candidatos | 
-              Mostrando página {page} de {Math.ceil(totalCount / pageSize)} | 
-              Pendientes: {assignedLeads.filter(l => !l.final_decision).length} de esta página
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <div className="relative">
-                <Input
-                  placeholder="Buscar por nombre, email o teléfono..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
-            </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="pending">Pendientes</TabsTrigger>
-                <TabsTrigger value="approved">Aprobados</TabsTrigger>
-                <TabsTrigger value="rejected">Rechazados</TabsTrigger>
-                <TabsTrigger value="scheduled">Programadas</TabsTrigger>
-                <TabsTrigger value="pool">Pool de Reserva</TabsTrigger>
-              </TabsList>
+        {/* Search + Filters - Inline */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <Input
+            placeholder="Buscar..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-[200px] h-8 text-sm"
+          />
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+            <TabsList className="h-8">
+              <TabsTrigger value="pending" className="text-xs h-7 px-3">Pendientes</TabsTrigger>
+              <TabsTrigger value="approved" className="text-xs h-7 px-3">Aprobados</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs h-7 px-3">Rechazados</TabsTrigger>
+              <TabsTrigger value="scheduled" className="text-xs h-7 px-3">Programadas</TabsTrigger>
+              <TabsTrigger value="pool" className="text-xs h-7 px-3">Pool</TabsTrigger>
+            </TabsList>
 
               <TabsContent value="pending" className="mt-6">
                 <LeadsList
@@ -544,8 +521,7 @@ export const LeadApprovals = () => {
                 <PoolReservaView searchTerm={searchTerm} />
               </TabsContent>
             </Tabs>
-          </CardContent>
-        </Card>
+        </div>
 
         <LeadDialogs
           selectedLead={selectedLead}

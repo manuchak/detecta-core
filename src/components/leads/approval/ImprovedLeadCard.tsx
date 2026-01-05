@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Phone, Bot, Edit, CheckCircle, XCircle, Mail, ArrowRight,
-  Calendar, User, AlertTriangle, MoreHorizontal, PhoneCall, Archive, Rocket
+  MoreHorizontal, PhoneCall, Archive, Rocket, AlertTriangle
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -46,159 +45,205 @@ export const ImprovedLeadCard = ({
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
       if (isApprovedButUnlinked) {
-        return (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            Aprobado (sin vincular)
-          </Badge>
-        );
+        return <Badge variant="outline" className="text-warning border-warning/30 bg-warning/5">Sin vincular</Badge>;
       }
-      return <Badge className="bg-emerald-500 hover:bg-emerald-600">Aprobado</Badge>;
+      return <Badge className="bg-success/10 text-success border-success/20">Aprobado</Badge>;
     }
-    if (decision === 'rejected') return <Badge variant="destructive">Rechazado</Badge>;
-    if (stage === 'phone_interview') return <Badge variant="secondary">Entrevista Telefónica</Badge>;
-    if (stage === 'second_interview') return <Badge className="bg-purple-500">Segunda Entrevista</Badge>;
-    return <Badge variant="outline">Pendiente</Badge>;
+    if (decision === 'rejected') return <Badge variant="outline" className="text-destructive border-destructive/30">Rechazado</Badge>;
+    if (stage === 'second_interview') return <Badge variant="outline" className="text-chart-3 border-chart-3/30">2da Entrevista</Badge>;
+    return null;
   };
 
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
   const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
+  const statusBadge = getStatusBadge(lead.current_stage, lead.final_decision);
 
   return (
-    <Card className="group hover:shadow-lg hover:scale-[1.01] transition-all duration-200 border-0 shadow-sm bg-gradient-to-br from-background to-muted/5">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Avatar className="h-10 w-10 shadow-sm shrink-0">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground font-medium text-sm">
-                {getInitials(lead.lead_nombre)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-base leading-tight truncate">{lead.lead_nombre}</h3>
-              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                {getStatusBadge(lead.current_stage, lead.final_decision)}
-                {hasMissingInfo && (
-                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-amber-800 border-amber-300 bg-amber-100 font-medium">
-                    <AlertTriangle className="h-2.5 w-2.5 mr-1" />
-                    Incompleta
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-          {lead.analista_nombre && (
-            <Badge variant="outline" className="text-xs px-2 py-1 bg-blue-100 text-blue-800 border-blue-300 font-medium shrink-0">
-              <User className="h-3 w-3 mr-1" />
-              {lead.analista_nombre}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0 space-y-3">
-        {/* TELÉFONO PROMINENTE */}
-        {lead.lead_telefono && (
-          <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
-            <Phone className="h-5 w-5 text-primary shrink-0" />
-            <a href={`tel:${lead.lead_telefono}`} className="font-mono text-lg font-semibold text-primary hover:underline">
-              {lead.lead_telefono}
-            </a>
-            {hasSuccessfulCall ? (
-              <Badge className="ml-auto bg-emerald-500 text-white"><CheckCircle className="h-3 w-3 mr-1" />Contactado</Badge>
-            ) : (
-              <Badge variant="outline" className="ml-auto border-amber-300 text-amber-700 bg-amber-50"><PhoneCall className="h-3 w-3 mr-1" />Sin contactar</Badge>
+    <div className="apple-card p-4 group">
+      {/* Header: Avatar + Info + Status */}
+      <div className="flex items-start gap-3">
+        <Avatar className="h-10 w-10 shrink-0">
+          <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+            {getInitials(lead.lead_nombre)}
+          </AvatarFallback>
+        </Avatar>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <h3 className="font-medium text-sm truncate">{lead.lead_nombre}</h3>
+            {statusBadge}
+            {hasMissingInfo && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent>Información incompleta</TooltipContent>
+              </Tooltip>
             )}
           </div>
-        )}
-
-        {lead.lead_email && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mail className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{lead.lead_email}</span>
+          
+          {/* Contact info - subtle */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            {lead.lead_telefono && (
+              <a 
+                href={`tel:${lead.lead_telefono}`} 
+                className="hover:text-foreground transition-colors font-mono"
+              >
+                {lead.lead_telefono}
+              </a>
+            )}
+            {lead.lead_email && (
+              <span className="flex items-center gap-1 truncate max-w-[140px]">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{lead.lead_email}</span>
+              </span>
+            )}
           </div>
-        )}
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {lead.last_contact_outcome && (
-            <Badge variant={['voicemail', 'no_answer', 'busy', 'wrong_number'].includes(lead.last_contact_outcome) ? "destructive" : "secondary"} className="text-xs">
-              {lead.last_contact_outcome}
-            </Badge>
-          )}
-          {(lead.contact_attempts_count && lead.contact_attempts_count > 0) && (
-            <Badge variant="outline" className={cn("text-xs font-medium", lead.contact_attempts_count >= 3 ? "text-red-800 border-red-300 bg-red-100" : "text-muted-foreground")}>
-              <PhoneCall className="h-2.5 w-2.5 mr-1" />{lead.contact_attempts_count} intentos
-            </Badge>
-          )}
+          
+          {/* Contact status - very subtle */}
+          <div className="flex items-center gap-2 mt-1.5">
+            {hasSuccessfulCall ? (
+              <span className="text-xs text-success flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" />
+                Contactado
+              </span>
+            ) : lead.contact_attempts_count && lead.contact_attempts_count > 0 ? (
+              <span className={cn(
+                "text-xs flex items-center gap-1",
+                lead.contact_attempts_count >= 3 ? "text-destructive" : "text-muted-foreground"
+              )}>
+                <PhoneCall className="h-3 w-3" />
+                {lead.contact_attempts_count} intentos
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground/70 pt-2 border-t border-border/50">
-          <Calendar className="h-3 w-3" />{formatDate(lead.lead_fecha_creacion)}
-          <span>•</span>
-          <Bot className="h-3 w-3" />{callLogs.length} llamadas
-        </div>
-
-        {/* ACCIONES */}
-        <div className="flex items-center justify-between pt-2">
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Primary CTA */}
           {!hasSuccessfulCall && (
-            <div className="flex items-center gap-2">
-              <Button size="default" onClick={() => onLogCall(lead)} className="h-10 px-5 bg-primary hover:bg-primary/90 font-medium">
-                <Phone className="h-4 w-4 mr-2" />Llamar
-              </Button>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={() => onVapiCall(lead)} className="h-10 w-10 p-0 border-blue-200 text-blue-600 hover:bg-blue-50">
-                  <Bot className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger><TooltipContent>Llamada IA</TooltipContent></Tooltip>
-            </div>
+            <Button 
+              size="sm" 
+              onClick={() => onLogCall(lead)} 
+              className="h-8 px-3 text-xs"
+            >
+              <Phone className="h-3.5 w-3.5 mr-1.5" />
+              Llamar
+            </Button>
           )}
 
           {hasSuccessfulCall && hasMissingInfo && (
-            <Button size="sm" onClick={() => onCompleteMissingInfo(lead)} className="h-9 px-4 bg-amber-500 hover:bg-amber-600 text-white">
-              <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />Completar Info
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => onCompleteMissingInfo(lead)} 
+              className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
+            >
+              Completar
             </Button>
           )}
 
           {!lead.final_decision && hasSuccessfulCall && !hasMissingInfo && (
-            <div className="flex items-center gap-1.5">
-              <Button size="sm" onClick={() => onApproveLead(lead)} className="h-9 px-4 bg-emerald-500 hover:bg-emerald-600 text-white">
-                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />Aprobar
+            <>
+              <Button 
+                size="sm" 
+                onClick={() => onApproveLead(lead)} 
+                className="h-8 px-3 text-xs bg-success hover:bg-success/90"
+              >
+                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                Aprobar
               </Button>
-              <Button size="sm" variant="outline" onClick={() => onSendToSecondInterview(lead)} className="h-9 px-3 border-purple-200 text-purple-700 hover:bg-purple-50">
-                <ArrowRight className="h-3.5 w-3.5 mr-1" />2da
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => onReject(lead)} className="h-9 w-9 p-0 border-red-200 text-red-600 hover:bg-red-50">
-                <XCircle className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onSendToSecondInterview(lead)} 
+                    className="h-8 w-8 p-0"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Segunda entrevista</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => onReject(lead)} 
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Rechazar</TooltipContent>
+              </Tooltip>
+            </>
           )}
 
           {lead.final_decision === 'approved' && onIniciarLiberacion && (
             lead.candidato_custodio_id ? (
-              <Button size="default" onClick={() => onIniciarLiberacion(lead)} className="h-10 px-5 bg-amber-500 hover:bg-amber-600 text-white font-medium">
-                <Rocket className="h-4 w-4 mr-2" />Liberar Custodio
+              <Button 
+                size="sm" 
+                onClick={() => onIniciarLiberacion(lead)} 
+                className="h-8 px-3 text-xs"
+              >
+                <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                Liberar
               </Button>
             ) : onRetryVinculacion && (
-              <Button size="default" variant="outline" onClick={() => onRetryVinculacion(lead)} className="h-10 px-5 border-amber-300 text-amber-700 hover:bg-amber-50 font-medium">
-                <AlertTriangle className="h-4 w-4 mr-2" />Re-vincular
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onRetryVinculacion(lead)} 
+                className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
+              >
+                Re-vincular
               </Button>
             )
           )}
 
+          {/* More actions dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-muted text-muted-foreground">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => onEditLead(lead)}><Edit className="h-3.5 w-3.5 mr-2" />Editar</DropdownMenuItem>
-              {callLogs.length > 0 && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => onViewCallHistory(lead)}><Bot className="h-3.5 w-3.5 mr-2" />Historial</DropdownMenuItem></>)}
-              {onMoveToPool && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => onMoveToPool(lead)}><Archive className="h-3.5 w-3.5 mr-2" />Pool</DropdownMenuItem></>)}
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onEditLead(lead)}>
+                <Edit className="h-3.5 w-3.5 mr-2" />
+                Editar
+              </DropdownMenuItem>
+              {!hasSuccessfulCall && (
+                <DropdownMenuItem onClick={() => onVapiCall(lead)}>
+                  <Bot className="h-3.5 w-3.5 mr-2" />
+                  Llamada IA
+                </DropdownMenuItem>
+              )}
+              {callLogs.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onViewCallHistory(lead)}>
+                    <Bot className="h-3.5 w-3.5 mr-2" />
+                    Historial ({callLogs.length})
+                  </DropdownMenuItem>
+                </>
+              )}
+              {onMoveToPool && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onMoveToPool(lead)}>
+                    <Archive className="h-3.5 w-3.5 mr-2" />
+                    Mover a Pool
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
