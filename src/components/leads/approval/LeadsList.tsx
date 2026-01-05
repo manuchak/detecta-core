@@ -140,6 +140,15 @@ export const LeadsList = ({
         if (filters.finalDecision !== 'pending' && lead.final_decision !== filters.finalDecision) return false;
       }
       
+      // Filtro por analista asignado
+      if (filters.assignedAnalyst && filters.assignedAnalyst !== 'all') {
+        if (filters.assignedAnalyst === 'unassigned') {
+          if (lead.asignado_a) return false;
+        } else {
+          if (lead.asignado_a !== filters.assignedAnalyst) return false;
+        }
+      }
+      
       return true;
     });
   };

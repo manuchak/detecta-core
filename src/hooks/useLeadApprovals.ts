@@ -136,6 +136,14 @@ export const useLeadApprovals = () => {
         scheduled_call_datetime: lead.scheduled_call_datetime,
         // 🔗 Campo crítico para detectar leads aprobados sin candidato vinculado
         candidato_custodio_id: lead.candidato_custodio_id,
+        // Pool de Reserva
+        zona_preferida_id: lead.zona_preferida_id,
+        zona_nombre: lead.zona_nombre,
+        fecha_entrada_pool: lead.fecha_entrada_pool,
+        // 👤 Información del analista asignado
+        asignado_a: lead.asignado_a,
+        analista_nombre: lead.analista_nombre,
+        analista_email: lead.analista_email,
       }));
       
       // ✅ CORRECCIÓN FASE 1: Obtener call status de manera síncrona ANTES de actualizar estado
