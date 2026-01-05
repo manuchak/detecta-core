@@ -13904,19 +13904,24 @@ export type Database = {
         }
         Returns: {
           analista_email: string
-          analista_id: string
           analista_nombre: string
-          created_at: string
-          current_stage: string
-          email: string
-          estado: string
+          approval_stage: string
+          asignado_a: string
+          candidato_custodio_id: string
+          fecha_entrada_pool: string
           final_decision: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
           lead_id: string
-          nombre: string
+          lead_nombre: string
+          lead_telefono: string
           notas: string
-          telefono: string
-          total_llamadas: number
+          phone_interview_completed: boolean
+          scheduled_call_datetime: string
+          second_interview_required: boolean
           zona_nombre: string
+          zona_preferida_id: string
         }[]
       }
       get_analyst_assigned_leads_v2: {
@@ -13929,19 +13934,24 @@ export type Database = {
         }
         Returns: {
           analista_email: string
-          analista_id: string
           analista_nombre: string
-          created_at: string
-          current_stage: string
-          email: string
-          estado: string
+          approval_stage: string
+          asignado_a: string
+          candidato_custodio_id: string
+          fecha_entrada_pool: string
           final_decision: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
           lead_id: string
-          nombre: string
+          lead_nombre: string
+          lead_telefono: string
           notas: string
-          telefono: string
-          total_llamadas: number
+          phone_interview_completed: boolean
+          scheduled_call_datetime: string
+          second_interview_required: boolean
           zona_nombre: string
+          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: { Args: never; Returns: string[] }
