@@ -13097,8 +13097,8 @@ export type Database = {
         Returns: boolean
       }
       archive_user_role_secure: {
-        Args: { reason?: string; target_user_id: string }
-        Returns: boolean
+        Args: { p_reason?: string; p_user_id: string }
+        Returns: Json
       }
       assign_initial_owner: { Args: { target_email: string }; Returns: boolean }
       assign_role_secure: {
@@ -15182,8 +15182,8 @@ export type Database = {
         Returns: boolean
       }
       reactivate_user_role_secure: {
-        Args: { target_user_id: string }
-        Returns: boolean
+        Args: { p_user_id: string }
+        Returns: Json
       }
       recomendar_gps_para_instalacion: {
         Args: {
