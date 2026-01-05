@@ -186,6 +186,8 @@ export const useCustodioLiberacion = () => {
       liberacion_id: string;
       forzar?: boolean;
     }) => {
+      console.log('🚀 Iniciando liberación:', { liberacion_id, forzar });
+      
       const { data: user } = await supabase.auth.getUser();
       
       const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion', {
@@ -194,7 +196,10 @@ export const useCustodioLiberacion = () => {
         p_forzar_liberacion: forzar
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error RPC liberación:', error);
+        throw error;
+      }
       
       const result = data as {
         success: boolean;
@@ -209,7 +214,33 @@ export const useCustodioLiberacion = () => {
         tiene_warnings: boolean;
         mensaje: string;
         invitation_token: string;
+        sync_status?: {
+          pc_custodios_synced: boolean;
+          custodios_operativos_synced: boolean;
+          pc_custodios_was_existing: boolean;
+          custodios_operativos_was_existing: boolean;
+          nombre_normalizado: string;
+        };
       };
+
+      // ✅ VERIFICACIÓN POST-LIBERACIÓN: Validar sincronización
+      const syncVerified = result.pc_custodio_id && result.custodio_operativo_id;
+      
+      if (!syncVerified) {
+        console.error('⚠️ Liberación exitosa pero sincronización incompleta:', {
+          pc_custodio_id: result.pc_custodio_id,
+          custodio_operativo_id: result.custodio_operativo_id,
+          sync_status: result.sync_status
+        });
+        result.warnings = result.warnings || [];
+        result.warnings.push('⚠️ Sincronización incompleta - verificar en Planeación');
+      } else {
+        console.log('✅ Liberación verificada:', {
+          pc_custodio_id: result.pc_custodio_id,
+          custodio_operativo_id: result.custodio_operativo_id,
+          sync_status: result.sync_status
+        });
+      }
 
       // Intentar enviar email si hay datos disponibles
       let emailSent = false;
@@ -235,20 +266,26 @@ export const useCustodioLiberacion = () => {
         }
       }
 
-      // Retornar resultado extendido con estado de email
+      // Retornar resultado extendido con estado de email y verificación
       return {
         ...result,
-        emailSent
+        emailSent,
+        syncVerified
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['custodio-liberacion'] });
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
+      queryClient.invalidateQueries({ queryKey: ['pc-custodios'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos'] });
       
-      // Toast simple - el modal mostrará los detalles
+      // Toast con estado de sincronización
+      const syncIcon = data.syncVerified ? '🎉' : '⚠️';
       toast({
-        title: '🎉 Custodio Liberado',
-        description: data.candidato_nombre + ' ha sido activado exitosamente.'
+        title: `${syncIcon} Custodio Liberado`,
+        description: data.syncVerified 
+          ? `${data.candidato_nombre} sincronizado con Planeación.`
+          : `${data.candidato_nombre} liberado pero verificar sincronización.`
       });
     },
     onError: (error: Error) => {

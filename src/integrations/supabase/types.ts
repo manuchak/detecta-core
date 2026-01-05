@@ -15044,7 +15044,7 @@ export type Database = {
         Args: {
           p_forzar_liberacion?: boolean
           p_liberacion_id: string
-          p_liberado_por: string
+          p_liberado_por?: string
         }
         Returns: Json
       }
@@ -15114,6 +15114,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_name: { Args: { input_name: string }; Returns: string }
       obtener_deficit_dinamico_nacional: {
         Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
         Returns: {
@@ -15278,6 +15279,7 @@ export type Database = {
         }
         Returns: Json
       }
+      unaccent: { Args: { "": string }; Returns: string }
       update_all_custodian_levels: { Args: never; Returns: number }
       update_approval_process: {
         Args: {
