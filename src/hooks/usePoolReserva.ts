@@ -15,7 +15,12 @@ export const usePoolReserva = () => {
   // Fetch candidates in pool
   const fetchPoolCandidates = async () => {
     try {
-      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {});
+      const { data, error } = await sbx.rpc('get_analyst_assigned_leads', {
+        p_limit: 1000,
+        p_offset: 0,
+        p_date_from: null,
+        p_date_to: null
+      });
       
       if (error) throw error;
       
