@@ -13907,8 +13907,6 @@ export type Database = {
           analista_nombre: string
           approval_stage: string
           asignado_a: string
-          candidato_custodio_id: string
-          fecha_entrada_pool: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -13918,10 +13916,8 @@ export type Database = {
           lead_telefono: string
           notas: string
           phone_interview_completed: boolean
-          scheduled_call_datetime: string
           second_interview_required: boolean
           zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_analyst_assigned_leads_v2: {
@@ -13937,8 +13933,6 @@ export type Database = {
           analista_nombre: string
           approval_stage: string
           asignado_a: string
-          candidato_custodio_id: string
-          fecha_entrada_pool: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -13948,10 +13942,8 @@ export type Database = {
           lead_telefono: string
           notas: string
           phone_interview_completed: boolean
-          scheduled_call_datetime: string
           second_interview_required: boolean
           zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: { Args: never; Returns: string[] }
