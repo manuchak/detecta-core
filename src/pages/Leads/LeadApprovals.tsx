@@ -409,26 +409,34 @@ export const LeadApprovals = () => {
         <div className="space-y-6 p-6">
         <SandboxBanner dataCount={assignedLeads.length} />
         
-        {/* Header - Lean */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="apple-text-title">Aprobaciones</h1>
-              <Badge 
-                variant="outline"
-                className={isSandboxMode 
-                  ? "border-warning/30 text-warning text-xs" 
-                  : "border-success/30 text-success text-xs"
-                }
-              >
-                {isSandboxMode ? 'SANDBOX' : 'PROD'}
-              </Badge>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {totalCount} candidatos
-              </span>
-            </div>
+        {/* Header - Lean con Filtros */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <h1 className="apple-text-title">Aprobaciones</h1>
+            <Badge 
+              variant="outline"
+              className={isSandboxMode 
+                ? "border-warning/30 text-warning text-xs" 
+                : "border-success/30 text-success text-xs"
+              }
+            >
+              {isSandboxMode ? 'SANDBOX' : 'PROD'}
+            </Badge>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {totalCount} candidatos
+            </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <ApprovalAdvancedFilters
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              onResetFilters={handleResetAdvancedFilters}
+              leads={assignedLeads}
+              savedViews={savedViews}
+              onSaveView={handleSaveView}
+              onLoadView={handleLoadView}
+              onDeleteView={deleteView}
+            />
             <Button
               variant="ghost"
               size="sm"
@@ -437,7 +445,7 @@ export const LeadApprovals = () => {
               className="h-8 text-xs"
             >
               <Download className="h-3.5 w-3.5 mr-1.5" />
-              CSV
+              <span className="hidden sm:inline">CSV</span>
             </Button>
             <Button
               variant="ghost"
@@ -445,32 +453,22 @@ export const LeadApprovals = () => {
               onClick={() => fetchAssignedLeads()}
               className="h-8 text-xs"
             >
-              Actualizar
+              <span className="hidden sm:inline">Actualizar</span>
+              <span className="sm:hidden">⟳</span>
             </Button>
           </div>
         </div>
 
-        {/* Search + Filters - Inline */}
+        {/* Search + Tabs */}
         <div className="flex items-center gap-3 flex-wrap">
           <Input
             placeholder="Buscar..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-[200px] h-8 text-sm"
+            className="w-full sm:max-w-[200px] h-8 text-sm"
           />
           
-          <ApprovalAdvancedFilters
-            filters={advancedFilters}
-            onFiltersChange={setAdvancedFilters}
-            onResetFilters={handleResetAdvancedFilters}
-            leads={assignedLeads}
-            savedViews={savedViews}
-            onSaveView={handleSaveView}
-            onLoadView={handleLoadView}
-            onDeleteView={deleteView}
-          />
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-w-0">
             <TabsList className="h-8">
               <TabsTrigger value="pending" className="text-xs h-7 px-3 gap-1.5">
                 Pendientes

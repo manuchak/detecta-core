@@ -53,16 +53,9 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true, // Take control immediately
         runtimeCaching: [
           {
-            // JS/CSS files - NetworkFirst for fresh code
+            // JS/CSS files - NetworkOnly to ensure fresh code on every deploy
             urlPattern: /\.(?:js|css)$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'static-resources',
-              expiration: {
-                maxAgeSeconds: 60 * 60 // 1 hour
-              },
-              networkTimeoutSeconds: 3
-            }
+            handler: 'NetworkOnly'
           },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
