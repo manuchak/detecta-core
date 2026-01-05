@@ -13556,7 +13556,7 @@ export type Database = {
         Returns: number
       }
       count_analyst_assigned_leads_v2: {
-        Args: { p_date_from?: string; p_date_to?: string }
+        Args: { p_date_from?: string; p_date_to?: string; p_is_test?: boolean }
         Returns: number
       }
       crear_kit_instalacion: {
