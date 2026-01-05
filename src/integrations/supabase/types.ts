@@ -13904,19 +13904,18 @@ export type Database = {
         }
         Returns: {
           analista_email: string
+          analista_id: string
           analista_nombre: string
-          approval_stage: string
-          asignado_a: string
+          created_at: string
+          current_stage: string
+          email: string
+          estado: string
           final_decision: string
-          lead_email: string
-          lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
+          nombre: string
           notas: string
-          phone_interview_completed: boolean
-          second_interview_required: boolean
+          telefono: string
+          total_llamadas: number
           zona_nombre: string
         }[]
       }
@@ -13930,19 +13929,18 @@ export type Database = {
         }
         Returns: {
           analista_email: string
+          analista_id: string
           analista_nombre: string
-          approval_stage: string
-          asignado_a: string
+          created_at: string
+          current_stage: string
+          email: string
+          estado: string
           final_decision: string
-          lead_email: string
-          lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
+          nombre: string
           notas: string
-          phone_interview_completed: boolean
-          second_interview_required: boolean
+          telefono: string
+          total_llamadas: number
           zona_nombre: string
         }[]
       }
