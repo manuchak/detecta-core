@@ -3,7 +3,7 @@ import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { ImprovedLeadCard } from "./ImprovedLeadCard";
 import { ApprovalQuickFilters } from "./ApprovalQuickFilters";
-import { ApprovalAdvancedFilters, ApprovalAdvancedFiltersState } from "./ApprovalAdvancedFilters";
+import { ApprovalAdvancedFiltersState } from "./ApprovalAdvancedFilters";
 
 interface LeadsListProps {
   leads: AssignedLead[];
@@ -200,22 +200,12 @@ export const LeadsList = ({
 
   return (
     <div className="space-y-4">
-      {/* Filtros inteligentes */}
+      {/* Filtros inteligentes (quick filters) */}
       {onQuickFilterChange && (
         <ApprovalQuickFilters
           leads={leads}
           activeFilter={quickFilter}
           onFilterChange={onQuickFilterChange}
-        />
-      )}
-      
-      {/* Filtros avanzados */}
-      {advancedFilters && onAdvancedFiltersChange && onResetAdvancedFilters && (
-        <ApprovalAdvancedFilters
-          filters={advancedFilters}
-          onFiltersChange={onAdvancedFiltersChange}
-          onResetFilters={onResetAdvancedFilters}
-          leads={filteredAndSortedLeads}
         />
       )}
 
