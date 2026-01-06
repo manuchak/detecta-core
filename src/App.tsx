@@ -804,6 +804,18 @@ function App() {
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
+              />
+                <Route
+                  path="/lms/reportes"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <UnifiedLayout>
+                          <LMSReportes />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
                 />
                 
                 {/* System Testing Route - Admin Only */}

@@ -2,30 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { LMSPregunta, RespuestaQuiz, QuizContent } from "@/types/lms";
-
-// Helper function to award points
-const otorgarPuntos = async (accion: string, referenciaId?: string, referenciaTipo?: string) => {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data, error } = await supabase.rpc('lms_otorgar_puntos', {
-      p_usuario_id: user.id,
-      p_accion: accion,
-      p_referencia_id: referenciaId || null,
-      p_referencia_tipo: referenciaTipo || null
-    });
-
-    if (error) {
-      console.error('Error awarding points:', error);
-      return null;
-    }
-    return data;
-  } catch (err) {
-    console.error('Error in otorgarPuntos:', err);
-    return null;
-  }
-};
+import { otorgarPuntosHelper as otorgarPuntos } from "./useLMSGamificacion";
 
 // Obtener preguntas de un quiz
 export function useLMSPreguntas(preguntasIds: string[] | undefined) {
