@@ -763,6 +763,29 @@ function App() {
                   }
                 />
                 
+                {/* LMS Routes */}
+                <Route
+                  path="/lms"
+                  element={
+                    <ProtectedRoute>
+                      <UnifiedLayout>
+                        <LMSDashboard />
+                      </UnifiedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/lms/curso/:cursoId"
+                  element={
+                    <ProtectedRoute>
+                      <UnifiedLayout>
+                        <CursoViewer />
+                      </UnifiedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
                 {/* System Testing Route - Admin Only */}
                 <Route
                   path="/system-testing"
