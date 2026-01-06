@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,20 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent } from "@/types/lms";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { toast } from "sonner";
-
-interface QuizPregunta {
-  id: string;
-  pregunta: string;
-  tipo: 'opcion_multiple' | 'verdadero_falso' | 'respuesta_corta';
-  opciones?: string[];
-  respuesta_correcta: string | number;
-  puntos: number;
-}
+import { QuizEditor } from "./quiz/QuizEditor";
+import { QuizQuestion } from "./quiz/QuestionCard";
+import { cn } from "@/lib/utils";
 
 interface ContenidoFormData {
   titulo: string;
@@ -35,6 +29,7 @@ interface LMSContenidoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   moduloId: string;
+  moduloTitulo?: string;
   contenido?: {
     id: string;
     titulo: string;
@@ -50,10 +45,20 @@ interface LMSContenidoFormProps {
   isLoading?: boolean;
 }
 
+const TIPO_ICONS: Record<TipoContenido, React.ReactNode> = {
+  video: <Video className="h-4 w-4" />,
+  documento: <FileText className="h-4 w-4" />,
+  texto_enriquecido: <FileText className="h-4 w-4" />,
+  embed: <Code className="h-4 w-4" />,
+  quiz: <HelpCircle className="h-4 w-4" />,
+  interactivo: <Code className="h-4 w-4" />,
+};
+
 export function LMSContenidoForm({
   open,
   onOpenChange,
   moduloId,
+  moduloTitulo,
   contenido,
   nextOrden,
   onSubmit,
@@ -65,6 +70,7 @@ export function LMSContenidoForm({
   const [orden, setOrden] = useState(nextOrden);
   const [activo, setActivo] = useState(true);
   const [esObligatorio, setEsObligatorio] = useState(true);
+  const [activeTab, setActiveTab] = useState("contenido");
 
   // Campos de contenido según tipo
   const [videoUrl, setVideoUrl] = useState("");
@@ -72,8 +78,8 @@ export function LMSContenidoForm({
   const [textoHtml, setTextoHtml] = useState("");
   const [embedHtml, setEmbedHtml] = useState("");
 
-  // Quiz
-  const [quizPreguntas, setQuizPreguntas] = useState<QuizPregunta[]>([]);
+  // Quiz - using new QuizQuestion type
+  const [quizPreguntas, setQuizPreguntas] = useState<QuizQuestion[]>([]);
   const [quizConfig, setQuizConfig] = useState({
     puntuacion_minima: 70,
     intentos_permitidos: 3,
@@ -97,7 +103,6 @@ export function LMSContenidoForm({
       if (contenido.tipo === 'texto_enriquecido' && c?.html) setTextoHtml(c.html);
       if (contenido.tipo === 'embed' && c?.html) setEmbedHtml(c.html);
       if (contenido.tipo === 'quiz' && c) {
-        // Para quiz, cargar preguntas del contenido
         setQuizConfig({
           puntuacion_minima: c.puntuacion_minima ?? 70,
           intentos_permitidos: c.intentos_permitidos ?? 3,
@@ -128,6 +133,7 @@ export function LMSContenidoForm({
       tiempo_limite_min: null,
       mostrar_respuestas_correctas: true
     });
+    setActiveTab("contenido");
   };
 
   const handleTipoChange = (newTipo: TipoContenido) => {
@@ -157,31 +163,9 @@ export function LMSContenidoForm({
     }
   };
 
-  const addPregunta = () => {
-    const nuevaPregunta: QuizPregunta = {
-      id: crypto.randomUUID(),
-      pregunta: "",
-      tipo: "opcion_multiple",
-      opciones: ["", "", "", ""],
-      respuesta_correcta: 0,
-      puntos: 10
-    };
-    setQuizPreguntas([...quizPreguntas, nuevaPregunta]);
-  };
-
-  const updatePregunta = (index: number, updates: Partial<QuizPregunta>) => {
-    const updated = [...quizPreguntas];
-    updated[index] = { ...updated[index], ...updates };
-    setQuizPreguntas(updated);
-  };
-
-  const removePregunta = (index: number) => {
-    setQuizPreguntas(quizPreguntas.filter((_, i) => i !== index));
-  };
-
   const { generateQuizQuestions, generateRichText, loading: aiLoading } = useLMSAI();
 
-  const handleGenerateQuiz = async () => {
+  const handleGenerateQuiz = useCallback(async () => {
     if (!titulo || titulo.length < 3) {
       toast.error("Escribe un título de al menos 3 caracteres");
       return;
@@ -189,18 +173,18 @@ export function LMSContenidoForm({
 
     const result = await generateQuizQuestions(titulo, 5);
     if (result?.questions) {
-      const nuevasPreguntas: QuizPregunta[] = result.questions.map(q => ({
+      const nuevasPreguntas: QuizQuestion[] = result.questions.map(q => ({
         id: crypto.randomUUID(),
         pregunta: q.question,
-        tipo: "opcion_multiple" as const,
-        opciones: q.options.map(o => o.text),
+        opciones: q.options.map(o => ({ texto: o.text })),
         respuesta_correcta: q.options.findIndex(o => o.isCorrect),
+        explicacion: "",
         puntos: 10
       }));
       setQuizPreguntas([...quizPreguntas, ...nuevasPreguntas]);
       toast.success(`${nuevasPreguntas.length} preguntas generadas con IA`);
     }
-  };
+  }, [titulo, quizPreguntas, generateQuizQuestions]);
 
   const handleGenerateRichText = async () => {
     if (!titulo || titulo.length < 3) {
@@ -232,39 +216,53 @@ export function LMSContenidoForm({
   };
 
   const isEditing = !!contenido;
+  const isQuizMode = tipo === 'quiz';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className={cn(
+        "max-h-[90vh] overflow-hidden flex flex-col",
+        isQuizMode ? "max-w-4xl" : "max-w-2xl"
+      )}>
+        <DialogHeader className="flex-shrink-0 pb-4 border-b">
+          <DialogTitle className="flex items-center gap-2">
+            {TIPO_ICONS[tipo]}
             {isEditing ? "Editar Contenido" : "Nuevo Contenido"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+          {/* Header Fields */}
+          <div className="flex-shrink-0 grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="titulo">Título *</Label>
+              <Label htmlFor="titulo" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Título *
+              </Label>
               <Input
                 id="titulo"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
                 placeholder="Título del contenido"
                 required
+                className="h-10"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tipo">Tipo de Contenido</Label>
+              <Label htmlFor="tipo" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Tipo de Contenido
+              </Label>
               <Select value={tipo} onValueChange={(v) => handleTipoChange(v as TipoContenido)}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {LMS_TIPOS_CONTENIDO.map(t => (
                     <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                      <div className="flex items-center gap-2">
+                        {TIPO_ICONS[t.value as TipoContenido]}
+                        {t.label}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -272,293 +270,237 @@ export function LMSContenidoForm({
             </div>
           </div>
 
-          <Tabs defaultValue="contenido" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="contenido">Contenido</TabsTrigger>
-              <TabsTrigger value="config">Configuración</TabsTrigger>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="flex-shrink-0 grid w-full grid-cols-2 bg-muted/50">
+              <TabsTrigger value="contenido" className="gap-2">
+                {TIPO_ICONS[tipo]}
+                Contenido
+              </TabsTrigger>
+              <TabsTrigger value="config" className="gap-2">
+                <Settings2 className="h-4 w-4" />
+                Configuración
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="contenido" className="space-y-4 mt-4">
-              {tipo === 'video' && (
-                <div className="space-y-2">
-                  <Label htmlFor="video_url">URL del Video</Label>
-                  <Input
-                    id="video_url"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://youtube.com/watch?v=..."
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Soporta YouTube, Vimeo y enlaces directos
-                  </p>
-                </div>
-              )}
-
-              {tipo === 'documento' && (
-                <div className="space-y-2">
-                  <Label htmlFor="doc_url">URL del Documento</Label>
-                  <Input
-                    id="doc_url"
-                    value={documentoUrl}
-                    onChange={(e) => setDocumentoUrl(e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
-              )}
-
-              {tipo === 'texto_enriquecido' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="texto">Contenido de Texto</Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={handleGenerateRichText}
-                      disabled={aiLoading || !titulo || titulo.length < 3}
-                    >
-                      {aiLoading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4 mr-2" />
-                      )}
-                      Generar con IA
-                    </Button>
+            <div className="flex-1 overflow-y-auto mt-4 pr-1">
+              <TabsContent value="contenido" className="mt-0 space-y-4">
+                {tipo === 'video' && (
+                  <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
+                    <Label htmlFor="video_url" className="text-sm font-medium">URL del Video</Label>
+                    <Input
+                      id="video_url"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="https://youtube.com/watch?v=..."
+                      className="h-10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Soporta YouTube, Vimeo y enlaces directos
+                    </p>
                   </div>
-                  <Textarea
-                    id="texto"
-                    value={textoHtml}
-                    onChange={(e) => setTextoHtml(e.target.value)}
-                    placeholder="Escribe el contenido aquí... (soporta HTML)"
-                    rows={10}
-                  />
-                </div>
-              )}
+                )}
 
-              {tipo === 'embed' && (
-                <div className="space-y-2">
-                  <Label htmlFor="embed">Código Embed (HTML)</Label>
-                  <Textarea
-                    id="embed"
-                    value={embedHtml}
-                    onChange={(e) => setEmbedHtml(e.target.value)}
-                    placeholder="<iframe src='...'></iframe>"
-                    rows={6}
-                  />
-                </div>
-              )}
+                {tipo === 'documento' && (
+                  <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
+                    <Label htmlFor="doc_url" className="text-sm font-medium">URL del Documento</Label>
+                    <Input
+                      id="doc_url"
+                      value={documentoUrl}
+                      onChange={(e) => setDocumentoUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="h-10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      PDF, Word, PowerPoint o Google Docs
+                    </p>
+                  </div>
+                )}
 
-              {tipo === 'quiz' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label>Preguntas del Quiz</Label>
-                    <div className="flex items-center gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={addPregunta}>
-                        + Agregar Pregunta
-                      </Button>
+                {tipo === 'texto_enriquecido' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="texto" className="text-sm font-medium">Contenido de Texto</Label>
                       <Button 
                         type="button" 
                         variant="outline" 
-                        size="sm" 
-                        onClick={handleGenerateQuiz}
+                        size="sm"
+                        onClick={handleGenerateRichText}
                         disabled={aiLoading || !titulo || titulo.length < 3}
+                        className="gap-2"
                       >
                         {aiLoading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <Sparkles className="w-4 h-4 mr-2" />
+                          <Sparkles className="w-4 h-4 text-amber-500" />
                         )}
                         Generar con IA
                       </Button>
                     </div>
+                    <Textarea
+                      id="texto"
+                      value={textoHtml}
+                      onChange={(e) => setTextoHtml(e.target.value)}
+                      placeholder="Escribe el contenido aquí... (soporta HTML)"
+                      rows={12}
+                      className="font-mono text-sm"
+                    />
                   </div>
+                )}
 
-                  {quizPreguntas.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No hay preguntas. Agrega al menos una pregunta para el quiz.
-                    </p>
-                  )}
+                {tipo === 'embed' && (
+                  <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
+                    <Label htmlFor="embed" className="text-sm font-medium">Código Embed (HTML)</Label>
+                    <Textarea
+                      id="embed"
+                      value={embedHtml}
+                      onChange={(e) => setEmbedHtml(e.target.value)}
+                      placeholder="<iframe src='...'></iframe>"
+                      rows={8}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                )}
 
-                  {quizPreguntas.map((pregunta, index) => (
-                    <div key={pregunta.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <span className="text-sm font-medium">Pregunta {index + 1}</span>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => removePregunta(index)}
-                        >
-                          Eliminar
-                        </Button>
-                      </div>
+                {tipo === 'quiz' && (
+                  <div className="space-y-4">
+                    {/* Quiz Editor Component */}
+                    <QuizEditor
+                      questions={quizPreguntas}
+                      onChange={setQuizPreguntas}
+                      onGenerateWithAI={handleGenerateQuiz}
+                      isGenerating={aiLoading}
+                      moduloTitulo={moduloTitulo || titulo}
+                    />
 
-                      <Input
-                        value={pregunta.pregunta}
-                        onChange={(e) => updatePregunta(index, { pregunta: e.target.value })}
-                        placeholder="Escribe la pregunta..."
-                      />
-
-                      <Select 
-                        value={pregunta.tipo} 
-                        onValueChange={(v) => updatePregunta(index, { 
-                          tipo: v as QuizPregunta['tipo'],
-                          opciones: v === 'verdadero_falso' ? ['Verdadero', 'Falso'] : pregunta.opciones,
-                          respuesta_correcta: 0
-                        })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="opcion_multiple">Opción Múltiple</SelectItem>
-                          <SelectItem value="verdadero_falso">Verdadero/Falso</SelectItem>
-                          <SelectItem value="respuesta_corta">Respuesta Corta</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {pregunta.tipo === 'opcion_multiple' && pregunta.opciones && (
-                        <div className="space-y-2">
-                          {pregunta.opciones.map((opcion, opIdx) => (
-                            <div key={opIdx} className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name={`correcta-${pregunta.id}`}
-                                checked={pregunta.respuesta_correcta === opIdx}
-                                onChange={() => updatePregunta(index, { respuesta_correcta: opIdx })}
-                              />
-                              <Input
-                                value={opcion}
-                                onChange={(e) => {
-                                  const newOpciones = [...pregunta.opciones!];
-                                  newOpciones[opIdx] = e.target.value;
-                                  updatePregunta(index, { opciones: newOpciones });
-                                }}
-                                placeholder={`Opción ${opIdx + 1}`}
-                                className="flex-1"
-                              />
-                            </div>
-                          ))}
+                    {/* Quiz Configuration */}
+                    {quizPreguntas.length > 0 && (
+                      <div className="p-4 rounded-xl bg-muted/30 border space-y-4">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          <Settings2 className="h-4 w-4" />
+                          Configuración del Quiz
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Puntaje mínimo (%)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={quizConfig.puntuacion_minima}
+                              onChange={(e) => setQuizConfig({ ...quizConfig, puntuacion_minima: parseInt(e.target.value) || 70 })}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Intentos máximos</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={quizConfig.intentos_permitidos}
+                              onChange={(e) => setQuizConfig({ ...quizConfig, intentos_permitidos: parseInt(e.target.value) || 3 })}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Tiempo límite (min)</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={quizConfig.tiempo_limite_min || ""}
+                              onChange={(e) => setQuizConfig({ ...quizConfig, tiempo_limite_min: e.target.value ? parseInt(e.target.value) : null })}
+                              placeholder="Sin límite"
+                              className="h-9"
+                            />
+                          </div>
                         </div>
-                      )}
-
-                      {pregunta.tipo === 'verdadero_falso' && (
-                        <Select 
-                          value={String(pregunta.respuesta_correcta)}
-                          onValueChange={(v) => updatePregunta(index, { respuesta_correcta: parseInt(v) })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Respuesta correcta" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Verdadero</SelectItem>
-                            <SelectItem value="1">Falso</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-
-                      {pregunta.tipo === 'respuesta_corta' && (
-                        <Input
-                          value={String(pregunta.respuesta_correcta)}
-                          onChange={(e) => updatePregunta(index, { respuesta_correcta: e.target.value })}
-                          placeholder="Respuesta correcta esperada"
-                        />
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm">Puntos:</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={pregunta.puntos}
-                          onChange={(e) => updatePregunta(index, { puntos: parseInt(e.target.value) || 10 })}
-                          className="w-20"
-                        />
+                        <div className="flex items-center justify-between pt-2">
+                          <Label className="text-sm">Mostrar respuestas correctas al finalizar</Label>
+                          <Switch
+                            checked={quizConfig.mostrar_respuestas_correctas}
+                            onCheckedChange={(checked) => setQuizConfig({ ...quizConfig, mostrar_respuestas_correctas: checked })}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                )}
+              </TabsContent>
 
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+              <TabsContent value="config" className="mt-0 space-y-4">
+                <div className="p-4 rounded-xl bg-muted/30 border space-y-4">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Tiempo y Orden
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Puntaje para aprobar (%)</Label>
+                      <Label htmlFor="duracion" className="text-xs text-muted-foreground">
+                        Duración estimada (minutos)
+                      </Label>
                       <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={quizConfig.puntuacion_minima}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, puntuacion_minima: parseInt(e.target.value) || 70 })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Intentos máximos</Label>
-                      <Input
+                        id="duracion"
                         type="number"
                         min={1}
-                        value={quizConfig.intentos_permitidos}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, intentos_permitidos: parseInt(e.target.value) || 3 })}
+                        value={duracion}
+                        onChange={(e) => setDuracion(parseInt(e.target.value) || 10)}
+                        className="h-9"
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <Label>Tiempo límite (min)</Label>
+                      <Label htmlFor="orden" className="text-xs text-muted-foreground">
+                        Orden en el módulo
+                      </Label>
                       <Input
+                        id="orden"
                         type="number"
-                        min={0}
-                        value={quizConfig.tiempo_limite_min || ""}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, tiempo_limite_min: e.target.value ? parseInt(e.target.value) : null })}
-                        placeholder="Sin límite"
+                        min={1}
+                        value={orden}
+                        onChange={(e) => setOrden(parseInt(e.target.value) || 1)}
+                        className="h-9"
                       />
                     </div>
                   </div>
                 </div>
-              )}
-            </TabsContent>
 
-            <TabsContent value="config" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="duracion">Duración estimada (minutos)</Label>
-                  <Input
-                    id="duracion"
-                    type="number"
-                    min={1}
-                    value={duracion}
-                    onChange={(e) => setDuracion(parseInt(e.target.value) || 10)}
-                  />
+                <div className="p-4 rounded-xl bg-muted/30 border space-y-4">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    Opciones
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between py-2">
+                      <div>
+                        <Label htmlFor="obligatorio" className="text-sm font-medium">Contenido Obligatorio</Label>
+                        <p className="text-xs text-muted-foreground">El usuario debe completar este contenido</p>
+                      </div>
+                      <Switch
+                        id="obligatorio"
+                        checked={esObligatorio}
+                        onCheckedChange={setEsObligatorio}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 border-t pt-4">
+                      <div>
+                        <Label htmlFor="activo" className="text-sm font-medium">Contenido Activo</Label>
+                        <p className="text-xs text-muted-foreground">Visible para los usuarios</p>
+                      </div>
+                      <Switch
+                        id="activo"
+                        checked={activo}
+                        onCheckedChange={setActivo}
+                      />
+                    </div>
+                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="orden">Orden</Label>
-                  <Input
-                    id="orden"
-                    type="number"
-                    min={1}
-                    value={orden}
-                    onChange={(e) => setOrden(parseInt(e.target.value) || 1)}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="obligatorio">Contenido Obligatorio</Label>
-                <Switch
-                  id="obligatorio"
-                  checked={esObligatorio}
-                  onCheckedChange={setEsObligatorio}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <Label htmlFor="activo">Contenido Activo</Label>
-                <Switch
-                  id="activo"
-                  checked={activo}
-                  onCheckedChange={setActivo}
-                />
-              </div>
-            </TabsContent>
+              </TabsContent>
+            </div>
           </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          {/* Footer */}
+          <div className="flex-shrink-0 flex justify-end gap-2 pt-4 border-t mt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
