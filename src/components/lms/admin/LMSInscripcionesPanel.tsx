@@ -86,49 +86,68 @@ export function LMSInscripcionesPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
+      {/* Stats Cards - Apple Style */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.totalInscritos}</div>
-              <p className="text-sm text-muted-foreground">Total Inscritos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">{stats.completados}</div>
-              <p className="text-sm text-muted-foreground">Completados</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">{stats.enProgreso}</div>
-              <p className="text-sm text-muted-foreground">En Progreso</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{stats.promedioProgreso}%</div>
-              <p className="text-sm text-muted-foreground">Progreso Promedio</p>
-            </CardContent>
-          </Card>
+        <div className="apple-grid-metrics">
+          <div className="apple-metric-card">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="apple-metric-value">{stats.totalInscritos}</div>
+                <div className="apple-metric-label">Total Inscritos</div>
+              </div>
+            </div>
+          </div>
+          <div className="apple-metric-card apple-metric-success">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+              </div>
+              <div>
+                <div className="apple-metric-value">{stats.completados}</div>
+                <div className="apple-metric-label">Completados</div>
+              </div>
+            </div>
+          </div>
+          <div className="apple-metric-card">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <PlayCircle className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+              </div>
+              <div>
+                <div className="apple-metric-value text-blue-600 dark:text-blue-500">{stats.enProgreso}</div>
+                <div className="apple-metric-label">En Progreso</div>
+              </div>
+            </div>
+          </div>
+          <div className="apple-metric-card">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                <RefreshCw className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="apple-metric-value">{stats.promedioProgreso}%</div>
+                <div className="apple-metric-label">Progreso Promedio</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Inscripciones
-          </CardTitle>
-          <Button onClick={() => setEnrollDialogOpen(true)}>
+      {/* Filters - Sin header redundante */}
+      <div className="apple-surface-elevated p-6 space-y-6">
+        <div className="apple-section-header">
+          <p className="apple-text-body text-muted-foreground">
+            {filteredInscripciones.length} inscripciones encontradas
+          </p>
+          <Button className="apple-button-primary" onClick={() => setEnrollDialogOpen(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
             Nueva Inscripción
           </Button>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div>
           <div className="flex flex-wrap gap-4 mb-6">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -271,8 +290,8 @@ export function LMSInscripcionesPanel() {
               </Table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Enroll Dialog */}
       <EnrollDialog

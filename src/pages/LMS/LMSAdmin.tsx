@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { BookOpen, Users, BarChart3, Plus } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { BookOpen, Users, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { LMSCursosLista } from "@/components/lms/admin/LMSCursosLista";
 import { LMSInscripcionesPanel } from "@/components/lms/admin/LMSInscripcionesPanel";
+import { CustomBreadcrumb } from "@/components/ui/custom-breadcrumb";
 
 export default function LMSAdmin() {
   const navigate = useNavigate();
@@ -13,25 +13,29 @@ export default function LMSAdmin() {
 
   return (
     <div className="container max-w-6xl py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Breadcrumb */}
+      <CustomBreadcrumb 
+        items={[
+          { label: "LMS", href: "/lms" },
+          { label: "Administración" }
+        ]} 
+      />
+
+      {/* Header - Apple Style */}
+      <div className="apple-section-header">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Administración LMS</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="apple-text-largetitle">Administración LMS</h1>
+          <p className="apple-text-subtitle mt-1">
             Gestiona cursos, usuarios y configuración del sistema de aprendizaje
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/lms/reportes')}>
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Ver Reportes
-          </Button>
-          <Button onClick={() => navigate('/lms/admin/cursos/nuevo')}>
-            <Plus className="w-4 h-4 mr-2" />
-            Nuevo Curso
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => navigate('/lms/reportes')}>
+          <BarChart3 className="w-4 h-4 mr-2" />
+          Ver Reportes
+        </Button>
       </div>
 
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
           <TabsTrigger value="cursos" className="gap-2">
