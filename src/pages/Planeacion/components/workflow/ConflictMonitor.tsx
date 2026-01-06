@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ export const ConflictMonitor: React.FC<ConflictMonitorProps> = ({
   const { data: conflictsToday, isLoading, error, refetch } = useQuery({
     queryKey: ['conflict-monitor', new Date().toDateString()],
     queryFn: async (): Promise<ConflictData[]> => {
-      const today = new Date().toISOString().split('T')[0];
+      // Usar format() de date-fns para evitar bug de timezone donde toISOString() convierte a UTC
+      const today = format(new Date(), 'yyyy-MM-dd');
       
       // Obtener servicios planificados de hoy
       const { data: serviciosHoy, error: serviciosError } = await supabase

@@ -656,7 +656,7 @@ export function RequestCreationWorkflow() {
         nombre_cliente: data.cliente_nombre,
         origen: data.origen_texto,
         destino: data.destino_texto,
-        fecha_hora_cita: `${data.fecha_programada}T${data.hora_ventana_inicio}:00.000Z`,
+        fecha_hora_cita: `${data.fecha_programada}T${data.hora_ventana_inicio}:00`,
         tipo_servicio: data.tipo_servicio,
         custodio_asignado: null, // Sin asignar
         custodio_id: null, // Sin asignar
@@ -751,7 +751,7 @@ export function RequestCreationWorkflow() {
         nombre_cliente: finalData.cliente_nombre,
         origen: finalData.origen_texto,
         destino: finalData.destino_texto,
-        fecha_hora_cita: `${finalData.fecha_programada}T${finalData.hora_ventana_inicio}:00.000Z`,
+        fecha_hora_cita: `${finalData.fecha_programada}T${finalData.hora_ventana_inicio}:00`,
         tipo_servicio: finalData.tipo_servicio,
         custodio_asignado: finalData.custodio_nombre,
         custodio_id: finalData.custodio_asignado_id,
