@@ -3,6 +3,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { LMSPregunta, RespuestaQuiz, QuizContent } from "@/types/lms";
 
+// Helper function to award points
+const otorgarPuntos = async (accion: string, referenciaId?: string, referenciaTipo?: string) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase.rpc('lms_otorgar_puntos', {
+      p_usuario_id: user.id,
+      p_accion: accion,
+      p_referencia_id: referenciaId || null,
+      p_referencia_tipo: referenciaTipo || null
+    });
+
+    if (error) {
+      console.error('Error awarding points:', error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('Error in otorgarPuntos:', err);
+    return null;
+  }
+};
+
 // Obtener preguntas de un quiz
 export function useLMSPreguntas(preguntasIds: string[] | undefined) {
   return useQuery({
@@ -153,8 +177,29 @@ export function useLMSGuardarQuiz() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
+      // Award points for quiz completion
+      if (variables.aprobado) {
+        const result = await otorgarPuntos('quiz_aprobado', variables.contenidoId, 'quiz');
+        if (result?.puntos_otorgados > 0) {
+          toast.success(`¡+${result.puntos_otorgados} puntos por aprobar!`, {
+            description: `Total: ${result.puntos_totales} puntos`
+          });
+        }
+        
+        // Bonus for perfect score
+        if (variables.puntaje === 100) {
+          const bonusResult = await otorgarPuntos('quiz_perfecto', variables.contenidoId, 'quiz');
+          if (bonusResult?.puntos_otorgados > 0) {
+            toast.success(`¡+${bonusResult.puntos_otorgados} puntos bonus por puntaje perfecto!`, {
+              description: `Total: ${bonusResult.puntos_totales} puntos`
+            });
+          }
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['lms-progreso', variables.inscripcionId] });
+      queryClient.invalidateQueries({ queryKey: ['lms-gamificacion'] });
     },
     onError: (error) => {
       console.error('Error guardando quiz:', error);

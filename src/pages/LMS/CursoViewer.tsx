@@ -9,7 +9,10 @@ import { ModuleSidebar } from "@/components/lms/ModuleSidebar";
 import { ContentRenderer } from "@/components/lms/ContentRenderer";
 import { useLMSCursoDetalle, useLMSInscripcion, useLMSInscribirse } from "@/hooks/useLMSCursos";
 import { useLMSProgresoContenidos, useLMSMarcarCompletado, useLMSActualizarVideoProgreso } from "@/hooks/useLMSProgreso";
+import { useLMSGenerarCertificado } from "@/hooks/useLMSCertificados";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { LMSContenido, VideoContent } from "@/types/lms";
 
 export default function CursoViewer() {
@@ -26,6 +29,9 @@ export default function CursoViewer() {
   const inscribirse = useLMSInscribirse();
   const marcarCompletado = useLMSMarcarCompletado();
   const actualizarVideoProgreso = useLMSActualizarVideoProgreso();
+  const generarCertificado = useLMSGenerarCertificado();
+  
+  const [certificadoGenerado, setCertificadoGenerado] = useState(false);
 
   // Lista plana de todos los contenidos
   const todosLosContenidos = useMemo(() => {
@@ -89,10 +95,54 @@ export default function CursoViewer() {
     [progresos, contenidoActualId]
   );
 
+  // Auto-generate certificate when course is completed
+  useEffect(() => {
+    const generateCertificate = async () => {
+      if (
+        progresoGeneral === 100 && 
+        inscripcion?.id && 
+        inscripcion?.estado !== 'completado' &&
+        !certificadoGenerado &&
+        !generarCertificado.isPending
+      ) {
+        setCertificadoGenerado(true);
+        
+        // Award points for completing course
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: result } = await supabase.rpc('lms_otorgar_puntos', {
+              p_usuario_id: user.id,
+              p_accion: 'curso_completado',
+              p_referencia_id: cursoId || null,
+              p_referencia_tipo: 'curso'
+            });
+            
+            if (result?.puntos_otorgados > 0) {
+              toast.success(`¡+${result.puntos_otorgados} puntos por completar el curso!`, {
+                description: `Total: ${result.puntos_totales} puntos`
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error awarding course completion points:', err);
+        }
+        
+        // Generate certificate
+        generarCertificado.mutate(inscripcion.id);
+      }
+    };
+    
+    generateCertificate();
+  }, [progresoGeneral, inscripcion, certificadoGenerado, generarCertificado.isPending, cursoId]);
+
   // Handlers
   const handleComplete = () => {
-    if (contenidoActualId && inscripcion?.id) {
-      marcarCompletado.mutate({ contenidoId: contenidoActualId });
+    if (contenidoActualId && inscripcion?.id && contenidoActual) {
+      marcarCompletado.mutate({ 
+        contenidoId: contenidoActualId,
+        tipoContenido: contenidoActual.tipo as 'video' | 'documento' | 'texto_enriquecido' | 'embed' | 'quiz'
+      });
     }
   };
 
