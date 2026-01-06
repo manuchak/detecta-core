@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Search, Filter, BookOpen, Clock, AlertTriangle, Award, Trophy } from "lucide-react";
+import { GraduationCap, Search, Filter, BookOpen, Clock, AlertTriangle, Award, Trophy, Route } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +11,9 @@ import { CourseCard } from "@/components/lms/CourseCard";
 import { GamificacionWidget } from "@/components/lms/gamificacion/GamificacionWidget";
 import { BadgesGrid } from "@/components/lms/gamificacion/BadgesGrid";
 import { MisCertificados } from "@/components/lms/certificados/MisCertificados";
+import { OnboardingPath } from "@/components/lms/OnboardingPath";
 import { useLMSCursosDisponibles, useLMSInscribirse } from "@/hooks/useLMSCursos";
+import { useLMSOnboardingStatus } from "@/hooks/lms/useLMSInscripcionMasiva";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
 import type { CursoDisponible } from "@/types/lms";
 
@@ -22,7 +24,11 @@ export default function LMSDashboard() {
   const [nivelFilter, setNivelFilter] = useState<string>("all");
   
   const { data: cursos, isLoading, error } = useLMSCursosDisponibles();
+  const { data: onboardingStatus } = useLMSOnboardingStatus();
   const inscribirse = useLMSInscribirse();
+  
+  const hasOnboarding = onboardingStatus && onboardingStatus.total_obligatorios > 0;
+  const onboardingIncomplete = hasOnboarding && onboardingStatus.porcentaje_completado < 100;
 
   // Separar cursos por estado
   const cursosObligatoriosPendientes = cursos?.filter(c => 
@@ -126,8 +132,19 @@ export default function LMSDashboard() {
         )}
 
         {/* Tabs principales */}
-        <Tabs defaultValue="mis-cursos" className="space-y-6">
+        <Tabs defaultValue={onboardingIncomplete ? "mi-onboarding" : "mis-cursos"} className="space-y-6">
           <TabsList className="flex-wrap">
+            {hasOnboarding && (
+              <TabsTrigger value="mi-onboarding" className="gap-2">
+                <Route className="h-4 w-4" />
+                Mi Onboarding
+                {onboardingIncomplete && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 rounded-full">
+                    {onboardingStatus.porcentaje_completado}%
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="mis-cursos" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Mis Cursos
@@ -159,6 +176,13 @@ export default function LMSDashboard() {
               Logros
             </TabsTrigger>
           </TabsList>
+
+          {/* Mi Onboarding */}
+          {hasOnboarding && (
+            <TabsContent value="mi-onboarding" className="space-y-6">
+              <OnboardingPath />
+            </TabsContent>
+          )}
 
           {/* Mis Cursos (en progreso) */}
           <TabsContent value="mis-cursos" className="space-y-6">
