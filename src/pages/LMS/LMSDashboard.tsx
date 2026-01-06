@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Search, Filter, BookOpen, Clock, AlertTriangle } from "lucide-react";
+import { GraduationCap, Search, Filter, BookOpen, Clock, AlertTriangle, Award, Trophy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CourseCard } from "@/components/lms/CourseCard";
+import { GamificacionWidget } from "@/components/lms/gamificacion/GamificacionWidget";
+import { BadgesGrid } from "@/components/lms/gamificacion/BadgesGrid";
+import { MisCertificados } from "@/components/lms/certificados/MisCertificados";
 import { useLMSCursosDisponibles, useLMSInscribirse } from "@/hooks/useLMSCursos";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
 import type { CursoDisponible } from "@/types/lms";
@@ -124,7 +127,7 @@ export default function LMSDashboard() {
 
         {/* Tabs principales */}
         <Tabs defaultValue="mis-cursos" className="space-y-6">
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="mis-cursos" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Mis Cursos
@@ -147,40 +150,58 @@ export default function LMSDashboard() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="certificados" className="gap-2">
+              <Award className="h-4 w-4" />
+              Certificados
+            </TabsTrigger>
+            <TabsTrigger value="logros" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              Logros
+            </TabsTrigger>
           </TabsList>
 
           {/* Mis Cursos (en progreso) */}
           <TabsContent value="mis-cursos" className="space-y-6">
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-80 rounded-lg" />
-                ))}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Widget de gamificación en sidebar */}
+              <div className="lg:col-span-1">
+                <GamificacionWidget />
               </div>
-            ) : cursosEnProgreso.length === 0 ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg">
-                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  No tienes cursos en progreso
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  Explora el catálogo y comienza a aprender
-                </p>
-                <Button onClick={() => document.querySelector('[value="catalogo"]')?.dispatchEvent(new Event('click'))}>
-                  Ver Catálogo
-                </Button>
+              
+              {/* Cursos en progreso */}
+              <div className="lg:col-span-3">
+                {isLoading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-80 rounded-lg" />
+                    ))}
+                  </div>
+                ) : cursosEnProgreso.length === 0 ? (
+                  <div className="text-center py-12 bg-muted/30 rounded-lg">
+                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">
+                      No tienes cursos en progreso
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Explora el catálogo y comienza a aprender
+                    </p>
+                    <Button onClick={() => document.querySelector('[value="catalogo"]')?.dispatchEvent(new Event('click'))}>
+                      Ver Catálogo
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {cursosEnProgreso.map(curso => (
+                      <CourseCard
+                        key={curso.id}
+                        curso={curso}
+                        onStartCourse={handleStartCourse}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {cursosEnProgreso.map(curso => (
-                  <CourseCard
-                    key={curso.id}
-                    curso={curso}
-                    onStartCourse={handleStartCourse}
-                  />
-                ))}
-              </div>
-            )}
+            </div>
           </TabsContent>
 
           {/* Catálogo */}
@@ -281,6 +302,23 @@ export default function LMSDashboard() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Certificados */}
+          <TabsContent value="certificados" className="space-y-6">
+            <MisCertificados />
+          </TabsContent>
+
+          {/* Logros */}
+          <TabsContent value="logros" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <GamificacionWidget />
+              </div>
+              <div className="lg:col-span-2">
+                <BadgesGrid />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
