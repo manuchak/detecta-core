@@ -14531,9 +14531,11 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
+          analista_email: string
           analista_nombre: string
           approval_stage: string
-          estado_proceso: string
+          asignado_a: string
+          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string
@@ -14556,9 +14558,11 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
+          analista_email: string
           analista_nombre: string
           approval_stage: string
-          estado_proceso: string
+          asignado_a: string
+          candidato_custodio_id: string
           final_decision: string
           lead_email: string
           lead_estado: string

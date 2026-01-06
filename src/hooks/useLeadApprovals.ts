@@ -588,7 +588,8 @@ export const useLeadApprovals = () => {
   };
 
   // Re-vincular leads aprobados que quedaron sin candidato
-  const retryVinculacion = async (lead: AssignedLead) => {
+  // Retorna el candidatoId si tiene éxito para permitir navegación a liberación
+  const retryVinculacion = async (lead: AssignedLead): Promise<string | null> => {
     try {
       console.log('🔗 Intentando re-vincular lead:', lead.lead_id);
       
@@ -619,12 +620,9 @@ export const useLeadApprovals = () => {
 
       console.log('✅ Lead re-vinculado exitosamente:', candidatoId);
 
-      toast({
-        title: "Candidato vinculado",
-        description: "El candidato ha sido vinculado correctamente. Ahora puedes liberarlo.",
-      });
-
       await refreshAfterCall();
+      
+      return candidatoId as string;
     } catch (error) {
       console.error('Error completo al re-vincular lead:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
@@ -633,6 +631,7 @@ export const useLeadApprovals = () => {
         description: `No se pudo vincular el candidato: ${errorMessage}`,
         variant: "destructive",
       });
+      return null;
     }
   };
 

@@ -285,6 +285,38 @@ export const LeadApprovals = () => {
     }
   };
 
+  // Handler para re-vincular y navegar automáticamente a liberación
+  const handleRetryVinculacion = async (lead: AssignedLead) => {
+    const candidatoId = await retryVinculacion(lead);
+    
+    if (candidatoId) {
+      toast({
+        title: "Candidato vinculado",
+        description: "Iniciando proceso de liberación...",
+      });
+      
+      // Iniciar liberación automáticamente después de vincular
+      try {
+        await createLiberacion.mutateAsync(lead.lead_id);
+        toast({
+          title: "Liberación iniciada",
+          description: `Redirigiendo al proceso de liberación para ${lead.lead_nombre}`,
+        });
+        navigate('/leads/liberacion');
+      } catch (error: any) {
+        // Si ya existe liberación, navegar de todos modos
+        if (error.message?.includes('ya tiene')) {
+          navigate('/leads/liberacion');
+        } else {
+          toast({
+            title: "Candidato vinculado",
+            description: "Puedes iniciar la liberación manualmente con el botón 'Liberar'.",
+          });
+        }
+      }
+    }
+  };
+
   const handleConfirmReject = (reasons: string[], customReason: string) => {
     if (selectedLead) {
       handleRejectWithReasons(selectedLead, reasons, customReason);
@@ -522,7 +554,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
-                  onRetryVinculacion={retryVinculacion}
+                  onRetryVinculacion={handleRetryVinculacion}
                 />
                 <LeadsPagination
                   currentPage={page}
@@ -552,7 +584,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
-                  onRetryVinculacion={retryVinculacion}
+                  onRetryVinculacion={handleRetryVinculacion}
                 />
               </TabsContent>
 
@@ -574,7 +606,7 @@ export const LeadApprovals = () => {
                   onLogCall={handleLogCall}
                   onMoveToPool={handleMoveToPool}
                   onIniciarLiberacion={handleIniciarLiberacion}
-                  onRetryVinculacion={retryVinculacion}
+                  onRetryVinculacion={handleRetryVinculacion}
                 />
               </TabsContent>
 
