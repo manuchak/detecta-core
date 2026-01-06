@@ -13,6 +13,8 @@ export const getRoleBadgeColor = (role: string) => {
     case 'supply_lead':
     case 'monitoring_supervisor':
       return 'bg-amber-500 hover:bg-amber-600';
+    case 'capacitacion_admin':
+      return 'bg-teal-500 hover:bg-teal-600';
     case 'planificador':
       return 'bg-green-500 hover:bg-green-600';
     case 'supply':
