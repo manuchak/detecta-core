@@ -13903,25 +13903,22 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
-          analista_email: string
+          analista_id: string
           analista_nombre: string
-          approval_stage: string
-          asignado_a: string
-          candidato_custodio_id: string
-          fecha_entrada_pool: string
+          approval_notes: string
+          approval_updated_at: string
+          created_at: string
+          current_stage: string
+          decision_reason: string
+          email: string
+          estado_proceso: string
           final_decision: string
-          lead_email: string
-          lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
-          notas: string
+          nombre: string
           phone_interview_completed: boolean
-          scheduled_call_datetime: string
           second_interview_required: boolean
+          telefono: string
           zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_analyst_assigned_leads_v2: {
@@ -13933,25 +13930,22 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
-          analista_email: string
+          analista_id: string
           analista_nombre: string
-          approval_stage: string
-          asignado_a: string
-          candidato_custodio_id: string
-          fecha_entrada_pool: string
+          approval_notes: string
+          approval_updated_at: string
+          created_at: string
+          current_stage: string
+          decision_reason: string
+          email: string
+          estado_proceso: string
           final_decision: string
-          lead_email: string
-          lead_estado: string
-          lead_fecha_creacion: string
           lead_id: string
-          lead_nombre: string
-          lead_telefono: string
-          notas: string
+          nombre: string
           phone_interview_completed: boolean
-          scheduled_call_datetime: string
           second_interview_required: boolean
+          telefono: string
           zona_nombre: string
-          zona_preferida_id: string
         }[]
       }
       get_available_roles_secure: { Args: never; Returns: string[] }
