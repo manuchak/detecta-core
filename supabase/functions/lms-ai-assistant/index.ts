@@ -104,6 +104,9 @@ La imagen debe ser:
 - Sin texto superpuesto
 - Aspecto 16:9 horizontal`;
 
+      const imageController = new AbortController();
+      const imageTimeoutId = setTimeout(() => imageController.abort(), 25000);
+
       const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -115,7 +118,9 @@ La imagen debe ser:
           messages: [{ role: "user", content: imagePrompt }],
           modalities: ["image", "text"]
         }),
+        signal: imageController.signal
       });
+      clearTimeout(imageTimeoutId);
 
       if (!imageResponse.ok) {
         const errorText = await imageResponse.text();
@@ -177,6 +182,9 @@ La imagen debe ser:
         break;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -191,7 +199,9 @@ La imagen debe ser:
         ],
         temperature: 0.7,
       }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -240,6 +250,14 @@ La imagen debe ser:
 
   } catch (error) {
     console.error("[lms-ai-assistant] Error:", error);
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      return new Response(
+        JSON.stringify({ error: "La solicitud tardó demasiado. Intenta de nuevo." }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

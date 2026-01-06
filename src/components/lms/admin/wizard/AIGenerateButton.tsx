@@ -46,7 +46,7 @@ export function AIGenerateButton({
       <Icon className={cn("h-4 w-4", loading && "animate-spin")} />
       {size !== "icon" && (
         <span className="ml-2">
-          {loading ? "Generando..." : success ? "Generado" : "Generar con IA"}
+          {loading ? "Generando... (10-15s)" : success ? "Generado" : "Generar con IA"}
         </span>
       )}
     </Button>
