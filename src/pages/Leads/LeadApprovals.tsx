@@ -27,7 +27,7 @@ import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecove
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
 import { LeadsPagination } from "@/components/leads/approval/LeadsPagination";
-import { useSandbox } from "@/hooks";
+import { useSandbox, useAuth } from "@/hooks";
 import { supabase } from "@/integrations/supabase/client";
 import { exportLeadsToCSV } from "@/utils/exportLeadsCSV";
 import { toast } from "@/hooks/use-toast";
@@ -38,6 +38,7 @@ export const LeadApprovals = () => {
   console.log('🚀 LeadApprovals: Component rendering started');
   
   const { isSandboxMode } = useSandbox();
+  const { userRole } = useAuth();
   
   const {
     assignedLeads,
@@ -436,6 +437,7 @@ export const LeadApprovals = () => {
               onSaveView={handleSaveView}
               onLoadView={handleLoadView}
               onDeleteView={deleteView}
+              userRole={userRole}
             />
             <Button
               variant="ghost"

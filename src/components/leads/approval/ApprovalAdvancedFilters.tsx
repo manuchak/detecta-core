@@ -38,6 +38,8 @@ interface ApprovalAdvancedFiltersProps {
   onSaveView?: (name: string) => void;
   onLoadView?: (view: SavedView) => void;
   onDeleteView?: (viewId: string) => void;
+  // User role for conditional rendering
+  userRole?: string | null;
 }
 
 export const ApprovalAdvancedFilters = ({ 
@@ -48,7 +50,8 @@ export const ApprovalAdvancedFilters = ({
   savedViews = [],
   onSaveView,
   onLoadView,
-  onDeleteView
+  onDeleteView,
+  userRole
 }: ApprovalAdvancedFiltersProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -350,29 +353,32 @@ export const ApprovalAdvancedFilters = ({
                   </Select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="assignedAnalyst" className="text-xs">Analista asignado</Label>
-                  <Select value={filters.assignedAnalyst} onValueChange={(value) => handleFilterChange('assignedAnalyst', value)}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Todos los analistas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos los analistas</SelectItem>
-                      <SelectItem value="unassigned">Sin asignar</SelectItem>
-                      {(() => {
-                        const uniqueAnalysts = new Map<string, string>();
-                        leads.forEach((lead: any) => {
-                          if (lead.asignado_a && lead.analista_nombre) {
-                            uniqueAnalysts.set(lead.asignado_a, lead.analista_nombre);
-                          }
-                        });
-                        return Array.from(uniqueAnalysts.entries()).map(([id, name]) => (
-                          <SelectItem key={id} value={id}>{name}</SelectItem>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Solo mostrar filtro de analista para admin/owner/supply_admin */}
+                {(['admin', 'owner', 'supply_admin'].includes(userRole || '')) && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="assignedAnalyst" className="text-xs">Analista asignado</Label>
+                    <Select value={filters.assignedAnalyst} onValueChange={(value) => handleFilterChange('assignedAnalyst', value)}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Todos los analistas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los analistas</SelectItem>
+                        <SelectItem value="unassigned">Sin asignar</SelectItem>
+                        {(() => {
+                          const uniqueAnalysts = new Map<string, string>();
+                          leads.forEach((lead: any) => {
+                            if (lead.asignado_a && lead.analista_nombre) {
+                              uniqueAnalysts.set(lead.asignado_a, lead.analista_nombre);
+                            }
+                          });
+                          return Array.from(uniqueAnalysts.entries()).map(([id, name]) => (
+                            <SelectItem key={id} value={id}>{name}</SelectItem>
+                          ));
+                        })()}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
           </div>
