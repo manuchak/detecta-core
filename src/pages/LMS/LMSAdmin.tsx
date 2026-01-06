@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings, BookOpen, Users, BarChart3, ArrowRight, Plus } from "lucide-react";
+import { BookOpen, Users, BarChart3, Plus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

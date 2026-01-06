@@ -1,6 +1,9 @@
 // Tipos para Reportes LMS - Fase 5
+// Nota: Importar EstadoInscripcion desde types/lms.ts para consistencia
+import type { EstadoInscripcion } from './lms';
 
-export type EstadoInscripcion = 'inscrito' | 'en_progreso' | 'completado' | 'vencido' | 'cancelado';
+// Re-export para compatibilidad
+export type { EstadoInscripcion };
 
 // Métricas de Adopción
 export interface InscripcionPorMes {

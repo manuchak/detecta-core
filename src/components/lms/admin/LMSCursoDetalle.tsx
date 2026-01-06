@@ -5,21 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
-  ArrowLeft, Plus, GripVertical, Edit2, Trash2, Eye, EyeOff,
+  ArrowLeft, Plus, GripVertical, Edit2, Trash2, EyeOff,
   ChevronDown, ChevronRight, BookOpen, FileText, Video, HelpCircle
 } from "lucide-react";
 import { useLMSAdminCursoDetalle } from "@/hooks/lms/useLMSAdminCursos";
-import { useLMSAdminModulos, useLMSCrearModulo, useLMSActualizarModulo, useLMSEliminarModulo } from "@/hooks/lms/useLMSAdminModulos";
-import { useLMSAdminContenidos, useLMSCrearContenido, useLMSActualizarContenido, useLMSEliminarContenido } from "@/hooks/lms/useLMSAdminContenidos";
+import { useLMSCrearModulo, useLMSActualizarModulo, useLMSEliminarModulo } from "@/hooks/lms/useLMSAdminModulos";
+import { useLMSCrearContenido, useLMSActualizarContenido, useLMSEliminarContenido } from "@/hooks/lms/useLMSAdminContenidos";
 import { LMSModuloForm } from "./LMSModuloForm";
 import { LMSContenidoForm } from "./LMSContenidoForm";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import type { TipoContenido } from "@/types/lms";
 
 const TIPO_ICONO: Record<string, React.ElementType> = {
   video: Video,
-  texto: FileText,
+  texto_enriquecido: FileText,
   documento: FileText,
   quiz: HelpCircle,
   default: BookOpen
@@ -130,6 +131,13 @@ export function LMSCursoDetalle() {
     }
   };
 
+  // Calcular nextOrden para contenido basado en el módulo seleccionado
+  const getNextContenidoOrden = () => {
+    if (!selectedModuloId) return 1;
+    const selectedModulo = modulos.find(m => m.id === selectedModuloId);
+    return (selectedModulo?.contenidos?.length || 0) + 1;
+  };
+
   if (loadingCurso) {
     return (
       <div className="container max-w-5xl py-8 space-y-6">
@@ -149,6 +157,9 @@ export function LMSCursoDetalle() {
       </div>
     );
   }
+
+  // Calcular duración en horas desde minutos
+  const duracionHoras = Math.round((curso.duracion_estimada_min || 0) / 60);
 
   return (
     <div className="container max-w-5xl py-8 space-y-6">
@@ -182,14 +193,14 @@ export function LMSCursoDetalle() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">
-              {modulos.reduce((acc, m) => acc + (m.lms_contenidos?.length || 0), 0)}
+              {modulos.reduce((acc, m) => acc + (m.contenidos?.length || 0), 0)}
             </div>
             <p className="text-sm text-muted-foreground">Contenidos</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{curso.duracion_estimada_horas || 0}h</div>
+            <div className="text-2xl font-bold">{duracionHoras || curso.duracion_estimada_min}h</div>
             <p className="text-sm text-muted-foreground">Duración</p>
           </CardContent>
         </Card>
@@ -233,7 +244,7 @@ export function LMSCursoDetalle() {
                 onDelete={() => setDeleteDialog({ type: 'modulo', id: modulo.id, nombre: modulo.titulo })}
                 onAddContenido={() => { setSelectedModuloId(modulo.id); setEditingContenido(null); setContenidoFormOpen(true); }}
                 onEditContenido={(c) => { setEditingContenido(c); setSelectedModuloId(modulo.id); setContenidoFormOpen(true); }}
-                onDeleteContenido={(c) => setDeleteDialog({ type: 'contenido', id: c.id, nombre: c.titulo })}
+                onDeleteContenido={(c) => { setSelectedModuloId(modulo.id); setDeleteDialog({ type: 'contenido', id: c.id, nombre: c.titulo }); }}
               />
             ))
           )}
@@ -256,7 +267,7 @@ export function LMSCursoDetalle() {
         onOpenChange={setContenidoFormOpen}
         moduloId={selectedModuloId || ""}
         contenido={editingContenido}
-        nextOrden={editingModulo?.lms_contenidos?.length + 1 || 1}
+        nextOrden={getNextContenidoOrden()}
         onSubmit={editingContenido ? handleUpdateContenido : handleCreateContenido}
         isLoading={createContenido.isPending || updateContenido.isPending}
       />
@@ -307,7 +318,7 @@ function ModuloCard({
   onEditContenido,
   onDeleteContenido 
 }: ModuloCardProps) {
-  const contenidos = modulo.lms_contenidos || [];
+  const contenidos = modulo.contenidos || [];
   
   return (
     <Collapsible open={expanded} onOpenChange={onToggle}>
@@ -353,7 +364,8 @@ function ModuloCard({
               </p>
             ) : (
               contenidos.map((contenido: any) => {
-                const Icon = TIPO_ICONO[contenido.tipo_contenido] || TIPO_ICONO.default;
+                const Icon = TIPO_ICONO[contenido.tipo] || TIPO_ICONO.default;
+                const esQuiz = contenido.tipo === 'quiz';
                 return (
                   <div 
                     key={contenido.id} 
@@ -363,11 +375,11 @@ function ModuloCard({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{contenido.titulo}</span>
-                        {contenido.es_quiz && <Badge variant="outline" className="text-xs">Quiz</Badge>}
+                        {esQuiz && <Badge variant="outline" className="text-xs">Quiz</Badge>}
                         {!contenido.activo && <Badge variant="secondary" className="text-xs">Inactivo</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {contenido.duracion_estimada_minutos} min • {contenido.tipo_contenido}
+                        {contenido.duracion_min} min • {contenido.tipo}
                       </p>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => onEditContenido(contenido)}>

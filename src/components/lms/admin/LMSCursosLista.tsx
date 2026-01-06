@@ -9,7 +9,6 @@ import {
   Eye, 
   EyeOff,
   MoreVertical,
-  GripVertical,
   Users,
   Clock,
   ChevronRight
