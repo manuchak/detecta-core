@@ -1,9 +1,7 @@
 import { Certificado } from "@/hooks/useLMSCertificados";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Award, Download, Printer, X } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { Award, Printer, X } from "lucide-react";
 import { useRef } from "react";
 
 interface CertificadoViewerProps {

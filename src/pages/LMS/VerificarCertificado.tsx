@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { useLMSVerificarCertificado } from "@/hooks/useLMSCertificados";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,8 +8,17 @@ import { Award, CheckCircle, XCircle, Search, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function VerificarCertificado() {
+  const { codigo: codigoUrl } = useParams<{ codigo?: string }>();
   const [codigo, setCodigo] = useState("");
   const verificar = useLMSVerificarCertificado();
+
+  // Auto-verify if code comes from URL
+  useEffect(() => {
+    if (codigoUrl && codigoUrl.length >= 10) {
+      setCodigo(codigoUrl.toUpperCase());
+      verificar.mutate(codigoUrl);
+    }
+  }, [codigoUrl]);
 
   const handleVerificar = () => {
     if (codigo.trim().length < 10) return;

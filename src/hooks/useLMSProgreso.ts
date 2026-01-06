@@ -53,9 +53,11 @@ export const useLMSMarcarCompletado = () => {
 
   return useMutation({
     mutationFn: async ({ 
-      contenidoId, 
+      contenidoId,
+      tipoContenido,
       datosExtra 
-    }: { 
+    }: {
+      tipoContenido?: 'video' | 'documento' | 'texto_enriquecido' | 'embed' | 'quiz';
       contenidoId: string; 
       datosExtra?: Record<string, any>;
     }) => {
@@ -68,12 +70,23 @@ export const useLMSMarcarCompletado = () => {
       return data;
     },
     onSuccess: async (data, variables) => {
-      // Award points for completing content
-      const result = await otorgarPuntos('completar_contenido', variables.contenidoId, 'contenido');
-      if (result?.puntos_otorgados > 0) {
-        toast.success(`¡+${result.puntos_otorgados} puntos!`, {
-          description: `Total: ${result.puntos_totales} puntos`
-        });
+      // Map content type to points action
+      const accionesMap: Record<string, string> = {
+        'video': 'contenido_video',
+        'documento': 'contenido_documento',
+        'texto_enriquecido': 'contenido_texto',
+        'embed': 'contenido_texto',
+      };
+      
+      const accion = variables.tipoContenido ? accionesMap[variables.tipoContenido] : null;
+      
+      if (accion) {
+        const result = await otorgarPuntos(accion, variables.contenidoId, 'contenido');
+        if (result?.puntos_otorgados > 0) {
+          toast.success(`¡+${result.puntos_otorgados} puntos!`, {
+            description: `Total: ${result.puntos_totales} puntos`
+          });
+        }
       }
       
       // Invalidar queries relacionadas
