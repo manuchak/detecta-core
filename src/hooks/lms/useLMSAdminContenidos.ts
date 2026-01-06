@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { LMSContenido, ContenidoFormData } from "@/types/lms";
 
 // =====================================================
 // Hooks de Administración de Contenidos LMS
@@ -11,7 +10,7 @@ import type { LMSContenido, ContenidoFormData } from "@/types/lms";
 export const useLMSAdminContenidos = (moduloId: string | undefined) => {
   return useQuery({
     queryKey: ['lms-admin-contenidos', moduloId],
-    queryFn: async (): Promise<LMSContenido[]> => {
+    queryFn: async () => {
       if (!moduloId) return [];
 
       const { data, error } = await supabase
@@ -24,7 +23,7 @@ export const useLMSAdminContenidos = (moduloId: string | undefined) => {
         console.error('Error fetching contents:', error);
         throw error;
       }
-      return (data || []) as LMSContenido[];
+      return data || [];
     },
     enabled: !!moduloId,
     staleTime: 30000,
@@ -43,7 +42,7 @@ export const useLMSCrearContenido = () => {
     }: { 
       moduloId: string; 
       cursoId: string;
-      data: ContenidoFormData 
+      data: any;
     }) => {
       // Obtener máximo orden
       const { data: maxOrden } = await supabase
@@ -60,13 +59,16 @@ export const useLMSCrearContenido = () => {
         .from('lms_contenidos')
         .insert({
           modulo_id: moduloId,
-          tipo: data.tipo,
           titulo: data.titulo,
-          contenido: data.contenido,
-          duracion_min: data.duracion_min,
-          es_obligatorio: data.es_obligatorio,
+          tipo_contenido: data.tipo_contenido || 'texto',
+          contenido_texto: data.contenido_texto,
+          contenido_url: data.contenido_url,
+          contenido_video_url: data.contenido_video_url,
+          duracion_estimada_minutos: data.duracion_estimada_minutos || 10,
+          es_quiz: data.es_quiz || false,
+          quiz_config: data.quiz_config,
           orden: nuevoOrden,
-          activo: true,
+          activo: data.activo ?? true,
         })
         .select()
         .single();
@@ -100,7 +102,7 @@ export const useLMSActualizarContenido = () => {
       id: string; 
       moduloId: string;
       cursoId: string; 
-      data: Partial<ContenidoFormData> 
+      data: any;
     }) => {
       const { data: contenido, error } = await supabase
         .from('lms_contenidos')

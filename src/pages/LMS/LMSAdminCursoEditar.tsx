@@ -1,27 +1,14 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { useLMSAdminCursoDetalle, useLMSActualizarCurso } from "@/hooks/lms/useLMSAdminCursos";
+import { useLMSAdminCursoDetalle } from "@/hooks/lms/useLMSAdminCursos";
 import { LMSCursoForm } from "@/components/lms/admin/LMSCursoForm";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export default function LMSAdminCursoEditar() {
   const { cursoId } = useParams<{ cursoId: string }>();
   const navigate = useNavigate();
   
   const { data: curso, isLoading } = useLMSAdminCursoDetalle(cursoId!);
-  const updateCurso = useLMSActualizarCurso();
-
-  const handleSubmit = async (data: any) => {
-    try {
-      await updateCurso.mutateAsync({ id: cursoId!, data });
-      toast.success("Curso actualizado exitosamente");
-      navigate(`/lms/admin/cursos/${cursoId}`);
-    } catch (error) {
-      toast.error("Error al actualizar el curso");
-    }
-  };
 
   if (isLoading) {
     return (
@@ -44,19 +31,11 @@ export default function LMSAdminCursoEditar() {
   }
 
   return (
-    <div className="container max-w-3xl py-8 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h1 className="text-2xl font-bold">Editar Curso</h1>
-      </div>
-
+    <div className="container max-w-3xl py-8">
       <LMSCursoForm
         curso={curso}
-        onSubmit={handleSubmit}
-        isLoading={updateCurso.isPending}
-        onCancel={() => navigate(-1)}
+        onBack={() => navigate(-1)}
+        onSuccess={() => navigate(`/lms/admin/cursos/${cursoId}`)}
       />
     </div>
   );
