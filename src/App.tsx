@@ -88,6 +88,7 @@ const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
 const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 const LMSDashboard = lazy(() => import('@/pages/LMS/LMSDashboard'));
 const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
+const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -782,6 +783,19 @@ function App() {
                       <UnifiedLayout>
                         <CursoViewer />
                       </UnifiedLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/lms/admin"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <UnifiedLayout>
+                          <LMSAdmin />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
