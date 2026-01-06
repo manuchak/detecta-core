@@ -15689,6 +15689,10 @@ export type Database = {
         Args: { p_inscripcion_id: string }
         Returns: Json
       }
+      lms_contar_usuarios_por_rol: {
+        Args: { p_curso_id: string; p_roles: string[] }
+        Returns: Json
+      }
       lms_generar_certificado: {
         Args: { p_inscripcion_id: string }
         Returns: Json
@@ -15715,6 +15719,19 @@ export type Database = {
         }[]
       }
       lms_get_gamificacion_perfil: { Args: never; Returns: Json }
+      lms_get_onboarding_status: {
+        Args: { p_usuario_id?: string }
+        Returns: Json
+      }
+      lms_inscribir_usuarios_por_rol: {
+        Args: {
+          p_curso_id: string
+          p_plazo_dias?: number
+          p_roles: string[]
+          p_tipo_inscripcion?: string
+        }
+        Returns: Json
+      }
       lms_inscribirse_curso: {
         Args: { p_curso_id: string; p_user_id?: string }
         Returns: Json
@@ -15723,6 +15740,7 @@ export type Database = {
         Args: { p_contenido_id: string; p_datos_extra?: Json }
         Returns: Json
       }
+      lms_marcar_inscripciones_vencidas: { Args: never; Returns: number }
       lms_otorgar_puntos: {
         Args: {
           p_accion: string

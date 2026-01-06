@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Search, UserPlus, Trash2, RefreshCw, CheckCircle, Clock, XCircle, 
-  AlertTriangle, Filter, Users, PlayCircle
+  AlertTriangle, Filter, Users, PlayCircle, UsersRound
 } from "lucide-react";
+import { InscripcionMasivaDialog } from "./InscripcionMasivaDialog";
 import { 
   useLMSAdminInscripciones, 
   useLMSInscribirUsuarios, 
@@ -41,6 +42,7 @@ export function LMSInscripcionesPanel() {
   const [filterCurso, setFilterCurso] = useState<string>("all");
   const [filterEstado, setFilterEstado] = useState<string>("all");
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [masiveDialogOpen, setMasiveDialogOpen] = useState(false);
   const [selectedCursoForEnroll, setSelectedCursoForEnroll] = useState<string>("");
 
   const { data: cursos = [] } = useLMSAdminCursos();
@@ -142,10 +144,16 @@ export function LMSInscripcionesPanel() {
           <p className="apple-text-body text-muted-foreground">
             {filteredInscripciones.length} inscripciones encontradas
           </p>
-          <Button className="apple-button-primary" onClick={() => setEnrollDialogOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Nueva Inscripción
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setMasiveDialogOpen(true)}>
+              <UsersRound className="w-4 h-4 mr-2" />
+              Inscripción Masiva
+            </Button>
+            <Button className="apple-button-primary" onClick={() => setEnrollDialogOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Nueva Inscripción
+            </Button>
+          </div>
         </div>
         <div>
           <div className="flex flex-wrap gap-4 mb-6">
@@ -310,6 +318,12 @@ export function LMSInscripcionesPanel() {
           }
         }}
         isLoading={enrollUser.isPending}
+      />
+
+      {/* Inscripción Masiva Dialog */}
+      <InscripcionMasivaDialog 
+        open={masiveDialogOpen} 
+        onOpenChange={setMasiveDialogOpen} 
       />
     </div>
   );

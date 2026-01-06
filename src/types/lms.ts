@@ -401,3 +401,12 @@ export const LMS_ESTADOS_INSCRIPCION: { value: EstadoInscripcion; label: string;
   { value: 'vencido', label: 'Vencido', color: 'bg-red-100 text-red-800' },
   { value: 'abandonado', label: 'Abandonado', color: 'bg-gray-100 text-gray-800' },
 ];
+
+export const LMS_ROLES_OBJETIVO: { value: string; label: string }[] = [
+  { value: 'custodio', label: 'Custodio' },
+  { value: 'supply_admin', label: 'Admin Supply' },
+  { value: 'admin', label: 'Administrador' },
+  { value: 'owner', label: 'Owner' },
+  { value: 'operador', label: 'Operador' },
+  { value: 'monitoreo', label: 'Monitoreo' },
+];
