@@ -1,7 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { LMSCurso, CursoFormData } from "@/types/lms";
+import type { LMSCurso, CursoFormData, TipoContenido } from "@/types/lms";
+
+// =====================================================
+// Types for complete course creation
+// =====================================================
+
+interface ContentOutlineData {
+  id: string;
+  titulo: string;
+  tipo: 'video' | 'documento' | 'texto_enriquecido' | 'quiz' | 'interactivo';
+  duracion_min: number;
+  orden: number;
+  contenido?: any;
+}
+
+interface ModuleOutlineData {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  orden: number;
+  contenidos: ContentOutlineData[];
+}
+
+interface CursoCompletoData {
+  curso: CursoFormData;
+  modulos: ModuleOutlineData[];
+}
 
 // =====================================================
 // Hooks de Administración de Cursos LMS
@@ -66,7 +92,7 @@ export const useLMSAdminCursoDetalle = (cursoId: string | undefined) => {
   });
 };
 
-// Crear curso
+// Crear curso (legacy - solo curso sin módulos)
 export const useLMSCrearCurso = () => {
   const queryClient = useQueryClient();
 
@@ -108,6 +134,111 @@ export const useLMSCrearCurso = () => {
     },
   });
 };
+
+// Crear curso completo con módulos y contenidos
+export const useLMSCrearCursoCompleto = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ curso, modulos }: CursoCompletoData) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No autenticado');
+
+      // 1. Obtener el máximo orden actual
+      const { data: maxOrden } = await supabase
+        .from('lms_cursos')
+        .select('orden')
+        .order('orden', { ascending: false })
+        .limit(1)
+        .single();
+
+      const nuevoOrden = (maxOrden?.orden ?? 0) + 1;
+
+      // 2. Crear el curso
+      const { data: nuevoCurso, error: cursoError } = await supabase
+        .from('lms_cursos')
+        .insert({
+          ...curso,
+          orden: nuevoOrden,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (cursoError) throw cursoError;
+
+      // 3. Crear módulos y contenidos
+      for (const modulo of modulos) {
+        const { data: nuevoModulo, error: moduloError } = await supabase
+          .from('lms_modulos')
+          .insert({
+            curso_id: nuevoCurso.id,
+            titulo: modulo.titulo,
+            descripcion: modulo.descripcion,
+            orden: modulo.orden,
+            activo: true,
+          })
+          .select()
+          .single();
+
+        if (moduloError) {
+          console.error('Error creating module:', moduloError);
+          continue;
+        }
+
+        // 4. Crear contenidos del módulo
+        for (const contenido of modulo.contenidos) {
+          const contenidoData = getDefaultContenidoData(contenido.tipo);
+          
+          const { error: contenidoError } = await supabase
+            .from('lms_contenidos')
+            .insert({
+              modulo_id: nuevoModulo.id,
+              tipo: contenido.tipo as TipoContenido,
+              titulo: contenido.titulo,
+              contenido: contenidoData,
+              duracion_min: contenido.duracion_min,
+              es_obligatorio: true,
+              orden: contenido.orden,
+              activo: true,
+            });
+
+          if (contenidoError) {
+            console.error('Error creating content:', contenidoError);
+          }
+        }
+      }
+
+      return nuevoCurso;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lms-admin-cursos'] });
+      toast.success('Curso creado exitosamente con su estructura');
+    },
+    onError: (error: any) => {
+      console.error('Error creating complete course:', error);
+      toast.error(error.message || 'Error al crear el curso');
+    },
+  });
+};
+
+// Helper to get default content data based on type
+function getDefaultContenidoData(tipo: string): any {
+  switch (tipo) {
+    case 'video':
+      return { url: '', provider: 'youtube' };
+    case 'documento':
+      return { url: '', tipo: 'pdf' };
+    case 'texto_enriquecido':
+      return { html: '<p>Contenido pendiente de editar</p>' };
+    case 'quiz':
+      return { preguntas_ids: [], puntuacion_minima: 70, intentos_permitidos: 3, mostrar_respuestas_correctas: true };
+    case 'interactivo':
+      return { tipo: 'flashcards', data: { cards: [] } };
+    default:
+      return { html: '' };
+  }
+}
 
 // Actualizar curso
 export const useLMSActualizarCurso = () => {

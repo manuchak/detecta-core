@@ -5,13 +5,12 @@ import { z } from "zod";
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useLMSCrearCurso } from "@/hooks/lms/useLMSAdminCursos";
+import { useLMSCrearCursoCompleto } from "@/hooks/lms/useLMSAdminCursos";
 import { useNavigate } from "react-router-dom";
 import { StepIdentidad } from "./wizard/StepIdentidad";
+import { StepEstructura, type ModuleOutline } from "./wizard/StepEstructura";
 import { StepConfiguracion } from "./wizard/StepConfiguracion";
-import { StepAudiencia } from "./wizard/StepAudiencia";
-import { StepRevisar } from "./wizard/StepRevisar";
-import type { CursoFormData } from "@/types/lms";
+import { StepVistaPrevia } from "./wizard/StepVistaPrevia";
 import { cn } from "@/lib/utils";
 
 const cursoSchema = z.object({
@@ -36,16 +35,17 @@ interface LMSCursoWizardProps {
 }
 
 const STEPS = [
-  { id: 1, title: 'Identidad', subtitle: 'Nombre y descripción del curso' },
-  { id: 2, title: 'Configuración', subtitle: 'Categoría, nivel y duración' },
-  { id: 3, title: 'Audiencia', subtitle: 'Roles objetivo y obligatoriedad' },
-  { id: 4, title: 'Revisar', subtitle: 'Confirma y publica' },
+  { id: 1, title: 'Identidad', subtitle: 'Nombre y descripción' },
+  { id: 2, title: 'Estructura', subtitle: 'Módulos y contenidos' },
+  { id: 3, title: 'Configuración', subtitle: 'Audiencia y plazos' },
+  { id: 4, title: 'Vista Previa', subtitle: 'Revisar y publicar' },
 ];
 
 export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   const [step, setStep] = useState(1);
+  const [modulos, setModulos] = useState<ModuleOutline[]>([]);
   const navigate = useNavigate();
-  const crearCurso = useLMSCrearCurso();
+  const crearCurso = useLMSCrearCursoCompleto();
 
   const form = useForm<CursoSchemaType>({
     resolver: zodResolver(cursoSchema),
@@ -65,14 +65,24 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     },
   });
 
+  // Update duration when modules change
+  const updateDurationFromModules = () => {
+    const totalDuration = modulos.reduce((acc, mod) => 
+      acc + mod.contenidos.reduce((cAcc, c) => cAcc + c.duracion_min, 0), 0
+    );
+    if (totalDuration > 0) {
+      form.setValue('duracion_estimada_min', totalDuration);
+    }
+  };
+
   const canProceed = (): boolean => {
     switch (step) {
       case 1:
         return !!form.watch('codigo') && !!form.watch('titulo');
       case 2:
-        return !!form.watch('nivel') && !!form.watch('duracion_estimada_min');
+        return true; // Structure is optional but recommended
       case 3:
-        return true; // Roles son opcionales
+        return !!form.watch('nivel');
       case 4:
         return true;
       default:
@@ -81,10 +91,13 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   };
 
   const handleNext = async () => {
+    if (step === 2) {
+      updateDurationFromModules();
+    }
+    
     if (step < STEPS.length) {
       setStep(step + 1);
     } else {
-      // Submit
       await handleSubmit();
     }
   };
@@ -100,23 +113,30 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   const handleSubmit = async () => {
     try {
       const data = form.getValues();
-      const formData: CursoFormData = {
-        codigo: data.codigo,
-        titulo: data.titulo,
-        descripcion: data.descripcion || undefined,
-        imagen_portada_url: data.imagen_portada_url || undefined,
-        categoria: data.categoria,
-        nivel: data.nivel,
-        duracion_estimada_min: data.duracion_estimada_min,
-        es_obligatorio: data.es_obligatorio,
-        roles_objetivo: data.roles_objetivo,
-        plazo_dias_default: data.plazo_dias_default,
-        activo: data.activo,
-        publicado: data.publicado,
-      };
+      
+      // Calculate final duration from modules
+      const totalDuration = modulos.reduce((acc, mod) => 
+        acc + mod.contenidos.reduce((cAcc, c) => cAcc + c.duracion_min, 0), 0
+      ) || data.duracion_estimada_min;
 
-      const nuevoCurso = await crearCurso.mutateAsync(formData);
-      // Navigate to course detail instead of list
+      const nuevoCurso = await crearCurso.mutateAsync({
+        curso: {
+          codigo: data.codigo,
+          titulo: data.titulo,
+          descripcion: data.descripcion || undefined,
+          imagen_portada_url: data.imagen_portada_url || undefined,
+          categoria: data.categoria,
+          nivel: data.nivel,
+          duracion_estimada_min: totalDuration,
+          es_obligatorio: data.es_obligatorio,
+          roles_objetivo: data.roles_objetivo,
+          plazo_dias_default: data.plazo_dias_default,
+          activo: data.activo,
+          publicado: data.publicado,
+        },
+        modulos,
+      });
+      
       navigate(`/lms/admin/cursos/${nuevoCurso.id}`);
     } catch (error) {
       // Error handled by mutation
@@ -127,7 +147,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   const isSubmitting = crearCurso.isPending;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       {/* Header with progress */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
@@ -183,9 +203,20 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
       <Form {...form}>
         <form onSubmit={(e) => e.preventDefault()}>
           {step === 1 && <StepIdentidad form={form} />}
-          {step === 2 && <StepConfiguracion form={form} />}
-          {step === 3 && <StepAudiencia form={form} />}
-          {step === 4 && <StepRevisar form={form} />}
+          {step === 2 && (
+            <StepEstructura 
+              form={form} 
+              modulos={modulos} 
+              onModulosChange={setModulos} 
+            />
+          )}
+          {step === 3 && <StepConfiguracion form={form} />}
+          {step === 4 && (
+            <StepVistaPrevia 
+              form={form} 
+              modulos={modulos} 
+            />
+          )}
         </form>
       </Form>
 
