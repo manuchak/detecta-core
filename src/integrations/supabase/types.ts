@@ -6814,6 +6814,188 @@ export type Database = {
           },
         ]
       }
+      lms_badges: {
+        Row: {
+          activo: boolean | null
+          categoria: string | null
+          codigo: string
+          condicion_tipo: string
+          condicion_valor: number | null
+          created_at: string | null
+          descripcion: string | null
+          es_secreto: boolean | null
+          icono: string
+          id: string
+          nivel_requerido: number | null
+          nombre: string
+          orden: number | null
+          puntos_otorga: number | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria?: string | null
+          codigo: string
+          condicion_tipo: string
+          condicion_valor?: number | null
+          created_at?: string | null
+          descripcion?: string | null
+          es_secreto?: boolean | null
+          icono: string
+          id?: string
+          nivel_requerido?: number | null
+          nombre: string
+          orden?: number | null
+          puntos_otorga?: number | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string | null
+          codigo?: string
+          condicion_tipo?: string
+          condicion_valor?: number | null
+          created_at?: string | null
+          descripcion?: string | null
+          es_secreto?: boolean | null
+          icono?: string
+          id?: string
+          nivel_requerido?: number | null
+          nombre?: string
+          orden?: number | null
+          puntos_otorga?: number | null
+        }
+        Relationships: []
+      }
+      lms_badges_usuario: {
+        Row: {
+          badge_id: string
+          datos_contexto: Json | null
+          fecha_obtencion: string | null
+          id: string
+          notificado: boolean | null
+          usuario_id: string
+        }
+        Insert: {
+          badge_id: string
+          datos_contexto?: Json | null
+          fecha_obtencion?: string | null
+          id?: string
+          notificado?: boolean | null
+          usuario_id: string
+        }
+        Update: {
+          badge_id?: string
+          datos_contexto?: Json | null
+          fecha_obtencion?: string | null
+          id?: string
+          notificado?: boolean | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_badges_usuario_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "lms_badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_certificados: {
+        Row: {
+          codigo_verificacion: string
+          created_at: string | null
+          datos_certificado: Json
+          fecha_emision: string | null
+          id: string
+          inscripcion_id: string
+          pdf_url: string | null
+          plantilla_id: string | null
+          ultima_verificacion: string | null
+          updated_at: string | null
+          verificado_count: number | null
+        }
+        Insert: {
+          codigo_verificacion: string
+          created_at?: string | null
+          datos_certificado: Json
+          fecha_emision?: string | null
+          id?: string
+          inscripcion_id: string
+          pdf_url?: string | null
+          plantilla_id?: string | null
+          ultima_verificacion?: string | null
+          updated_at?: string | null
+          verificado_count?: number | null
+        }
+        Update: {
+          codigo_verificacion?: string
+          created_at?: string | null
+          datos_certificado?: Json
+          fecha_emision?: string | null
+          id?: string
+          inscripcion_id?: string
+          pdf_url?: string | null
+          plantilla_id?: string | null
+          ultima_verificacion?: string | null
+          updated_at?: string | null
+          verificado_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_certificados_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "lms_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_certificados_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "lms_certificados_plantillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_certificados_plantillas: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          es_default: boolean | null
+          estilos_css: string | null
+          id: string
+          nombre: string
+          plantilla_html: string
+          updated_at: string | null
+          variables_disponibles: string[] | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          es_default?: boolean | null
+          estilos_css?: string | null
+          id?: string
+          nombre: string
+          plantilla_html: string
+          updated_at?: string | null
+          variables_disponibles?: string[] | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          es_default?: boolean | null
+          estilos_css?: string | null
+          id?: string
+          nombre?: string
+          plantilla_html?: string
+          updated_at?: string | null
+          variables_disponibles?: string[] | null
+        }
+        Relationships: []
+      }
       lms_contenidos: {
         Row: {
           activo: boolean | null
@@ -6921,6 +7103,51 @@ export type Database = {
           roles_objetivo?: string[] | null
           titulo?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lms_gamificacion_perfil: {
+        Row: {
+          created_at: string | null
+          cursos_completados: number | null
+          id: string
+          nivel: number | null
+          puntos_totales: number | null
+          quizzes_perfectos: number | null
+          racha_actual: number | null
+          racha_maxima: number | null
+          tiempo_total_estudio_min: number | null
+          ultima_actividad: string | null
+          updated_at: string | null
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          cursos_completados?: number | null
+          id?: string
+          nivel?: number | null
+          puntos_totales?: number | null
+          quizzes_perfectos?: number | null
+          racha_actual?: number | null
+          racha_maxima?: number | null
+          tiempo_total_estudio_min?: number | null
+          ultima_actividad?: string | null
+          updated_at?: string | null
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          cursos_completados?: number | null
+          id?: string
+          nivel?: number | null
+          puntos_totales?: number | null
+          quizzes_perfectos?: number | null
+          racha_actual?: number | null
+          racha_maxima?: number | null
+          tiempo_total_estudio_min?: number | null
+          ultima_actividad?: string | null
+          updated_at?: string | null
+          usuario_id?: string
         }
         Relationships: []
       }
@@ -7151,6 +7378,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lms_puntos_config: {
+        Row: {
+          accion: string
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          puntos: number
+          updated_at: string | null
+        }
+        Insert: {
+          accion: string
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          puntos: number
+          updated_at?: string | null
+        }
+        Update: {
+          accion?: string
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          puntos?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lms_puntos_historial: {
+        Row: {
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          puntos: number
+          referencia_id: string | null
+          referencia_tipo: string | null
+          tipo_accion: string
+          usuario_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          puntos: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_accion: string
+          usuario_id: string
+        }
+        Update: {
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          puntos?: number
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo_accion?: string
+          usuario_id?: string
+        }
+        Relationships: []
       }
       lotes_inventario: {
         Row: {
@@ -15399,6 +15689,11 @@ export type Database = {
         Args: { p_inscripcion_id: string }
         Returns: Json
       }
+      lms_generar_certificado: {
+        Args: { p_inscripcion_id: string }
+        Returns: Json
+      }
+      lms_generar_codigo_verificacion: { Args: never; Returns: string }
       lms_get_cursos_disponibles: {
         Args: { p_user_id?: string }
         Returns: {
@@ -15419,6 +15714,7 @@ export type Database = {
           titulo: string
         }[]
       }
+      lms_get_gamificacion_perfil: { Args: never; Returns: Json }
       lms_inscribirse_curso: {
         Args: { p_curso_id: string; p_user_id?: string }
         Returns: Json
@@ -15427,6 +15723,16 @@ export type Database = {
         Args: { p_contenido_id: string; p_datos_extra?: Json }
         Returns: Json
       }
+      lms_otorgar_puntos: {
+        Args: {
+          p_accion: string
+          p_referencia_id?: string
+          p_referencia_tipo?: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      lms_verificar_certificado: { Args: { p_codigo: string }; Returns: Json }
       log_sensitive_access:
         | {
             Args: {
