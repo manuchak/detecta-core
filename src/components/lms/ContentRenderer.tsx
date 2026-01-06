@@ -3,9 +3,10 @@ import { DocumentViewer } from "./DocumentViewer";
 import { EmbedRenderer } from "./EmbedRenderer";
 import { TextoEnriquecidoViewer } from "./TextoEnriquecidoViewer";
 import { QuizComponent } from "./QuizComponent";
+import { InteractivoRenderer } from "./InteractivoRenderer";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent, RespuestaQuiz } from "@/types/lms";
+import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent, InteractivoContent, RespuestaQuiz } from "@/types/lms";
 
 interface ContentRendererProps {
   contenido: LMSContenido;
@@ -86,14 +87,11 @@ export function ContentRenderer({
       );
 
     case 'interactivo':
-      // Interactivos se implementarán en Fase 5
       return (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            El contenido interactivo se está desarrollando.
-          </AlertDescription>
-        </Alert>
+        <InteractivoRenderer 
+          content={data as InteractivoContent}
+          onComplete={onComplete}
+        />
       );
 
     default:

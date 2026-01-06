@@ -21,7 +21,7 @@ export type TipoInscripcion = 'obligatoria' | 'voluntaria' | 'asignada';
 export type EstadoInscripcion = 'inscrito' | 'en_progreso' | 'completado' | 'vencido' | 'abandonado';
 
 // Tipos de contenido interactivo
-export type TipoInteractivo = 'flashcards' | 'timeline' | 'dragdrop' | 'hotspots' | 'accordion' | 'tabs';
+export type TipoInteractivo = 'flashcards' | 'timeline' | 'dragdrop' | 'hotspots' | 'accordion' | 'tabs' | 'video_interactivo';
 
 // =====================================================
 // Interfaces principales
@@ -131,7 +131,7 @@ export interface QuizContent {
 
 export interface InteractivoContent {
   tipo: TipoInteractivo;
-  data: FlashcardsData | TimelineData | DragDropData | HotspotsData | AccordionData | TabsData;
+  data: FlashcardsData | TimelineData | DragDropData | HotspotsData | AccordionData | TabsData | VideoInteractivoData;
 }
 
 // =====================================================
@@ -188,6 +188,21 @@ export interface AccordionData {
     title: string;
     content: string; // HTML
   }>;
+}
+
+export interface VideoInteractivoData {
+  video_url: string;
+  provider: 'youtube' | 'vimeo' | 'storage';
+  preguntas: Array<{
+    id: string;
+    tiempo_seg: number;
+    pregunta: string;
+    opciones: Array<{ texto: string; es_correcta: boolean }>;
+    explicacion?: string;
+    es_obligatoria: boolean;
+  }>;
+  resumen_final: boolean;
+  permitir_saltar: boolean;
 }
 
 export interface TabsData {
