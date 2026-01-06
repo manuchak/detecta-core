@@ -52,10 +52,20 @@ export function useLMSAI() {
 
   const invokeAI = async <T>(action: AIAction, data: Record<string, unknown>): Promise<T | null> => {
     setLoading(true);
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("timeout")), 30000);
+    });
+    
     try {
-      const { data: response, error } = await supabase.functions.invoke("lms-ai-assistant", {
+      const responsePromise = supabase.functions.invoke("lms-ai-assistant", {
         body: { action, data },
       });
+      
+      const { data: response, error } = await Promise.race([
+        responsePromise,
+        timeoutPromise
+      ]) as { data: any; error: any };
 
       if (error) {
         console.error("[useLMSAI] Error:", error);
@@ -70,9 +80,13 @@ export function useLMSAI() {
       }
 
       return response?.data as T;
-    } catch (err) {
+    } catch (err: any) {
       console.error("[useLMSAI] Exception:", err);
-      toast.error("Error inesperado al generar contenido");
+      if (err?.message === "timeout") {
+        toast.error("La generación tardó demasiado. Intenta de nuevo.");
+      } else {
+        toast.error("Error inesperado al generar contenido");
+      }
       return null;
     } finally {
       setLoading(false);
