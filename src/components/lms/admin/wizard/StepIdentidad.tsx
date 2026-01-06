@@ -159,6 +159,7 @@ export function StepIdentidad({ form }: StepIdentidadProps) {
                 <ImageUploader
                   value={field.value}
                   onChange={field.onChange}
+                  courseTitle={form.watch("titulo")}
                 />
               </FormControl>
               <FormMessage />

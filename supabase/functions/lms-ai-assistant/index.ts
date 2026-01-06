@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface AIRequest {
-  action: "generate_course_metadata" | "generate_course_structure" | "generate_quiz_questions" | "generate_flashcards" | "generate_rich_text";
+  action: "generate_course_metadata" | "generate_course_structure" | "generate_quiz_questions" | "generate_flashcards" | "generate_rich_text" | "generate_image";
   data: Record<string, unknown>;
 }
 
@@ -88,11 +88,74 @@ serve(async (req) => {
 
     const { action, data } = await req.json() as AIRequest;
     
-    if (!action || !SYSTEM_PROMPTS[action]) {
-      throw new Error(`Invalid action: ${action}`);
+    console.log(`[lms-ai-assistant] Action: ${action}`, data);
+
+    // Handle image generation separately (uses different model)
+    if (action === "generate_image") {
+      const imagePrompt = `Genera una imagen profesional para la portada de un curso de capacitación empresarial.
+Título del curso: "${data.titulo}"
+${data.descripcion ? `Descripción: "${data.descripcion}"` : ''}
+
+La imagen debe ser:
+- Profesional y corporativa
+- Relacionada con seguridad, custodia vehicular o capacitación empresarial
+- Estilo moderno y limpio
+- Colores sobrios (azules, grises, blancos)
+- Sin texto superpuesto
+- Aspecto 16:9 horizontal`;
+
+      const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image-preview",
+          messages: [{ role: "user", content: imagePrompt }],
+          modalities: ["image", "text"]
+        }),
+      });
+
+      if (!imageResponse.ok) {
+        const errorText = await imageResponse.text();
+        console.error("[lms-ai-assistant] Image generation error:", imageResponse.status, errorText);
+        
+        if (imageResponse.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Límite de solicitudes excedido. Intenta de nuevo en unos segundos." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (imageResponse.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Créditos de IA agotados. Contacta al administrador." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw new Error(`Image generation error: ${imageResponse.status}`);
+      }
+
+      const imageData = await imageResponse.json();
+      const imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+      if (!imageUrl) {
+        console.error("[lms-ai-assistant] No image in response:", imageData);
+        throw new Error("No image generated");
+      }
+
+      console.log("[lms-ai-assistant] Image generated successfully");
+
+      return new Response(
+        JSON.stringify({ success: true, data: { imageBase64: imageUrl } }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`[lms-ai-assistant] Action: ${action}`, data);
+    // For text-based actions
+    if (!SYSTEM_PROMPTS[action]) {
+      throw new Error(`Invalid action: ${action}`);
+    }
 
     // Build user prompt based on action
     let userPrompt = "";

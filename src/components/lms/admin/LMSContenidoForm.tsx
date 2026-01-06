@@ -6,9 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent } from "@/types/lms";
+import { useLMSAI } from "@/hooks/lms/useLMSAI";
+import { toast } from "sonner";
 
 interface QuizPregunta {
   id: string;
@@ -177,6 +179,42 @@ export function LMSContenidoForm({
     setQuizPreguntas(quizPreguntas.filter((_, i) => i !== index));
   };
 
+  const { generateQuizQuestions, generateRichText, loading: aiLoading } = useLMSAI();
+
+  const handleGenerateQuiz = async () => {
+    if (!titulo || titulo.length < 3) {
+      toast.error("Escribe un título de al menos 3 caracteres");
+      return;
+    }
+
+    const result = await generateQuizQuestions(titulo, 5);
+    if (result?.questions) {
+      const nuevasPreguntas: QuizPregunta[] = result.questions.map(q => ({
+        id: crypto.randomUUID(),
+        pregunta: q.question,
+        tipo: "opcion_multiple" as const,
+        opciones: q.options.map(o => o.text),
+        respuesta_correcta: q.options.findIndex(o => o.isCorrect),
+        puntos: 10
+      }));
+      setQuizPreguntas([...quizPreguntas, ...nuevasPreguntas]);
+      toast.success(`${nuevasPreguntas.length} preguntas generadas con IA`);
+    }
+  };
+
+  const handleGenerateRichText = async () => {
+    if (!titulo || titulo.length < 3) {
+      toast.error("Escribe un título de al menos 3 caracteres");
+      return;
+    }
+
+    const result = await generateRichText(titulo, undefined, "media");
+    if (result?.html) {
+      setTextoHtml(result.html);
+      toast.success("Contenido generado con IA");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -270,7 +308,23 @@ export function LMSContenidoForm({
 
               {tipo === 'texto_enriquecido' && (
                 <div className="space-y-2">
-                  <Label htmlFor="texto">Contenido de Texto</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="texto">Contenido de Texto</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleGenerateRichText}
+                      disabled={aiLoading || !titulo || titulo.length < 3}
+                    >
+                      {aiLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 mr-2" />
+                      )}
+                      Generar con IA
+                    </Button>
+                  </div>
                   <Textarea
                     id="texto"
                     value={textoHtml}
@@ -298,9 +352,25 @@ export function LMSContenidoForm({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label>Preguntas del Quiz</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={addPregunta}>
-                      + Agregar Pregunta
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={addPregunta}>
+                        + Agregar Pregunta
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleGenerateQuiz}
+                        disabled={aiLoading || !titulo || titulo.length < 3}
+                      >
+                        {aiLoading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4 mr-2" />
+                        )}
+                        Generar con IA
+                      </Button>
+                    </div>
                   </div>
 
                   {quizPreguntas.length === 0 && (
