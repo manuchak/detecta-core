@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,16 +7,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSmartAuthRedirect } from "@/hooks/useSmartAuthRedirect";
 import { Eye, EyeOff } from "lucide-react";
+import { ResendConfirmationForm } from "@/components/auth/ResendConfirmationForm";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
   const { toast } = useToast();
   const { signIn } = useAuth();
   
-  // Hook de redirección inteligente basada en rol
   useSmartAuthRedirect();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -36,14 +36,27 @@ export const Login = () => {
     
     try {
       await signIn(email, password);
-      // El usuario será redirigido automáticamente por el AuthContext
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      // El error ya es manejado en el contexto de auth
+      
+      // Detectar error de email no confirmado
+      if (error?.message?.toLowerCase().includes("email not confirmed")) {
+        setShowResendConfirmation(true);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Mostrar formulario de reenvío si el email no está confirmado
+  if (showResendConfirmation) {
+    return (
+      <ResendConfirmationForm 
+        email={email} 
+        onBack={() => setShowResendConfirmation(false)} 
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
