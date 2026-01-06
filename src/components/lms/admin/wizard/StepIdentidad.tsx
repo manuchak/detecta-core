@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,12 +10,45 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { ImageUploader } from "./ImageUploader";
+import { AIGenerateButton } from "./AIGenerateButton";
+import { AISuggestionCard } from "./AISuggestionCard";
+import { useLMSAI } from "@/hooks/lms/useLMSAI";
 
 interface StepIdentidadProps {
   form: UseFormReturn<any>;
 }
 
 export function StepIdentidad({ form }: StepIdentidadProps) {
+  const { loading, generateCourseMetadata } = useLMSAI();
+  const [suggestion, setSuggestion] = useState<{
+    codigo: string;
+    descripcion: string;
+    categoria: string;
+  } | null>(null);
+
+  const handleGenerateMetadata = async () => {
+    const titulo = form.getValues("titulo");
+    if (!titulo || titulo.length < 3) return;
+    
+    const result = await generateCourseMetadata(titulo);
+    if (result) {
+      setSuggestion({
+        codigo: result.codigo,
+        descripcion: result.descripcion,
+        categoria: result.categoria,
+      });
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (suggestion) {
+      form.setValue("codigo", suggestion.codigo);
+      form.setValue("descripcion", suggestion.descripcion);
+      form.setValue("categoria", suggestion.categoria);
+      setSuggestion(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="apple-card p-6 space-y-5">
@@ -43,17 +77,41 @@ export function StepIdentidad({ form }: StepIdentidadProps) {
             render={({ field }) => (
               <FormItem className="md:col-span-3">
                 <FormLabel>Título del curso *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Ej: Introducción a la Seguridad Vehicular" 
-                    {...field} 
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input 
+                      placeholder="Ej: Introducción a la Seguridad Vehicular" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <AIGenerateButton
+                    onClick={handleGenerateMetadata}
+                    loading={loading}
+                    disabled={!field.value || field.value.length < 3}
+                    tooltip="Generar código, descripción y categoría"
                   />
-                </FormControl>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+
+        {suggestion && (
+          <AISuggestionCard
+            title="Sugerencia de IA"
+            onAccept={handleAcceptSuggestion}
+            onReject={() => setSuggestion(null)}
+            onRegenerate={handleGenerateMetadata}
+            loading={loading}
+          >
+            <div className="space-y-2">
+              <p><strong>Código:</strong> {suggestion.codigo}</p>
+              <p><strong>Descripción:</strong> {suggestion.descripcion}</p>
+              <p><strong>Categoría:</strong> {suggestion.categoria}</p>
+            </div>
+          </AISuggestionCard>
+        )}
 
         <FormField
           control={form.control}
