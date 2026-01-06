@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.support-chat-bot]
 verify_jwt = false
+
+[functions.lms-ai-assistant]
+verify_jwt = false
