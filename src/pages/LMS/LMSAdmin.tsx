@@ -1,7 +1,11 @@
-import { Settings, BookOpen, Users, BarChart3 } from "lucide-react";
+import { Settings, BookOpen, Users, BarChart3, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function LMSAdmin() {
+  const navigate = useNavigate();
+
   return (
     <div className="container max-w-6xl py-8 space-y-8">
       <div>
@@ -42,18 +46,26 @@ export default function LMSAdmin() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer opacity-60">
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer group"
+          onClick={() => navigate('/lms/reportes')}
+        >
           <CardHeader>
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors">
               <BarChart3 className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle>Reportes y Métricas</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Reportes y Métricas
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </CardTitle>
             <CardDescription>
               Analizar progreso y rendimiento de usuarios
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Próximamente en Fase 6</p>
+            <Button variant="outline" size="sm" className="w-full">
+              Ver Reportes
+            </Button>
           </CardContent>
         </Card>
       </div>
