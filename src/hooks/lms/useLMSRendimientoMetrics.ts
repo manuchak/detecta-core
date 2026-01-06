@@ -9,7 +9,7 @@ export const useLMSRendimientoMetrics = () => {
       // 1. Obtener todos los progresos de quizzes (donde hay puntaje)
       const { data: progresoData, error: progresoError } = await supabase
         .from('lms_progreso')
-        .select('contenido_id, quiz_mejor_puntaje, quiz_intentos, quiz_aprobado')
+        .select('contenido_id, quiz_mejor_puntaje, quiz_intentos')
         .not('quiz_mejor_puntaje', 'is', null);
 
       if (progresoError) throw progresoError;
@@ -22,8 +22,8 @@ export const useLMSRendimientoMetrics = () => {
         ? Math.round(sumaCalificaciones / puntajesValidos.length) 
         : 0;
 
-      // 3. Tasa de aprobación general (≥70%)
-      const aprobados = progresos.filter(p => p.quiz_aprobado === true).length;
+      // 3. Tasa de aprobación general (≥70% se considera aprobado)
+      const aprobados = progresos.filter(p => (p.quiz_mejor_puntaje ?? 0) >= 70).length;
       const tasaAprobacionGeneral = progresos.length > 0 
         ? Math.round((aprobados / progresos.length) * 100) 
         : 0;
@@ -63,9 +63,10 @@ export const useLMSRendimientoMetrics = () => {
         if (!acc[p.contenido_id]) {
           acc[p.contenido_id] = { puntajes: [], intentos: [], aprobados: 0 };
         }
-        acc[p.contenido_id].puntajes.push(p.quiz_mejor_puntaje || 0);
+        const puntaje = p.quiz_mejor_puntaje || 0;
+        acc[p.contenido_id].puntajes.push(puntaje);
         acc[p.contenido_id].intentos.push(p.quiz_intentos || 1);
-        if (p.quiz_aprobado) {
+        if (puntaje >= 70) {
           acc[p.contenido_id].aprobados++;
         }
         return acc;

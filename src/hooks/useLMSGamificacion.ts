@@ -84,6 +84,34 @@ export const useLMSPuntosHistorial = () => {
   });
 };
 
+// Helper function to award points (used by other hooks)
+export const otorgarPuntosHelper = async (
+  accion: string, 
+  referenciaId?: string, 
+  referenciaTipo?: string
+) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase.rpc('lms_otorgar_puntos', {
+      p_usuario_id: user.id,
+      p_accion: accion,
+      p_referencia_id: referenciaId || null,
+      p_referencia_tipo: referenciaTipo || null
+    });
+
+    if (error) {
+      console.error('Error awarding points:', error);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('Error in otorgarPuntosHelper:', err);
+    return null;
+  }
+};
+
 // Hook para otorgar puntos (usado internamente)
 export const useLMSOtorgarPuntos = () => {
   const queryClient = useQueryClient();
@@ -98,18 +126,9 @@ export const useLMSOtorgarPuntos = () => {
       referenciaId?: string; 
       referenciaTipo?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No autenticado');
-
-      const { data, error } = await supabase.rpc('lms_otorgar_puntos', {
-        p_usuario_id: user.id,
-        p_accion: accion,
-        p_referencia_id: referenciaId || null,
-        p_referencia_tipo: referenciaTipo || null
-      });
-
-      if (error) throw error;
-      return data;
+      const result = await otorgarPuntosHelper(accion, referenciaId, referenciaTipo);
+      if (!result) throw new Error('Error al otorgar puntos');
+      return result;
     },
     onSuccess: (data: any) => {
       if (data?.success && data?.puntos_otorgados > 0) {
