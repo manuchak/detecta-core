@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, 
   Plus, 
@@ -44,13 +45,8 @@ import { useLMSEstadisticasCurso } from "@/hooks/lms/useLMSAdminInscripciones";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
 import type { LMSCurso } from "@/types/lms";
 
-interface LMSCursosListaProps {
-  onCrearCurso: () => void;
-  onEditarCurso: (curso: LMSCurso) => void;
-  onVerCurso: (cursoId: string) => void;
-}
-
-export function LMSCursosLista({ onCrearCurso, onEditarCurso, onVerCurso }: LMSCursosListaProps) {
+export function LMSCursosLista() {
+  const navigate = useNavigate();
   const { data: cursos, isLoading, error } = useLMSAdminCursos();
   const eliminarCurso = useLMSEliminarCurso();
   const duplicarCurso = useLMSDuplicarCurso();
@@ -116,7 +112,7 @@ export function LMSCursosLista({ onCrearCurso, onEditarCurso, onVerCurso }: LMSC
             {cursos?.length || 0} cursos en total
           </p>
         </div>
-        <Button onClick={onCrearCurso}>
+        <Button onClick={() => navigate('/lms/admin/cursos/nuevo')}>
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Curso
         </Button>
@@ -130,7 +126,7 @@ export function LMSCursosLista({ onCrearCurso, onEditarCurso, onVerCurso }: LMSC
             <p className="text-muted-foreground mb-4">
               Crea tu primer curso para comenzar
             </p>
-            <Button onClick={onCrearCurso}>
+            <Button onClick={() => navigate('/lms/admin/cursos/nuevo')}>
               <Plus className="w-4 h-4 mr-2" />
               Crear Curso
             </Button>
@@ -142,8 +138,8 @@ export function LMSCursosLista({ onCrearCurso, onEditarCurso, onVerCurso }: LMSC
             <CursoCard
               key={curso.id}
               curso={curso}
-              onEditar={() => onEditarCurso(curso)}
-              onVer={() => onVerCurso(curso.id)}
+              onEditar={() => navigate(`/lms/admin/cursos/${curso.id}/editar`)}
+              onVer={() => navigate(`/lms/admin/cursos/${curso.id}`)}
               onEliminar={() => setCursoAEliminar(curso.id)}
               onDuplicar={() => handleDuplicar(curso.id)}
               onTogglePublicacion={() => handleTogglePublicacion(curso.id, curso.publicado)}

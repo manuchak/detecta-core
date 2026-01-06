@@ -199,14 +199,14 @@ export function LMSInscripcionesPanel() {
                       <TableRow key={inscripcion.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{inscripcion.profiles?.full_name || 'N/A'}</p>
-                            <p className="text-sm text-muted-foreground">{inscripcion.profiles?.email}</p>
+                            <p className="font-medium">{inscripcion.usuario?.display_name || 'N/A'}</p>
+                            <p className="text-sm text-muted-foreground">{inscripcion.usuario?.email}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{inscripcion.lms_cursos?.titulo}</p>
-                            <p className="text-sm text-muted-foreground">{inscripcion.lms_cursos?.codigo}</p>
+                            <p className="font-medium">{inscripcion.curso?.titulo}</p>
+                            <p className="text-sm text-muted-foreground">{inscripcion.curso?.codigo}</p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -280,7 +280,7 @@ export function LMSInscripcionesPanel() {
         onCursoChange={setSelectedCursoForEnroll}
         onEnroll={async (userId, cursoId) => {
           try {
-            await enrollUser.mutateAsync({ userId, cursoId });
+            await enrollUser.mutateAsync({ cursoId, usuarioIds: [userId] });
             toast.success("Usuario inscrito exitosamente");
             setEnrollDialogOpen(false);
           } catch (error) {
@@ -307,12 +307,12 @@ function EnrollDialog({ open, onOpenChange, cursos, selectedCurso, onCursoChange
   const [selectedUser, setSelectedUser] = useState("");
   const [searchUser, setSearchUser] = useState("");
   
-  const { data: availableUsers = [] } = useAvailableUsersForEnrollment(selectedCurso);
+  const { data: availableUsers = [] } = useLMSUsuariosDisponibles(selectedCurso);
 
   const filteredUsers = availableUsers.filter(u => {
     if (!searchUser) return true;
     const search = searchUser.toLowerCase();
-    return u.full_name?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search);
+    return u.display_name?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search);
   });
 
   const handleEnroll = async () => {
@@ -368,7 +368,7 @@ function EnrollDialog({ open, onOpenChange, cursos, selectedCurso, onCursoChange
                       }`}
                       onClick={() => setSelectedUser(user.id)}
                     >
-                      <p className="font-medium">{user.full_name}</p>
+                      <p className="font-medium">{user.display_name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                     </div>
                   ))

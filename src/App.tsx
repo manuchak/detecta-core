@@ -91,6 +91,9 @@ const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
 const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
 const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado'));
 const LMSReportes = lazy(() => import('@/pages/LMS/LMSReportes'));
+const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
+const LMSAdminCursoEditar = lazy(() => import('@/pages/LMS/LMSAdminCursoEditar'));
+const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -812,6 +815,44 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
                         <UnifiedLayout>
                           <LMSReportes />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* LMS Admin Routes */}
+                <Route
+                  path="/lms/admin/cursos/nuevo"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <UnifiedLayout>
+                          <LMSAdminCursoNuevo />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lms/admin/cursos/:cursoId"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <UnifiedLayout>
+                          <LMSCursoDetalle />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lms/admin/cursos/:cursoId/editar"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                        <UnifiedLayout>
+                          <LMSAdminCursoEditar />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
