@@ -13903,21 +13903,19 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
-          analista_id: string
           analista_nombre: string
-          approval_notes: string
-          approval_updated_at: string
-          created_at: string
-          current_stage: string
-          decision_reason: string
-          email: string
+          approval_stage: string
           estado_proceso: string
           final_decision: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
           lead_id: string
-          nombre: string
+          lead_nombre: string
+          lead_telefono: string
+          notas: string
           phone_interview_completed: boolean
           second_interview_required: boolean
-          telefono: string
           zona_nombre: string
         }[]
       }
@@ -13930,21 +13928,19 @@ export type Database = {
           p_offset?: number
         }
         Returns: {
-          analista_id: string
           analista_nombre: string
-          approval_notes: string
-          approval_updated_at: string
-          created_at: string
-          current_stage: string
-          decision_reason: string
-          email: string
+          approval_stage: string
           estado_proceso: string
           final_decision: string
+          lead_email: string
+          lead_estado: string
+          lead_fecha_creacion: string
           lead_id: string
-          nombre: string
+          lead_nombre: string
+          lead_telefono: string
+          notas: string
           phone_interview_completed: boolean
           second_interview_required: boolean
-          telefono: string
           zona_nombre: string
         }[]
       }
