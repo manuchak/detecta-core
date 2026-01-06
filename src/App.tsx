@@ -89,6 +89,7 @@ const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 const LMSDashboard = lazy(() => import('@/pages/LMS/LMSDashboard'));
 const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
 const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
+const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
