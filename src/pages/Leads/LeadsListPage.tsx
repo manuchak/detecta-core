@@ -1,17 +1,19 @@
 import { useState, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Filter, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
-import { MinimalSectionHeader } from "@/components/recruitment/ui/MinimalSectionHeader";
 import { LeadQuickPreview } from "@/components/leads/LeadQuickPreview";
 import { SupplyQuickActionBar } from "@/components/leads/SupplyQuickActionBar";
 import { SupplySmartTabs } from "@/components/leads/SupplySmartTabs";
 import { useLeadsCounts } from "@/hooks/useLeadsCounts";
 import { Lead } from "@/types/leadTypes";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { QuickFilters, QuickFilterPreset } from "@/components/leads/QuickFilters";
 
 // Lazy load de sección pesada - solo carga cuando se expande
 const CompactZoneNeedsSection = lazy(() => 
@@ -36,6 +38,7 @@ const LeadsListPage = () => {
   const [quickFilter, setQuickFilter] = useState<string>("all");
   const [quickPreviewLead, setQuickPreviewLead] = useState<Lead | null>(null);
   const [zoneExpanded, setZoneExpanded] = useState(false);
+  const [activeFilterPreset, setActiveFilterPreset] = useState<string | undefined>();
 
   // Hook eficiente para contadores - usa RPC con COUNT en SQL
   const { data: counts, isLoading: countsLoading } = useLeadsCounts();
@@ -58,6 +61,11 @@ const LeadsListPage = () => {
     setQuickPreviewLead(null);
     setEditingLead(lead);
     setShowCreateForm(true);
+  };
+
+  const handleApplyFilter = (preset: QuickFilterPreset) => {
+    setActiveFilterPreset(preset.id);
+    // Apply filter logic here if needed
   };
 
   // Mapear quickFilter a filterByDecision
@@ -108,25 +116,55 @@ const LeadsListPage = () => {
   }
 
   return (
-    <div className="space-y-4 p-6">
-      <MinimalSectionHeader
-        title="Gestión de Candidatos"
-        description="Administra los candidatos y sus asignaciones"
-        actions={
-          permissions.canEditLeads && (
+    <div className="space-y-6 p-6">
+      {/* Header Lean - Estilo Approvals */}
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="apple-text-title">Candidatos</h1>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-normal">
+              <Users className="h-3 w-3 mr-1" />
+              {countsLoading ? '...' : (counts?.total || 0).toLocaleString()}
+            </Badge>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Filtros en Sheet lateral */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                <Filter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Filtros</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[340px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle>Filtros Avanzados</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <QuickFilters 
+                  onApplyFilter={handleApplyFilter}
+                  activePreset={activeFilterPreset}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+          
+          {permissions.canEditLeads && (
             <Button 
               onClick={() => setShowCreateForm(true)}
-              className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
-              size="lg"
+              size="sm"
+              className="h-8 gap-1.5"
             >
-              <PlusCircle className="h-5 w-5 mr-2" />
-              Nuevo Candidato
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Nuevo</span>
             </Button>
-          )
-        }
-      />
+          )}
+        </div>
+      </header>
 
-      {/* Quick Action Bar para Supply */}
+      {/* Quick Action Pills - Minimalistas */}
       <SupplyQuickActionBar
         counts={counts}
         isLoading={countsLoading}
@@ -167,7 +205,7 @@ const LeadsListPage = () => {
         </CollapsibleSection>
       ) : (
         <div className="space-y-4">
-          {/* Smart Tabs contextuales */}
+          {/* Smart Tabs - Compactas */}
           <SupplySmartTabs
             counts={counts}
             isLoading={countsLoading}
