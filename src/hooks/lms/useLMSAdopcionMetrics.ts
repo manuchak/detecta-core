@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { LMSAdopcionMetrics, EstadoInscripcion, InscripcionPorMes, CursoPopular } from "@/types/lms-reports";
+import { LMSAdopcionMetrics, InscripcionPorMes, CursoPopular } from "@/types/lms-reports";
+import type { EstadoInscripcion } from "@/types/lms";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -65,13 +66,13 @@ export const useLMSAdopcionMetrics = () => {
         });
       }
 
-      // 6. Distribución por estado
+      // 6. Distribución por estado - Alineado con EstadoInscripcion de types/lms.ts
       const distribucionPorEstado: Record<EstadoInscripcion, number> = {
         inscrito: 0,
         en_progreso: 0,
         completado: 0,
         vencido: 0,
-        cancelado: 0
+        abandonado: 0
       };
       inscripciones.forEach(i => {
         const estado = i.estado as EstadoInscripcion;

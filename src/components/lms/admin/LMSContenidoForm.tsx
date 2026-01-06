@@ -8,24 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface ContenidoFormData {
-  titulo: string;
-  tipo_contenido: string;
-  contenido_texto: string | null;
-  contenido_url: string | null;
-  contenido_video_url: string | null;
-  duracion_estimada_minutos: number;
-  orden: number;
-  activo: boolean;
-  es_quiz: boolean;
-  quiz_config: {
-    preguntas: QuizPregunta[];
-    puntaje_aprobacion: number;
-    intentos_maximos: number;
-    tiempo_limite_minutos: number | null;
-  } | null;
-}
+import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent } from "@/types/lms";
 
 interface QuizPregunta {
   id: string;
@@ -36,6 +19,16 @@ interface QuizPregunta {
   puntos: number;
 }
 
+interface ContenidoFormData {
+  titulo: string;
+  tipo: TipoContenido;
+  contenido: ContenidoData;
+  duracion_min: number;
+  es_obligatorio: boolean;
+  orden: number;
+  activo: boolean;
+}
+
 interface LMSContenidoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -43,29 +36,17 @@ interface LMSContenidoFormProps {
   contenido?: {
     id: string;
     titulo: string;
-    tipo_contenido: string;
-    contenido_texto: string | null;
-    contenido_url: string | null;
-    contenido_video_url: string | null;
-    duracion_estimada_minutos: number;
+    tipo: TipoContenido;
+    contenido: ContenidoData;
+    duracion_min: number;
+    es_obligatorio: boolean;
     orden: number;
     activo: boolean;
-    es_quiz: boolean;
-    quiz_config: any;
   } | null;
   nextOrden: number;
   onSubmit: (data: ContenidoFormData) => Promise<void>;
   isLoading?: boolean;
 }
-
-const TIPOS_CONTENIDO = [
-  { value: 'video', label: 'Video' },
-  { value: 'texto', label: 'Texto/Artículo' },
-  { value: 'documento', label: 'Documento (PDF)' },
-  { value: 'presentacion', label: 'Presentación' },
-  { value: 'quiz', label: 'Quiz/Evaluación' },
-  { value: 'interactivo', label: 'Interactivo' },
-];
 
 export function LMSContenidoForm({
   open,
@@ -76,77 +57,102 @@ export function LMSContenidoForm({
   onSubmit,
   isLoading = false
 }: LMSContenidoFormProps) {
-  const [formData, setFormData] = useState<ContenidoFormData>({
-    titulo: "",
-    tipo_contenido: "texto",
-    contenido_texto: "",
-    contenido_url: null,
-    contenido_video_url: null,
-    duracion_estimada_minutos: 10,
-    orden: nextOrden,
-    activo: true,
-    es_quiz: false,
-    quiz_config: null
-  });
+  const [titulo, setTitulo] = useState("");
+  const [tipo, setTipo] = useState<TipoContenido>("texto_enriquecido");
+  const [duracion, setDuracion] = useState(10);
+  const [orden, setOrden] = useState(nextOrden);
+  const [activo, setActivo] = useState(true);
+  const [esObligatorio, setEsObligatorio] = useState(true);
 
+  // Campos de contenido según tipo
+  const [videoUrl, setVideoUrl] = useState("");
+  const [documentoUrl, setDocumentoUrl] = useState("");
+  const [textoHtml, setTextoHtml] = useState("");
+  const [embedHtml, setEmbedHtml] = useState("");
+
+  // Quiz
   const [quizPreguntas, setQuizPreguntas] = useState<QuizPregunta[]>([]);
   const [quizConfig, setQuizConfig] = useState({
-    puntaje_aprobacion: 70,
-    intentos_maximos: 3,
-    tiempo_limite_minutos: null as number | null
+    puntuacion_minima: 70,
+    intentos_permitidos: 3,
+    tiempo_limite_min: null as number | null,
+    mostrar_respuestas_correctas: true
   });
 
   useEffect(() => {
     if (contenido) {
-      setFormData({
-        titulo: contenido.titulo,
-        tipo_contenido: contenido.tipo_contenido,
-        contenido_texto: contenido.contenido_texto,
-        contenido_url: contenido.contenido_url,
-        contenido_video_url: contenido.contenido_video_url,
-        duracion_estimada_minutos: contenido.duracion_estimada_minutos,
-        orden: contenido.orden,
-        activo: contenido.activo,
-        es_quiz: contenido.es_quiz,
-        quiz_config: contenido.quiz_config
-      });
-      if (contenido.quiz_config) {
-        setQuizPreguntas(contenido.quiz_config.preguntas || []);
+      setTitulo(contenido.titulo);
+      setTipo(contenido.tipo);
+      setDuracion(contenido.duracion_min);
+      setOrden(contenido.orden);
+      setActivo(contenido.activo);
+      setEsObligatorio(contenido.es_obligatorio);
+
+      // Cargar contenido según tipo
+      const c = contenido.contenido as any;
+      if (contenido.tipo === 'video' && c?.url) setVideoUrl(c.url);
+      if (contenido.tipo === 'documento' && c?.url) setDocumentoUrl(c.url);
+      if (contenido.tipo === 'texto_enriquecido' && c?.html) setTextoHtml(c.html);
+      if (contenido.tipo === 'embed' && c?.html) setEmbedHtml(c.html);
+      if (contenido.tipo === 'quiz' && c) {
+        // Para quiz, cargar preguntas del contenido
         setQuizConfig({
-          puntaje_aprobacion: contenido.quiz_config.puntaje_aprobacion || 70,
-          intentos_maximos: contenido.quiz_config.intentos_maximos || 3,
-          tiempo_limite_minutos: contenido.quiz_config.tiempo_limite_minutos || null
+          puntuacion_minima: c.puntuacion_minima ?? 70,
+          intentos_permitidos: c.intentos_permitidos ?? 3,
+          tiempo_limite_min: c.tiempo_limite_min ?? null,
+          mostrar_respuestas_correctas: c.mostrar_respuestas_correctas ?? true
         });
       }
     } else {
-      setFormData({
-        titulo: "",
-        tipo_contenido: "texto",
-        contenido_texto: "",
-        contenido_url: null,
-        contenido_video_url: null,
-        duracion_estimada_minutos: 10,
-        orden: nextOrden,
-        activo: true,
-        es_quiz: false,
-        quiz_config: null
-      });
-      setQuizPreguntas([]);
-      setQuizConfig({
-        puntaje_aprobacion: 70,
-        intentos_maximos: 3,
-        tiempo_limite_minutos: null
-      });
+      resetForm();
     }
   }, [contenido, nextOrden, open]);
 
-  const handleTipoChange = (tipo: string) => {
-    const esQuiz = tipo === 'quiz';
-    setFormData({ 
-      ...formData, 
-      tipo_contenido: tipo,
-      es_quiz: esQuiz 
+  const resetForm = () => {
+    setTitulo("");
+    setTipo("texto_enriquecido");
+    setDuracion(10);
+    setOrden(nextOrden);
+    setActivo(true);
+    setEsObligatorio(true);
+    setVideoUrl("");
+    setDocumentoUrl("");
+    setTextoHtml("");
+    setEmbedHtml("");
+    setQuizPreguntas([]);
+    setQuizConfig({
+      puntuacion_minima: 70,
+      intentos_permitidos: 3,
+      tiempo_limite_min: null,
+      mostrar_respuestas_correctas: true
     });
+  };
+
+  const handleTipoChange = (newTipo: TipoContenido) => {
+    setTipo(newTipo);
+  };
+
+  const buildContenidoData = (): ContenidoData => {
+    switch (tipo) {
+      case 'video':
+        return { url: videoUrl, provider: 'youtube' as const };
+      case 'documento':
+        return { url: documentoUrl, tipo: 'pdf' as const };
+      case 'texto_enriquecido':
+        return { html: textoHtml };
+      case 'embed':
+        return { html: embedHtml, altura: 400 };
+      case 'quiz':
+        return {
+          preguntas_ids: quizPreguntas.map(p => p.id),
+          puntuacion_minima: quizConfig.puntuacion_minima,
+          intentos_permitidos: quizConfig.intentos_permitidos,
+          mostrar_respuestas_correctas: quizConfig.mostrar_respuestas_correctas,
+          tiempo_limite_min: quizConfig.tiempo_limite_min ?? undefined
+        } as QuizContent;
+      default:
+        return { html: '' };
+    }
   };
 
   const addPregunta = () => {
@@ -175,11 +181,13 @@ export function LMSContenidoForm({
     e.preventDefault();
     
     const submitData: ContenidoFormData = {
-      ...formData,
-      quiz_config: formData.es_quiz ? {
-        preguntas: quizPreguntas,
-        ...quizConfig
-      } : null
+      titulo,
+      tipo,
+      contenido: buildContenidoData(),
+      duracion_min: duracion,
+      es_obligatorio: esObligatorio,
+      orden,
+      activo
     };
     
     await onSubmit(submitData);
@@ -202,8 +210,8 @@ export function LMSContenidoForm({
               <Label htmlFor="titulo">Título *</Label>
               <Input
                 id="titulo"
-                value={formData.titulo}
-                onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
                 placeholder="Título del contenido"
                 required
               />
@@ -211,14 +219,14 @@ export function LMSContenidoForm({
 
             <div className="space-y-2">
               <Label htmlFor="tipo">Tipo de Contenido</Label>
-              <Select value={formData.tipo_contenido} onValueChange={handleTipoChange}>
+              <Select value={tipo} onValueChange={(v) => handleTipoChange(v as TipoContenido)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TIPOS_CONTENIDO.map(tipo => (
-                    <SelectItem key={tipo.value} value={tipo.value}>
-                      {tipo.label}
+                  {LMS_TIPOS_CONTENIDO.map(t => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -233,13 +241,13 @@ export function LMSContenidoForm({
             </TabsList>
 
             <TabsContent value="contenido" className="space-y-4 mt-4">
-              {formData.tipo_contenido === 'video' && (
+              {tipo === 'video' && (
                 <div className="space-y-2">
                   <Label htmlFor="video_url">URL del Video</Label>
                   <Input
                     id="video_url"
-                    value={formData.contenido_video_url || ""}
-                    onChange={(e) => setFormData({ ...formData, contenido_video_url: e.target.value })}
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
                     placeholder="https://youtube.com/watch?v=..."
                   />
                   <p className="text-xs text-muted-foreground">
@@ -248,32 +256,45 @@ export function LMSContenidoForm({
                 </div>
               )}
 
-              {(formData.tipo_contenido === 'documento' || formData.tipo_contenido === 'presentacion') && (
+              {tipo === 'documento' && (
                 <div className="space-y-2">
                   <Label htmlFor="doc_url">URL del Documento</Label>
                   <Input
                     id="doc_url"
-                    value={formData.contenido_url || ""}
-                    onChange={(e) => setFormData({ ...formData, contenido_url: e.target.value })}
+                    value={documentoUrl}
+                    onChange={(e) => setDocumentoUrl(e.target.value)}
                     placeholder="https://..."
                   />
                 </div>
               )}
 
-              {formData.tipo_contenido === 'texto' && (
+              {tipo === 'texto_enriquecido' && (
                 <div className="space-y-2">
                   <Label htmlFor="texto">Contenido de Texto</Label>
                   <Textarea
                     id="texto"
-                    value={formData.contenido_texto || ""}
-                    onChange={(e) => setFormData({ ...formData, contenido_texto: e.target.value })}
-                    placeholder="Escribe el contenido aquí... (soporta Markdown)"
+                    value={textoHtml}
+                    onChange={(e) => setTextoHtml(e.target.value)}
+                    placeholder="Escribe el contenido aquí... (soporta HTML)"
                     rows={10}
                   />
                 </div>
               )}
 
-              {formData.tipo_contenido === 'quiz' && (
+              {tipo === 'embed' && (
+                <div className="space-y-2">
+                  <Label htmlFor="embed">Código Embed (HTML)</Label>
+                  <Textarea
+                    id="embed"
+                    value={embedHtml}
+                    onChange={(e) => setEmbedHtml(e.target.value)}
+                    placeholder="<iframe src='...'></iframe>"
+                    rows={6}
+                  />
+                </div>
+              )}
+
+              {tipo === 'quiz' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Label>Preguntas del Quiz</Label>
@@ -394,8 +415,8 @@ export function LMSContenidoForm({
                         type="number"
                         min={0}
                         max={100}
-                        value={quizConfig.puntaje_aprobacion}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, puntaje_aprobacion: parseInt(e.target.value) || 70 })}
+                        value={quizConfig.puntuacion_minima}
+                        onChange={(e) => setQuizConfig({ ...quizConfig, puntuacion_minima: parseInt(e.target.value) || 70 })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -403,8 +424,8 @@ export function LMSContenidoForm({
                       <Input
                         type="number"
                         min={1}
-                        value={quizConfig.intentos_maximos}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, intentos_maximos: parseInt(e.target.value) || 3 })}
+                        value={quizConfig.intentos_permitidos}
+                        onChange={(e) => setQuizConfig({ ...quizConfig, intentos_permitidos: parseInt(e.target.value) || 3 })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -412,8 +433,8 @@ export function LMSContenidoForm({
                       <Input
                         type="number"
                         min={0}
-                        value={quizConfig.tiempo_limite_minutos || ""}
-                        onChange={(e) => setQuizConfig({ ...quizConfig, tiempo_limite_minutos: e.target.value ? parseInt(e.target.value) : null })}
+                        value={quizConfig.tiempo_limite_min || ""}
+                        onChange={(e) => setQuizConfig({ ...quizConfig, tiempo_limite_min: e.target.value ? parseInt(e.target.value) : null })}
                         placeholder="Sin límite"
                       />
                     </div>
@@ -430,8 +451,8 @@ export function LMSContenidoForm({
                     id="duracion"
                     type="number"
                     min={1}
-                    value={formData.duracion_estimada_minutos}
-                    onChange={(e) => setFormData({ ...formData, duracion_estimada_minutos: parseInt(e.target.value) || 10 })}
+                    value={duracion}
+                    onChange={(e) => setDuracion(parseInt(e.target.value) || 10)}
                   />
                 </div>
 
@@ -441,18 +462,27 @@ export function LMSContenidoForm({
                     id="orden"
                     type="number"
                     min={1}
-                    value={formData.orden}
-                    onChange={(e) => setFormData({ ...formData, orden: parseInt(e.target.value) || 1 })}
+                    value={orden}
+                    onChange={(e) => setOrden(parseInt(e.target.value) || 1)}
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="obligatorio">Contenido Obligatorio</Label>
+                <Switch
+                  id="obligatorio"
+                  checked={esObligatorio}
+                  onCheckedChange={setEsObligatorio}
+                />
               </div>
 
               <div className="flex items-center justify-between">
                 <Label htmlFor="activo">Contenido Activo</Label>
                 <Switch
                   id="activo"
-                  checked={formData.activo}
-                  onCheckedChange={(checked) => setFormData({ ...formData, activo: checked })}
+                  checked={activo}
+                  onCheckedChange={setActivo}
                 />
               </div>
             </TabsContent>
@@ -462,7 +492,7 @@ export function LMSContenidoForm({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading || !formData.titulo.trim()}>
+            <Button type="submit" disabled={isLoading || !titulo.trim()}>
               {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {isEditing ? "Guardar Cambios" : "Crear Contenido"}
             </Button>

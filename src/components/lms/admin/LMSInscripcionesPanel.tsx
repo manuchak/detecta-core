@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Search, UserPlus, Trash2, RefreshCw, CheckCircle, Clock, XCircle, 
-  AlertTriangle, Filter, Users
+  AlertTriangle, Filter, Users, PlayCircle
 } from "lucide-react";
 import { 
   useLMSAdminInscripciones, 
@@ -25,13 +25,15 @@ import { useLMSAdminCursos } from "@/hooks/lms/useLMSAdminCursos";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import type { EstadoInscripcion } from "@/types/lms";
 
-const ESTADO_CONFIG: Record<string, { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  activo: { label: "Activo", icon: CheckCircle, variant: "default" },
-  pendiente: { label: "Pendiente", icon: Clock, variant: "secondary" },
+// Configuración de estados alineada con la DB
+const ESTADO_CONFIG: Record<EstadoInscripcion, { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  inscrito: { label: "Inscrito", icon: Clock, variant: "secondary" },
+  en_progreso: { label: "En Progreso", icon: PlayCircle, variant: "default" },
   completado: { label: "Completado", icon: CheckCircle, variant: "default" },
-  suspendido: { label: "Suspendido", icon: AlertTriangle, variant: "destructive" },
-  cancelado: { label: "Cancelado", icon: XCircle, variant: "destructive" }
+  vencido: { label: "Vencido", icon: AlertTriangle, variant: "destructive" },
+  abandonado: { label: "Abandonado", icon: XCircle, variant: "destructive" }
 };
 
 export function LMSInscripcionesPanel() {
@@ -44,7 +46,7 @@ export function LMSInscripcionesPanel() {
   const { data: cursos = [] } = useLMSAdminCursos();
   const { data: inscripciones = [], isLoading } = useLMSAdminInscripciones({
     cursoId: filterCurso !== "all" ? filterCurso : undefined,
-    estado: filterEstado !== "all" ? filterEstado as any : undefined
+    estado: filterEstado !== "all" ? filterEstado as EstadoInscripcion : undefined
   });
   const { data: statsData } = useLMSEstadisticasCurso(filterCurso !== "all" ? filterCurso : undefined);
   const stats = statsData ? { totalInscritos: statsData.total, completados: statsData.completados, enProgreso: statsData.enProgreso, promedioProgreso: statsData.progresoPromedio } : null;
@@ -63,9 +65,9 @@ export function LMSInscripcionesPanel() {
     );
   });
 
-  const handleUpdateEstado = async (id: string, estado: string) => {
+  const handleUpdateEstado = async (id: string, estado: EstadoInscripcion) => {
     try {
-      await updateInscripcion.mutateAsync({ inscripcionId: id, data: { estado: estado as any } });
+      await updateInscripcion.mutateAsync({ inscripcionId: id, data: { estado } });
       toast.success("Estado actualizado");
     } catch (error) {
       toast.error("Error al actualizar estado");
@@ -157,10 +159,11 @@ export function LMSInscripcionesPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="activo">Activo</SelectItem>
-                <SelectItem value="pendiente">Pendiente</SelectItem>
+                <SelectItem value="inscrito">Inscrito</SelectItem>
+                <SelectItem value="en_progreso">En Progreso</SelectItem>
                 <SelectItem value="completado">Completado</SelectItem>
-                <SelectItem value="suspendido">Suspendido</SelectItem>
+                <SelectItem value="vencido">Vencido</SelectItem>
+                <SelectItem value="abandonado">Abandonado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -192,7 +195,7 @@ export function LMSInscripcionesPanel() {
                 </TableHeader>
                 <TableBody>
                   {filteredInscripciones.map((inscripcion) => {
-                    const estadoConfig = ESTADO_CONFIG[inscripcion.estado] || ESTADO_CONFIG.pendiente;
+                    const estadoConfig = ESTADO_CONFIG[inscripcion.estado as EstadoInscripcion] || ESTADO_CONFIG.inscrito;
                     const StatusIcon = estadoConfig.icon;
                     
                     return (
@@ -220,9 +223,9 @@ export function LMSInscripcionesPanel() {
                         <TableCell>
                           <Select 
                             value={inscripcion.estado} 
-                            onValueChange={(v) => handleUpdateEstado(inscripcion.id, v)}
+                            onValueChange={(v) => handleUpdateEstado(inscripcion.id, v as EstadoInscripcion)}
                           >
-                            <SelectTrigger className="w-[130px]">
+                            <SelectTrigger className="w-[140px]">
                               <Badge variant={estadoConfig.variant} className="gap-1">
                                 <StatusIcon className="w-3 h-3" />
                                 {estadoConfig.label}
