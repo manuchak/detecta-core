@@ -766,6 +766,10 @@ function App() {
                 />
                 
                 {/* LMS Routes */}
+                {/* Public certificate verification - no auth required */}
+                <Route path="/verificar-certificado" element={<VerificarCertificado />} />
+                <Route path="/verificar-certificado/:codigo" element={<VerificarCertificado />} />
+                
                 <Route
                   path="/lms"
                   element={
