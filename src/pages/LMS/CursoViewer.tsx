@@ -110,10 +110,10 @@ export default function CursoViewer() {
 
   // Auto-inscribirse si no está inscrito
   useEffect(() => {
-    if (!loadingInscripcion && !inscripcion && cursoId) {
+    if (!loadingInscripcion && !inscripcion && cursoId && !inscribirse.isPending && !inscribirse.isSuccess) {
       inscribirse.mutate(cursoId);
     }
-  }, [loadingInscripcion, inscripcion, cursoId]);
+  }, [loadingInscripcion, inscripcion, cursoId, inscribirse.isPending, inscribirse.isSuccess]);
 
   if (loadingCurso || loadingInscripcion) {
     return (
@@ -146,9 +146,14 @@ export default function CursoViewer() {
     );
   }
 
-  // Obtener posición de video guardada
+  // Obtener posición de video y progreso de quiz guardados
   const progresoContenido = progresos?.find(p => p.contenido_id === contenidoActualId);
   const videoPosition = progresoContenido?.video_posicion_seg || 0;
+  const progresoQuiz = progresoContenido ? {
+    quiz_intentos: progresoContenido.quiz_intentos ?? undefined,
+    quiz_mejor_puntaje: progresoContenido.quiz_mejor_puntaje ?? undefined,
+    quiz_respuestas: progresoContenido.quiz_respuestas as any
+  } : undefined;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -215,6 +220,8 @@ export default function CursoViewer() {
                 {/* Renderizador de contenido */}
                 <ContentRenderer
                   contenido={contenidoActual}
+                  inscripcionId={inscripcion?.id}
+                  progresoQuiz={progresoQuiz}
                   onComplete={handleComplete}
                   onVideoProgress={handleVideoProgress}
                   initialVideoPosition={videoPosition}

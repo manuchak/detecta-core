@@ -32,6 +32,8 @@ export function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
+  const isEmbedProvider = content.provider === 'youtube' || content.provider === 'vimeo';
+
   // Extraer video ID para embeds
   const getEmbedUrl = () => {
     if (content.provider === 'youtube') {
@@ -45,31 +47,10 @@ export function VideoPlayer({
     return null;
   };
 
-  // Para YouTube/Vimeo, usar iframe
-  if (content.provider === 'youtube' || content.provider === 'vimeo') {
-    const embedUrl = getEmbedUrl();
-    if (!embedUrl) {
-      return (
-        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-          <p className="text-muted-foreground">URL de video inválida</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="aspect-video bg-black rounded-lg overflow-hidden">
-        <iframe
-          src={embedUrl}
-          className="w-full h-full"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
-  }
-
-  // Para videos de storage, reproductor nativo
+  // Hook SIEMPRE se ejecuta - guardas internas para embeds
   useEffect(() => {
+    if (isEmbedProvider) return; // Skip for embeds
+    
     const video = videoRef.current;
     if (!video) return;
 
@@ -109,7 +90,30 @@ export function VideoPlayer({
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [onProgress, onComplete, initialPosition, completionThreshold, hasCompleted]);
+  }, [isEmbedProvider, onProgress, onComplete, initialPosition, completionThreshold, hasCompleted]);
+
+  // Para YouTube/Vimeo, usar iframe
+  if (isEmbedProvider) {
+    const embedUrl = getEmbedUrl();
+    if (!embedUrl) {
+      return (
+        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+          <p className="text-muted-foreground">URL de video inválida</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="aspect-video bg-black rounded-lg overflow-hidden">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
 
   const togglePlay = () => {
     const video = videoRef.current;

@@ -86,19 +86,24 @@ export function QuizComponent({
     const tiempoSegundos = Math.round((new Date().getTime() - tiempoInicio.getTime()) / 1000);
     const aprobado = resultadoCalc.porcentaje >= quizData.puntuacion_minima;
 
-    await guardarQuiz.mutateAsync({
-      inscripcionId,
-      contenidoId: contenido.id,
-      respuestas: resultadoCalc.detalles,
-      puntaje: resultadoCalc.porcentaje,
-      tiempoSegundos,
-      aprobado,
-    });
+    try {
+      await guardarQuiz.mutateAsync({
+        inscripcionId,
+        contenidoId: contenido.id,
+        respuestas: resultadoCalc.detalles,
+        puntaje: resultadoCalc.porcentaje,
+        tiempoSegundos,
+        aprobado,
+      });
 
-    setEstado('results');
+      setEstado('results');
 
-    if (aprobado && onComplete) {
-      onComplete();
+      if (aprobado && onComplete) {
+        onComplete();
+      }
+    } catch (error) {
+      // El hook ya muestra toast de error
+      console.error('Error al guardar quiz:', error);
     }
   };
 

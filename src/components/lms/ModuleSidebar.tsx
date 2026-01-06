@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight, Lock } from "lucide-react";
+import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
