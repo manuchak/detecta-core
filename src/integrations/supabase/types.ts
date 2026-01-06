@@ -6814,6 +6814,344 @@ export type Database = {
           },
         ]
       }
+      lms_contenidos: {
+        Row: {
+          activo: boolean | null
+          contenido: Json
+          created_at: string | null
+          duracion_min: number | null
+          es_obligatorio: boolean | null
+          id: string
+          modulo_id: string
+          orden: number
+          tipo: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          contenido?: Json
+          created_at?: string | null
+          duracion_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          modulo_id: string
+          orden?: number
+          tipo: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          contenido?: Json
+          created_at?: string | null
+          duracion_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          modulo_id?: string
+          orden?: number
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_contenidos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "lms_modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_cursos: {
+        Row: {
+          activo: boolean | null
+          categoria: string | null
+          codigo: string
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          duracion_estimada_min: number | null
+          es_obligatorio: boolean | null
+          id: string
+          imagen_portada_url: string | null
+          nivel: string | null
+          orden: number | null
+          plazo_dias_default: number | null
+          publicado: boolean | null
+          roles_objetivo: string[] | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria?: string | null
+          codigo: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          imagen_portada_url?: string | null
+          nivel?: string | null
+          orden?: number | null
+          plazo_dias_default?: number | null
+          publicado?: boolean | null
+          roles_objetivo?: string[] | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string | null
+          codigo?: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          duracion_estimada_min?: number | null
+          es_obligatorio?: boolean | null
+          id?: string
+          imagen_portada_url?: string | null
+          nivel?: string | null
+          orden?: number | null
+          plazo_dias_default?: number | null
+          publicado?: boolean | null
+          roles_objetivo?: string[] | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lms_inscripciones: {
+        Row: {
+          asignado_por: string | null
+          calificacion_final: number | null
+          certificado_generado: boolean | null
+          certificado_url: string | null
+          created_at: string | null
+          curso_id: string
+          estado: string | null
+          fecha_completado: string | null
+          fecha_inicio: string | null
+          fecha_inscripcion: string | null
+          fecha_limite: string | null
+          id: string
+          progreso_porcentaje: number | null
+          tipo_inscripcion: string | null
+          updated_at: string | null
+          usuario_id: string
+        }
+        Insert: {
+          asignado_por?: string | null
+          calificacion_final?: number | null
+          certificado_generado?: boolean | null
+          certificado_url?: string | null
+          created_at?: string | null
+          curso_id: string
+          estado?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string | null
+          fecha_inscripcion?: string | null
+          fecha_limite?: string | null
+          id?: string
+          progreso_porcentaje?: number | null
+          tipo_inscripcion?: string | null
+          updated_at?: string | null
+          usuario_id: string
+        }
+        Update: {
+          asignado_por?: string | null
+          calificacion_final?: number | null
+          certificado_generado?: boolean | null
+          certificado_url?: string | null
+          created_at?: string | null
+          curso_id?: string
+          estado?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string | null
+          fecha_inscripcion?: string | null
+          fecha_limite?: string | null
+          id?: string
+          progreso_porcentaje?: number | null
+          tipo_inscripcion?: string | null
+          updated_at?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_inscripciones_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "lms_cursos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_modulos: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          curso_id: string
+          descripcion: string | null
+          id: string
+          orden: number
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          curso_id: string
+          descripcion?: string | null
+          id?: string
+          orden?: number
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          curso_id?: string
+          descripcion?: string | null
+          id?: string
+          orden?: number
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_modulos_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "lms_cursos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_preguntas: {
+        Row: {
+          activa: boolean | null
+          created_at: string | null
+          curso_id: string | null
+          explicacion: string | null
+          id: string
+          opciones: Json | null
+          pregunta: string
+          puntos: number | null
+          tipo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activa?: boolean | null
+          created_at?: string | null
+          curso_id?: string | null
+          explicacion?: string | null
+          id?: string
+          opciones?: Json | null
+          pregunta: string
+          puntos?: number | null
+          tipo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activa?: boolean | null
+          created_at?: string | null
+          curso_id?: string | null
+          explicacion?: string | null
+          id?: string
+          opciones?: Json | null
+          pregunta?: string
+          puntos?: number | null
+          tipo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_preguntas_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "lms_cursos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lms_progreso: {
+        Row: {
+          completado: boolean | null
+          contenido_id: string
+          created_at: string | null
+          fecha_completado: string | null
+          fecha_inicio: string | null
+          id: string
+          iniciado: boolean | null
+          inscripcion_id: string
+          quiz_intentos: number | null
+          quiz_mejor_puntaje: number | null
+          quiz_respuestas: Json | null
+          quiz_ultimo_puntaje: number | null
+          tiempo_dedicado_seg: number | null
+          updated_at: string | null
+          veces_visto: number | null
+          video_porcentaje_visto: number | null
+          video_posicion_seg: number | null
+        }
+        Insert: {
+          completado?: boolean | null
+          contenido_id: string
+          created_at?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          iniciado?: boolean | null
+          inscripcion_id: string
+          quiz_intentos?: number | null
+          quiz_mejor_puntaje?: number | null
+          quiz_respuestas?: Json | null
+          quiz_ultimo_puntaje?: number | null
+          tiempo_dedicado_seg?: number | null
+          updated_at?: string | null
+          veces_visto?: number | null
+          video_porcentaje_visto?: number | null
+          video_posicion_seg?: number | null
+        }
+        Update: {
+          completado?: boolean | null
+          contenido_id?: string
+          created_at?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string | null
+          id?: string
+          iniciado?: boolean | null
+          inscripcion_id?: string
+          quiz_intentos?: number | null
+          quiz_mejor_puntaje?: number | null
+          quiz_respuestas?: Json | null
+          quiz_ultimo_puntaje?: number | null
+          tiempo_dedicado_seg?: number | null
+          updated_at?: string | null
+          veces_visto?: number | null
+          video_porcentaje_visto?: number | null
+          video_posicion_seg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lms_progreso_contenido_id_fkey"
+            columns: ["contenido_id"]
+            isOneToOne: false
+            referencedRelation: "lms_contenidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lms_progreso_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "lms_inscripciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lotes_inventario: {
         Row: {
           activo: boolean
@@ -15056,6 +15394,38 @@ export type Database = {
         Returns: {
           linked_services: number
         }[]
+      }
+      lms_calcular_progreso: {
+        Args: { p_inscripcion_id: string }
+        Returns: Json
+      }
+      lms_get_cursos_disponibles: {
+        Args: { p_user_id?: string }
+        Returns: {
+          categoria: string
+          codigo: string
+          descripcion: string
+          duracion_estimada_min: number
+          es_obligatorio: boolean
+          id: string
+          imagen_portada_url: string
+          inscripcion_estado: string
+          inscripcion_fecha_limite: string
+          inscripcion_id: string
+          inscripcion_progreso: number
+          nivel: string
+          orden: number
+          tipo_inscripcion: string
+          titulo: string
+        }[]
+      }
+      lms_inscribirse_curso: {
+        Args: { p_curso_id: string; p_user_id?: string }
+        Returns: Json
+      }
+      lms_marcar_contenido_completado: {
+        Args: { p_contenido_id: string; p_datos_extra?: Json }
+        Returns: Json
       }
       log_sensitive_access:
         | {
