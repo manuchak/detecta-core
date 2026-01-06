@@ -7,7 +7,8 @@ type AIAction =
   | "generate_course_structure"
   | "generate_quiz_questions"
   | "generate_flashcards"
-  | "generate_rich_text";
+  | "generate_rich_text"
+  | "generate_image";
 
 interface CourseMetadata {
   codigo: string;
@@ -130,6 +131,16 @@ export function useLMSAI() {
     });
   };
 
+  const generateCourseImage = async (
+    titulo: string,
+    descripcion?: string
+  ): Promise<{ imageBase64: string } | null> => {
+    return invokeAI<{ imageBase64: string }>("generate_image", {
+      titulo,
+      descripcion
+    });
+  };
+
   return {
     loading,
     generateCourseMetadata,
@@ -137,5 +148,6 @@ export function useLMSAI() {
     generateQuizQuestions,
     generateFlashcards,
     generateRichText,
+    generateCourseImage,
   };
 }
