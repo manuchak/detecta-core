@@ -1,6 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Phone, Rocket, AlertTriangle, BarChart3 } from "lucide-react";
+import { Phone, Rocket, AlertTriangle, X } from "lucide-react";
 import { LeadsCounts } from "@/hooks/useLeadsCounts";
 import { cn } from "@/lib/utils";
 
@@ -23,67 +21,67 @@ export const SupplyQuickActionBar = ({
       label: 'Por Contactar',
       icon: Phone,
       count: counts?.uncontacted || 0,
-      color: 'bg-blue-500 hover:bg-blue-600 text-white',
-      activeColor: 'bg-blue-600 ring-2 ring-blue-300',
     },
     {
       id: 'approved',
-      label: 'Listos para Liberar',
+      label: 'Listos',
       icon: Rocket,
       count: counts?.approved || 0,
-      color: 'bg-emerald-500 hover:bg-emerald-600 text-white',
-      activeColor: 'bg-emerald-600 ring-2 ring-emerald-300',
     },
     {
       id: 'pending',
       label: 'En Proceso',
       icon: AlertTriangle,
       count: counts?.pending || 0,
-      color: 'bg-amber-500 hover:bg-amber-600 text-white',
-      activeColor: 'bg-amber-600 ring-2 ring-amber-300',
     },
   ];
 
+  // Solo mostrar pills con count > 0
+  const visibleActions = actions.filter(action => action.count > 0);
+
+  if (visibleActions.length === 0 && !isLoading) {
+    return null;
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg border border-border/50">
-      <span className="text-sm font-medium text-muted-foreground mr-2">Acceso rápido:</span>
-      
-      {actions.map((action) => {
+    <div className="flex flex-wrap items-center gap-2">
+      {visibleActions.map((action) => {
         const Icon = action.icon;
         const isActive = activeFilter === action.id;
         
         return (
-          <Button
+          <button
             key={action.id}
-            size="sm"
             onClick={() => onFilterChange(isActive ? 'all' : action.id)}
-            className={cn(
-              "h-9 px-3 transition-all",
-              isActive ? action.activeColor : action.color
-            )}
             disabled={isLoading}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
+              "bg-background/60 backdrop-blur-sm border border-border/30",
+              "hover:bg-background/80 hover:border-border/50",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              isActive && "bg-primary/10 border-primary/30 text-primary"
+            )}
           >
-            <Icon className="h-4 w-4 mr-1.5" />
+            <Icon className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{action.label}</span>
-            <Badge 
-              variant="secondary" 
-              className="ml-2 bg-white/20 text-inherit hover:bg-white/30 px-1.5 py-0 text-xs font-bold"
-            >
-              {isLoading ? '...' : action.count}
-            </Badge>
-          </Button>
+            <span className="text-xs tabular-nums opacity-70">
+              {isLoading ? '...' : action.count.toLocaleString()}
+            </span>
+          </button>
         );
       })}
 
       {activeFilter !== 'all' && (
-        <Button
-          size="sm"
-          variant="ghost"
+        <button
           onClick={() => onFilterChange('all')}
-          className="h-9 text-muted-foreground hover:text-foreground"
+          className={cn(
+            "inline-flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all",
+            "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
         >
-          Ver todos
-        </Button>
+          <X className="h-3 w-3" />
+          Limpiar
+        </button>
       )}
     </div>
   );

@@ -1,6 +1,4 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Phone, Rocket, Archive, List } from "lucide-react";
 import { LeadsCounts } from "@/hooks/useLeadsCounts";
 
 interface SupplySmartTabsProps {
@@ -20,51 +18,40 @@ export const SupplySmartTabs = ({
     {
       id: 'all',
       label: 'Todos',
-      icon: List,
       count: counts?.total || 0,
     },
     {
       id: 'pending',
-      label: 'Por Contactar',
-      icon: Phone,
+      label: 'Pendientes',
       count: counts?.pending || 0,
     },
     {
       id: 'approved',
-      label: 'Listos',
-      icon: Rocket,
+      label: 'Aprobados',
       count: counts?.approved || 0,
     },
     {
       id: 'rejected',
       label: 'Archivo',
-      icon: Archive,
       count: counts?.rejected || 0,
     },
   ];
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-4 h-auto p-1">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <TabsTrigger 
-              key={tab.id} 
-              value={tab.id}
-              className="flex items-center gap-1.5 py-2 px-3 data-[state=active]:bg-background"
-            >
-              <Icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
-              <Badge 
-                variant="secondary" 
-                className="ml-1 px-1.5 py-0 text-xs font-medium bg-muted"
-              >
-                {isLoading ? '...' : tab.count.toLocaleString()}
-              </Badge>
-            </TabsTrigger>
-          );
-        })}
+      <TabsList className="h-8 bg-muted/30 rounded-lg p-0.5 w-auto inline-flex">
+        {tabs.map((tab) => (
+          <TabsTrigger 
+            key={tab.id} 
+            value={tab.id}
+            className="text-xs h-7 px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+          >
+            {tab.label}
+            <span className="ml-1.5 text-[10px] tabular-nums opacity-60">
+              {isLoading ? '...' : tab.count.toLocaleString()}
+            </span>
+          </TabsTrigger>
+        ))}
       </TabsList>
     </Tabs>
   );
