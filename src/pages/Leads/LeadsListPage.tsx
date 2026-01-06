@@ -1,31 +1,43 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Filter, Users } from "lucide-react";
+import { Plus, Filter, Users, BarChart3, Target } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { LeadQuickPreview } from "@/components/leads/LeadQuickPreview";
-import { SupplyQuickActionBar } from "@/components/leads/SupplyQuickActionBar";
-import { SupplySmartTabs } from "@/components/leads/SupplySmartTabs";
+import { LeadsNavigationTabs } from "@/components/leads/LeadsNavigationTabs";
+import { LeadsInlineFilters } from "@/components/leads/LeadsInlineFilters";
+import { LeadsMetricsSummary } from "@/components/leads/LeadsMetricsSummary";
 import { useLeadsCounts } from "@/hooks/useLeadsCounts";
 import { Lead } from "@/types/leadTypes";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { QuickFilters, QuickFilterPreset } from "@/components/leads/QuickFilters";
 
-// Lazy load de sección pesada - solo carga cuando se expande
+// Lazy load de sección pesada - solo carga cuando se abre el drawer
 const CompactZoneNeedsSection = lazy(() => 
   import("@/components/leads/CompactZoneNeedsSection").then(m => ({ default: m.CompactZoneNeedsSection }))
 );
 
 const ZoneSectionSkeleton = () => (
-  <div className="p-4 bg-muted/30 rounded-lg border border-border/50 animate-pulse">
-    <div className="flex items-center gap-4">
-      <div className="h-4 w-32 bg-muted rounded" />
-      <div className="h-4 w-24 bg-muted rounded" />
-      <div className="h-4 w-20 bg-muted rounded" />
+  <div className="p-4 space-y-3 animate-pulse">
+    <div className="h-4 w-32 bg-muted rounded" />
+    <div className="grid grid-cols-2 gap-3">
+      <div className="h-16 bg-muted rounded" />
+      <div className="h-16 bg-muted rounded" />
     </div>
   </div>
 );
@@ -34,11 +46,15 @@ const LeadsListPage = () => {
   const { loading: authLoading, permissions, userRole } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
-  const [activeDecisionTab, setActiveDecisionTab] = useState<string>("all");
-  const [quickFilter, setQuickFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("uncontacted");
   const [quickPreviewLead, setQuickPreviewLead] = useState<Lead | null>(null);
-  const [zoneExpanded, setZoneExpanded] = useState(false);
   const [activeFilterPreset, setActiveFilterPreset] = useState<string | undefined>();
+  const [zonesSheetOpen, setZonesSheetOpen] = useState(false);
+  
+  // Inline filters state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   // Hook eficiente para contadores - usa RPC con COUNT en SQL
   const { data: counts, isLoading: countsLoading } = useLeadsCounts();
@@ -65,14 +81,24 @@ const LeadsListPage = () => {
 
   const handleApplyFilter = (preset: QuickFilterPreset) => {
     setActiveFilterPreset(preset.id);
-    // Apply filter logic here if needed
   };
 
-  // Mapear quickFilter a filterByDecision
+  const handleClearFilters = useCallback(() => {
+    setSearchTerm("");
+    setDateFilter("all");
+    setSourceFilter("all");
+    setActiveFilterPreset(undefined);
+  }, []);
+
+  // Mapear tab a filterByDecision
   const getDecisionFilter = (): 'all' | 'approved' | 'pending' | 'rejected' => {
-    if (quickFilter === 'uncontacted') return 'pending';
-    if (activeDecisionTab !== 'all') return activeDecisionTab as 'all' | 'approved' | 'pending' | 'rejected';
-    return quickFilter as 'all' | 'approved' | 'pending' | 'rejected';
+    switch (activeTab) {
+      case 'approved': return 'approved';
+      case 'pending': return 'pending';
+      case 'rejected': return 'rejected';
+      case 'uncontacted': return 'pending'; // Por contactar = pendientes
+      default: return 'all';
+    }
   };
 
   // Mostrar loading durante la autenticación
@@ -116,21 +142,56 @@ const LeadsListPage = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header Lean - Estilo Approvals */}
+    <div className="space-y-4 p-6">
+      {/* Header Lean */}
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <h1 className="apple-text-title">Candidatos</h1>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-normal">
-              <Users className="h-3 w-3 mr-1" />
-              {countsLoading ? '...' : (counts?.total || 0).toLocaleString()}
-            </Badge>
-          </div>
+          <h1 className="text-xl font-semibold tracking-tight">Candidatos</h1>
+          <Badge variant="outline" className="text-xs font-normal tabular-nums">
+            {countsLoading ? '...' : (counts?.total || 0).toLocaleString()}
+          </Badge>
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Filtros en Sheet lateral */}
+          {/* Métricas en Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Métricas</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <LeadsMetricsSummary 
+                counts={counts} 
+                isLoading={countsLoading}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Objetivos por Zona en Sheet */}
+          <Sheet open={zonesSheetOpen} onOpenChange={setZonesSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5">
+                <Target className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Metas</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[400px] sm:w-[540px]">
+              <SheetHeader>
+                <SheetTitle>Objetivos de Reclutamiento</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                {zonesSheetOpen && (
+                  <Suspense fallback={<ZoneSectionSkeleton />}>
+                    <CompactZoneNeedsSection />
+                  </Suspense>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Filtros Avanzados en Sheet */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 gap-1.5">
@@ -164,31 +225,24 @@ const LeadsListPage = () => {
         </div>
       </header>
 
-      {/* Quick Action Pills - Minimalistas */}
-      <SupplyQuickActionBar
+      {/* Navigation Tabs */}
+      <LeadsNavigationTabs
         counts={counts}
         isLoading={countsLoading}
-        activeFilter={quickFilter}
-        onFilterChange={(filter) => {
-          setQuickFilter(filter);
-          if (filter !== 'all') setActiveDecisionTab('all');
-        }}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
-      {/* Sección de Necesidades - Lazy loaded */}
-      <CollapsibleSection
-        title="Objetivos de Reclutamiento"
-        subtitle="Metas por zona"
-        variant="compact"
-        defaultOpen={false}
-        onOpenChange={setZoneExpanded}
-      >
-        {zoneExpanded && (
-          <Suspense fallback={<ZoneSectionSkeleton />}>
-            <CompactZoneNeedsSection />
-          </Suspense>
-        )}
-      </CollapsibleSection>
+      {/* Inline Filters */}
+      <LeadsInlineFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={setSourceFilter}
+        onClearFilters={handleClearFilters}
+      />
 
       {/* Formulario o Tabla */}
       {showCreateForm ? (
@@ -204,25 +258,14 @@ const LeadsListPage = () => {
           />
         </CollapsibleSection>
       ) : (
-        <div className="space-y-4">
-          {/* Smart Tabs - Compactas */}
-          <SupplySmartTabs
-            counts={counts}
-            isLoading={countsLoading}
-            activeTab={activeDecisionTab}
-            onTabChange={(tab) => {
-              setActiveDecisionTab(tab);
-              setQuickFilter('all');
-            }}
-          />
-
-          {/* Tabla de Leads */}
-          <LeadsTable 
-            onEditLead={handleEditLead}
-            onQuickPreview={handleQuickPreview}
-            filterByDecision={getDecisionFilter()}
-          />
-        </div>
+        <LeadsTable 
+          onEditLead={handleEditLead}
+          onQuickPreview={handleQuickPreview}
+          filterByDecision={getDecisionFilter()}
+          externalSearchTerm={searchTerm}
+          externalDateFilter={dateFilter}
+          externalSourceFilter={sourceFilter}
+        />
       )}
 
       {/* Quick Preview Modal */}
