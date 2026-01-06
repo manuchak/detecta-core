@@ -2,12 +2,19 @@ import { VideoPlayer } from "./VideoPlayer";
 import { DocumentViewer } from "./DocumentViewer";
 import { EmbedRenderer } from "./EmbedRenderer";
 import { TextoEnriquecidoViewer } from "./TextoEnriquecidoViewer";
+import { QuizComponent } from "./QuizComponent";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent } from "@/types/lms";
+import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent, RespuestaQuiz } from "@/types/lms";
 
 interface ContentRendererProps {
   contenido: LMSContenido;
+  inscripcionId?: string;
+  progresoQuiz?: {
+    quiz_intentos?: number;
+    quiz_mejor_puntaje?: number;
+    quiz_respuestas?: RespuestaQuiz[];
+  };
   onComplete?: () => void;
   onVideoProgress?: (posicion: number, porcentaje: number) => void;
   initialVideoPosition?: number;
@@ -15,6 +22,8 @@ interface ContentRendererProps {
 
 export function ContentRenderer({ 
   contenido, 
+  inscripcionId,
+  progresoQuiz,
   onComplete,
   onVideoProgress,
   initialVideoPosition
@@ -57,14 +66,23 @@ export function ContentRenderer({
       );
 
     case 'quiz':
-      // Quiz se implementará en Fase 3
+      if (!inscripcionId) {
+        return (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Debes estar inscrito para realizar esta evaluación.
+            </AlertDescription>
+          </Alert>
+        );
+      }
       return (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            El componente de evaluación se está desarrollando.
-          </AlertDescription>
-        </Alert>
+        <QuizComponent
+          contenido={contenido}
+          inscripcionId={inscripcionId}
+          progresoActual={progresoQuiz}
+          onComplete={onComplete}
+        />
       );
 
     case 'interactivo':
