@@ -86,6 +86,8 @@ const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
 const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
+const LMSDashboard = lazy(() => import('@/pages/LMS/LMSDashboard'));
+const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';

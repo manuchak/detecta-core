@@ -24,7 +24,8 @@ import {
   FileText,
   LucideIcon,
   Radio,
-  Headphones
+  Headphones,
+  GraduationCap
 } from 'lucide-react';
 
 // Navigation Groups for visual separation
@@ -307,6 +308,29 @@ export const navigationModules: NavigationModule[] = [
   },
 
   // ===== SISTEMA GROUP =====
+  {
+    id: 'lms',
+    label: 'Capacitación',
+    icon: GraduationCap,
+    path: '/lms',
+    group: 'system',
+    roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte'],
+    children: [
+      {
+        id: 'lms_cursos',
+        label: 'Mis Cursos',
+        path: '/lms',
+        icon: BookOpen
+      },
+      {
+        id: 'lms_admin',
+        label: 'Gestión',
+        path: '/lms/admin',
+        roles: ['admin', 'owner', 'supply_admin'],
+        icon: Settings
+      }
+    ]
+  },
   {
     id: 'administration',
     label: 'Administración',
