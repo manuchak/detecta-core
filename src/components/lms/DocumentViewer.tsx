@@ -8,7 +8,8 @@ interface DocumentViewerProps {
 }
 
 export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
-  const isPdf = content.tipo === 'pdf';
+  const tipo = content?.tipo || 'documento';
+  const isPdf = tipo === 'pdf';
 
   const handleOpenExternal = () => {
     window.open(content.url, '_blank');
@@ -57,8 +58,8 @@ export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
           {content.nombre_archivo || 'Documento'}
         </h4>
         <p className="text-sm text-muted-foreground mt-1">
-          Tipo: {content.tipo.toUpperCase()}
-          {content.paginas && ` · ${content.paginas} páginas`}
+          Tipo: {tipo.toUpperCase()}
+          {content?.paginas && ` · ${content.paginas} páginas`}
         </p>
       </div>
 
