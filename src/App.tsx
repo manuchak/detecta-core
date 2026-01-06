@@ -800,7 +800,7 @@ function App() {
                   path="/lms/admin"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
                           <LMSAdmin />
                         </UnifiedLayout>
@@ -812,7 +812,7 @@ function App() {
                   path="/lms/reportes"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
                           <LMSReportes />
                         </UnifiedLayout>
@@ -826,7 +826,7 @@ function App() {
                   path="/lms/admin/cursos/nuevo"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
                           <LMSAdminCursoNuevo />
                         </UnifiedLayout>
@@ -838,7 +838,7 @@ function App() {
                   path="/lms/admin/cursos/:cursoId"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
                           <LMSCursoDetalle />
                         </UnifiedLayout>
@@ -850,7 +850,7 @@ function App() {
                   path="/lms/admin/cursos/:cursoId/editar"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
                           <LMSAdminCursoEditar />
                         </UnifiedLayout>

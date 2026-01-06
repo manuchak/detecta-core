@@ -405,8 +405,10 @@ export const LMS_ESTADOS_INSCRIPCION: { value: EstadoInscripcion; label: string;
 export const LMS_ROLES_OBJETIVO: { value: string; label: string }[] = [
   { value: 'custodio', label: 'Custodio' },
   { value: 'supply_admin', label: 'Admin Supply' },
+  { value: 'capacitacion_admin', label: 'Admin Capacitación' },
   { value: 'admin', label: 'Administrador' },
   { value: 'owner', label: 'Owner' },
   { value: 'operador', label: 'Operador' },
   { value: 'monitoreo', label: 'Monitoreo' },
+  { value: 'instalador', label: 'Instalador' },
 ];

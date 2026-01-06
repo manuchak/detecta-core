@@ -3,6 +3,7 @@ export type Role =
   | 'owner'
   | 'admin'
   | 'supply_admin'
+  | 'capacitacion_admin'
   | 'coordinador_operaciones'
   | 'jefe_seguridad'
   | 'analista_seguridad'
