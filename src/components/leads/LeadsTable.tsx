@@ -1,9 +1,7 @@
 // @ts-nocheck
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -20,36 +18,40 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Users, Download } from "lucide-react";
+import { UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Download } from "lucide-react";
 import { toast } from "sonner";
 import { exportUncontactedLeads } from "@/utils/exportLeads";
 import { supabase } from "@/integrations/supabase/client";
 import { useSimpleLeads } from "@/hooks/useSimpleLeads";
 import { Lead } from "@/types/leadTypes";
 import { LeadAssignmentDialog } from "./LeadAssignmentDialog";
-import { LeadsMetricsDashboard } from "./LeadsMetricsDashboard";
 import { BulkActionsToolbar } from "./BulkActionsToolbar";
-import { AdvancedFilters, AdvancedFiltersState } from "./AdvancedFilters";
-import { QuickFilters, QuickFilterPreset } from "./QuickFilters";
+import { AdvancedFiltersState } from "./AdvancedFilters";
 import { LeadDetailsDialog } from "./LeadDetailsDialog";
-import { TeamManagementView } from "./TeamManagementView";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
 import { SandboxDataWarning } from "@/components/sandbox/SandboxDataWarning";
 
 interface LeadsTableProps {
   onEditLead?: (lead: Lead) => void;
   onQuickPreview?: (lead: Lead) => void;
   filterByDecision?: 'all' | 'approved' | 'pending' | 'rejected';
+  externalSearchTerm?: string;
+  externalDateFilter?: string;
+  externalSourceFilter?: string;
 }
 
-export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all' }: LeadsTableProps) => {
+export const LeadsTable = ({ 
+  onEditLead, 
+  onQuickPreview, 
+  filterByDecision = 'all',
+  externalSearchTerm = '',
+  externalDateFilter = 'all',
+  externalSourceFilter = 'all'
+}: LeadsTableProps) => {
   // Estados para tabs y UI principal
   const [activeTab, setActiveTab] = useState("leads");
   
   // Estados para filtros y UI
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [uncontactedCount, setUncontactedCount] = useState<number>(0);
@@ -74,25 +76,47 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
     };
   });
 
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset page when search changes
-    }, 300); // 300ms debounce
+  // Compute date range from external filter
+  const getDateRangeFromFilter = (filter: string): { from: string; to: string } => {
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    
+    switch (filter) {
+      case 'today':
+        return { from: fmt(today), to: fmt(today) };
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { from: fmt(yesterday), to: fmt(yesterday) };
+      }
+      case 'week': {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return { from: fmt(weekAgo), to: fmt(today) };
+      }
+      case 'month': {
+        const monthAgo = new Date(today);
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        return { from: fmt(monthAgo), to: fmt(today) };
+      }
+      default:
+        return { from: advancedFilters.dateFrom, to: advancedFilters.dateTo };
+    }
+  };
 
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  const dateRange = externalDateFilter !== 'all' 
+    ? getDateRangeFromFilter(externalDateFilter)
+    : { from: advancedFilters.dateFrom, to: advancedFilters.dateTo };
 
   // Preparar filtros para el hook optimizado
   const leadsFilters = useMemo(() => ({
-    searchTerm: debouncedSearchTerm || undefined,
+    searchTerm: externalSearchTerm || undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     assignment: assignmentFilter !== 'all' ? assignmentFilter : undefined,
-    dateFrom: advancedFilters.dateFrom || undefined,
-    dateTo: advancedFilters.dateTo || undefined,
-    source: advancedFilters.source !== 'all' ? advancedFilters.source : undefined,
-  }), [debouncedSearchTerm, statusFilter, assignmentFilter, advancedFilters]);
+    dateFrom: dateRange.from || undefined,
+    dateTo: dateRange.to || undefined,
+    source: externalSourceFilter !== 'all' ? externalSourceFilter : (advancedFilters.source !== 'all' ? advancedFilters.source : undefined),
+  }), [externalSearchTerm, statusFilter, assignmentFilter, dateRange.from, dateRange.to, externalSourceFilter, advancedFilters.source]);
 
   // Hook optimizado con filtros en backend y paginación
   const { 
@@ -451,36 +475,6 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
           {/* Advertencia de Sandbox */}
           <SandboxDataWarning entityType="lead" action="view" />
           
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="leads" className="flex items-center space-x-2">
-              <User className="h-4 w-4" />
-              <span>Gestión de Leads</span>
-            </TabsTrigger>
-            <TabsTrigger value="team" className="flex items-center space-x-2">
-              <Users className="h-4 w-4" />
-              <span>Gestión de Equipo</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="leads" className="space-y-4">
-            <LeadsMetricsDashboard
-            leads={filteredLeads || []} 
-            dateFrom={advancedFilters.dateFrom || undefined}
-            dateTo={advancedFilters.dateTo || undefined}
-          />
-
-          <QuickFilters 
-            onApplyFilter={handleQuickFilter}
-            activePreset={activeQuickFilter}
-          />
-
-          <AdvancedFilters 
-            filters={advancedFilters}
-            onFiltersChange={handleAdvancedFiltersChange}
-            onResetFilters={handleResetFilters}
-          />
-
           {authPermissions.canAssignLeads && (
             <BulkActionsToolbar 
               selectedLeads={selectedLeads}
@@ -493,7 +487,7 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
             />
           )}
 
-      {/* Active Filters Display */}
+      {/* Active Filters Display - only show internal filters */}
       {(statusFilter !== 'all' || assignmentFilter !== 'all' || debouncedSearchTerm || 
         advancedFilters.source !== 'all' || advancedFilters.dateFrom || advancedFilters.dateTo) && (
         <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/50 rounded-lg">
@@ -834,26 +828,6 @@ export const LeadsTable = ({ onEditLead, onQuickPreview, filterByDecision = 'all
           </p>
         </div>
       )}
-      </TabsContent>
-
-          <TabsContent value="team">
-            {authPermissions.canAssignLeads ? (
-              <TeamManagementView onRefreshLeads={handleRefreshLeads} />
-            ) : (
-              <div className="text-center py-8">
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 space-y-3">
-                  <div className="flex items-center justify-center space-x-2 text-orange-600">
-                    <AlertCircle className="h-5 w-5" />
-                    <h3 className="font-semibold">Acceso Restringido</h3>
-                  </div>
-                  <p className="text-orange-700">
-                    Solo los supply admins pueden acceder a la gestión de equipo.
-                  </p>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
         </>
       )}
 
