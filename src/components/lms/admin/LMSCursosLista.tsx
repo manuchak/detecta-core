@@ -103,36 +103,35 @@ export function LMSCursosLista() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold">Cursos</h2>
-          <p className="text-sm text-muted-foreground">
-            {cursos?.length || 0} cursos en total
-          </p>
-        </div>
-        <Button onClick={() => navigate('/lms/admin/cursos/nuevo')}>
+    <div className="space-y-4">
+      {/* Header con acción */}
+      <div className="apple-section-header">
+        <p className="apple-text-body text-muted-foreground">
+          {cursos?.length || 0} cursos en total
+        </p>
+        <Button className="apple-button-primary" onClick={() => navigate('/lms/admin/cursos/nuevo')}>
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Curso
         </Button>
       </div>
 
+      {/* Empty State */}
       {!cursos || cursos.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No hay cursos</h3>
-            <p className="text-muted-foreground mb-4">
-              Crea tu primer curso para comenzar
-            </p>
-            <Button onClick={() => navigate('/lms/admin/cursos/nuevo')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Curso
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="apple-empty-state">
+          <div className="mx-auto w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+            <BookOpen className="w-8 h-8 text-muted-foreground/50" />
+          </div>
+          <h3 className="apple-text-headline mb-2">No hay cursos creados</h3>
+          <p className="apple-text-body text-muted-foreground mb-4">
+            Crea tu primer curso para comenzar a capacitar
+          </p>
+          <Button className="apple-button-primary" onClick={() => navigate('/lms/admin/cursos/nuevo')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Crear Primer Curso
+          </Button>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="apple-list">
           {cursos.map((curso) => (
             <CursoCard
               key={curso.id}
@@ -195,113 +194,117 @@ function CursoCard({
 }) {
   const { data: estadisticas } = useLMSEstadisticasCurso(curso.id);
 
+  const statusBorderColor = curso.publicado ? 'border-l-green-500' : 'border-l-muted-foreground/30';
+
   return (
-    <Card 
-      className={`hover:shadow-md transition-shadow cursor-pointer ${!curso.activo ? 'opacity-60' : ''}`}
+    <div 
+      className={`apple-card p-4 cursor-pointer border-l-4 ${statusBorderColor} ${!curso.activo ? 'opacity-60' : ''}`}
       onClick={onVer}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-4">
-          <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10">
-            <BookOpen className="w-6 h-6 text-primary" />
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-medium text-foreground truncate">
-                    {curso.titulo}
-                  </h3>
-                  <Badge variant="outline" className="text-xs">
-                    {curso.codigo}
+      <div className="flex items-start gap-4">
+        <div className="hidden sm:flex items-center justify-center w-12 h-12 rounded-xl bg-primary/5">
+          <BookOpen className="w-6 h-6 text-primary" />
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="apple-text-headline truncate">
+                  {curso.titulo}
+                </h3>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {curso.codigo}
+                </Badge>
+                {curso.publicado ? (
+                  <Badge className="bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                    <Eye className="w-3 h-3 mr-1" />
+                    Publicado
                   </Badge>
-                  {curso.publicado ? (
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-                      Publicado
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Borrador</Badge>
-                  )}
-                  {curso.es_obligatorio && (
-                    <Badge variant="destructive" className="text-xs">
-                      Obligatorio
-                    </Badge>
-                  )}
-                </div>
-                
-                {curso.descripcion && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                    {curso.descripcion}
-                  </p>
+                ) : (
+                  <Badge variant="secondary" className="opacity-70">
+                    <EyeOff className="w-3 h-3 mr-1" />
+                    Borrador
+                  </Badge>
                 )}
-                
-                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  {getCategoriaLabel(curso.categoria) && (
-                    <span>{getCategoriaLabel(curso.categoria)}</span>
-                  )}
-                  <span>{getNivelLabel(curso.nivel)}</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {curso.duracion_estimada_min} min
-                  </span>
-                  {estadisticas && (
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3 h-3" />
-                      {estadisticas.total} inscritos
-                    </span>
-                  )}
-                </div>
+                {curso.es_obligatorio && (
+                  <Badge variant="destructive" className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800">
+                    Obligatorio
+                  </Badge>
+                )}
               </div>
               
-              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onVer}>
-                      <ChevronRight className="w-4 h-4 mr-2" />
-                      Ver detalles
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onEditar}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onTogglePublicacion}>
-                      {curso.publicado ? (
-                        <>
-                          <EyeOff className="w-4 h-4 mr-2" />
-                          Despublicar
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Publicar
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onDuplicar}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Duplicar
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={onEliminar}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {curso.descripcion && (
+                <p className="apple-text-body text-muted-foreground mt-1 line-clamp-1">
+                  {curso.descripcion}
+                </p>
+              )}
+              
+              <div className="flex items-center gap-4 mt-2 apple-text-caption">
+                {getCategoriaLabel(curso.categoria) && (
+                  <span>{getCategoriaLabel(curso.categoria)}</span>
+                )}
+                <span>{getNivelLabel(curso.nivel)}</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {curso.duracion_estimada_min} min
+                </span>
+                {estadisticas && (
+                  <span className="flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {estadisticas.total} inscritos
+                  </span>
+                )}
               </div>
+            </div>
+            
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onVer}>
+                    <ChevronRight className="w-4 h-4 mr-2" />
+                    Ver detalles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onEditar}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onTogglePublicacion}>
+                    {curso.publicado ? (
+                      <>
+                        <EyeOff className="w-4 h-4 mr-2" />
+                        Despublicar
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Publicar
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDuplicar}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Duplicar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={onEliminar}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
