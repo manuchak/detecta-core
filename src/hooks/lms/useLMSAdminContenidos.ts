@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { TipoContenido } from "@/types/lms";
 
 // =====================================================
 // Hooks de Administración de Contenidos LMS
@@ -60,13 +61,10 @@ export const useLMSCrearContenido = () => {
         .insert({
           modulo_id: moduloId,
           titulo: data.titulo,
-          tipo_contenido: data.tipo_contenido || 'texto',
-          contenido_texto: data.contenido_texto,
-          contenido_url: data.contenido_url,
-          contenido_video_url: data.contenido_video_url,
-          duracion_estimada_minutos: data.duracion_estimada_minutos || 10,
-          es_quiz: data.es_quiz || false,
-          quiz_config: data.quiz_config,
+          tipo: (data.tipo as TipoContenido) || 'texto_enriquecido',
+          contenido: data.contenido || { html: '' },
+          duracion_min: data.duracion_min || 10,
+          es_obligatorio: data.es_obligatorio ?? true,
           orden: nuevoOrden,
           activo: data.activo ?? true,
         })
@@ -107,7 +105,13 @@ export const useLMSActualizarContenido = () => {
       const { data: contenido, error } = await supabase
         .from('lms_contenidos')
         .update({
-          ...data,
+          titulo: data.titulo,
+          tipo: data.tipo,
+          contenido: data.contenido,
+          duracion_min: data.duracion_min,
+          es_obligatorio: data.es_obligatorio,
+          orden: data.orden,
+          activo: data.activo,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
