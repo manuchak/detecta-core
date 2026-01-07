@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -26,13 +26,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, Rocket, User, Car, Pencil } from 'lucide-react';
+import { Loader2, CheckCircle2, Rocket, User, Car, Pencil, Database } from 'lucide-react';
 import { CustodioLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
 import { useToast } from '@/hooks/use-toast';
 import { LiberacionWarningsDialog } from './LiberacionWarningsDialog';
 import { LiberacionSuccessModal } from './LiberacionSuccessModal';
+import { useDocumentosCandidato, TipoDocumento } from '@/hooks/useDocumentosCandidato';
+import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 
 interface LiberacionChecklistModalProps {
   liberacion: CustodioLiberacion;
@@ -62,6 +64,13 @@ const LiberacionChecklistModal = ({
     emailSent: boolean;
   } | null>(null);
 
+  // Hooks para obtener datos del workflow anterior
+  const { data: documentosExistentes } = useDocumentosCandidato(initialLiberacion.candidato_id);
+  const { data: evaluacionPsicometrica } = useLatestEvaluacionPsicometrica(initialLiberacion.candidato_id);
+
+  // Track si los datos fueron prellenados
+  const [prefillApplied, setPrefillApplied] = useState({ docs: false, psico: false });
+
   // Estado para datos de contacto editables
   const [datosContacto, setDatosContacto] = useState({
     nombre: initialLiberacion.candidato?.nombre || '',
@@ -74,6 +83,43 @@ const LiberacionChecklistModal = ({
     initialLiberacion.candidato?.vehiculo_propio ?? false
   );
 
+  // Mapeo de documentos validados a checkboxes
+  const docPrefillData = useMemo(() => {
+    if (!documentosExistentes) return null;
+    
+    const documentosValidos = documentosExistentes.filter(d => d.estado_validacion === 'valido');
+    if (documentosValidos.length === 0) return null;
+
+    const tiposValidos = documentosValidos.map(d => d.tipo_documento);
+    
+    return {
+      documentacion_ine: tiposValidos.includes('ine_frente') || tiposValidos.includes('ine_reverso'),
+      documentacion_licencia: tiposValidos.includes('licencia_frente') || tiposValidos.includes('licencia_reverso'),
+      documentacion_antecedentes: tiposValidos.includes('carta_antecedentes'),
+      documentacion_domicilio: tiposValidos.includes('comprobante_domicilio'),
+      documentacion_curp: tiposValidos.includes('curp'),
+      documentacion_rfc: tiposValidos.includes('rfc'),
+      count: documentosValidos.length
+    };
+  }, [documentosExistentes]);
+
+  // Mapeo de evaluación psicométrica
+  const psicoPrefillData = useMemo(() => {
+    if (!evaluacionPsicometrica) return null;
+    
+    const resultadoMap: Record<string, 'aprobado' | 'condicional' | 'rechazado'> = {
+      'verde': 'aprobado',
+      'ambar': 'condicional',
+      'rojo': 'rechazado'
+    };
+
+    return {
+      psicometricos_completado: evaluacionPsicometrica.estado === 'completado' || !!evaluacionPsicometrica.score_global,
+      psicometricos_resultado: resultadoMap[evaluacionPsicometrica.resultado_semaforo] || undefined,
+      psicometricos_puntaje: evaluacionPsicometrica.score_global
+    };
+  }, [evaluacionPsicometrica]);
+
   useEffect(() => {
     setLiberacion(initialLiberacion);
     setDatosContacto({
@@ -82,7 +128,37 @@ const LiberacionChecklistModal = ({
       email: initialLiberacion.candidato?.email || ''
     });
     setTieneVehiculoPropio(initialLiberacion.candidato?.vehiculo_propio ?? false);
+    setPrefillApplied({ docs: false, psico: false });
   }, [initialLiberacion]);
+
+  // Prellenar documentación si hay datos del workflow
+  useEffect(() => {
+    if (docPrefillData && !prefillApplied.docs) {
+      setLiberacion(prev => ({
+        ...prev,
+        documentacion_ine: prev.documentacion_ine || docPrefillData.documentacion_ine,
+        documentacion_licencia: prev.documentacion_licencia || docPrefillData.documentacion_licencia,
+        documentacion_antecedentes: prev.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
+        documentacion_domicilio: prev.documentacion_domicilio || docPrefillData.documentacion_domicilio,
+        documentacion_curp: prev.documentacion_curp || docPrefillData.documentacion_curp,
+        documentacion_rfc: prev.documentacion_rfc || docPrefillData.documentacion_rfc,
+      }));
+      setPrefillApplied(prev => ({ ...prev, docs: true }));
+    }
+  }, [docPrefillData, prefillApplied.docs]);
+
+  // Prellenar psicométricos si hay datos del workflow
+  useEffect(() => {
+    if (psicoPrefillData && !prefillApplied.psico) {
+      setLiberacion(prev => ({
+        ...prev,
+        psicometricos_completado: prev.psicometricos_completado || psicoPrefillData.psicometricos_completado,
+        psicometricos_resultado: prev.psicometricos_resultado || psicoPrefillData.psicometricos_resultado,
+        psicometricos_puntaje: prev.psicometricos_puntaje || psicoPrefillData.psicometricos_puntaje,
+      }));
+      setPrefillApplied(prev => ({ ...prev, psico: true }));
+    }
+  }, [psicoPrefillData, prefillApplied.psico]);
 
   const progress = calculateProgress(liberacion);
 
@@ -253,6 +329,12 @@ const LiberacionChecklistModal = ({
                     <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
                   )}
                   <span>1. Documentación ({progress.documentacion}%)</span>
+                  {docPrefillData && docPrefillData.count > 0 && (
+                    <Badge variant="outline" className="ml-2 text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200">
+                      <Database className="h-3 w-3 mr-1" />
+                      {docPrefillData.count} prellenados
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">
@@ -299,6 +381,12 @@ const LiberacionChecklistModal = ({
                   )}
                   <span>2. Psicométricos ({progress.psicometricos}%)</span>
                   <Badge variant="secondary" className="ml-2 text-xs">Opcional</Badge>
+                  {psicoPrefillData && (
+                    <Badge variant="outline" className="ml-1 text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200">
+                      <Database className="h-3 w-3 mr-1" />
+                      Score: {psicoPrefillData.psicometricos_puntaje}
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">
