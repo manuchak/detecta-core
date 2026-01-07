@@ -6,9 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw, XCircle, Loader2, Building2 } from 'lucide-react';
+import { GadgetQuantitySelector } from '@/components/planeacion/GadgetQuantitySelector';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -37,6 +37,11 @@ interface RouteData {
   numero_paradas?: number;
 }
 
+interface GadgetCantidad {
+  tipo: string;
+  cantidad: number;
+}
+
 interface ServiceData extends RouteData {
   servicio_id: string;
   id_interno_cliente?: string;
@@ -46,6 +51,7 @@ interface ServiceData extends RouteData {
   incluye_armado: boolean;
   requiere_gadgets: boolean;
   gadgets_seleccionados: string[];
+  gadgets_cantidades?: GadgetCantidad[];
   observaciones?: string;
   fecha_recepcion: string;
   hora_recepcion: string;
@@ -69,8 +75,30 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   const [horaInicio, setHoraInicio] = useState(initialDraft?.hora_ventana_inicio || '08:00');
   const [tipoServicio, setTipoServicio] = useState(initialDraft?.tipo_servicio || 'custodia_sin_arma');
   const [incluyeArmado, setIncluyeArmado] = useState(initialDraft?.incluye_armado || false);
-  const [gadgetsSeleccionados, setGadgetsSeleccionados] = useState<string[]>(initialDraft?.gadgets_seleccionados || []);
+  const [gadgetsCantidades, setGadgetsCantidades] = useState<Record<string, number>>(() => {
+    // Initialize from gadgets_cantidades array or fallback to gadgets_seleccionados
+    if (initialDraft?.gadgets_cantidades) {
+      return initialDraft.gadgets_cantidades.reduce((acc: Record<string, number>, g: GadgetCantidad) => {
+        acc[g.tipo] = g.cantidad;
+        return acc;
+      }, {});
+    }
+    if (initialDraft?.gadgets_seleccionados) {
+      return initialDraft.gadgets_seleccionados.reduce((acc: Record<string, number>, id: string) => {
+        acc[id] = 1;
+        return acc;
+      }, {});
+    }
+    return {};
+  });
   const [observaciones, setObservaciones] = useState(initialDraft?.observaciones || '');
+  
+  // Derived: convert Record to array for compatibility
+  const gadgetsSeleccionados = Object.keys(gadgetsCantidades).filter(k => gadgetsCantidades[k] > 0);
+  const gadgetsCantidadesArray: GadgetCantidad[] = Object.entries(gadgetsCantidades)
+    .filter(([_, cantidad]) => cantidad > 0)
+    .map(([tipo, cantidad]) => ({ tipo, cantidad }));
+  const totalGadgets = gadgetsCantidadesArray.reduce((sum, g) => sum + g.cantidad, 0);
   
   // Sprint 3: Tipo de cliente (Empresarial o Persona Física)
   const [tipoCliente, setTipoCliente] = useState<'empresarial' | 'persona_fisica'>(
@@ -146,8 +174,19 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       if (initialDraft.incluye_armado !== undefined) {
         setIncluyeArmado(initialDraft.incluye_armado);
       }
-      if (initialDraft.gadgets_seleccionados !== undefined) {
-        setGadgetsSeleccionados(initialDraft.gadgets_seleccionados);
+      if (initialDraft.gadgets_cantidades !== undefined) {
+        const newCantidades = initialDraft.gadgets_cantidades.reduce((acc: Record<string, number>, g: GadgetCantidad) => {
+          acc[g.tipo] = g.cantidad;
+          return acc;
+        }, {});
+        setGadgetsCantidades(newCantidades);
+      } else if (initialDraft.gadgets_seleccionados !== undefined) {
+        // Backward compatibility: convert old array format to quantities
+        const newCantidades = initialDraft.gadgets_seleccionados.reduce((acc: Record<string, number>, id: string) => {
+          acc[id] = 1;
+          return acc;
+        }, {});
+        setGadgetsCantidades(newCantidades);
       }
       if (initialDraft.observaciones !== undefined) {
         setObservaciones(initialDraft.observaciones);
@@ -418,6 +457,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       incluye_armado: incluyeArmado,
       requiere_gadgets: gadgetsSeleccionados.length > 0,
       gadgets_seleccionados: gadgetsSeleccionados,
+      gadgets_cantidades: gadgetsCantidadesArray,
       observaciones: observaciones.trim() || undefined,
       fecha_recepcion: fechaRecepcion,
       hora_recepcion: horaRecepcion
@@ -452,6 +492,7 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       incluye_armado: incluyeArmado,
       requiere_gadgets: gadgetsSeleccionados.length > 0,
       gadgets_seleccionados: gadgetsSeleccionados,
+      gadgets_cantidades: gadgetsCantidadesArray,
       observaciones: observaciones.trim() || undefined,
       fecha_recepcion: fechaRecepcion,
       hora_recepcion: horaRecepcion
@@ -468,31 +509,38 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     { id: 'gps_portatil_caja_imantada', label: 'GPS Portátil con Caja Imantada', description: 'GPS portátil con instalación magnética' }
   ];
 
-  const handleGadgetToggle = (gadgetId: string, checked: boolean) => {
-    let newGadgets: string[];
-    if (checked) {
-      newGadgets = [...gadgetsSeleccionados, gadgetId];
-      setGadgetsSeleccionados(newGadgets);
-    } else {
-      newGadgets = gadgetsSeleccionados.filter(id => id !== gadgetId);
-      setGadgetsSeleccionados(newGadgets);
-    }
-    
-    // Notify draft change
-    if (onDraftChange) {
-      onDraftChange({
-        servicio_id: servicioId,
-        id_interno_cliente: idInternoCliente,
-        fecha_programada: fechaProgramada,
-        hora_ventana_inicio: horaInicio,
-        tipo_servicio: tipoServicio,
-        incluye_armado: incluyeArmado,
-        gadgets_seleccionados: newGadgets,
-        observaciones,
-        fecha_recepcion: fechaRecepcion,
-        hora_recepcion: horaRecepcion
-      });
-    }
+  const handleGadgetCantidadChange = (gadgetId: string, cantidad: number) => {
+    setGadgetsCantidades(prev => {
+      const newCantidades = { ...prev };
+      if (cantidad <= 0) {
+        delete newCantidades[gadgetId];
+      } else {
+        newCantidades[gadgetId] = cantidad;
+      }
+      
+      // Notify draft change
+      if (onDraftChange) {
+        const gadgetsArray = Object.entries(newCantidades)
+          .filter(([_, qty]) => qty > 0)
+          .map(([tipo, qty]) => ({ tipo, cantidad: qty }));
+        
+        onDraftChange({
+          servicio_id: servicioId,
+          id_interno_cliente: idInternoCliente,
+          fecha_programada: fechaProgramada,
+          hora_ventana_inicio: horaInicio,
+          tipo_servicio: tipoServicio,
+          incluye_armado: incluyeArmado,
+          gadgets_seleccionados: Object.keys(newCantidades).filter(k => newCantidades[k] > 0),
+          gadgets_cantidades: gadgetsArray,
+          observaciones,
+          fecha_recepcion: fechaRecepcion,
+          hora_recepcion: horaRecepcion
+        });
+      }
+      
+      return newCantidades;
+    });
   };
 
   const tiposServicio = [
@@ -912,29 +960,20 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                 </div>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {gadgetOptions.map((gadget) => (
-                  <div key={gadget.id} className="flex items-start space-x-3 p-3 rounded-lg bg-background/50 border">
-                    <Checkbox
-                      id={gadget.id}
-                      checked={gadgetsSeleccionados.includes(gadget.id)}
-                      onCheckedChange={(checked) => handleGadgetToggle(gadget.id, checked as boolean)}
-                    />
-                    <div className="space-y-1 flex-1">
-                      <Label htmlFor={gadget.id} className="text-sm font-medium cursor-pointer">
-                        {gadget.label}
-                      </Label>
-                      <div className="text-xs text-muted-foreground">
-                        {gadget.description}
-                      </div>
-                    </div>
-                  </div>
+                  <GadgetQuantitySelector
+                    key={gadget.id}
+                    gadget={gadget}
+                    cantidad={gadgetsCantidades[gadget.id] || 0}
+                    onCantidadChange={(cantidad) => handleGadgetCantidadChange(gadget.id, cantidad)}
+                  />
                 ))}
               </div>
               
-              {gadgetsSeleccionados.length > 0 && (
+              {totalGadgets > 0 && (
                 <div className="text-xs text-muted-foreground bg-primary/5 p-2 rounded border-l-2 border-primary">
-                  <strong>{gadgetsSeleccionados.length}</strong> dispositivo(s) seleccionado(s)
+                  <strong>{totalGadgets}</strong> dispositivo(s) en total ({gadgetsSeleccionados.length} tipo(s))
                 </div>
               )}
             </div>
@@ -1007,14 +1046,14 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
               </div>
               
               <div>
-                <div className="text-sm text-muted-foreground">Gadgets Seleccionados</div>
-                {gadgetsSeleccionados.length > 0 ? (
-                  <div className="space-y-1">
-                    {gadgetsSeleccionados.map((gadgetId) => {
-                      const gadget = gadgetOptions.find(g => g.id === gadgetId);
+                <div className="text-sm text-muted-foreground">Gadgets de Seguridad</div>
+                {totalGadgets > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {gadgetsCantidadesArray.map(({ tipo, cantidad }) => {
+                      const gadget = gadgetOptions.find(g => g.id === tipo);
                       return (
-                        <Badge key={gadgetId} variant="default" className="text-xs">
-                          {gadget?.label}
+                        <Badge key={tipo} variant="default" className="text-xs">
+                          {cantidad > 1 ? `${cantidad}x ` : ''}{gadget?.label}
                         </Badge>
                       );
                     })}
