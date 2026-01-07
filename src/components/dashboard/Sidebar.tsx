@@ -260,8 +260,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [
           { title: "Estrategia Nacional", path: "/recruitment-strategy", icon: Map }
         ] : []),
-        // Evaluación SIERCP - igual que supply_admin en el menú
-        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead' ? [
+        // Evaluación SIERCP - disponible para supply y supply_admin
+        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead' || userRole === 'supply' ? [
           { title: "Evaluación SIERCP", path: "/evaluation/siercp", icon: ClipboardCheck },
           { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology", icon: BookOpen }
         ] : []),
