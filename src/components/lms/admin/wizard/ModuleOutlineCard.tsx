@@ -39,6 +39,9 @@ export function ModuleOutlineCard({
   const [isEditing, setIsEditing] = useState(false);
   const [showContentCreator, setShowContentCreator] = useState(false);
   
+  // Force empty modules to be visually expanded
+  const shouldBeExpanded = isExpanded || modulo.contenidos.length === 0;
+  
   const {
     attributes,
     listeners,
@@ -145,6 +148,19 @@ export function ModuleOutlineCard({
           <Button
             variant="ghost"
             size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!shouldBeExpanded) onToggleExpand();
+              setShowContentCreator(true);
+            }}
+            title="Agregar contenido"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-destructive"
             onClick={onDelete}
           >
@@ -154,8 +170,14 @@ export function ModuleOutlineCard({
       </div>
 
       {/* Module Content */}
-      {isExpanded && (
+      {shouldBeExpanded && (
         <div className="p-3 space-y-2">
+          {modulo.contenidos.length === 0 && !showContentCreator && (
+            <p className="text-xs text-muted-foreground text-center py-3 border border-dashed rounded-md bg-muted/20">
+              Este módulo está vacío. Agrega tu primer contenido.
+            </p>
+          )}
+          
           {modulo.contenidos.length > 0 && (
             <DndContext
               sensors={sensors}
