@@ -100,7 +100,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
       const { data: custodiaData, error: custodiaError } = await supabase
         .from('servicios_custodia')
         .select('*')
-        .or(`id_servicio.ilike.%${normalizedId}%,id_interno_cliente.ilike.%${normalizedId}%`)
+        .ilike('id_servicio', `%${normalizedId}%`)
         .order('fecha_hora_cita', { ascending: false });
 
       if (custodiaError) throw custodiaError;
