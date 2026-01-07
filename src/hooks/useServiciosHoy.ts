@@ -28,6 +28,7 @@ export const useServiciosHoy = () => {
         .select('id, id_servicio, nombre_cliente, origen, destino, fecha_hora_cita, estado_planeacion, custodio_asignado, requiere_armado, armado_asignado, created_at')
         .gte('fecha_hora_cita', `${hoy}T00:00:00`)
         .lt('fecha_hora_cita', `${hoy}T23:59:59`)
+        .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('fecha_hora_cita', { ascending: true });
       
       if (error) throw error;
