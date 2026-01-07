@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Download } from "lucide-react";
+import { UserPlus, Edit, AlertCircle, RefreshCw, CheckCircle, User, UserX, Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { exportUncontactedLeads } from "@/utils/exportLeads";
 import { supabase } from "@/integrations/supabase/client";
