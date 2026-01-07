@@ -157,10 +157,22 @@ export function CompactServiceCard({
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    
+    // Don't trigger if clicking on actions
     if (target.closest('.service-card-actions')) return;
+    
+    // Don't trigger if click is inside any dialog/overlay
+    if (target.closest('[role="dialog"]') || target.closest('[role="alertdialog"]') || target.closest('[data-radix-dialog-overlay]')) return;
+    
+    // Check body flags for open dialogs
     if (document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1") return;
-    const isAnyDialogOpen = !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+    
+    // Check for any open dialogs in DOM
+    const isAnyDialogOpen = !!document.querySelector(
+      '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-dialog-overlay]'
+    );
     if (isAnyDialogOpen) return;
+    
     onEdit(service);
   };
 
