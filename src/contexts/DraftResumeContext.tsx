@@ -33,6 +33,16 @@ const DRAFT_CATALOG: DraftInfo[] = [
     },
     previewText: 'Continúa editando el lead',
   },
+  {
+    id: 'lms-course-wizard',
+    storageKey: 'lms_curso_wizard',
+    moduleName: 'Creación de Curso LMS',
+    resumePath: '/lms/admin/cursos/nuevo',
+    isMeaningful: (data) => {
+      return data && (data.formValues?.titulo || data.modulos?.length > 0);
+    },
+    previewText: 'Continúa creando tu curso',
+  },
 ];
 
 interface DraftResumeContextType {
