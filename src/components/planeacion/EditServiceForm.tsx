@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Save, X, AlertTriangle, MapPin, User, Shield, Loader2, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { buildCDMXTimestamp, formatCDMXTime, getCDMXDate } from '@/utils/cdmxTimezone';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
@@ -369,12 +370,26 @@ export function EditServiceForm({
     );
   }
 
+  // Formatea fecha ISO a formato datetime-local usando timezone CDMX
   const formatDateTime = (dateTimeString: string) => {
+    if (!dateTimeString) return '';
     try {
-      return format(new Date(dateTimeString), 'yyyy-MM-dd\'T\'HH:mm');
+      // Usar CDMX timezone para mostrar consistentemente
+      const date = getCDMXDate(dateTimeString);
+      const time = formatCDMXTime(dateTimeString, 'HH:mm');
+      return `${date}T${time}`;
     } catch {
       return dateTimeString;
     }
+  };
+
+  // Convierte valor de datetime-local a timestamp con timezone CDMX para guardar
+  const parseLocalDateTime = (localValue: string): string => {
+    if (!localValue) return localValue;
+    // datetime-local devuelve "2026-01-07T10:00", necesitamos agregar offset CDMX
+    const [datePart, timePart] = localValue.split('T');
+    if (!datePart || !timePart) return localValue;
+    return buildCDMXTimestamp(datePart, timePart);
   };
 
   const armadoWarning = service.requiere_armado && !formData.requiere_armado && service.armado_asignado;
@@ -609,7 +624,7 @@ export function EditServiceForm({
                 id="fecha_hora_cita"
                 type="datetime-local"
                 value={formatDateTime(formData.fecha_hora_cita || '')}
-                onChange={(e) => handleInputChange('fecha_hora_cita', e.target.value)}
+                onChange={(e) => handleInputChange('fecha_hora_cita', parseLocalDateTime(e.target.value))}
               />
             </div>
             
