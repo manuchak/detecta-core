@@ -45,6 +45,10 @@ export interface LMSCurso {
   created_by?: string;
   created_at: string;
   updated_at: string;
+  // Campos de archivado
+  archived_at?: string | null;
+  archived_by?: string | null;
+  archive_reason?: string | null;
   // Relaciones opcionales
   modulos?: LMSModulo[];
   // Datos de inscripción del usuario (desde RPC)

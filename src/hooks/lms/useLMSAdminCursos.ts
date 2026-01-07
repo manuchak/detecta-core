@@ -33,14 +33,20 @@ interface CursoCompletoData {
 // Hooks de Administración de Cursos LMS
 // =====================================================
 
-// Obtener todos los cursos (admin)
-export const useLMSAdminCursos = () => {
+// Obtener todos los cursos (admin) - con opción de incluir archivados
+export const useLMSAdminCursos = (includeArchived = false) => {
   return useQuery({
-    queryKey: ['lms-admin-cursos'],
+    queryKey: ['lms-admin-cursos', { includeArchived }],
     queryFn: async (): Promise<LMSCurso[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('lms_cursos')
-        .select('*')
+        .select('*');
+
+      if (!includeArchived) {
+        query = query.is('archived_at', null);
+      }
+
+      const { data, error } = await query
         .order('orden', { ascending: true })
         .order('created_at', { ascending: false });
 
@@ -272,30 +278,23 @@ export const useLMSActualizarCurso = () => {
   });
 };
 
-// Eliminar curso (soft delete - desactiva)
+// Eliminar curso (usando RPC seguro)
 export const useLMSEliminarCurso = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (cursoId: string) => {
-      // Verificar si hay inscripciones activas
-      const { data: inscripciones } = await supabase
-        .from('lms_inscripciones')
-        .select('id')
-        .eq('curso_id', cursoId)
-        .not('estado', 'eq', 'completado')
-        .limit(1);
-
-      if (inscripciones && inscripciones.length > 0) {
-        throw new Error('No se puede eliminar: hay inscripciones activas en este curso');
-      }
-
-      const { error } = await supabase
-        .from('lms_cursos')
-        .update({ activo: false, publicado: false })
-        .eq('id', cursoId);
+      const { data, error } = await supabase.rpc('lms_delete_curso_secure', {
+        p_curso_id: cursoId
+      });
 
       if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; inscripciones?: number };
+      if (!result.success) {
+        throw new Error(result.error || 'Error al eliminar el curso');
+      }
+      
       return cursoId;
     },
     onSuccess: () => {
@@ -306,6 +305,69 @@ export const useLMSEliminarCurso = () => {
     onError: (error: any) => {
       console.error('Error deleting course:', error);
       toast.error(error.message || 'Error al eliminar el curso');
+    },
+  });
+};
+
+// Archivar curso (para cursos con inscripciones)
+export const useLMSArchivarCurso = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ cursoId, reason }: { cursoId: string; reason?: string }) => {
+      const { data, error } = await supabase.rpc('lms_archive_curso_secure', {
+        p_curso_id: cursoId,
+        p_reason: reason || null
+      });
+
+      if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; inscripciones_preservadas?: number };
+      if (!result.success) {
+        throw new Error(result.error || 'Error al archivar el curso');
+      }
+      
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['lms-admin-cursos'] });
+      queryClient.invalidateQueries({ queryKey: ['lms-cursos-disponibles'] });
+      toast.success(`Curso archivado. ${data.inscripciones_preservadas || 0} inscripciones preservadas.`);
+    },
+    onError: (error: any) => {
+      console.error('Error archiving course:', error);
+      toast.error(error.message || 'Error al archivar el curso');
+    },
+  });
+};
+
+// Reactivar curso archivado
+export const useLMSReactivarCurso = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (cursoId: string) => {
+      const { data, error } = await supabase.rpc('lms_reactivate_curso_secure', {
+        p_curso_id: cursoId
+      });
+
+      if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; message?: string };
+      if (!result.success) {
+        throw new Error(result.error || 'Error al reactivar el curso');
+      }
+      
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['lms-admin-cursos'] });
+      queryClient.invalidateQueries({ queryKey: ['lms-cursos-disponibles'] });
+      toast.success(data.message || 'Curso reactivado exitosamente');
+    },
+    onError: (error: any) => {
+      console.error('Error reactivating course:', error);
+      toast.error(error.message || 'Error al reactivar el curso');
     },
   });
 };
