@@ -103,18 +103,17 @@ export function ScheduledServicesTab() {
   // Sprint 3: PF Filter state
   const [tipoClienteFilter, setTipoClienteFilter] = useState<'todos' | 'empresarial' | 'pf'>('todos');
 
+  // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
-  // FIX: Use armado_nombre as primary indicator (comes from RPC with COALESCE fallback)
   const getOperationalStatus = (service: any) => {
     const now = new Date();
     const citaTime = new Date(service.fecha_hora_cita);
     
-    // FIX: Check armado_nombre first (comes from RPC), then armado_asignado as fallback
     const hasArmedGuard = !!(service.armado_nombre || service.armado_asignado);
     const needsArmedGuard = service.incluye_armado || service.requiere_armado;
     const isFullyAssigned = service.custodio_nombre && (!needsArmedGuard || hasArmedGuard);
     
-    // Servicio completado (tiene hora_fin_real)
+    // Completado
     if (service.hora_fin_real) {
       return { 
         status: 'completado', 
@@ -127,20 +126,20 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // Custodio en sitio (tiene hora_inicio_real pero no hora_fin)
+    // En sitio - GREEN (emerald)
     if (service.hora_inicio_real) {
       return { 
         status: 'en_sitio', 
-        color: 'bg-blue-500', 
-        textColor: 'text-blue-700 dark:text-blue-400',
-        bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+        color: 'bg-emerald-500', 
+        textColor: 'text-emerald-700 dark:text-emerald-400',
+        bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
         icon: MapPinCheck, 
         label: 'En sitio',
         priority: 4
       };
     }
     
-    // Sin custodio asignado (crítico)
+    // Sin custodio
     if (!service.custodio_nombre) {
       return { 
         status: 'sin_asignar', 
@@ -153,7 +152,7 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // FIX: Falta armado - use improved detection
+    // Falta armado
     if (needsArmedGuard && !hasArmedGuard) {
       return { 
         status: 'armado_pendiente', 
@@ -166,20 +165,20 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // Servicio debería haber iniciado (pasó la hora de cita y está asignado)
+    // Pendiente inicio (hora pasó) - ROSE (reddish)
     if (citaTime < now && isFullyAssigned) {
       return { 
         status: 'pendiente_inicio', 
-        color: 'bg-amber-500', 
-        textColor: 'text-amber-700 dark:text-amber-400',
-        bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+        color: 'bg-rose-500', 
+        textColor: 'text-rose-700 dark:text-rose-400',
+        bgColor: 'bg-rose-100 dark:bg-rose-900/30',
         icon: Clock, 
-        label: 'Pendiente inicio',
+        label: 'Pendiente arribar',
         priority: 3
       };
     }
     
-    // Servicio futuro, completamente asignado y listo
+    // Programado
     if (isFullyAssigned) {
       return { 
         status: 'programado', 
@@ -192,7 +191,6 @@ export function ScheduledServicesTab() {
       };
     }
     
-    // Caso por defecto
     return { 
       status: 'pendiente', 
       color: 'bg-yellow-500', 
@@ -595,7 +593,7 @@ export function ScheduledServicesTab() {
               )}
             </div>
             
-            {/* Status Legend */}
+            {/* Status Legend - Updated colors */}
             <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
               <span className="text-muted-foreground font-medium">Estados:</span>
               <div className="flex items-center gap-1.5">
@@ -603,23 +601,25 @@ export function ScheduledServicesTab() {
                 <span className="text-muted-foreground">Sin asignar</span>
               </div>
               <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-rose-500" />
+                <span className="text-muted-foreground">Pendiente arribar</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-slate-400" />
                 <span className="text-muted-foreground">Programado</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-muted-foreground">En sitio</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-muted-foreground">En sitio / Completado</span>
               </div>
-              <Separator orientation="vertical" className="h-3 mx-1" />
-              <span className="text-muted-foreground/70 text-[10px]">Auto: Completado, Armado pendiente, Pendiente inicio</span>
             </div>
           </div>
         )}
 
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div ref={containerRef} className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+          <div ref={containerRef} className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
             {Object.entries(groupedServices).map(([hour, services]) => (
-              <div key={hour} className="space-y-3">
+              <div key={hour} className="space-y-1.5">
                 {/* Hour Divider */}
                 <HourDivider 
                   hour={hour} 
@@ -627,173 +627,159 @@ export function ScheduledServicesTab() {
                   isCurrentHour={hour === currentHour}
                 />
                 
-                {/* Services for this hour */}
+                {/* Compact Services for this hour */}
                 {services.map((service, index) => {
-              const statusConfig = getStatusConfig(service);
-              const operationalStatus = getOperationalStatus(service);
-              const StatusIcon = statusConfig.icon;
-              const ActionIcon = statusConfig.actionIcon;
-              const OperationalIcon = operationalStatus.icon;
-              const citaTime = new Date(service.fecha_hora_cita);
-              const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
-              
-              return (
-                <div 
-                  key={service.id || index} 
-                  className={cn(
-                    "apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative overflow-hidden",
-                    upcomingHighlight
-                  )}
-                  onClick={(e) => {
-                    const target = (e.target as HTMLElement);
-                    if (target.closest('.service-card-actions')) return;
-                    if (document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1") return;
-                    const isAnyDialogOpen = !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
-                    if (isAnyDialogOpen) return;
-                    handleEditService(service);
-                  }}
-                >
-                  {/* Barra de estado operativo en el lado izquierdo */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1 ${operationalStatus.color}`} />
+                  const operationalStatus = getOperationalStatus(service);
+                  const OperationalIcon = operationalStatus.icon;
+                  const citaTime = new Date(service.fecha_hora_cita);
+                  const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
                   
-                  {/* Línea 1: Estado + Hora + Cliente + Badge Operativo + Acción */}
-                  <div className="flex items-center justify-between mb-3 pl-3">
-                    <div className="flex items-center space-x-3">
-                      {/* Hora */}
-                      <span className="apple-text-headline font-semibold text-foreground tabular-nums">
-                        {format(new Date(service.fecha_hora_cita), 'HH:mm')}
-                      </span>
+                  // PF detection
+                  const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
+                  const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
+                  
+                  // Armed guard detection
+                  const hasArmedGuard = !!(service.armado_nombre);
+                  const needsArmedGuard = service.incluye_armado || service.requiere_armado;
+                  
+                  return (
+                    <div 
+                      key={service.id || index} 
+                      className={cn(
+                        "apple-card cursor-pointer transition-all duration-200 py-2.5 px-3 group relative overflow-hidden hover:shadow-md",
+                        upcomingHighlight
+                      )}
+                      onClick={(e) => {
+                        const target = (e.target as HTMLElement);
+                        if (target.closest('.service-card-actions')) return;
+                        if (document.body.dataset.dialogOpen === "1" || document.body.dataset.dialogTransitioning === "1") return;
+                        const isAnyDialogOpen = !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
+                        if (isAnyDialogOpen) return;
+                        handleEditService(service);
+                      }}
+                    >
+                      {/* Left status bar */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${operationalStatus.color}`} />
                       
-                      {/* Cliente */}
-                      <div className="flex flex-col">
-                        <span className="apple-text-body font-medium text-foreground">
-                          {service.cliente_nombre}
-                        </span>
-                        <span className="apple-text-caption text-muted-foreground">
-                          {service.id_servicio}
-                        </span>
+                      {/* Row 1: Cliente | Hora | ID | Status Badge | Actions */}
+                      <div className="flex items-center justify-between gap-3 pl-2">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Cliente */}
+                          <span className="font-semibold text-sm text-foreground truncate max-w-[180px] flex-shrink-0">
+                            {service.cliente_nombre}
+                          </span>
+                          
+                          {/* Hora */}
+                          <span className="text-sm font-medium text-foreground tabular-nums flex-shrink-0">
+                            {format(citaTime, 'HH:mm')}
+                          </span>
+                          
+                          {/* ID Servicio */}
+                          <code className="text-xs text-muted-foreground font-mono flex-shrink-0">
+                            {service.id_servicio}
+                          </code>
+                          
+                          {/* Upcoming badge */}
+                          <UpcomingServiceBadge citaTime={citaTime} now={now} />
+                          
+                          {/* Status badge */}
+                          <Badge 
+                            variant="secondary" 
+                            className={`${operationalStatus.bgColor} ${operationalStatus.textColor} border-0 gap-1 text-[10px] font-medium px-1.5 py-0.5 flex-shrink-0`}
+                          >
+                            <OperationalIcon className="w-3 h-3" />
+                            {operationalStatus.label}
+                          </Badge>
+                          
+                          {/* PF Badge */}
+                          {isPF && (
+                            <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 text-[10px] px-1.5 py-0.5 flex-shrink-0">
+                              <User className="w-2.5 h-2.5 mr-0.5" />
+                              PF
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex items-center gap-0.5 service-card-actions flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <StatusUpdateButton
+                            serviceId={service.id}
+                            currentStatus={operationalStatus.status as OperationalStatus}
+                            onStatusChange={handleStatusUpdate}
+                            disabled={isCancelling || isUpdatingOperationalStatus}
+                            isLoading={isUpdatingOperationalStatus}
+                          />
+                          <CancelServiceButton
+                            serviceId={service.id}
+                            serviceName={service.cliente_nombre}
+                            serviceStarted={operationalStatus.status === 'en_sitio'}
+                            onCancel={handleCancelService}
+                            disabled={service.estado_asignacion === 'cancelado' || isCancelling}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowHistory(service);
+                            }}
+                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <History className="h-3.5 w-3.5" />
+                          </Button>
+                          <QuickCommentButton
+                            serviceId={service.id}
+                            currentComment={service.comentarios_planeacion}
+                          />
+                        </div>
                       </div>
                       
-                      {/* Badge de próximo servicio */}
-                      <UpcomingServiceBadge citaTime={citaTime} now={now} />
+                      {/* Row 2: Ruta + Custodio + Vehículo (all inline) */}
+                      <div className="flex items-center gap-2 mt-1.5 pl-2 text-xs text-muted-foreground">
+                        {/* Ruta */}
+                        <div className="flex items-center gap-1 min-w-0">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate max-w-[140px]">{service.origen}</span>
+                          <span className="flex-shrink-0">→</span>
+                          <span className="truncate max-w-[140px] font-medium text-foreground">{service.destino}</span>
+                        </div>
+                        
+                        <span className="text-muted-foreground/50 flex-shrink-0">•</span>
+                        
+                        {/* Custodio */}
+                        {service.custodio_nombre ? (
+                          <div className="flex items-center gap-1 min-w-0">
+                            <User className="w-3 h-3 flex-shrink-0" />
+                            <span className="font-medium text-foreground truncate max-w-[120px]">{service.custodio_nombre}</span>
+                          </div>
+                        ) : (
+                          <span className="text-red-500 font-medium">Sin custodio</span>
+                        )}
+                        
+                        {/* Vehículo inline (from service data if available) */}
+                        {service.auto && (
+                          <>
+                            <span className="text-muted-foreground/50 flex-shrink-0">•</span>
+                            <div className="flex items-center gap-1">
+                              <Car className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate max-w-[80px]">{service.auto}</span>
+                              {service.placa && <code className="font-mono text-[10px]">{service.placa}</code>}
+                            </div>
+                          </>
+                        )}
+                      </div>
                       
-                      {/* Badge de estado operativo */}
-                      <Badge 
-                        variant="secondary" 
-                        className={`${operationalStatus.bgColor} ${operationalStatus.textColor} border-0 gap-1 text-xs font-medium`}
-                      >
-                        <OperationalIcon className="w-3 h-3" />
-                        {operationalStatus.label}
-                      </Badge>
-                      
-                      {/* Badge PF (Persona Física) - Sprint 3 */}
-                      {(() => {
-                        const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
-                        const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
-                        return isPF ? (
-                          <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800 gap-1 text-xs font-medium">
-                            <User className="w-3 h-3" />
-                            PF
-                          </Badge>
-                        ) : null;
-                      })()}
-                    </div>
-                    
-                    {/* Íconos de acción */}
-                    <div className="flex items-center space-x-1 service-card-actions" onClick={(e) => e.stopPropagation()}>
-                      {/* Status Update Button */}
-                      <StatusUpdateButton
-                        serviceId={service.id}
-                        currentStatus={operationalStatus.status as OperationalStatus}
-                        onStatusChange={handleStatusUpdate}
-                        disabled={isCancelling || isUpdatingOperationalStatus}
-                        isLoading={isUpdatingOperationalStatus}
-                      />
-                      
-                      {ActionIcon && (
-                        <ActionIcon className="w-4 h-4 text-muted-foreground opacity-60" />
-                      )}
-                      <CancelServiceButton
-                        serviceId={service.id}
-                        serviceName={service.cliente_nombre}
-                        serviceStarted={operationalStatus.status === 'en_sitio'}
-                        onCancel={handleCancelService}
-                        disabled={service.estado_asignacion === 'cancelado' || isCancelling}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShowHistory(service);
-                        }}
-                        className="apple-button-ghost-small opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <History className="h-3.5 w-3.5" />
-                      </Button>
-                      <QuickCommentButton
-                        serviceId={service.id}
-                        currentComment={service.comentarios_planeacion}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Línea 2: Ruta */}
-                  <div className="flex items-center space-x-2 mb-3 pl-3">
-                    <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    <div className="flex items-center space-x-1 min-w-0">
-                      <span className="apple-text-caption text-muted-foreground truncate">
-                        {service.origen}
-                      </span>
-                      <span className="text-muted-foreground">→</span>
-                      <span className="apple-text-caption font-medium text-foreground truncate">
-                        {service.destino}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* Línea 3: Custodio + Vehículo */}
-                  <div className="pl-3">
-                    <CustodianVehicleInfo 
-                      custodioNombre={service.custodio_nombre}
-                      className="mb-3"
-                    />
-                  </div>
-                  
-                  {/* Armado Adicional */}
-                  <div className="pl-3">
-                    <AdditionalArmedGuard 
-                      custodioNombre={service.custodio_nombre}
-                      armadoAsignado={service.armado_asignado}
-                      armadoNombre={service.armado_nombre}
-                    />
-                  </div>
-                  
-                  {/* Línea 3.5: Planificador (solo si existe) */}
-                  {service.planner_name && (
-                    <div className="flex items-center space-x-1.5 mb-3 pl-3">
-                      <UserCircle className="w-3.5 h-3.5 text-muted-foreground/70" />
-                      <span className="apple-text-caption text-muted-foreground/70">
-                        Asignado por {service.planner_name}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Línea 4: Mensaje de estado (solo si hay algo pendiente) */}
-                  {(statusConfig.message && statusConfig.color !== 'bg-green-500') && (
-                    <div className="flex items-center space-x-2 pl-3">
-                      <StatusIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="apple-text-caption text-muted-foreground">
-                        {statusConfig.message}
-                      </span>
-                      {service.incluye_armado && !service.armado_asignado && (
-                        <Shield className="w-3.5 h-3.5 text-red-500 ml-1" />
+                      {/* Row 3 (conditional): Armado */}
+                      {needsArmedGuard && hasArmedGuard && (
+                        <div className="flex items-center gap-1 mt-1 pl-2 text-xs">
+                          <Shield className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                          <span className="font-medium text-foreground">{service.armado_nombre}</span>
+                          <span className="text-muted-foreground/60 italic">(Acompañante)</span>
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
               </div>
             ))}
           </div>
