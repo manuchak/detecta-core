@@ -22,6 +22,7 @@ import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/pl
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2 } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
+import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -79,7 +80,9 @@ export function ScheduledServicesTab() {
     removeAssignment,
     isReassigning,
     cancelService,
-    isCancelling
+    isCancelling,
+    markFalsePositioning,
+    isMarkingFalsePositioning
   } = useServiciosPlanificados();
   const { servicioToPending } = useServiceTransformations();
   
@@ -99,6 +102,10 @@ export function ScheduledServicesTab() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyServiceId, setHistoryServiceId] = useState<string | null>(null);
   const [historyServiceName, setHistoryServiceName] = useState<string>('');
+  
+  // State for False Positioning Dialog
+  const [falsePositioningDialogOpen, setFalsePositioningDialogOpen] = useState(false);
+  const [falsePositioningService, setFalsePositioningService] = useState<any>(null);
   
   // Sprint 3: PF Filter state
   const [tipoClienteFilter, setTipoClienteFilter] = useState<'todos' | 'empresarial' | 'pf'>('todos');
@@ -398,7 +405,35 @@ export function ScheduledServicesTab() {
   };
 
   const handleCancelService = async (serviceId: string, reason?: string) => {
+    // Check if this is a false positioning request
+    if (reason === 'posicionamiento_falso') {
+      // Find the service and open the false positioning dialog
+      const service = summary?.services_data?.find(s => s.id === serviceId);
+      if (service) {
+        setFalsePositioningService(service);
+        setFalsePositioningDialogOpen(true);
+      }
+      return;
+    }
+    
     await cancelService.mutateAsync({ serviceId, reason });
+    await Promise.all([refetch(), refetchPending(), refetchPendingArmado()]);
+  };
+
+  const handleFalsePositioning = async (data: {
+    serviceId: string;
+    horaLlegada: string;
+    motivo: string;
+    cobroPosicionamiento: boolean;
+  }) => {
+    await markFalsePositioning.mutateAsync({
+      serviceId: data.serviceId,
+      horaLlegada: data.horaLlegada,
+      motivo: data.motivo,
+      cobroPosicionamiento: data.cobroPosicionamiento
+    });
+    setFalsePositioningDialogOpen(false);
+    setFalsePositioningService(null);
     await Promise.all([refetch(), refetchPending(), refetchPendingArmado()]);
   };
 
@@ -857,6 +892,14 @@ export function ScheduledServicesTab() {
         onOpenChange={setHistoryModalOpen}
         serviceId={historyServiceId}
         serviceName={historyServiceName}
+      />
+
+      <FalsePositioningDialog
+        open={falsePositioningDialogOpen}
+        onOpenChange={setFalsePositioningDialogOpen}
+        service={falsePositioningService}
+        onConfirm={handleFalsePositioning}
+        isLoading={isMarkingFalsePositioning}
       />
     </div>
   );
