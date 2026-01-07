@@ -25,6 +25,7 @@ import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatCDMXTime } from '@/utils/cdmxTimezone';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -468,7 +469,8 @@ export function ScheduledServicesTab() {
     
     const grouped: Record<string, typeof sorted> = {};
     sorted.forEach(service => {
-      const hour = format(new Date(service.fecha_hora_cita), 'HH:00');
+      // Use CDMX timezone for grouping by hour
+      const hour = formatCDMXTime(service.fecha_hora_cita, 'HH:00');
       if (!grouped[hour]) grouped[hour] = [];
       grouped[hour].push(service);
     });
