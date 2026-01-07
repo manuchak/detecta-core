@@ -7049,6 +7049,9 @@ export type Database = {
       lms_cursos: {
         Row: {
           activo: boolean | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           categoria: string | null
           codigo: string
           created_at: string | null
@@ -7068,6 +7071,9 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           categoria?: string | null
           codigo: string
           created_at?: string | null
@@ -7087,6 +7093,9 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           categoria?: string | null
           codigo?: string
           created_at?: string | null
@@ -15689,6 +15698,10 @@ export type Database = {
           linked_services: number
         }[]
       }
+      lms_archive_curso_secure: {
+        Args: { p_curso_id: string; p_reason?: string }
+        Returns: Json
+      }
       lms_calcular_progreso: {
         Args: { p_inscripcion_id: string }
         Returns: Json
@@ -15697,6 +15710,7 @@ export type Database = {
         Args: { p_curso_id: string; p_roles: string[] }
         Returns: Json
       }
+      lms_delete_curso_secure: { Args: { p_curso_id: string }; Returns: Json }
       lms_generar_certificado: {
         Args: { p_inscripcion_id: string }
         Returns: Json
@@ -15752,6 +15766,10 @@ export type Database = {
           p_referencia_tipo?: string
           p_usuario_id: string
         }
+        Returns: Json
+      }
+      lms_reactivate_curso_secure: {
+        Args: { p_curso_id: string }
         Returns: Json
       }
       lms_verificar_certificado: { Args: { p_codigo: string }; Returns: Json }
