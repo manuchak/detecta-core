@@ -35,6 +35,10 @@ const editServiceSchema = z.object({
     .min(1, 'El ID del servicio es requerido')
     .max(50, 'El ID no puede exceder 50 caracteres')
     .regex(/^[a-zA-Z0-9_-]+$/, 'Solo se permiten letras, números, guiones y guiones bajos'),
+  id_interno_cliente: z.string()
+    .max(50, 'La referencia no puede exceder 50 caracteres')
+    .optional()
+    .nullable(),
   nombre_cliente: z.string()
     .trim()
     .min(1, 'El nombre del cliente es requerido')
@@ -60,6 +64,7 @@ const editServiceSchema = z.object({
 export interface EditableService {
   id: string;
   id_servicio: string;
+  id_interno_cliente?: string;
   nombre_cliente: string;
   empresa_cliente?: string;
   email_cliente?: string;
@@ -112,6 +117,7 @@ export function EditServiceForm({
       
       setFormData({
         id_servicio: service.id_servicio,
+        id_interno_cliente: service.id_interno_cliente || '',
         nombre_cliente: service.nombre_cliente,
         origen: service.origen,
         destino: service.destino,
@@ -512,6 +518,26 @@ export function EditServiceForm({
                   {validationErrors.nombre_cliente}
                 </p>
               )}
+            </div>
+            
+            {/* Referencia Cliente / ID Interno - EDITABLE */}
+            <div className="space-y-2">
+              <Label htmlFor="id_interno_cliente" className="flex items-center gap-2">
+                Referencia Cliente
+                <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                  Facturación
+                </Badge>
+              </Label>
+              <Input
+                id="id_interno_cliente"
+                value={formData.id_interno_cliente || ''}
+                onChange={(e) => handleInputChange('id_interno_cliente', e.target.value)}
+                placeholder="ID interno del cliente para facturación"
+                maxLength={50}
+              />
+              <p className="text-xs text-muted-foreground">
+                Referencia proporcionada por el cliente para efectos de facturación
+              </p>
             </div>
             
             {/* Teléfono - SOLO LECTURA */}

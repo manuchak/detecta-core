@@ -306,6 +306,7 @@ export function ScheduledServicesTab() {
       const editableService: EditableService = {
         id: service.id,
         id_servicio: service.id_servicio || service.id,
+        id_interno_cliente: service.id_interno_cliente,
         nombre_cliente: service.cliente_nombre || service.nombre_cliente,
         empresa_cliente: service.empresa_cliente,
         email_cliente: service.email_cliente,

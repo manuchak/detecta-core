@@ -295,6 +295,7 @@ export function PendingAssignmentModal({
   const editableService: EditableService | null = service ? {
     id: service.id,
     id_servicio: service.id_servicio,
+    id_interno_cliente: (service as any).id_interno_cliente,
     nombre_cliente: service.nombre_cliente || '',
     origen: service.origen || '',
     destino: service.destino || '',
