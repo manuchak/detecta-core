@@ -45,9 +45,12 @@ export function ScheduledServicesTab() {
   });
   
   // Auto-refresh timer for upcoming service badges
+  // Pauses when dialog is open to prevent re-renders that cause popup jumping
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => {
+      // Don't update if any dialog is open - prevents popup jumping
+      if (document.body.dataset.dialogOpen === "1") return;
       setNow(new Date());
     }, 60000); // Update every minute
     return () => clearInterval(interval);

@@ -58,6 +58,18 @@ export function FalsePositioningDialog({
       setCobroPosicionamiento(true);
     }
   }, [open]);
+
+  // Prevent card click interference when dialog is open
+  useEffect(() => {
+    if (open) {
+      document.body.dataset.dialogOpen = "1";
+    } else {
+      const timeout = setTimeout(() => {
+        delete document.body.dataset.dialogOpen;
+      }, 150);
+      return () => clearTimeout(timeout);
+    }
+  }, [open]);
   
   const handleConfirm = async () => {
     if (!service || !motivo) return;
@@ -81,7 +93,11 @@ export function FalsePositioningDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent 
+        className="sm:max-w-md"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPinOff className="w-5 h-5 text-violet-600" />
