@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Clock } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GripVertical, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Clock, AlertCircle, CheckCircle, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContentEditor } from "./ContentEditor";
 import type { ContentOutline } from "./StepEstructura";
 
 const TIPO_ICONS = {
@@ -31,6 +33,7 @@ interface ContentOutlineItemProps {
 
 export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOutlineItemProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   
   const {
     attributes,
@@ -49,13 +52,60 @@ export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOut
   const Icon = TIPO_ICONS[contenido.tipo] || AlignLeft;
   const colorClass = TIPO_COLORS[contenido.tipo] || "text-gray-500 bg-gray-50";
 
+  const isComplete = useMemo(() => {
+    const c = contenido.contenido;
+    if (!c) return false;
+    
+    switch (contenido.tipo) {
+      case 'video':
+      case 'documento':
+        return !!c.url && c.url.length > 5;
+      case 'texto_enriquecido':
+        return !!c.html && c.html.length > 20;
+      case 'quiz':
+        return (c.preguntas_count || 0) > 0;
+      case 'interactivo':
+        return true; // Configure later
+      default:
+        return false;
+    }
+  }, [contenido]);
+
+  const getStatusTooltip = () => {
+    if (isComplete) return "Contenido completo";
+    
+    switch (contenido.tipo) {
+      case 'video':
+        return "Falta agregar URL o archivo de video";
+      case 'documento':
+        return "Falta agregar URL o archivo de documento";
+      case 'texto_enriquecido':
+        return "Falta agregar contenido de texto";
+      case 'quiz':
+        return "Las preguntas se agregan después de crear el curso";
+      default:
+        return "Contenido pendiente";
+    }
+  };
+
+  if (showEditor) {
+    return (
+      <ContentEditor
+        contenido={contenido}
+        onUpdate={onUpdate}
+        onClose={() => setShowEditor(false)}
+      />
+    );
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
         "flex items-center gap-2 p-2 rounded-lg bg-background border hover:border-primary/30 transition-colors group",
-        isDragging && "opacity-50 shadow-md"
+        isDragging && "opacity-50 shadow-md",
+        !isComplete && "border-amber-200 bg-amber-50/30"
       )}
     >
       <button
@@ -83,9 +133,23 @@ export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOut
         ) : (
           <button
             onClick={() => setIsEditing(true)}
-            className="text-left w-full"
+            className="text-left w-full flex items-center gap-1.5"
           >
-            <span className="text-xs truncate block">{contenido.titulo}</span>
+            <span className="text-xs truncate block flex-1">{contenido.titulo}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0">
+                  {isComplete ? (
+                    <CheckCircle className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-3 h-3 text-amber-500" />
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {getStatusTooltip()}
+              </TooltipContent>
+            </Tooltip>
           </button>
         )}
       </div>
@@ -102,6 +166,16 @@ export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOut
           />
           <span>min</span>
         </div>
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+          onClick={() => setShowEditor(true)}
+          title="Editar contenido"
+        >
+          <Pencil className="w-3 h-3" />
+        </Button>
         
         <Button
           variant="ghost"

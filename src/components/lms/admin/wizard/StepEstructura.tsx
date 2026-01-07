@@ -20,7 +20,14 @@ export interface ContentOutline {
   tipo: 'video' | 'documento' | 'texto_enriquecido' | 'quiz' | 'interactivo';
   duracion_min: number;
   orden: number;
-  contenido?: any;
+  contenido?: {
+    url?: string;
+    provider?: 'youtube' | 'vimeo' | 'storage';
+    html?: string;
+    preguntas_count?: number;
+    preguntas_ids?: string[];
+    thumbnail_url?: string;
+  };
 }
 
 interface StepEstructuraProps {

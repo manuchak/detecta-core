@@ -44,13 +44,13 @@ export function ImageUploader({ value, onChange, courseTitle }: ImageUploaderPro
       const filePath = `cursos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('lms-content')
+        .from('lms-media')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from('lms-content')
+        .from('lms-media')
         .getPublicUrl(filePath);
 
       onChange(urlData.publicUrl);
@@ -108,13 +108,13 @@ export function ImageUploader({ value, onChange, courseTitle }: ImageUploaderPro
       const filePath = `cursos/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('lms-content')
+        .from('lms-media')
         .upload(filePath, blob);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from('lms-content')
+        .from('lms-media')
         .getPublicUrl(filePath);
 
       onChange(urlData.publicUrl);
