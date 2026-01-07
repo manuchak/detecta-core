@@ -8,6 +8,7 @@ import { XCircle } from 'lucide-react';
 // Predefined cancellation reasons - "Cancelado por cliente" allows cancelling started services
 const CANCEL_REASONS = [
   { value: 'cliente_cancelo', label: 'Cancelado por cliente', allowsStartedCancellation: true },
+  { value: 'posicionamiento_falso', label: 'Posicionamiento en Falso', allowsStartedCancellation: true, requiresFalsePositioningFlow: true },
   { value: 'cambio_fecha', label: 'Cambio de fecha/hora', allowsStartedCancellation: false },
   { value: 'falta_disponibilidad', label: 'Falta de disponibilidad', allowsStartedCancellation: false },
   { value: 'error_datos', label: 'Error en datos del servicio', allowsStartedCancellation: false },

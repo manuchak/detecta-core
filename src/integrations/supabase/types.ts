@@ -12018,6 +12018,7 @@ export type Database = {
           asignado_por: string | null
           auto: string | null
           cancelado_por: string | null
+          cobro_posicionamiento: boolean | null
           comentarios_adicionales: string | null
           comentarios_planeacion: string | null
           comunicacion_enviada: boolean | null
@@ -12039,16 +12040,19 @@ export type Database = {
           hora_encuentro: string | null
           hora_fin_real: string | null
           hora_inicio_real: string | null
+          hora_llegada_custodio: string | null
           id: string
           id_interno_cliente: string | null
           id_servicio: string
           metodo_comunicacion: string | null
           moneda: string | null
+          motivo_posicionamiento_falso: string | null
           nombre_cliente: string
           num_vehiculos: number | null
           observaciones: string | null
           origen: string
           placa: string | null
+          posicionamiento_falso: boolean | null
           prioridad: number | null
           proveedor_armado_id: string | null
           punto_encuentro: string | null
@@ -12067,6 +12071,7 @@ export type Database = {
           asignado_por?: string | null
           auto?: string | null
           cancelado_por?: string | null
+          cobro_posicionamiento?: boolean | null
           comentarios_adicionales?: string | null
           comentarios_planeacion?: string | null
           comunicacion_enviada?: boolean | null
@@ -12088,16 +12093,19 @@ export type Database = {
           hora_encuentro?: string | null
           hora_fin_real?: string | null
           hora_inicio_real?: string | null
+          hora_llegada_custodio?: string | null
           id?: string
           id_interno_cliente?: string | null
           id_servicio: string
           metodo_comunicacion?: string | null
           moneda?: string | null
+          motivo_posicionamiento_falso?: string | null
           nombre_cliente: string
           num_vehiculos?: number | null
           observaciones?: string | null
           origen: string
           placa?: string | null
+          posicionamiento_falso?: boolean | null
           prioridad?: number | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
@@ -12116,6 +12124,7 @@ export type Database = {
           asignado_por?: string | null
           auto?: string | null
           cancelado_por?: string | null
+          cobro_posicionamiento?: boolean | null
           comentarios_adicionales?: string | null
           comentarios_planeacion?: string | null
           comunicacion_enviada?: boolean | null
@@ -12137,16 +12146,19 @@ export type Database = {
           hora_encuentro?: string | null
           hora_fin_real?: string | null
           hora_inicio_real?: string | null
+          hora_llegada_custodio?: string | null
           id?: string
           id_interno_cliente?: string | null
           id_servicio?: string
           metodo_comunicacion?: string | null
           moneda?: string | null
+          motivo_posicionamiento_falso?: string | null
           nombre_cliente?: string
           num_vehiculos?: number | null
           observaciones?: string | null
           origen?: string
           placa?: string | null
+          posicionamiento_falso?: boolean | null
           prioridad?: number | null
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null

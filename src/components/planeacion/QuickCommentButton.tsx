@@ -47,11 +47,6 @@ export function QuickCommentButton({ serviceId, currentComment, className = '' }
   };
 
   const hasComment = !!currentComment && currentComment.trim().length > 0;
-  const previewText = hasComment 
-    ? currentComment.length > 50 
-      ? `${currentComment.substring(0, 50)}...` 
-      : currentComment
-    : 'Sin comentarios';
 
   return (
     <TooltipProvider>
@@ -63,7 +58,7 @@ export function QuickCommentButton({ serviceId, currentComment, className = '' }
                 variant="ghost"
                 size="sm"
                 onClick={(e) => e.stopPropagation()}
-                className={`apple-button-ghost-small relative ${className}`}
+                className={`h-7 w-7 p-0 relative ${className}`}
               >
                 <MessageSquare className={`h-3.5 w-3.5 ${hasComment ? 'text-primary' : 'text-muted-foreground'}`} />
                 {hasComment && (
@@ -73,8 +68,11 @@ export function QuickCommentButton({ serviceId, currentComment, className = '' }
             </PopoverTrigger>
           </TooltipTrigger>
           
-          <TooltipContent side="top" className="max-w-xs">
-            <p className="text-xs">{previewText}</p>
+          {/* Improved tooltip - wider, no truncation, preserves line breaks */}
+          <TooltipContent side="top" className="max-w-sm p-3" sideOffset={8}>
+            <p className="text-xs whitespace-pre-wrap break-words">
+              {hasComment ? currentComment : 'Sin comentarios'}
+            </p>
           </TooltipContent>
           
           <PopoverContent 
