@@ -52,6 +52,8 @@ export const LeadsTable = ({
   const [activeTab, setActiveTab] = useState("leads");
   
   // Estados para filtros y UI
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [assignmentFilter, setAssignmentFilter] = useState("all");
   const [uncontactedCount, setUncontactedCount] = useState<number>(0);
@@ -75,6 +77,14 @@ export const LeadsTable = ({
       assignment: 'all'
     };
   });
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Compute date range from external filter
   const getDateRangeFromFilter = (filter: string): { from: string; to: string } => {
