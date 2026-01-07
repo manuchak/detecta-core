@@ -45,6 +45,7 @@ interface ServiceData extends RouteData {
   incluye_armado: boolean;
   requiere_gadgets: boolean;
   gadgets_seleccionados: string[];
+  gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
   observaciones?: string;
   fecha_recepcion: string;
   hora_recepcion: string;
@@ -760,6 +761,7 @@ export function RequestCreationWorkflow() {
         requiere_armado: finalData.incluye_armado,
         tarifa_acordada: finalData.precio_custodio,
         observaciones: finalData.observaciones,
+        gadgets_cantidades: finalData.gadgets_cantidades || [],
         // Armed guard fields - include if available
         ...(armedAssignmentData && {
           armado_asignado: armedAssignmentData.armado_nombre,

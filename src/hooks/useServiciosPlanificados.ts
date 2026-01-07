@@ -37,6 +37,7 @@ export interface ServicioPlanificadoData {
   comentarios_adicionales?: string;
   condiciones_especiales?: string[];
   estado_planeacion?: string;
+  gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
 }
 
 export interface ConflictInfo {
@@ -190,7 +191,8 @@ export function useServiciosPlanificados() {
           observaciones: data.observaciones,
           comentarios_adicionales: data.comentarios_adicionales,
           condiciones_especiales: data.condiciones_especiales,
-          estado_planeacion: data.estado_planeacion || 'planificado'
+          estado_planeacion: data.estado_planeacion || 'planificado',
+          gadgets_cantidades: data.gadgets_cantidades || []
         }])
         .select()
         .single();

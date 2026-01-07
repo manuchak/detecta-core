@@ -12037,6 +12037,7 @@ export type Database = {
           fecha_comunicacion: string | null
           fecha_hora_cita: string
           fecha_respuesta: string | null
+          gadgets_cantidades: Json | null
           hora_encuentro: string | null
           hora_fin_real: string | null
           hora_inicio_real: string | null
@@ -12090,6 +12091,7 @@ export type Database = {
           fecha_comunicacion?: string | null
           fecha_hora_cita: string
           fecha_respuesta?: string | null
+          gadgets_cantidades?: Json | null
           hora_encuentro?: string | null
           hora_fin_real?: string | null
           hora_inicio_real?: string | null
@@ -12143,6 +12145,7 @@ export type Database = {
           fecha_comunicacion?: string | null
           fecha_hora_cita?: string
           fecha_respuesta?: string | null
+          gadgets_cantidades?: Json | null
           hora_encuentro?: string | null
           hora_fin_real?: string | null
           hora_inicio_real?: string | null
