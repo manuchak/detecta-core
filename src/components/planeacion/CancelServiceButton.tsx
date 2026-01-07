@@ -61,6 +61,10 @@ export function CancelServiceButton({
   const canProceed = selectedReason && (!serviceStarted || canCancelStarted);
 
   const getFinalReason = () => {
+    // For false positioning, return the value to trigger special flow
+    if (selectedReason === 'posicionamiento_falso') {
+      return 'posicionamiento_falso';
+    }
     if (selectedReason === 'otro') {
       return customReason.trim() || 'Otro motivo';
     }

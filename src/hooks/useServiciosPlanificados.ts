@@ -929,6 +929,59 @@ export function useServiciosPlanificados() {
     }
   });
 
+  // False positioning mutation - when custodian arrives but client cancels
+  const markFalsePositioning = useMutation({
+    mutationFn: async ({ 
+      serviceId, 
+      horaLlegada,
+      motivo,
+      cobroPosicionamiento
+    }: { 
+      serviceId: string;
+      horaLlegada: string;
+      motivo: string;
+      cobroPosicionamiento: boolean;
+    }) => {
+      logger.operation('markFalsePositioning', 'start', { serviceId, motivo, cobroPosicionamiento });
+      
+      const { error } = await supabase
+        .from('servicios_planificados')
+        .update({
+          estado_planeacion: 'cancelado',
+          posicionamiento_falso: true,
+          motivo_posicionamiento_falso: motivo,
+          cobro_posicionamiento: cobroPosicionamiento,
+          hora_llegada_custodio: horaLlegada,
+          hora_inicio_real: new Date().toISOString(), // Mark that custodian arrived
+          observaciones: `Posicionamiento en falso: ${motivo}. ${cobroPosicionamiento ? 'Se cobrará posicionamiento.' : 'Sin cargo de posicionamiento.'}`,
+          cancelado_por: (await supabase.auth.getUser()).data.user?.id,
+          fecha_cancelacion: new Date().toISOString()
+        })
+        .eq('id', serviceId);
+      
+      if (error) {
+        logger.error('markFalsePositioning', 'Failed to update', error);
+        throw error;
+      }
+      
+      logger.operation('markFalsePositioning', 'success', { serviceId });
+      return { serviceId };
+    },
+    onSuccess: (_, variables) => {
+      toast.success('Posicionamiento en falso registrado', {
+        description: variables.cobroPosicionamiento 
+          ? 'Se marcó para cobro de posicionamiento' 
+          : 'Sin cargo de posicionamiento'
+      });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-services'] });
+    },
+    onError: (error) => {
+      logger.error('markFalsePositioning', 'Mutation failed', error);
+      toast.error('Error al registrar posicionamiento en falso');
+    }
+  });
+
   return {
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
@@ -940,10 +993,12 @@ export function useServiciosPlanificados() {
     removeAssignment: removeAssignment.mutate,
     cancelService,
     updateOperationalStatus,
+    markFalsePositioning,
     isCreating: createServicioPlanificado.isPending,
     isUpdating: updateServicioPlanificado.isPending,
     isUpdatingConfiguration: updateServiceConfiguration.isPending,
     isUpdatingOperationalStatus: updateOperationalStatus.isPending,
+    isMarkingFalsePositioning: markFalsePositioning.isPending,
     isReassigning: reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
     isCancelling: cancelService.isPending,
     isLoading: isLoading || createServicioPlanificado.isPending || updateServicioPlanificado.isPending || updateServiceConfiguration.isPending || reassignCustodian.isPending || reassignArmedGuard.isPending || removeAssignment.isPending,
