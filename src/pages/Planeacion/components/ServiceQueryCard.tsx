@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatCDMXTime } from '@/utils/cdmxTimezone';
 import { MapPin, User, Shield, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 
@@ -94,12 +95,12 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
       <div className="flex items-center space-x-2 mb-3">
         <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <span className="apple-text-caption text-muted-foreground">
-          {format(new Date(service.fecha_hora_cita), 'PPP', { locale: es })}
+          {formatCDMXTime(service.fecha_hora_cita, 'PPP')}
         </span>
         <span className="text-muted-foreground">•</span>
         <Clock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <span className="apple-text-caption font-medium text-foreground">
-          {format(new Date(service.fecha_hora_cita), 'HH:mm')}
+          {formatCDMXTime(service.fecha_hora_cita, 'HH:mm')}
         </span>
       </div>
 

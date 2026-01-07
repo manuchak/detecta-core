@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { format, differenceInMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatCDMXTime } from '@/utils/cdmxTimezone';
 import {
   Calendar, Clock, MapPin, User, Shield, DollarSign, Car,
   FileText, Info, Database, CheckCircle2, AlertCircle, Phone,
@@ -135,12 +136,12 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
               <DetailRow
                 icon={Calendar}
                 label="Fecha"
-                value={format(new Date(service.fecha_hora_cita), 'PPP', { locale: es })}
+                value={formatCDMXTime(service.fecha_hora_cita, 'PPP')}
               />
               <DetailRow
                 icon={Clock}
                 label="Hora"
-                value={format(new Date(service.fecha_hora_cita), 'HH:mm')}
+                value={formatCDMXTime(service.fecha_hora_cita, 'HH:mm')}
               />
               <DetailRow
                 icon={Info}

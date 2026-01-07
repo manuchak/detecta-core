@@ -10,8 +10,8 @@ import { QuickCommentButton } from './QuickCommentButton';
 import { StatusUpdateButton, type OperationalStatus } from './StatusUpdateButton';
 import { UpcomingServiceBadge, getUpcomingHighlightClass } from './UpcomingServiceBadge';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { formatCDMXTime, getZonedCDMXTime } from '@/utils/cdmxTimezone';
 import type { ScheduledService } from '@/hooks/useScheduledServices';
 
 interface CompactServiceCardProps {
@@ -27,8 +27,10 @@ interface CompactServiceCardProps {
 }
 
 // Operational status with updated colors per plan
-export function getOperationalStatus(service: any) {
-  const now = new Date();
+export function getOperationalStatus(service: any, nowOverride?: Date) {
+  const now = nowOverride || new Date();
+  // Note: citaTime comparison uses raw Date for time diff calculation
+  // The actual display formatting uses CDMX timezone utilities
   const citaTime = new Date(service.fecha_hora_cita);
   
   const hasArmedGuard = !!(service.armado_nombre || service.armado_asignado);
@@ -135,8 +137,9 @@ export function CompactServiceCard({
   isCancelling = false,
   isUpdatingStatus = false
 }: CompactServiceCardProps) {
-  const operationalStatus = getOperationalStatus(service);
+  const operationalStatus = getOperationalStatus(service, now);
   const OperationalIcon = operationalStatus.icon;
+  // For time comparison (upcoming badge), use raw Date since both are in same timezone context
   const citaTime = new Date(service.fecha_hora_cita);
   const upcomingHighlight = getUpcomingHighlightClass(citaTime, now);
   
@@ -195,9 +198,9 @@ export function CompactServiceCard({
             {service.cliente_nombre || service.nombre_cliente}
           </span>
           
-          {/* Hora */}
+          {/* Hora - always display in CDMX timezone */}
           <span className="text-sm font-medium text-foreground tabular-nums flex-shrink-0">
-            {format(citaTime, 'HH:mm')}
+            {formatCDMXTime(service.fecha_hora_cita)}
           </span>
           
           {/* ID Servicio */}
