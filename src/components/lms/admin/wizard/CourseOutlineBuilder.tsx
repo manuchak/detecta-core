@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,28 @@ interface CourseOutlineBuilderProps {
 
 export function CourseOutlineBuilder({ modulos, onChange, cursoTitulo }: CourseOutlineBuilderProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(modulos.map(m => m.id)));
+  const prevModuleIdsRef = useRef<Set<string>>(new Set(modulos.map(m => m.id)));
+
+  // Auto-expand new modules (especially empty ones)
+  useEffect(() => {
+    const currentIds = new Set(modulos.map(m => m.id));
+    const prevIds = prevModuleIdsRef.current;
+    
+    // Find newly added modules
+    const newModuleIds = modulos
+      .filter(m => !prevIds.has(m.id))
+      .map(m => m.id);
+    
+    if (newModuleIds.length > 0) {
+      setExpandedModules(prev => {
+        const next = new Set(prev);
+        newModuleIds.forEach(id => next.add(id));
+        return next;
+      });
+    }
+    
+    prevModuleIdsRef.current = currentIds;
+  }, [modulos]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
