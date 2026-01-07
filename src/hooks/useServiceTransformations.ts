@@ -30,6 +30,7 @@ export function useServiceTransformations() {
     return {
       id: servicio.id,
       id_servicio: servicio.folio,
+      id_interno_cliente: (servicio as any).id_interno_cliente,
       nombre_cliente: typeof servicio.cliente === 'string' 
         ? servicio.cliente 
         : servicio.cliente?.nombre || '',
