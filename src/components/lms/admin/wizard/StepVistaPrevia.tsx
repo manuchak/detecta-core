@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FormControl,
@@ -11,7 +11,11 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { CursoPreviewCard } from "./CursoPreviewCard";
-import { Eye, EyeOff, Power, LayoutGrid, BookOpen, Clock, Layers, Play, FileText, AlignLeft, HelpCircle, Sparkles } from "lucide-react";
+import { 
+  Eye, EyeOff, Power, LayoutGrid, BookOpen, Clock, Layers, 
+  Play, FileText, AlignLeft, HelpCircle, Sparkles, 
+  AlertCircle, CheckCircle, ExternalLink, Upload, Youtube
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ModuleOutline, ContentOutline } from "./StepEstructura";
 
@@ -28,6 +32,39 @@ const TIPO_ICONS: Record<string, any> = {
   interactivo: Sparkles,
 };
 
+const TIPO_COLORS: Record<string, string> = {
+  video: "text-red-500",
+  documento: "text-blue-500",
+  texto_enriquecido: "text-green-500",
+  quiz: "text-purple-500",
+  interactivo: "text-orange-500",
+};
+
+function isContentComplete(contenido: ContentOutline): boolean {
+  const c = contenido.contenido;
+  if (!c) return false;
+  
+  switch (contenido.tipo) {
+    case 'video':
+    case 'documento':
+      return !!c.url && c.url.length > 5;
+    case 'texto_enriquecido':
+      return !!c.html && c.html.length > 20;
+    case 'quiz':
+      return (c.preguntas_count || 0) > 0;
+    case 'interactivo':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function getProviderIcon(provider?: string) {
+  if (provider === 'youtube') return <Youtube className="w-3 h-3 text-red-500" />;
+  if (provider === 'storage') return <Upload className="w-3 h-3 text-blue-500" />;
+  return <ExternalLink className="w-3 h-3 text-muted-foreground" />;
+}
+
 export function StepVistaPrevia({ form, modulos }: StepVistaPreviaProps) {
   const formValues = form.watch();
   const [previewMode, setPreviewMode] = useState<'catalog' | 'student'>('catalog');
@@ -37,8 +74,43 @@ export function StepVistaPrevia({ form, modulos }: StepVistaPreviaProps) {
     acc + mod.contenidos.reduce((cAcc, c) => cAcc + c.duracion_min, 0), 0
   );
 
+  const contenidosIncompletos = useMemo(() => {
+    return modulos.flatMap(m => 
+      m.contenidos.filter(c => !isContentComplete(c))
+    );
+  }, [modulos]);
+
+  const contenidosCompletos = totalContenidos - contenidosIncompletos.length;
+
   return (
     <div className="space-y-6">
+      {/* Incomplete Content Warning */}
+      {contenidosIncompletos.length > 0 && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              {contenidosIncompletos.length} contenido{contenidosIncompletos.length > 1 ? 's' : ''} sin completar
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Puedes crear el curso ahora y completar el contenido después desde el editor de curso.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {contenidosIncompletos.slice(0, 5).map(c => (
+                <Badge key={c.id} variant="outline" className="text-amber-700 border-amber-300 text-xs">
+                  {c.titulo}
+                </Badge>
+              ))}
+              {contenidosIncompletos.length > 5 && (
+                <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">
+                  +{contenidosIncompletos.length - 5} más
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preview Tabs */}
       <div className="apple-card p-6">
         <Tabs value={previewMode} onValueChange={(v) => setPreviewMode(v as any)}>
@@ -94,6 +166,12 @@ export function StepVistaPrevia({ form, modulos }: StepVistaPreviaProps) {
                       <Clock className="w-3.5 h-3.5" />
                       {duracionTotal} min
                     </span>
+                    {contenidosCompletos > 0 && (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        {contenidosCompletos} listos
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -118,14 +196,55 @@ export function StepVistaPrevia({ form, modulos }: StepVistaPreviaProps) {
                       ) : (
                         modulo.contenidos.map((contenido) => {
                           const Icon = TIPO_ICONS[contenido.tipo] || AlignLeft;
+                          const colorClass = TIPO_COLORS[contenido.tipo] || "text-muted-foreground";
+                          const complete = isContentComplete(contenido);
+                          
                           return (
                             <div 
                               key={contenido.id}
-                              className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 transition-colors"
+                              className={cn(
+                                "flex items-center gap-2 p-2 rounded transition-colors",
+                                complete ? "hover:bg-muted/50" : "bg-amber-50/50 dark:bg-amber-950/20"
+                              )}
                             >
-                              <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                              <span className="text-sm flex-1 truncate">{contenido.titulo}</span>
-                              <span className="text-xs text-muted-foreground">{contenido.duracion_min}m</span>
+                              <Icon className={cn("w-4 h-4 shrink-0", colorClass)} />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm truncate block">{contenido.titulo}</span>
+                                
+                                {/* Show content preview for complete items */}
+                                {contenido.tipo === 'video' && contenido.contenido?.url && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    {getProviderIcon(contenido.contenido.provider)}
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                                      {contenido.contenido.url}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {contenido.tipo === 'documento' && contenido.contenido?.url && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <ExternalLink className="w-2.5 h-2.5 text-muted-foreground" />
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                                      Documento adjunto
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {contenido.tipo === 'texto_enriquecido' && contenido.contenido?.html && (
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {contenido.contenido.html.length} caracteres
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 shrink-0">
+                                {!complete && contenido.tipo !== 'interactivo' && (
+                                  <Badge variant="outline" className="text-amber-600 border-amber-300 text-[10px] px-1.5 py-0">
+                                    Pendiente
+                                  </Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground">{contenido.duracion_min}m</span>
+                              </div>
                             </div>
                           );
                         })
