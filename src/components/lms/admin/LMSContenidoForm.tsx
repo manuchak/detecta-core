@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent } from "@/types/lms";
+import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent, type TipoInteractivo, type InteractivoContent } from "@/types/lms";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { toast } from "sonner";
 import { QuizEditor } from "./quiz/QuizEditor";
@@ -78,6 +78,12 @@ export function LMSContenidoForm({
   const [textoHtml, setTextoHtml] = useState("");
   const [embedHtml, setEmbedHtml] = useState("");
 
+  // Interactivo - embed externo
+  const [interactivoTipo, setInteractivoTipo] = useState<TipoInteractivo>('embed_externo');
+  const [embedExternoHtml, setEmbedExternoHtml] = useState("");
+  const [embedAltura, setEmbedAltura] = useState(500);
+  const [embedAncho, setEmbedAncho] = useState<string>("100%");
+
   // Quiz - using new QuizQuestion type
   const [quizPreguntas, setQuizPreguntas] = useState<QuizQuestion[]>([]);
   const [quizConfig, setQuizConfig] = useState({
@@ -102,6 +108,14 @@ export function LMSContenidoForm({
       if (contenido.tipo === 'documento' && c?.url) setDocumentoUrl(c.url);
       if (contenido.tipo === 'texto_enriquecido' && c?.html) setTextoHtml(c.html);
       if (contenido.tipo === 'embed' && c?.html) setEmbedHtml(c.html);
+      if (contenido.tipo === 'interactivo' && c) {
+        setInteractivoTipo(c.tipo || 'embed_externo');
+        if (c.tipo === 'embed_externo' && c.data) {
+          setEmbedExternoHtml(c.data.html || '');
+          setEmbedAltura(c.data.altura || 500);
+          setEmbedAncho(c.data.ancho?.toString() || '100%');
+        }
+      }
       if (contenido.tipo === 'quiz' && c) {
         setQuizConfig({
           puntuacion_minima: c.puntuacion_minima ?? 70,
@@ -126,6 +140,10 @@ export function LMSContenidoForm({
     setDocumentoUrl("");
     setTextoHtml("");
     setEmbedHtml("");
+    setInteractivoTipo('embed_externo');
+    setEmbedExternoHtml("");
+    setEmbedAltura(500);
+    setEmbedAncho("100%");
     setQuizPreguntas([]);
     setQuizConfig({
       puntuacion_minima: 70,
@@ -150,6 +168,19 @@ export function LMSContenidoForm({
         return { html: textoHtml };
       case 'embed':
         return { html: embedHtml, altura: 400 };
+      case 'interactivo':
+        if (interactivoTipo === 'embed_externo') {
+          return {
+            tipo: 'embed_externo',
+            data: {
+              html: embedExternoHtml,
+              altura: embedAltura,
+              ancho: embedAncho
+            }
+          } as InteractivoContent;
+        }
+        // Otros tipos interactivos (flashcards, etc.) podrían agregarse aquí
+        return { tipo: interactivoTipo, data: {} } as InteractivoContent;
       case 'quiz':
         return {
           preguntas_ids: quizPreguntas.map(p => p.id),
@@ -359,6 +390,63 @@ export function LMSContenidoForm({
                       rows={8}
                       className="font-mono text-sm"
                     />
+                  </div>
+                )}
+
+                {tipo === 'interactivo' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Tipo de Interactivo</Label>
+                      <Select value={interactivoTipo} onValueChange={(v) => setInteractivoTipo(v as TipoInteractivo)}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="embed_externo">Embed Externo (iframe)</SelectItem>
+                          <SelectItem value="flashcards" disabled>Flashcards (próximamente)</SelectItem>
+                          <SelectItem value="video_interactivo" disabled>Video Interactivo (próximamente)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {interactivoTipo === 'embed_externo' && (
+                      <div className="space-y-4 p-4 rounded-xl bg-muted/30 border">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Código Embed (iframe)</Label>
+                          <Textarea
+                            value={embedExternoHtml}
+                            onChange={(e) => setEmbedExternoHtml(e.target.value)}
+                            placeholder='<iframe src="https://view.genial.ly/..." width="100%" height="500" allowfullscreen></iframe>'
+                            rows={6}
+                            className="font-mono text-sm"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Pega el código iframe de Genially, Canva, H5P, Google Maps, Loom, etc.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Altura (px)</Label>
+                            <Input
+                              type="number"
+                              min={200}
+                              value={embedAltura}
+                              onChange={(e) => setEmbedAltura(parseInt(e.target.value) || 500)}
+                              className="h-9"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Ancho</Label>
+                            <Input
+                              value={embedAncho}
+                              onChange={(e) => setEmbedAncho(e.target.value || '100%')}
+                              placeholder="100% o 800px"
+                              className="h-9"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
