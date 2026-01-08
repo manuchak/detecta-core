@@ -21,7 +21,7 @@ export type TipoInscripcion = 'obligatoria' | 'voluntaria' | 'asignada';
 export type EstadoInscripcion = 'inscrito' | 'en_progreso' | 'completado' | 'vencido' | 'abandonado';
 
 // Tipos de contenido interactivo
-export type TipoInteractivo = 'flashcards' | 'timeline' | 'dragdrop' | 'hotspots' | 'accordion' | 'tabs' | 'video_interactivo';
+export type TipoInteractivo = 'flashcards' | 'timeline' | 'dragdrop' | 'hotspots' | 'accordion' | 'tabs' | 'video_interactivo' | 'embed_externo';
 
 // =====================================================
 // Interfaces principales
@@ -135,7 +135,15 @@ export interface QuizContent {
 
 export interface InteractivoContent {
   tipo: TipoInteractivo;
-  data: FlashcardsData | TimelineData | DragDropData | HotspotsData | AccordionData | TabsData | VideoInteractivoData;
+  data: FlashcardsData | TimelineData | DragDropData | HotspotsData | AccordionData | TabsData | VideoInteractivoData | EmbedExternoData;
+}
+
+// Embed Externo (iframe de terceros como Genially, Canva, H5P)
+export interface EmbedExternoData {
+  html: string;
+  altura: number;
+  ancho?: number | string;
+  proveedor?: string; // 'genially' | 'canva' | 'h5p' | 'otro'
 }
 
 // =====================================================

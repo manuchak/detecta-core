@@ -1,11 +1,14 @@
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { FlashcardsViewer } from "./interactivo/FlashcardsViewer";
 import { InteractiveVideoPlayer } from "./interactivo/InteractiveVideoPlayer";
+import { sanitizeUserInput } from "@/utils/sanitization";
 import type { 
   InteractivoContent, 
   FlashcardsData, 
-  VideoInteractivoData 
+  VideoInteractivoData,
+  EmbedExternoData
 } from "@/types/lms";
 
 interface InteractivoRendererProps {
@@ -28,6 +31,38 @@ export function InteractivoRenderer({ content, onComplete }: InteractivoRenderer
   }
 
   switch (tipo) {
+    case 'embed_externo': {
+      const embedData = content.data as EmbedExternoData;
+      // Sanitizar el HTML pero permitir iframes de fuentes conocidas
+      const sanitizedHtml = sanitizeUserInput(embedData.html || '');
+      
+      return (
+        <div className="space-y-4">
+          <div 
+            className="w-full rounded-lg overflow-hidden bg-muted/30 border"
+            style={{ 
+              minHeight: embedData.altura || 500,
+              maxWidth: embedData.ancho || '100%'
+            }}
+          >
+            <div 
+              className="w-full [&>iframe]:w-full [&>iframe]:border-0"
+              style={{ minHeight: embedData.altura || 500 }}
+              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+            />
+          </div>
+          {onComplete && (
+            <div className="flex justify-center pt-4">
+              <Button onClick={onComplete} className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Marcar como completado
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     case 'flashcards':
       return (
         <FlashcardsViewer 
