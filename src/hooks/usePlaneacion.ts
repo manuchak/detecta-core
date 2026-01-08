@@ -105,7 +105,7 @@ export const useCustodios = (filtros?: FiltrosCustodios) => {
       // Aplicar filtros adicionales si existen
       if (filtros?.disponibilidad && custodios.length > 0) {
         custodios = custodios.filter(c => 
-          c.disponibilidad_efectiva === filtros.disponibilidad
+          c.disponibilidad === filtros.disponibilidad
         );
       }
       
