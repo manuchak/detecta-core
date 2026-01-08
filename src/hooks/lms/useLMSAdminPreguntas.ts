@@ -12,7 +12,7 @@ export const useLMSCrearPreguntas = () => {
 
   return useMutation({
     mutationFn: async ({ cursoId, preguntas }: CrearPreguntasParams) => {
-      const preguntasDB = preguntas.map((p, index) => ({
+      const preguntasDB = preguntas.map((p) => ({
         id: p.id,
         curso_id: cursoId,
         tipo: 'opcion_multiple' as const,
@@ -23,7 +23,6 @@ export const useLMSCrearPreguntas = () => {
         })),
         explicacion: p.explicacion || null,
         puntos: p.puntos || 10,
-        orden: index + 1,
         activa: true
       }));
 
@@ -63,13 +62,17 @@ export async function fetchPreguntasByIds(ids: string[]): Promise<QuizQuestion[]
     .from('lms_preguntas')
     .select('*')
     .in('id', ids)
-    .eq('activa', true)
-    .order('orden');
+    .eq('activa', true);
 
   if (error) throw error;
   if (!data) return [];
 
-  return data.map(p => {
+  // Ordenar según el orden del array de IDs recibido
+  const orderedData = ids
+    .map(id => data.find(p => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => p !== undefined);
+
+  return orderedData.map(p => {
     const opciones = (p.opciones as any[]) || [];
     return {
       id: p.id,
