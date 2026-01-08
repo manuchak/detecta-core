@@ -555,9 +555,16 @@ export const useSIERCP = () => {
     });
   }, [saveSession]);
 
+  // completeTest NO debe limpiar la sesión inmediatamente
+  // La sesión se limpia después de guardar los resultados
   const completeTest = useCallback(() => {
     setIsCompleted(true);
-    clearSession(); // Limpiar sesión al completar
+    // NO llamar clearSession aquí - se llamará después de confirmar guardado
+  }, []);
+
+  // Nueva función para limpiar después de guardar exitosamente
+  const finalizeAndClearSession = useCallback(() => {
+    clearSession();
   }, [clearSession]);
 
   return {
@@ -578,6 +585,7 @@ export const useSIERCP = () => {
     resetTest,
     startTest,
     completeTest,
+    finalizeAndClearSession,
     clearSession,
     getRemainingTime,
     getElapsedTime,

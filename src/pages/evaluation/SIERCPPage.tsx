@@ -7,13 +7,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useSIERCPAI } from "@/hooks/useSIERCPAI";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary";
 
 
 // Estilos CSS para impresión
@@ -224,6 +225,7 @@ const SIERCPPage = () => {
     resetTest,
     startTest,
     completeTest,
+    finalizeAndClearSession,
     getRemainingTime,
     SESSION_TIMEOUT_MS
   } = useSIERCP();
@@ -245,6 +247,7 @@ const SIERCPPage = () => {
   const [saving, setSaving] = useState(false);
   const [remainingTime, setRemainingTime] = useState(SESSION_TIMEOUT_MS);
   const [consentGiven, setConsentGiven] = useState(false);
+  const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -348,8 +351,10 @@ const SIERCPPage = () => {
       setCurrentModule(modules[currentModuleIndex + 1]);
       setCurrentQuestionIndex(0);
     } else {
-      // Complete test - usa completeTest para limpiar sesión
-      completeTest();
+      // Complete test - calcular resultados ANTES de completar
+      const results = calculateResults();
+      setSavedResults(results); // Guardar resultados calculados
+      completeTest(); // Esto ya NO limpia la sesión
       setShowResults(true);
     }
   };
@@ -360,6 +365,8 @@ const SIERCPPage = () => {
       setCurrentModule(modules[currentModuleIndex + 1]);
       setCurrentQuestionIndex(0);
     } else {
+      const results = calculateResults();
+      setSavedResults(results);
       completeTest();
       setShowResults(true);
     }
@@ -510,11 +517,16 @@ const SIERCPPage = () => {
       </div>
     );
   };
-
-  const results = showResults ? calculateResults() : null;
+  // Usar resultados guardados o calcular nuevos
+  const results = showResults ? (savedResults || calculateResults()) : null;
 
   // Manejar guardado de resultados
-  const handleSaveResults = async (results: any) => {
+  const handleSaveResults = async (resultsToSave: any) => {
+    if (!resultsToSave) {
+      console.error('SIERCP: No hay resultados para guardar');
+      return;
+    }
+
     if (!isAdmin && existingResult) {
       toast({
         title: "Evaluación ya completada",
@@ -524,30 +536,42 @@ const SIERCPPage = () => {
       return;
     }
 
+    console.log('SIERCP: Intentando guardar resultados:', {
+      globalScore: resultsToSave.globalScore,
+      hasScores: !!resultsToSave.integridad,
+      isAdmin,
+      hasExistingResult: !!existingResult
+    });
+
     setSaving(true);
     try {
       await saveResult({
         scores: {
-          integridad: results.integridad,
-          psicopatia: results.psicopatia,
-          violencia: results.violencia,
-          agresividad: results.agresividad,
-          afrontamiento: results.afrontamiento,
-          veracidad: results.veracidad,
-          entrevista: results.entrevista
+          integridad: resultsToSave.integridad,
+          psicopatia: resultsToSave.psicopatia,
+          violencia: resultsToSave.violencia,
+          agresividad: resultsToSave.agresividad,
+          afrontamiento: resultsToSave.afrontamiento,
+          veracidad: resultsToSave.veracidad,
+          entrevista: resultsToSave.entrevista
         },
-        percentiles: results.percentiles || {},
-        clinical_interpretation: results.clinicalInterpretation?.interpretation || results.classification,
-        risk_flags: results.clinicalInterpretation?.validityFlags || [],
-        global_score: results.globalScore
+        percentiles: resultsToSave.percentiles || {},
+        clinical_interpretation: resultsToSave.clinicalInterpretation?.interpretation || resultsToSave.classification,
+        risk_flags: resultsToSave.clinicalInterpretation?.validityFlags || [],
+        global_score: resultsToSave.globalScore
       });
+
+      console.log('SIERCP: Resultados guardados exitosamente');
+      
+      // Limpiar sesión DESPUÉS de guardar exitosamente
+      finalizeAndClearSession();
 
       toast({
         title: "Resultados guardados",
         description: "Los resultados de tu evaluación han sido guardados exitosamente.",
       });
     } catch (error) {
-      console.error('Error saving results:', error);
+      console.error('SIERCP: Error al guardar resultados:', error);
       toast({
         title: "Error al guardar",
         description: "Hubo un problema al guardar los resultados. Por favor, intenta de nuevo.",
@@ -558,11 +582,12 @@ const SIERCPPage = () => {
     }
   };
 
+  // Auto-guardar resultados para usuarios no admin
   useEffect(() => {
-    if (showResults && results && !isAdmin && !existingResult) {
-      handleSaveResults(results);
+    if (showResults && savedResults && !isAdmin && !existingResult && !saving) {
+      handleSaveResults(savedResults);
     }
-  }, [showResults, results]);
+  }, [showResults, savedResults, isAdmin, existingResult]);
 
   if (loading || aiLoading || !persistenceInitialized) {
     return (
@@ -1307,4 +1332,13 @@ const SIERCPPage = () => {
   );
 };
 
-export default SIERCPPage;
+// Componente wrapper con ErrorBoundary
+const SIERCPPageWithErrorBoundary = () => {
+  return (
+    <RecruitmentErrorBoundary>
+      <SIERCPPage />
+    </RecruitmentErrorBoundary>
+  );
+};
+
+export default SIERCPPageWithErrorBoundary;
