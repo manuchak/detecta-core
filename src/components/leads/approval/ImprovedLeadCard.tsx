@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Phone, Bot, Edit, CheckCircle, XCircle, Mail, ArrowRight,
-  MoreHorizontal, PhoneCall, Archive, Rocket, AlertTriangle
+  MoreHorizontal, PhoneCall, Archive, Rocket, AlertTriangle, Brain
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -14,6 +15,7 @@ import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval } from "@/utils/leadValidation";
 import { cn } from "@/lib/utils";
+import { SendSIERCPDialog } from "./SendSIERCPDialog";
 import { LeadAgeBadge } from "./LeadAgeBadge";
 import { getLeadAge, getPriorityBorderColor } from "@/utils/leadAgeUtils";
 
@@ -39,10 +41,13 @@ export const ImprovedLeadCard = ({
   onApproveLead, onSendToSecondInterview, onReject, onCompleteMissingInfo,
   onLogCall, onMoveToPool, onIniciarLiberacion, onRetryVinculacion
 }: ImprovedLeadCardProps) => {
+  const [showSIERCPDialog, setShowSIERCPDialog] = useState(false);
+  
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
   const hasSuccessfulCall = lead.has_successful_call || false;
   const isApprovedButUnlinked = lead.final_decision === 'approved' && !lead.candidato_custodio_id;
+  const canApplySIERCP = lead.final_decision === 'approved' || lead.current_stage === 'second_interview';
 
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
@@ -255,10 +260,26 @@ export const ImprovedLeadCard = ({
                   </DropdownMenuItem>
                 </>
               )}
+              {canApplySIERCP && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowSIERCPDialog(true)}>
+                    <Brain className="h-3.5 w-3.5 mr-2 text-chart-3" />
+                    Aplicar SIERCP
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
+
+      {/* SIERCP Dialog */}
+      <SendSIERCPDialog
+        open={showSIERCPDialog}
+        onOpenChange={setShowSIERCPDialog}
+        lead={lead}
+      />
     </div>
   );
 };
