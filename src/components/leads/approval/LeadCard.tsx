@@ -14,7 +14,8 @@ import {
   ArrowRight,
   Calendar,
   MoreHorizontal,
-  AlertTriangle
+  AlertTriangle,
+  Brain
 } from "lucide-react";
 import {
   Tooltip,
@@ -43,6 +44,7 @@ interface LeadCardProps {
   onSendToSecondInterview: (lead: AssignedLead) => void;
   onReject: (lead: AssignedLead) => void;
   onCompleteMissingInfo: (lead: AssignedLead) => void;
+  onSendSIERCP?: (lead: AssignedLead) => void;
 }
 
 export const LeadCard = ({
@@ -55,7 +57,8 @@ export const LeadCard = ({
   onApproveLead,
   onSendToSecondInterview,
   onReject,
-  onCompleteMissingInfo
+  onCompleteMissingInfo,
+  onSendSIERCP
 }: LeadCardProps) => {
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
@@ -252,6 +255,13 @@ export const LeadCard = ({
                   <Phone className="h-4 w-4 mr-2" />
                   Entrevista manual
                 </DropdownMenuItem>
+                
+                {onSendSIERCP && lead.final_decision === 'approved' && (
+                  <DropdownMenuItem onClick={() => onSendSIERCP(lead)}>
+                    <Brain className="h-4 w-4 mr-2 text-purple-600" />
+                    Aplicar SIERCP
+                  </DropdownMenuItem>
+                )}
                 
                 {callLogs.length > 0 && (
                   <>
