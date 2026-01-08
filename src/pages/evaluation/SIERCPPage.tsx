@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,12 +6,13 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useSIERCPAI } from "@/hooks/useSIERCPAI";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 
 // Estilos CSS para impresión
@@ -208,13 +209,22 @@ const SIERCPPage = () => {
   const {
     responses,
     currentModule,
+    currentQuestionIndex,
     isCompleted,
+    testStarted,
+    sessionRestored,
+    persistenceInitialized,
     addResponse,
     setCurrentModule,
+    setCurrentQuestionIndex,
     setIsCompleted,
     getQuestionsForModule,
     calculateResults,
-    resetTest
+    resetTest,
+    startTest,
+    completeTest,
+    getRemainingTime,
+    SESSION_TIMEOUT_MS
   } = useSIERCP();
 
   const {
@@ -229,10 +239,10 @@ const SIERCPPage = () => {
   const { loading: aiLoading, connected, validateConnection } = useSIERCPAI();
 
   const [showResults, setShowResults] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [animation, setAnimation] = useState('');
   const [saving, setSaving] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(SESSION_TIMEOUT_MS);
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -249,6 +259,60 @@ const SIERCPPage = () => {
   // Get current question
   const currentQuestion = currentQuestions[currentQuestionIndex];
   const response = responses.find(r => r.questionId === currentQuestion?.id);
+
+  // Timer: actualizar tiempo restante cada segundo
+  useEffect(() => {
+    if (!testStarted || isCompleted || showResults) return;
+    
+    const interval = setInterval(() => {
+      const remaining = getRemainingTime();
+      setRemainingTime(remaining);
+      
+      // Advertencia a los 10 minutos
+      if (remaining <= 10 * 60 * 1000 && remaining > 9.9 * 60 * 1000) {
+        toast({
+          title: "⏰ Tiempo limitado",
+          description: "Te quedan menos de 10 minutos para completar la evaluación.",
+          variant: "destructive"
+        });
+      }
+      
+      // Auto-submit si se acaba el tiempo
+      if (remaining <= 0) {
+        toast({
+          title: "Tiempo agotado",
+          description: "El tiempo de la evaluación ha expirado. Se guardarán tus respuestas actuales.",
+          variant: "destructive"
+        });
+        completeTest();
+        setShowResults(true);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [testStarted, isCompleted, showResults, getRemainingTime, completeTest]);
+
+  // Bloqueo de navegación: beforeunload warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (testStarted && !isCompleted && !showResults) {
+        e.preventDefault();
+        e.returnValue = 'Tienes una evaluación en progreso. Si sales, tu progreso se guardará automáticamente y podrás continuar después.';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [testStarted, isCompleted, showResults]);
+
+  // Formatear tiempo restante
+  const formatTime = useCallback((ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
   
   // Automatically move to next question when an answer is selected
   useEffect(() => {
@@ -282,8 +346,8 @@ const SIERCPPage = () => {
       setCurrentModule(modules[currentModuleIndex + 1]);
       setCurrentQuestionIndex(0);
     } else {
-      // Complete test
-      setIsCompleted(true);
+      // Complete test - usa completeTest para limpiar sesión
+      completeTest();
       setShowResults(true);
     }
   };
@@ -294,9 +358,14 @@ const SIERCPPage = () => {
       setCurrentModule(modules[currentModuleIndex + 1]);
       setCurrentQuestionIndex(0);
     } else {
-      setIsCompleted(true);
+      completeTest();
       setShowResults(true);
     }
+  };
+
+  // Iniciar test cuando el usuario comienza
+  const handleStartTest = () => {
+    startTest();
   };
 
   const renderQuestion = (question: any) => {
@@ -493,7 +562,7 @@ const SIERCPPage = () => {
     }
   }, [showResults, results]);
 
-  if (loading || aiLoading) {
+  if (loading || aiLoading || !persistenceInitialized) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
@@ -996,15 +1065,90 @@ const SIERCPPage = () => {
   const currentModuleConfig = moduleConfig[currentModule as keyof typeof moduleConfig];
   const Icon = currentModuleConfig.icon;
 
+  // Pantalla de intro si no ha iniciado el test
+  if (!testStarted && !sessionRestored) {
+    return (
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-6 w-6 text-primary" />
+              Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
+            </CardTitle>
+            <CardDescription>
+              Evaluación psicométrica integral para candidatos del sector seguridad
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert className="border-amber-500 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                <strong>Importante:</strong> Una vez iniciada, esta evaluación debe completarse en una sola sesión. 
+                El tiempo máximo es de <strong>90 minutos</strong>. Si ocurre un problema técnico, 
+                tu progreso se guardará automáticamente y podrás continuar.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-4">
+              <h3 className="font-semibold">Instrucciones:</h3>
+              <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
+                <li>La evaluación consta de 7 módulos con aproximadamente 137 preguntas</li>
+                <li>Responda de manera honesta y espontánea</li>
+                <li>No hay respuestas correctas o incorrectas</li>
+                <li>Evite interrupciones durante la evaluación</li>
+                <li>El timer mostrará el tiempo restante en todo momento</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 py-4 bg-muted rounded-lg">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              <span className="text-lg font-mono font-medium">90:00</span>
+              <span className="text-sm text-muted-foreground">minutos disponibles</span>
+            </div>
+
+            <Button onClick={handleStartTest} className="w-full" size="lg">
+              <Brain className="h-5 w-5 mr-2" />
+              Iniciar Evaluación
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Mensaje de sesión restaurada
+  const showRestoredNotice = sessionRestored && testStarted && !showResults;
+
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-3xl">
       
+      {/* Timer y estado de sesión */}
+      {showRestoredNotice && (
+        <Alert className="border-green-500 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            Se restauró tu progreso anterior. Continúa donde te quedaste.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-6 w-6" />
-            Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-6 w-6" />
+              SIERCP
+            </CardTitle>
+            {/* Timer visible */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-mono text-sm ${
+              remainingTime <= 10 * 60 * 1000 
+                ? 'bg-red-100 text-red-700 animate-pulse' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
+              <Clock className="h-4 w-4" />
+              <span className="font-medium">{formatTime(remainingTime)}</span>
+            </div>
+          </div>
           <div className="space-y-2">
             <Progress value={progress} className="w-full h-2" />
             <div className="flex justify-between text-sm text-muted-foreground">
