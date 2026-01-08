@@ -15,6 +15,7 @@ import { QuizEditor } from "./quiz/QuizEditor";
 import { QuizQuestion } from "./quiz/QuestionCard";
 import { cn } from "@/lib/utils";
 import { MediaUploader } from "./wizard/MediaUploader";
+import { useLMSCrearPreguntas, useLMSEliminarPreguntas, fetchPreguntasByIds } from "@/hooks/lms/useLMSAdminPreguntas";
 
 interface ContenidoFormData {
   titulo: string;
@@ -30,6 +31,7 @@ interface LMSContenidoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   moduloId: string;
+  cursoId: string;
   moduloTitulo?: string;
   contenido?: {
     id: string;
@@ -59,6 +61,7 @@ export function LMSContenidoForm({
   open,
   onOpenChange,
   moduloId,
+  cursoId,
   moduloTitulo,
   contenido,
   nextOrden,
@@ -94,6 +97,13 @@ export function LMSContenidoForm({
     mostrar_respuestas_correctas: true
   });
 
+  // Track deleted question IDs for cleanup
+  const [preguntasEliminadas, setPreguntasEliminadas] = useState<string[]>([]);
+  const [preguntasOriginales, setPreguntasOriginales] = useState<string[]>([]);
+
+  const crearPreguntas = useLMSCrearPreguntas();
+  const eliminarPreguntas = useLMSEliminarPreguntas();
+
   useEffect(() => {
     if (contenido) {
       setTitulo(contenido.titulo);
@@ -124,6 +134,13 @@ export function LMSContenidoForm({
           tiempo_limite_min: c.tiempo_limite_min ?? null,
           mostrar_respuestas_correctas: c.mostrar_respuestas_correctas ?? true
         });
+        // Load existing questions from database
+        if (c.preguntas_ids?.length > 0) {
+          setPreguntasOriginales(c.preguntas_ids);
+          fetchPreguntasByIds(c.preguntas_ids)
+            .then(preguntas => setQuizPreguntas(preguntas))
+            .catch(err => console.error('Error loading quiz questions:', err));
+        }
       }
     } else {
       resetForm();
@@ -153,7 +170,22 @@ export function LMSContenidoForm({
       mostrar_respuestas_correctas: true
     });
     setActiveTab("contenido");
+    setPreguntasEliminadas([]);
+    setPreguntasOriginales([]);
   };
+
+  // Track question deletions
+  const handleQuizPreguntasChange = useCallback((newPreguntas: QuizQuestion[]) => {
+    const currentIds = new Set(newPreguntas.map(p => p.id));
+    const deletedIds = quizPreguntas
+      .filter(p => preguntasOriginales.includes(p.id) && !currentIds.has(p.id))
+      .map(p => p.id);
+    
+    if (deletedIds.length > 0) {
+      setPreguntasEliminadas(prev => [...new Set([...prev, ...deletedIds])]);
+    }
+    setQuizPreguntas(newPreguntas);
+  }, [quizPreguntas, preguntasOriginales]);
 
   const handleTipoChange = (newTipo: TipoContenido) => {
     setTipo(newTipo);
@@ -234,10 +266,38 @@ export function LMSContenidoForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    let preguntasIds: string[] = [];
+    
+    // If quiz type, save questions to lms_preguntas first
+    if (tipo === 'quiz' && quizPreguntas.length > 0 && cursoId) {
+      try {
+        await crearPreguntas.mutateAsync({ 
+          cursoId, 
+          preguntas: quizPreguntas 
+        });
+        preguntasIds = quizPreguntas.map(p => p.id);
+        
+        // Delete removed questions
+        if (preguntasEliminadas.length > 0) {
+          await eliminarPreguntas.mutateAsync(preguntasEliminadas);
+        }
+      } catch (error) {
+        console.error('Error saving quiz questions:', error);
+        toast.error("Error al guardar las preguntas del quiz");
+        return;
+      }
+    }
+    
+    const contenidoData = buildContenidoData();
+    // Update preguntas_ids with saved IDs
+    if (tipo === 'quiz' && preguntasIds.length > 0) {
+      (contenidoData as QuizContent).preguntas_ids = preguntasIds;
+    }
+    
     const submitData: ContenidoFormData = {
       titulo,
       tipo,
-      contenido: buildContenidoData(),
+      contenido: contenidoData,
       duracion_min: duracion,
       es_obligatorio: esObligatorio,
       orden,
@@ -448,7 +508,7 @@ export function LMSContenidoForm({
                     {/* Quiz Editor Component */}
                     <QuizEditor
                       questions={quizPreguntas}
-                      onChange={setQuizPreguntas}
+                      onChange={handleQuizPreguntasChange}
                       onGenerateWithAI={handleGenerateQuiz}
                       isGenerating={aiLoading}
                       moduloTitulo={moduloTitulo || titulo}
