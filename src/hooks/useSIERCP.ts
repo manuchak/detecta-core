@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSIERCPNormalization, calculateNormalizedGlobalScore } from './useSIERCPNormalization';
+import { useSIERCPPersistence } from './useSIERCPPersistence';
 
 export interface SIERCPQuestion {
   id: string;
@@ -203,13 +204,50 @@ const interviewQuestions = [
 export const useSIERCP = () => {
   const [responses, setResponses] = useState<SIERCPResponse[]>([]);
   const [currentModule, setCurrentModule] = useState<string>('integridad');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [testStarted, setTestStarted] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
   
   const { 
     convertToPercentile, 
     determineRiskLevel, 
     generateClinicalInterpretation 
   } = useSIERCPNormalization();
+
+  const {
+    savedSession,
+    initialized: persistenceInitialized,
+    saveSession,
+    clearSession,
+    getRemainingTime,
+    getElapsedTime,
+    hasSavedSession,
+    SESSION_TIMEOUT_MS
+  } = useSIERCPPersistence();
+
+  // Restaurar sesión automáticamente al iniciar
+  useEffect(() => {
+    if (persistenceInitialized && savedSession && !sessionRestored && !isCompleted) {
+      // Restaurar estado desde sessionStorage
+      setResponses(savedSession.responses);
+      setCurrentModule(savedSession.currentModule);
+      setCurrentQuestionIndex(savedSession.currentQuestionIndex);
+      setTestStarted(true);
+      setSessionRestored(true);
+    }
+  }, [persistenceInitialized, savedSession, sessionRestored, isCompleted]);
+
+  // Auto-guardar cuando cambian las respuestas o posición
+  useEffect(() => {
+    if (testStarted && !isCompleted && responses.length > 0) {
+      saveSession({
+        responses,
+        currentModule,
+        currentQuestionIndex
+      });
+    }
+  }, [responses, currentModule, currentQuestionIndex, testStarted, isCompleted, saveSession]);
 
   const getQuestionsForModule = useCallback((module: string) => {
     if (module === 'entrevista') {
@@ -500,19 +538,50 @@ export const useSIERCP = () => {
   const resetTest = useCallback(() => {
     setResponses([]);
     setCurrentModule('integridad');
+    setCurrentQuestionIndex(0);
     setIsCompleted(false);
-  }, []);
+    setTestStarted(false);
+    setSessionRestored(false);
+    clearSession();
+  }, [clearSession]);
+
+  const startTest = useCallback(() => {
+    setTestStarted(true);
+    // Iniciar nueva sesión limpia
+    saveSession({
+      responses: [],
+      currentModule: 'integridad',
+      currentQuestionIndex: 0
+    });
+  }, [saveSession]);
+
+  const completeTest = useCallback(() => {
+    setIsCompleted(true);
+    clearSession(); // Limpiar sesión al completar
+  }, [clearSession]);
 
   return {
     responses,
     currentModule,
+    currentQuestionIndex,
     isCompleted,
+    testStarted,
+    sessionRestored,
+    persistenceInitialized,
     addResponse,
     setCurrentModule,
+    setCurrentQuestionIndex,
     setIsCompleted,
     getQuestionsForModule,
     calculateResults,
     calculateCompleteResults,
-    resetTest
+    resetTest,
+    startTest,
+    completeTest,
+    clearSession,
+    getRemainingTime,
+    getElapsedTime,
+    hasSavedSession,
+    SESSION_TIMEOUT_MS
   };
 };
