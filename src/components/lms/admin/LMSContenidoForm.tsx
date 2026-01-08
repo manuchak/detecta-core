@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { QuizEditor } from "./quiz/QuizEditor";
 import { QuizQuestion } from "./quiz/QuestionCard";
 import { cn } from "@/lib/utils";
+import { MediaUploader } from "./wizard/MediaUploader";
 
 interface ContenidoFormData {
   titulo: string;
@@ -318,33 +319,25 @@ export function LMSContenidoForm({
               <TabsContent value="contenido" className="mt-0 space-y-4">
                 {tipo === 'video' && (
                   <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
-                    <Label htmlFor="video_url" className="text-sm font-medium">URL del Video</Label>
-                    <Input
-                      id="video_url"
+                    <Label className="text-sm font-medium">Video</Label>
+                    <MediaUploader
+                      type="video"
                       value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="https://youtube.com/watch?v=..."
-                      className="h-10"
+                      onChange={setVideoUrl}
+                      placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Soporta YouTube, Vimeo y enlaces directos
-                    </p>
                   </div>
                 )}
 
                 {tipo === 'documento' && (
                   <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
-                    <Label htmlFor="doc_url" className="text-sm font-medium">URL del Documento</Label>
-                    <Input
-                      id="doc_url"
+                    <Label className="text-sm font-medium">Documento</Label>
+                    <MediaUploader
+                      type="document"
                       value={documentoUrl}
-                      onChange={(e) => setDocumentoUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="h-10"
+                      onChange={setDocumentoUrl}
+                      placeholder="https://docs.google.com/... o enlace directo"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      PDF, Word, PowerPoint o Google Docs
-                    </p>
                   </div>
                 )}
 
