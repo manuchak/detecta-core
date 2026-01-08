@@ -316,6 +316,7 @@ export function LMSCursoDetalle() {
         open={contenidoFormOpen}
         onOpenChange={setContenidoFormOpen}
         moduloId={selectedModuloId || ""}
+        cursoId={cursoId!}
         contenido={editingContenido}
         nextOrden={getNextContenidoOrden()}
         onSubmit={editingContenido ? handleUpdateContenido : handleCreateContenido}
