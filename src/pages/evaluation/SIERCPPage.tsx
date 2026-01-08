@@ -297,6 +297,21 @@ const SIERCPPage = () => {
     return () => clearInterval(interval);
   }, [testStarted, isCompleted, showResults, getRemainingTime, completeTest]);
 
+  // Print styles effect - MOVED outside conditional render to comply with React hooks rules
+  useEffect(() => {
+    if (!showResults) return;
+    
+    const styleElement = document.createElement('style');
+    styleElement.textContent = printStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      if (document.head.contains(styleElement)) {
+        document.head.removeChild(styleElement);
+      }
+    };
+  }, [showResults]);
+
   // Bloqueo de navegación: beforeunload warning
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -801,20 +816,6 @@ const SIERCPPage = () => {
     };
 
     const riskInfo = getRiskLevel(results.globalScore);
-    
-    // Add print styles to head - moved outside of conditional render
-    useEffect(() => {
-      const styleElement = document.createElement('style');
-      // Use textContent instead of innerHTML to prevent XSS
-      styleElement.textContent = printStyles;
-      document.head.appendChild(styleElement);
-      
-      return () => {
-        if (document.head.contains(styleElement)) {
-          document.head.removeChild(styleElement);
-        }
-      };
-    }, []); // Empty dependency array to run only once
     
     return (
       <>
