@@ -15,7 +15,7 @@ import type {
 export interface SIERCPInvitationWithEvaluation extends SIERCPInvitation {
   evaluacion?: {
     id: string;
-    global_score: number;
+    score_global: number;
     resultado_semaforo?: string;
   } | null;
 }
@@ -168,7 +168,7 @@ export function useAllSIERCPInvitations() {
           *,
           evaluacion:evaluacion_id (
             id,
-            global_score,
+            score_global,
             resultado_semaforo
           )
         `)
