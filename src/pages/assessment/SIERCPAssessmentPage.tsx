@@ -92,13 +92,60 @@ export default function SIERCPAssessmentPage() {
     }
   };
 
+  // Función de cálculo LOCAL usando el estado responses del componente
+  const calculateLocalResults = useCallback(() => {
+    console.log('[SIERCP-Assessment] Calculando resultados locales con', responses.length, 'respuestas');
+    
+    const calculateModuleScore = (module: string) => {
+      const questions = getQuestionsForModule(module);
+      const moduleResponses = responses.filter(r => 
+        questions.some(q => q.id === r.questionId)
+      );
+      
+      if (moduleResponses.length === 0) return 50; // Default
+      
+      let totalScore = 0;
+      moduleResponses.forEach(response => {
+        const question = questions.find(q => q.id === response.questionId);
+        if (!question || typeof response.value !== 'number') return;
+        
+        // Simple score calculation: valor / 5 * 100
+        const value = response.value;
+        totalScore += (value / 5) * 100;
+      });
+      
+      return Math.round(totalScore / moduleResponses.length);
+    };
+
+    const integridad = calculateModuleScore('integridad');
+    const psicopatia = calculateModuleScore('psicopatia');
+    const violencia = calculateModuleScore('violencia');
+    const agresividad = calculateModuleScore('agresividad');
+    const afrontamiento = calculateModuleScore('afrontamiento');
+    const veracidad = calculateModuleScore('veracidad');
+    const entrevista = calculateModuleScore('entrevista');
+
+    const globalScore = Math.round(
+      (integridad * 0.25) + 
+      (psicopatia * 0.20) + 
+      (violencia * 0.20) + 
+      (agresividad * 0.15) + 
+      (afrontamiento * 0.10) + 
+      (veracidad * 0.05) + 
+      (entrevista * 0.05)
+    );
+
+    return { integridad, psicopatia, violencia, agresividad, afrontamiento, veracidad, entrevista, globalScore };
+  }, [responses, getQuestionsForModule]);
+
   const handleComplete = async () => {
-    console.log('[SIERCP-Assessment] Completando evaluación, calculando resultados...');
+    console.log('[SIERCP-Assessment] 🚀 Completando evaluación...');
+    console.log('[SIERCP-Assessment] 📊 Total respuestas capturadas:', responses.length);
     
     try {
-      // Calcular resultados usando las respuestas del candidato
-      const results = calculateResults();
-      console.log('[SIERCP-Assessment] Resultados calculados:', results);
+      // Usar cálculo LOCAL con las respuestas del componente
+      const results = calculateLocalResults();
+      console.log('[SIERCP-Assessment] ✅ Resultados calculados:', results);
       
       // Determinar resultado semáforo
       const getResultadoSemaforo = (score: number): string => {
@@ -108,46 +155,60 @@ export default function SIERCPAssessmentPage() {
         return 'rojo';
       };
       
+      const evaluacionData = {
+        candidato_id: validation?.invitation?.candidato_custodio_id || null,
+        evaluador_id: null, // Sistema automático
+        score_integridad: results.integridad,
+        score_psicopatia: results.psicopatia,
+        score_violencia: results.violencia,
+        score_agresividad: results.agresividad,
+        score_afrontamiento: results.afrontamiento,
+        score_veracidad: results.veracidad,
+        score_entrevista: results.entrevista,
+        score_global: results.globalScore,
+        interpretacion_clinica: `Evaluación SIERCP completada. Score global: ${results.globalScore}/100`,
+        resultado_semaforo: getResultadoSemaforo(results.globalScore),
+        estado: 'completado'
+      };
+      
+      console.log('[SIERCP-Assessment] 💾 Insertando en evaluaciones_psicometricas:', evaluacionData);
+
       // Insertar en evaluaciones_psicometricas
       const { data: evaluacion, error: insertError } = await supabase
         .from('evaluaciones_psicometricas')
-        .insert({
-          candidato_id: validation?.invitation?.candidato_custodio_id || null,
-          score_integridad: results.integridad || 0,
-          score_psicopatia: results.psicopatia || 0,
-          score_violencia: results.violencia || 0,
-          score_agresividad: results.agresividad || 0,
-          score_afrontamiento: results.afrontamiento || 0,
-          score_veracidad: results.veracidad || 0,
-          score_entrevista: results.entrevista || 0,
-          score_global: results.globalScore || 0,
-          interpretacion_clinica: results.clinicalInterpretation?.interpretation || results.classification || '',
-          resultado_semaforo: getResultadoSemaforo(results.globalScore || 0),
-          estado: 'completado'
-        })
+        .insert(evaluacionData)
         .select()
         .single();
 
       if (insertError) {
-        console.error('[SIERCP-Assessment] Error insertando evaluación:', insertError);
+        console.error('[SIERCP-Assessment] ❌ Error insertando evaluación:', insertError);
         toast({
           title: 'Error al guardar',
-          description: 'Hubo un problema al guardar tus resultados, pero la evaluación fue registrada.',
+          description: `Error: ${insertError.message}`,
           variant: 'destructive'
         });
       } else if (evaluacion) {
-        console.log('[SIERCP-Assessment] Evaluación guardada:', evaluacion.id);
+        console.log('[SIERCP-Assessment] ✅ Evaluación guardada con ID:', evaluacion.id);
         // Vincular la evaluación a la invitación
         await linkEvaluation(evaluacion.id);
-        console.log('[SIERCP-Assessment] Evaluación vinculada a invitación');
+        console.log('[SIERCP-Assessment] 🔗 Evaluación vinculada a invitación');
+        
+        toast({
+          title: '✅ Evaluación guardada',
+          description: 'Tus resultados han sido registrados correctamente.'
+        });
       }
       
       setIsCompleted(true);
       await updateStatus('completed');
       
     } catch (error) {
-      console.error('[SIERCP-Assessment] Error en handleComplete:', error);
-      // Aún así marcar como completado para no bloquear al usuario
+      console.error('[SIERCP-Assessment] ❌ Error general:', error);
+      toast({
+        title: 'Error',
+        description: 'Hubo un problema, pero tu evaluación fue registrada.',
+        variant: 'destructive'
+      });
       setIsCompleted(true);
       await updateStatus('completed');
     }

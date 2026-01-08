@@ -4461,10 +4461,10 @@ export type Database = {
           aval_coordinacion_id: string | null
           aval_decision: string | null
           aval_notas: string | null
-          candidato_id: string
+          candidato_id: string | null
           created_at: string | null
           estado: string | null
-          evaluador_id: string
+          evaluador_id: string | null
           fecha_aval: string | null
           fecha_evaluacion: string | null
           id: string
@@ -4487,10 +4487,10 @@ export type Database = {
           aval_coordinacion_id?: string | null
           aval_decision?: string | null
           aval_notas?: string | null
-          candidato_id: string
+          candidato_id?: string | null
           created_at?: string | null
           estado?: string | null
-          evaluador_id: string
+          evaluador_id?: string | null
           fecha_aval?: string | null
           fecha_evaluacion?: string | null
           id?: string
@@ -4513,10 +4513,10 @@ export type Database = {
           aval_coordinacion_id?: string | null
           aval_decision?: string | null
           aval_notas?: string | null
-          candidato_id?: string
+          candidato_id?: string | null
           created_at?: string | null
           estado?: string | null
-          evaluador_id?: string
+          evaluador_id?: string | null
           fecha_aval?: string | null
           fecha_evaluacion?: string | null
           id?: string
