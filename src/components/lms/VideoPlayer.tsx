@@ -13,6 +13,12 @@ interface VideoPlayerProps {
   completionThreshold?: number; // porcentaje para marcar como completado (default 90)
 }
 
+// Proveedores que usan iframe para embed
+const EMBED_PROVIDERS = ['youtube', 'vimeo', 'tiktok', 'instagram', 'facebook', 'canva'];
+
+// Proveedores con formato vertical (9:16)
+const VERTICAL_PROVIDERS = ['tiktok', 'instagram'];
+
 export function VideoPlayer({ 
   content, 
   onProgress, 
@@ -32,19 +38,64 @@ export function VideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const isEmbedProvider = content.provider === 'youtube' || content.provider === 'vimeo';
+  const isEmbedProvider = EMBED_PROVIDERS.includes(content.provider);
+  const isVertical = VERTICAL_PROVIDERS.includes(content.provider);
 
-  // Extraer video ID para embeds
-  const getEmbedUrl = () => {
-    if (content.provider === 'youtube') {
-      const videoId = content.url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-      return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0` : null;
+  // Extraer video ID/URL para embeds
+  const getEmbedUrl = (): string | null => {
+    const url = content.url;
+    
+    switch (content.provider) {
+      case 'youtube': {
+        // Soporta: watch, shorts, embed, youtu.be
+        const patterns = [
+          /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+          /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+          /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+          /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+        ];
+        for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match) return `https://www.youtube.com/embed/${match[1]}?rel=0`;
+        }
+        // Fallback para otros formatos de YouTube
+        const fallbackId = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+        return fallbackId ? `https://www.youtube.com/embed/${fallbackId}?rel=0` : null;
+      }
+      
+      case 'vimeo': {
+        const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
+        return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+      }
+      
+      case 'tiktok': {
+        // Formato: tiktok.com/@user/video/VIDEO_ID
+        const videoId = url.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/)?.[1];
+        return videoId ? `https://www.tiktok.com/embed/v2/${videoId}` : null;
+      }
+      
+      case 'instagram': {
+        // Formato: instagram.com/reel/CODE/ o instagram.com/p/CODE/
+        const code = url.match(/instagram\.com\/(?:reel|p)\/([A-Za-z0-9_-]+)/)?.[1];
+        return code ? `https://www.instagram.com/p/${code}/embed` : null;
+      }
+      
+      case 'facebook': {
+        // Encode la URL completa para el plugin de Facebook
+        return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`;
+      }
+      
+      case 'canva': {
+        // Formato: canva.com/design/DESIGN_ID/view -> embed
+        if (url.includes('/view')) {
+          return url.replace('/view', '/embed');
+        }
+        return url;
+      }
+      
+      default:
+        return null;
     }
-    if (content.provider === 'vimeo') {
-      const videoId = content.url.match(/vimeo\.com\/(\d+)/)?.[1];
-      return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
-    }
-    return null;
   };
 
   // Hook SIEMPRE se ejecuta - guardas internas para embeds
@@ -104,7 +155,10 @@ export function VideoPlayer({
     }
 
     return (
-      <div className="aspect-video bg-black rounded-lg overflow-hidden">
+      <div className={cn(
+        "bg-black rounded-lg overflow-hidden",
+        isVertical ? "aspect-[9/16] max-w-sm mx-auto" : "aspect-video"
+      )}>
         <iframe
           src={embedUrl}
           className="w-full h-full"

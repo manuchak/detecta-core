@@ -22,7 +22,7 @@ export interface ContentOutline {
   orden: number;
   contenido?: {
     url?: string;
-    provider?: 'youtube' | 'vimeo' | 'storage';
+    provider?: 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'facebook' | 'canva' | 'storage';
     html?: string;
     preguntas_count?: number;
     preguntas_ids?: string[];

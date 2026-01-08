@@ -37,19 +37,51 @@ export function InteractiveVideoPlayer({ data, onComplete }: InteractiveVideoPla
   const triggeredQuestions = useRef<Set<string>>(new Set());
 
   const preguntas = data?.preguntas || [];
-  const isEmbedProvider = data?.provider === 'youtube' || data?.provider === 'vimeo';
+  
+  // Proveedores que usan iframe
+  const EMBED_PROVIDERS = ['youtube', 'vimeo', 'tiktok', 'instagram', 'facebook', 'canva'];
+  const isEmbedProvider = EMBED_PROVIDERS.includes(data?.provider || '');
 
-  // Get embed URL for YouTube/Vimeo
-  const getEmbedUrl = useCallback(() => {
-    if (data.provider === 'youtube') {
-      const videoId = data.video_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-      return videoId ? `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0` : null;
+  // Get embed URL para múltiples plataformas
+  const getEmbedUrl = useCallback((): string | null => {
+    const url = data.video_url;
+    
+    switch (data.provider) {
+      case 'youtube': {
+        const patterns = [
+          /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+          /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+          /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+          /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+        ];
+        for (const pattern of patterns) {
+          const match = url.match(pattern);
+          if (match) return `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&rel=0`;
+        }
+        const fallbackId = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+        return fallbackId ? `https://www.youtube.com/embed/${fallbackId}?enablejsapi=1&rel=0` : null;
+      }
+      case 'vimeo': {
+        const videoId = url.match(/vimeo\.com\/(\d+)/)?.[1];
+        return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+      }
+      case 'tiktok': {
+        const videoId = url.match(/tiktok\.com\/@[\w.-]+\/video\/(\d+)/)?.[1];
+        return videoId ? `https://www.tiktok.com/embed/v2/${videoId}` : null;
+      }
+      case 'instagram': {
+        const code = url.match(/instagram\.com\/(?:reel|p)\/([A-Za-z0-9_-]+)/)?.[1];
+        return code ? `https://www.instagram.com/p/${code}/embed` : null;
+      }
+      case 'facebook': {
+        return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false`;
+      }
+      case 'canva': {
+        return url.includes('/view') ? url.replace('/view', '/embed') : url;
+      }
+      default:
+        return null;
     }
-    if (data.provider === 'vimeo') {
-      const videoId = data.video_url.match(/vimeo\.com\/(\d+)/)?.[1];
-      return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
-    }
-    return null;
   }, [data.provider, data.video_url]);
 
   // Check for questions at current time

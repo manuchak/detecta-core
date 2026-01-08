@@ -191,10 +191,20 @@ export function LMSContenidoForm({
     setTipo(newTipo);
   };
 
+  const detectVideoProvider = (url: string): 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'facebook' | 'canva' | 'storage' => {
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+    if (url.includes('vimeo.com')) return 'vimeo';
+    if (url.includes('tiktok.com')) return 'tiktok';
+    if (url.includes('instagram.com')) return 'instagram';
+    if (url.includes('facebook.com') || url.includes('fb.watch')) return 'facebook';
+    if (url.includes('canva.com')) return 'canva';
+    return 'storage';
+  };
+
   const buildContenidoData = (): ContenidoData => {
     switch (tipo) {
       case 'video':
-        return { url: videoUrl, provider: 'youtube' as const };
+        return { url: videoUrl, provider: detectVideoProvider(videoUrl) };
       case 'documento':
         return { url: documentoUrl, tipo: 'pdf' as const };
       case 'texto_enriquecido':
@@ -384,7 +394,7 @@ export function LMSContenidoForm({
                       type="video"
                       value={videoUrl}
                       onChange={setVideoUrl}
-                      placeholder="https://youtube.com/watch?v=... o https://vimeo.com/..."
+                      placeholder="YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL..."
                     />
                   </div>
                 )}
