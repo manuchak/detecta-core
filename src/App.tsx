@@ -11,6 +11,7 @@ import { SandboxRouteGuard } from '@/components/sandbox/SandboxRouteGuard';
 import { lazy, Suspense, useEffect } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
+import { SIERCP_ALLOWED_ROLES } from '@/constants/accessControl';
 
 // Layout imports
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -699,7 +700,7 @@ function App() {
                   path="/evaluation/siercp"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply_lead', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={[...SIERCP_ALLOWED_ROLES]}>
                         <DashboardLayout>
                           <SIERCPPage />
                         </DashboardLayout>
@@ -713,7 +714,7 @@ function App() {
                   path="/evaluation/siercp/methodology"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply_lead', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={[...SIERCP_ALLOWED_ROLES]}>
                         <DashboardLayout>
                           <SIERCPMethodologyPage />
                         </DashboardLayout>

@@ -36,6 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SIERCP_ALLOWED_ROLES } from "@/constants/accessControl";
 
 const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   const navigate = useNavigate();
@@ -260,8 +261,8 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [
           { title: "Estrategia Nacional", path: "/recruitment-strategy", icon: Map }
         ] : []),
-        // Evaluación SIERCP - disponible para supply y supply_admin
-        ...(userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead' || userRole === 'supply' ? [
+        // Evaluación SIERCP - usando constante centralizada
+        ...(SIERCP_ALLOWED_ROLES.includes(userRole as typeof SIERCP_ALLOWED_ROLES[number]) ? [
           { title: "Evaluación SIERCP", path: "/evaluation/siercp", icon: ClipboardCheck },
           { title: "Metodología SIERCP", path: "/evaluation/siercp/methodology", icon: BookOpen }
         ] : []),
