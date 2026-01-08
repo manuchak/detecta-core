@@ -12,6 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Brain, Shield, AlertCircle, CheckCircle, Clock, Lock, Zap, Heart, Eye, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
 import { useSIERCPToken } from '@/hooks/useSIERCPInvitations';
 import { useSIERCP, type SIERCPResponse } from '@/hooks/useSIERCP';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 // Configuración de módulos (simplificada del original)
 const moduleConfig = {
@@ -91,12 +93,64 @@ export default function SIERCPAssessmentPage() {
   };
 
   const handleComplete = async () => {
-    setIsCompleted(true);
-    // TODO: Guardar resultados en evaluaciones_psicometricas y vincular
-    // const results = calculateResults(responses);
-    // await saveResults(results);
-    // await linkEvaluation(evaluacionId);
-    await updateStatus('completed');
+    console.log('[SIERCP-Assessment] Completando evaluación, calculando resultados...');
+    
+    try {
+      // Calcular resultados usando las respuestas del candidato
+      const results = calculateResults();
+      console.log('[SIERCP-Assessment] Resultados calculados:', results);
+      
+      // Determinar resultado semáforo
+      const getResultadoSemaforo = (score: number): string => {
+        if (score >= 88) return 'verde';
+        if (score >= 75) return 'amarillo';
+        if (score >= 60) return 'naranja';
+        return 'rojo';
+      };
+      
+      // Insertar en evaluaciones_psicometricas
+      const { data: evaluacion, error: insertError } = await supabase
+        .from('evaluaciones_psicometricas')
+        .insert({
+          candidato_id: validation?.invitation?.candidato_custodio_id || null,
+          score_integridad: results.integridad || 0,
+          score_psicopatia: results.psicopatia || 0,
+          score_violencia: results.violencia || 0,
+          score_agresividad: results.agresividad || 0,
+          score_afrontamiento: results.afrontamiento || 0,
+          score_veracidad: results.veracidad || 0,
+          score_entrevista: results.entrevista || 0,
+          score_global: results.globalScore || 0,
+          interpretacion_clinica: results.clinicalInterpretation?.interpretation || results.classification || '',
+          resultado_semaforo: getResultadoSemaforo(results.globalScore || 0),
+          estado: 'completado'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('[SIERCP-Assessment] Error insertando evaluación:', insertError);
+        toast({
+          title: 'Error al guardar',
+          description: 'Hubo un problema al guardar tus resultados, pero la evaluación fue registrada.',
+          variant: 'destructive'
+        });
+      } else if (evaluacion) {
+        console.log('[SIERCP-Assessment] Evaluación guardada:', evaluacion.id);
+        // Vincular la evaluación a la invitación
+        await linkEvaluation(evaluacion.id);
+        console.log('[SIERCP-Assessment] Evaluación vinculada a invitación');
+      }
+      
+      setIsCompleted(true);
+      await updateStatus('completed');
+      
+    } catch (error) {
+      console.error('[SIERCP-Assessment] Error en handleComplete:', error);
+      // Aún así marcar como completado para no bloquear al usuario
+      setIsCompleted(true);
+      await updateStatus('completed');
+    }
   };
 
   const response = responses.find(r => r.questionId === currentQuestion?.id);

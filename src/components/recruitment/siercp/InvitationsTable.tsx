@@ -138,18 +138,18 @@ export function InvitationsTable() {
               {getExpirationDisplay(invitation)}
             </TableCell>
             <TableCell className="text-center">
-              {invitation.evaluacion?.global_score !== undefined ? (
+              {invitation.evaluacion?.score_global !== undefined ? (
                 <Badge 
                   variant="outline" 
                   className={
-                    invitation.evaluacion.global_score >= 80 
+                    invitation.evaluacion.score_global >= 80 
                       ? 'text-green-600 border-green-500/30' 
-                      : invitation.evaluacion.global_score >= 60 
+                      : invitation.evaluacion.score_global >= 60 
                         ? 'text-yellow-600 border-yellow-500/30'
                         : 'text-red-600 border-red-500/30'
                   }
                 >
-                  {invitation.evaluacion.global_score}
+                  {invitation.evaluacion.score_global}
                 </Badge>
               ) : (
                 <span className="text-muted-foreground">—</span>
