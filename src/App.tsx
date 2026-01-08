@@ -705,9 +705,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={[...SIERCP_ALLOWED_ROLES]}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SIERCPPage />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
@@ -719,9 +719,9 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={[...SIERCP_ALLOWED_ROLES]}>
-                        <DashboardLayout>
+                        <UnifiedLayout>
                           <SIERCPMethodologyPage />
-                        </DashboardLayout>
+                        </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
