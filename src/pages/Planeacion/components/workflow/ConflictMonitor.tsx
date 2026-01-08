@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Eye } from 'lucide-react';
 import { ConflictAlert } from './ConflictAlert';
 import { useToast } from '@/hooks/use-toast';
+
+const TIMEZONE_CDMX = 'America/Mexico_City';
+const CDMX_OFFSET = '-06:00';
 
 interface ConflictData {
   custodio_id: string;
@@ -34,15 +37,19 @@ export const ConflictMonitor: React.FC<ConflictMonitorProps> = ({
   const { data: conflictsToday, isLoading, error, refetch } = useQuery({
     queryKey: ['conflict-monitor', new Date().toDateString()],
     queryFn: async (): Promise<ConflictData[]> => {
-      // Usar format() de date-fns para evitar bug de timezone donde toISOString() convierte a UTC
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Usar formatInTimeZone para obtener fecha en CDMX correctamente
+      const today = formatInTimeZone(new Date(), TIMEZONE_CDMX, 'yyyy-MM-dd');
+      
+      // Usar timezone CDMX explícito para los queries
+      const inicioDelDia = `${today}T00:00:00${CDMX_OFFSET}`;
+      const finDelDia = `${today}T23:59:59${CDMX_OFFSET}`;
       
       // Obtener servicios planificados de hoy
       const { data: serviciosHoy, error: serviciosError } = await supabase
         .from('servicios_planificados')
         .select('*')
-        .gte('fecha_hora_cita', `${today}T00:00:00`)
-        .lt('fecha_hora_cita', `${today}T23:59:59`)
+        .gte('fecha_hora_cita', inicioDelDia)
+        .lt('fecha_hora_cita', finDelDia)
         .in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_progreso']);
 
       if (serviciosError) throw serviciosError;
@@ -55,8 +62,25 @@ export const ConflictMonitor: React.FC<ConflictMonitorProps> = ({
           if (!servicio.custodio_id || !servicio.custodio_asignado) continue;
 
           try {
-            const fechaServicio = new Date(servicio.fecha_hora_cita).toISOString().split('T')[0];
-            const horaServicio = new Date(servicio.fecha_hora_cita).toTimeString().substring(0, 5);
+            // Extraer fecha y hora usando timezone CDMX correcto
+            const fechaServicio = formatInTimeZone(
+              new Date(servicio.fecha_hora_cita), 
+              TIMEZONE_CDMX, 
+              'yyyy-MM-dd'
+            );
+            const horaServicio = formatInTimeZone(
+              new Date(servicio.fecha_hora_cita), 
+              TIMEZONE_CDMX, 
+              'HH:mm'
+            );
+            
+            console.log('🔍 ConflictMonitor verificando:', {
+              id: servicio.id_servicio,
+              fechaOriginal: servicio.fecha_hora_cita,
+              fechaCDMX: fechaServicio,
+              horaCDMX: horaServicio,
+              custodio: servicio.custodio_asignado
+            });
             
             const { data: validation, error: validationError } = await supabase.rpc(
               'verificar_disponibilidad_equitativa_custodio',
