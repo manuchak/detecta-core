@@ -4,6 +4,10 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { formatInTimeZone } from 'date-fns-tz';
+
+const TIMEZONE_CDMX = 'America/Mexico_City';
+const CDMX_OFFSET = '-06:00';
 
 export interface ConflictDetails {
   id_servicio: string;
@@ -37,14 +41,18 @@ export async function verificarConflictosCustodio(
   const conflictosDetalle: ConflictDetails[] = [];
   let serviciosHoy = 0;
 
+  // Usar timezone CDMX explícito para los queries
+  const inicioDelDia = `${fechaServicio}T00:00:00${CDMX_OFFSET}`;
+  const finDelDia = `${fechaServicio}T23:59:59${CDMX_OFFSET}`;
+
   try {
     // 1. Verificar servicios en servicios_custodia
     const { data: serviciosCustodia, error: errorCustodia } = await supabase
       .from('servicios_custodia')
       .select('id_servicio, fecha_hora_cita, estado')
       .or(`id_custodio.eq.${custodioId},nombre_custodio.eq.${custodioNombre}`)
-      .gte('fecha_hora_cita', `${fechaServicio}T00:00:00`)
-      .lt('fecha_hora_cita', `${fechaServicio}T23:59:59`);
+      .gte('fecha_hora_cita', inicioDelDia)
+      .lt('fecha_hora_cita', finDelDia);
 
     if (errorCustodia) {
       console.warn('Error consultando servicios_custodia:', errorCustodia);
@@ -59,11 +67,26 @@ export async function verificarConflictosCustodio(
 
         serviciosHoy++;
         
-        // Verificar solapamiento de horarios
-        const horaServicio = new Date(servicio.fecha_hora_cita).toTimeString().substring(0, 5);
+        // Extraer hora usando timezone CDMX correcto
+        const horaServicio = formatInTimeZone(
+          new Date(servicio.fecha_hora_cita), 
+          TIMEZONE_CDMX, 
+          'HH:mm'
+        );
         const horaFinServicio = calcularHoraFin(horaServicio, 4);
         
-        if (hayConflictoHorario(horaInicio, horaFin, horaServicio, horaFinServicio)) {
+        const tieneConflicto = hayConflictoHorario(horaInicio, horaFin, horaServicio, horaFinServicio);
+        
+        console.log('🔍 Comparando con servicio_custodia:', {
+          id: servicio.id_servicio,
+          horaOriginalUTC: servicio.fecha_hora_cita,
+          horaCDMX: horaServicio,
+          horaFinCDMX: horaFinServicio,
+          servicioNuevo: { horaInicio, horaFin },
+          tieneConflicto
+        });
+        
+        if (tieneConflicto) {
           conflictosDetalle.push({
             id_servicio: servicio.id_servicio,
             fecha_hora: servicio.fecha_hora_cita,
@@ -78,8 +101,8 @@ export async function verificarConflictosCustodio(
       .from('servicios_planificados')
       .select('id_servicio, fecha_hora_cita, estado_planeacion')
       .or(`custodio_id.eq.${custodioId},custodio_asignado.eq.${custodioNombre}`)
-      .gte('fecha_hora_cita', `${fechaServicio}T00:00:00`)
-      .lt('fecha_hora_cita', `${fechaServicio}T23:59:59`);
+      .gte('fecha_hora_cita', inicioDelDia)
+      .lt('fecha_hora_cita', finDelDia);
 
     if (errorPlanificados) {
       console.warn('Error consultando servicios_planificados:', errorPlanificados);
@@ -92,11 +115,26 @@ export async function verificarConflictosCustodio(
 
         serviciosHoy++;
         
-        // Verificar solapamiento de horarios
-        const horaServicio = new Date(servicio.fecha_hora_cita).toTimeString().substring(0, 5);
+        // Extraer hora usando timezone CDMX correcto
+        const horaServicio = formatInTimeZone(
+          new Date(servicio.fecha_hora_cita), 
+          TIMEZONE_CDMX, 
+          'HH:mm'
+        );
         const horaFinServicio = calcularHoraFin(horaServicio, 4);
         
-        if (hayConflictoHorario(horaInicio, horaFin, horaServicio, horaFinServicio)) {
+        const tieneConflicto = hayConflictoHorario(horaInicio, horaFin, horaServicio, horaFinServicio);
+        
+        console.log('🔍 Comparando con servicio_planificado:', {
+          id: servicio.id_servicio,
+          horaOriginalUTC: servicio.fecha_hora_cita,
+          horaCDMX: horaServicio,
+          horaFinCDMX: horaFinServicio,
+          servicioNuevo: { horaInicio, horaFin },
+          tieneConflicto
+        });
+        
+        if (tieneConflicto) {
           conflictosDetalle.push({
             id_servicio: servicio.id_servicio || 'unknown',
             fecha_hora: servicio.fecha_hora_cita,
