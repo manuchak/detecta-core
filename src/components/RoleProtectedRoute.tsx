@@ -1,8 +1,8 @@
-
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
+import { APP_BUILD_ID } from '@/constants/accessControl';
 
 interface RoleProtectedRouteProps {
   children: ReactNode;
@@ -20,6 +20,7 @@ const RoleProtectedRoute = ({
   showAccessDenied = true
 }: RoleProtectedRouteProps) => {
   const { user, userRole, loading, hasRole, hasPermission } = useAuth();
+  const location = useLocation();
 
   // Mostrar loading de manera consistente
   if (loading) {
@@ -57,14 +58,23 @@ const RoleProtectedRoute = ({
                 <p className="text-muted-foreground mb-4">
                   No tienes permisos para acceder a esta sección.
                 </p>
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm text-left bg-muted/50 p-3 rounded-md">
                   <p>
                     <span className="font-medium">Tu rol:</span> {userRole || 'No asignado'}
                   </p>
                   <p>
-                    <span className="font-medium">Roles requeridos:</span> {allowedRoles.join(', ')}
+                    <span className="font-medium">Roles permitidos:</span> {allowedRoles.join(', ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground pt-2 border-t">
+                    <span className="font-medium">Ruta:</span> {location.pathname}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium">Build:</span> {APP_BUILD_ID}
                   </p>
                 </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Si crees que deberías tener acceso, intenta recargar la página o limpiar la caché del navegador.
+                </p>
               </div>
             </CardContent>
           </Card>
