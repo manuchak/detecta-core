@@ -12223,6 +12223,101 @@ export type Database = {
           },
         ]
       }
+      siercp_invitations: {
+        Row: {
+          candidato_custodio_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          evaluacion_id: string | null
+          expires_at: string
+          id: string
+          lead_email: string | null
+          lead_id: string
+          lead_nombre: string | null
+          lead_telefono: string | null
+          notas: string | null
+          opened_at: string | null
+          sent_at: string | null
+          sent_via: string | null
+          started_at: string | null
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          candidato_custodio_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          evaluacion_id?: string | null
+          expires_at?: string
+          id?: string
+          lead_email?: string | null
+          lead_id: string
+          lead_nombre?: string | null
+          lead_telefono?: string | null
+          notas?: string | null
+          opened_at?: string | null
+          sent_at?: string | null
+          sent_via?: string | null
+          started_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          candidato_custodio_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          evaluacion_id?: string | null
+          expires_at?: string
+          id?: string
+          lead_email?: string | null
+          lead_id?: string
+          lead_nombre?: string | null
+          lead_telefono?: string | null
+          notas?: string | null
+          opened_at?: string | null
+          sent_at?: string | null
+          sent_via?: string | null
+          started_at?: string | null
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "siercp_invitations_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "siercp_invitations_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "siercp_invitations_candidato_custodio_id_fkey"
+            columns: ["candidato_custodio_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "siercp_invitations_evaluacion_id_fkey"
+            columns: ["evaluacion_id"]
+            isOneToOne: false
+            referencedRelation: "evaluaciones_psicometricas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       siercp_results: {
         Row: {
           clinical_interpretation: string | null

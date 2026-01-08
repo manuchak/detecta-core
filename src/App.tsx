@@ -75,6 +75,7 @@ const ExecutiveRecruitmentDashboard = lazy(() => import('@/pages/ExecutiveRecrui
 const SupplyDashboardExtended = lazy(() => import('@/pages/supply/SupplyDashboardExtended'));
 const SIERCPPage = lazy(() => import('@/pages/evaluation/SIERCPPage'));
 const SIERCPMethodologyPage = lazy(() => import('@/pages/evaluation/SIERCPMethodologyPage'));
+const SIERCPAssessmentPage = lazy(() => import('@/pages/assessment/SIERCPAssessmentPage'));
 const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/ServiceWorkflowDocumentation'));
 const ProductArchitecturePage = lazy(() => import('@/pages/Documentation/ProductArchitecturePage'));
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
@@ -182,6 +183,9 @@ function App() {
                     </ProtectedRoute>
                   } />
                 <Route path="/landing" element={<Landing />} />
+                
+                {/* SIERCP Assessment - Public route for external candidates */}
+                <Route path="/assessment/:token" element={<SIERCPAssessmentPage />} />
                 
                 {/* Auth routes */}
                 <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
