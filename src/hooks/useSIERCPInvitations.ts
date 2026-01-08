@@ -11,6 +11,15 @@ import type {
   SendVia 
 } from '@/types/siercpInvitationTypes';
 
+// Extended type with joined evaluation data
+export interface SIERCPInvitationWithEvaluation extends SIERCPInvitation {
+  evaluacion?: {
+    id: string;
+    global_score: number;
+    resultado_semaforo?: string;
+  } | null;
+}
+
 /**
  * Hook para gestionar invitaciones SIERCP
  */
@@ -139,6 +148,66 @@ export function useSIERCPInvitations(leadId?: string) {
     refetch,
     createInvitation,
     markAsSent,
+    cancelInvitation,
+    getInvitationUrl,
+  };
+}
+
+/**
+ * Hook para obtener todas las invitaciones SIERCP (para administradores)
+ */
+export function useAllSIERCPInvitations() {
+  const queryClient = useQueryClient();
+
+  const { data: invitations, isLoading, refetch } = useQuery({
+    queryKey: ['siercp-invitations-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('siercp_invitations')
+        .select(`
+          *,
+          evaluacion:evaluacion_id (
+            id,
+            global_score,
+            resultado_semaforo
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as SIERCPInvitationWithEvaluation[];
+    },
+  });
+
+  // Cancelar invitación
+  const cancelInvitation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { error } = await supabase
+        .from('siercp_invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invitationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['siercp-invitations-all'] });
+      toast({
+        title: 'Invitación cancelada',
+        description: 'El enlace ya no será válido.',
+      });
+    },
+  });
+
+  // Generar URL de invitación
+  const getInvitationUrl = (token: string) => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/assessment/${token}`;
+  };
+
+  return {
+    invitations,
+    isLoading,
+    refetch,
     cancelInvitation,
     getInvitationUrl,
   };
