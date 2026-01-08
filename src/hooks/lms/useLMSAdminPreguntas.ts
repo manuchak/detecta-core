@@ -18,6 +18,7 @@ export const useLMSCrearPreguntas = () => {
         tipo: 'opcion_multiple' as const,
         pregunta: p.pregunta,
         opciones: p.opciones.map((o, idx) => ({
+          id: crypto.randomUUID(),
           texto: o.texto,
           es_correcta: idx === p.respuesta_correcta
         })),
