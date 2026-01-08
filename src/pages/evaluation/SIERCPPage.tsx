@@ -6,7 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1065,51 +1066,158 @@ const SIERCPPage = () => {
   const currentModuleConfig = moduleConfig[currentModule as keyof typeof moduleConfig];
   const Icon = currentModuleConfig.icon;
 
-  // Pantalla de intro si no ha iniciado el test
+  // Estado de consentimiento
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  // Pantalla de intro con consentimiento informado si no ha iniciado el test
   if (!testStarted && !sessionRestored) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl">
               <Brain className="h-6 w-6 text-primary" />
               Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
             </CardTitle>
             <CardDescription>
-              Evaluación psicométrica integral para candidatos del sector seguridad
+              (SIERCP)
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
+            {/* Advertencia principal */}
             <Alert className="border-amber-500 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800">
-                <strong>Importante:</strong> Una vez iniciada, esta evaluación debe completarse en una sola sesión. 
-                El tiempo máximo es de <strong>90 minutos</strong>. Si ocurre un problema técnico, 
-                tu progreso se guardará automáticamente y podrás continuar.
+              <AlertDescription className="text-amber-800 font-medium">
+                Lea cuidadosamente la siguiente información antes de continuar
               </AlertDescription>
             </Alert>
 
-            <div className="space-y-4">
-              <h3 className="font-semibold">Instrucciones:</h3>
-              <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground">
-                <li>La evaluación consta de 7 módulos con aproximadamente 137 preguntas</li>
-                <li>Responda de manera honesta y espontánea</li>
-                <li>No hay respuestas correctas o incorrectas</li>
-                <li>Evite interrupciones durante la evaluación</li>
-                <li>El timer mostrará el tiempo restante en todo momento</li>
+            {/* Bloque 1: Propósito */}
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Target className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-semibold">Propósito de la evaluación</h3>
+              </div>
+              <p className="text-sm text-muted-foreground pl-10">
+                Esta evaluación mide rasgos de confiabilidad, integridad y riesgo psico-criminológico. 
+                Su objetivo es determinar la aptitud para posiciones en el sector de seguridad privada.
+              </p>
+            </div>
+
+            {/* Bloque 2: Uso de resultados */}
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-semibold">Uso de los resultados</h3>
+              </div>
+              <p className="text-sm text-muted-foreground pl-10">
+                Los resultados serán utilizados como parte del proceso de evaluación laboral y 
+                <strong> pueden influir en decisiones de contratación o asignación</strong> a servicios específicos.
+              </p>
+            </div>
+
+            {/* Bloque 3: Acceso y confidencialidad */}
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Lock className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-semibold">Acceso y confidencialidad</h3>
+              </div>
+              <ul className="text-sm text-muted-foreground pl-10 space-y-1">
+                <li>• <strong>Acceso:</strong> Recursos Humanos, Jefes de Seguridad y administradores autorizados</li>
+                <li>• <strong>Retención:</strong> Los datos se almacenan de forma segura según políticas internas</li>
+                <li className="flex items-start gap-1">
+                  <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>Se utiliza <strong>inteligencia artificial</strong> para análisis de respuestas y generación de informes</span>
+                </li>
               </ul>
             </div>
 
-            <div className="flex items-center justify-center gap-2 py-4 bg-muted rounded-lg">
+            {/* Bloque 4: Condiciones */}
+            <div className="border rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-semibold">Condiciones de la evaluación</h3>
+              </div>
+              <ul className="text-sm text-muted-foreground pl-10 space-y-1">
+                <li>• Tiempo máximo: <strong>90 minutos</strong></li>
+                <li>• Debe completarse en <strong>una sola sesión</strong></li>
+                <li>• Las respuestas se guardan automáticamente ante fallos técnicos</li>
+                <li>• Una vez enviada, <strong>no puede modificarse</strong></li>
+                <li>• Es un <strong>único intento</strong> (no se puede repetir sin autorización)</li>
+              </ul>
+            </div>
+
+            {/* Bloque 5: Participación voluntaria */}
+            <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Users className="h-4 w-4 text-amber-700" />
+                </div>
+                <h3 className="font-semibold text-amber-900">Participación voluntaria</h3>
+              </div>
+              <p className="text-sm text-amber-800 pl-10">
+                Su participación es <strong>completamente voluntaria</strong>. Sin embargo, declinar la evaluación 
+                puede afectar su proceso de evaluación o contratación.
+              </p>
+            </div>
+
+            {/* Separador */}
+            <div className="border-t my-4"></div>
+
+            {/* Checkbox de consentimiento */}
+            <div className="flex items-start space-x-3 p-4 bg-muted rounded-lg">
+              <Checkbox 
+                id="consent" 
+                checked={consentGiven}
+                onCheckedChange={(checked) => setConsentGiven(checked === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="consent" className="text-sm leading-relaxed cursor-pointer">
+                He leído y comprendo las condiciones anteriores. <strong>Acepto participar voluntariamente</strong> en 
+                esta evaluación y <strong>autorizo el uso de mis resultados</strong> según lo descrito.
+              </Label>
+            </div>
+
+            {/* Timer preview */}
+            <div className="flex items-center justify-center gap-2 py-3 bg-muted/50 rounded-lg">
               <Clock className="h-5 w-5 text-muted-foreground" />
               <span className="text-lg font-mono font-medium">90:00</span>
               <span className="text-sm text-muted-foreground">minutos disponibles</span>
             </div>
 
-            <Button onClick={handleStartTest} className="w-full" size="lg">
-              <Brain className="h-5 w-5 mr-2" />
-              Iniciar Evaluación
-            </Button>
+            {/* Botones */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => window.history.back()}
+              >
+                No deseo participar
+              </Button>
+              <Button 
+                onClick={handleStartTest} 
+                className="flex-1" 
+                size="lg"
+                disabled={!consentGiven}
+              >
+                <Brain className="h-5 w-5 mr-2" />
+                Iniciar Evaluación
+              </Button>
+            </div>
+
+            {!consentGiven && (
+              <p className="text-xs text-center text-muted-foreground">
+                Debe aceptar las condiciones para iniciar la evaluación
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
