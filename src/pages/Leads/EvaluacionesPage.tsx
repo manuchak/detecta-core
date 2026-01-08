@@ -6,20 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { InterviewMetricsDashboard } from '@/components/recruitment/metrics/InterviewMetricsDashboard';
 import { CandidateEvaluationPanel } from '@/components/recruitment/CandidateEvaluationPanel';
+import { SIERCPResultsPanel } from '@/components/recruitment/siercp/SIERCPResultsPanel';
 import { RiskLevelBadge } from '@/components/recruitment/risk/RiskChecklistForm';
-import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { 
   BarChart3, 
-  MessageSquare, 
-  Shield, 
   Search, 
   Star,
   Users,
   Loader2,
   FileText,
-  ChevronRight
+  ChevronRight,
+  Brain
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -121,6 +120,10 @@ export default function EvaluacionesPage() {
             <Users className="h-4 w-4" />
             Candidatos
           </TabsTrigger>
+          <TabsTrigger value="siercp" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            SIERCP
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
@@ -202,6 +205,10 @@ export default function EvaluacionesPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="siercp">
+          <SIERCPResultsPanel />
         </TabsContent>
       </Tabs>
 
