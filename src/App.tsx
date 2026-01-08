@@ -699,7 +699,7 @@ function App() {
                   path="/evaluation/siercp"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply_lead', 'supply']}>
                         <DashboardLayout>
                           <SIERCPPage />
                         </DashboardLayout>
@@ -713,7 +713,7 @@ function App() {
                   path="/evaluation/siercp/methodology"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'supply_admin', 'supply_lead', 'supply']}>
                         <DashboardLayout>
                           <SIERCPMethodologyPage />
                         </DashboardLayout>
