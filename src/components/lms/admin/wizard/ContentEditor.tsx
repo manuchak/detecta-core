@@ -51,9 +51,13 @@ export function ContentEditor({ contenido, onUpdate, onClose }: ContentEditorPro
   const Icon = TIPO_ICONS[contenido.tipo] || AlignLeft;
   const colorClass = TIPO_COLORS[contenido.tipo] || "text-gray-500 bg-gray-50";
 
-  const detectVideoProvider = (videoUrl: string): 'youtube' | 'vimeo' | 'storage' => {
+  const detectVideoProvider = (videoUrl: string): 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'facebook' | 'canva' | 'storage' => {
     if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) return 'youtube';
     if (videoUrl.includes('vimeo.com')) return 'vimeo';
+    if (videoUrl.includes('tiktok.com')) return 'tiktok';
+    if (videoUrl.includes('instagram.com')) return 'instagram';
+    if (videoUrl.includes('facebook.com') || videoUrl.includes('fb.watch')) return 'facebook';
+    if (videoUrl.includes('canva.com')) return 'canva';
     return 'storage';
   };
 

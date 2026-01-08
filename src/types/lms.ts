@@ -100,9 +100,11 @@ export type ContenidoData =
   | QuizContent 
   | InteractivoContent;
 
+export type VideoProvider = 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'facebook' | 'canva' | 'storage';
+
 export interface VideoContent {
   url: string;
-  provider: 'youtube' | 'vimeo' | 'storage';
+  provider: VideoProvider;
   subtitles_url?: string;
   thumbnail_url?: string;
   duracion_segundos?: number;
@@ -204,7 +206,7 @@ export interface AccordionData {
 
 export interface VideoInteractivoData {
   video_url: string;
-  provider: 'youtube' | 'vimeo' | 'storage';
+  provider: VideoProvider;
   preguntas: Array<{
     id: string;
     tiempo_seg: number;
