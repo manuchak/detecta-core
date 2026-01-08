@@ -244,6 +244,7 @@ const SIERCPPage = () => {
   const [animation, setAnimation] = useState('');
   const [saving, setSaving] = useState(false);
   const [remainingTime, setRemainingTime] = useState(SESSION_TIMEOUT_MS);
+  const [consentGiven, setConsentGiven] = useState(false);
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -1065,9 +1066,6 @@ const SIERCPPage = () => {
 
   const currentModuleConfig = moduleConfig[currentModule as keyof typeof moduleConfig];
   const Icon = currentModuleConfig.icon;
-
-  // Estado de consentimiento
-  const [consentGiven, setConsentGiven] = useState(false);
 
   // Pantalla de intro con consentimiento informado si no ha iniciado el test
   if (!testStarted && !sessionRestored) {
