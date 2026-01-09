@@ -160,8 +160,46 @@ export function RequestCreationWorkflow() {
   const [showTabReturnNotification, setShowTabReturnNotification] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  /**
+   * Calcula cuántos "puntos de progreso" tiene un estado del workflow.
+   * MEJORADO: Ahora también cuenta borradores parciales para evitar pérdida de datos.
+   */
+  const countMeaningfulProgress = useCallback((
+    completedData: { routeData: any; serviceData: any; assignmentData: any; armedAssignmentData: any },
+    drafts?: { routeDraft?: any; serviceDraft?: any }
+  ): number => {
+    // Pasos completados valen 10 puntos cada uno
+    const completedSteps = [
+      completedData.routeData,
+      completedData.serviceData,
+      completedData.assignmentData,
+      completedData.armedAssignmentData
+    ].filter(Boolean).length * 10;
+    
+    // Borradores parciales valen 1 punto cada uno
+    let draftPoints = 0;
+    
+    // Verificar si routeDraft tiene datos significativos
+    if (drafts?.routeDraft) {
+      const routeDraftValues = Object.values(drafts.routeDraft).filter(v => v !== '' && v !== null && v !== undefined);
+      if (routeDraftValues.length > 0) {
+        draftPoints += 1;
+      }
+    }
+    
+    // Verificar si serviceDraft tiene datos significativos
+    if (drafts?.serviceDraft) {
+      const serviceDraftValues = Object.values(drafts.serviceDraft).filter(v => v !== '' && v !== null && v !== undefined);
+      if (serviceDraftValues.length > 0) {
+        draftPoints += 1;
+      }
+    }
+    
+    return completedSteps + draftPoints;
+  }, []);
+
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
-  // 🆕 MEJORADO: Previene regresiones usando comparación de índice de pasos
+  // 🆕 MEJORADO: Ahora también considera borradores parciales
   useEffect(() => {
     // 🆕 NEW: Skip if bypass flag is set (after "start fresh")
     if (skipHydrationRef.current) {
@@ -173,47 +211,43 @@ export function RequestCreationWorkflow() {
     // Skip if restoring (handled by auto-restore effect)
     if (isRestoring) return;
     
-    // Count meaningful data in persistedData vs local state
-    const persistedMeaningful = [
-      persistedData.routeData,
-      persistedData.serviceData,
-      persistedData.assignmentData,
-      persistedData.armedAssignmentData
-    ].filter(Boolean).length;
+    // 🆕 MEJORADO: Contar progreso incluyendo borradores
+    const persistedProgress = countMeaningfulProgress(
+      {
+        routeData: persistedData.routeData,
+        serviceData: persistedData.serviceData,
+        assignmentData: persistedData.assignmentData,
+        armedAssignmentData: persistedData.armedAssignmentData
+      },
+      persistedData.drafts
+    );
     
-    const localMeaningful = [
-      routeData,
-      serviceData,
-      assignmentData,
-      armedAssignmentData
-    ].filter(Boolean).length;
+    const localProgress = countMeaningfulProgress(
+      { routeData, serviceData, assignmentData, armedAssignmentData },
+      {} // Estado local no tiene drafts separados
+    );
     
-    // 🆕 NUEVA LÓGICA: Prevenir regresiones usando índice de pasos
+    // Prevenir regresiones usando índice de pasos
     const stepOrder = ['route', 'service', 'assignment', 'armed_assignment', 'final_confirmation'];
     const persistedStepIndex = stepOrder.indexOf(persistedData.currentStep);
     const localStepIndex = stepOrder.indexOf(currentStep);
     
     const persistedIsAhead = persistedStepIndex >= localStepIndex;
     
-    // ✅ CAMBIO #1: Remover validación de sessionId - permitir hidratación cross-session
+    // 🆕 MEJORADO: Hidratar si hay MÁS PROGRESO (incluyendo drafts)
     const shouldHydrate = (
-      persistedMeaningful > localMeaningful &&  // Más pasos completos
-      persistedIsAhead &&                        // No regresar al usuario
-      !isRestoring                               // No hidratar durante restore
+      persistedProgress > localProgress &&  // Más progreso total (pasos + drafts)
+      persistedIsAhead &&                   // No regresar al usuario
+      !isRestoring                          // No hidratar durante restore
     );
     
     if (shouldHydrate) {
-      // ✅ CAMBIO #4: Mejorar logging para debugging
       console.log('🔄 [RequestCreationWorkflow] Hidratando UI from persistedData:', {
-        persistedSessionId: persistedData.sessionId,
-        currentSessionId: sessionIdRef.current,
+        persistedProgress,
+        localProgress,
         step: persistedData.currentStep,
-        persistedMeaningful,
-        localMeaningful,
-        persistedStepIndex,
-        localStepIndex,
-        persistedIsAhead,
-        shouldHydrate: true,
+        hasDrafts: !!persistedData.drafts,
+        routeDraftKeys: persistedData.drafts?.routeDraft ? Object.keys(persistedData.drafts.routeDraft) : [],
         timestamp: new Date().toISOString()
       });
       
@@ -226,14 +260,17 @@ export function RequestCreationWorkflow() {
       setModifiedSteps(persistedData.modifiedSteps);
       
       setShowRestoredBanner(true);
-    } else if (persistedMeaningful > 0 && localMeaningful === 0) {
-      // 🆕 CASO ESPECIAL: Si local está vacío pero persisted tiene datos,
+    } else if (persistedProgress > 0 && localProgress === 0) {
+      // 🆕 CASO ESPECIAL: Si local está vacío pero persisted tiene progreso,
       // el banner de auto-restore se encargará
-      console.log('ℹ️ [RequestCreationWorkflow] Hay datos persistidos pero local está vacío');
+      console.log('ℹ️ [RequestCreationWorkflow] Hay progreso persistido pero local está vacío', {
+        persistedProgress,
+        localProgress
+      });
     } else {
       console.log('⏭️ [RequestCreationWorkflow] Skip hydration:', {
-        persistedMeaningful,
-        localMeaningful,
+        persistedProgress,
+        localProgress,
         persistedIsAhead,
         shouldHydrate
       });
@@ -246,9 +283,14 @@ export function RequestCreationWorkflow() {
     persistedData.armedAssignmentData,
     persistedData.createdServiceDbId,
     persistedData.modifiedSteps,
-    persistedData.sessionId,
+    persistedData.drafts,
     isRestoring,
-    currentStep  // 🆕 Agregar currentStep como dependencia
+    currentStep,
+    countMeaningfulProgress,
+    routeData,
+    serviceData,
+    assignmentData,
+    armedAssignmentData
   ]);
 
   // ✅ CAMBIO #5: Permitir múltiples restauraciones si el draft cambia
