@@ -16118,6 +16118,7 @@ export type Database = {
         Returns: Json
       }
       unaccent: { Args: { "": string }; Returns: string }
+      unaccent_text: { Args: { "": string }; Returns: string }
       update_all_custodian_levels: { Args: never; Returns: number }
       update_approval_process: {
         Args: {

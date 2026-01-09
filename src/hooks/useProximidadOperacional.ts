@@ -128,46 +128,56 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
             });
 
             if (rpcError) {
-              console.warn('⚠️ RPC function error, using enhanced fallback algorithm:', rpcError.message);
+              console.warn(`⚠️ [useCustodiosConProximidad] RPC error for ${custodio.nombre}:`, {
+                code: rpcError.code,
+                message: rpcError.message,
+                hint: rpcError.hint
+              });
               
-              // NUEVO: Usar función de fallback mejorada que verifica conflictos reales
-              const { verificarConflictosCustodio } = await import('@/utils/conflictDetection');
-              
-              const validacionConflictos = await verificarConflictosCustodio(
-                custodio.id,
-                custodio.nombre,
-                servicioNuevo.fecha_programada,
-                servicioNuevo.hora_ventana_inicio,
-                4
-              );
-
-              // Aplicar los resultados de la verificación de conflictos
-              if (!validacionConflictos.disponible) {
-                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-                custodioProcessed.categoria_disponibilidad = 'no_disponible';
-                custodioProcessed.conflictos_detectados = true;
-                custodioProcessed.razon_no_disponible = validacionConflictos.razon_no_disponible || 'Conflictos detectados';
-                custodioProcessed.indisponibilidades_activas = [
-                  ...(custodioProcessed.indisponibilidades_activas || []),
-                  {
-                    motivo: validacionConflictos.razon_no_disponible || 'Conflictos detectados',
-                    servicios_hoy: validacionConflictos.servicios_hoy,
-                    conflictos_detalle: validacionConflictos.conflictos_detalle
-                  }
-                ];
-              } else {
-                // Mapear la categoría de disponibilidad
-                const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
-                  switch (categoria) {
-                    case 'disponible': return 'disponible';
-                    case 'parcialmente_ocupado': return 'parcialmente_ocupado';
-                    case 'ocupado': return 'ocupado';
-                    case 'no_disponible': return 'no_disponible';
-                    default: return 'disponible';
-                  }
-                };
+              // FALLBACK: Usar función de fallback mejorada que verifica conflictos reales
+              try {
+                const { verificarConflictosCustodio } = await import('@/utils/conflictDetection');
                 
-                custodioProcessed.categoria_disponibilidad = mapearCategoria(validacionConflictos.categoria_disponibilidad);
+                const validacionConflictos = await verificarConflictosCustodio(
+                  custodio.id,
+                  custodio.nombre,
+                  servicioNuevo.fecha_programada,
+                  servicioNuevo.hora_ventana_inicio,
+                  4
+                );
+
+                // Aplicar los resultados de la verificación de conflictos
+                if (!validacionConflictos.disponible) {
+                  custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+                  custodioProcessed.categoria_disponibilidad = 'no_disponible';
+                  custodioProcessed.conflictos_detectados = true;
+                  custodioProcessed.razon_no_disponible = validacionConflictos.razon_no_disponible || 'Conflictos detectados';
+                  custodioProcessed.indisponibilidades_activas = [
+                    ...(custodioProcessed.indisponibilidades_activas || []),
+                    {
+                      motivo: validacionConflictos.razon_no_disponible || 'Conflictos detectados',
+                      servicios_hoy: validacionConflictos.servicios_hoy,
+                      conflictos_detalle: validacionConflictos.conflictos_detalle
+                    }
+                  ];
+                } else {
+                  // Mapear la categoría de disponibilidad
+                  const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
+                    switch (categoria) {
+                      case 'disponible': return 'disponible';
+                      case 'parcialmente_ocupado': return 'parcialmente_ocupado';
+                      case 'ocupado': return 'ocupado';
+                      case 'no_disponible': return 'no_disponible';
+                      default: return 'disponible';
+                    }
+                  };
+                  
+                  custodioProcessed.categoria_disponibilidad = mapearCategoria(validacionConflictos.categoria_disponibilidad);
+                }
+              } catch (fallbackError) {
+                console.error(`❌ [useCustodiosConProximidad] Fallback also failed for ${custodio.nombre}:`, fallbackError);
+                // Marcar como disponible por defecto si todo falla (fail-open)
+                custodioProcessed.categoria_disponibilidad = 'disponible';
               }
 
               // Calcular scoring con información disponible
