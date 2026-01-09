@@ -437,27 +437,31 @@ export function RequestCreationWorkflow() {
           lastEditedStep: persistedData.lastEditedStep,
         });
       } else if (!document.hidden) {
-        // ✅ CAMBIO #5: Hidratación en regreso de pestaña
+        // ✅ MEJORADO: Hidratación en regreso de pestaña - ahora incluye borradores parciales
         console.log('👁️ [RequestCreationWorkflow] Tab visible - checking for updates');
         
-        // Verificar si persistedData tiene más progreso que el estado local
-        const persistedMeaningful = [
-          persistedData.routeData,
-          persistedData.serviceData,
-          persistedData.assignmentData,
-          persistedData.armedAssignmentData
-        ].filter(Boolean).length;
+        // Verificar si persistedData tiene más progreso que el estado local (incluyendo drafts)
+        const persistedProgress = countMeaningfulProgress(
+          {
+            routeData: persistedData.routeData,
+            serviceData: persistedData.serviceData,
+            assignmentData: persistedData.assignmentData,
+            armedAssignmentData: persistedData.armedAssignmentData
+          },
+          persistedData.drafts
+        );
         
-        const localMeaningful = [
-          routeData,
-          serviceData,
-          assignmentData,
-          armedAssignmentData
-        ].filter(Boolean).length;
+        const localProgress = countMeaningfulProgress(
+          { routeData, serviceData, assignmentData, armedAssignmentData },
+          {} // Estado local no tiene drafts separados
+        );
         
-        // Si hay más datos persistidos, hidratar inmediatamente
-        if (persistedMeaningful > localMeaningful) {
-          console.log('🔄 [RequestCreationWorkflow] Detected more complete persisted state - hydrating');
+        // Si hay más progreso persistido (incluyendo drafts), hidratar inmediatamente
+        if (persistedProgress > localProgress) {
+          console.log('🔄 [RequestCreationWorkflow] Detected more complete persisted state - hydrating', {
+            persistedProgress,
+            localProgress
+          });
           
           setCurrentStep(persistedData.currentStep);
           setRouteData(persistedData.routeData);
@@ -481,7 +485,7 @@ export function RequestCreationWorkflow() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData.drafts, persistedData.lastEditedStep, updateFormData]);
+  }, [currentStep, routeData, serviceData, assignmentData, armedAssignmentData, createdServiceDbId, modifiedSteps, persistedData, countMeaningfulProgress, updateFormData]);
 
   // 🆕 NUEVO: Logging de cambios de currentStep para debugging
   useEffect(() => {

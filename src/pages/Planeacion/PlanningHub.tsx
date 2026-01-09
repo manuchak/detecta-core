@@ -96,11 +96,21 @@ export default function PlanningHub() {
         try {
           const parsed = JSON.parse(draftData);
           
-          // Auto-open if there's meaningful data (no time threshold)
-          const hasMeaningfulData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+          // ✅ MEJORADO: Detectar tanto datos completos como drafts parciales
+          const hasCompletedData = parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+          const hasRouteDraft = parsed.data?.drafts?.routeDraft && 
+            Object.values(parsed.data.drafts.routeDraft).some(v => v !== '' && v !== null && v !== undefined);
+          const hasServiceDraft = parsed.data?.drafts?.serviceDraft && 
+            Object.values(parsed.data.drafts.serviceDraft).some(v => v !== '' && v !== null && v !== undefined);
+          
+          const hasMeaningfulData = hasCompletedData || hasRouteDraft || hasServiceDraft;
           
           if (hasMeaningfulData && (stored === 'open' || !stored)) {
-            console.log('📂 [PlanningHub] Meaningful draft detected - auto-opening creation dialog');
+            console.log('📂 [PlanningHub] Meaningful draft detected - auto-opening creation dialog', {
+              hasCompletedData,
+              hasRouteDraft,
+              hasServiceDraft
+            });
             setShowCreateWorkflow(true);
           }
         } catch (parseError) {
@@ -150,14 +160,25 @@ export default function PlanningHub() {
     return Promise.resolve();
   };
 
-  // Check if there's a draft to show banner
-  const hasDraftBanner = (() => {
+  // Check if there's a draft to show banner - MEJORADO: incluye drafts parciales
+  const hasMeaningfulDraft = (() => {
     try {
       const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
       const draftData = localStorage.getItem(exactKey);
       if (draftData) {
         const parsed = JSON.parse(draftData);
-        return parsed.data && (parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData);
+        if (!parsed.data) return false;
+        
+        // Pasos completados
+        const hasCompletedData = parsed.data.routeData || parsed.data.serviceData || parsed.data.assignmentData;
+        
+        // Borradores parciales con datos significativos
+        const hasRouteDraft = parsed.data.drafts?.routeDraft && 
+          Object.values(parsed.data.drafts.routeDraft).some(v => v !== '' && v !== null && v !== undefined);
+        const hasServiceDraft = parsed.data.drafts?.serviceDraft && 
+          Object.values(parsed.data.drafts.serviceDraft).some(v => v !== '' && v !== null && v !== undefined);
+        
+        return hasCompletedData || hasRouteDraft || hasServiceDraft;
       }
     } catch (e) {
       return false;
@@ -165,9 +186,9 @@ export default function PlanningHub() {
     return false;
   })();
 
-  // ✅ NUEVO: Handler para cerrar dialog con guardado forzado
+  // ✅ MEJORADO: Handler para cerrar dialog con guardado forzado
   const handleDialogClose = (open: boolean) => {
-    if (!open && hasDraftBanner) {
+    if (!open && hasMeaningfulDraft) {
       // Mostrar confirmación si hay cambios sin guardar
       setShowDiscardConfirm(true);
     } else {
@@ -190,10 +211,18 @@ export default function PlanningHub() {
     }
   };
 
+  // ✅ NUEVO: Prevenir cierre accidental por eventos externos (focusOutside, interactOutside)
+  const handlePreventAccidentalClose = (e: Event) => {
+    if (hasMeaningfulDraft) {
+      console.log('🛡️ [PlanningHub] Preventing accidental dialog close - meaningful draft exists');
+      e.preventDefault();
+    }
+  };
+
   return (
     <div className="h-full">
       {/* Draft Banner - Persistent reminder */}
-      {hasDraftBanner && !showCreateWorkflow && (
+      {hasMeaningfulDraft && !showCreateWorkflow && (
         <Alert className="mb-4 border-primary bg-primary/5">
           <Save className="h-4 w-4 text-primary" />
           <AlertDescription className="flex items-center justify-between">
@@ -291,7 +320,7 @@ export default function PlanningHub() {
           <TabsTrigger value="dashboard" className="apple-tab">Dashboard</TabsTrigger>
           <TabsTrigger value="services" className="apple-tab relative">
             Servicios
-            {hasDraftBanner && (
+            {hasMeaningfulDraft && (
               <Badge className="absolute -top-1 -right-1 h-2 w-2 p-0 bg-primary border-0" />
             )}
           </TabsTrigger>
@@ -332,9 +361,21 @@ export default function PlanningHub() {
         onSave={handleEditModalSave}
       />
       
-      {/* Create Service Modal */}
+      {/* Create Service Modal - HARDENED: No se cierra accidentalmente */}
       <Dialog open={showCreateWorkflow} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" aria-describedby="create-service-description">
+        <DialogContent 
+          className="max-w-6xl max-h-[90vh] overflow-y-auto" 
+          aria-describedby="create-service-description"
+          onInteractOutside={handlePreventAccidentalClose}
+          onPointerDownOutside={handlePreventAccidentalClose}
+          onFocusOutside={handlePreventAccidentalClose}
+          onEscapeKeyDown={(e) => {
+            if (hasMeaningfulDraft) {
+              e.preventDefault();
+              setShowDiscardConfirm(true);
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Crear Nuevo Servicio</DialogTitle>
           </DialogHeader>
