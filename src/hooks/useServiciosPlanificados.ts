@@ -38,6 +38,10 @@ export interface ServicioPlanificadoData {
   condiciones_especiales?: string[];
   estado_planeacion?: string;
   gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
+  // Override de conflictos (para servicios de retorno, secuenciales, etc.)
+  override_conflicto_motivo?: string;
+  override_conflicto_autorizado_por?: string;
+  override_conflicto_timestamp?: string;
 }
 
 export interface ConflictInfo {
@@ -192,7 +196,11 @@ export function useServiciosPlanificados() {
           comentarios_adicionales: data.comentarios_adicionales,
           condiciones_especiales: data.condiciones_especiales,
           estado_planeacion: data.estado_planeacion || 'planificado',
-          gadgets_cantidades: data.gadgets_cantidades || []
+          gadgets_cantidades: data.gadgets_cantidades || [],
+          // Override de conflictos
+          override_conflicto_motivo: data.override_conflicto_motivo,
+          override_conflicto_autorizado_por: data.override_conflicto_autorizado_por,
+          override_conflicto_timestamp: data.override_conflicto_timestamp
         }])
         .select()
         .single();

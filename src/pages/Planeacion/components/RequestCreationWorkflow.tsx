@@ -55,6 +55,9 @@ interface AssignmentData extends ServiceData {
   custodio_asignado_id?: string;
   custodio_nombre?: string;
   estado_comunicacion?: 'enviado' | 'aceptado' | 'rechazado' | 'sin_responder';
+  // Override de conflicto
+  override_conflicto_motivo?: string;
+  override_conflicto_detalles?: string;
 }
 
 interface ArmedAssignmentData extends AssignmentData {
@@ -770,6 +773,12 @@ export function RequestCreationWorkflow() {
           hora_encuentro: armedAssignmentData.hora_encuentro,
           tipo_asignacion_armado: armedAssignmentData.tipo_asignacion,
           proveedor_armado_id: armedAssignmentData.proveedor_id
+        }),
+        // Override de conflicto - si aplica
+        ...(finalData.override_conflicto_motivo && {
+          override_conflicto_motivo: finalData.override_conflicto_motivo,
+          override_conflicto_autorizado_por: user?.id,
+          override_conflicto_timestamp: new Date().toISOString()
         }),
         ...vehicleInfo
       };

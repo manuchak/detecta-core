@@ -12052,6 +12052,9 @@ export type Database = {
           num_vehiculos: number | null
           observaciones: string | null
           origen: string
+          override_conflicto_autorizado_por: string | null
+          override_conflicto_motivo: string | null
+          override_conflicto_timestamp: string | null
           placa: string | null
           posicionamiento_falso: boolean | null
           prioridad: number | null
@@ -12106,6 +12109,9 @@ export type Database = {
           num_vehiculos?: number | null
           observaciones?: string | null
           origen: string
+          override_conflicto_autorizado_por?: string | null
+          override_conflicto_motivo?: string | null
+          override_conflicto_timestamp?: string | null
           placa?: string | null
           posicionamiento_falso?: boolean | null
           prioridad?: number | null
@@ -12160,6 +12166,9 @@ export type Database = {
           num_vehiculos?: number | null
           observaciones?: string | null
           origen?: string
+          override_conflicto_autorizado_por?: string | null
+          override_conflicto_motivo?: string | null
+          override_conflicto_timestamp?: string | null
           placa?: string | null
           posicionamiento_falso?: boolean | null
           prioridad?: number | null
