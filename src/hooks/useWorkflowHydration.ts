@@ -52,15 +52,38 @@ interface HydrationResult {
 const STEP_ORDER = ['route', 'service', 'assignment', 'armed_assignment', 'final_confirmation'];
 
 /**
- * Calcula cuántos pasos tienen datos significativos
+ * Calcula cuántos "puntos de progreso" tiene un estado del workflow.
+ * MEJORADO: Ahora también cuenta borradores parciales para evitar pérdida de datos.
  */
-function countMeaningfulSteps(state: Partial<WorkflowState>): number {
-  return [
+function countMeaningfulProgress(state: Partial<PersistedData>): number {
+  // Pasos completados valen 10 puntos cada uno
+  const completedSteps = [
     state.routeData,
     state.serviceData,
     state.assignmentData,
     state.armedAssignmentData
-  ].filter(Boolean).length;
+  ].filter(Boolean).length * 10;
+  
+  // Borradores parciales valen 1 punto cada uno
+  let draftPoints = 0;
+  
+  // Verificar si routeDraft tiene datos significativos
+  if (state.drafts?.routeDraft) {
+    const routeDraftValues = Object.values(state.drafts.routeDraft).filter(v => v !== '' && v !== null && v !== undefined);
+    if (routeDraftValues.length > 0) {
+      draftPoints += 1;
+    }
+  }
+  
+  // Verificar si serviceDraft tiene datos significativos
+  if (state.drafts?.serviceDraft) {
+    const serviceDraftValues = Object.values(state.drafts.serviceDraft).filter(v => v !== '' && v !== null && v !== undefined);
+    if (serviceDraftValues.length > 0) {
+      draftPoints += 1;
+    }
+  }
+  
+  return completedSteps + draftPoints;
 }
 
 /**
@@ -130,9 +153,9 @@ export function useWorkflowHydration(config: HydrationConfig): HydrationResult {
       return;
     }
 
-    // Calcular si debemos hidratar
-    const persistedMeaningful = countMeaningfulSteps(persistedData);
-    const localMeaningful = countMeaningfulSteps(localState);
+    // Calcular si debemos hidratar (usando la nueva función que cuenta drafts)
+    const persistedProgress = countMeaningfulProgress(persistedData);
+    const localProgress = countMeaningfulProgress(localState);
     const persistedIsAhead = isPersistedAhead(persistedData.currentStep, localState.currentStep);
 
     // Caso 1: Force restore explícito
@@ -152,17 +175,17 @@ export function useWorkflowHydration(config: HydrationConfig): HydrationResult {
       return;
     }
 
-    // Caso 3: Hidratación por datos más completos
+    // Caso 3: Hidratación por progreso más completo (incluye drafts)
     const shouldHydrate = (
-      persistedMeaningful > localMeaningful &&
+      persistedProgress > localProgress &&
       persistedIsAhead &&
       !isRestoring
     );
 
     if (shouldHydrate) {
       console.log('🔄 [useWorkflowHydration] Hydrating from persisted data:', {
-        persistedMeaningful,
-        localMeaningful,
+        persistedProgress,
+        localProgress,
         step: persistedData.currentStep
       });
       hydrateFromPersisted();
@@ -188,10 +211,10 @@ export function useWorkflowHydration(config: HydrationConfig): HydrationResult {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        const persistedMeaningful = countMeaningfulSteps(persistedData);
-        const localMeaningful = countMeaningfulSteps(localState);
+        const persistedProgress = countMeaningfulProgress(persistedData);
+        const localProgress = countMeaningfulProgress(localState);
 
-        if (persistedMeaningful > localMeaningful) {
+        if (persistedProgress > localProgress) {
           console.log('👁️ [useWorkflowHydration] Tab return - hydrating more complete state');
           hydrateFromPersisted();
         }
