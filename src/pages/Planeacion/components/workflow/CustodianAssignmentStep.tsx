@@ -327,8 +327,19 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   const handleConfirmOverride = async (motivo: string, detalles?: string) => {
     if (!overrideCustodian) return;
     
+    // Validación de UUID antes de proceder
+    const { isValidUUID } = await import('@/lib/validators');
+    if (!isValidUUID(overrideCustodian.id)) {
+      console.error('❌ ID de custodio inválido para override:', overrideCustodian.id);
+      toast.error('Error: ID de custodio inválido. No se puede completar la asignación.');
+      setOverrideModalOpen(false);
+      setOverrideCustodian(null);
+      return;
+    }
+    
     console.log('✅ Override confirmado:', {
       custodio: overrideCustodian.nombre,
+      custodioId: overrideCustodian.id,
       motivo,
       detalles
     });

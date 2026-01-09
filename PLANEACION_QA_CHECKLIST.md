@@ -61,6 +61,29 @@
 
 ---
 
+## Sprint 4: Override de Conflictos y Robustez
+
+### Override Manual de Conflictos (Issue #10)
+- [ ] Sección colapsable "Custodios con conflicto" visible
+- [ ] Modal de override muestra detalles del conflicto
+- [ ] Motivos predefinidos disponibles en dropdown
+- [ ] Campo de detalles adicionales funcional
+- [ ] Override se guarda en base de datos correctamente
+- [ ] Badge "Asignación forzada" visible en tarjetas de servicio
+
+### Mejoras de Búsqueda
+- [ ] Búsqueda sin acentos funciona (unaccent extension)
+- [ ] Errores de RPC muestran mensajes específicos
+- [ ] Fallback de disponibilidad funciona si RPC falla
+
+### Consolidación de Hidratación
+- [ ] Workflow restaura estado correctamente al recargar
+- [ ] No hay condiciones de carrera en restauración
+- [ ] Banner "Borrador restaurado" aparece solo cuando corresponde
+- [ ] "Empezar de nuevo" limpia estado correctamente
+
+---
+
 ## Regression Testing
 
 ### After Each Sprint
