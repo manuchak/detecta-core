@@ -216,14 +216,21 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     } catch (err) {
       console.error('Error searching services:', err);
       
-      // Mensajes de error específicos
+      // Mensajes de error específicos basados en el tipo de error
       let errorMessage = 'Error al buscar servicios';
       if (err instanceof Error) {
-        if (err.message.includes('network') || err.message.includes('fetch')) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes('unaccent') || msg.includes('does not exist')) {
+          errorMessage = 'Error de configuración del servidor. Contacta al administrador.';
+          console.error('[ServiceQuery] RPC function error - unaccent not found:', err.message);
+        } else if (msg.includes('structure of query') || msg.includes('result type')) {
+          errorMessage = 'Error técnico en la consulta. Intenta de nuevo.';
+          console.error('[ServiceQuery] RPC structure mismatch:', err.message);
+        } else if (msg.includes('network') || msg.includes('fetch')) {
           errorMessage = 'Error de conexión. Verifica tu internet e intenta de nuevo.';
-        } else if (err.message.includes('timeout')) {
+        } else if (msg.includes('timeout')) {
           errorMessage = 'La búsqueda tardó demasiado. Intenta con términos más específicos.';
-        } else if (err.message.includes('permission') || err.message.includes('RLS')) {
+        } else if (msg.includes('permission') || msg.includes('rls')) {
           errorMessage = 'No tienes permisos para realizar esta búsqueda.';
         }
       }
@@ -392,14 +399,21 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     } catch (err) {
       console.error('Error searching services:', err);
       
-      // Mensajes de error específicos
+      // Mensajes de error específicos basados en el tipo de error
       let errorMessage = 'Error al buscar servicios';
       if (err instanceof Error) {
-        if (err.message.includes('network') || err.message.includes('fetch')) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes('unaccent') || msg.includes('does not exist')) {
+          errorMessage = 'Error de configuración del servidor. Contacta al administrador.';
+          console.error('[ServiceQuery] RPC function error - unaccent not found:', err.message);
+        } else if (msg.includes('structure of query') || msg.includes('result type')) {
+          errorMessage = 'Error técnico en la consulta. Intenta de nuevo.';
+          console.error('[ServiceQuery] RPC structure mismatch:', err.message);
+        } else if (msg.includes('network') || msg.includes('fetch')) {
           errorMessage = 'Error de conexión. Verifica tu internet e intenta de nuevo.';
-        } else if (err.message.includes('timeout')) {
+        } else if (msg.includes('timeout')) {
           errorMessage = 'La búsqueda tardó demasiado. Intenta con términos más específicos.';
-        } else if (err.message.includes('permission') || err.message.includes('RLS')) {
+        } else if (msg.includes('permission') || msg.includes('rls')) {
           errorMessage = 'No tienes permisos para realizar esta búsqueda.';
         }
       }
