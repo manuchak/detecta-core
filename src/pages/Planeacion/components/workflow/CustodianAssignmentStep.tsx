@@ -2,16 +2,18 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { User, MessageCircle, Phone, MapPin, Target, Clock, Car, AlertCircle, CheckCircle2, Shield, Settings, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import { CustodianContactDialog } from '../dialogs/CustodianContactDialog';
+import { ConflictOverrideModal, type ConflictDetails } from '../dialogs/ConflictOverrideModal';
 import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodioEnriquecido } from '@/hooks/useCustodiosWithTracking';
 import type { ServicioNuevo } from '@/utils/proximidadOperacional';
 import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
 import { SearchResultsInfo, CUSTODIAN_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
-
+import { supabase } from '@/integrations/supabase/client';
 interface ServiceData {
   servicio_id?: string;
   origen?: string;
@@ -43,6 +45,9 @@ interface AssignmentData extends ServiceData {
   custodio_asignado_id?: string;
   custodio_nombre?: string;
   estado_comunicacion?: 'enviado' | 'aceptado' | 'rechazado' | 'sin_responder' | 'contactar_despues';
+  // Override de conflicto
+  override_conflicto_motivo?: string;
+  override_conflicto_detalles?: string;
 }
 
 interface ComunicacionState {
@@ -129,6 +134,11 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactingCustodian, setContactingCustodian] = useState<CustodioConProximidad | null>(null);
   const [initialContactMethod, setInitialContactMethod] = useState<'whatsapp' | 'llamada' | undefined>(undefined);
+
+  // Estado para override de conflictos
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const [overrideCustodian, setOverrideCustodian] = useState<CustodioConProximidad | null>(null);
+  const [conflictSectionOpen, setConflictSectionOpen] = useState(false);
 
   // Preparar datos del servicio para el hook
   const servicioNuevo: ServicioNuevo = useMemo(() => ({
@@ -305,6 +315,61 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
       toast.warning(`${custodian?.nombre} no respondió`);
     }
   };
+
+  // Manejar selección de custodio con conflicto (abre modal de override)
+  const handleSelectCustodioConflicto = (custodio: CustodioConProximidad) => {
+    console.log('⚠️ Seleccionando custodio con conflicto:', custodio.nombre);
+    setOverrideCustodian(custodio);
+    setOverrideModalOpen(true);
+  };
+
+  // Confirmar override de conflicto
+  const handleConfirmOverride = async (motivo: string, detalles?: string) => {
+    if (!overrideCustodian) return;
+    
+    console.log('✅ Override confirmado:', {
+      custodio: overrideCustodian.nombre,
+      motivo,
+      detalles
+    });
+    
+    // Obtener usuario actual para auditoría
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    toast.success(`Override autorizado: ${overrideCustodian.nombre} asignado con motivo "${motivo}"`);
+    
+    const assignmentData: AssignmentData = {
+      ...serviceData,
+      custodio_asignado_id: overrideCustodian.id,
+      custodio_nombre: overrideCustodian.nombre,
+      estado_comunicacion: 'sin_responder',
+      override_conflicto_motivo: motivo,
+      override_conflicto_detalles: detalles
+    };
+    
+    setOverrideModalOpen(false);
+    setOverrideCustodian(null);
+    onComplete(assignmentData);
+  };
+
+  // Obtener detalles de conflicto para el modal
+  const getConflictDetails = (custodio: CustodioConProximidad): ConflictDetails => {
+    const indisponibilidad = custodio.indisponibilidades_activas?.[0];
+    return {
+      servicios_hoy: indisponibilidad?.servicios_hoy,
+      conflictos_detalle: indisponibilidad?.conflictos_detalle,
+      razon_no_disponible: custodio.razon_no_disponible || indisponibilidad?.motivo
+    };
+  };
+
+  // Custodios con conflictos (ocupados + no disponibles)
+  const custodiosConConflicto = useMemo(() => {
+    if (!custodiosCategorizados) return [];
+    return [
+      ...custodiosCategorizados.ocupados,
+      ...custodiosCategorizados.noDisponibles
+    ];
+  }, [custodiosCategorizados]);
 
   const handleComplete = () => {
     if (!selectedCustodio) return;
@@ -671,6 +736,93 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
         </CardContent>
       </Card>
 
+      {/* Sección colapsable: Custodios con conflicto */}
+      {custodiosConConflicto.length > 0 && (
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardContent className="p-4">
+            <Collapsible open={conflictSectionOpen} onOpenChange={setConflictSectionOpen}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="w-full flex items-center justify-between p-0 h-auto hover:bg-transparent"
+                >
+                  <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">
+                      Ver {custodiosConConflicto.length} custodio(s) con conflicto horario
+                    </span>
+                  </div>
+                  {conflictSectionOpen ? (
+                    <ChevronUp className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-amber-600" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent className="mt-4">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+                  <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                    <Shield className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      Estos custodios tienen conflictos de horario detectados. Solo debes asignarlos
+                      si tienes certeza operativa (ej: servicio de retorno, servicio secuencial).
+                      La asignación quedará registrada para auditoría.
+                    </span>
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
+                  {custodiosConConflicto.map((custodio) => (
+                    <div
+                      key={custodio.id}
+                      className="border border-amber-200 dark:border-amber-700 rounded-lg p-4 bg-amber-50/50 dark:bg-amber-950/20"
+                    >
+                      <CustodioPerformanceCard 
+                        custodio={custodio}
+                        compact={true}
+                        selected={false}
+                        onSelect={() => {}}
+                        availabilityStatus="no_disponible"
+                        disabled={true}
+                      />
+                      
+                      {/* Razón del conflicto */}
+                      <div className="mt-3 p-2 bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded-md">
+                        <div className="text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {custodio.razon_no_disponible || 
+                             custodio.indisponibilidades_activas?.[0]?.motivo ||
+                             'Conflicto de horario detectado'}
+                          </span>
+                        </div>
+                        {custodio.indisponibilidades_activas?.[0]?.servicios_hoy !== undefined && (
+                          <Badge variant="outline" className="mt-1 text-amber-700 border-amber-400 text-xs">
+                            {custodio.indisponibilidades_activas[0].servicios_hoy} servicio(s) hoy
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Botón de override */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSelectCustodioConflicto(custodio)}
+                        className="mt-3 w-full border-amber-400 text-amber-700 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Asignar con justificación (Override)
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Footer */}
       <Card>
         <CardContent className="p-6">
@@ -735,6 +887,23 @@ export function CustodianAssignmentStep({ serviceData, onComplete, onBack }: Cus
           />
         );
       })()}
+
+      {/* Modal de Override de Conflicto */}
+      {overrideCustodian && (
+        <ConflictOverrideModal
+          open={overrideModalOpen}
+          onOpenChange={(open) => {
+            setOverrideModalOpen(open);
+            if (!open) {
+              setOverrideCustodian(null);
+            }
+          }}
+          custodioNombre={overrideCustodian.nombre}
+          custodioId={overrideCustodian.id!}
+          conflictDetails={getConflictDetails(overrideCustodian)}
+          onConfirm={handleConfirmOverride}
+        />
+      )}
     </div>
   );
 }
