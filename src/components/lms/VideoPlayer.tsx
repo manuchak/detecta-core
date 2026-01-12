@@ -13,6 +13,7 @@ interface VideoPlayerProps {
   onComplete?: () => void;
   initialPosition?: number;
   initialMaxViewed?: number;
+  initialWatchTime?: number; // Para embeds: tiempo de visualización acumulado
   completionThreshold?: number;
   duracionMinutos?: number; // Para embeds: duración mínima requerida
 }
@@ -29,9 +30,13 @@ export function VideoPlayer({
   onComplete,
   initialPosition = 0,
   initialMaxViewed = 0,
+  initialWatchTime = 0,
   completionThreshold = 95,
   duracionMinutos = 3
 }: VideoPlayerProps) {
+  // Tiempo requerido para embeds (en segundos) - calculado temprano para inicialización
+  const requiredWatchTime = (content.duracion_segundos || duracionMinutos * 60);
+  
   // Estados para video nativo
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -44,10 +49,10 @@ export function VideoPlayer({
   // Estados para anti-skip
   const [maxViewedTime, setMaxViewedTime] = useState(initialMaxViewed);
   
-  // Estados para embeds (timer basado)
-  const [watchTime, setWatchTime] = useState(0);
+  // Estados para embeds (timer basado) - inicializar con progreso guardado
+  const [watchTime, setWatchTime] = useState(initialWatchTime);
   const [isVisible, setIsVisible] = useState(true);
-  const [embedCanComplete, setEmbedCanComplete] = useState(false);
+  const [embedCanComplete, setEmbedCanComplete] = useState(initialWatchTime >= requiredWatchTime);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,8 +62,6 @@ export function VideoPlayer({
   const isEmbedProvider = EMBED_PROVIDERS.includes(content.provider);
   const isVertical = VERTICAL_PROVIDERS.includes(content.provider);
   
-  // Tiempo requerido para embeds (en segundos)
-  const requiredWatchTime = (content.duracion_segundos || duracionMinutos * 60);
 
   // Calcular porcentaje real visto para videos nativos
   const viewedPercentage = duration > 0 ? (maxViewedTime / duration) * 100 : 0;

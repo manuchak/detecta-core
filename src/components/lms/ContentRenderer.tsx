@@ -37,19 +37,30 @@ export function ContentRenderer({
   const { tipo, contenido: data, duracion_min } = contenido;
 
   switch (tipo) {
-    case 'video':
+    case 'video': {
+      const videoData = data as VideoContent;
+      const duracionSegundos = videoData.duracion_segundos || duracion_min * 60;
+      
+      // Para videos nativos: calcular posición máxima vista
+      const initialMaxViewed = progresoVideo?.video_porcentaje_visto 
+        ? (progresoVideo.video_porcentaje_visto / 100) * duracionSegundos 
+        : 0;
+      
+      // Para embeds: usar video_posicion_seg como watchTime acumulado
+      const initialWatchTime = progresoVideo?.video_posicion_seg || 0;
+      
       return (
         <VideoPlayer 
-          content={data as VideoContent}
+          content={videoData}
           onComplete={onComplete}
           onProgress={onVideoProgress}
           initialPosition={initialVideoPosition}
-          initialMaxViewed={progresoVideo?.video_porcentaje_visto ? 
-            ((progresoVideo.video_porcentaje_visto / 100) * ((data as VideoContent).duracion_segundos || duracion_min * 60)) : 0
-          }
+          initialMaxViewed={initialMaxViewed}
+          initialWatchTime={initialWatchTime}
           duracionMinutos={duracion_min}
         />
       );
+    }
 
     case 'documento':
       return (
