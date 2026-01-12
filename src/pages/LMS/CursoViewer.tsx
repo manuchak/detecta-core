@@ -205,6 +205,12 @@ export default function CursoViewer() {
     quiz_respuestas: progresoContenido.quiz_respuestas as any
   } : undefined;
 
+  // Progreso de video para persistencia por contenido individual
+  const progresoVideo = progresoContenido ? {
+    video_posicion_seg: progresoContenido.video_posicion_seg ?? 0,
+    video_porcentaje_visto: progresoContenido.video_porcentaje_visto ?? 0
+  } : undefined;
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -272,6 +278,7 @@ export default function CursoViewer() {
                   contenido={contenidoActual}
                   inscripcionId={inscripcion?.id}
                   progresoQuiz={progresoQuiz}
+                  progresoVideo={progresoVideo}
                   onComplete={handleComplete}
                   onVideoProgress={handleVideoProgress}
                   initialVideoPosition={videoPosition}
