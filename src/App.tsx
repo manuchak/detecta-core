@@ -189,6 +189,7 @@ function App() {
                 
                 {/* Auth routes */}
                 <Route path="/auth/login" element={<AuthLayout><Login /></AuthLayout>} />
+                <Route path="/login" element={<Navigate to="/auth/login" replace />} />
                 <Route path="/auth/register" element={<SignUp />} />
                 <Route path="/auth/signup" element={<SignUp />} />
                 <Route path="/auth/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
