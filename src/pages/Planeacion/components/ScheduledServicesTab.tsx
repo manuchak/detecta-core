@@ -18,6 +18,7 @@ import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Tim
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getCDMXDate, formatCDMXTime } from '@/utils/cdmxTimezone';
 
 export function ScheduledServicesTab() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -146,14 +147,15 @@ export function ScheduledServicesTab() {
 
     if (isPendingAssignment) {
       // ✅ Conversión robusta y tipada usando el hook de transformación
+      // ✅ FIX: Usar getCDMXDate/formatCDMXTime en lugar de split('T') para evitar bug UTC off-by-one
       const pendingService = servicioToPending({
         id: service.id,
         folio: service.id_servicio || service.id,
         cliente: service.cliente_nombre || service.nombre_cliente || '',
         origen_texto: service.origen || '',
         destino_texto: service.destino || '',
-        fecha_programada: service.fecha_hora_cita?.split('T')[0] || '',
-        hora_ventana_inicio: service.fecha_hora_cita?.split('T')[1]?.substring(0,5) || '09:00',
+        fecha_programada: service.fecha_hora_cita ? getCDMXDate(service.fecha_hora_cita) : '',
+        hora_ventana_inicio: service.fecha_hora_cita ? formatCDMXTime(service.fecha_hora_cita, 'HH:mm') : '09:00',
         tipo_servicio: service.tipo_servicio || 'custodia',
         requiere_armado: service.incluye_armado || service.requiere_armado || false,
         notas_especiales: service.observaciones,

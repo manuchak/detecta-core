@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { CDMX_OFFSET } from '@/utils/cdmxTimezone';
 
 export interface ServiceQueryResult {
   // Datos básicos del servicio
@@ -256,19 +258,25 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     setError(null);
 
     try {
+      // ✅ FIX: Construir rangos explícitos en CDMX para evitar exclusiones por shift UTC
+      const startISO = startDate 
+        ? `${format(startDate, 'yyyy-MM-dd')}T00:00:00${CDMX_OFFSET}` 
+        : undefined;
+      const endISO = endDate 
+        ? `${format(endDate, 'yyyy-MM-dd')}T23:59:59${CDMX_OFFSET}` 
+        : undefined;
+
       // Query para servicios_custodia
       let custodiaQuery = supabase
         .from('servicios_custodia')
         .select('*')
         .ilike('nombre_cliente', `%${clientName}%`);
 
-      if (startDate) {
-        custodiaQuery = custodiaQuery.gte('fecha_hora_cita', startDate.toISOString());
+      if (startISO) {
+        custodiaQuery = custodiaQuery.gte('fecha_hora_cita', startISO);
       }
-      if (endDate) {
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
-        custodiaQuery = custodiaQuery.lte('fecha_hora_cita', endDateTime.toISOString());
+      if (endISO) {
+        custodiaQuery = custodiaQuery.lte('fecha_hora_cita', endISO);
       }
 
       const { data: custodiaData, error: custodiaError } = await custodiaQuery
@@ -282,13 +290,11 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         .select('*')
         .ilike('nombre_cliente', `%${clientName}%`);
 
-      if (startDate) {
-        planificadosQuery = planificadosQuery.gte('fecha_hora_cita', startDate.toISOString());
+      if (startISO) {
+        planificadosQuery = planificadosQuery.gte('fecha_hora_cita', startISO);
       }
-      if (endDate) {
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
-        planificadosQuery = planificadosQuery.lte('fecha_hora_cita', endDateTime.toISOString());
+      if (endISO) {
+        planificadosQuery = planificadosQuery.lte('fecha_hora_cita', endISO);
       }
 
       const { data: planificadosData, error: planificadosError } = await planificadosQuery

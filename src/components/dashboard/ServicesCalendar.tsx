@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useUpcomingServices, UpcomingService } from "@/hooks/useUpcomingServices";
 import { getLocalDateString } from "@/utils/timezoneUtils";
+import { getCDMXDate } from "@/utils/cdmxTimezone";
 
 interface CalendarDay {
   date: Date;
@@ -23,9 +24,10 @@ export const ServicesCalendar = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Group services by date for badge display
+  // ✅ FIX: Usar getCDMXDate en lugar de split('T')[0] para evitar bug UTC off-by-one
   const servicesByDate = services.reduce<Record<string, UpcomingService[]>>((acc, service) => {
     if (service.fecha_hora_cita) {
-      const dateKey = service.fecha_hora_cita.split('T')[0];
+      const dateKey = getCDMXDate(service.fecha_hora_cita);
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }
