@@ -76,6 +76,7 @@ const Home = () => {
                 key={index}
                 label={widget.label}
                 value={widget.value}
+                subtext={widget.subtext}
                 trend={widget.trend}
                 trendDirection={widget.trendDirection}
                 isLoading={widget.isLoading}

@@ -42,10 +42,14 @@ export type WidgetType =
   | 'pendingInstallations'
   | 'completedInstallations'
   | 'openTickets'
-  // New executive-level widgets
+  // Executive-level widgets with context
   | 'gmvVariation'
   | 'serviceGrowth'
-  | 'capacityUtilization';
+  | 'capacityUtilization'
+  // New widgets with full context (subtext)
+  | 'monthlyGMVWithContext'
+  | 'activeCustodiansWithContext'
+  | 'completionRateToday';
 
 export type HeroType = WidgetType | 'businessHealth' | 'criticalAlerts' | 'monthlyTrend';
 
@@ -339,9 +343,9 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       // Sin urgencyThreshold - métricas financieras no son "urgentes"
     },
     contextWidgets: [
-      { type: 'gmvVariation', label: 'vs. Mes Anterior', isContext: true },
-      { type: 'activeCustodians', label: 'Custodios Activos', isContext: true },
-      { type: 'capacityUtilization', label: 'Utilización', isContext: true }
+      { type: 'monthlyGMVWithContext', label: 'GMV del Mes', isContext: true },
+      { type: 'activeCustodiansWithContext', label: 'Fuerza Activa', isContext: true },
+      { type: 'completionRateToday', label: 'Completitud Hoy', isContext: true }
     ],
     modules: ['bi', 'leads', 'planeacion', 'monitoring', 'wms', 'settings']
   },

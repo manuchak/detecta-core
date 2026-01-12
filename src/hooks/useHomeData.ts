@@ -20,6 +20,7 @@ interface UseHomeDataResult {
   widgets: Array<{
     label: string;
     value: number | string;
+    subtext?: string;
     trend?: number;
     trendDirection?: 'up' | 'down' | 'neutral';
     isLoading: boolean;
@@ -27,6 +28,7 @@ interface UseHomeDataResult {
   contextWidgets: Array<{
     label: string;
     value: number | string;
+    subtext?: string;
     trend?: number;
     trendDirection?: 'up' | 'down' | 'neutral';
     isLoading: boolean;
@@ -103,6 +105,7 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
     const contextWidgets = (config.contextWidgets || []).map((w, i) => ({
       label: w.label,
       value: contextQueries[i]?.data?.value ?? 0,
+      subtext: contextQueries[i]?.data?.subtext,
       trend: contextQueries[i]?.data?.trend,
       trendDirection: contextQueries[i]?.data?.trendDirection,
       isLoading: contextQueries[i]?.isLoading ?? false,

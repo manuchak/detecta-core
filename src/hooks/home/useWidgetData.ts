@@ -4,6 +4,7 @@ import type { WidgetType } from '@/config/roleHomeConfig';
 
 interface WidgetData {
   value: number | string;
+  subtext?: string;
   trend?: number;
   trendDirection?: 'up' | 'down' | 'neutral';
 }
@@ -350,6 +351,131 @@ const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
         
         return { 
           value: `${rate}%`,
+          trendDirection: rate >= 90 ? 'up' : rate >= 70 ? 'neutral' : 'down'
+        };
+      }
+
+      // === NEW WIDGETS WITH FULL CONTEXT (SUBTEXT) ===
+      
+      case 'monthlyGMVWithContext': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const startOfPrevMonth = new Date(startOfMonth);
+        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
+        
+        const { data: currentData } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .neq('estado', 'Cancelado')
+          .gt('cobro_cliente', 0);
+        
+        const { data: prevData } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfPrevMonth.toISOString())
+          .lt('fecha_hora_cita', startOfMonth.toISOString())
+          .neq('estado', 'Cancelado')
+          .gt('cobro_cliente', 0);
+        
+        const currentTotal = currentData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        const prevTotal = prevData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        
+        const variation = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
+        
+        // Format current GMV
+        let formattedValue: string;
+        if (currentTotal >= 1000000) {
+          formattedValue = `$${(currentTotal / 1000000).toFixed(2)}M`;
+        } else if (currentTotal >= 1000) {
+          formattedValue = `$${(currentTotal / 1000).toFixed(0)}K`;
+        } else {
+          formattedValue = `$${currentTotal.toLocaleString()}`;
+        }
+        
+        // Format previous GMV for context
+        let prevFormatted: string;
+        if (prevTotal >= 1000000) {
+          prevFormatted = `$${(prevTotal / 1000000).toFixed(1)}M`;
+        } else if (prevTotal >= 1000) {
+          prevFormatted = `$${(prevTotal / 1000).toFixed(0)}K`;
+        } else {
+          prevFormatted = `$${prevTotal.toLocaleString()}`;
+        }
+        
+        const monthName = new Date(startOfPrevMonth).toLocaleDateString('es-MX', { month: 'short' });
+        
+        return { 
+          value: formattedValue,
+          subtext: `${variation >= 0 ? '↑' : '↓'} ${Math.abs(variation)}% vs. ${prevFormatted} ${monthName}`,
+          trend: variation,
+          trendDirection: variation > 0 ? 'up' : variation < 0 ? 'down' : 'neutral'
+        };
+      }
+
+      case 'activeCustodiansWithContext': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        // Custodians with services this month
+        const { data: servicesData } = await supabase
+          .from('servicios_custodia')
+          .select('nombre_custodio')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .neq('estado', 'Cancelado')
+          .not('nombre_custodio', 'is', null);
+        
+        const activeCustodians = new Set(servicesData?.map(d => d.nombre_custodio) || []);
+        const activeCount = activeCustodians.size;
+        
+        // Total released custodians
+        const { count: totalReleased } = await supabase
+          .from('candidatos_custodios')
+          .select('*', { count: 'exact', head: true })
+          .eq('estado_proceso', 'liberado');
+        
+        const total = totalReleased || 0;
+        const percentage = total > 0 ? Math.round((activeCount / total) * 100) : 0;
+        
+        return { 
+          value: activeCount,
+          subtext: `de ${total} liberados (${percentage}%)`,
+          trendDirection: percentage >= 80 ? 'up' : percentage >= 60 ? 'neutral' : 'down'
+        };
+      }
+
+      case 'completionRateToday': {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        const { count: totalToday } = await supabase
+          .from('servicios_custodia')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_hora_cita', today.toISOString())
+          .lt('fecha_hora_cita', tomorrow.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        const { count: completedToday } = await supabase
+          .from('servicios_custodia')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_hora_cita', today.toISOString())
+          .lt('fecha_hora_cita', tomorrow.toISOString())
+          .eq('estado', 'Finalizado');
+        
+        const total = totalToday || 0;
+        const completed = completedToday || 0;
+        const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+        
+        return { 
+          value: `${rate}%`,
+          subtext: `${completed} de ${total} servicios`,
           trendDirection: rate >= 90 ? 'up' : rate >= 70 ? 'neutral' : 'down'
         };
       }
