@@ -37,7 +37,7 @@ const Landing = () => {
             <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Preguntas frecuentes</a>
           </nav>
           <div className="flex items-center gap-4">
-            <Link to="/login">
+            <Link to="/auth/login">
               <Button variant="outline">Iniciar Sesión</Button>
             </Link>
             <Link to="/register">
