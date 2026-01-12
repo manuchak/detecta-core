@@ -25,21 +25,34 @@ import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatCDMXTime } from '@/utils/cdmxTimezone';
+import { formatCDMXTime, getCDMXDate } from '@/utils/cdmxTimezone';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export function ScheduledServicesTab() {
   // Persist selected date in localStorage
+  // ✅ FIX: Parsear yyyy-MM-dd a mediodía local para evitar drift de timezone
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const saved = localStorage.getItem('planeacion_selected_date');
     if (saved) {
-      const parsed = new Date(saved);
-      // Only use saved date if it's within reasonable range (last 30 days to next 30 days)
-      const now = new Date();
-      const daysDiff = Math.abs((parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff <= 30) {
-        return parsed;
+      // Si es formato yyyy-MM-dd, parsearlo a mediodía local
+      const dateMatch = saved.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0);
+        const now = new Date();
+        const daysDiff = Math.abs((parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff <= 30) {
+          return parsed;
+        }
+      } else {
+        // Fallback para formato ISO viejo
+        const parsed = new Date(saved);
+        const now = new Date();
+        const daysDiff = Math.abs((parsed.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysDiff <= 30) {
+          return parsed;
+        }
       }
     }
     return new Date();
@@ -65,10 +78,11 @@ export function ScheduledServicesTab() {
   });
   
   // Persist date changes
+  // ✅ FIX: Guardar solo yyyy-MM-dd para evitar drift de timezone al rehidratar
   const handleDateChange = (date: Date) => {
     clearScrollPosition(); // Clear scroll when changing date
     setSelectedDate(date);
-    localStorage.setItem('planeacion_selected_date', date.toISOString());
+    localStorage.setItem('planeacion_selected_date', format(date, 'yyyy-MM-dd'));
   };
   
   const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
@@ -272,14 +286,15 @@ export function ScheduledServicesTab() {
 
     if (isPendingAssignment) {
       // ✅ Conversión robusta y tipada usando el hook de transformación
+      // ✅ FIX: Usar getCDMXDate/formatCDMXTime en lugar de split('T') para evitar bug UTC off-by-one
       const pendingService = servicioToPending({
         id: service.id,
         folio: service.id_servicio || service.id,
         cliente: service.cliente_nombre || service.nombre_cliente || '',
         origen_texto: service.origen || '',
         destino_texto: service.destino || '',
-        fecha_programada: service.fecha_hora_cita?.split('T')[0] || '',
-        hora_ventana_inicio: service.fecha_hora_cita?.split('T')[1]?.substring(0,5) || '09:00',
+        fecha_programada: service.fecha_hora_cita ? getCDMXDate(service.fecha_hora_cita) : '',
+        hora_ventana_inicio: service.fecha_hora_cita ? formatCDMXTime(service.fecha_hora_cita, 'HH:mm') : '09:00',
         tipo_servicio: service.tipo_servicio || 'custodia',
         requiere_armado: service.incluye_armado || service.requiere_armado || false,
         notas_especiales: service.observaciones,
