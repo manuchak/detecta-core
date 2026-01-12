@@ -1,11 +1,14 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 
 interface HeroActionCardProps {
   title: string;
   description: string;
-  value: number;
+  value: number | string;
+  formattedValue?: string;
+  trend?: number;
+  trendDirection?: 'up' | 'down' | 'neutral';
   cta: { label: string; route: string };
   icon: LucideIcon;
   urgency: 'normal' | 'warning' | 'critical';
@@ -16,6 +19,9 @@ export const HeroActionCard = ({
   title,
   description,
   value,
+  formattedValue,
+  trend,
+  trendDirection,
   cta,
   icon: Icon,
   urgency,
@@ -27,31 +33,53 @@ export const HeroActionCard = ({
     );
   }
 
+  const TrendIcon = trendDirection === 'up' ? TrendingUp : 
+                    trendDirection === 'down' ? TrendingDown : Minus;
+
+  // Use formattedValue if available, otherwise format the value
+  const displayValue = formattedValue || value;
+  
+  // Determine if this is a financial/trend hero (no urgency styling)
+  const isFinancialHero = trend !== undefined || formattedValue !== undefined;
+
   return (
     <Link 
       to={cta.route}
-      className={`liquid-glass-hero urgency-${urgency} block group animate-apple-slide-in`}
+      className={`liquid-glass-hero ${isFinancialHero ? '' : `urgency-${urgency}`} block group animate-apple-slide-in`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-3">
           <div className="flex items-center gap-3">
             <div className={`
               p-2.5 rounded-xl 
-              ${urgency === 'critical' ? 'bg-destructive/10 text-destructive' : 
+              ${isFinancialHero ? 'bg-primary/10 text-primary' :
+                urgency === 'critical' ? 'bg-destructive/10 text-destructive' : 
                 urgency === 'warning' ? 'bg-warning/10 text-warning' : 
                 'bg-primary/10 text-primary'}
             `}>
               <Icon className="h-5 w-5" />
             </div>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 flex-wrap">
               <span className={`
                 text-3xl font-bold tracking-tight
-                ${urgency === 'critical' ? 'text-destructive' : 
+                ${isFinancialHero ? 'text-foreground' :
+                  urgency === 'critical' ? 'text-destructive' : 
                   urgency === 'warning' ? 'text-warning' : 
                   'text-foreground'}
               `}>
-                {value}
+                {displayValue}
               </span>
+              {trend !== undefined && (
+                <span className={`
+                  flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full
+                  ${trendDirection === 'up' ? 'bg-success/10 text-success' : 
+                    trendDirection === 'down' ? 'bg-destructive/10 text-destructive' : 
+                    'bg-muted text-muted-foreground'}
+                `}>
+                  <TrendIcon className="h-3.5 w-3.5" />
+                  {trend > 0 ? '+' : ''}{trend}%
+                </span>
+              )}
               <span className="text-lg font-medium text-foreground">
                 {title.toLowerCase()}
               </span>

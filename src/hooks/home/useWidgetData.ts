@@ -254,6 +254,106 @@ const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
         return { value: count || 0 };
       }
 
+      // New executive-level widgets
+      case 'gmvVariation': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const startOfPrevMonth = new Date(startOfMonth);
+        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
+        
+        const { data: currentData } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .in('estado', ['completado', 'finalizado', 'Finalizado', 'Completado'])
+          .gt('cobro_cliente', 0);
+        
+        const { data: prevData } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfPrevMonth.toISOString())
+          .lt('fecha_hora_cita', startOfMonth.toISOString())
+          .in('estado', ['completado', 'finalizado', 'Finalizado', 'Completado'])
+          .gt('cobro_cliente', 0);
+        
+        const currentTotal = currentData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        const prevTotal = prevData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        
+        const variation = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
+        
+        return { 
+          value: `${variation >= 0 ? '+' : ''}${variation}%`,
+          trend: variation,
+          trendDirection: variation > 0 ? 'up' : variation < 0 ? 'down' : 'neutral'
+        };
+      }
+
+      case 'serviceGrowth': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const startOfPrevMonth = new Date(startOfMonth);
+        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
+        
+        const { count: currentCount } = await supabase
+          .from('servicios_custodia')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        const { count: prevCount } = await supabase
+          .from('servicios_custodia')
+          .select('*', { count: 'exact', head: true })
+          .gte('fecha_hora_cita', startOfPrevMonth.toISOString())
+          .lt('fecha_hora_cita', startOfMonth.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        const current = currentCount || 0;
+        const prev = prevCount || 0;
+        const growth = prev > 0 ? Math.round(((current - prev) / prev) * 100) : 0;
+        
+        return { 
+          value: `${growth >= 0 ? '+' : ''}${growth}%`,
+          trend: growth,
+          trendDirection: growth > 0 ? 'up' : growth < 0 ? 'down' : 'neutral'
+        };
+      }
+
+      case 'capacityUtilization': {
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        // Get services with custodians assigned
+        const { data: services } = await supabase
+          .from('servicios_custodia')
+          .select('nombre_custodio')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        if (!services || services.length === 0) {
+          return { value: '0%' };
+        }
+        
+        const assigned = services.filter(s => s.nombre_custodio).length;
+        const rate = Math.round((assigned / services.length) * 100);
+        
+        return { 
+          value: `${rate}%`,
+          trendDirection: rate >= 90 ? 'up' : rate >= 70 ? 'neutral' : 'down'
+        };
+      }
+
       default:
         return { value: 0 };
     }

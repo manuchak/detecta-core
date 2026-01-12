@@ -41,9 +41,13 @@ export type WidgetType =
   | 'offlineVehicles'
   | 'pendingInstallations'
   | 'completedInstallations'
-  | 'openTickets';
+  | 'openTickets'
+  // New executive-level widgets
+  | 'gmvVariation'
+  | 'serviceGrowth'
+  | 'capacityUtilization';
 
-export type HeroType = WidgetType;
+export type HeroType = WidgetType | 'businessHealth' | 'criticalAlerts' | 'monthlyTrend';
 
 export interface HeroConfig {
   type: HeroType;
@@ -324,20 +328,20 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
     modules: ['installers', 'services', 'wms', 'settings']
   },
 
-  // Admin - Vista completa
+  // Admin/CEO - Vista ejecutiva financiera
   admin: {
     hero: {
-      type: 'pendingCandidates',
-      title: 'Candidatos en pipeline',
-      description: 'Resumen de candidatos en proceso',
-      cta: { label: 'Ver dashboard', route: '/executive-dashboard' },
-      icon: TrendingUp,
-      urgencyThreshold: { warning: 10, critical: 20 }
+      type: 'monthlyTrend',
+      title: 'Rendimiento del mes',
+      description: 'Métricas financieras y crecimiento del negocio',
+      cta: { label: 'Dashboard ejecutivo', route: '/executive-dashboard' },
+      icon: TrendingUp
+      // Sin urgencyThreshold - métricas financieras no son "urgentes"
     },
     contextWidgets: [
-      { type: 'monthlyGMV', label: 'GMV Mes', isContext: true },
-      { type: 'activeCustodians', label: 'Custodios', isContext: true },
-      { type: 'monthlyServices', label: 'Servicios', isContext: true }
+      { type: 'gmvVariation', label: 'vs. Mes Anterior', isContext: true },
+      { type: 'activeCustodians', label: 'Custodios Activos', isContext: true },
+      { type: 'capacityUtilization', label: 'Utilización', isContext: true }
     ],
     modules: ['bi', 'leads', 'planeacion', 'monitoring', 'wms', 'settings']
   },

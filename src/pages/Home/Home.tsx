@@ -51,6 +51,9 @@ const Home = () => {
           title={hero.title}
           description={hero.description}
           value={hero.value}
+          formattedValue={hero.formattedValue}
+          trend={hero.trend}
+          trendDirection={hero.trendDirection}
           cta={hero.cta}
           icon={hero.icon}
           urgency={hero.urgency}
@@ -73,6 +76,8 @@ const Home = () => {
                 key={index}
                 label={widget.label}
                 value={widget.value}
+                trend={widget.trend}
+                trendDirection={widget.trendDirection}
                 isLoading={widget.isLoading}
                 index={index}
                 isContext={true}

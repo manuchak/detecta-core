@@ -31,6 +31,10 @@ export const MetricWidget = ({
   const TrendIcon = trendDirection === 'up' ? TrendingUp : 
                     trendDirection === 'down' ? TrendingDown : Minus;
 
+  // Check if the value itself contains a trend indicator (like "+12%" or "-5%")
+  const valueStr = String(value);
+  const hasTrendInValue = valueStr.startsWith('+') || (valueStr.startsWith('-') && valueStr.endsWith('%'));
+
   return (
     <div 
       className={`
@@ -43,6 +47,8 @@ export const MetricWidget = ({
         <p className={`
           text-3xl font-bold tracking-tight
           ${isContext ? 'text-foreground/90' : 'text-foreground'}
+          ${hasTrendInValue && trendDirection === 'up' ? 'text-success' : ''}
+          ${hasTrendInValue && trendDirection === 'down' ? 'text-destructive' : ''}
         `}>
           {value}
         </p>
@@ -50,7 +56,7 @@ export const MetricWidget = ({
           {label}
         </p>
         
-        {trend !== undefined && (
+        {trend !== undefined && !hasTrendInValue && (
           <div className={`
             flex items-center justify-center gap-1 text-xs font-medium
             ${trendDirection === 'up' ? 'text-success' : 
@@ -59,6 +65,18 @@ export const MetricWidget = ({
           `}>
             <TrendIcon className="h-3 w-3" />
             <span>{trend > 0 ? '+' : ''}{trend}%</span>
+          </div>
+        )}
+        
+        {/* Show trend icon for values that contain trend but without duplicate percentage */}
+        {hasTrendInValue && trendDirection && (
+          <div className={`
+            flex items-center justify-center text-xs font-medium
+            ${trendDirection === 'up' ? 'text-success' : 
+              trendDirection === 'down' ? 'text-destructive' : 
+              'text-muted-foreground'}
+          `}>
+            <TrendIcon className="h-3 w-3" />
           </div>
         )}
       </div>
