@@ -112,7 +112,7 @@ export interface VideoContent {
 
 export interface DocumentoContent {
   url: string;
-  tipo: 'pdf' | 'docx' | 'pptx' | 'xlsx';
+  tipo: 'pdf' | 'docx' | 'pptx' | 'xlsx' | 'google_docs' | 'google_slides' | 'google_sheets' | 'url';
   nombre_archivo?: string;
   paginas?: number;
 }

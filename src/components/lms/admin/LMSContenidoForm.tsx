@@ -16,6 +16,7 @@ import { QuizQuestion } from "./quiz/QuestionCard";
 import { cn } from "@/lib/utils";
 import { MediaUploader } from "./wizard/MediaUploader";
 import { useLMSCrearPreguntas, useLMSEliminarPreguntas, fetchPreguntasByIds } from "@/hooks/lms/useLMSAdminPreguntas";
+import { getDocumentType } from "@/utils/documentUtils";
 
 interface ContenidoFormData {
   titulo: string;
@@ -206,7 +207,7 @@ export function LMSContenidoForm({
       case 'video':
         return { url: videoUrl, provider: detectVideoProvider(videoUrl) };
       case 'documento':
-        return { url: documentoUrl, tipo: 'pdf' as const };
+        return { url: documentoUrl, tipo: getDocumentType(documentoUrl) };
       case 'texto_enriquecido':
         return { html: textoHtml };
       case 'embed':

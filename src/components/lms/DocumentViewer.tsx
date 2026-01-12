@@ -3,6 +3,7 @@ import { FileText, Download, ExternalLink, Loader2, AlertCircle } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { DocumentoContent } from "@/types/lms";
+import { getViewerUrl, isGoogleWorkspaceUrl } from "@/utils/documentUtils";
 
 interface DocumentViewerProps {
   content: DocumentoContent;
@@ -14,12 +15,15 @@ export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
   const [hasError, setHasError] = useState(false);
   
   const tipo = content?.tipo || 'documento';
-  const isPdf = tipo === 'pdf';
+  
+  // Detectar si es contenido de Google o PDF
+  const isGoogleContent = isGoogleWorkspaceUrl(content.url) || 
+    ['google_docs', 'google_slides', 'google_sheets'].includes(tipo);
+  const isPdf = tipo === 'pdf' && !isGoogleContent;
+  const isEmbeddable = isGoogleContent || isPdf;
 
-  // Usar Google Docs Viewer como proxy para evitar bloqueos de X-Frame-Options
-  const googleViewerUrl = isPdf 
-    ? `https://docs.google.com/viewer?url=${encodeURIComponent(content.url)}&embedded=true`
-    : null;
+  // Obtener URL del visor
+  const viewerUrl = getViewerUrl(content.url, tipo);
 
   const handleOpenExternal = () => {
     window.open(content.url, '_blank');
@@ -35,8 +39,8 @@ export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
     setHasError(true);
   };
 
-  // Renderizado para PDFs
-  if (isPdf) {
+  // Renderizado para contenido embebible (Google Docs, Slides, Sheets, PDFs)
+  if (isEmbeddable && viewerUrl) {
     return (
       <div className="space-y-4">
         {/* Indicador de carga */}
@@ -59,15 +63,15 @@ export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
           </Alert>
         )}
 
-        {/* Visor de PDF con Google Docs Viewer */}
-        {!hasError && googleViewerUrl && (
+        {/* Visor embebido */}
+        {!hasError && (
           <div 
             className={`aspect-[4/5] bg-muted rounded-lg overflow-hidden border ${isLoading ? 'hidden' : 'block'}`}
           >
             <iframe
-              src={googleViewerUrl}
+              src={viewerUrl}
               className="w-full h-full"
-              title={content.nombre_archivo || 'Documento PDF'}
+              title={content.nombre_archivo || 'Documento'}
               onLoad={handleIframeLoad}
               onError={handleIframeError}
               allow="autoplay"
@@ -81,18 +85,20 @@ export function DocumentViewer({ content, onComplete }: DocumentViewerProps) {
             <ExternalLink className="h-4 w-4 mr-2" />
             Abrir en nueva pestaña
           </Button>
-          <Button variant="outline" asChild>
-            <a href={content.url} download>
-              <Download className="h-4 w-4 mr-2" />
-              Descargar
-            </a>
-          </Button>
+          {!isGoogleContent && (
+            <Button variant="outline" asChild>
+              <a href={content.url} download>
+                <Download className="h-4 w-4 mr-2" />
+                Descargar
+              </a>
+            </Button>
+          )}
         </div>
       </div>
     );
   }
 
-  // Para otros tipos de documento (Word, PowerPoint, Excel)
+  // Fallback para otros tipos de documento (Word, PowerPoint, Excel)
   return (
     <div className="bg-muted/50 rounded-lg p-8 text-center space-y-4">
       <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center">
