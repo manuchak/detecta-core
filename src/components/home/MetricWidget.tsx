@@ -3,16 +3,18 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 interface MetricWidgetProps {
   label: string;
   value: number | string;
+  subtext?: string;
   trend?: number;
   trendDirection?: 'up' | 'down' | 'neutral';
   isLoading?: boolean;
   index?: number;
-  isContext?: boolean; // Indica si es un widget de contexto del sistema
+  isContext?: boolean;
 }
 
 export const MetricWidget = ({
   label,
   value,
+  subtext,
   trend,
   trendDirection,
   isLoading,
@@ -56,7 +58,20 @@ export const MetricWidget = ({
           {label}
         </p>
         
-        {trend !== undefined && !hasTrendInValue && (
+        {/* Show subtext with context if available */}
+        {subtext && (
+          <p className={`
+            text-xs mt-1
+            ${trendDirection === 'up' ? 'text-success' : 
+              trendDirection === 'down' ? 'text-destructive' : 
+              'text-muted-foreground'}
+          `}>
+            {subtext}
+          </p>
+        )}
+        
+        {/* Show trend indicator only if no subtext and trend exists */}
+        {!subtext && trend !== undefined && !hasTrendInValue && (
           <div className={`
             flex items-center justify-center gap-1 text-xs font-medium
             ${trendDirection === 'up' ? 'text-success' : 
@@ -69,7 +84,7 @@ export const MetricWidget = ({
         )}
         
         {/* Show trend icon for values that contain trend but without duplicate percentage */}
-        {hasTrendInValue && trendDirection && (
+        {!subtext && hasTrendInValue && trendDirection && (
           <div className={`
             flex items-center justify-center text-xs font-medium
             ${trendDirection === 'up' ? 'text-success' : 
