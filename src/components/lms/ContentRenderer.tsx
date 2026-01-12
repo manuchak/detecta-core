@@ -16,6 +16,10 @@ interface ContentRendererProps {
     quiz_mejor_puntaje?: number;
     quiz_respuestas?: RespuestaQuiz[];
   };
+  progresoVideo?: {
+    video_posicion_seg?: number;
+    video_porcentaje_visto?: number;
+  };
   onComplete?: () => void;
   onVideoProgress?: (posicion: number, porcentaje: number) => void;
   initialVideoPosition?: number;
@@ -25,11 +29,12 @@ export function ContentRenderer({
   contenido, 
   inscripcionId,
   progresoQuiz,
+  progresoVideo,
   onComplete,
   onVideoProgress,
   initialVideoPosition
 }: ContentRendererProps) {
-  const { tipo, contenido: data } = contenido;
+  const { tipo, contenido: data, duracion_min } = contenido;
 
   switch (tipo) {
     case 'video':
@@ -39,6 +44,10 @@ export function ContentRenderer({
           onComplete={onComplete}
           onProgress={onVideoProgress}
           initialPosition={initialVideoPosition}
+          initialMaxViewed={progresoVideo?.video_porcentaje_visto ? 
+            ((progresoVideo.video_porcentaje_visto / 100) * ((data as VideoContent).duracion_segundos || duracion_min * 60)) : 0
+          }
+          duracionMinutos={duracion_min}
         />
       );
 
