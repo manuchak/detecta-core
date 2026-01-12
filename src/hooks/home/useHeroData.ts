@@ -4,6 +4,7 @@ import type { HeroType } from '@/config/roleHomeConfig';
 
 interface HeroData {
   count: number;
+  formattedValue?: string;
   trend?: number;
   trendDirection?: 'up' | 'down' | 'neutral';
 }
@@ -159,6 +160,115 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         
         const total = data?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
         return { count: Math.round(total) };
+      }
+
+      case 'monthlyTrend': {
+        // Fetch current month GMV
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const nextMonth = new Date(startOfMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        const { data: currentData, error: currentError } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .lt('fecha_hora_cita', nextMonth.toISOString())
+          .in('estado', ['completado', 'finalizado', 'Finalizado', 'Completado'])
+          .gt('cobro_cliente', 0);
+        
+        if (currentError) throw currentError;
+        
+        // Fetch previous month GMV
+        const startOfPrevMonth = new Date(startOfMonth);
+        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
+        
+        const { data: prevData, error: prevError } = await supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente')
+          .gte('fecha_hora_cita', startOfPrevMonth.toISOString())
+          .lt('fecha_hora_cita', startOfMonth.toISOString())
+          .in('estado', ['completado', 'finalizado', 'Finalizado', 'Completado'])
+          .gt('cobro_cliente', 0);
+        
+        if (prevError) throw prevError;
+        
+        const currentTotal = currentData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        const prevTotal = prevData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        
+        const variation = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
+        
+        // Format value
+        let formattedValue: string;
+        if (currentTotal >= 1000000) {
+          formattedValue = `$${(currentTotal / 1000000).toFixed(1)}M`;
+        } else if (currentTotal >= 1000) {
+          formattedValue = `$${Math.round(currentTotal / 1000)}K`;
+        } else {
+          formattedValue = `$${currentTotal.toLocaleString()}`;
+        }
+        
+        return { 
+          count: Math.round(currentTotal),
+          formattedValue,
+          trend: variation,
+          trendDirection: variation > 0 ? 'up' : variation < 0 ? 'down' : 'neutral'
+        };
+      }
+
+      case 'businessHealth': {
+        // Composite score: GMV performance + capacity utilization + completion rate
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        // Get services data
+        const { data: services } = await supabase
+          .from('servicios_custodia')
+          .select('estado, nombre_custodio, cobro_cliente')
+          .gte('fecha_hora_cita', startOfMonth.toISOString())
+          .neq('estado', 'Cancelado');
+        
+        if (!services || services.length === 0) {
+          return { count: 0, formattedValue: '0%' };
+        }
+        
+        // Completion rate (40% weight)
+        const completed = services.filter(s => 
+          ['completado', 'finalizado', 'Finalizado', 'Completado'].includes(s.estado || '')
+        ).length;
+        const completionScore = services.length > 0 ? (completed / services.length) * 100 : 0;
+        
+        // Capacity utilization (30% weight) - services with custodians assigned
+        const assigned = services.filter(s => s.nombre_custodio).length;
+        const utilizationScore = services.length > 0 ? (assigned / services.length) * 100 : 0;
+        
+        // Revenue health (30% weight) - simplified
+        const totalRevenue = services.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+        const avgRevenue = services.length > 0 ? totalRevenue / services.length : 0;
+        const revenueScore = Math.min(100, (avgRevenue / 5000) * 100); // Baseline $5000 avg
+        
+        const healthScore = Math.round(
+          (completionScore * 0.4) + (utilizationScore * 0.3) + (revenueScore * 0.3)
+        );
+        
+        return { 
+          count: healthScore, 
+          formattedValue: `${healthScore}%`,
+          trendDirection: healthScore >= 80 ? 'up' : healthScore >= 60 ? 'neutral' : 'down'
+        };
+      }
+
+      case 'criticalAlerts': {
+        const { count, error } = await supabase
+          .from('alertas_sistema_nacional')
+          .select('*', { count: 'exact', head: true })
+          .eq('estado', 'pendiente')
+          .gte('prioridad', 8); // High priority alerts
+        
+        if (error) throw error;
+        return { count: count || 0 };
       }
 
       case 'openTickets': {

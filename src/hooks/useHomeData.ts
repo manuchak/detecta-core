@@ -8,7 +8,10 @@ interface UseHomeDataResult {
   hero: {
     title: string;
     description: string;
-    value: number;
+    value: number | string;
+    formattedValue?: string;
+    trend?: number;
+    trendDirection?: 'up' | 'down' | 'neutral';
     cta: { label: string; route: string };
     icon: any;
     urgency: 'normal' | 'warning' | 'critical';
@@ -17,11 +20,15 @@ interface UseHomeDataResult {
   widgets: Array<{
     label: string;
     value: number | string;
+    trend?: number;
+    trendDirection?: 'up' | 'down' | 'neutral';
     isLoading: boolean;
   }>;
   contextWidgets: Array<{
     label: string;
     value: number | string;
+    trend?: number;
+    trendDirection?: 'up' | 'down' | 'neutral';
     isLoading: boolean;
   }>;
   modules: ModuleConfig[];
@@ -79,7 +86,10 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
     const hero = config.hero ? {
       title: config.hero.title,
       description: config.hero.description,
-      value: heroQuery.data?.count || 0,
+      value: heroQuery.data?.formattedValue || heroQuery.data?.count || 0,
+      formattedValue: heroQuery.data?.formattedValue,
+      trend: heroQuery.data?.trend,
+      trendDirection: heroQuery.data?.trendDirection,
       cta: config.hero.cta,
       icon: config.hero.icon,
       urgency: getUrgencyLevel(
@@ -93,6 +103,8 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
     const contextWidgets = (config.contextWidgets || []).map((w, i) => ({
       label: w.label,
       value: contextQueries[i]?.data?.value ?? 0,
+      trend: contextQueries[i]?.data?.trend,
+      trendDirection: contextQueries[i]?.data?.trendDirection,
       isLoading: contextQueries[i]?.isLoading ?? false,
     }));
 
