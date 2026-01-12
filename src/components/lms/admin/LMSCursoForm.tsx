@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Save, Loader2, ImagePlus } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ImageUploader } from "./wizard/ImageUploader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -200,23 +200,13 @@ export function LMSCursoForm({ curso, onBack, onSuccess }: LMSCursoFormProps) {
                 name="imagen_portada_url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL de imagen de portada</FormLabel>
+                    <FormLabel>Imagen de portada</FormLabel>
                     <FormControl>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="https://ejemplo.com/imagen.jpg" 
-                          {...field}
-                          value={field.value || ''}
-                        />
-                        {field.value && (
-                          <img 
-                            src={field.value} 
-                            alt="Preview" 
-                            className="w-10 h-10 object-cover rounded"
-                            onError={(e) => (e.currentTarget.style.display = 'none')}
-                          />
-                        )}
-                      </div>
+                      <ImageUploader
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        courseTitle={form.watch("titulo")}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
