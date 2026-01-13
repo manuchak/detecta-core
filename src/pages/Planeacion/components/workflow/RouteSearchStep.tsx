@@ -558,7 +558,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
                     <SelectTrigger className={`h-12 ${origen ? 'form-field-completed' : 'form-field-required'}`}>
                       <SelectValue placeholder="Seleccionar origen..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       {origenesConFrecuencia.map((origenData) => (
                         <SelectItem key={origenData.origen} value={origenData.origen}>
                           <div className="flex items-center justify-between w-full">
@@ -614,7 +614,7 @@ export function RouteSearchStep({ onComplete, initialDraft, onDraftChange }: Rou
                             : "Seleccionar destino..."
                       } />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       {isLoadingDestinos ? (
                         <div className="p-4 text-center text-sm text-muted-foreground">
                           <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
