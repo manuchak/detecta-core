@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { XCircle } from 'lucide-react';
+import { XCircle, AlertTriangle, CalendarX, UserX, Copy, HelpCircle, MapPinOff, Loader2 } from 'lucide-react';
 
-// Predefined cancellation reasons - "Cancelado por cliente" allows cancelling started services
+// Predefined cancellation reasons with icons - "Cancelado por cliente" allows cancelling started services
 const CANCEL_REASONS = [
-  { value: 'cliente_cancelo', label: 'Cancelado por cliente', allowsStartedCancellation: true },
-  { value: 'posicionamiento_falso', label: 'Posicionamiento en Falso', allowsStartedCancellation: true, requiresFalsePositioningFlow: true },
-  { value: 'cambio_fecha', label: 'Cambio de fecha/hora', allowsStartedCancellation: false },
-  { value: 'falta_disponibilidad', label: 'Falta de disponibilidad', allowsStartedCancellation: false },
-  { value: 'error_datos', label: 'Error en datos del servicio', allowsStartedCancellation: false },
-  { value: 'duplicado', label: 'Servicio duplicado', allowsStartedCancellation: false },
-  { value: 'otro', label: 'Otro motivo', allowsStartedCancellation: false },
+  { value: 'cliente_cancelo', label: 'Cancelado por cliente', allowsStartedCancellation: true, icon: UserX },
+  { value: 'posicionamiento_falso', label: 'Posicionamiento en Falso', allowsStartedCancellation: true, requiresFalsePositioningFlow: true, icon: MapPinOff },
+  { value: 'cambio_fecha', label: 'Cambio de fecha/hora', allowsStartedCancellation: false, icon: CalendarX },
+  { value: 'falta_disponibilidad', label: 'Falta de disponibilidad', allowsStartedCancellation: false, icon: AlertTriangle },
+  { value: 'error_datos', label: 'Error en datos del servicio', allowsStartedCancellation: false, icon: HelpCircle },
+  { value: 'duplicado', label: 'Servicio duplicado', allowsStartedCancellation: false, icon: Copy },
+  { value: 'otro', label: 'Otro motivo', allowsStartedCancellation: false, icon: HelpCircle },
 ] as const;
 
 interface CancelServiceButtonProps {
@@ -22,7 +22,7 @@ interface CancelServiceButtonProps {
   onCancel: (serviceId: string, reason?: string) => Promise<void>;
   disabled?: boolean;
   className?: string;
-  serviceStarted?: boolean; // Optional: indicate if service has started
+  serviceStarted?: boolean;
 }
 
 export function CancelServiceButton({ 
@@ -33,26 +33,31 @@ export function CancelServiceButton({
   className = "",
   serviceStarted = false
 }: CancelServiceButtonProps) {
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [open, setOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [customReason, setCustomReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Set body flag when dialog opens/closes
   useEffect(() => {
-    if (showConfirmDialog) {
+    if (open) {
       document.body.dataset.dialogOpen = "1";
     } else {
-      setTimeout(() => delete document.body.dataset.dialogOpen, 150);
+      // Delay removal to allow animations to complete
+      const timeout = setTimeout(() => {
+        delete document.body.dataset.dialogOpen;
+      }, 200);
+      return () => clearTimeout(timeout);
     }
-  }, [showConfirmDialog]);
+  }, [open]);
 
   // Reset state when dialog closes
   useEffect(() => {
-    if (!showConfirmDialog) {
+    if (!open) {
       setSelectedReason('');
       setCustomReason('');
     }
-  }, [showConfirmDialog]);
+  }, [open]);
 
   const selectedReasonConfig = CANCEL_REASONS.find(r => r.value === selectedReason);
   const canCancelStarted = selectedReasonConfig?.allowsStartedCancellation ?? false;
@@ -60,8 +65,7 @@ export function CancelServiceButton({
   // If service started, only allow cancellation with specific reasons
   const canProceed = selectedReason && (!serviceStarted || canCancelStarted);
 
-  const getFinalReason = () => {
-    // For false positioning, return the value to trigger special flow
+  const getFinalReason = useCallback(() => {
     if (selectedReason === 'posicionamiento_falso') {
       return 'posicionamiento_falso';
     }
@@ -70,7 +74,7 @@ export function CancelServiceButton({
     }
     const reason = CANCEL_REASONS.find(r => r.value === selectedReason);
     return reason?.label || selectedReason;
-  };
+  }, [selectedReason, customReason]);
 
   const handleCancel = async () => {
     if (!canProceed) return;
@@ -78,7 +82,7 @@ export function CancelServiceButton({
     setIsProcessing(true);
     try {
       await onCancel(serviceId, getFinalReason());
-      setShowConfirmDialog(false);
+      setOpen(false);
     } catch (error) {
       console.error('Error cancelling service:', error);
     } finally {
@@ -86,10 +90,16 @@ export function CancelServiceButton({
     }
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleTriggerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowConfirmDialog(true);
+    e.preventDefault();
+    setOpen(true);
   };
+
+  // Handlers to prevent event propagation from dialog
+  const stopAllEvents = useCallback((e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  }, []);
 
   return (
     <>
@@ -97,30 +107,53 @@ export function CancelServiceButton({
         variant="ghost"
         size="sm"
         disabled={disabled}
-        onClick={handleClick}
-        className={`apple-button-ghost-small hover:bg-destructive/10 transition-opacity ${
-          showConfirmDialog ? 'opacity-100 pointer-events-auto' : 'opacity-0 group-hover:opacity-100'
-        } ${className}`}
+        onClick={handleTriggerClick}
+        className={`h-7 w-7 p-0 opacity-60 hover:opacity-100 hover:bg-destructive/10 transition-all ${className}`}
+        title="Cancelar servicio"
       >
         <XCircle className="h-3.5 w-3.5 text-destructive" />
       </Button>
 
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent 
-          className="apple-card max-w-md"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-          onEscapeKeyDown={(e) => e.stopPropagation()}
+      <Dialog open={open} onOpenChange={setOpen} modal={true}>
+        <DialogContent 
+          className="apple-card max-w-md z-[200]"
+          onClick={stopAllEvents}
+          onPointerDown={stopAllEvents}
+          onPointerUp={stopAllEvents}
+          onPointerMove={stopAllEvents}
+          onMouseDown={stopAllEvents}
+          onMouseUp={stopAllEvents}
+          onMouseMove={stopAllEvents}
+          onPointerDownOutside={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onInteractOutside={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onEscapeKeyDown={(e) => {
+            e.stopPropagation();
+            setOpen(false);
+          }}
+          onFocusOutside={(e) => {
+            e.preventDefault();
+          }}
         >
-          <AlertDialogHeader className="space-y-3">
-            <AlertDialogTitle className="apple-text-headline text-foreground">
-              ¿Cancelar servicio?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="apple-text-body text-muted-foreground">
-              Se cancelará el servicio para <strong>{serviceName}</strong>. 
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <DialogTitle className="apple-text-headline text-foreground">
+                ¿Cancelar servicio?
+              </DialogTitle>
+            </div>
+            <DialogDescription className="apple-text-body text-muted-foreground">
+              Se cancelará el servicio para <strong className="text-foreground">{serviceName}</strong>. 
               Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </DialogDescription>
+          </DialogHeader>
           
           <div className="py-4 space-y-4">
             {/* Reason selector */}
@@ -132,24 +165,30 @@ export function CancelServiceButton({
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecciona un motivo..." />
                 </SelectTrigger>
-                <SelectContent>
-                  {CANCEL_REASONS.map((reason) => (
-                    <SelectItem key={reason.value} value={reason.value}>
-                      {reason.label}
-                      {reason.allowsStartedCancellation && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          (permite cancelar iniciados)
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="z-[250]">
+                  {CANCEL_REASONS.map((reason) => {
+                    const Icon = reason.icon;
+                    return (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4 text-muted-foreground" />
+                          <span>{reason.label}</span>
+                          {reason.allowsStartedCancellation && (
+                            <span className="text-[10px] text-muted-foreground ml-1">
+                              (iniciados)
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Custom reason text area - only show when "Otro" is selected */}
             {selectedReason === 'otro' && (
-              <div className="space-y-2">
+              <div className="space-y-2 animate-fade-in">
                 <label htmlFor="custom-reason" className="apple-text-caption text-muted-foreground block">
                   Especificar motivo
                 </label>
@@ -159,41 +198,58 @@ export function CancelServiceButton({
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
                   className="apple-input resize-none h-20"
+                  onClick={stopAllEvents}
+                  onPointerDown={stopAllEvents}
                 />
               </div>
             )}
 
             {/* Warning for started services */}
             {serviceStarted && selectedReason && !canCancelStarted && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  ⚠️ Este servicio ya inició. Solo se puede cancelar si el motivo es "Cancelado por cliente".
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 animate-fade-in">
+                <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>Este servicio ya inició. Solo se puede cancelar con motivo "Cancelado por cliente" o "Posicionamiento en Falso".</span>
                 </p>
               </div>
             )}
           </div>
 
-          <AlertDialogFooter className="space-x-2">
-            <AlertDialogCancel 
-              className="apple-button-ghost"
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button 
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+              }}
               disabled={isProcessing}
-              onClick={(e) => e.stopPropagation()}
+              className="apple-button-ghost"
             >
               Mantener servicio
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </Button>
+            <Button
               onClick={(e) => {
                 e.stopPropagation();
                 handleCancel();
               }}
               disabled={isProcessing || !canProceed}
-              className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+              className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 gap-2"
             >
-              {isProcessing ? 'Cancelando...' : 'Confirmar cancelación'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4" />
+                  Confirmar cancelación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

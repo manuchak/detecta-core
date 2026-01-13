@@ -63,8 +63,14 @@ export function ScheduledServicesTab() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => {
-      // Don't update if any dialog is open - prevents popup jumping
-      if (document.body.dataset.dialogOpen === "1") return;
+      // Enhanced dialog detection - prevents popup jumping
+      const hasDialogFlag = document.body.dataset.dialogOpen === "1" || 
+                           document.body.dataset.dialogTransitioning === "1";
+      const hasOpenDialog = !!document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+      );
+      
+      if (hasDialogFlag || hasOpenDialog) return;
       setNow(new Date());
     }, 60000); // Update every minute
     return () => clearInterval(interval);

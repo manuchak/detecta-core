@@ -29,9 +29,17 @@ export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow
   const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
 
-  // Update time every second
+  // Update time every second - with dialog protection
   useEffect(() => {
     const timer = setInterval(() => {
+      // Don't update if any dialog is open - prevents popup jumping
+      const hasDialogFlag = document.body.dataset.dialogOpen === "1" || 
+                           document.body.dataset.dialogTransitioning === "1";
+      const hasOpenDialog = !!document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+      );
+      
+      if (hasDialogFlag || hasOpenDialog) return;
       setCurrentTime(new Date().toLocaleTimeString('es-ES'));
     }, 1000);
     return () => clearInterval(timer);
