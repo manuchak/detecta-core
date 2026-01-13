@@ -504,9 +504,9 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
   };
 
   const gadgetOptions = [
-    { id: 'candado_satelital', label: 'Candado Satelital', description: 'Dispositivo de bloqueo con rastreo GPS' },
-    { id: 'gps_portatil', label: 'GPS Portátil', description: 'Dispositivo de rastreo portátil' },
-    { id: 'gps_portatil_caja_imantada', label: 'GPS Portátil con Caja Imantada', description: 'GPS portátil con instalación magnética' }
+    { id: 'candado_satelital', label: 'Candado Satelital', description: 'Dispositivo de bloqueo con rastreo GPS', allowMultiple: true, maxQuantity: 5 },
+    { id: 'gps_portatil', label: 'GPS Portátil', description: 'Dispositivo de rastreo portátil', allowMultiple: true, maxQuantity: 10 },
+    { id: 'gps_portatil_caja_imantada', label: 'GPS Portátil con Caja Imantada', description: 'GPS portátil con instalación magnética', allowMultiple: false, maxQuantity: 1 }
   ];
 
   const handleGadgetCantidadChange = (gadgetId: string, cantidad: number) => {
