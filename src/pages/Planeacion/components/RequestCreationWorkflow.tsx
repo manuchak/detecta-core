@@ -126,6 +126,23 @@ export function RequestCreationWorkflow() {
     autoSaveInterval: 30000, // ✅ OPTIMIZADO: Auto-save every 30 seconds (mejor performance)
     saveOnChangeDebounceMs: 1000, // ✅ OPTIMIZADO: Save 1s after changes (reduce writes)
     isMeaningfulDraft: (data) => {
+      // ✅ FIX: Validate consistency - if step requires route, routeData must be valid
+      const stepRequiresRoute = ['service', 'assignment', 'armed_assignment', 'final_confirmation'];
+      
+      if (stepRequiresRoute.includes(data.currentStep)) {
+        // If step requires route, draft is only meaningful if routeData is valid
+        const hasValidRoute = data.routeData && 
+          data.routeData.cliente_nombre && 
+          data.routeData.cliente_nombre.trim().length >= 3 &&
+          data.routeData.origen_texto &&
+          data.routeData.destino_texto;
+        
+        if (!hasValidRoute) {
+          console.log('⚠️ [isMeaningfulDraft] Draft in advanced step without valid routeData - not meaningful');
+          return false;
+        }
+      }
+      
       // A draft is meaningful if:
       // - Any step draft has content, or
       // - Actual step data exists, or
@@ -200,6 +217,44 @@ export function RequestCreationWorkflow() {
 
   // CRITICAL: UI State Hydration - Sync UI states when persistedData changes
   // 🆕 MEJORADO: Ahora también considera borradores parciales
+  // ✅ FIX: Validate state consistency before hydrating
+  const validateStateConsistency = useCallback((data: typeof persistedData): boolean => {
+    // If step requires route, routeData MUST exist and be valid
+    const stepRequiresRoute = ['service', 'assignment', 'armed_assignment', 'final_confirmation'];
+    
+    if (stepRequiresRoute.includes(data.currentStep)) {
+      const hasValidRoute = data.routeData && 
+        data.routeData.cliente_nombre && 
+        data.routeData.cliente_nombre.trim().length >= 3 &&
+        data.routeData.origen_texto && 
+        data.routeData.destino_texto;
+      
+      if (!hasValidRoute) {
+        console.warn('⚠️ Inconsistent state: currentStep requires route but routeData is invalid', {
+          currentStep: data.currentStep,
+          routeData: data.routeData
+        });
+        return false;
+      }
+    }
+    
+    // If step requires service, serviceData MUST exist
+    const stepRequiresService = ['assignment', 'armed_assignment', 'final_confirmation'];
+    
+    if (stepRequiresService.includes(data.currentStep)) {
+      const hasValidService = data.serviceData && 
+        data.serviceData.servicio_id && 
+        data.serviceData.fecha_programada;
+      
+      if (!hasValidService) {
+        console.warn('⚠️ Inconsistent state: currentStep requires service but serviceData is invalid');
+        return false;
+      }
+    }
+    
+    return true;
+  }, []);
+
   useEffect(() => {
     // 🆕 NEW: Skip if bypass flag is set (after "start fresh")
     if (skipHydrationRef.current) {
@@ -210,6 +265,15 @@ export function RequestCreationWorkflow() {
     
     // Skip if restoring (handled by auto-restore effect)
     if (isRestoring) return;
+    
+    // ✅ FIX: Validate consistency before hydrating
+    const isConsistent = validateStateConsistency(persistedData);
+    
+    if (!isConsistent) {
+      console.warn('⚠️ [RequestCreationWorkflow] Persisted state inconsistent - resetting to route');
+      // Don't hydrate inconsistent state
+      return;
+    }
     
     // 🆕 MEJORADO: Contar progreso incluyendo borradores
     const persistedProgress = countMeaningfulProgress(
@@ -560,12 +624,9 @@ export function RequestCreationWorkflow() {
   const currentlyNeedsArmed = serviceData?.incluye_armado === true;
   const hasArmedAssignment = armedAssignmentData !== null;
 
-  // Auto-advance cuando se completen los pasos
-  useEffect(() => {
-    if (currentStep === 'route' && canProceedToService) {
-      setCurrentStep('service');
-    }
-  }, [canProceedToService, currentStep]);
+  // ✅ FIX: REMOVED auto-advance useEffect
+  // The transition to 'service' must be EXPLICIT via handleRouteComplete only.
+  // Auto-advance caused conflicts with draft hydration and jumped the user unexpectedly.
 
   const handleRouteComplete = (data: RouteData) => {
     setRouteData(data);
@@ -1036,7 +1097,8 @@ export function RequestCreationWorkflow() {
           />
         )}
         
-        {currentStep === 'service' && routeData && (
+        {/* ✅ FIX: Strengthen render condition - require valid route fields */}
+        {currentStep === 'service' && routeData && routeData.cliente_nombre && routeData.origen_texto && routeData.destino_texto ? (
           <ServiceAutoFillStep 
             routeData={routeData}
             onComplete={handleServiceComplete}
@@ -1062,7 +1124,21 @@ export function RequestCreationWorkflow() {
               });
             }}
           />
-        )}
+        ) : currentStep === 'service' && (!routeData || !routeData.cliente_nombre || !routeData.origen_texto) ? (
+          // ✅ FIX: Fallback UI when state is inconsistent
+          <Card className="border-warning bg-warning/5">
+            <CardContent className="p-6 text-center">
+              <MapPin className="h-12 w-12 mx-auto text-warning mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Datos de ruta incompletos</h3>
+              <p className="text-muted-foreground mb-4">
+                No se encontró información completa de la ruta seleccionada. Por favor, regresa al paso anterior.
+              </p>
+              <Button onClick={() => setCurrentStep('route')} variant="outline">
+                Volver a Búsqueda de Ruta
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
         
         {currentStep === 'assignment' && serviceData && (
           <CustodianAssignmentStep 
