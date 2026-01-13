@@ -119,12 +119,12 @@ export function CancelServiceButton({
           <DialogOverlay className="fixed inset-0 z-[200] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
           <div
             className="fixed left-[50%] top-[50%] z-[200] w-full max-w-md -translate-x-1/2 -translate-y-1/2 p-4"
-            onClick={stopAllEvents}
-            onPointerDown={stopAllEvents}
-            onPointerUp={stopAllEvents}
-            onMouseDown={stopAllEvents}
           >
-            <div className="apple-card p-6 shadow-lg">
+            <div 
+              className="apple-card p-6 shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <DialogHeader className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
