@@ -208,7 +208,19 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fuente_tabla: 'servicios_planificados'
       }));
 
-      const allResults = [...custodiaResults, ...planificadosResults];
+      // ✅ Deduplicar: priorizar servicios_custodia sobre servicios_planificados
+      // Si un id_servicio existe en custodia, excluirlo de planificados
+      const custodiaIds = new Set(
+        custodiaResults
+          .map(s => s.id_servicio?.toUpperCase())
+          .filter(Boolean)
+      );
+      
+      const planificadosSinDuplicados = planificadosResults.filter(
+        s => !custodiaIds.has(s.id_servicio?.toUpperCase())
+      );
+
+      const allResults = [...custodiaResults, ...planificadosSinDuplicados];
       setResults(allResults);
 
       if (allResults.length === 0) {
@@ -395,7 +407,18 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         fuente_tabla: 'servicios_planificados'
       }));
 
-      const allResults = [...custodiaResults, ...planificadosResults];
+      // ✅ Deduplicar: priorizar servicios_custodia sobre servicios_planificados
+      const custodiaIds = new Set(
+        custodiaResults
+          .map(s => s.id_servicio?.toUpperCase())
+          .filter(Boolean)
+      );
+      
+      const planificadosSinDuplicados = planificadosResults.filter(
+        s => !custodiaIds.has(s.id_servicio?.toUpperCase())
+      );
+
+      const allResults = [...custodiaResults, ...planificadosSinDuplicados];
       setResults(allResults);
 
       if (allResults.length === 0) {
