@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogPortal, DialogOverlay, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { XCircle, AlertTriangle, CalendarX, UserX, Copy, HelpCircle, MapPinOff, Loader2 } from 'lucide-react';
@@ -115,140 +115,127 @@ export function CancelServiceButton({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen} modal={true}>
-        <DialogContent 
-          className="apple-card max-w-md z-[200]"
-          onClick={stopAllEvents}
-          onPointerDown={stopAllEvents}
-          onPointerUp={stopAllEvents}
-          onPointerMove={stopAllEvents}
-          onMouseDown={stopAllEvents}
-          onMouseUp={stopAllEvents}
-          onMouseMove={stopAllEvents}
-          onPointerDownOutside={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onInteractOutside={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onEscapeKeyDown={(e) => {
-            e.stopPropagation();
-            setOpen(false);
-          }}
-          onFocusOutside={(e) => {
-            e.preventDefault();
-          }}
-        >
-          <DialogHeader className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <DialogTitle className="apple-text-headline text-foreground">
-                ¿Cancelar servicio?
-              </DialogTitle>
-            </div>
-            <DialogDescription className="apple-text-body text-muted-foreground">
-              Se cancelará el servicio para <strong className="text-foreground">{serviceName}</strong>. 
-              Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            {/* Reason selector */}
-            <div className="space-y-2">
-              <label className="apple-text-caption text-muted-foreground block">
-                Motivo de cancelación <span className="text-destructive">*</span>
-              </label>
-              <Select value={selectedReason} onValueChange={setSelectedReason}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona un motivo..." />
-                </SelectTrigger>
-                <SelectContent className="z-[250]">
-                  {CANCEL_REASONS.map((reason) => {
-                    const Icon = reason.icon;
-                    return (
-                      <SelectItem key={reason.value} value={reason.value}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-muted-foreground" />
-                          <span>{reason.label}</span>
-                          {reason.allowsStartedCancellation && (
-                            <span className="text-[10px] text-muted-foreground ml-1">
-                              (iniciados)
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
+        <DialogPortal container={document.body}>
+          <DialogOverlay className="fixed inset-0 z-[200] bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+          <div
+            className="fixed left-[50%] top-[50%] z-[200] w-full max-w-md -translate-x-1/2 -translate-y-1/2 p-4"
+            onClick={stopAllEvents}
+            onPointerDown={stopAllEvents}
+            onPointerUp={stopAllEvents}
+            onMouseDown={stopAllEvents}
+          >
+            <div className="apple-card p-6 shadow-lg">
+              <DialogHeader className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </div>
+                  <DialogTitle className="apple-text-headline text-foreground">
+                    ¿Cancelar servicio?
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="apple-text-body text-muted-foreground">
+                  Se cancelará el servicio para <strong className="text-foreground">{serviceName}</strong>. 
+                  Esta acción no se puede deshacer.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4 space-y-4">
+                {/* Reason selector */}
+                <div className="space-y-2">
+                  <label className="apple-text-caption text-muted-foreground block">
+                    Motivo de cancelación <span className="text-destructive">*</span>
+                  </label>
+                  <Select value={selectedReason} onValueChange={setSelectedReason}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un motivo..." />
+                    </SelectTrigger>
+                    <SelectContent className="z-[250]">
+                      {CANCEL_REASONS.map((reason) => {
+                        const Icon = reason.icon;
+                        return (
+                          <SelectItem key={reason.value} value={reason.value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="w-4 h-4 text-muted-foreground" />
+                              <span>{reason.label}</span>
+                              {reason.allowsStartedCancellation && (
+                                <span className="text-[10px] text-muted-foreground ml-1">
+                                  (iniciados)
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Custom reason text area - only show when "Otro" is selected */}
-            {selectedReason === 'otro' && (
-              <div className="space-y-2 animate-fade-in">
-                <label htmlFor="custom-reason" className="apple-text-caption text-muted-foreground block">
-                  Especificar motivo
-                </label>
-                <Textarea
-                  id="custom-reason"
-                  placeholder="Describe el motivo de cancelación..."
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  className="apple-input resize-none h-20"
-                  onClick={stopAllEvents}
-                  onPointerDown={stopAllEvents}
-                />
-              </div>
-            )}
+                {/* Custom reason text area - only show when "Otro" is selected */}
+                {selectedReason === 'otro' && (
+                  <div className="space-y-2 animate-fade-in">
+                    <label htmlFor="custom-reason" className="apple-text-caption text-muted-foreground block">
+                      Especificar motivo
+                    </label>
+                    <Textarea
+                      id="custom-reason"
+                      placeholder="Describe el motivo de cancelación..."
+                      value={customReason}
+                      onChange={(e) => setCustomReason(e.target.value)}
+                      className="apple-input resize-none h-20"
+                      onClick={stopAllEvents}
+                      onPointerDown={stopAllEvents}
+                    />
+                  </div>
+                )}
 
-            {/* Warning for started services */}
-            {serviceStarted && selectedReason && !canCancelStarted && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 animate-fade-in">
-                <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>Este servicio ya inició. Solo se puede cancelar con motivo "Cancelado por cliente" o "Posicionamiento en Falso".</span>
-                </p>
+                {/* Warning for started services */}
+                {serviceStarted && selectedReason && !canCancelStarted && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 animate-fade-in">
+                    <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <span>Este servicio ya inició. Solo se puede cancelar con motivo "Cancelado por cliente" o "Posicionamiento en Falso".</span>
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen(false);
+                  }}
+                  disabled={isProcessing}
+                  className="apple-button-ghost"
+                >
+                  Mantener servicio
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancel();
+                  }}
+                  disabled={isProcessing || !canProceed}
+                  className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 gap-2"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" />
+                      Confirmar cancelación
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </div>
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button 
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(false);
-              }}
-              disabled={isProcessing}
-              className="apple-button-ghost"
-            >
-              Mantener servicio
-            </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCancel();
-              }}
-              disabled={isProcessing || !canProceed}
-              className="apple-button-primary bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 gap-2"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cancelando...
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4" />
-                  Confirmar cancelación
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        </DialogPortal>
       </Dialog>
     </>
   );
