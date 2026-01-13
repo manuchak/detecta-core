@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw, XCircle, Loader2, Building2 } from 'lucide-react';
+import { Calendar, Clock, Shield, Settings, CheckCircle, ArrowLeft, Cpu, MapPin, DollarSign, AlertTriangle, User, RefreshCw, XCircle, Loader2 } from 'lucide-react';
 import { GadgetQuantitySelector } from '@/components/planeacion/GadgetQuantitySelector';
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -100,10 +100,6 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
     .map(([tipo, cantidad]) => ({ tipo, cantidad }));
   const totalGadgets = gadgetsCantidadesArray.reduce((sum, g) => sum + g.cantidad, 0);
   
-  // Sprint 3: Tipo de cliente (Empresarial o Persona Física)
-  const [tipoCliente, setTipoCliente] = useState<'empresarial' | 'persona_fisica'>(
-    initialDraft?.tipo_cliente || 'empresarial'
-  );
   
   // Campos de recepción de solicitud (auto-llenados con fecha/hora actual)
   const [fechaRecepcion, setFechaRecepcion] = useState(
@@ -442,18 +438,13 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       return;
     }
 
-    // Sprint 3: Add PF prefix if persona física
-    const finalTipoServicio = tipoCliente === 'persona_fisica' 
-      ? `pf_${tipoServicio}` 
-      : tipoServicio;
-
     const serviceData: ServiceData = {
       ...routeData,
       servicio_id: servicioId.trim(),
       id_interno_cliente: idInternoCliente.trim() || undefined,
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
-      tipo_servicio: finalTipoServicio,
+      tipo_servicio: tipoServicio,
       incluye_armado: incluyeArmado,
       requiere_gadgets: gadgetsSeleccionados.length > 0,
       gadgets_seleccionados: gadgetsSeleccionados,
@@ -477,18 +468,13 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
       return;
     }
 
-    // Sprint 3: Add PF prefix if persona física
-    const finalTipoServicio = tipoCliente === 'persona_fisica' 
-      ? `pf_${tipoServicio}` 
-      : tipoServicio;
-
     const serviceData: ServiceData = {
       ...routeData,
       servicio_id: servicioId.trim(),
       id_interno_cliente: idInternoCliente.trim() || undefined,
       fecha_programada: fechaProgramada,
       hora_ventana_inicio: horaInicio,
-      tipo_servicio: finalTipoServicio,
+      tipo_servicio: tipoServicio,
       incluye_armado: incluyeArmado,
       requiere_gadgets: gadgetsSeleccionados.length > 0,
       gadgets_seleccionados: gadgetsSeleccionados,
@@ -882,48 +868,6 @@ export function ServiceAutoFillStep({ routeData, onComplete, onSaveAsPending, on
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Sprint 3: Tipo de Cliente (Empresarial/PF) */}
-            <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="space-y-1">
-                <Label className="flex items-center gap-2">
-                  {tipoCliente === 'persona_fisica' ? (
-                    <User className="h-4 w-4 text-purple-600" />
-                  ) : (
-                    <Building2 className="h-4 w-4" />
-                  )}
-                  Tipo de Cliente
-                </Label>
-                <div className="text-sm text-muted-foreground">
-                  {tipoCliente === 'persona_fisica' 
-                    ? 'Servicio para persona física (PF)'
-                    : 'Servicio para cliente empresarial'
-                  }
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={tipoCliente === 'empresarial' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTipoCliente('empresarial')}
-                  className="h-8"
-                >
-                  <Building2 className="h-3 w-3 mr-1" />
-                  Empresarial
-                </Button>
-                <Button
-                  type="button"
-                  variant={tipoCliente === 'persona_fisica' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTipoCliente('persona_fisica')}
-                  className={tipoCliente === 'persona_fisica' ? 'h-8 bg-purple-600 hover:bg-purple-700' : 'h-8'}
-                >
-                  <User className="h-3 w-3 mr-1" />
-                  PF
-                </Button>
-              </div>
             </div>
 
             {/* Armed Service Switch */}
