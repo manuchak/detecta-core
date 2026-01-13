@@ -2,13 +2,16 @@ import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Minus, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Minus, Plus, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GadgetOption {
   id: string;
   label: string;
   description: string;
+  allowMultiple?: boolean;
+  maxQuantity?: number;
 }
 
 interface GadgetQuantitySelectorProps {
@@ -22,9 +25,11 @@ export function GadgetQuantitySelector({
   gadget, 
   cantidad, 
   onCantidadChange,
-  maxQuantity = 10 
+  maxQuantity: propMaxQuantity
 }: GadgetQuantitySelectorProps) {
   const isSelected = cantidad > 0;
+  const allowMultiple = gadget.allowMultiple ?? true;
+  const effectiveMaxQuantity = gadget.maxQuantity ?? propMaxQuantity ?? 10;
 
   const handleToggle = (checked: boolean) => {
     onCantidadChange(checked ? 1 : 0);
@@ -43,7 +48,7 @@ export function GadgetQuantitySelector({
   const handleIncrement = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (cantidad < maxQuantity) {
+    if (cantidad < effectiveMaxQuantity) {
       onCantidadChange(cantidad + 1);
     }
   };
@@ -65,23 +70,32 @@ export function GadgetQuantitySelector({
           className="mt-0.5"
         />
         <div className="space-y-1 flex-1">
-          <Label 
-            htmlFor={gadget.id} 
-            className={cn(
-              "text-sm font-medium cursor-pointer",
-              isSelected && "text-primary"
+          <div className="flex items-center gap-2">
+            <Label 
+              htmlFor={gadget.id} 
+              className={cn(
+                "text-sm font-medium cursor-pointer",
+                isSelected && "text-primary"
+              )}
+            >
+              {gadget.label}
+            </Label>
+            {/* Badge indicating multiple units allowed */}
+            {allowMultiple && !isSelected && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground border-muted-foreground/30">
+                <Layers className="h-2.5 w-2.5 mr-0.5" />
+                Múltiples
+              </Badge>
             )}
-          >
-            {gadget.label}
-          </Label>
+          </div>
           <div className="text-xs text-muted-foreground">
             {gadget.description}
           </div>
         </div>
       </div>
 
-      {/* Quantity Stepper - Only show when selected */}
-      {isSelected && (
+      {/* Quantity Stepper - Show when selected AND allows multiple */}
+      {isSelected && allowMultiple && (
         <div className="flex items-center gap-1 ml-4">
           <Button
             type="button"
@@ -104,10 +118,17 @@ export function GadgetQuantitySelector({
             size="icon"
             className="h-7 w-7"
             onClick={handleIncrement}
-            disabled={cantidad >= maxQuantity}
+            disabled={cantidad >= effectiveMaxQuantity}
           >
             <Plus className="h-3 w-3" />
           </Button>
+        </div>
+      )}
+
+      {/* Hint for multiple when not selected */}
+      {!isSelected && allowMultiple && (
+        <div className="flex items-center gap-1 ml-4 opacity-40">
+          <span className="text-xs text-muted-foreground tabular-nums">×1-{effectiveMaxQuantity}</span>
         </div>
       )}
     </div>
