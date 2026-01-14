@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { MapPin, ArrowDown, Loader2 } from 'lucide-react';
+import { MapPin, ArrowDown, Loader2, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { SmartOriginSelect } from '../components/SmartOriginSelect';
 import { SmartDestinationSelect } from '../components/SmartDestinationSelect';
 
@@ -13,7 +12,6 @@ interface LocationSubStepProps {
   onDestinoChange: (destino: string) => void;
   onSearchPrice: () => void;
   isSearchingPrice: boolean;
-  onContinue: () => void;
 }
 
 export function LocationSubStep({
@@ -23,8 +21,7 @@ export function LocationSubStep({
   onOrigenChange,
   onDestinoChange,
   onSearchPrice,
-  isSearchingPrice,
-  onContinue
+  isSearchingPrice
 }: LocationSubStepProps) {
   
   // Auto-trigger price search when both fields are complete
@@ -94,12 +91,11 @@ export function LocationSubStep({
           </div>
         )}
 
-        {/* Continue button */}
+        {/* Ready indicator - navigation handled by footer */}
         {isComplete && !isSearchingPrice && (
-          <div className="flex justify-end pt-2">
-            <Button onClick={onContinue}>
-              Continuar
-            </Button>
+          <div className="flex items-center justify-center gap-2 text-sm text-green-600 dark:text-green-400 py-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+            <CheckCircle className="h-4 w-4" />
+            <span>Ruta seleccionada — usa "Continuar" abajo</span>
           </div>
         )}
 
