@@ -25,25 +25,25 @@ export function QuickStats({ categorized, isLoading }: QuickStatsProps) {
 
   const stats = [
     {
-      count: categorized?.disponibles.length || 0,
+      count: categorized?.disponibles?.length ?? 0,
       label: 'Disponibles',
       icon: '🟢',
       color: 'text-green-600 dark:text-green-400',
     },
     {
-      count: categorized?.parcialmenteOcupados.length || 0,
+      count: categorized?.parcialmenteOcupados?.length ?? 0,
       label: 'Parciales',
       icon: '🟡',
       color: 'text-yellow-600 dark:text-yellow-400',
     },
     {
-      count: categorized?.ocupados.length || 0,
+      count: categorized?.ocupados?.length ?? 0,
       label: 'Ocupados',
       icon: '🟠',
       color: 'text-orange-600 dark:text-orange-400',
     },
     {
-      count: categorized?.noDisponibles.length || 0,
+      count: categorized?.noDisponibles?.length ?? 0,
       label: 'Con conflicto',
       icon: '⚠️',
       color: 'text-red-600 dark:text-red-400',
