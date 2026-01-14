@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
-import { useRouteSubSteps, PricingResult } from './hooks/useRouteSubSteps';
+import { useRouteSubSteps, PricingResult, RouteSubStepState } from './hooks/useRouteSubSteps';
 import { usePricingSearch } from './hooks/usePricingSearch';
 import { RouteSubStepIndicator } from './RouteSubStepIndicator';
 import { ClientSearchSubStep } from './substeps/ClientSearchSubStep';
@@ -11,7 +11,21 @@ import { PricingSubStep } from './substeps/PricingSubStep';
 import { RouteConfirmSubStep } from './substeps/RouteConfirmSubStep';
 
 export default function RouteStep() {
-  const { updateFormData, nextStep } = useServiceCreation();
+  const { formData, updateFormData, nextStep } = useServiceCreation();
+  
+  // Build initial state from persisted formData
+  const initialRouteState: Partial<RouteSubStepState> = {
+    currentSubStep: formData.routeSubStep || 'client',
+    cliente: formData.cliente || '',
+    clienteId: formData.clienteId || '',
+    isNewClient: formData.isNewClient || false,
+    origen: formData.origen || '',
+    destino: formData.destino || '',
+    pricingResult: formData.pricingResult || null,
+    matchType: formData.matchType || null,
+    isNewRoute: formData.isNewRoute || false,
+  };
+  
   const {
     state,
     goToSubStep,
@@ -27,7 +41,32 @@ export default function RouteStep() {
     setIsNewRoute,
     isSubStepComplete,
     canNavigateToSubStep,
-  } = useRouteSubSteps();
+    getStateForPersistence,
+  } = useRouteSubSteps(initialRouteState);
+
+  // Sync state changes back to context for persistence
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    // Skip first render to avoid unnecessary updates
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    const persistableState = getStateForPersistence();
+    updateFormData({
+      routeSubStep: persistableState.currentSubStep,
+      cliente: persistableState.cliente,
+      clienteId: persistableState.clienteId,
+      isNewClient: persistableState.isNewClient,
+      origen: persistableState.origen,
+      destino: persistableState.destino,
+      pricingResult: persistableState.pricingResult,
+      matchType: persistableState.matchType,
+      isNewRoute: persistableState.isNewRoute,
+    });
+  }, [state.currentSubStep, state.cliente, state.clienteId, state.isNewClient,
+      state.origen, state.destino, state.pricingResult, state.matchType, state.isNewRoute]);
 
   // Pricing search hook
   const {

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 export type RouteSubStep = 'client' | 'location' | 'pricing' | 'confirm';
 
@@ -55,8 +55,45 @@ const INITIAL_STATE: RouteSubStepState = {
   isNewRoute: false,
 };
 
-export function useRouteSubSteps() {
-  const [state, setState] = useState<RouteSubStepState>(INITIAL_STATE);
+// Validate hydrated state to prevent inconsistent states
+function validateHydratedState(state: Partial<RouteSubStepState>): Partial<RouteSubStepState> {
+  const validated = { ...state };
+  
+  // If in 'location' but no client, go back to 'client'
+  if (validated.currentSubStep === 'location' && !validated.cliente) {
+    validated.currentSubStep = 'client';
+  }
+  // If in 'pricing' but missing client/origen/destino, go back appropriately
+  if (validated.currentSubStep === 'pricing') {
+    if (!validated.cliente) {
+      validated.currentSubStep = 'client';
+    } else if (!validated.origen || !validated.destino) {
+      validated.currentSubStep = 'location';
+    }
+  }
+  // If in 'confirm' but no pricingResult, go back to 'pricing'
+  if (validated.currentSubStep === 'confirm' && !validated.pricingResult) {
+    if (!validated.cliente) {
+      validated.currentSubStep = 'client';
+    } else if (!validated.origen || !validated.destino) {
+      validated.currentSubStep = 'location';
+    } else {
+      validated.currentSubStep = 'pricing';
+    }
+  }
+  
+  return validated;
+}
+
+export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
+  // Validate and merge initial state
+  const validatedInitial = useMemo(() => {
+    if (!initialState) return INITIAL_STATE;
+    const validated = validateHydratedState(initialState);
+    return { ...INITIAL_STATE, ...validated };
+  }, []);
+  
+  const [state, setState] = useState<RouteSubStepState>(validatedInitial);
 
   const goToSubStep = useCallback((step: RouteSubStep) => {
     setState(prev => ({ ...prev, currentSubStep: step }));
@@ -181,6 +218,20 @@ export function useRouteSubSteps() {
     return true;
   }, [state.currentSubStep, isSubStepComplete]);
 
+  // Get state for persistence (serializable subset)
+  const getStateForPersistence = useCallback(() => ({
+    currentSubStep: state.currentSubStep,
+    cliente: state.cliente,
+    clienteId: state.clienteId,
+    isNewClient: state.isNewClient,
+    origen: state.origen,
+    destino: state.destino,
+    pricingResult: state.pricingResult,
+    matchType: state.matchType,
+    isNewRoute: state.isNewRoute,
+  }), [state.currentSubStep, state.cliente, state.clienteId, state.isNewClient, 
+      state.origen, state.destino, state.pricingResult, state.matchType, state.isNewRoute]);
+
   return {
     state,
     subStepOrder: SUB_STEP_ORDER,
@@ -200,5 +251,6 @@ export function useRouteSubSteps() {
     getSubStepIndex,
     isSubStepComplete,
     canNavigateToSubStep,
+    getStateForPersistence,
   };
 }

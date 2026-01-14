@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -78,7 +79,26 @@ function ServiceCreationContent() {
 export default function ServiceCreationLayout() {
   return (
     <ServiceCreationProvider>
-      <ServiceCreationContent />
+      <ServiceCreationContentWithAutoSave />
     </ServiceCreationProvider>
   );
+}
+
+// Wrapper to handle auto-save on page unload
+function ServiceCreationContentWithAutoSave() {
+  const { hasUnsavedChanges, saveDraft } = useServiceCreation();
+  
+  // Auto-save draft when leaving the page
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasUnsavedChanges) {
+        saveDraft();
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges, saveDraft]);
+  
+  return <ServiceCreationContent />;
 }
