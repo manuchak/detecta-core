@@ -1,11 +1,13 @@
 /**
  * CustodianStep - Phase 3 of Service Creation
  * Modular custodian selection with search, filters, and communication tracking
+ * Includes keyboard shortcuts for faster navigation
  */
 
-import { useState, useMemo } from 'react';
-import { User, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { User, ArrowLeft, ArrowRight, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useCustodiosConProximidad } from '@/hooks/useProximidadOperacional';
 import { useCustodianStepLogic } from './hooks/useCustodianStepLogic';
@@ -49,6 +51,62 @@ export default function CustodianStep() {
            categorized.parcialmenteOcupados.length + 
            categorized.ocupados.length;
   }, [categorized]);
+
+  // Ref for keyboard navigation
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture if user is typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          actions.setHighlightedIndex(
+            Math.min(state.highlightedIndex + 1, filteredCustodians.length - 1)
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          actions.setHighlightedIndex(Math.max(state.highlightedIndex - 1, 0));
+          break;
+        case 'Enter':
+          if (state.highlightedIndex >= 0 && filteredCustodians[state.highlightedIndex]) {
+            e.preventDefault();
+            actions.selectCustodian(filteredCustodians[state.highlightedIndex]);
+          }
+          break;
+        case 'w':
+        case 'W':
+          if (state.highlightedIndex >= 0 && filteredCustodians[state.highlightedIndex]) {
+            e.preventDefault();
+            handleContact(filteredCustodians[state.highlightedIndex], 'whatsapp');
+          }
+          break;
+        case 'l':
+        case 'L':
+          if (state.highlightedIndex >= 0 && filteredCustodians[state.highlightedIndex]) {
+            e.preventDefault();
+            handleContact(filteredCustodians[state.highlightedIndex], 'llamada');
+          }
+          break;
+        case '?':
+          setShowShortcuts(prev => !prev);
+          break;
+        case 'Escape':
+          if (showShortcuts) setShowShortcuts(false);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.highlightedIndex, filteredCustodians, actions, showShortcuts]);
   
   // Dialog states
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -105,17 +163,53 @@ export default function CustodianStep() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={containerRef}>
       {/* Header */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-semibold flex items-center gap-2">
-          <User className="h-6 w-6 text-primary" />
-          Asignar Custodio
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            <User className="h-6 w-6 text-primary" />
+            Asignar Custodio
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground"
+            onClick={() => setShowShortcuts(!showShortcuts)}
+          >
+            <Keyboard className="h-3.5 w-3.5" />
+            Atajos
+          </Button>
+        </div>
         <p className="text-muted-foreground">
           Selecciona y contacta al custodio disponible para este servicio
         </p>
       </div>
+
+      {/* Keyboard shortcuts help */}
+      {showShortcuts && (
+        <div className="p-3 rounded-lg bg-muted/50 border text-sm space-y-1">
+          <div className="font-medium text-xs text-muted-foreground mb-2">ATAJOS DE TECLADO</div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">↑↓</Badge>
+              <span className="text-muted-foreground">Navegar lista</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">Enter</Badge>
+              <span className="text-muted-foreground">Seleccionar</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">W</Badge>
+              <span className="text-muted-foreground">WhatsApp</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-mono text-xs">L</Badge>
+              <span className="text-muted-foreground">Llamar</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <QuickStats categorized={categorized} isLoading={isLoading} />

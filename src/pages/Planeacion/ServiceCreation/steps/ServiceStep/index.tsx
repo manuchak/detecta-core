@@ -1,12 +1,16 @@
 /**
  * ServiceStep - Second step in service creation workflow
  * Modular architecture with timezone-safe date handling
+ * Includes prefetch of custodians for faster next step
  */
 
+import { useEffect, useMemo } from 'react';
 import { Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useServiceStepLogic } from './hooks/useServiceStepLogic';
+import { supabase } from '@/integrations/supabase/client';
 
 // Components
 import { RouteSummary } from './components/RouteSummary';
@@ -60,6 +64,34 @@ export default function ServiceStep() {
     // Constants
     SERVICE_TYPE_OPTIONS,
   } = useServiceStepLogic();
+
+  const queryClient = useQueryClient();
+
+  // Prefetch custodians when service step has valid date/time
+  // This speeds up the next step by loading data in background
+  useEffect(() => {
+    if (canContinue && fecha && hora && formData.origen) {
+      const stableKey = [
+        fecha,
+        hora,
+        formData.origen || formData.cliente || '',
+        formData.destino || '',
+        tipoServicio || 'custodia',
+        requiereArmado || false,
+      ];
+      
+      // Prefetch custodians data
+      queryClient.prefetchQuery({
+        queryKey: ['custodios-con-proximidad-equitativo', ...stableKey],
+        queryFn: async () => {
+          console.log('🔄 Prefetching custodians for next step...');
+          const { data } = await supabase.rpc('get_custodios_activos_disponibles');
+          return data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      });
+    }
+  }, [canContinue, fecha, hora, formData.origen, formData.destino, formData.cliente, tipoServicio, requiereArmado, queryClient]);
 
   const handleContinue = () => {
     markStepCompleted('service');
