@@ -1,0 +1,84 @@
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import ServiceCreationSidebar from './ServiceCreationSidebar';
+import ServicePreviewCard from './ServicePreviewCard';
+import { useServiceCreation, ServiceCreationProvider } from './hooks/useServiceCreation';
+
+// Step components (placeholders for now)
+import RouteStepPlaceholder from './steps/RouteStep';
+import ServiceStepPlaceholder from './steps/ServiceStep';
+import CustodianStepPlaceholder from './steps/CustodianStep';
+import ArmedStepPlaceholder from './steps/ArmedStep';
+import ConfirmationStepPlaceholder from './steps/ConfirmationStep';
+
+function ServiceCreationContent() {
+  const navigate = useNavigate();
+  const { currentStep, formData, completedSteps } = useServiceCreation();
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 'route':
+        return <RouteStepPlaceholder />;
+      case 'service':
+        return <ServiceStepPlaceholder />;
+      case 'custodian':
+        return <CustodianStepPlaceholder />;
+      case 'armed':
+        return <ArmedStepPlaceholder />;
+      case 'confirmation':
+        return <ConfirmationStepPlaceholder />;
+      default:
+        return <RouteStepPlaceholder />;
+    }
+  };
+
+  return (
+    <div className="min-h-[calc(100vh-4rem)] bg-muted/30">
+      {/* Header */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+        <div className="container flex h-14 items-center gap-4 px-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/planeacion')}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a Planeación
+          </Button>
+          <div className="h-4 w-px bg-border" />
+          <h1 className="text-lg font-semibold">Crear Nuevo Servicio</h1>
+        </div>
+      </div>
+
+      {/* Main content grid */}
+      <div className="container px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          {/* Sidebar */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-20 space-y-4">
+              <ServiceCreationSidebar />
+              <ServicePreviewCard />
+            </div>
+          </aside>
+
+          {/* Main content */}
+          <main className="min-w-0">
+            <div className="apple-card p-6">
+              {renderCurrentStep()}
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ServiceCreationLayout() {
+  return (
+    <ServiceCreationProvider>
+      <ServiceCreationContent />
+    </ServiceCreationProvider>
+  );
+}
