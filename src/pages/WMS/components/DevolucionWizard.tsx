@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
@@ -6,6 +6,8 @@ import { useDevolucionesProveedor } from '@/hooks/useDevolucionesProveedor';
 import { useSerialesProducto } from '@/hooks/useSerialesProducto';
 import { Dialog, DialogContent, DialogHeader as DxHeader, DialogTitle as DxTitle, DialogDescription as DxDesc } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 import { toast } from 'sonner';
 
 interface DevolucionWizardProps {
@@ -23,6 +25,24 @@ interface ItemSeleccionado {
   seriales?: string[]; // IDs de productos_serie
   serialNumeros?: string[]; // Para mostrar
 }
+
+interface DevolucionWizardState {
+  step: number;
+  numeroRMA: string;
+  proveedorId: string;
+  notas: string;
+  query: string;
+  seleccion: Record<string, ItemSeleccionado>;
+}
+
+const initialState: DevolucionWizardState = {
+  step: 1,
+  numeroRMA: '',
+  proveedorId: '',
+  notas: '',
+  query: '',
+  seleccion: {},
+};
 
 const PasoIndicator = ({ step }: { step: number }) => {
   const steps = [
@@ -48,12 +68,48 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
   const { productos } = useProductosInventario();
   const { crearDevolucion, agregarDetalle } = useDevolucionesProveedor();
 
-  const [step, setStep] = useState(1);
-  const [numeroRMA, setNumeroRMA] = useState('');
-  const [proveedorId, setProveedorId] = useState('');
-  const [notas, setNotas] = useState('');
-  const [query, setQuery] = useState('');
-  const [seleccion, setSeleccion] = useState<Record<string, ItemSeleccionado>>({});
+  // Persistence hook
+  const persistence = useFormPersistence<DevolucionWizardState>({
+    key: 'wms_devolucion_wizard',
+    initialData: initialState,
+    level: 'standard',
+    isMeaningful: (data) => Object.keys(data.seleccion).length > 0 || !!data.numeroRMA || !!data.proveedorId,
+    calculateProgress: (data) => {
+      let score = 0;
+      if (data.numeroRMA || data.proveedorId) score += 20;
+      if (Object.keys(data.seleccion).length > 0) score += 40;
+      if (data.step >= 3) score += 20;
+      if (data.step >= 4) score += 20;
+      return score;
+    },
+  });
+
+  const { data: wizardState, updateData, hasDraft, hasUnsavedChanges, lastSaved, getTimeSinceSave, clearDraft, restoreDraft } = persistence;
+
+  const step = wizardState.step;
+  const numeroRMA = wizardState.numeroRMA;
+  const proveedorId = wizardState.proveedorId;
+  const notas = wizardState.notas;
+  const query = wizardState.query;
+  const seleccion = wizardState.seleccion;
+
+  const setStep = useCallback((s: number | ((prev: number) => number)) => {
+    const newStep = typeof s === 'function' ? s(wizardState.step) : s;
+    updateData({ step: newStep });
+  }, [updateData, wizardState.step]);
+
+  const setNumeroRMA = useCallback((v: string) => updateData({ numeroRMA: v }), [updateData]);
+  const setProveedorId = useCallback((v: string) => updateData({ proveedorId: v }), [updateData]);
+  const setNotas = useCallback((v: string) => updateData({ notas: v }), [updateData]);
+  const setQuery = useCallback((v: string) => updateData({ query: v }), [updateData]);
+  const setSeleccion = useCallback((s: Record<string, ItemSeleccionado> | ((prev: Record<string, ItemSeleccionado>) => Record<string, ItemSeleccionado>)) => {
+    if (typeof s === 'function') {
+      updateData({ seleccion: s(wizardState.seleccion) });
+    } else {
+      updateData({ seleccion: s });
+    }
+  }, [updateData, wizardState.seleccion]);
+
   const selectedArray = useMemo(() => Object.values(seleccion), [seleccion]);
 
   // Seriales modal
@@ -90,17 +146,16 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
     setSerialModalProduct(null);
   };
 
+  // Restore draft when opening
   useEffect(() => {
-    if (!open) {
-      // Reset al cerrar
-      setStep(1);
-      setNumeroRMA('');
-      setProveedorId('');
-      setNotas('');
-      setQuery('');
-      setSeleccion({});
+    if (open && hasDraft) {
+      restoreDraft();
     }
-  }, [open]);
+    if (!open) {
+      setSerialModalProduct(null);
+      setSerialTemp([]);
+    }
+  }, [open, hasDraft, restoreDraft]);
 
   const productosFiltrados = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -186,20 +241,40 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
       }
 
       toast.success('Devolución creada con detalles');
+      // Clear draft on successful submit
+      clearDraft(true);
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message || 'Error al crear devolución');
     }
   };
 
+  const handleClose = async () => {
+    if (hasUnsavedChanges && selectedArray.length > 0) {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+      clearDraft(true);
+    }
+    onOpenChange(false);
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent side="right" className="sm:max-w-3xl w-full">
         <div className="flex items-center justify-between mb-4">
           <SheetHeader>
             <SheetTitle>Nueva devolución (RMA)</SheetTitle>
           </SheetHeader>
-          <PasoIndicator step={step} />
+          <div className="flex items-center gap-4">
+            <DraftIndicator 
+              hasDraft={hasDraft} 
+              hasUnsavedChanges={hasUnsavedChanges} 
+              lastSaved={lastSaved} 
+              getTimeSinceSave={getTimeSinceSave}
+              variant="minimal"
+            />
+            <PasoIndicator step={step} />
+          </div>
         </div>
 
         {step === 1 && (
@@ -219,7 +294,7 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
               <textarea value={notas} onChange={e=>setNotas(e.target.value)} className="mt-1 w-full border rounded-md p-3 bg-background" rows={4} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={handleClose}>Cancelar</Button>
               <Button onClick={goNext} disabled={!canNextFromPaso1}>Continuar</Button>
             </div>
           </div>
