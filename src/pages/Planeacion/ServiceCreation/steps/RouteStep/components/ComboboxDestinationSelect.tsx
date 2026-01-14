@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { MapPin, Loader2, Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useDestinosFromPricing } from '@/hooks/useClientesFromPricing';
+import { LocationTemplateInput } from './LocationTemplateInput';
 
 interface ComboboxDestinationSelectProps {
   clienteNombre: string;
@@ -38,7 +39,8 @@ export function ComboboxDestinationSelect({
 }: ComboboxDestinationSelectProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
+  const [pendingNewValue, setPendingNewValue] = useState('');
   
   // Don't fetch destinations if origen is new (won't find any)
   const { data: destinos = [], isLoading } = useDestinosFromPricing(
@@ -82,13 +84,30 @@ export function ComboboxDestinationSelect({
     setOpen(false);
   };
 
-  const handleSelectManual = () => {
-    const trimmed = inputValue.trim().toUpperCase();
-    if (trimmed) {
-      onDestinoSelect(trimmed, true);
-      setInputValue('');
-      setOpen(false);
-    }
+  const handleInitiateManualEntry = () => {
+    // Instead of accepting raw text, show the template input
+    setPendingNewValue(inputValue.trim());
+    setShowTemplateInput(true);
+    setOpen(false);
+  };
+
+  const handleTemplateConfirm = (formattedLocation: string) => {
+    onDestinoSelect(formattedLocation, true);
+    setShowTemplateInput(false);
+    setPendingNewValue('');
+    setInputValue('');
+  };
+
+  const handleTemplateCancel = () => {
+    setShowTemplateInput(false);
+    setPendingNewValue('');
+    setOpen(true);
+  };
+
+  const handleUseExisting = (location: string) => {
+    onDestinoSelect(location, false);
+    setShowTemplateInput(false);
+    setPendingNewValue('');
   };
 
   const hasDestinos = sortedDestinos.length > 0;
@@ -102,6 +121,26 @@ export function ComboboxDestinationSelect({
     if (!hasDestinos && !isLoading) return "No hay destinos registrados, escribe uno nuevo";
     return null;
   };
+
+  // If showing template input, render that instead of combobox
+  if (showTemplateInput) {
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-destructive" />
+          Destino
+        </label>
+        <LocationTemplateInput
+          initialValue={pendingNewValue}
+          existingLocations={sortedDestinos}
+          onConfirm={handleTemplateConfirm}
+          onCancel={handleTemplateCancel}
+          onUseExisting={handleUseExisting}
+          type="destino"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -145,7 +184,6 @@ export function ComboboxDestinationSelect({
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[200]" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              ref={inputRef}
               placeholder="Buscar o escribir destino..."
               value={inputValue}
               onValueChange={setInputValue}
@@ -154,13 +192,13 @@ export function ComboboxDestinationSelect({
               {/* Manual entry option - always at top when there's text */}
               {showManualOption && (
                 <>
-                  <CommandGroup heading="Usar texto escrito">
+                  <CommandGroup heading="Crear nuevo destino">
                     <CommandItem
-                      onSelect={handleSelectManual}
+                      onSelect={handleInitiateManualEntry}
                       className="cursor-pointer"
                     >
                       <Plus className="mr-2 h-4 w-4 text-primary" />
-                      <span className="flex-1">Usar: "{inputValue.trim().toUpperCase()}"</span>
+                      <span className="flex-1">Crear: "{inputValue.trim().toUpperCase()}"</span>
                       <Badge variant="secondary" className="ml-2 text-xs">
                         Nuevo
                       </Badge>
