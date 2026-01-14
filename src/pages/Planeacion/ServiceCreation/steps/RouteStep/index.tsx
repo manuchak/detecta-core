@@ -82,11 +82,6 @@ export default function RouteStep() {
     handleSearchPrice();
   }, [clearPricing, handleSearchPrice]);
 
-  // Handle create route button (legacy - now handled by inline form)
-  const handleCreateRoute = useCallback(() => {
-    // This is now handled by the inline form in PricingSubStep
-    console.log('Create route for:', state.cliente, state.origen, state.destino);
-  }, [state.cliente, state.origen, state.destino]);
 
   // Handle route created from inline form
   const handleRouteCreated = useCallback((result: PricingResult) => {
@@ -159,7 +154,6 @@ export default function RouteStep() {
             matchType={matchType}
             onConfirm={handlePricingConfirm}
             onRetry={handleRetrySearch}
-            onCreateRoute={handleCreateRoute}
             onRouteCreated={handleRouteCreated}
           />
         );
@@ -204,8 +198,8 @@ export default function RouteStep() {
         onSubStepClick={goToSubStep}
       />
 
-      {/* Current substep content */}
-      <div className="min-h-[300px]">
+      {/* Current substep content with transition */}
+      <div className="min-h-[300px] transition-all duration-300 ease-in-out">
         {renderSubStep()}
       </div>
 

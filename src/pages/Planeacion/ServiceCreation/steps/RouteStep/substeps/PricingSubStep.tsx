@@ -16,7 +16,6 @@ interface PricingSubStepProps {
   matchType: MatchType;
   onConfirm: () => void;
   onRetry: () => void;
-  onCreateRoute: () => void;
   onRouteCreated?: (result: PricingResult) => void;
 }
 
@@ -30,7 +29,6 @@ export function PricingSubStep({
   matchType,
   onConfirm,
   onRetry,
-  onCreateRoute,
   onRouteCreated
 }: PricingSubStepProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
