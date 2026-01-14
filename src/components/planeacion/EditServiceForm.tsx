@@ -13,6 +13,8 @@ import { buildCDMXTimestamp, formatCDMXTime, getCDMXDate } from '@/utils/cdmxTim
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 // Hook personalizado para debouncing
 function useDebounce<T>(value: T, delay: number): T {
@@ -106,22 +108,52 @@ export function EditServiceForm({
   const [isValidatingId, setIsValidatingId] = useState(false);
   const debouncedServiceId = useDebounce(serviceIdInput, 800);
 
+  // Persistence for edit form - keyed by service ID
+  const persistenceKey = service ? `edit-service-${service.id}` : 'edit-service-temp';
+  const persistence = useFormPersistence<Partial<EditableService>>({
+    key: persistenceKey,
+    initialData: {},
+    level: 'standard',
+    enabled: !!service,
+    isMeaningful: (data) => Object.keys(data).length > 0,
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+    debounceMs: 800,
+  });
+
+  // Sync formData with persistence
+  useEffect(() => {
+    if (service && hasChanges) {
+      persistence.updateData(formData);
+    }
+  }, [formData, hasChanges, service]);
+
   // Initialize form data when service changes
   useEffect(() => {
     if (service) {
-      setFormData({
-        id_servicio: service.id_servicio,
-        id_interno_cliente: service.id_interno_cliente || '',
-        nombre_cliente: service.nombre_cliente,
-        origen: service.origen,
-        destino: service.destino,
-        fecha_hora_cita: service.fecha_hora_cita,
-        tipo_servicio: service.tipo_servicio,
-        requiere_armado: service.requiere_armado,
-        observaciones: service.observaciones || ''
-      });
-      setServiceIdInput(service.id_servicio);
-      setHasChanges(false);
+      // Check if we have a persisted draft for this service
+      const persistedDraft = persistence.hasDraft ? persistence.data : null;
+      
+      if (persistedDraft && Object.keys(persistedDraft).length > 0 && persistedDraft.id_servicio === service.id_servicio) {
+        // Restore from draft
+        setFormData(persistedDraft);
+        setServiceIdInput(persistedDraft.id_servicio || service.id_servicio);
+        setHasChanges(true);
+      } else {
+        // Initialize from service
+        setFormData({
+          id_servicio: service.id_servicio,
+          id_interno_cliente: service.id_interno_cliente || '',
+          nombre_cliente: service.nombre_cliente,
+          origen: service.origen,
+          destino: service.destino,
+          fecha_hora_cita: service.fecha_hora_cita,
+          tipo_servicio: service.tipo_servicio,
+          requiere_armado: service.requiere_armado,
+          observaciones: service.observaciones || ''
+        });
+        setServiceIdInput(service.id_servicio);
+        setHasChanges(false);
+      }
       setRequiresArmadoChanged(false);
     }
   }, [service]);
@@ -327,6 +359,9 @@ export function EditServiceForm({
       }
       
       await onSave(service.id, formData);
+      
+      // Clear draft on successful save
+      persistence.clearDraft(true);
       setValidationErrors({});
     } catch (error) {
       console.error('Error saving service:', error);
@@ -334,10 +369,11 @@ export function EditServiceForm({
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (hasChanges) {
-      const confirm = window.confirm('¿Estás seguro de descartar los cambios?');
-      if (!confirm) return;
+      const shouldDiscard = await persistence.confirmDiscard();
+      if (!shouldDiscard) return;
+      persistence.clearDraft(true);
     }
     onCancel();
   };
