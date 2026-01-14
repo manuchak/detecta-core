@@ -3,6 +3,27 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export type StepId = 'route' | 'service' | 'custodian' | 'armed' | 'confirmation';
+export type RouteSubStep = 'client' | 'location' | 'pricing' | 'confirm';
+export type MatchType = 'exact' | 'flexible' | 'destination-only' | null;
+
+export interface PricingResultData {
+  id?: string;
+  cliente_nombre: string;
+  origen_texto: string;
+  destino_texto: string;
+  precio_sugerido: number | null;
+  precio_custodio: number | null;
+  pago_custodio_sin_arma?: number | null;
+  costo_operativo?: number | null;
+  margen_estimado?: number | null;
+  distancia_km: number | null;
+  tipo_servicio: string | null;
+  incluye_armado?: boolean;
+  es_ruta_reparto: boolean;
+  puntos_intermedios?: string[] | null;
+  numero_paradas?: number;
+  ruta_encontrada?: string;
+}
 
 export interface ServiceFormData {
   // Route step
@@ -12,6 +33,13 @@ export interface ServiceFormData {
   destino: string;
   precioCotizado: number | null;
   routeData: any; // Full route/pricing data
+  
+  // RouteStep internal state (for persistence)
+  routeSubStep: RouteSubStep;
+  isNewClient: boolean;
+  pricingResult: PricingResultData | null;
+  matchType: MatchType;
+  isNewRoute: boolean;
   
   // Service step
   servicioId: string;
@@ -59,6 +87,13 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   destino: '',
   precioCotizado: null,
   routeData: null,
+  // RouteStep internal state
+  routeSubStep: 'client',
+  isNewClient: false,
+  pricingResult: null,
+  matchType: null,
+  isNewRoute: false,
+  // Service step
   servicioId: '',
   idInterno: '',
   fecha: '',
