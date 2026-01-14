@@ -51,7 +51,7 @@ export function RouteConfirmSubStep({
   const matchBadge = getMatchBadge(matchType);
 
   return (
-    <Card className="border-2 border-primary/20 bg-primary/5">
+    <Card className="border-2 border-primary/20 bg-primary/5 animate-in fade-in-50 duration-300">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -60,9 +60,9 @@ export function RouteConfirmSubStep({
           </div>
           <div className="flex items-center gap-2">
             {isNewRoute && (
-              <Badge variant="default" className="gap-1">
+              <Badge className="gap-1 bg-green-600 hover:bg-green-700">
                 <Sparkles className="h-3 w-3" />
-                Nueva
+                Ruta Nueva
               </Badge>
             )}
             {matchBadge && (
