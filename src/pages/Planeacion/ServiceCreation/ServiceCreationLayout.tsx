@@ -82,15 +82,16 @@ export default function ServiceCreationLayout() {
   );
 }
 
-// Wrapper to handle auto-save on page unload
+// Wrapper to handle auto-save on page unload (beforeunload as last fallback)
+// Note: Primary autosave is now handled in useServiceCreation via visibilitychange/pagehide/debounce
 function ServiceCreationContentWithAutoSave() {
   const { hasUnsavedChanges, saveDraft } = useServiceCreation();
   
-  // Auto-save draft when leaving the page
+  // beforeunload as final fallback (visibilitychange/pagehide handle most cases)
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (hasUnsavedChanges) {
-        saveDraft();
+        saveDraft({ silent: true });
       }
     };
     

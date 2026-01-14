@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 export type RouteSubStep = 'client' | 'location' | 'pricing' | 'confirm';
 
@@ -85,15 +85,67 @@ function validateHydratedState(state: Partial<RouteSubStepState>): Partial<Route
   return validated;
 }
 
+// Calculate progress score for comparing states
+function calculateStateProgress(state: Partial<RouteSubStepState>): number {
+  let score = 0;
+  if (state.cliente) score += 1;
+  if (state.clienteId) score += 1;
+  if (state.origen) score += 1;
+  if (state.destino) score += 1;
+  if (state.pricingResult) score += 3;
+  
+  // Add score based on substep advancement
+  const stepIndex = SUB_STEP_ORDER.indexOf(state.currentSubStep || 'client');
+  score += stepIndex;
+  
+  return score;
+}
+
 export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
-  // Validate and merge initial state
+  // Track if we've done initial hydration
+  const hasHydratedRef = useRef(false);
+  const initialStateRef = useRef(initialState);
+  
+  // Compute validated initial state
   const validatedInitial = useMemo(() => {
     if (!initialState) return INITIAL_STATE;
     const validated = validateHydratedState(initialState);
     return { ...INITIAL_STATE, ...validated };
-  }, []);
+  }, []); // Empty deps - only compute once on mount
   
   const [state, setState] = useState<RouteSubStepState>(validatedInitial);
+
+  // Handle late hydration: if initialState changes after mount with MORE data, rehydrate
+  useEffect(() => {
+    // Skip if no initial state provided
+    if (!initialState) return;
+    
+    // Skip the first render (already handled by useState initial)
+    if (!hasHydratedRef.current) {
+      hasHydratedRef.current = true;
+      return;
+    }
+    
+    // Check if the new initialState has more progress than current state
+    const newProgress = calculateStateProgress(initialState);
+    const currentProgress = calculateStateProgress(state);
+    
+    // Only hydrate if new state has MORE progress (prevents loops and regression)
+    if (newProgress > currentProgress) {
+      const validated = validateHydratedState(initialState);
+      const newState = { ...INITIAL_STATE, ...validated };
+      setState(newState);
+      console.log('[useRouteSubSteps] Late hydration applied (new progress:', newProgress, '> current:', currentProgress, ')');
+    }
+  }, [
+    // Only react to meaningful changes in initialState
+    initialState?.cliente,
+    initialState?.clienteId,
+    initialState?.origen,
+    initialState?.destino,
+    initialState?.pricingResult,
+    initialState?.currentSubStep,
+  ]);
 
   const goToSubStep = useCallback((step: RouteSubStep) => {
     setState(prev => ({ ...prev, currentSubStep: step }));
@@ -185,6 +237,12 @@ export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
     setState(INITIAL_STATE);
   }, []);
 
+  // Allow external hydration (e.g., when formData is restored)
+  const hydrateState = useCallback((newState: Partial<RouteSubStepState>) => {
+    const validated = validateHydratedState(newState);
+    setState(prev => ({ ...prev, ...validated }));
+  }, []);
+
   const getSubStepIndex = useCallback((step: RouteSubStep) => {
     return SUB_STEP_ORDER.indexOf(step);
   }, []);
@@ -248,6 +306,7 @@ export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
     setMatchType,
     setIsNewRoute,
     resetState,
+    hydrateState,
     getSubStepIndex,
     isSubStepComplete,
     canNavigateToSubStep,

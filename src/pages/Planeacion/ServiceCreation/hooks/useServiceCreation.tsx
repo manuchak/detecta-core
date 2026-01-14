@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -71,7 +71,7 @@ interface ServiceCreationContextValue {
   updateFormData: (data: Partial<ServiceFormData>) => void;
   completedSteps: StepId[];
   markStepCompleted: (step: StepId) => void;
-  saveDraft: () => void;
+  saveDraft: (options?: { silent?: boolean }) => void;
   hasUnsavedChanges: boolean;
   draftId: string | null;
 }
@@ -110,6 +110,20 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   horaEncuentro: '',
 };
 
+// Calculate progress score for comparing states
+function calculateProgressScore(data: Partial<ServiceFormData>): number {
+  let score = 0;
+  if (data.cliente) score += 1;
+  if (data.clienteId) score += 1;
+  if (data.origen) score += 1;
+  if (data.destino) score += 1;
+  if (data.pricingResult) score += 3;
+  if (data.routeData) score += 2;
+  if (data.fecha) score += 1;
+  if (data.custodioId) score += 2;
+  return score;
+}
+
 export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -124,8 +138,21 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   const [completedSteps, setCompletedSteps] = useState<StepId[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftIdFromUrl);
+  const [isHydrated, setIsHydrated] = useState(false);
+  
+  // Refs to avoid stale closures in event handlers
+  const formDataRef = useRef(formData);
+  const completedStepsRef = useRef(completedSteps);
+  const draftIdRef = useRef(draftId);
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  
+  // Keep refs in sync
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+  useEffect(() => { completedStepsRef.current = completedSteps; }, [completedSteps]);
+  useEffect(() => { draftIdRef.current = draftId; }, [draftId]);
+  useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
 
-  // Sync URL with current step
+  // Sync URL with current step and draftId
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     params.set('step', currentStep);
@@ -135,22 +162,153 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     setSearchParams(params, { replace: true });
   }, [currentStep, draftId, setSearchParams]);
 
+  // Internal save function (for silent autosave)
+  const saveDraftInternal = useCallback((options?: { silent?: boolean }) => {
+    const currentFormData = formDataRef.current;
+    const currentCompletedSteps = completedStepsRef.current;
+    const currentDraftId = draftIdRef.current;
+    
+    const id = currentDraftId || crypto.randomUUID();
+    const draftData = {
+      formData: currentFormData,
+      completedSteps: currentCompletedSteps,
+      savedAt: new Date().toISOString(),
+    };
+    
+    try {
+      localStorage.setItem(`service-draft-${id}`, JSON.stringify(draftData));
+      
+      if (!currentDraftId) {
+        setDraftId(id);
+      }
+      setHasUnsavedChanges(false);
+      
+      if (!options?.silent) {
+        toast.success('Borrador guardado');
+      }
+    } catch (e) {
+      console.error('Error saving draft:', e);
+      if (!options?.silent) {
+        toast.error('Error al guardar borrador');
+      }
+    }
+  }, []);
+
   // Load draft if draftId exists in URL
   useEffect(() => {
-    if (draftIdFromUrl) {
+    if (draftIdFromUrl && !isHydrated) {
       const savedDraft = localStorage.getItem(`service-draft-${draftIdFromUrl}`);
       if (savedDraft) {
         try {
           const parsed = JSON.parse(savedDraft);
-          setFormData(parsed.formData || INITIAL_FORM_DATA);
+          const restoredFormData = parsed.formData || INITIAL_FORM_DATA;
+          
+          // Validate state consistency before restoring
+          const validatedFormData = validateFormDataConsistency(restoredFormData);
+          
+          setFormData(validatedFormData);
           setCompletedSteps(parsed.completedSteps || []);
+          setIsHydrated(true);
           toast.success('Borrador restaurado');
         } catch (e) {
           console.error('Error loading draft:', e);
+          setIsHydrated(true);
+        }
+      } else {
+        setIsHydrated(true);
+      }
+    } else if (!draftIdFromUrl) {
+      setIsHydrated(true);
+    }
+  }, [draftIdFromUrl, isHydrated]);
+
+  // Auto-create draftId on first meaningful change
+  const ensureDraftId = useCallback(() => {
+    if (!draftIdRef.current) {
+      const newId = crypto.randomUUID();
+      setDraftId(newId);
+      return newId;
+    }
+    return draftIdRef.current;
+  }, []);
+
+  // Debounced autosave effect
+  useEffect(() => {
+    if (!hasUnsavedChanges || !isHydrated) return;
+    
+    // Check if there's meaningful data to save
+    const score = calculateProgressScore(formData);
+    if (score < 1) return; // Don't save empty forms
+    
+    // Ensure we have a draft ID
+    ensureDraftId();
+    
+    const timeoutId = setTimeout(() => {
+      saveDraftInternal({ silent: true });
+    }, 800); // Debounce 800ms
+    
+    return () => clearTimeout(timeoutId);
+  }, [hasUnsavedChanges, formData, isHydrated, ensureDraftId, saveDraftInternal]);
+
+  // Visibility change handler - save when tab becomes hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && hasUnsavedChangesRef.current) {
+        const score = calculateProgressScore(formDataRef.current);
+        if (score >= 1) {
+          saveDraftInternal({ silent: true });
         }
       }
-    }
-  }, [draftIdFromUrl]);
+    };
+
+    const handlePageHide = () => {
+      if (hasUnsavedChangesRef.current) {
+        const score = calculateProgressScore(formDataRef.current);
+        if (score >= 1) {
+          saveDraftInternal({ silent: true });
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [saveDraftInternal]);
+
+  // Reconciliation when tab becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && draftIdRef.current) {
+        // Tab became visible - check if storage has newer/more complete data
+        const savedDraft = localStorage.getItem(`service-draft-${draftIdRef.current}`);
+        if (savedDraft) {
+          try {
+            const parsed = JSON.parse(savedDraft);
+            const persistedData = parsed.formData || {};
+            const persistedScore = calculateProgressScore(persistedData);
+            const localScore = calculateProgressScore(formDataRef.current);
+            
+            // Only hydrate if persisted has MORE progress (not equal, to avoid loops)
+            if (persistedScore > localScore) {
+              const validatedFormData = validateFormDataConsistency(persistedData);
+              setFormData(validatedFormData);
+              setCompletedSteps(parsed.completedSteps || []);
+              console.log('[ServiceCreation] Reconciled from storage (persisted had more progress)');
+            }
+          } catch (e) {
+            console.error('Error reconciling draft:', e);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const goToStep = useCallback((step: StepId) => {
     setCurrentStep(step);
@@ -196,19 +354,11 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const saveDraft = useCallback(() => {
-    const id = draftId || crypto.randomUUID();
-    const draftData = {
-      formData,
-      completedSteps,
-      savedAt: new Date().toISOString(),
-    };
-    
-    localStorage.setItem(`service-draft-${id}`, JSON.stringify(draftData));
-    setDraftId(id);
-    setHasUnsavedChanges(false);
-    toast.success('Borrador guardado');
-  }, [formData, completedSteps, draftId]);
+  // Public saveDraft that also ensures draftId
+  const saveDraft = useCallback((options?: { silent?: boolean }) => {
+    ensureDraftId();
+    saveDraftInternal(options);
+  }, [ensureDraftId, saveDraftInternal]);
 
   const value: ServiceCreationContextValue = {
     currentStep,
@@ -229,6 +379,38 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
       {children}
     </ServiceCreationContext.Provider>
   );
+}
+
+// Validate form data consistency to prevent restoring invalid states
+function validateFormDataConsistency(data: Partial<ServiceFormData>): Partial<ServiceFormData> {
+  const validated = { ...data };
+  
+  // If routeSubStep is 'location' but no client, reset to 'client'
+  if (validated.routeSubStep === 'location' && !validated.cliente) {
+    validated.routeSubStep = 'client';
+  }
+  
+  // If routeSubStep is 'pricing' but missing client/origen/destino, go back
+  if (validated.routeSubStep === 'pricing') {
+    if (!validated.cliente) {
+      validated.routeSubStep = 'client';
+    } else if (!validated.origen || !validated.destino) {
+      validated.routeSubStep = 'location';
+    }
+  }
+  
+  // If routeSubStep is 'confirm' but no pricingResult, go back
+  if (validated.routeSubStep === 'confirm' && !validated.pricingResult) {
+    if (!validated.cliente) {
+      validated.routeSubStep = 'client';
+    } else if (!validated.origen || !validated.destino) {
+      validated.routeSubStep = 'location';
+    } else {
+      validated.routeSubStep = 'pricing';
+    }
+  }
+  
+  return validated;
 }
 
 export function useServiceCreation() {

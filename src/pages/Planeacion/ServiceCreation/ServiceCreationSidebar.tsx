@@ -154,7 +154,7 @@ export default function ServiceCreationSidebar() {
         variant="outline"
         size="sm"
         className="w-full gap-2 text-xs h-8"
-        onClick={saveDraft}
+        onClick={() => saveDraft()}
         disabled={!hasUnsavedChanges}
       >
         <Save className="h-3.5 w-3.5" />
