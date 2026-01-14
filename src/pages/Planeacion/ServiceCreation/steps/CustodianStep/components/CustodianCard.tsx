@@ -3,8 +3,9 @@
  * Design: All info + actions within a single visual container
  */
 
-import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle } from 'lucide-react';
+import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle, CalendarX2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodianCommunicationState } from '../types';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
@@ -16,6 +17,7 @@ interface CustodianCardProps {
   comunicacion?: CustodianCommunicationState;
   onSelect: () => void;
   onContact: (method: 'whatsapp' | 'llamada') => void;
+  onReportUnavailability?: () => void;
   disabled?: boolean;
 }
 
@@ -26,6 +28,7 @@ export function CustodianCard({
   comunicacion,
   onSelect,
   onContact,
+  onReportUnavailability,
   disabled = false,
 }: CustodianCardProps) {
   const hasAccepted = comunicacion?.status === 'acepta';
@@ -162,6 +165,34 @@ export function CustodianCard({
           <Phone className="h-3.5 w-3.5" />
           Llamar
         </Button>
+
+        {/* Unavailability button */}
+        {onReportUnavailability && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-orange-600 hover:bg-orange-100 dark:hover:text-orange-400 dark:hover:bg-orange-900/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReportUnavailability();
+                  }}
+                  disabled={disabled || hasRejected}
+                >
+                  <CalendarX2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="font-medium">Reportar indisponibilidad</p>
+                <p className="text-xs text-muted-foreground">
+                  Si el custodio indica que no estará disponible
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         {hasAccepted ? (
           <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-xs font-medium">

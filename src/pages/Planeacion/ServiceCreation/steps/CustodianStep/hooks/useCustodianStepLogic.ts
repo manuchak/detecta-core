@@ -83,7 +83,7 @@ export function useCustodianStepLogic({
     };
   }, [formData.fecha, formData.hora, formData.origen, formData.destino, formData.cliente, formData.tipoServicio, formData.requiereArmado, formData.gadgets]);
   
-  // Select custodian action
+  // Select custodian action - Auto-confirms since confirmation happens offline via phone call
   const selectCustodian = useCallback((custodio: CustodioConProximidad) => {
     setSelectedCustodianId(custodio.id);
     setSelectedCustodianName(custodio.nombre);
@@ -93,6 +93,16 @@ export function useCustodianStepLogic({
       custodioId: custodio.id,
       custodio: custodio.nombre,
     });
+    
+    // Auto-confirm - the planner confirms via phone call offline
+    setComunicaciones(prev => ({
+      ...prev,
+      [custodio.id]: {
+        status: 'acepta',
+        method: 'llamada',
+        timestamp: new Date().toISOString(),
+      }
+    }));
   }, [updateFormData]);
   
   // Update communication state for a custodian

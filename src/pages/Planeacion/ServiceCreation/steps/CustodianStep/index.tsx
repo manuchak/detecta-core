@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useCustodiosConProximidad } from '@/hooks/useProximidadOperacional';
 import { useCustodianStepLogic } from './hooks/useCustodianStepLogic';
+import { useCustodioIndisponibilidades } from '@/hooks/useCustodioIndisponibilidades';
+import { addDays } from 'date-fns';
 
 // Components
 import { CustodianSearch } from './components/CustodianSearch';
@@ -18,6 +20,7 @@ import { QuickStats } from './components/QuickStats';
 import { CustodianList } from './components/CustodianList';
 import { ConflictSection } from './components/ConflictSection';
 import { SelectedCustodianSummary } from './components/SelectedCustodianSummary';
+import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
 
 // Dialogs (reuse existing)
 import { CustodianContactDialog } from '@/pages/Planeacion/components/dialogs/CustodianContactDialog';
@@ -35,14 +38,29 @@ export default function CustodianStep() {
     draftId,
   });
   
+  // Unavailability hook
+  const { crearIndisponibilidad } = useCustodioIndisponibilidades();
+  
   // Fetch custodians with proximity scoring
-  const { data: categorized, isLoading } = useCustodiosConProximidad(servicioNuevo);
+  const { data: categorized, isLoading, refetch: refetchCustodians } = useCustodiosConProximidad(servicioNuevo);
   
   // Filter custodians locally (instant)
   const filteredCustodians = useMemo(() => 
     actions.filterCustodians(categorized),
     [categorized, actions]
   );
+  
+  // Get selected custodian details
+  const selectedCustodian = useMemo(() => {
+    if (!state.selectedCustodianId || !categorized) return null;
+    const allCustodians = [
+      ...categorized.disponibles,
+      ...categorized.parcialmenteOcupados,
+      ...categorized.ocupados,
+      ...categorized.noDisponibles,
+    ];
+    return allCustodians.find(c => c.id === state.selectedCustodianId);
+  }, [state.selectedCustodianId, categorized]);
   
   // Total count for stats
   const totalCount = useMemo(() => {
@@ -115,6 +133,10 @@ export default function CustodianStep() {
   const [overrideModalOpen, setOverrideModalOpen] = useState(false);
   const [overrideCustodian, setOverrideCustodian] = useState<CustodioConProximidad | null>(null);
   
+  // Unavailability dialog state
+  const [unavailabilityDialogOpen, setUnavailabilityDialogOpen] = useState(false);
+  const [unavailabilityCustodian, setUnavailabilityCustodian] = useState<CustodioConProximidad | null>(null);
+  
   // Handle contact button click
   const handleContact = (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => {
     setContactCustodian(custodio);
@@ -154,6 +176,42 @@ export default function CustodianStep() {
     }
     setOverrideModalOpen(false);
     setOverrideCustodian(null);
+  };
+  
+  // Handle unavailability report
+  const handleReportUnavailability = (custodio: CustodioConProximidad) => {
+    setUnavailabilityCustodian(custodio);
+    setUnavailabilityDialogOpen(true);
+  };
+  
+  // Handle unavailability submission
+  const handleUnavailabilitySubmit = async (data: {
+    tipo: string;
+    motivo: string;
+    dias: number;
+  }) => {
+    if (!unavailabilityCustodian) return false;
+    
+    try {
+      await crearIndisponibilidad.mutateAsync({
+        custodio_id: unavailabilityCustodian.id,
+        tipo_indisponibilidad: data.tipo as any,
+        motivo: data.motivo,
+        fecha_fin_estimada: addDays(new Date(), data.dias).toISOString(),
+        severidad: 'media',
+        requiere_seguimiento: true,
+      });
+      
+      // Refresh custodian list
+      refetchCustodians();
+      
+      setUnavailabilityDialogOpen(false);
+      setUnavailabilityCustodian(null);
+      return true;
+    } catch (error) {
+      console.error('Error reporting unavailability:', error);
+      return false;
+    }
   };
   
   // Continue to next step
@@ -214,27 +272,33 @@ export default function CustodianStep() {
       {/* Quick Stats */}
       <QuickStats categorized={categorized} isLoading={isLoading} />
 
-      {/* Search & Filters */}
-      <CustodianSearch
-        searchTerm={state.searchTerm}
-        onSearchChange={actions.setSearchTerm}
-        filters={state.filters}
-        onFilterToggle={actions.toggleFilter}
-        resultsCount={filteredCustodians.length}
-        totalCount={totalCount}
-      />
-
-      {/* Selected Custodian Summary */}
-      {state.selectedCustodianId && (
-        <SelectedCustodianSummary
-          custodianName={state.selectedCustodianName}
-          custodianId={state.selectedCustodianId}
-          comunicacion={state.comunicaciones[state.selectedCustodianId]}
-          onClear={actions.clearSelection}
+      {/* Search & Filters - Hide when custodian is selected */}
+      {!state.selectedCustodianId && (
+        <CustodianSearch
+          searchTerm={state.searchTerm}
+          onSearchChange={actions.setSearchTerm}
+          filters={state.filters}
+          onFilterToggle={actions.toggleFilter}
+          resultsCount={filteredCustodians.length}
+          totalCount={totalCount}
         />
       )}
 
-      {/* Custodian List */}
+      {/* Selected Custodian Summary - Expanded with CTAs */}
+      {state.selectedCustodianId && selectedCustodian && (
+        <SelectedCustodianSummary
+          custodianName={state.selectedCustodianName}
+          custodianId={state.selectedCustodianId}
+          custodianPhone={selectedCustodian.telefono}
+          custodianVehicle={selectedCustodian.zona_base}
+          comunicacion={state.comunicaciones[state.selectedCustodianId]}
+          onClear={actions.clearSelection}
+          onContinue={handleContinue}
+          onContact={(method) => handleContact(selectedCustodian, method)}
+        />
+      )}
+
+      {/* Custodian List - Auto-collapses when selection is made */}
       <CustodianList
         custodians={filteredCustodians}
         isLoading={isLoading}
@@ -243,6 +307,7 @@ export default function CustodianStep() {
         comunicaciones={state.comunicaciones}
         onSelect={actions.selectCustodian}
         onContact={handleContact}
+        onReportUnavailability={handleReportUnavailability}
       />
 
       {/* Conflict Section */}
@@ -251,20 +316,28 @@ export default function CustodianStep() {
         onOverrideSelect={handleOverrideSelect}
       />
 
-      {/* Footer Navigation */}
-      <div className="flex justify-between gap-3 pt-4 border-t">
+      {/* Footer Navigation - Contextual status */}
+      <div className="flex justify-between gap-3 pt-4 border-t sticky bottom-0 bg-background/95 backdrop-blur-sm pb-2 -mx-1 px-1">
         <Button variant="outline" onClick={previousStep} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Anterior
         </Button>
-        <Button
-          onClick={handleContinue}
-          className="gap-2"
-          disabled={!state.canContinue}
-        >
-          Continuar
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        
+        <div className="flex items-center gap-3">
+          {state.selectedCustodianId && state.canContinue && (
+            <span className="text-sm text-green-600 dark:text-green-400 hidden sm:block">
+              ✓ {state.selectedCustodianName}
+            </span>
+          )}
+          <Button
+            onClick={handleContinue}
+            className="gap-2"
+            disabled={!state.canContinue}
+          >
+            Continuar
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Contact Dialog */}
@@ -295,6 +368,16 @@ export default function CustodianStep() {
             razon_no_disponible: overrideCustodian.razon_no_disponible,
           }}
           onConfirm={handleOverrideConfirm}
+        />
+      )}
+
+      {/* Unavailability Dialog */}
+      {unavailabilityCustodian && (
+        <ReportUnavailabilityCard
+          open={unavailabilityDialogOpen}
+          onOpenChange={setUnavailabilityDialogOpen}
+          showTriggerButton={false}
+          onReportUnavailability={handleUnavailabilitySubmit}
         />
       )}
     </div>
