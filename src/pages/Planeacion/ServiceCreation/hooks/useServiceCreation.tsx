@@ -46,12 +46,15 @@ export interface ServiceFormData {
   // Service step
   servicioId: string;
   idInterno: string;
-  fecha: string;
-  hora: string;
+  fechaRecepcion: string;  // When request was received (readonly)
+  horaRecepcion: string;   // Time of reception (readonly)
+  fecha: string;           // Scheduled appointment date
+  hora: string;            // Scheduled appointment time
   tipoServicio: string;
   tipoCustodia: string;
   requiereArmado: boolean;
   gadgets: Record<string, number>;
+  observaciones: string;   // Additional notes
   
   // Custodian step
   custodio: string;
@@ -100,14 +103,19 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   // Service step
   servicioId: '',
   idInterno: '',
+  fechaRecepcion: '',
+  horaRecepcion: '',
   fecha: '',
   hora: '',
   tipoServicio: '',
   tipoCustodia: '',
   requiereArmado: false,
   gadgets: {},
+  observaciones: '',
+  // Custodian step
   custodio: '',
   custodioId: '',
+  // Armed step
   armado: '',
   armadoId: '',
   puntoEncuentro: '',
