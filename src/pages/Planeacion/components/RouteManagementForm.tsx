@@ -8,9 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Save, X, Plus, Edit, HelpCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Save, X, Plus, Edit, HelpCircle, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 interface RouteData {
   id?: string;
@@ -94,6 +97,25 @@ const RouteManagementFormComponent = ({
     clave: ''
   }), []);
 
+  // Persistence for new routes only (not when editing)
+  const isCreatingNew = open && !editingRoute;
+  const persistence = useFormPersistence<RouteData>({
+    key: 'route-management-form',
+    initialData: initialFormData,
+    level: 'standard',
+    enabled: isCreatingNew, // Only persist when creating new
+    isMeaningful: (data) => !!(data.cliente_nombre?.trim() || data.destino_texto?.trim()),
+    ttl: 4 * 60 * 60 * 1000, // 4 hours for complex forms
+    debounceMs: 1000,
+  });
+
+  // Sync formData with persistence when creating new
+  useEffect(() => {
+    if (isCreatingNew && persistence.hasUnsavedChanges) {
+      persistence.updateData(formData);
+    }
+  }, [formData, isCreatingNew, persistence.hasUnsavedChanges]);
+
   // Optimizar inicialización del formulario y permisos
   useEffect(() => {
     if (!open) return; // Solo ejecutar cuando el modal esté abierto
@@ -126,9 +148,19 @@ const RouteManagementFormComponent = ({
         fecha_vigencia: editingRoute.fecha_vigencia?.split('T')[0] || new Date().toISOString().split('T')[0]
       });
     } else {
+      // Check for draft when creating new
       setFormData(initialFormData);
     }
   }, [editingRoute, open, initialFormData, hasPermission, onOpenChange]);
+
+  // Handle restore draft
+  const handleRestoreDraft = useCallback(() => {
+    const draft = persistence.restoreDraft();
+    if (draft) {
+      setFormData(draft);
+      toast.success('Borrador restaurado');
+    }
+  }, [persistence]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +202,8 @@ const RouteManagementFormComponent = ({
         
         if (error) throw error;
         
+        // Clear draft on successful creation
+        persistence.clearDraft(true);
         toast.success('Nueva ruta creada correctamente');
       }
 
@@ -181,14 +215,27 @@ const RouteManagementFormComponent = ({
     } finally {
       setLoading(false);
     }
-  }, [hasPermission, formData, editingRoute, onRouteUpdated, onOpenChange]);
+  }, [hasPermission, formData, editingRoute, onRouteUpdated, onOpenChange, persistence]);
 
   const handleInputChange = useCallback((field: keyof RouteData, value: string | number | boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  }, []);
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      // Sync with persistence
+      if (!editingRoute) {
+        persistence.updateData(newData);
+      }
+      return newData;
+    });
+  }, [editingRoute, persistence]);
+
+  // Handle close with discard confirmation
+  const handleClose = useCallback(async (open: boolean) => {
+    if (!open && !editingRoute && persistence.hasDraft) {
+      const shouldDiscard = await persistence.confirmDiscard();
+      if (!shouldDiscard) return;
+    }
+    onOpenChange(open);
+  }, [editingRoute, persistence, onOpenChange]);
 
   if (!hasPermission) {
     return (
@@ -210,13 +257,25 @@ const RouteManagementFormComponent = ({
     );
   }
 
+  // Helper to check if form has meaningful data
+  const formHasMeaningfulData = !!(formData.cliente_nombre?.trim() || formData.destino_texto?.trim());
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {editingRoute ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
             {editingRoute ? 'Editar Ruta' : 'Nueva Ruta'}
+            {!editingRoute && persistence.hasDraft && (
+              <DraftIndicator 
+                hasDraft={persistence.hasDraft}
+                hasUnsavedChanges={persistence.hasUnsavedChanges}
+                lastSaved={persistence.lastSaved}
+                getTimeSinceSave={persistence.getTimeSinceSave}
+                variant="minimal"
+              />
+            )}
           </DialogTitle>
           <DialogDescription>
             {editingRoute 
@@ -225,6 +284,26 @@ const RouteManagementFormComponent = ({
             }
           </DialogDescription>
         </DialogHeader>
+
+        {/* Draft restoration banner */}
+        {!editingRoute && persistence.hasDraft && !formHasMeaningfulData && (
+          <Alert className="bg-blue-50/80 border-blue-200">
+            <RotateCcw className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-sm text-blue-800">
+                Tienes un borrador guardado ({persistence.getTimeSinceSave()})
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRestoreDraft}
+                className="ml-2 border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                Restaurar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <TooltipProvider>
           <form onSubmit={handleSubmit} className="space-y-6">

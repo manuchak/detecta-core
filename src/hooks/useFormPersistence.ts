@@ -17,6 +17,9 @@ export interface FormPersistenceOptions<T extends FieldValues> {
   /** Persistence level - determines which features are enabled */
   level?: PersistenceLevel;
   
+  /** Enable/disable persistence (useful for conditional persistence) */
+  enabled?: boolean;
+  
   /** Time-to-live in milliseconds (default: 24 hours) */
   ttl?: number;
   
@@ -67,8 +70,8 @@ export interface FormPersistenceReturn<T> {
   /** Manually trigger a save */
   saveDraft: () => void;
   
-  /** Restore data from storage */
-  restoreDraft: () => void;
+  /** Restore data from storage, returns the restored data or null */
+  restoreDraft: () => T | null;
   
   /** Clear the draft from storage */
   clearDraft: (hard?: boolean) => void;
@@ -152,6 +155,7 @@ export function useFormPersistence<T extends FieldValues>(
     key,
     initialData,
     level = 'light',
+    enabled = true,
     ttl = DEFAULT_TTL,
     debounceMs = DEFAULT_DEBOUNCE,
     isMeaningful = () => true,
@@ -214,7 +218,7 @@ export function useFormPersistence<T extends FieldValues>(
   }, [key, ttl]);
 
   const saveToStorage = useCallback((dataToSave: T, forceDraftId?: string) => {
-    if (!isMeaningful(dataToSave)) {
+    if (!enabled || !isMeaningful(dataToSave)) {
       return;
     }
     
@@ -313,7 +317,9 @@ export function useFormPersistence<T extends FieldValues>(
     saveToStorage(dataRef.current);
   }, [saveToStorage]);
 
-  const restoreDraft = useCallback(() => {
+  const restoreDraft = useCallback((): T | null => {
+    if (!enabled) return null;
+    
     const stored = loadFromStorage();
     if (stored) {
       const validatedData = validateConsistency(stored.data);
@@ -329,8 +335,10 @@ export function useFormPersistence<T extends FieldValues>(
       }
       
       onRestore?.(validatedData);
+      return validatedData;
     }
-  }, [loadFromStorage, validateConsistency, form, onRestore]);
+    return null;
+  }, [enabled, loadFromStorage, validateConsistency, form, onRestore]);
 
   const clearDraft = useCallback((hard = false) => {
     clearFromStorage(hard);
