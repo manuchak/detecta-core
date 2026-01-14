@@ -35,6 +35,7 @@ export interface RouteSubStepState {
   isSearchingPrice: boolean;
   isCreatingRoute: boolean;
   matchType: MatchType;
+  isNewRoute: boolean;
 }
 
 const SUB_STEP_ORDER: RouteSubStep[] = ['client', 'location', 'pricing', 'confirm'];
@@ -51,6 +52,7 @@ const INITIAL_STATE: RouteSubStepState = {
   isSearchingPrice: false,
   isCreatingRoute: false,
   matchType: null,
+  isNewRoute: false,
 };
 
 export function useRouteSubSteps() {
@@ -138,6 +140,10 @@ export function useRouteSubSteps() {
     setState(prev => ({ ...prev, matchType }));
   }, []);
 
+  const setIsNewRoute = useCallback((isNewRoute: boolean) => {
+    setState(prev => ({ ...prev, isNewRoute }));
+  }, []);
+
   const resetState = useCallback(() => {
     setState(INITIAL_STATE);
   }, []);
@@ -189,6 +195,7 @@ export function useRouteSubSteps() {
     setIsSearchingPrice,
     setIsCreatingRoute,
     setMatchType,
+    setIsNewRoute,
     resetState,
     getSubStepIndex,
     isSubStepComplete,
