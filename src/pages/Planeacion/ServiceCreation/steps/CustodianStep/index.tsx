@@ -54,10 +54,10 @@ export default function CustodianStep() {
   const selectedCustodian = useMemo(() => {
     if (!state.selectedCustodianId || !categorized) return null;
     const allCustodians = [
-      ...categorized.disponibles,
-      ...categorized.parcialmenteOcupados,
-      ...categorized.ocupados,
-      ...categorized.noDisponibles,
+      ...(categorized.disponibles || []),
+      ...(categorized.parcialmenteOcupados || []),
+      ...(categorized.ocupados || []),
+      ...(categorized.noDisponibles || []),
     ];
     return allCustodians.find(c => c.id === state.selectedCustodianId);
   }, [state.selectedCustodianId, categorized]);
@@ -65,9 +65,9 @@ export default function CustodianStep() {
   // Total count for stats
   const totalCount = useMemo(() => {
     if (!categorized) return 0;
-    return categorized.disponibles.length + 
-           categorized.parcialmenteOcupados.length + 
-           categorized.ocupados.length;
+    return (categorized.disponibles?.length || 0) + 
+           (categorized.parcialmenteOcupados?.length || 0) + 
+           (categorized.ocupados?.length || 0);
   }, [categorized]);
 
   // Ref for keyboard navigation

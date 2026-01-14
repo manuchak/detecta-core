@@ -172,14 +172,14 @@ export function useCustodianStepLogic({
     
     let result: CustodioConProximidad[] = [];
     
-    // Add categories based on filters
-    if (filters.disponibles) {
+    // Add categories based on filters - defensive checks for each array
+    if (filters.disponibles && Array.isArray(categorized.disponibles)) {
       result = [...result, ...categorized.disponibles];
     }
-    if (filters.parcialmenteOcupados) {
+    if (filters.parcialmenteOcupados && Array.isArray(categorized.parcialmenteOcupados)) {
       result = [...result, ...categorized.parcialmenteOcupados];
     }
-    if (filters.ocupados) {
+    if (filters.ocupados && Array.isArray(categorized.ocupados)) {
       result = [...result, ...categorized.ocupados];
     }
     
