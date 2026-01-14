@@ -1,12 +1,13 @@
 /**
- * CustodianCard - Wrapper for CustodioPerformanceCard with action buttons
+ * CustodianCard - Unified card with integrated actions
+ * Design: All info + actions within a single visual container
  */
 
-import { Phone, MessageCircle, ArrowRight, Check } from 'lucide-react';
+import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodianCommunicationState } from '../types';
+import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 
 interface CustodianCardProps {
   custodio: CustodioConProximidad;
@@ -31,18 +32,35 @@ export function CustodianCard({
   const hasRejected = comunicacion?.status === 'rechaza';
   const isContacted = comunicacion && comunicacion.status !== 'pending';
 
-  // Map categoria_disponibilidad to availabilityStatus
+  // Vehicle data
+  const { formatVehicleInfo, loading: vehicleLoading } = useCustodioVehicleData(custodio.nombre);
+  const vehicleInfo = formatVehicleInfo();
+
+  // Availability status
   const availabilityStatus = custodio.categoria_disponibilidad || 'disponible';
+  const getAvailabilityIcon = () => {
+    switch (availabilityStatus) {
+      case 'disponible': return '🟢';
+      case 'parcialmente_ocupado': return '🟡';
+      case 'ocupado': return '🟠';
+      case 'no_disponible': return '🔴';
+      default: return '⚪';
+    }
+  };
+
+  const scorePercentage = Math.round(custodio.score_total || 0);
 
   return (
     <div
       className={`
-        relative group transition-all duration-200
+        apple-card overflow-hidden transition-all duration-200
         ${highlighted ? 'ring-2 ring-primary ring-offset-2' : ''}
+        ${selected ? 'ring-2 ring-primary/50 border-primary/30' : ''}
         ${hasRejected ? 'opacity-50' : ''}
+        ${disabled ? 'opacity-60' : ''}
       `}
     >
-      {/* Status badge overlay */}
+      {/* Communication status badge (overlay) */}
       {isContacted && (
         <div className={`
           absolute -top-2 -right-2 z-10 px-2 py-0.5 rounded-full text-xs font-medium
@@ -57,18 +75,64 @@ export function CustodianCard({
         </div>
       )}
 
-      <CustodioPerformanceCard
-        custodio={custodio as any}
-        selected={selected}
-        compact
-        disabled={disabled || hasRejected}
-        availabilityStatus={availabilityStatus}
-        unavailableReason={custodio.razon_no_disponible}
-      />
+      {/* ===== INFO ZONE ===== */}
+      <div className="p-4">
+        {/* Header: Name + Score */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="apple-text-headline truncate text-foreground font-medium">
+              {custodio.nombre}
+            </h4>
+          </div>
+          <div className="flex items-center gap-1.5 ml-3">
+            <span className="text-sm">{getAvailabilityIcon()}</span>
+            <span className="apple-text-footnote font-medium text-muted-foreground">
+              {scorePercentage}% compat.
+            </span>
+          </div>
+        </div>
 
-      {/* Action buttons overlay */}
+        {/* Info Row: Phone + Vehicle */}
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Phone className="h-3.5 w-3.5" />
+            <span>{custodio.telefono}</span>
+          </div>
+          
+          {vehicleInfo && !vehicleLoading && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Car className="h-3.5 w-3.5" />
+              <span>{vehicleInfo}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Availability status */}
+        {!disabled && !hasRejected && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="apple-text-caption text-success">
+              ✅ Sin conflictos
+            </span>
+          </div>
+        )}
+        
+        {/* Unavailable reason */}
+        {disabled && custodio.razon_no_disponible && (
+          <div className="mt-3 flex items-start gap-2 p-2 bg-destructive/5 border border-destructive/20 rounded-lg">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5" />
+            <span className="apple-text-caption text-destructive">
+              {custodio.razon_no_disponible}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ===== SEPARATOR ===== */}
+      <div className="border-t border-border/50" />
+
+      {/* ===== ACTIONS ZONE ===== */}
       <div className={`
-        mt-2 flex items-center gap-2 transition-all
+        px-4 py-3 bg-muted/30 flex items-center gap-2
         ${hasRejected ? 'opacity-50 pointer-events-none' : ''}
       `}>
         <Button
