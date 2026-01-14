@@ -139,7 +139,6 @@ export default function RouteStep() {
             onDestinoChange={handleDestinoChange}
             onSearchPrice={handleSearchPrice}
             isSearchingPrice={isSearching}
-            onContinue={nextSubStep}
           />
         );
       case 'pricing':
