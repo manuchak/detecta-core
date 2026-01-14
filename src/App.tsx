@@ -79,6 +79,7 @@ const SIERCPAssessmentPage = lazy(() => import('@/pages/assessment/SIERCPAssessm
 const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/ServiceWorkflowDocumentation'));
 const ProductArchitecturePage = lazy(() => import('@/pages/Documentation/ProductArchitecturePage'));
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
+const ServiceCreationPage = lazy(() => import('@/pages/Planeacion/ServiceCreation'));
 const ReportesHub = lazy(() => import('@/pages/Reportes'));
 const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
 const VersionControlPage = lazy(() => import('@/pages/Administration/VersionControlPage'));
@@ -756,6 +757,18 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
                         <PlaneacionDashboard />
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Service Creation - New full-page experience */}
+                <Route
+                  path="/planeacion/nuevo-servicio"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
+                        <ServiceCreationPage />
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
