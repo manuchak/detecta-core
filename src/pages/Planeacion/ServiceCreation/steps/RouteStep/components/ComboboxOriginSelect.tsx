@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { MapPin, TrendingUp, Loader2, Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useOrigenesConFrecuencia } from '@/hooks/useOrigenesConFrecuencia';
+import { LocationTemplateInput } from './LocationTemplateInput';
 
 interface ComboboxOriginSelectProps {
   clienteNombre: string;
@@ -34,7 +35,8 @@ export function ComboboxOriginSelect({
 }: ComboboxOriginSelectProps) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showTemplateInput, setShowTemplateInput] = useState(false);
+  const [pendingNewValue, setPendingNewValue] = useState('');
   
   const { data: origenesConFrecuencia = [], isLoading } = useOrigenesConFrecuencia(clienteNombre);
 
@@ -42,6 +44,11 @@ export function ComboboxOriginSelect({
   const sortedOrigenes = useMemo(() => {
     return [...origenesConFrecuencia].sort((a, b) => b.frecuencia - a.frecuencia);
   }, [origenesConFrecuencia]);
+
+  // Get list of existing origin strings for similarity check
+  const existingOrigins = useMemo(() => {
+    return sortedOrigenes.map(o => o.origen);
+  }, [sortedOrigenes]);
 
   // Filter based on input
   const filteredOrigenes = useMemo(() => {
@@ -74,17 +81,54 @@ export function ComboboxOriginSelect({
     setOpen(false);
   };
 
-  const handleSelectManual = () => {
-    const trimmed = inputValue.trim().toUpperCase();
-    if (trimmed) {
-      onOrigenSelect(trimmed, true);
-      setInputValue('');
-      setOpen(false);
-    }
+  const handleInitiateManualEntry = () => {
+    // Instead of accepting raw text, show the template input
+    setPendingNewValue(inputValue.trim());
+    setShowTemplateInput(true);
+    setOpen(false);
+  };
+
+  const handleTemplateConfirm = (formattedLocation: string) => {
+    onOrigenSelect(formattedLocation, true);
+    setShowTemplateInput(false);
+    setPendingNewValue('');
+    setInputValue('');
+  };
+
+  const handleTemplateCancel = () => {
+    setShowTemplateInput(false);
+    setPendingNewValue('');
+    setOpen(true);
+  };
+
+  const handleUseExisting = (location: string) => {
+    onOrigenSelect(location, false);
+    setShowTemplateInput(false);
+    setPendingNewValue('');
   };
 
   const hasOrigenes = sortedOrigenes.length > 0;
   const showManualOption = inputValue.trim() && !exactMatch;
+
+  // If showing template input, render that instead of combobox
+  if (showTemplateInput) {
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-foreground flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          Origen
+        </label>
+        <LocationTemplateInput
+          initialValue={pendingNewValue}
+          existingLocations={existingOrigins}
+          onConfirm={handleTemplateConfirm}
+          onCancel={handleTemplateCancel}
+          onUseExisting={handleUseExisting}
+          type="origen"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -126,7 +170,6 @@ export function ComboboxOriginSelect({
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[200]" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              ref={inputRef}
               placeholder="Buscar o escribir origen..."
               value={inputValue}
               onValueChange={setInputValue}
@@ -135,13 +178,13 @@ export function ComboboxOriginSelect({
               {/* Manual entry option - always at top when there's text */}
               {showManualOption && (
                 <>
-                  <CommandGroup heading="Usar texto escrito">
+                  <CommandGroup heading="Crear nuevo origen">
                     <CommandItem
-                      onSelect={handleSelectManual}
+                      onSelect={handleInitiateManualEntry}
                       className="cursor-pointer"
                     >
                       <Plus className="mr-2 h-4 w-4 text-primary" />
-                      <span className="flex-1">Usar: "{inputValue.trim().toUpperCase()}"</span>
+                      <span className="flex-1">Crear: "{inputValue.trim().toUpperCase()}"</span>
                       <Badge variant="secondary" className="ml-2 text-xs">
                         Nuevo
                       </Badge>
