@@ -65,7 +65,7 @@ export const CustodioPerformanceCard = ({
           <div className="flex items-center gap-1.5 ml-3">
             <span className="text-sm">{availabilityInfo.icon}</span>
             <span className="apple-text-footnote font-medium text-muted-foreground">
-              {scorePercentage}%
+              {scorePercentage}% compat.
             </span>
           </div>
         </div>
