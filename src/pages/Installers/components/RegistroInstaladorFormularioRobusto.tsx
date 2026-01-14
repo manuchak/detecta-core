@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useInstaladorData } from '@/hooks/useInstaladorData';
 import { useEstadosYCiudades } from '@/hooks/useEstadosYCiudades';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator, DraftRestoreBanner } from '@/components/ui/DraftIndicator';
 import { 
   MapPin, 
   Clock, 
@@ -151,6 +153,37 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   const { createInstalador } = useInstaladorData();
   const { estados, ciudadesFiltradas, loading: loadingEstados, getCiudadesByEstado, getEstadoById, getCiudadById } = useEstadosYCiudades();
   const [nuevaZona, setNuevaZona] = useState('');
+  const [showRestoreBanner, setShowRestoreBanner] = useState(false);
+
+  const defaultValues: FormData = {
+    nombre_completo: '',
+    telefono: '',
+    email: '',
+    cedula_profesional: '',
+    estado_trabajo: '',
+    ciudad_trabajo: '',
+    vehiculo_propio: false,
+    tiene_taller: false,
+    especialidades: [],
+    zonas_trabajo: [],
+    herramientas_disponibles: [],
+    capacidad_vehiculos: [],
+    horario_atencion: {
+      lunes: true,
+      martes: true,
+      miercoles: true,
+      jueves: true,
+      viernes: true,
+      sabado: false,
+      domingo: false
+    },
+    experiencia_especifica: {}
+  };
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues,
+  });
 
   const {
     register,
@@ -161,27 +194,47 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
     setValue,
     watch,
     getValues
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      vehiculo_propio: false,
-      tiene_taller: false,
-      especialidades: [],
-      zonas_trabajo: [],
-      herramientas_disponibles: [],
-      capacidad_vehiculos: [],
-      horario_atencion: {
-        lunes: true,
-        martes: true,
-        miercoles: true,
-        jueves: true,
-        viernes: true,
-        sabado: false,
-        domingo: false
-      },
-      experiencia_especifica: {}
-    }
+  } = form;
+
+  // Persistence hook with react-hook-form integration
+  const persistence = useFormPersistence<FormData>({
+    key: 'installer_registration_form',
+    initialData: defaultValues,
+    level: 'standard',
+    form,
+    isMeaningful: (data) => !!(data.nombre_completo || data.telefono || data.email),
+    calculateProgress: (data) => {
+      let score = 0;
+      if (data.nombre_completo) score += 15;
+      if (data.telefono) score += 10;
+      if (data.email) score += 10;
+      if (data.estado_trabajo && data.ciudad_trabajo) score += 15;
+      if (data.especialidades?.length > 0) score += 20;
+      if (data.zonas_trabajo?.length > 0) score += 10;
+      if (data.herramientas_disponibles?.length > 0) score += 10;
+      if (data.tarifa_instalacion_basica) score += 10;
+      return Math.min(100, score);
+    },
   });
+
+  const { hasDraft, hasUnsavedChanges, lastSaved, getTimeSinceSave, clearDraft, restoreDraft } = persistence;
+
+  // Check for existing draft on open
+  useEffect(() => {
+    if (open && hasDraft) {
+      setShowRestoreBanner(true);
+    }
+  }, [open, hasDraft]);
+
+  const handleRestoreDraft = useCallback(() => {
+    restoreDraft();
+    setShowRestoreBanner(false);
+  }, [restoreDraft]);
+
+  const handleDismissRestore = useCallback(() => {
+    clearDraft(true);
+    setShowRestoreBanner(false);
+  }, [clearDraft]);
 
   const tieneTaller = watch('tiene_taller');
   const requiereAnticipo = watch('requiere_anticipo');
@@ -281,6 +334,8 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
         porcentaje_anticipo: data.porcentaje_anticipo
       });
       
+      // Clear draft on successful submission
+      clearDraft(true);
       reset();
       onOpenChange(false);
     } catch (error) {
@@ -288,15 +343,44 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
     }
   };
 
+  const handleClose = async () => {
+    if (hasUnsavedChanges) {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+      clearDraft(true);
+    }
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Registro Completo de Instalador</DialogTitle>
-          <DialogDescription>
-            Complete toda la información para registrar un nuevo instalador certificado
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle>Registro Completo de Instalador</DialogTitle>
+              <DialogDescription>
+                Complete toda la información para registrar un nuevo instalador certificado
+              </DialogDescription>
+            </div>
+            <DraftIndicator 
+              hasDraft={hasDraft} 
+              hasUnsavedChanges={hasUnsavedChanges} 
+              lastSaved={lastSaved} 
+              getTimeSinceSave={getTimeSinceSave}
+              variant="badge"
+            />
+          </div>
         </DialogHeader>
+
+        {showRestoreBanner && (
+          <DraftRestoreBanner 
+            hasDraft={true}
+            onRestore={handleRestoreDraft}
+            onDismiss={handleDismissRestore}
+            timeSince={getTimeSinceSave()}
+          />
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Información Personal */}

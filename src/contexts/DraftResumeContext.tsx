@@ -13,6 +13,7 @@ export interface DraftInfo {
 
 // Static catalog of all known draft types in the application
 const DRAFT_CATALOG: DraftInfo[] = [
+  // Service Creation
   {
     id: 'service-creation',
     storageKey: 'service_creation_workflow',
@@ -23,6 +24,7 @@ const DRAFT_CATALOG: DraftInfo[] = [
     },
     previewText: 'Continúa creando tu servicio',
   },
+  // Leads
   {
     id: 'lead-form',
     storageKey: 'lead_form_draft',
@@ -33,6 +35,7 @@ const DRAFT_CATALOG: DraftInfo[] = [
     },
     previewText: 'Continúa editando el lead',
   },
+  // LMS
   {
     id: 'lms-course-wizard',
     storageKey: 'lms_curso_wizard',
@@ -42,6 +45,78 @@ const DRAFT_CATALOG: DraftInfo[] = [
       return data && (data.formValues?.titulo || data.modulos?.length > 0);
     },
     previewText: 'Continúa creando tu curso',
+  },
+  // WMS - Desecho
+  {
+    id: 'wms-desecho-wizard',
+    storageKey: 'wms_desecho_wizard',
+    moduleName: 'Desecho de Inventario',
+    resumePath: '/wms',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && d.item?.producto_id;
+    },
+    previewText: 'Continúa registrando el desecho',
+  },
+  // WMS - Devolución RMA
+  {
+    id: 'wms-devolucion-wizard',
+    storageKey: 'wms_devolucion_wizard',
+    moduleName: 'Devolución a Proveedor (RMA)',
+    resumePath: '/wms',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (Object.keys(d.seleccion || {}).length > 0 || d.numeroRMA || d.proveedorId);
+    },
+    previewText: 'Continúa la devolución RMA',
+  },
+  // WMS - Orden de Compra
+  {
+    id: 'wms-orden-compra',
+    storageKey: 'wms_orden_compra',
+    moduleName: 'Orden de Compra',
+    resumePath: '/wms',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.detalles?.length > 0 || d.proveedor_id);
+    },
+    previewText: 'Continúa la orden de compra',
+  },
+  // Instaladores - Registro
+  {
+    id: 'installer-registration',
+    storageKey: 'installer_registration_form',
+    moduleName: 'Registro de Instalador',
+    resumePath: '/installers',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.nombre_completo || d.telefono || d.email);
+    },
+    previewText: 'Continúa el registro de instalador',
+  },
+  // Instaladores - Programación
+  {
+    id: 'installer-programacion',
+    storageKey: 'installer_programacion',
+    moduleName: 'Programación de Instalación',
+    resumePath: '/installers',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.servicio_id || d.fecha_programada);
+    },
+    previewText: 'Continúa la programación',
+  },
+  // Planeación - Importación de Matriz de Precios
+  {
+    id: 'price-matrix-import',
+    storageKey: 'price_matrix_import',
+    moduleName: 'Importación de Matriz',
+    resumePath: '/planeacion',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.columns?.length > 0 || d.mapping);
+    },
+    previewText: 'Continúa la importación Excel',
   },
 ];
 

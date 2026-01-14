@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader as DxHeader, DialogTitle as DxTitle, DialogDescription as DxDesc } from '@/components/ui/dialog';
@@ -6,6 +6,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useProductosInventario } from '@/hooks/useProductosInventario';
 import { useDesechosInventario } from '@/hooks/useDesechosInventario';
 import { useSerialesProducto } from '@/hooks/useSerialesProducto';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 import { toast } from 'sonner';
 
 interface DesechoWizardProps {
@@ -24,6 +26,18 @@ interface ItemDesecho {
   serialNumeros?: string[]; // Para mostrar
   motivo?: string;
 }
+
+interface DesechoWizardState {
+  step: number;
+  query: string;
+  item: ItemDesecho | null;
+}
+
+const initialState: DesechoWizardState = {
+  step: 1,
+  query: '',
+  item: null,
+};
 
 const PasoIndicator = ({ step }: { step: number }) => {
   const steps = [
@@ -49,9 +63,35 @@ export const DesechoWizard = ({ open, onOpenChange }: DesechoWizardProps) => {
   const { productos } = useProductosInventario();
   const { crearDesecho } = useDesechosInventario();
 
-  const [step, setStep] = useState(1);
-  const [query, setQuery] = useState('');
-  const [item, setItem] = useState<ItemDesecho | null>(null);
+  // Persistence hook
+  const persistence = useFormPersistence<DesechoWizardState>({
+    key: 'wms_desecho_wizard',
+    initialData: initialState,
+    level: 'standard',
+    isMeaningful: (data) => !!data.item?.producto_id,
+    calculateProgress: (data) => {
+      let score = 0;
+      if (data.item?.producto_id) score += 25;
+      if (data.item?.cantidad && data.item.cantidad > 0) score += 25;
+      if (data.item?.costo_unitario !== undefined) score += 25;
+      if (data.step >= 3) score += 25;
+      return score;
+    },
+  });
+
+  const { data: wizardState, updateData, hasDraft, hasUnsavedChanges, lastSaved, getTimeSinceSave, clearDraft, restoreDraft } = persistence;
+
+  const step = wizardState.step;
+  const query = wizardState.query;
+  const item = wizardState.item;
+
+  const setStep = useCallback((s: number | ((prev: number) => number)) => {
+    const newStep = typeof s === 'function' ? s(wizardState.step) : s;
+    updateData({ step: newStep });
+  }, [updateData, wizardState.step]);
+
+  const setQuery = useCallback((q: string) => updateData({ query: q }), [updateData]);
+  const setItem = useCallback((i: ItemDesecho | null) => updateData({ item: i }), [updateData]);
 
   // Modal de series
   const [serialModalOpen, setSerialModalOpen] = useState(false);
@@ -82,16 +122,16 @@ export const DesechoWizard = ({ open, onOpenChange }: DesechoWizardProps) => {
     setSerialModalOpen(false);
   };
 
+  // Restore draft when opening, reset only on successful submit
   useEffect(() => {
+    if (open && hasDraft) {
+      restoreDraft();
+    }
     if (!open) {
-      // Reset al cerrar
-      setStep(1);
-      setQuery('');
-      setItem(null);
       setSerialModalOpen(false);
       setSerialTemp([]);
     }
-  }, [open]);
+  }, [open, hasDraft, restoreDraft]);
 
   const productosFiltrados = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -138,20 +178,40 @@ export const DesechoWizard = ({ open, onOpenChange }: DesechoWizardProps) => {
         seriales: item.seriales || [],
         costo_unitario: item.costo_unitario ?? 0,
       });
+      // Clear draft on successful submit
+      clearDraft(true);
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message || 'Error al registrar desecho');
     }
   };
 
+  const handleClose = async () => {
+    if (hasUnsavedChanges && item?.producto_id) {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+      clearDraft(true);
+    }
+    onOpenChange(false);
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent side="right" className="sm:max-w-xl w-full">
         <div className="flex items-center justify-between mb-4">
           <SheetHeader>
             <SheetTitle>Registrar desecho</SheetTitle>
           </SheetHeader>
-          <PasoIndicator step={step} />
+          <div className="flex items-center gap-4">
+            <DraftIndicator 
+              hasDraft={hasDraft} 
+              hasUnsavedChanges={hasUnsavedChanges} 
+              lastSaved={lastSaved} 
+              getTimeSinceSave={getTimeSinceSave}
+              variant="minimal"
+            />
+            <PasoIndicator step={step} />
+          </div>
         </div>
 
         {step === 1 && (
@@ -197,7 +257,7 @@ export const DesechoWizard = ({ open, onOpenChange }: DesechoWizardProps) => {
               </table>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={handleClose}>Cancelar</Button>
               <Button onClick={goNext} disabled={!canNext1}>Continuar</Button>
             </div>
           </div>
