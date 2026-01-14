@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, User, MapPin, DollarSign, CheckCircle } from 'lucide-react';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useRouteSubSteps, PricingResult, RouteSubStepState } from './hooks/useRouteSubSteps';
 import { usePricingSearch } from './hooks/usePricingSearch';
-import { RouteSubStepIndicator } from './RouteSubStepIndicator';
 import { ClientSearchSubStep } from './substeps/ClientSearchSubStep';
 import { LocationSubStep } from './substeps/LocationSubStep';
 import { PricingSubStep } from './substeps/PricingSubStep';
 import { RouteConfirmSubStep } from './substeps/RouteConfirmSubStep';
+import type { RouteSubStep as RouteSubStepType } from './hooks/useRouteSubSteps';
+
+// Contextual titles for each substep
+const SUBSTEP_CONFIG: Record<RouteSubStepType, { title: string; description: string; icon: React.ElementType }> = {
+  client: { title: 'Seleccionar Cliente', description: 'Busca o crea un nuevo cliente', icon: User },
+  location: { title: 'Origen y Destino', description: 'Define los puntos de la ruta', icon: MapPin },
+  pricing: { title: 'Cotización', description: 'Revisa el precio sugerido', icon: DollarSign },
+  confirm: { title: 'Confirmar Ruta', description: 'Verifica los datos antes de continuar', icon: CheckCircle },
+};
 
 export default function RouteStep() {
   const { formData, updateFormData, nextStep } = useServiceCreation();
@@ -226,18 +234,24 @@ export default function RouteStep() {
   // No confirm button needed - it's in RouteConfirmSubStep now
   const showConfirmButton = false;
 
+  const currentConfig = SUBSTEP_CONFIG[state.currentSubStep];
+  const CurrentIcon = currentConfig.icon;
+
   return (
     <div className="space-y-6">
-      {/* Sub-step indicator */}
-      <RouteSubStepIndicator
-        currentSubStep={state.currentSubStep}
-        isSubStepComplete={isSubStepComplete}
-        canNavigateToSubStep={canNavigateToSubStep}
-        onSubStepClick={goToSubStep}
-      />
+      {/* Contextual header for current substep */}
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          <CurrentIcon className="w-6 h-6 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">{currentConfig.title}</h2>
+          <p className="text-sm text-muted-foreground">{currentConfig.description}</p>
+        </div>
+      </div>
 
-      {/* Current substep content with transition */}
-      <div className="min-h-[300px] transition-all duration-300 ease-in-out">
+      {/* Current substep content */}
+      <div className="transition-all duration-300 ease-in-out">
         {renderSubStep()}
       </div>
 

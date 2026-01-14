@@ -57,13 +57,9 @@ export default function ServiceCreationSidebar() {
   };
 
   return (
-    <div className="apple-card p-4 space-y-4">
-      <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-        Progreso
-      </h3>
-
-      {/* Steps list */}
-      <nav className="space-y-1">
+    <div className="apple-card p-4 space-y-3">
+      {/* Steps list - compact */}
+      <nav className="space-y-0.5">
         {STEPS.map((step, index) => {
           const status = getStepStatus(step.id);
           const isNavigable = canNavigateTo(step.id);
@@ -75,7 +71,7 @@ export default function ServiceCreationSidebar() {
               onClick={() => handleStepClick(step.id)}
               disabled={!isNavigable}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all",
+                "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-all",
                 "focus:outline-none focus:ring-2 focus:ring-primary/20",
                 status === 'current' && "bg-primary/10 text-primary",
                 status === 'completed' && isNavigable && "hover:bg-muted cursor-pointer",
@@ -85,7 +81,7 @@ export default function ServiceCreationSidebar() {
             >
               {/* Step indicator */}
               <div className={cn(
-                "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+                "flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center",
                 "border-2 transition-colors",
                 status === 'completed' && "bg-green-500 border-green-500 text-white",
                 status === 'current' && "border-primary bg-primary/10 text-primary",
@@ -93,11 +89,11 @@ export default function ServiceCreationSidebar() {
                 status === 'error' && "border-destructive bg-destructive/10 text-destructive"
               )}>
                 {status === 'completed' ? (
-                  <Check className="h-4 w-4" />
+                  <Check className="h-3.5 w-3.5" />
                 ) : status === 'error' ? (
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="h-3.5 w-3.5" />
                 ) : (
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-3.5 w-3.5" />
                 )}
               </div>
 
@@ -109,74 +105,60 @@ export default function ServiceCreationSidebar() {
                 )}>
                   {step.label}
                 </span>
-                {step.optional && (
-                  <span className="text-xs text-muted-foreground">Opcional</span>
-                )}
               </div>
-
-              {/* Connecting line */}
-              {index < STEPS.length - 1 && (
-                <div className={cn(
-                  "absolute left-[1.75rem] top-[2.75rem] w-0.5 h-4",
-                  status === 'completed' ? "bg-green-500" : "bg-muted-foreground/20"
-                )} />
+              
+              {step.optional && (
+                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                  Opcional
+                </span>
               )}
             </button>
           );
         })}
       </nav>
 
-      {/* Divider */}
-      <div className="border-t pt-4">
-        <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide mb-3">
-          Resumen
-        </h4>
-        
-        <div className="space-y-2 text-sm">
-          {formData.cliente ? (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Cliente:</span>
-              <span className="font-medium truncate max-w-[140px]">{formData.cliente}</span>
+      {/* Compact summary - only show if there's data */}
+      {(formData.cliente || formData.origen) && (
+        <>
+          <div className="border-t pt-3">
+            <div className="space-y-1.5 text-xs">
+              {formData.cliente && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Cliente:</span>
+                  <span className="font-medium truncate max-w-[120px]">{formData.cliente}</span>
+                </div>
+              )}
+              
+              {formData.origen && formData.destino && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Ruta:</span>
+                  <span className="font-medium truncate max-w-[120px] text-right">
+                    {formData.origen} → {formData.destino}
+                  </span>
+                </div>
+              )}
+              
+              {formData.fecha && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Fecha:</span>
+                  <span className="font-medium">{formData.fecha}</span>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-muted-foreground italic">Sin cliente seleccionado</div>
-          )}
-          
-          {formData.origen && formData.destino && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Ruta:</span>
-              <span className="font-medium truncate max-w-[140px]">
-                {formData.origen} → {formData.destino}
-              </span>
-            </div>
-          )}
-          
-          {formData.fecha && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Fecha:</span>
-              <span className="font-medium">{formData.fecha}</span>
-            </div>
-          )}
-          
-          {formData.custodio && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Custodio:</span>
-              <span className="font-medium truncate max-w-[140px]">{formData.custodio}</span>
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
-      {/* Save draft button */}
+      {/* Save draft button - always visible */}
       <Button
         variant="outline"
         size="sm"
-        className="w-full gap-2"
+        className="w-full gap-2 text-xs h-8"
         onClick={saveDraft}
         disabled={!hasUnsavedChanges}
       >
-        <Save className="h-4 w-4" />
-        Guardar Borrador
+        <Save className="h-3.5 w-3.5" />
+        {hasUnsavedChanges ? 'Guardar Borrador' : 'Sin cambios'}
       </Button>
     </div>
   );

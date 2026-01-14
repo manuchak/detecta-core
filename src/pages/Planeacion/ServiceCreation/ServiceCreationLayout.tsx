@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ServiceCreationSidebar from './ServiceCreationSidebar';
-import ServicePreviewCard from './ServicePreviewCard';
 import { useServiceCreation, ServiceCreationProvider } from './hooks/useServiceCreation';
 
-// Step components (placeholders for now)
+// Step components
 import RouteStepPlaceholder from './steps/RouteStep';
 import ServiceStepPlaceholder from './steps/ServiceStep';
 import CustodianStepPlaceholder from './steps/CustodianStep';
@@ -54,13 +53,12 @@ function ServiceCreationContent() {
       </div>
 
       {/* Main content grid */}
-      <div className="container px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
-          {/* Sidebar */}
+      <div className="container px-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+          {/* Sidebar - only progress */}
           <aside className="hidden lg:block">
-            <div className="sticky top-20 space-y-4">
+            <div className="sticky top-20">
               <ServiceCreationSidebar />
-              <ServicePreviewCard />
             </div>
           </aside>
 
