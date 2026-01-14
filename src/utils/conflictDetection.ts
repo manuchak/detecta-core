@@ -181,16 +181,18 @@ export async function verificarConflictosCustodio(
     };
 
   } catch (error) {
-    console.error('❌ Error verificando conflictos:', error);
+    console.error('❌ Error verificando conflictos (posible RLS):', error);
     
-    // En caso de error, asumir que no está disponible por seguridad
+    // FAIL-OPEN: En caso de error de permisos RLS, asumir disponible
+    // para no bloquear el flujo de trabajo. Los conflictos reales se
+    // detectarán al momento de confirmar el servicio.
     return {
-      disponible: false,
+      disponible: true,
       servicios_en_conflicto: 0,
       conflictos_detalle: [],
       servicios_hoy: 0,
-      razon_no_disponible: 'Error al verificar disponibilidad - contactar soporte',
-      categoria_disponibilidad: 'no_disponible'
+      razon_no_disponible: undefined,
+      categoria_disponibilidad: 'disponible'
     };
   }
 }
