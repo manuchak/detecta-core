@@ -1,22 +1,65 @@
-import { Settings, ArrowLeft, ArrowRight, Calendar, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { useServiceCreation } from '../../hooks/useServiceCreation';
-
 /**
- * ServiceStep - Second step in service creation
- * Handles service details: ID, date/time, type, gadgets
- * 
- * TODO (Phase 3): Extract into modular components:
- * - ServiceIdInput.tsx
- * - ServiceTypeSelector.tsx
- * - DateTimeSection.tsx
- * - GadgetSelector (reuse existing)
+ * ServiceStep - Second step in service creation workflow
+ * Modular architecture with timezone-safe date handling
  */
+
+import { Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useServiceCreation } from '../../hooks/useServiceCreation';
+import { useServiceStepLogic } from './hooks/useServiceStepLogic';
+
+// Components
+import { RouteSummary } from './components/RouteSummary';
+import { ServiceIdSection } from './components/ServiceIdSection';
+import { ClientIdSection } from './components/ClientIdSection';
+import { AppointmentSection } from './components/AppointmentSection';
+import { ServiceTypeSection } from './components/ServiceTypeSection';
+import { GadgetSection } from './components/GadgetSection';
+import { ObservationsSection } from './components/ObservationsSection';
+
 export default function ServiceStep() {
-  const { formData, updateFormData, nextStep, previousStep, markStepCompleted } = useServiceCreation();
+  const { formData, nextStep, previousStep, markStepCompleted } = useServiceCreation();
+  
+  const {
+    // State
+    servicioId,
+    idInterno,
+    fecha,
+    hora,
+    tipoServicio,
+    requiereArmado,
+    gadgets,
+    observaciones,
+    
+    // Setters
+    setServicioId,
+    setIdInterno,
+    setFecha,
+    setHora,
+    setObservaciones,
+    handleTipoServicioChange,
+    handleRequiereArmadoChange,
+    handleGadgetChange,
+    
+    // Validation
+    validation,
+    isDateValid,
+    minDate,
+    canContinue,
+    
+    // Formatted displays
+    formattedRecepcion,
+    formattedFecha,
+    totalGadgets,
+    
+    // Auto-fill indicators
+    wasHoraOptimized,
+    wasAutoFilled,
+    distanciaKm,
+    
+    // Constants
+    SERVICE_TYPE_OPTIONS,
+  } = useServiceStepLogic();
 
   const handleContinue = () => {
     markStepCompleted('service');
@@ -32,87 +75,69 @@ export default function ServiceStep() {
           Detalles del Servicio
         </h2>
         <p className="text-muted-foreground">
-          Configura la fecha, hora y características del servicio
+          Configura la cita y características del servicio
         </p>
       </div>
 
-      {/* Form */}
+      {/* Route summary */}
+      <RouteSummary 
+        pricingResult={formData.pricingResult} 
+        clienteNombre={formData.cliente}
+      />
+
+      {/* Form sections */}
       <div className="space-y-6">
         {/* Service ID */}
-        <div className="space-y-2">
-          <Label htmlFor="servicioId">ID del Servicio</Label>
-          <Input
-            id="servicioId"
-            placeholder="Se generará automáticamente..."
-            value={formData.servicioId || ''}
-            onChange={(e) => updateFormData({ servicioId: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">
-            Identificador único del servicio (auto-generado si se deja vacío)
-          </p>
-        </div>
+        <ServiceIdSection
+          servicioId={servicioId}
+          onServicioIdChange={setServicioId}
+          isValidating={validation.isValidating}
+          isValid={validation.isValid}
+          errorMessage={validation.errorMessage}
+        />
 
-        {/* Date and Time */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="fecha" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Fecha
-            </Label>
-            <Input
-              id="fecha"
-              type="date"
-              value={formData.fecha || ''}
-              onChange={(e) => updateFormData({ fecha: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="hora" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Hora
-            </Label>
-            <Input
-              id="hora"
-              type="time"
-              value={formData.hora || ''}
-              onChange={(e) => updateFormData({ hora: e.target.value })}
-            />
-          </div>
-        </div>
+        {/* Client internal ID */}
+        <ClientIdSection
+          idInterno={idInterno}
+          onIdInternoChange={setIdInterno}
+        />
 
-        {/* Service Type */}
-        <div className="space-y-2">
-          <Label htmlFor="tipoServicio">Tipo de Servicio</Label>
-          <Input
-            id="tipoServicio"
-            placeholder="Ej: Traslado de valores"
-            value={formData.tipoServicio || ''}
-            onChange={(e) => updateFormData({ tipoServicio: e.target.value })}
-          />
-        </div>
+        {/* Appointment scheduling */}
+        <AppointmentSection
+          formattedRecepcion={formattedRecepcion}
+          fecha={fecha}
+          hora={hora}
+          onFechaChange={setFecha}
+          onHoraChange={setHora}
+          minDate={minDate}
+          isDateValid={isDateValid}
+          formattedFecha={formattedFecha}
+          wasHoraOptimized={wasHoraOptimized}
+          distanciaKm={distanciaKm}
+        />
 
-        {/* Armed guard toggle */}
-        <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-          <div className="space-y-0.5">
-            <Label htmlFor="requiereArmado" className="text-base">¿Requiere elemento armado?</Label>
-            <p className="text-sm text-muted-foreground">
-              Habilita la asignación de un guardia armado para este servicio
-            </p>
-          </div>
-          <Switch
-            id="requiereArmado"
-            checked={formData.requiereArmado || false}
-            onCheckedChange={(checked) => updateFormData({ requiereArmado: checked })}
-          />
-        </div>
+        {/* Service type */}
+        <ServiceTypeSection
+          tipoServicio={tipoServicio}
+          requiereArmado={requiereArmado}
+          onTipoServicioChange={handleTipoServicioChange}
+          onRequiereArmadoChange={handleRequiereArmadoChange}
+          options={SERVICE_TYPE_OPTIONS}
+          wasAutoFilled={wasAutoFilled}
+        />
 
-        {/* Gadgets placeholder */}
-        <div className="space-y-2">
-          <Label>Gadgets / Equipo</Label>
-          <div className="p-4 rounded-lg border border-dashed text-center text-muted-foreground">
-            Selector de gadgets (próximamente)
-          </div>
-        </div>
+        {/* Gadgets */}
+        <GadgetSection
+          gadgets={gadgets}
+          onGadgetChange={handleGadgetChange}
+          totalGadgets={totalGadgets}
+        />
+
+        {/* Observations */}
+        <ObservationsSection
+          observaciones={observaciones}
+          onObservacionesChange={setObservaciones}
+        />
       </div>
 
       {/* Footer */}
@@ -128,7 +153,7 @@ export default function ServiceStep() {
         <Button
           onClick={handleContinue}
           className="gap-2"
-          disabled={!formData.fecha || !formData.hora}
+          disabled={!canContinue}
         >
           Continuar
           <ArrowRight className="h-4 w-4" />
