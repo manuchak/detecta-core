@@ -33,7 +33,8 @@ interface AppointmentSectionProps {
   distanciaKm: number;
 }
 
-const HOUR_PRESETS = ['06:00', '07:00', '08:00', '09:00', '10:00'];
+// Top 5 horarios más frecuentes basados en datos históricos de servicios_custodia
+const HOUR_PRESETS = ['04:00', '05:00', '06:00', '07:00', '08:00'];
 
 export function AppointmentSection({
   formattedRecepcion,
