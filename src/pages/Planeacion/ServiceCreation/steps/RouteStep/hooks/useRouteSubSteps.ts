@@ -3,17 +3,25 @@ import { useState, useCallback } from 'react';
 export type RouteSubStep = 'client' | 'location' | 'pricing' | 'confirm';
 
 export interface PricingResult {
-  id: string;
+  id?: string;
   cliente_nombre: string;
   origen_texto: string;
   destino_texto: string;
-  precio_sugerido: number;
-  precio_custodio: number;
+  precio_sugerido: number | null;
+  precio_custodio: number | null;
+  pago_custodio_sin_arma?: number | null;
+  costo_operativo?: number | null;
+  margen_estimado?: number | null;
   distancia_km: number | null;
   tipo_servicio: string | null;
+  incluye_armado?: boolean;
   es_ruta_reparto: boolean;
-  puntos_intermedios: string[] | null;
+  puntos_intermedios?: string[] | null;
+  numero_paradas?: number;
+  ruta_encontrada?: string;
 }
+
+export type MatchType = 'exact' | 'flexible' | 'destination-only' | null;
 
 export interface RouteSubStepState {
   currentSubStep: RouteSubStep;
@@ -26,6 +34,7 @@ export interface RouteSubStepState {
   pricingError: string | null;
   isSearchingPrice: boolean;
   isCreatingRoute: boolean;
+  matchType: MatchType;
 }
 
 const SUB_STEP_ORDER: RouteSubStep[] = ['client', 'location', 'pricing', 'confirm'];
@@ -41,6 +50,7 @@ const INITIAL_STATE: RouteSubStepState = {
   pricingError: null,
   isSearchingPrice: false,
   isCreatingRoute: false,
+  matchType: null,
 };
 
 export function useRouteSubSteps() {
@@ -124,6 +134,10 @@ export function useRouteSubSteps() {
     setState(prev => ({ ...prev, isCreatingRoute: isCreating }));
   }, []);
 
+  const setMatchType = useCallback((matchType: MatchType) => {
+    setState(prev => ({ ...prev, matchType }));
+  }, []);
+
   const resetState = useCallback(() => {
     setState(INITIAL_STATE);
   }, []);
@@ -174,6 +188,7 @@ export function useRouteSubSteps() {
     setPricingError,
     setIsSearchingPrice,
     setIsCreatingRoute,
+    setMatchType,
     resetState,
     getSubStepIndex,
     isSubStepComplete,

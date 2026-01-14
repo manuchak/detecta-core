@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useRouteSubSteps } from './hooks/useRouteSubSteps';
+import { usePricingSearch } from './hooks/usePricingSearch';
 import { RouteSubStepIndicator } from './RouteSubStepIndicator';
 import { ClientSearchSubStep } from './substeps/ClientSearchSubStep';
-// Future imports for other substeps
-// import { LocationSubStep } from './substeps/LocationSubStep';
-// import { PricingSubStep } from './substeps/PricingSubStep';
+import { LocationSubStep } from './substeps/LocationSubStep';
+import { PricingSubStep } from './substeps/PricingSubStep';
+// Future import for RouteConfirmSubStep
 // import { RouteConfirmSubStep } from './substeps/RouteConfirmSubStep';
 
 export default function RouteStep() {
@@ -19,27 +20,86 @@ export default function RouteStep() {
     nextSubStep,
     previousSubStep,
     setCliente,
+    setOrigen,
+    setDestino,
+    setPricingResult,
+    setPricingError,
+    setIsSearchingPrice,
+    setMatchType,
     isSubStepComplete,
     canNavigateToSubStep,
   } = useRouteSubSteps();
+
+  // Pricing search hook
+  const {
+    searchPrice,
+    pricingResult,
+    pricingError,
+    isSearching,
+    matchType,
+    clearPricing
+  } = usePricingSearch();
 
   // Handle client selection
   const handleClientSelect = useCallback((cliente: string, clienteId: string, isNewClient: boolean) => {
     setCliente(cliente, clienteId, isNewClient);
     updateFormData({ cliente, clienteId });
-  }, [setCliente, updateFormData]);
+    clearPricing();
+  }, [setCliente, updateFormData, clearPricing]);
+
+  // Handle origin change
+  const handleOrigenChange = useCallback((origen: string) => {
+    setOrigen(origen);
+    clearPricing();
+  }, [setOrigen, clearPricing]);
+
+  // Handle destination change - also triggers price search
+  const handleDestinoChange = useCallback((destino: string) => {
+    setDestino(destino);
+  }, [setDestino]);
+
+  // Handle price search
+  const handleSearchPrice = useCallback(async () => {
+    if (!state.cliente || !state.origen || !state.destino) return;
+    
+    setIsSearchingPrice(true);
+    await searchPrice(state.cliente, state.origen, state.destino);
+    setIsSearchingPrice(false);
+  }, [state.cliente, state.origen, state.destino, searchPrice, setIsSearchingPrice]);
+
+  // Handle pricing confirmation - move to confirm step
+  const handlePricingConfirm = useCallback(() => {
+    if (pricingResult) {
+      setPricingResult(pricingResult);
+      setMatchType(matchType);
+      nextSubStep();
+    }
+  }, [pricingResult, matchType, setPricingResult, setMatchType, nextSubStep]);
+
+  // Handle retry search
+  const handleRetrySearch = useCallback(() => {
+    clearPricing();
+    handleSearchPrice();
+  }, [clearPricing, handleSearchPrice]);
+
+  // Handle create route button (placeholder for Prompt 3)
+  const handleCreateRoute = useCallback(() => {
+    // TODO: Implement inline route creation in Prompt 3
+    console.log('Create route for:', state.cliente, state.origen, state.destino);
+  }, [state.cliente, state.origen, state.destino]);
 
   // Handle final route confirmation
   const handleRouteComplete = useCallback(() => {
-    if (state.pricingResult) {
+    if (state.pricingResult || pricingResult) {
+      const result = state.pricingResult || pricingResult;
       updateFormData({
         cliente: state.cliente,
         clienteId: state.clienteId,
         origen: state.origen,
         destino: state.destino,
-        precioCotizado: state.pricingResult.precio_sugerido,
+        precioCotizado: result?.precio_sugerido || null,
         routeData: {
-          ...state.pricingResult,
+          ...result,
           cliente_nombre: state.cliente,
           origen_texto: state.origen,
           destino_texto: state.destino,
@@ -47,7 +107,7 @@ export default function RouteStep() {
       });
       nextStep();
     }
-  }, [state, updateFormData, nextStep]);
+  }, [state, pricingResult, updateFormData, nextStep]);
 
   // Render current substep
   const renderSubStep = () => {
@@ -62,29 +122,32 @@ export default function RouteStep() {
           />
         );
       case 'location':
-        // Placeholder for LocationSubStep - will be implemented in Prompt 2
         return (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="font-medium">Sub-paso 2: Origen y Destino</p>
-                <p className="text-sm mt-2">Cliente seleccionado: {state.cliente}</p>
-                <p className="text-xs mt-4">Implementación en progreso...</p>
-              </div>
-            </CardContent>
-          </Card>
+          <LocationSubStep
+            clienteNombre={state.cliente}
+            selectedOrigen={state.origen}
+            selectedDestino={state.destino}
+            onOrigenChange={handleOrigenChange}
+            onDestinoChange={handleDestinoChange}
+            onSearchPrice={handleSearchPrice}
+            isSearchingPrice={isSearching}
+            onContinue={nextSubStep}
+          />
         );
       case 'pricing':
-        // Placeholder for PricingSubStep - will be implemented in Prompt 3
         return (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="font-medium">Sub-paso 3: Pricing</p>
-                <p className="text-sm mt-2">Implementación en progreso...</p>
-              </div>
-            </CardContent>
-          </Card>
+          <PricingSubStep
+            cliente={state.cliente}
+            origen={state.origen}
+            destino={state.destino}
+            pricingResult={pricingResult}
+            pricingError={pricingError}
+            isSearching={isSearching}
+            matchType={matchType}
+            onConfirm={handlePricingConfirm}
+            onRetry={handleRetrySearch}
+            onCreateRoute={handleCreateRoute}
+          />
         );
       case 'confirm':
         // Placeholder for RouteConfirmSubStep - will be implemented in Prompt 3
@@ -93,7 +156,15 @@ export default function RouteStep() {
             <CardContent className="p-6">
               <div className="text-center py-8 text-muted-foreground">
                 <p className="font-medium">Sub-paso 4: Confirmación</p>
-                <p className="text-sm mt-2">Implementación en progreso...</p>
+                <p className="text-sm mt-2">
+                  {state.cliente}: {state.origen} → {state.destino}
+                </p>
+                {(state.pricingResult || pricingResult) && (
+                  <p className="text-sm mt-2">
+                    Precio: ${(state.pricingResult?.precio_sugerido || pricingResult?.precio_sugerido)?.toLocaleString() || '-'}
+                  </p>
+                )}
+                <p className="text-xs mt-4">Implementación completa en Prompt 3...</p>
               </div>
             </CardContent>
           </Card>
@@ -105,8 +176,10 @@ export default function RouteStep() {
 
   // Navigation button visibility
   const showBackButton = state.currentSubStep !== 'client';
-  const showNextButton = state.currentSubStep !== 'confirm' && isSubStepComplete(state.currentSubStep);
-  const showConfirmButton = state.currentSubStep === 'confirm' && state.pricingResult;
+  const showNextButton = state.currentSubStep !== 'confirm' && 
+    state.currentSubStep !== 'pricing' && 
+    isSubStepComplete(state.currentSubStep);
+  const showConfirmButton = state.currentSubStep === 'confirm' && (state.pricingResult || pricingResult);
 
   return (
     <div className="space-y-6">
