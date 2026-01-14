@@ -2,7 +2,7 @@
  * CustodianCard - Wrapper for CustodioPerformanceCard with action buttons
  */
 
-import { Phone, MessageCircle, ChevronRight, Check } from 'lucide-react';
+import { Phone, MessageCircle, ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CustodioPerformanceCard } from '@/components/planeacion/CustodioPerformanceCard';
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
@@ -72,9 +72,9 @@ export function CustodianCard({
         ${hasRejected ? 'opacity-50 pointer-events-none' : ''}
       `}>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="flex-1 gap-1.5"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             onContact('whatsapp');
@@ -86,9 +86,9 @@ export function CustodianCard({
         </Button>
 
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="flex-1 gap-1.5"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             onContact('llamada');
@@ -100,30 +100,23 @@ export function CustodianCard({
         </Button>
 
         {hasAccepted ? (
+          <div className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
+            <Check className="h-3 w-3" />
+            Asignado
+          </div>
+        ) : (
           <Button
             variant="default"
             size="sm"
-            className="gap-1.5"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect();
-            }}
-          >
-            <Check className="h-3.5 w-3.5" />
-            Seleccionado
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1"
+            className="gap-1.5 ml-auto"
             onClick={(e) => {
               e.stopPropagation();
               onSelect();
             }}
             disabled={disabled || hasRejected}
           >
-            <ChevronRight className="h-4 w-4" />
+            Asignar
+            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
