@@ -30,6 +30,8 @@ export interface RouteSubStepState {
   isNewClient: boolean;
   origen: string;
   destino: string;
+  isNewOrigen: boolean;
+  isNewDestino: boolean;
   pricingResult: PricingResult | null;
   pricingError: string | null;
   isSearchingPrice: boolean;
@@ -47,6 +49,8 @@ const INITIAL_STATE: RouteSubStepState = {
   isNewClient: false,
   origen: '',
   destino: '',
+  isNewOrigen: false,
+  isNewDestino: false,
   pricingResult: null,
   pricingError: null,
   isSearchingPrice: false,
@@ -179,21 +183,24 @@ export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
     }));
   }, []);
 
-  const setOrigen = useCallback((origen: string) => {
+  const setOrigen = useCallback((origen: string, isNew: boolean = false) => {
     setState(prev => ({
       ...prev,
       origen,
+      isNewOrigen: isNew,
       // Reset destino when origen changes
       destino: '',
+      isNewDestino: false,
       pricingResult: null,
       pricingError: null,
     }));
   }, []);
 
-  const setDestino = useCallback((destino: string) => {
+  const setDestino = useCallback((destino: string, isNew: boolean = false) => {
     setState(prev => ({
       ...prev,
       destino,
+      isNewDestino: isNew,
       pricingResult: null,
       pricingError: null,
     }));
@@ -284,11 +291,14 @@ export function useRouteSubSteps(initialState?: Partial<RouteSubStepState>) {
     isNewClient: state.isNewClient,
     origen: state.origen,
     destino: state.destino,
+    isNewOrigen: state.isNewOrigen,
+    isNewDestino: state.isNewDestino,
     pricingResult: state.pricingResult,
     matchType: state.matchType,
     isNewRoute: state.isNewRoute,
   }), [state.currentSubStep, state.cliente, state.clienteId, state.isNewClient, 
-      state.origen, state.destino, state.pricingResult, state.matchType, state.isNewRoute]);
+      state.origen, state.destino, state.isNewOrigen, state.isNewDestino, 
+      state.pricingResult, state.matchType, state.isNewRoute]);
 
   return {
     state,

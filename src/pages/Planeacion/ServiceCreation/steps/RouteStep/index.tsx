@@ -29,6 +29,8 @@ export default function RouteStep() {
     isNewClient: formData.isNewClient || false,
     origen: formData.origen || '',
     destino: formData.destino || '',
+    isNewOrigen: formData.isNewOrigen || false,
+    isNewDestino: formData.isNewDestino || false,
     pricingResult: formData.pricingResult || null,
     matchType: formData.matchType || null,
     isNewRoute: formData.isNewRoute || false,
@@ -69,12 +71,15 @@ export default function RouteStep() {
       isNewClient: persistableState.isNewClient,
       origen: persistableState.origen,
       destino: persistableState.destino,
+      isNewOrigen: persistableState.isNewOrigen,
+      isNewDestino: persistableState.isNewDestino,
       pricingResult: persistableState.pricingResult,
       matchType: persistableState.matchType,
       isNewRoute: persistableState.isNewRoute,
     });
   }, [state.currentSubStep, state.cliente, state.clienteId, state.isNewClient,
-      state.origen, state.destino, state.pricingResult, state.matchType, state.isNewRoute]);
+      state.origen, state.destino, state.isNewOrigen, state.isNewDestino, 
+      state.pricingResult, state.matchType, state.isNewRoute]);
 
   // Pricing search hook
   const {
@@ -94,24 +99,27 @@ export default function RouteStep() {
   }, [setCliente, updateFormData, clearPricing]);
 
   // Handle origin change
-  const handleOrigenChange = useCallback((origen: string) => {
-    setOrigen(origen);
+  const handleOrigenChange = useCallback((origen: string, isNew: boolean) => {
+    setOrigen(origen, isNew);
     clearPricing();
   }, [setOrigen, clearPricing]);
 
-  // Handle destination change - also triggers price search
-  const handleDestinoChange = useCallback((destino: string) => {
-    setDestino(destino);
+  // Handle destination change
+  const handleDestinoChange = useCallback((destino: string, isNew: boolean) => {
+    setDestino(destino, isNew);
   }, [setDestino]);
 
-  // Handle price search
+  // Handle price search - skip if new origin or destination
   const handleSearchPrice = useCallback(async () => {
     if (!state.cliente || !state.origen || !state.destino) return;
+    // Don't search if either is new - they won't be in the pricing matrix
+    if (state.isNewOrigen || state.isNewDestino) return;
     
     setIsSearchingPrice(true);
     await searchPrice(state.cliente, state.origen, state.destino);
     setIsSearchingPrice(false);
-  }, [state.cliente, state.origen, state.destino, searchPrice, setIsSearchingPrice]);
+  }, [state.cliente, state.origen, state.destino, state.isNewOrigen, state.isNewDestino, searchPrice, setIsSearchingPrice]);
+
 
   // Handle pricing confirmation - move to confirm step
   const handlePricingConfirm = useCallback(() => {
@@ -182,6 +190,8 @@ export default function RouteStep() {
             clienteNombre={state.cliente}
             selectedOrigen={state.origen}
             selectedDestino={state.destino}
+            isNewOrigen={state.isNewOrigen}
+            isNewDestino={state.isNewDestino}
             onOrigenChange={handleOrigenChange}
             onDestinoChange={handleDestinoChange}
             onSearchPrice={handleSearchPrice}

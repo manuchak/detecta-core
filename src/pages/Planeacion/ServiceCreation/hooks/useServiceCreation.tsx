@@ -37,6 +37,8 @@ export interface ServiceFormData {
   // RouteStep internal state (for persistence)
   routeSubStep: RouteSubStep;
   isNewClient: boolean;
+  isNewOrigen: boolean;
+  isNewDestino: boolean;
   pricingResult: PricingResultData | null;
   matchType: MatchType;
   isNewRoute: boolean;
@@ -90,6 +92,8 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   // RouteStep internal state
   routeSubStep: 'client',
   isNewClient: false,
+  isNewOrigen: false,
+  isNewDestino: false,
   pricingResult: null,
   matchType: null,
   isNewRoute: false,
