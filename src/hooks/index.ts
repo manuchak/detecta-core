@@ -1,5 +1,7 @@
 // Export all hooks from a single file for easier imports
 export { useToast } from './use-toast';
+export { useFormPersistence } from './useFormPersistence';
+export type { FormPersistenceOptions, FormPersistenceReturn, PersistenceLevel } from './useFormPersistence';
 export { useAuth } from '@/contexts/AuthContext';
 export { useSandbox } from '@/contexts/SandboxContext';
 export { useIsMobile } from './use-mobile';

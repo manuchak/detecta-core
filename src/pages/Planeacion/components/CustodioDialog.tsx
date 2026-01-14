@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -32,6 +32,8 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { Custodio, CustodioForm } from '@/types/planeacion';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 const custodioSchema = z.object({
   nombre: z.string().min(1, 'Nombre es requerido'),
@@ -54,6 +56,17 @@ interface CustodioDialogProps {
   loading?: boolean;
 }
 
+const defaultValues: CustodioForm = {
+  nombre: '',
+  tel: '',
+  email: '',
+  zona_base: '',
+  tipo_custodia: 'no_armado',
+  tiene_gadgets: false,
+  certificaciones: [],
+  comentarios: '',
+};
+
 export default function CustodioDialog({
   open,
   onOpenChange,
@@ -61,20 +74,24 @@ export default function CustodioDialog({
   onSubmit,
   loading = false,
 }: CustodioDialogProps) {
+  const isEditing = !!custodio;
+
   const form = useForm<CustodioForm>({
     resolver: zodResolver(custodioSchema),
-    defaultValues: {
-      nombre: '',
-      tel: '',
-      email: '',
-      zona_base: '',
-      tipo_custodia: 'no_armado',
-      tiene_gadgets: false,
-      certificaciones: [],
-      comentarios: '',
-    },
+    defaultValues,
   });
 
+  // Persistence - only for new custodians (not editing)
+  const persistence = useFormPersistence<CustodioForm>({
+    key: 'custodio-dialog-draft',
+    initialData: defaultValues,
+    level: 'light',
+    form: !isEditing ? form : undefined,
+    isMeaningful: (data) => !!(data.nombre?.trim() || data.tel?.trim()),
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+  });
+
+  // Load existing custodio data when editing
   useEffect(() => {
     if (custodio) {
       form.reset({
@@ -89,14 +106,28 @@ export default function CustodioDialog({
         certificaciones: custodio.certificaciones || [],
         comentarios: custodio.comentarios || '',
       });
-    } else {
-      form.reset();
+    } else if (!persistence.hasDraft) {
+      form.reset(defaultValues);
     }
-  }, [custodio, form]);
+  }, [custodio, form, persistence.hasDraft]);
+
+  // Handle dialog close with confirmation
+  const handleOpenChange = useCallback(async (newOpen: boolean) => {
+    if (!newOpen && !isEditing) {
+      const shouldClose = await persistence.confirmDiscard();
+      if (!shouldClose) return;
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence, isEditing]);
 
   const handleSubmit = async (data: CustodioForm) => {
     await onSubmit(data);
-    form.reset();
+    
+    // Clear draft after successful submit
+    if (!isEditing) {
+      persistence.clearDraft(true);
+    }
+    form.reset(defaultValues);
   };
 
   const addCertificacion = () => {
@@ -113,14 +144,25 @@ export default function CustodioDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {custodio ? 'Editar Custodio' : 'Nuevo Custodio'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {isEditing ? 'Editar Custodio' : 'Nuevo Custodio'}
+            </DialogTitle>
+            {!isEditing && (
+              <DraftIndicator
+                hasDraft={persistence.hasDraft}
+                hasUnsavedChanges={persistence.hasUnsavedChanges}
+                lastSaved={persistence.lastSaved}
+                getTimeSinceSave={persistence.getTimeSinceSave}
+                variant="minimal"
+              />
+            )}
+          </div>
           <DialogDescription>
-            {custodio 
+            {isEditing 
               ? 'Modifica los datos del custodio'
               : 'Registra un nuevo custodio en el sistema'
             }
@@ -293,11 +335,11 @@ export default function CustodioDialog({
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : (custodio ? 'Actualizar' : 'Crear')}
+                {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear')}
               </Button>
             </DialogFooter>
           </form>

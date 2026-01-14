@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,7 +13,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,18 +21,21 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Cliente, ClienteForm } from '@/types/planeacion';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 const clienteSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
+  nombre: z.string().min(1, 'Nombre de la empresa es requerido'),
   rfc: z.string().optional(),
-  contacto_nombre: z.string().min(1, 'El nombre del contacto es requerido'),
-  contacto_tel: z.string().min(1, 'El teléfono es requerido'),
+  contacto_nombre: z.string().min(1, 'Nombre del contacto es requerido'),
+  contacto_tel: z.string().min(10, 'El teléfono debe tener al menos 10 dígitos'),
   contacto_email: z.string().email('Email inválido').optional().or(z.literal('')),
-  sla_minutos_asignacion: z.number().min(1, 'SLA debe ser mayor a 0'),
+  sla_minutos_asignacion: z.coerce.number().min(1, 'El SLA debe ser mayor a 0'),
   notas: z.string().optional(),
 });
+
+type ClienteFormValues = z.infer<typeof clienteSchema>;
 
 interface ClienteDialogProps {
   open: boolean;
@@ -42,6 +44,16 @@ interface ClienteDialogProps {
   onSubmit: (data: ClienteForm) => Promise<void>;
   loading?: boolean;
 }
+
+const defaultValues: ClienteFormValues = {
+  nombre: '',
+  rfc: '',
+  contacto_nombre: '',
+  contacto_tel: '',
+  contacto_email: '',
+  sla_minutos_asignacion: 60,
+  notas: '',
+};
 
 export default function ClienteDialog({
   open,
@@ -52,19 +64,22 @@ export default function ClienteDialog({
 }: ClienteDialogProps) {
   const isEditing = !!cliente;
 
-  const form = useForm<z.infer<typeof clienteSchema>>({
+  const form = useForm<ClienteFormValues>({
     resolver: zodResolver(clienteSchema),
-    defaultValues: {
-      nombre: '',
-      rfc: '',
-      contacto_nombre: '',
-      contacto_tel: '',
-      contacto_email: '',
-      sla_minutos_asignacion: 60,
-      notas: '',
-    },
+    defaultValues,
   });
 
+  // Persistence - only for new clients (not editing)
+  const persistence = useFormPersistence<ClienteFormValues>({
+    key: 'cliente-dialog-draft',
+    initialData: defaultValues,
+    level: 'light',
+    form: !isEditing ? form : undefined, // Only sync when creating new
+    isMeaningful: (data) => !!(data.nombre?.trim() || data.contacto_nombre?.trim()),
+    ttl: 2 * 60 * 60 * 1000, // 2 hours for dialogs
+  });
+
+  // Load existing cliente data when editing
   useEffect(() => {
     if (cliente) {
       form.reset({
@@ -76,20 +91,23 @@ export default function ClienteDialog({
         sla_minutos_asignacion: cliente.sla_minutos_asignacion,
         notas: cliente.notas || '',
       });
-    } else {
-      form.reset({
-        nombre: '',
-        rfc: '',
-        contacto_nombre: '',
-        contacto_tel: '',
-        contacto_email: '',
-        sla_minutos_asignacion: 60,
-        notas: '',
-      });
+    } else if (!persistence.hasDraft) {
+      // Only reset if no draft exists
+      form.reset(defaultValues);
     }
-  }, [cliente, form]);
+  }, [cliente, form, persistence.hasDraft]);
 
-  const handleSubmit = async (values: z.infer<typeof clienteSchema>) => {
+  // Handle dialog close with confirmation
+  const handleOpenChange = useCallback(async (newOpen: boolean) => {
+    if (!newOpen && !isEditing) {
+      // Check if we should confirm before closing
+      const shouldClose = await persistence.confirmDiscard();
+      if (!shouldClose) return;
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence, isEditing]);
+
+  const handleSubmit = async (values: ClienteFormValues) => {
     const data: ClienteForm = {
       nombre: values.nombre,
       contacto_nombre: values.contacto_nombre,
@@ -101,16 +119,32 @@ export default function ClienteDialog({
     };
     
     await onSubmit(data);
-    form.reset();
+    
+    // Clear draft after successful submit
+    if (!isEditing) {
+      persistence.clearDraft(true);
+    }
+    form.reset(defaultValues);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            {isEditing ? 'Editar Cliente' : 'Nuevo Cliente'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {isEditing ? 'Editar Cliente' : 'Nuevo Cliente'}
+            </DialogTitle>
+            {!isEditing && (
+              <DraftIndicator
+                hasDraft={persistence.hasDraft}
+                hasUnsavedChanges={persistence.hasUnsavedChanges}
+                lastSaved={persistence.lastSaved}
+                getTimeSinceSave={persistence.getTimeSinceSave}
+                variant="minimal"
+              />
+            )}
+          </div>
           <DialogDescription>
             {isEditing 
               ? 'Modifica la información del cliente'
@@ -189,10 +223,10 @@ export default function ClienteDialog({
                   <FormItem>
                     <FormLabel>Email (Opcional)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="email" 
-                        placeholder="Ej. contacto@empresa.com" 
-                        {...field} 
+                      <Input
+                        type="email"
+                        placeholder="Ej. contacto@empresa.com"
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -205,18 +239,15 @@ export default function ClienteDialog({
                 name="sla_minutos_asignacion"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SLA Asignación (minutos)</FormLabel>
+                    <FormLabel>SLA de Asignación (minutos)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="60" 
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="60"
                         {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Tiempo máximo para asignar un custodio
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -230,10 +261,10 @@ export default function ClienteDialog({
                 <FormItem>
                   <FormLabel>Notas (Opcional)</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Información adicional sobre el cliente..."
-                      rows={3}
-                      {...field} 
+                      className="min-h-[80px]"
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -242,16 +273,11 @@ export default function ClienteDialog({
             />
 
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear'}
+                {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear')}
               </Button>
             </DialogFooter>
           </form>

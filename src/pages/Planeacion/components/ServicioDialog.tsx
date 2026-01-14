@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,6 +31,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Servicio, ServicioForm } from '@/types/planeacion';
 import { useClientes } from '@/hooks/usePlaneacion';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 const servicioSchema = z.object({
   cliente_id: z.string().min(1, 'Cliente es requerido'),
@@ -59,6 +61,20 @@ interface ServicioDialogProps {
   loading?: boolean;
 }
 
+const defaultValues: ServicioForm = {
+  cliente_id: '',
+  fecha_programada: '',
+  hora_ventana_inicio: '09:00',
+  hora_ventana_fin: '17:00',
+  origen_texto: '',
+  destino_texto: '',
+  tipo_servicio: 'traslado',
+  requiere_gadgets: false,
+  notas_especiales: '',
+  prioridad: 1,
+  valor_estimado: 0,
+};
+
 export default function ServicioDialog({
   open,
   onOpenChange,
@@ -66,25 +82,25 @@ export default function ServicioDialog({
   onSubmit,
   loading = false,
 }: ServicioDialogProps) {
+  const isEditing = !!servicio;
   const { data: clientes = [] } = useClientes();
 
   const form = useForm<ServicioForm>({
     resolver: zodResolver(servicioSchema),
-    defaultValues: {
-      cliente_id: '',
-      fecha_programada: '',
-      hora_ventana_inicio: '09:00',
-      hora_ventana_fin: '17:00',
-      origen_texto: '',
-      destino_texto: '',
-      tipo_servicio: 'traslado',
-      requiere_gadgets: false,
-      notas_especiales: '',
-      prioridad: 1,
-      valor_estimado: 0,
-    },
+    defaultValues,
   });
 
+  // Persistence - only for new services (not editing)
+  const persistence = useFormPersistence<ServicioForm>({
+    key: 'servicio-dialog-draft',
+    initialData: defaultValues,
+    level: 'light',
+    form: !isEditing ? form : undefined,
+    isMeaningful: (data) => !!(data.cliente_id || data.origen_texto?.trim() || data.destino_texto?.trim()),
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+  });
+
+  // Load existing servicio data when editing
   useEffect(() => {
     if (servicio) {
       form.reset({
@@ -104,25 +120,50 @@ export default function ServicioDialog({
         prioridad: servicio.prioridad,
         valor_estimado: servicio.valor_estimado,
       });
-    } else {
-      form.reset();
+    } else if (!persistence.hasDraft) {
+      form.reset(defaultValues);
     }
-  }, [servicio, form]);
+  }, [servicio, form, persistence.hasDraft]);
+
+  // Handle dialog close with confirmation
+  const handleOpenChange = useCallback(async (newOpen: boolean) => {
+    if (!newOpen && !isEditing) {
+      const shouldClose = await persistence.confirmDiscard();
+      if (!shouldClose) return;
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence, isEditing]);
 
   const handleSubmit = async (data: ServicioForm) => {
     await onSubmit(data);
-    form.reset();
+    
+    // Clear draft after successful submit
+    if (!isEditing) {
+      persistence.clearDraft(true);
+    }
+    form.reset(defaultValues);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {servicio ? 'Editar Servicio' : 'Nuevo Servicio'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>
+              {isEditing ? 'Editar Servicio' : 'Nuevo Servicio'}
+            </DialogTitle>
+            {!isEditing && (
+              <DraftIndicator
+                hasDraft={persistence.hasDraft}
+                hasUnsavedChanges={persistence.hasUnsavedChanges}
+                lastSaved={persistence.lastSaved}
+                getTimeSinceSave={persistence.getTimeSinceSave}
+                variant="minimal"
+              />
+            )}
+          </div>
           <DialogDescription>
-            {servicio 
+            {isEditing 
               ? 'Modifica los datos del servicio de custodia'
               : 'Crea un nuevo servicio de custodia'
             }
@@ -365,11 +406,11 @@ export default function ServicioDialog({
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Guardando...' : (servicio ? 'Actualizar' : 'Crear')}
+                {loading ? 'Guardando...' : (isEditing ? 'Actualizar' : 'Crear')}
               </Button>
             </DialogFooter>
           </form>
