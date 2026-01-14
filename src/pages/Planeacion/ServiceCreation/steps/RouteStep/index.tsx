@@ -1,16 +1,14 @@
 import { useCallback } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
-import { useRouteSubSteps } from './hooks/useRouteSubSteps';
+import { useRouteSubSteps, PricingResult } from './hooks/useRouteSubSteps';
 import { usePricingSearch } from './hooks/usePricingSearch';
 import { RouteSubStepIndicator } from './RouteSubStepIndicator';
 import { ClientSearchSubStep } from './substeps/ClientSearchSubStep';
 import { LocationSubStep } from './substeps/LocationSubStep';
 import { PricingSubStep } from './substeps/PricingSubStep';
-// Future import for RouteConfirmSubStep
-// import { RouteConfirmSubStep } from './substeps/RouteConfirmSubStep';
+import { RouteConfirmSubStep } from './substeps/RouteConfirmSubStep';
 
 export default function RouteStep() {
   const { updateFormData, nextStep } = useServiceCreation();
@@ -26,6 +24,7 @@ export default function RouteStep() {
     setPricingError,
     setIsSearchingPrice,
     setMatchType,
+    setIsNewRoute,
     isSubStepComplete,
     canNavigateToSubStep,
   } = useRouteSubSteps();
@@ -72,9 +71,10 @@ export default function RouteStep() {
     if (pricingResult) {
       setPricingResult(pricingResult);
       setMatchType(matchType);
+      setIsNewRoute(false);
       nextSubStep();
     }
-  }, [pricingResult, matchType, setPricingResult, setMatchType, nextSubStep]);
+  }, [pricingResult, matchType, setPricingResult, setMatchType, setIsNewRoute, nextSubStep]);
 
   // Handle retry search
   const handleRetrySearch = useCallback(() => {
@@ -82,11 +82,24 @@ export default function RouteStep() {
     handleSearchPrice();
   }, [clearPricing, handleSearchPrice]);
 
-  // Handle create route button (placeholder for Prompt 3)
+  // Handle create route button (legacy - now handled by inline form)
   const handleCreateRoute = useCallback(() => {
-    // TODO: Implement inline route creation in Prompt 3
+    // This is now handled by the inline form in PricingSubStep
     console.log('Create route for:', state.cliente, state.origen, state.destino);
   }, [state.cliente, state.origen, state.destino]);
+
+  // Handle route created from inline form
+  const handleRouteCreated = useCallback((result: PricingResult) => {
+    setPricingResult(result);
+    setMatchType('exact');
+    setIsNewRoute(true);
+    nextSubStep();
+  }, [setPricingResult, setMatchType, setIsNewRoute, nextSubStep]);
+
+  // Handle edit from confirmation step
+  const handleEditRoute = useCallback(() => {
+    goToSubStep('location');
+  }, [goToSubStep]);
 
   // Handle final route confirmation
   const handleRouteComplete = useCallback(() => {
@@ -147,27 +160,26 @@ export default function RouteStep() {
             onConfirm={handlePricingConfirm}
             onRetry={handleRetrySearch}
             onCreateRoute={handleCreateRoute}
+            onRouteCreated={handleRouteCreated}
           />
         );
       case 'confirm':
-        // Placeholder for RouteConfirmSubStep - will be implemented in Prompt 3
+        const finalResult = state.pricingResult || pricingResult;
+        if (!finalResult) {
+          goToSubStep('pricing');
+          return null;
+        }
         return (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <p className="font-medium">Sub-paso 4: Confirmación</p>
-                <p className="text-sm mt-2">
-                  {state.cliente}: {state.origen} → {state.destino}
-                </p>
-                {(state.pricingResult || pricingResult) && (
-                  <p className="text-sm mt-2">
-                    Precio: ${(state.pricingResult?.precio_sugerido || pricingResult?.precio_sugerido)?.toLocaleString() || '-'}
-                  </p>
-                )}
-                <p className="text-xs mt-4">Implementación completa en Prompt 3...</p>
-              </div>
-            </CardContent>
-          </Card>
+          <RouteConfirmSubStep
+            cliente={state.cliente}
+            origen={state.origen}
+            destino={state.destino}
+            pricingResult={finalResult}
+            matchType={state.matchType || matchType}
+            isNewRoute={state.isNewRoute}
+            onEdit={handleEditRoute}
+            onConfirm={handleRouteComplete}
+          />
         );
       default:
         return null;
@@ -179,7 +191,8 @@ export default function RouteStep() {
   const showNextButton = state.currentSubStep !== 'confirm' && 
     state.currentSubStep !== 'pricing' && 
     isSubStepComplete(state.currentSubStep);
-  const showConfirmButton = state.currentSubStep === 'confirm' && (state.pricingResult || pricingResult);
+  // No confirm button needed - it's in RouteConfirmSubStep now
+  const showConfirmButton = false;
 
   return (
     <div className="space-y-6">

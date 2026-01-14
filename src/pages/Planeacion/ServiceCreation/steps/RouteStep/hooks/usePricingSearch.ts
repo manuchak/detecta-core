@@ -18,7 +18,7 @@ export interface PricingResult {
   es_ruta_reparto: boolean;
   puntos_intermedios?: string[] | null;
   numero_paradas?: number;
-  ruta_encontrada: string;
+  ruta_encontrada?: string;
 }
 
 export type MatchType = 'exact' | 'flexible' | 'destination-only' | null;
