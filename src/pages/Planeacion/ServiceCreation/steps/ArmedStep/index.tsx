@@ -116,7 +116,9 @@ export default function ArmedStep() {
       setSelectedType('proveedor');
       updateFormData({
         armado: personalData.nombreCompleto,
-        armadoId: personalData.personalId
+        armadoId: personalData.personalId,
+        tipoAsignacionArmado: 'proveedor',
+        proveedorArmadoId: selectedProvider.id
       });
       setVerificationModalOpen(false);
     }
@@ -128,6 +130,8 @@ export default function ArmedStep() {
       updateFormData({
         armado: selectedGuard?.nombre || formData.armado,
         armadoId: selectedGuardId,
+        tipoAsignacionArmado: selectedType === 'proveedor' ? 'proveedor' : 'interno',
+        proveedorArmadoId: selectedType === 'proveedor' && selectedProvider ? selectedProvider.id : null,
         puntoEncuentro,
         horaEncuentro
       });

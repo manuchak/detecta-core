@@ -63,6 +63,8 @@ export interface ServiceFormData {
   // Armed step
   armado: string;
   armadoId: string;
+  tipoAsignacionArmado: 'interno' | 'proveedor' | null;
+  proveedorArmadoId: string | null;
   puntoEncuentro: string;
   horaEncuentro: string;
 }
@@ -79,6 +81,7 @@ interface ServiceCreationContextValue {
   saveDraft: (options?: { silent?: boolean }) => void;
   hasUnsavedChanges: boolean;
   draftId: string | null;
+  clearDraft: () => void;
 }
 
 const ServiceCreationContext = createContext<ServiceCreationContextValue | null>(null);
@@ -118,6 +121,8 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   // Armed step
   armado: '',
   armadoId: '',
+  tipoAsignacionArmado: null,
+  proveedorArmadoId: null,
   puntoEncuentro: '',
   horaEncuentro: '',
 };
@@ -377,6 +382,16 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     saveDraftInternal(options);
   }, [ensureDraftId, saveDraftInternal]);
 
+  // Clear draft from localStorage after successful creation
+  const clearDraft = useCallback(() => {
+    if (draftIdRef.current) {
+      localStorage.removeItem(`service-draft-${draftIdRef.current}`);
+      setDraftId(null);
+      setHasUnsavedChanges(false);
+      console.log('[ServiceCreation] Draft cleared after successful creation');
+    }
+  }, []);
+
   const value: ServiceCreationContextValue = {
     currentStep,
     goToStep,
@@ -389,6 +404,7 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     saveDraft,
     hasUnsavedChanges,
     draftId,
+    clearDraft,
   };
 
   return (
