@@ -48,7 +48,10 @@ export default function ServiceStep() {
     // Validation
     validation,
     isDateValid,
+    isDateTimeValid,
+    dateTimeErrorMessage,
     minDate,
+    isToday,
     canContinue,
     
     // Formatted displays
@@ -142,8 +145,10 @@ export default function ServiceStep() {
           onFechaChange={setFecha}
           onHoraChange={setHora}
           minDate={minDate}
-          isDateValid={isDateValid}
+          isDateTimeValid={isDateTimeValid}
+          dateTimeErrorMessage={dateTimeErrorMessage}
           formattedFecha={formattedFecha}
+          isToday={isToday}
           wasHoraOptimized={wasHoraOptimized}
           distanciaKm={distanciaKm}
         />
