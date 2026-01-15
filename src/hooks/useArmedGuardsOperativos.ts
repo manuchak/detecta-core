@@ -99,6 +99,10 @@ export interface ProveedorArmado {
   
   created_at: string;
   updated_at: string;
+  
+  // Zone coverage info (computed at runtime)
+  cubre_zona_servicio?: boolean;
+  prioridad_zona?: number;
 }
 
 export interface ServiceRequestFilters {
@@ -246,114 +250,135 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         // Don't throw error for providers, just log and continue
         setProviders([]);
       } else {
-        // Apply filters to providers and check capacity
-        let filteredProviders = (providersData || []).filter(provider => 
+        // Apply filters to providers - SHOW ALL but mark zone coverage (fail-open approach)
+        const capacityFilteredProviders = (providersData || []).filter(provider => 
           provider.capacidad_actual < provider.capacidad_maxima
         );
         
-        // Filter providers based on criteria with improved zone matching
-        if (filters?.zona_base && filters.zona_base.trim()) {
-          const zoneName = filters.zona_base.trim();
-          const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
+        // Map providers with zone coverage info (don't filter out, just mark)
+        const providersWithCoverage = capacityFilteredProviders.map(provider => {
+          let cubreZona = true; // Default true if no zone filter
+          let prioridadZona = 0;
           
-          filteredProviders = filteredProviders.filter(provider => {
-            if (!provider.zonas_cobertura || provider.zonas_cobertura.length === 0) {
-              return false;
-            }
+          if (filters?.zona_base && filters.zona_base.trim()) {
+            const zoneName = filters.zona_base.trim();
+            const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
             
-            // Check for exact match first
-            if (provider.zonas_cobertura.includes(zoneName)) {
-              return true;
-            }
+            cubreZona = false; // Will be set to true if match found
             
-            // Check for partial matches in zone coverage
-            return provider.zonas_cobertura.some(zona => {
-              const zonaLower = zona.toLowerCase();
-              const zoneNameLower = zoneName.toLowerCase();
-              
-              // Check if zone contains the search term or vice versa
-              if (zonaLower.includes(zoneNameLower) || zoneNameLower.includes(zonaLower)) {
-                return true;
+            if (provider.zonas_cobertura && provider.zonas_cobertura.length > 0) {
+              // Check for exact match first
+              if (provider.zonas_cobertura.includes(zoneName)) {
+                cubreZona = true;
+              } else {
+                // Check for partial matches in zone coverage
+                cubreZona = provider.zonas_cobertura.some(zona => {
+                  const zonaLower = zona.toLowerCase();
+                  const zoneNameLower = zoneName.toLowerCase();
+                  
+                  // Check if zone contains the search term or vice versa
+                  if (zonaLower.includes(zoneNameLower) || zoneNameLower.includes(zonaLower)) {
+                    return true;
+                  }
+                  
+                  // Check for token matches
+                  return zoneTokens.some(token => 
+                    zonaLower.includes(token.toLowerCase()) || token.toLowerCase().includes(zonaLower)
+                  );
+                });
               }
-              
-              // Check for token matches
-              return zoneTokens.some(token => 
-                zonaLower.includes(token.toLowerCase()) || token.toLowerCase().includes(zonaLower)
-              );
-            });
-          });
+            }
+            
+            prioridadZona = cubreZona ? 0 : 1; // Providers covering zone come first
+          }
           
-          console.log(`Zone filter applied for providers: ${zoneName} -> ${filteredProviders.length} results`);
-        }
+          return {
+            ...provider,
+            cubre_zona_servicio: cubreZona,
+            prioridad_zona: prioridadZona
+          };
+        });
 
+        // Apply service type filter
+        let filteredProviders = providersWithCoverage;
         if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
-          filteredProviders = filteredProviders.filter(provider => 
+          filteredProviders = providersWithCoverage.filter(provider => 
             provider.servicios_disponibles?.includes(filters.tipo_servicio!) ||
             provider.servicios_disponibles?.includes('general') // Allow general providers
           );
         }
 
-        console.log(`Filtered to ${filteredProviders.length} providers from ${providersData?.length || 0} total`);
+        // Sort: providers covering zone first, then by rating
+        filteredProviders.sort((a, b) => {
+          if (a.prioridad_zona !== b.prioridad_zona) {
+            return a.prioridad_zona - b.prioridad_zona;
+          }
+          return (b.rating_proveedor || 0) - (a.rating_proveedor || 0);
+        });
+
+        console.log(`Providers loaded: ${filteredProviders.length} (zone coverage marked, not filtered out)`);
         setProviders(filteredProviders);
       }
 
-      // Process armed guards data with conflict validation
-      const processedGuards = await Promise.all((finalGuardsData || []).map(async (guard) => {
+      // Process armed guards data with conflict validation - PARALLEL with TIMEOUT + FAIL-OPEN
+      const BATCH_SIZE = 20;
+      const TIMEOUT_MS = 3000;
+      
+      // Default fail-open validation result
+      const createDefaultValidation = (): ArmadosConflictValidation => ({
+        disponible: true,  // FAIL-OPEN: assume available
+        categoria_disponibilidad: 'libre',
+        razon_no_disponible: null,
+        servicios_hoy: 0,
+        servicios_en_conflicto: 0,
+        conflictos_detalle: [],
+        horas_trabajadas_hoy: 0,
+        dias_sin_asignar: 0,
+        nivel_fatiga: 'bajo',
+        factor_equidad: 50,
+        factor_oportunidad: 50,
+        scoring_equitativo: {
+          workload_score: 50,
+          opportunity_score: 50,
+          fatiga_penalty: 0,
+          balance_recommendation: 'neutral'
+        }
+      });
+      
+      // Process single guard with timeout
+      const procesarArmadoConTimeout = async (guard: any): Promise<any> => {
         let conflictValidation: ArmadosConflictValidation | undefined;
-
-        // Apply conflict validation if service request data is provided
+        
+        // Only validate if we have service date/time filters
         if (filters?.fecha_programada && filters?.hora_ventana_inicio) {
           try {
-            // First try RPC function
-            const { data: rpcResult, error: rpcError } = await supabase.rpc(
-              'verificar_disponibilidad_equitativa_armado',
-              {
+            // Race between RPC call and timeout
+            const result = await Promise.race([
+              supabase.rpc('verificar_disponibilidad_equitativa_armado', {
                 p_armado_id: guard.id,
                 p_armado_nombre: guard.nombre,
                 p_fecha_servicio: filters.fecha_programada,
                 p_hora_inicio: filters.hora_ventana_inicio,
                 p_duracion_estimada_horas: 4
-              }
-            );
-
-            if (rpcError) {
-              console.warn('RPC function failed for armado, using fallback:', rpcError);
-              // Fallback to TypeScript implementation
-              conflictValidation = await verificarConflictosArmado(
-                guard.id,
-                guard.nombre,
-                filters.fecha_programada,
-                filters.hora_ventana_inicio,
-                4
-              );
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), TIMEOUT_MS)
+              )
+            ]) as { data: any; error: any };
+            
+            if (result.error) {
+              console.warn(`[FAIL-OPEN] RPC error for ${guard.nombre}, defaulting to available`);
+              conflictValidation = createDefaultValidation();
             } else {
-              conflictValidation = rpcResult as ArmadosConflictValidation;
+              conflictValidation = result.data as ArmadosConflictValidation;
             }
-          } catch (error) {
-            console.error('Error validating armado conflicts:', error);
-            // Default to unavailable for safety
-            conflictValidation = {
-              disponible: false,
-              categoria_disponibilidad: 'no_disponible',
-              razon_no_disponible: 'Error al verificar disponibilidad',
-              servicios_hoy: 0,
-              servicios_en_conflicto: 0,
-              conflictos_detalle: [],
-              horas_trabajadas_hoy: 0,
-              dias_sin_asignar: 0,
-              nivel_fatiga: 'bajo',
-              factor_equidad: 0,
-              factor_oportunidad: 0,
-              scoring_equitativo: {
-                workload_score: 0,
-                opportunity_score: 0,
-                fatiga_penalty: 0,
-                balance_recommendation: 'evitar'
-              }
-            };
+          } catch (error: any) {
+            // Timeout or any error - FAIL-OPEN
+            console.warn(`[FAIL-OPEN] Timeout/error for armado ${guard.nombre}:`, error.message);
+            conflictValidation = createDefaultValidation();
           }
         }
-
+        
         return {
           ...guard,
           // Add computed fields for compatibility
@@ -370,7 +395,41 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
             (conflictValidation.factor_equidad + conflictValidation.factor_oportunidad) / 2 : 
             guard.score_total || 50
         };
-      }));
+      };
+      
+      // Process guards in batches for efficiency
+      const guardsToProcess = finalGuardsData || [];
+      const allProcessedGuards: any[] = [];
+      
+      for (let i = 0; i < guardsToProcess.length; i += BATCH_SIZE) {
+        const batch = guardsToProcess.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.allSettled(
+          batch.map(guard => procesarArmadoConTimeout(guard))
+        );
+        
+        // Extract fulfilled results, use fail-open for rejected
+        batchResults.forEach((result, idx) => {
+          if (result.status === 'fulfilled') {
+            allProcessedGuards.push(result.value);
+          } else {
+            // Even Promise.allSettled rejection gets fail-open treatment
+            const guard = batch[idx];
+            console.warn(`[FAIL-OPEN] Batch processing failed for ${guard.nombre}`);
+            allProcessedGuards.push({
+              ...guard,
+              disponible_hoy: true,
+              score_disponibilidad_efectiva: guard.score_total || 0,
+              conflicto_validacion: createDefaultValidation(),
+              categoria_disponibilidad_conflicto: 'libre',
+              razon_no_disponible: null,
+              scoring_proximidad: guard.score_total || 50
+            });
+          }
+        });
+      }
+      
+      const processedGuards = allProcessedGuards;
+      console.log(`[Armed] Processed ${processedGuards.length} guards with fail-open strategy`);
 
       // Filter out unavailable guards based on conflict validation (if validation was performed)
       let availableGuards = processedGuards;
