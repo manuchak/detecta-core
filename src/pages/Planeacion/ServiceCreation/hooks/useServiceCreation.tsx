@@ -395,9 +395,17 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   const markStepCompleted = useCallback((step: StepId) => {
     setCompletedSteps(prev => {
       if (prev.includes(step)) return prev;
-      return [...prev, step];
+      const newSteps = [...prev, step];
+      completedStepsRef.current = newSteps; // Sincronizar ref inmediatamente
+      return newSteps;
     });
-  }, []);
+    setHasUnsavedChanges(true); // Dispara autosave
+    
+    // Guardar inmediatamente para evitar pérdida de checkmarks
+    setTimeout(() => {
+      saveDraftInternal({ silent: true });
+    }, 50);
+  }, [saveDraftInternal]);
 
   // Public saveDraft that also ensures draftId
   const saveDraft = useCallback((options?: { silent?: boolean }) => {
