@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Shield, ArrowLeft, ArrowRight, Search, MapPin, Clock, Star, Phone, AlertTriangle, CheckCircle, Building2, User, Sparkles, Ban, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useArmedGuardsWithTracking, type ArmedGuard, type ArmedProvider } from '@/hooks/useArmedGuardsWithTracking';
 import { ExternalArmedVerificationModal } from '@/components/planeacion/ExternalArmedVerificationModal';
+import { MeetingPointSection } from './components/MeetingPointSection';
 
 /**
  * ArmedStep - Fourth step in service creation
@@ -41,6 +41,15 @@ export default function ArmedStep() {
   // External provider verification modal
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<ArmedProvider | null>(null);
+
+  // Memoized callbacks for MeetingPointSection to prevent re-renders
+  const handlePuntoEncuentroChange = useCallback((value: string) => {
+    setPuntoEncuentro(value);
+  }, []);
+
+  const handleHoraEncuentroChange = useCallback((value: string) => {
+    setHoraEncuentro(value);
+  }, []);
 
   // Filter guards by search query
   const filteredGuards = useMemo(() => {
@@ -386,44 +395,16 @@ export default function ArmedStep() {
         </TabsContent>
       </Tabs>
 
-      {/* Meeting point section - shows when guard selected */}
+      {/* Meeting point section - shows when guard selected (memoized for performance) */}
       {selectedGuardId && selectedType === 'interno' && (
-        <div className="space-y-4 p-4 rounded-lg bg-muted/30 border animate-in fade-in-50">
-          <h4 className="font-medium flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-primary" />
-            Punto de Encuentro
-          </h4>
-          
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="puntoEncuentro">Ubicación</Label>
-              <Input
-                id="puntoEncuentro"
-                placeholder="Dirección del punto de encuentro"
-                value={puntoEncuentro}
-                onChange={(e) => setPuntoEncuentro(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="horaEncuentro" className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5" />
-                Hora de Encuentro
-              </Label>
-              <Input
-                id="horaEncuentro"
-                type="time"
-                value={horaEncuentro}
-                onChange={(e) => setHoraEncuentro(e.target.value)}
-              />
-              {formData.hora && (
-                <p className="text-xs text-muted-foreground">
-                  Sugerido: 30 min antes de la cita ({formData.hora})
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        <MeetingPointSection
+          puntoEncuentro={puntoEncuentro}
+          horaEncuentro={horaEncuentro}
+          horaCita={formData.hora}
+          armadoInternoId={selectedGuardId}
+          onPuntoEncuentroChange={handlePuntoEncuentroChange}
+          onHoraEncuentroChange={handleHoraEncuentroChange}
+        />
       )}
 
       {/* Footer navigation */}
