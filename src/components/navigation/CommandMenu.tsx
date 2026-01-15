@@ -111,6 +111,13 @@ export function CommandMenu({ className }: CommandMenuProps) {
           {/* Quick Actions */}
           <CommandGroup heading="Acciones Rápidas">
             <CommandItem
+              value="Crear nuevo servicio"
+              onSelect={() => handleSelect('/planeacion/nuevo-servicio')}
+              className="py-2"
+            >
+              <span>🚚 Crear nuevo servicio</span>
+            </CommandItem>
+            <CommandItem
               value="Nuevo candidato"
               onSelect={() => handleSelect('/leads?action=new')}
               className="py-2"

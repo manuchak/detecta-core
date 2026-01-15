@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +21,7 @@ import { useSecurityAudit } from '@/hooks/useSecurityAudit';
 import { useDuplicateCleanup } from '@/hooks/useDuplicateCleanup';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
 
 import type { EditableService } from '@/components/planeacion/EditServiceModal';
 
@@ -161,7 +162,8 @@ export default function PlanningHub() {
   };
 
   // Check if there's a draft to show banner - MEJORADO: incluye drafts parciales
-  const hasMeaningfulDraft = (() => {
+  // Also check for NEW system drafts
+  const hasMeaningfulDraft = useMemo(() => {
     try {
       const exactKey = user ? `service_creation_workflow_${user.id}` : 'service_creation_workflow';
       const draftData = localStorage.getItem(exactKey);
@@ -184,7 +186,32 @@ export default function PlanningHub() {
       return false;
     }
     return false;
-  })();
+  }, [user]);
+
+  // Check for NEW system drafts (service-draft-*)
+  const hasNewSystemDraft = useMemo(() => {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('service-draft-')) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            // Check if has meaningful data
+            if (parsed.cliente || parsed.origen || parsed.destino) {
+              return true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      return false;
+    }
+    return false;
+  }, []);
+
+  // Combined draft check for banner display
+  const hasAnyDraft = hasMeaningfulDraft || hasNewSystemDraft;
 
   // ✅ MEJORADO: Handler para cerrar dialog con guardado forzado
   const handleDialogClose = (open: boolean) => {
@@ -221,8 +248,8 @@ export default function PlanningHub() {
 
   return (
     <div className="h-full">
-      {/* Draft Banner - Persistent reminder */}
-      {hasMeaningfulDraft && !showCreateWorkflow && (
+      {/* Draft Banner - Persistent reminder for BOTH systems */}
+      {hasAnyDraft && !showCreateWorkflow && (
         <Alert className="mb-4 border-primary bg-primary/5">
           <Save className="h-4 w-4 text-primary" />
           <AlertDescription className="flex items-center justify-between">
@@ -233,13 +260,16 @@ export default function PlanningHub() {
               variant="default" 
               size="sm"
               onClick={() => {
-                console.log('📂 User clicked banner to continue draft');
-                
-                // ✅ CAMBIO #2: Limpiar suppression flag y forzar restauración
-                sessionStorage.removeItem('scw_suppress_restore');
-                sessionStorage.setItem('scw_force_restore', '1');
-                
-                setShowCreateWorkflow(true);
+                // Route to appropriate system based on draft type
+                if (hasNewSystemDraft && FEATURE_FLAGS.USE_NEW_SERVICE_CREATION) {
+                  console.log('📂 Continuing draft in NEW system');
+                  navigate('/planeacion/nuevo-servicio');
+                } else if (hasMeaningfulDraft) {
+                  console.log('📂 Continuing draft in legacy system');
+                  sessionStorage.removeItem('scw_suppress_restore');
+                  sessionStorage.setItem('scw_force_restore', '1');
+                  setShowCreateWorkflow(true);
+                }
               }}
               className="ml-4"
             >
@@ -258,7 +288,13 @@ export default function PlanningHub() {
             <p className="text-sm text-muted-foreground">Flujo completo paso a paso con validación automatizada</p>
           </div>
           <Button 
-            onClick={() => setShowCreateWorkflow(true)}
+            onClick={() => {
+              if (FEATURE_FLAGS.USE_NEW_SERVICE_CREATION) {
+                navigate('/planeacion/nuevo-servicio');
+              } else {
+                setShowCreateWorkflow(true);
+              }
+            }}
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 h-auto rounded-lg font-medium"
             size="lg"
           >
@@ -361,30 +397,32 @@ export default function PlanningHub() {
         onSave={handleEditModalSave}
       />
       
-      {/* Create Service Modal - HARDENED: No se cierra accidentalmente */}
-      <Dialog open={showCreateWorkflow} onOpenChange={handleDialogClose}>
-        <DialogContent 
-          className="max-w-6xl max-h-[90vh] overflow-y-auto" 
-          aria-describedby="create-service-description"
-          onInteractOutside={handlePreventAccidentalClose}
-          onPointerDownOutside={handlePreventAccidentalClose}
-          onFocusOutside={handlePreventAccidentalClose}
-          onEscapeKeyDown={(e) => {
-            if (hasMeaningfulDraft) {
-              e.preventDefault();
-              setShowDiscardConfirm(true);
-            }
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Crear Nuevo Servicio</DialogTitle>
-          </DialogHeader>
-          <p id="create-service-description" className="sr-only">
-            Flujo de creación de servicio paso a paso con validación automatizada
-          </p>
-          <RequestCreationWorkflow />
-        </DialogContent>
-      </Dialog>
+      {/* Create Service Modal - LEGACY SYSTEM (only shown if feature flag is false) */}
+      {!FEATURE_FLAGS.USE_NEW_SERVICE_CREATION && (
+        <Dialog open={showCreateWorkflow} onOpenChange={handleDialogClose}>
+          <DialogContent 
+            className="max-w-6xl max-h-[90vh] overflow-y-auto" 
+            aria-describedby="create-service-description"
+            onInteractOutside={handlePreventAccidentalClose}
+            onPointerDownOutside={handlePreventAccidentalClose}
+            onFocusOutside={handlePreventAccidentalClose}
+            onEscapeKeyDown={(e) => {
+              if (hasMeaningfulDraft) {
+                e.preventDefault();
+                setShowDiscardConfirm(true);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Crear Nuevo Servicio (Legacy)</DialogTitle>
+            </DialogHeader>
+            <p id="create-service-description" className="sr-only">
+              Flujo de creación de servicio paso a paso con validación automatizada
+            </p>
+            <RequestCreationWorkflow />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ✅ NUEVO: Confirmación de descarte */}
       <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
