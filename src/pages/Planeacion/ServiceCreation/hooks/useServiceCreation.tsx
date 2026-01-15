@@ -323,6 +323,11 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const goToStep = useCallback((step: StepId) => {
+    // Guard: redirect to confirmation if trying to access armed step without requirement
+    if (step === 'armed' && !formDataRef.current.requiereArmado) {
+      setCurrentStep('confirmation');
+      return;
+    }
     setCurrentStep(step);
   }, []);
 

@@ -10,11 +10,11 @@ interface StepConfig {
   optional?: boolean;
 }
 
-const STEPS: StepConfig[] = [
+const ALL_STEPS: StepConfig[] = [
   { id: 'route', label: 'Ruta', icon: MapPin },
   { id: 'service', label: 'Servicio', icon: Settings },
   { id: 'custodian', label: 'Custodio', icon: User },
-  { id: 'armed', label: 'Armado', icon: Shield, optional: true },
+  { id: 'armed', label: 'Armado', icon: Shield },
   { id: 'confirmation', label: 'Confirmar', icon: ClipboardCheck },
 ];
 
@@ -27,6 +27,12 @@ export default function ServiceCreationSidebar() {
     saveDraft,
     hasUnsavedChanges 
   } = useServiceCreation();
+
+  // Filter steps: hide 'armed' step if service doesn't require it
+  const STEPS = ALL_STEPS.filter(step => {
+    if (step.id === 'armed' && !formData.requiereArmado) return false;
+    return true;
+  });
 
   const getStepStatus = (stepId: StepId): 'completed' | 'current' | 'pending' | 'error' => {
     if (completedSteps.includes(stepId)) return 'completed';
@@ -107,11 +113,6 @@ export default function ServiceCreationSidebar() {
                 </span>
               </div>
               
-              {step.optional && (
-                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                  Opcional
-                </span>
-              )}
             </button>
           );
         })}
