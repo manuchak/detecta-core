@@ -165,12 +165,17 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       // Procesar custodios con algoritmo equitativo
       const custodiosProcessed: CustodioConProximidad[] = [];
       
+      console.log(`🔄 Procesando ${custodiosDisponibles.length} custodios con verificación de disponibilidad...`);
+      
       for (const custodio of custodiosDisponibles) {
         const custodioProcessed: CustodioConProximidad = {
           ...custodio,
           fuente: 'custodios_operativos' as const,
           indisponibilidades_activas: custodio.indisponibilidades_activas || [],
-          disponibilidad_efectiva: custodio.disponibilidad_efectiva,
+          disponibilidad_efectiva: custodio.disponibilidad_efectiva || 'disponible',
+          // CRÍTICO: Establecer categoría por defecto como 'disponible' (fail-open strategy)
+          categoria_disponibilidad: 'disponible',
+          conflictos_detectados: false,
           // Default values for performance card compatibility
           performance_level: 'nuevo',
           rejection_risk: 'medio',
@@ -197,13 +202,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
             });
 
             if (rpcError) {
-              console.warn(`⚠️ [useCustodiosConProximidad] RPC error for ${custodio.nombre}:`, {
+              // FAIL-OPEN STRATEGY: Si el RPC falla, mantener al custodio como disponible
+              // Esto asegura que los custodios NO desaparezcan por errores de RLS/permisos
+              console.warn(`⚠️ [FAIL-OPEN] RPC verificar_disponibilidad_equitativa_custodio falló para ${custodio.nombre}:`, {
                 code: rpcError.code,
                 message: rpcError.message,
-                hint: rpcError.hint
+                hint: rpcError.hint,
+                action: 'Manteniendo como DISPONIBLE por estrategia fail-open'
               });
               
-              // FALLBACK: Usar función de fallback mejorada que verifica conflictos reales
+              // FALLBACK OPCIONAL: Intentar verificación de conflictos local
               try {
                 const { verificarConflictosCustodio } = await import('@/utils/conflictDetection');
                 
@@ -215,38 +223,24 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
                   4
                 );
 
-                // Aplicar los resultados de la verificación de conflictos
-                if (!validacionConflictos.disponible) {
+                // Solo marcar como no disponible si HAY conflictos reales confirmados
+                if (!validacionConflictos.disponible && validacionConflictos.conflictos_detalle?.length > 0) {
+                  console.log(`🚫 Conflictos reales detectados para ${custodio.nombre}:`, validacionConflictos.conflictos_detalle);
                   custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
                   custodioProcessed.categoria_disponibilidad = 'no_disponible';
                   custodioProcessed.conflictos_detectados = true;
                   custodioProcessed.razon_no_disponible = validacionConflictos.razon_no_disponible || 'Conflictos detectados';
-                  custodioProcessed.indisponibilidades_activas = [
-                    ...(custodioProcessed.indisponibilidades_activas || []),
-                    {
-                      motivo: validacionConflictos.razon_no_disponible || 'Conflictos detectados',
-                      servicios_hoy: validacionConflictos.servicios_hoy,
-                      conflictos_detalle: validacionConflictos.conflictos_detalle
-                    }
-                  ];
                 } else {
-                  // Mapear la categoría de disponibilidad
-                  const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
-                    switch (categoria) {
-                      case 'disponible': return 'disponible';
-                      case 'parcialmente_ocupado': return 'parcialmente_ocupado';
-                      case 'ocupado': return 'ocupado';
-                      case 'no_disponible': return 'no_disponible';
-                      default: return 'disponible';
-                    }
-                  };
-                  
-                  custodioProcessed.categoria_disponibilidad = mapearCategoria(validacionConflictos.categoria_disponibilidad);
+                  // Sin conflictos confirmados = disponible
+                  console.log(`✅ [FAIL-OPEN] ${custodio.nombre} marcado como disponible (sin conflictos confirmados)`);
+                  custodioProcessed.categoria_disponibilidad = 'disponible';
+                  custodioProcessed.conflictos_detectados = false;
                 }
               } catch (fallbackError) {
-                console.error(`❌ [useCustodiosConProximidad] Fallback also failed for ${custodio.nombre}:`, fallbackError);
-                // Marcar como disponible por defecto si todo falla (fail-open)
+                // FAIL-OPEN DEFINITIVO: Si todo falla, el custodio es DISPONIBLE
+                console.warn(`⚠️ [FAIL-OPEN FINAL] Fallback también falló para ${custodio.nombre}. Marcando como DISPONIBLE:`, fallbackError);
                 custodioProcessed.categoria_disponibilidad = 'disponible';
+                custodioProcessed.conflictos_detectados = false;
               }
 
               // Calcular scoring con información disponible
@@ -258,7 +252,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
               custodioProcessed.scoring_proximidad = scoring;
               
               custodiosProcessed.push(custodioProcessed);
-              continue; // Skip to next custodian
+              continue; // Siguiente custodio
             }
 
             if (disponibilidadEquitativa) {
@@ -314,14 +308,17 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
               custodioProcessed.scoring_proximidad = scoring;
             }
           } catch (error: any) {
-            console.warn('⚠️ Error verificando equidad:', error);
+            // FAIL-OPEN: Error general = custodio disponible
+            console.warn(`⚠️ [FAIL-OPEN] Error general verificando equidad para ${custodio.nombre}:`, error);
+            custodioProcessed.categoria_disponibilidad = 'disponible';
+            custodioProcessed.conflictos_detectados = false;
+            
             // Fallback al algoritmo original sin equidad
             if (servicioNuevo) {
               const scoring = calcularProximidadOperacional(
                 custodioProcessed,
                 servicioNuevo,
                 serviciosProximos
-                // Sin factor de equidad - algoritmo original
               );
               custodioProcessed.scoring_proximidad = scoring;
             }
@@ -347,8 +344,10 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           continue;
         }
 
-        // Categorizar solo custodios SIN conflictos
-        switch (custodio.categoria_disponibilidad) {
+        // Categorizar según disponibilidad - FAIL-OPEN: default es disponible
+        const categoria = custodio.categoria_disponibilidad || 'disponible';
+        
+        switch (categoria) {
           case 'disponible':
             categorizado.disponibles.push(custodio);
             break;
@@ -359,15 +358,12 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
             categorizado.ocupados.push(custodio);
             break;
           case 'no_disponible':
-            // No agregar a ninguna categoría de disponibles
+            categorizado.noDisponibles.push(custodio);
             break;
           default:
-            // Solo agregar a disponibles si NO tiene conflictos
-            if (!custodio.conflictos_detectados) {
-              categorizado.disponibles.push(custodio);
-            } else {
-              categorizado.noDisponibles.push(custodio);
-            }
+            // FAIL-OPEN: cualquier caso no manejado = disponible
+            console.log(`⚠️ Categoría desconocida '${categoria}' para ${custodio.nombre}, asignando a disponibles`);
+            categorizado.disponibles.push(custodio);
         }
       }
 
