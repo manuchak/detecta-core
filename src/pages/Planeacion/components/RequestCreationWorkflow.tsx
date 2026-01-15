@@ -73,6 +73,16 @@ interface ArmedAssignmentData extends AssignmentData {
 export function RequestCreationWorkflow() {
   const { user } = useAuth();
   
+  // 🔴 DEPRECATION WARNING - This component is deprecated
+  useEffect(() => {
+    console.warn(
+      '⚠️ [DEPRECATED] RequestCreationWorkflow is deprecated.\n' +
+      'This component will be removed after 2026-02-01.\n' +
+      'Use /planeacion/nuevo-servicio (ServiceCreation) instead.\n' +
+      'See: src/pages/Planeacion/DEPRECATED.md'
+    );
+  }, []);
+  
   // Refs to control persistence behavior
   const skipNextPersistRef = useRef(false);
   const autoRestoreDoneRef = useRef(false);

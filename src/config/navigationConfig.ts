@@ -157,12 +157,18 @@ export const navigationModules: NavigationModule[] = [
     icon: CalendarCheck,
     path: '/planeacion',
     group: 'operations',
-    matchPaths: ['/planeacion/reportes'],
+    matchPaths: ['/planeacion/reportes', '/planeacion/nuevo-servicio'],
     children: [
       {
         id: 'planeacion_dashboard',
         label: 'Dashboard Operacional',
         path: '/planeacion',
+        icon: CalendarCheck
+      },
+      {
+        id: 'planeacion_nuevo',
+        label: 'Crear Servicio',
+        path: '/planeacion/nuevo-servicio',
         icon: CalendarCheck
       },
       {
