@@ -280,26 +280,57 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
 
       // PROCESAMIENTO EN PARALELO CON BATCHES
       const BATCH_SIZE = 25;
+      // Reducir timeout si hay muchos custodios para evitar bloqueos
+      const TIMEOUT_MS = custodiosDisponibles.length > 100 ? 2000 : 3000;
       const custodiosProcessed: CustodioConProximidad[] = [];
+      
+      let successCount = 0;
+      let failOpenCount = 0;
       
       for (let i = 0; i < custodiosDisponibles.length; i += BATCH_SIZE) {
         const batch = custodiosDisponibles.slice(i, i + BATCH_SIZE);
         const batchNum = Math.floor(i / BATCH_SIZE) + 1;
         const totalBatches = Math.ceil(custodiosDisponibles.length / BATCH_SIZE);
         
-        console.log(`📦 Procesando batch ${batchNum}/${totalBatches} (${batch.length} custodios)...`);
+        console.log(`📦 Procesando batch ${batchNum}/${totalBatches} (${batch.length} custodios, timeout: ${TIMEOUT_MS}ms)...`);
         
         const results = await Promise.allSettled(
-          batch.map(custodio => procesarCustodioConTimeout(custodio, 3000))
+          batch.map(custodio => procesarCustodioConTimeout(custodio, TIMEOUT_MS))
         );
         
-        for (const result of results) {
+        // FAIL-OPEN: Si la verificación falla, asumir disponible en lugar de descartar
+        for (let j = 0; j < results.length; j++) {
+          const result = results[j];
           if (result.status === 'fulfilled') {
             custodiosProcessed.push(result.value);
+            successCount++;
           } else {
-            console.warn('❌ Custodio rechazado en Promise.allSettled:', result.reason);
+            // FAIL-OPEN: Custodio original con defaults seguros
+            const custodioOriginal = batch[j];
+            console.warn(`⚠️ [FAIL-OPEN] Error procesando ${custodioOriginal.nombre}, asumiendo disponible:`, result.reason);
+            
+            custodiosProcessed.push({
+              ...custodioOriginal,
+              categoria_disponibilidad: 'disponible',
+              conflictos_detectados: false,
+              disponibilidad_efectiva: custodioOriginal.disponibilidad || 'disponible',
+              servicios_hoy: 0,
+              servicios_semana: 0,
+              puede_tomar_servicio: true,
+              motivo_bloqueo: null,
+              distancia_km: null,
+              zona_match: false,
+              score_total: 50, // Score neutral
+            } as CustodioConProximidad);
+            failOpenCount++;
           }
         }
+      }
+      
+      console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios (${successCount} ok, ${failOpenCount} fail-open)`);
+      
+      if (failOpenCount > 0) {
+        console.warn(`⚠️ ${failOpenCount} custodios procesados con FAIL-OPEN - verificar conectividad RPC`);
       }
       
       console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios en paralelo`);
