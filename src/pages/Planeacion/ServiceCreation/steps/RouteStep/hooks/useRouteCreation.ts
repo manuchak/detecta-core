@@ -94,14 +94,13 @@ export function useRouteCreation(): UseRouteCreationReturn {
           cliente_nombre: data.cliente_nombre,
           origen_texto: data.origen_texto,
           destino_texto: data.destino_texto,
-          precio_sugerido: data.precio_sugerido,
+          valor_bruto: data.precio_sugerido,
           precio_custodio: data.precio_custodio,
           distancia_km: data.distancia_km || null,
           tipo_servicio: data.tipo_servicio || 'ARMADA',
           costo_operativo: data.costo_operativo || null,
           pago_custodio_sin_arma: data.pago_custodio_sin_arma || null,
-          margen_estimado: margen,
-          incluye_armado: data.tipo_servicio === 'ARMADA',
+          margen_neto_calculado: margen,
           activo: true,
         })
         .select()
@@ -126,15 +125,15 @@ export function useRouteCreation(): UseRouteCreationReturn {
         cliente_nombre: newRoute.cliente_nombre,
         origen_texto: newRoute.origen_texto,
         destino_texto: newRoute.destino_texto,
-        precio_sugerido: newRoute.precio_sugerido,
+        precio_sugerido: newRoute.valor_bruto,
         precio_custodio: newRoute.precio_custodio,
         pago_custodio_sin_arma: newRoute.pago_custodio_sin_arma,
         costo_operativo: newRoute.costo_operativo,
-        margen_estimado: newRoute.margen_estimado,
+        margen_estimado: newRoute.margen_neto_calculado,
         distancia_km: newRoute.distancia_km,
         tipo_servicio: newRoute.tipo_servicio,
-        incluye_armado: newRoute.incluye_armado,
-        es_ruta_reparto: false,
+        incluye_armado: newRoute.tipo_servicio === 'ARMADA',
+        es_ruta_reparto: newRoute.es_ruta_reparto || false,
       };
 
       setIsCreating(false);
