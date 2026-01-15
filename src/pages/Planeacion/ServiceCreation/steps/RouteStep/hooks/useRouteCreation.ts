@@ -28,22 +28,41 @@ export function useRouteCreation(): UseRouteCreationReturn {
 
   const ensureClientExists = async (clienteNombre: string): Promise<boolean> => {
     try {
-      const { data } = await supabase
-        .from('clientes')
+      // Buscar en la tabla correcta: pc_clientes
+      const { data: existingClient } = await supabase
+        .from('pc_clientes')
         .select('id')
-        .eq('nombre', clienteNombre)
+        .eq('nombre', clienteNombre.trim())
         .maybeSingle();
 
-      if (!data) {
-        const { error } = await supabase
-          .from('clientes')
-          .insert({ nombre: clienteNombre, activo: true });
-        
-        if (error) {
-          console.error('Error creating client:', error);
-          return false;
-        }
+      // Si el cliente ya existe, retornar éxito
+      if (existingClient) {
+        console.log('✅ Cliente existente encontrado:', existingClient.id);
+        return true;
       }
+
+      // Si no existe, crear con campos obligatorios
+      console.log('🆕 Creando nuevo cliente en pc_clientes:', clienteNombre);
+      const { error } = await supabase
+        .from('pc_clientes')
+        .insert({ 
+          nombre: clienteNombre.trim(), 
+          activo: true,
+          contacto_nombre: 'Por definir',
+          contacto_tel: 'Por definir',
+          notas: 'Cliente creado automáticamente desde flujo de nuevo servicio'
+        });
+      
+      if (error) {
+        // Si el error es de duplicado, el cliente ya existe (race condition safe)
+        if (error.code === '23505') {
+          console.log('✅ Cliente creado por otro proceso, continuando...');
+          return true;
+        }
+        console.error('Error creating client:', error);
+        return false;
+      }
+      
       return true;
     } catch (err) {
       console.error('Error ensuring client exists:', err);
