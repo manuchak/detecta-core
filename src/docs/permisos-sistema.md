@@ -8,6 +8,8 @@
 - ✅ Puede asignar leads
 - ✅ Puede gestionar usuarios
 - ✅ Tiene acceso al dashboard
+- ✅ Puede ver custodios en Planeación
+- ✅ Puede crear asignaciones
 
 ### **Supply Admin**
 - ✅ Puede ver leads
@@ -15,6 +17,8 @@
 - ✅ **Puede asignar leads** (única diferencia con supply_lead)
 - ❌ No puede gestionar usuarios
 - ✅ Tiene acceso al dashboard
+- ✅ Puede ver custodios en Planeación (supervisión)
+- ❌ No puede crear asignaciones
 
 ### **Supply Lead**
 - ✅ Puede ver leads
@@ -36,6 +40,28 @@
 - ❌ No puede asignar leads
 - ❌ No puede gestionar usuarios
 - ❌ No tiene acceso al dashboard
+
+---
+
+## Matriz Unificada de Acceso a Planeación y Custodios
+
+> **HOMOLOGADO** (Enero 2025): Los roles con acceso a Planeación ahora son consistentes entre `puede_acceder_planeacion()` y `get_custodios_activos_disponibles()`.
+
+| Rol | Ver Custodios | Ver Planeación | Crear Asignaciones |
+|-----|---------------|----------------|--------------------|
+| `admin` | ✅ | ✅ | ✅ |
+| `owner` | ✅ | ✅ | ✅ |
+| `planificador` | ✅ | ✅ | ✅ |
+| `coordinador_operaciones` | ✅ | ✅ | ❌ (solo vista) |
+| `supply_admin` | ✅ | ✅ | ❌ (solo vista) |
+| `c4` | ✅ | ✅ | ❌ (solo vista) |
+| `monitoreo` | ✅ | ✅ | ❌ (solo vista) |
+
+### Funciones RPC Homologadas
+- `puede_acceder_planeacion()` - Verifica acceso a módulo de planeación
+- `get_custodios_activos_disponibles()` - Retorna custodios activos para asignación
+
+Ambas funciones ahora validan `is_active = true` para evitar roles desactivados.
 
 ---
 
@@ -104,6 +130,60 @@
 3. **Implementación de redirección inteligente**
 4. **Audit trail completo**
 5. **Documentación de workflows**
+
+---
+
+## Checklist de Pruebas: Flujo Liberación → Planeación
+
+### Pre-requisitos
+- [ ] Usuario con rol `supply_admin` o superior
+- [ ] Candidato custodio con todos los pasos completados
+- [ ] Usuario con rol `planificador` para validar
+
+### Pasos de Prueba
+
+| # | Paso | Rol Requerido | Verificación |
+|---|------|---------------|--------------|
+| 1 | Login al sistema | `supply_admin` | Acceso a módulo Supply ✅ |
+| 2 | Navegar a Liberación de Custodios | `supply_admin` | Ver lista de pendientes |
+| 3 | Seleccionar custodio de prueba | - | Ver detalles del candidato |
+| 4 | Click "Liberar a Planeación" | `supply_admin` | Modal de confirmación |
+| 5 | Confirmar liberación | - | Toast de éxito + datos de invitación |
+| 6 | Verificar en BD: `pc_custodios` | - | Custodio aparece con `fuente = 'liberacion_supply'` |
+| 7 | Verificar en BD: `custodios_operativos` | - | Custodio aparece activo |
+| 8 | Login como planificador | `planificador` | Acceso a módulo Planeación ✅ |
+| 9 | Ir a crear nuevo servicio | - | Flujo de creación |
+| 10 | Llegar a paso de asignación | - | Buscar custodio |
+| 11 | Buscar custodio liberado | - | Custodio aparece en lista ✅ |
+| 12 | Verificar datos | - | Nombre, zona, disponibilidad correctos |
+
+### Consultas SQL de Verificación
+
+```sql
+-- Verificar custodio en pc_custodios
+SELECT * FROM pc_custodios 
+WHERE nombre ILIKE '%NOMBRE_CUSTODIO%';
+
+-- Verificar custodio en custodios_operativos
+SELECT * FROM custodios_operativos 
+WHERE nombre ILIKE '%NOMBRE_CUSTODIO%';
+
+-- Verificar función RPC (simular Planeación)
+SELECT * FROM get_custodios_activos_disponibles()
+WHERE nombre ILIKE '%NOMBRE_CUSTODIO%';
+
+-- Ver logs de auditoría recientes
+SELECT 
+  u.email,
+  al.accion,
+  al.timestamp,
+  al.payload
+FROM pc_audit_log al
+LEFT JOIN auth.users u ON u.id = al.usuario_id
+WHERE al.entidad = 'custodios_operativos'
+ORDER BY al.timestamp DESC
+LIMIT 20;
+```
 
 ---
 
