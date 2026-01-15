@@ -157,7 +157,7 @@ async function calcularClustersCustodios(custodios: { id: string }[]): Promise<C
     .from('servicios_planificados')
     .select('custodio_id, fecha_hora_cita')
     .in('custodio_id', custodioIds)
-    .in('estado_planeacion', ['asignado', 'confirmado', 'completado', 'en_curso', 'finalizado'])
+    .in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'completado', 'en_curso', 'finalizado'])
     .order('fecha_hora_cita', { ascending: false });
   
   // Mapear último servicio por custodio
