@@ -5,13 +5,15 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { User, ArrowLeft, ArrowRight, Keyboard } from 'lucide-react';
+import { User, ArrowLeft, ArrowRight, Keyboard, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useCustodiosConProximidad } from '@/hooks/useProximidadOperacional';
 import { useCustodianStepLogic } from './hooks/useCustodianStepLogic';
 import { useCustodioIndisponibilidades } from '@/hooks/useCustodioIndisponibilidades';
+import { useAuth } from '@/contexts/AuthContext';
 import { addDays } from 'date-fns';
 
 // Components
@@ -30,6 +32,7 @@ import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 
 export default function CustodianStep() {
   const { formData, updateFormData, nextStep, previousStep, markStepCompleted, draftId } = useServiceCreation();
+  const { userRole } = useAuth();
   
   // Main hook for state management
   const { state, actions, servicioNuevo } = useCustodianStepLogic({
@@ -42,7 +45,7 @@ export default function CustodianStep() {
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   
   // Fetch custodians with proximity scoring
-  const { data: categorized, isLoading, refetch: refetchCustodians } = useCustodiosConProximidad(servicioNuevo);
+  const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(servicioNuevo);
   
   // Filter custodians locally (instant)
   const filteredCustodians = useMemo(() => 
@@ -219,6 +222,47 @@ export default function CustodianStep() {
     markStepCompleted('custodian');
     nextStep();
   };
+
+  // Error state - show explicit error instead of empty list
+  if (error) {
+    return (
+      <div className="space-y-6" ref={containerRef}>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            <User className="h-6 w-6 text-primary" />
+            Asignar Custodio
+          </h2>
+        </div>
+        
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertTitle>Error al cargar custodios</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>{(error as Error).message || 'No se pudieron cargar los custodios disponibles.'}</p>
+            <div className="text-xs bg-destructive/10 p-3 rounded-md space-y-1">
+              <p><strong>Tu rol actual:</strong> {userRole || 'No asignado'}</p>
+              <p><strong>Roles requeridos:</strong> admin, owner, planificador, coordinador_operaciones</p>
+              <p className="text-muted-foreground pt-1">
+                Si crees que deberías tener acceso, contacta al administrador o intenta cerrar sesión y volver a entrar.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetchCustodians()} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+        
+        {/* Navigation to go back */}
+        <div className="flex justify-start pt-4 border-t">
+          <Button variant="outline" onClick={previousStep} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" ref={containerRef}>

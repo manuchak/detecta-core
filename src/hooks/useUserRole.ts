@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,20 +9,18 @@ export type AppRole = 'admin' | 'planificador' | 'supply_admin' | 'bi' |
 
 export function useUserRole() {
   const [roles, setRoles] = useState<AppRole[]>([]);
+  const [primaryRole, setPrimaryRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadUserRoles();
-  }, []);
-
-  const loadUserRoles = async () => {
+  const loadUserRoles = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
         setRoles([]);
+        setPrimaryRole(null);
         setUserId(null);
         setLoading(false);
         return;
@@ -30,14 +28,32 @@ export function useUserRole() {
 
       setUserId(user.id);
 
+      // 1. Get server-validated primary role (rol efectivo/mayor)
+      const { data: serverRole, error: serverRoleError } = await supabase.rpc('get_current_user_role_secure');
+      
+      if (serverRoleError) {
+        console.error('Error fetching primary role from server:', serverRoleError);
+      } else if (serverRole) {
+        setPrimaryRole(serverRole as AppRole);
+      }
+
+      // 2. Get all ACTIVE roles for multi-role features (filter by is_active = true)
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
+        .select('role, is_active')
+        .eq('user_id', user.id)
+        .eq('is_active', true); // ← CRITICAL: Only active roles
 
       if (error) throw error;
 
-      setRoles(data?.map(r => r.role as AppRole) || []);
+      const activeRoles = data?.map(r => r.role as AppRole) || [];
+      setRoles(activeRoles);
+      
+      // If no server role but we have active roles, use first active as fallback
+      if (!serverRole && activeRoles.length > 0) {
+        setPrimaryRole(activeRoles[0]);
+      }
+      
     } catch (error: any) {
       console.error('Error loading user roles:', error);
       toast({
@@ -48,26 +64,31 @@ export function useUserRole() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const hasRole = (role: AppRole): boolean => {
+  useEffect(() => {
+    loadUserRoles();
+  }, [loadUserRoles]);
+
+  const hasRole = useCallback((role: AppRole): boolean => {
     return roles.includes(role);
-  };
+  }, [roles]);
 
-  const hasAnyRole = (requiredRoles: AppRole[]): boolean => {
+  const hasAnyRole = useCallback((requiredRoles: AppRole[]): boolean => {
     return requiredRoles.some(role => roles.includes(role));
-  };
+  }, [roles]);
 
-  const isPlanificador = (): boolean => {
+  const isPlanificador = useCallback((): boolean => {
     return hasRole('planificador');
-  };
+  }, [hasRole]);
 
-  const isAdmin = (): boolean => {
+  const isAdmin = useCallback((): boolean => {
     return hasAnyRole(['admin', 'owner', 'supply_admin']);
-  };
+  }, [hasAnyRole]);
 
   return {
     roles,
+    primaryRole, // ← NEW: Server-validated effective role
     userId,
     loading,
     hasRole,
