@@ -15,12 +15,7 @@ import { es } from 'date-fns/locale';
 import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 
-interface OperationalDashboardProps {
-  showCreateWorkflow: boolean;
-  setShowCreateWorkflow: (show: boolean) => void;
-}
-
-export function OperationalDashboard({ showCreateWorkflow, setShowCreateWorkflow }: OperationalDashboardProps) {
+export function OperationalDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
