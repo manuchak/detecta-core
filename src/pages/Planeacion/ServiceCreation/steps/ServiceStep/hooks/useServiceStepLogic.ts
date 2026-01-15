@@ -51,10 +51,10 @@ export function useServiceStepLogic() {
     formData.horaRecepcion || format(new Date(), 'HH:mm')
   );
   const [fecha, setFecha] = useState(() => 
-    formData.fecha || format(addDays(new Date(), 1), 'yyyy-MM-dd')
+    formData.fecha || format(new Date(), 'yyyy-MM-dd')
   );
   const [hora, setHora] = useState(() => 
-    formData.hora || '08:00'
+    formData.hora || ''
   );
   const [tipoServicio, setTipoServicio] = useState<ServiceStepState['tipoServicio']>(() => 
     (formData.tipoServicio as ServiceStepState['tipoServicio']) || 'custodia_sin_arma'
@@ -170,15 +170,59 @@ export function useServiceStepLogic() {
     });
   }, []);
 
-  // Date validation: must be tomorrow or later
-  const minDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), []);
+  // Date validation: today (with future time) or later
+  const minDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
+  const isToday = fecha === today;
   
-  const isDateValid = useMemo(() => {
+  // Combined date+time validation
+  const isDateTimeValid = useMemo(() => {
     if (!fecha) return false;
+    
+    const now = new Date();
     const selectedDate = startOfDay(new Date(fecha + 'T00:00:00'));
-    const tomorrow = startOfDay(addDays(new Date(), 1));
-    return !isBefore(selectedDate, tomorrow);
-  }, [fecha]);
+    
+    // Past date is always invalid
+    if (isBefore(selectedDate, startOfDay(now))) {
+      return false;
+    }
+    
+    // If today, check that time is at least 30 min in future
+    if (fecha === format(now, 'yyyy-MM-dd')) {
+      if (!hora) return false; // Need time for today validation
+      const selectedDateTime = new Date(`${fecha}T${hora}:00`);
+      const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000);
+      return !isBefore(selectedDateTime, minFutureTime);
+    }
+    
+    // Tomorrow or later is always valid (if hora is set)
+    return true;
+  }, [fecha, hora]);
+
+  // Specific error message for date/time
+  const dateTimeErrorMessage = useMemo(() => {
+    if (!fecha) return null;
+    
+    const now = new Date();
+    const selectedDate = startOfDay(new Date(fecha + 'T00:00:00'));
+    
+    if (isBefore(selectedDate, startOfDay(now))) {
+      return 'No se pueden crear servicios para fechas pasadas';
+    }
+    
+    if (fecha === format(now, 'yyyy-MM-dd') && hora) {
+      const selectedDateTime = new Date(`${fecha}T${hora}:00`);
+      const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000);
+      if (isBefore(selectedDateTime, minFutureTime)) {
+        return 'La hora debe ser al menos 30 minutos en el futuro';
+      }
+    }
+    
+    return null;
+  }, [fecha, hora]);
+
+  // Keep isDateValid for backwards compatibility (now uses combined logic)
+  const isDateValid = isDateTimeValid;
 
   // Format display for reception time
   const formattedRecepcion = useMemo(() => {
@@ -290,7 +334,10 @@ export function useServiceStepLogic() {
     // Validation
     validation,
     isDateValid,
+    isDateTimeValid,
+    dateTimeErrorMessage,
     minDate,
+    isToday,
     canContinue,
     
     // Formatted displays

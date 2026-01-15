@@ -25,8 +25,10 @@ interface AppointmentSectionProps {
   
   // Validation
   minDate: string;
-  isDateValid: boolean;
+  isDateTimeValid: boolean;
+  dateTimeErrorMessage: string | null;
   formattedFecha: string;
+  isToday: boolean;
   
   // Auto-fill indicators
   wasHoraOptimized: boolean;
@@ -43,17 +45,19 @@ export function AppointmentSection({
   onFechaChange,
   onHoraChange,
   minDate,
-  isDateValid,
+  isDateTimeValid,
+  dateTimeErrorMessage,
   formattedFecha,
+  isToday,
   wasHoraOptimized,
   distanciaKm,
 }: AppointmentSectionProps) {
   
-  // Quick date presets
+  // Quick date presets - include today for urgent services
   const datePresets = useMemo(() => [
+    { label: 'Hoy', date: format(new Date(), 'yyyy-MM-dd') },
     { label: 'Mañana', date: format(addDays(new Date(), 1), 'yyyy-MM-dd') },
     { label: 'Pasado mañana', date: format(addDays(new Date(), 2), 'yyyy-MM-dd') },
-    { label: 'En 3 días', date: format(addDays(new Date(), 3), 'yyyy-MM-dd') },
   ], []);
 
   return (
@@ -80,11 +84,18 @@ export function AppointmentSection({
             Fecha <span className="text-destructive">*</span>
           </Label>
           
-          {/* Display formatted date */}
+          {/* Display formatted date with urgent indicator */}
           {fecha && formattedFecha && (
-            <p className="text-sm font-medium capitalize text-primary">
-              {formattedFecha}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium capitalize text-primary">
+                {formattedFecha}
+              </p>
+              {isToday && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-amber-500 text-amber-600">
+                  ⚡ Urgente
+                </Badge>
+              )}
+            </div>
           )}
           
           <Input
@@ -94,7 +105,7 @@ export function AppointmentSection({
             min={minDate}
             onChange={(e) => onFechaChange(e.target.value)}
             className={cn(
-              !isDateValid && fecha && "border-destructive focus-visible:ring-destructive"
+              !isDateTimeValid && fecha && "border-destructive focus-visible:ring-destructive"
             )}
           />
           
@@ -114,10 +125,10 @@ export function AppointmentSection({
             ))}
           </div>
           
-          {!isDateValid && fecha && (
+          {!isDateTimeValid && dateTimeErrorMessage && (
             <p className="text-xs text-destructive flex items-center gap-1">
               <AlertCircle className="h-3 w-3" />
-              La fecha debe ser mañana o posterior
+              {dateTimeErrorMessage}
             </p>
           )}
         </div>
