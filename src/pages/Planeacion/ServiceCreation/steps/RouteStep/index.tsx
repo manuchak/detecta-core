@@ -19,7 +19,7 @@ const SUBSTEP_CONFIG: Record<RouteSubStepType, { title: string; description: str
 };
 
 export default function RouteStep() {
-  const { formData, updateFormData, nextStep } = useServiceCreation();
+  const { formData, updateFormData, nextStep, markStepCompleted } = useServiceCreation();
   
   // Build initial state from persisted formData
   const initialRouteState: Partial<RouteSubStepState> = {
@@ -168,9 +168,10 @@ export default function RouteStep() {
           destino_texto: state.destino,
         },
       });
+      markStepCompleted('route');
       nextStep();
     }
-  }, [state, pricingResult, updateFormData, nextStep]);
+  }, [state, pricingResult, updateFormData, markStepCompleted, nextStep]);
 
   // Render current substep
   const renderSubStep = () => {
