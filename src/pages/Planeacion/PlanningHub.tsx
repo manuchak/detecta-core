@@ -366,10 +366,7 @@ export default function PlanningHub() {
         </TabsList>
 
         <TabsContent value="dashboard" className="apple-content-spacing">
-          <OperationalDashboard 
-            showCreateWorkflow={showCreateWorkflow}
-            setShowCreateWorkflow={setShowCreateWorkflow}
-          />
+          <OperationalDashboard />
         </TabsContent>
 
         <TabsContent value="services" className="apple-content-spacing">
