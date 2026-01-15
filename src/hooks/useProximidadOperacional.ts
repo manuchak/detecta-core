@@ -55,13 +55,54 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
     queryFn: async (): Promise<CustodiosCategorizados> => {
       console.log('🔍 Obteniendo custodios con algoritmo equitativo...');
       
-      // Usar la función segura que filtra custodios con actividad reciente (90 días)
+      // Primary: Try secure RPC function
       const { data: custodiosDisponibles, error } = await supabase
         .rpc('get_custodios_activos_disponibles');
 
       if (error) {
-        console.error('❌ Error al obtener custodios disponibles:', error);
-        throw error;
+        console.error('❌ Error al obtener custodios (RPC):', error);
+        
+        // FALLBACK: Try direct table query if RPC fails (permission issue or function not found)
+        console.log('🔄 Intentando fallback a custodios_operativos...');
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('custodios_operativos')
+          .select('*')
+          .eq('estado', 'activo')
+          .in('disponibilidad', ['disponible', 'parcial']);
+          
+        if (fallbackError) {
+          console.error('❌ Fallback también falló:', fallbackError);
+          // Throw descriptive error for UI to display
+          throw new Error(
+            `Sin permisos para ver custodios. Tu rol actual no tiene acceso a esta función. ` +
+            `Código: ${fallbackError.code || error.code}`
+          );
+        }
+        
+        if (fallbackData && fallbackData.length > 0) {
+          console.log(`✅ Fallback exitoso: ${fallbackData.length} custodios`);
+          // Return fallback data as "disponibles" with minimal processing
+          return {
+            disponibles: fallbackData.map(c => ({
+              ...c,
+              fuente: 'custodios_operativos' as const,
+              performance_level: 'nuevo' as const,
+              rejection_risk: 'medio' as const,
+              response_speed: 'normal' as const,
+              experience_category: 'nuevo' as const,
+              score_comunicacion: 50,
+              score_aceptacion: 75,
+              score_confiabilidad: 75,
+              score_total: 65,
+              tasa_aceptacion: 0.75,
+              tasa_respuesta: 0.8,
+              tasa_confiabilidad: 0.75,
+            })),
+            parcialmenteOcupados: [],
+            ocupados: [],
+            noDisponibles: []
+          };
+        }
       }
 
       if (!custodiosDisponibles || custodiosDisponibles.length === 0) {
