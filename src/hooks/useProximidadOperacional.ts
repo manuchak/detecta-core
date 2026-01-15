@@ -162,21 +162,21 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         serviciosProximos = servicios || [];
       }
 
-      // Procesar custodios con algoritmo equitativo
-      const custodiosProcessed: CustodioConProximidad[] = [];
+      // Procesar custodios con algoritmo equitativo EN PARALELO
+      console.log(`🔄 Procesando ${custodiosDisponibles.length} custodios con verificación de disponibilidad (PARALELO)...`);
       
-      console.log(`🔄 Procesando ${custodiosDisponibles.length} custodios con verificación de disponibilidad...`);
-      
-      for (const custodio of custodiosDisponibles) {
+      // Helper: Procesar un custodio individual con timeout
+      const procesarCustodioConTimeout = async (
+        custodio: any,
+        timeoutMs: number = 3000
+      ): Promise<CustodioConProximidad> => {
         const custodioProcessed: CustodioConProximidad = {
           ...custodio,
           fuente: 'custodios_operativos' as const,
           indisponibilidades_activas: custodio.indisponibilidades_activas || [],
           disponibilidad_efectiva: custodio.disponibilidad_efectiva || 'disponible',
-          // CRÍTICO: Establecer categoría por defecto como 'disponible' (fail-open strategy)
-          categoria_disponibilidad: 'disponible',
+          categoria_disponibilidad: 'disponible', // FAIL-OPEN default
           conflictos_detectados: false,
-          // Default values for performance card compatibility
           performance_level: 'nuevo',
           rejection_risk: 'medio',
           response_speed: 'normal',
@@ -190,143 +190,119 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           tasa_confiabilidad: 0.75
         };
 
-        // NUEVO: Verificar disponibilidad equitativa si hay servicio nuevo
-        if (servicioNuevo) {
-          try {
-            const { data: disponibilidadEquitativa, error: rpcError } = await supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
-              p_custodio_id: custodio.id,
-              p_custodio_nombre: custodio.nombre,
-              p_fecha_servicio: servicioNuevo.fecha_programada,
-              p_hora_inicio: servicioNuevo.hora_ventana_inicio,
-              p_duracion_estimada_horas: 4
-            });
-
-            if (rpcError) {
-              // FAIL-OPEN STRATEGY: Si el RPC falla, mantener al custodio como disponible
-              // Esto asegura que los custodios NO desaparezcan por errores de RLS/permisos
-              console.warn(`⚠️ [FAIL-OPEN] RPC verificar_disponibilidad_equitativa_custodio falló para ${custodio.nombre}:`, {
-                code: rpcError.code,
-                message: rpcError.message,
-                hint: rpcError.hint,
-                action: 'Manteniendo como DISPONIBLE por estrategia fail-open'
-              });
-              
-              // FALLBACK OPCIONAL: Intentar verificación de conflictos local
-              try {
-                const { verificarConflictosCustodio } = await import('@/utils/conflictDetection');
-                
-                const validacionConflictos = await verificarConflictosCustodio(
-                  custodio.id,
-                  custodio.nombre,
-                  servicioNuevo.fecha_programada,
-                  servicioNuevo.hora_ventana_inicio,
-                  4
-                );
-
-                // Solo marcar como no disponible si HAY conflictos reales confirmados
-                if (!validacionConflictos.disponible && validacionConflictos.conflictos_detalle?.length > 0) {
-                  console.log(`🚫 Conflictos reales detectados para ${custodio.nombre}:`, validacionConflictos.conflictos_detalle);
-                  custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-                  custodioProcessed.categoria_disponibilidad = 'no_disponible';
-                  custodioProcessed.conflictos_detectados = true;
-                  custodioProcessed.razon_no_disponible = validacionConflictos.razon_no_disponible || 'Conflictos detectados';
-                } else {
-                  // Sin conflictos confirmados = disponible
-                  console.log(`✅ [FAIL-OPEN] ${custodio.nombre} marcado como disponible (sin conflictos confirmados)`);
-                  custodioProcessed.categoria_disponibilidad = 'disponible';
-                  custodioProcessed.conflictos_detectados = false;
-                }
-              } catch (fallbackError) {
-                // FAIL-OPEN DEFINITIVO: Si todo falla, el custodio es DISPONIBLE
-                console.warn(`⚠️ [FAIL-OPEN FINAL] Fallback también falló para ${custodio.nombre}. Marcando como DISPONIBLE:`, fallbackError);
-                custodioProcessed.categoria_disponibilidad = 'disponible';
-                custodioProcessed.conflictos_detectados = false;
-              }
-
-              // Calcular scoring con información disponible
-              const scoring = calcularProximidadOperacional(
-                custodioProcessed,
-                servicioNuevo,
-                serviciosProximos
-              );
-              custodioProcessed.scoring_proximidad = scoring;
-              
-              custodiosProcessed.push(custodioProcessed);
-              continue; // Siguiente custodio
-            }
-
-            if (disponibilidadEquitativa) {
-              // Crear factor de equidad desde la respuesta de la función
-              const factorEquidad: FactorEquidad = {
-                servicios_hoy: disponibilidadEquitativa.servicios_hoy || 0,
-                dias_sin_asignar: disponibilidadEquitativa.dias_sin_asignar || 0,
-                nivel_fatiga: disponibilidadEquitativa.nivel_fatiga || 'bajo',
-                score_equidad: disponibilidadEquitativa.factor_equidad || 50,
-                score_oportunidad: disponibilidadEquitativa.factor_oportunidad || 50,
-                categoria_disponibilidad: disponibilidadEquitativa.categoria_disponibilidad || 'libre',
-                balance_recommendation: disponibilidadEquitativa.scoring_equitativo?.balance_recommendation || 'bueno'
-              };
-
-              custodioProcessed.datos_equidad = factorEquidad;
-  // Mapear categorías del RPC al formato estándar
-  const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
-    switch (categoria) {
-      case 'libre': return 'disponible';
-      case 'parcialmente_ocupado': return 'parcialmente_ocupado';
-      case 'ocupado_disponible': return 'ocupado';
-      case 'no_disponible': return 'no_disponible';
-      default: return 'disponible';
-    }
-  };
-
-  // Aplicar el mapeo
-  custodioProcessed.categoria_disponibilidad = mapearCategoria(factorEquidad.categoria_disponibilidad);
-
-              // Si no está disponible, marcar como tal
-              if (!disponibilidadEquitativa.disponible) {
-                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-                custodioProcessed.categoria_disponibilidad = 'no_disponible';
-                custodioProcessed.conflictos_detectados = true;
-                custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado';
-                custodioProcessed.indisponibilidades_activas = [
-                  ...(custodioProcessed.indisponibilidades_activas || []),
-                  {
-                    motivo: disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado',
-                    servicios_hoy: disponibilidadEquitativa.servicios_hoy,
-                    nivel_fatiga: disponibilidadEquitativa.nivel_fatiga
-                  }
-                ];
-              }
-
-              // Calcular scoring de proximidad con factor de equidad
-              const scoring = calcularProximidadOperacional(
-                custodioProcessed,
-                servicioNuevo,
-                serviciosProximos,
-                factorEquidad // NUEVO: Pasar factor de equidad
-              );
-              custodioProcessed.scoring_proximidad = scoring;
-            }
-          } catch (error: any) {
-            // FAIL-OPEN: Error general = custodio disponible
-            console.warn(`⚠️ [FAIL-OPEN] Error general verificando equidad para ${custodio.nombre}:`, error);
-            custodioProcessed.categoria_disponibilidad = 'disponible';
-            custodioProcessed.conflictos_detectados = false;
-            
-            // Fallback al algoritmo original sin equidad
-            if (servicioNuevo) {
-              const scoring = calcularProximidadOperacional(
-                custodioProcessed,
-                servicioNuevo,
-                serviciosProximos
-              );
-              custodioProcessed.scoring_proximidad = scoring;
-            }
-          }
+        // Si no hay servicio nuevo, retornar con defaults
+        if (!servicioNuevo) {
+          return custodioProcessed;
         }
 
-        custodiosProcessed.push(custodioProcessed);
+        // Verificar disponibilidad equitativa con timeout
+        try {
+          const rpcPromise = supabase.rpc('verificar_disponibilidad_equitativa_custodio', {
+            p_custodio_id: custodio.id,
+            p_custodio_nombre: custodio.nombre,
+            p_fecha_servicio: servicioNuevo.fecha_programada,
+            p_hora_inicio: servicioNuevo.hora_ventana_inicio,
+            p_duracion_estimada_horas: 4
+          });
+
+          const timeoutPromise = new Promise<null>((resolve) => 
+            setTimeout(() => resolve(null), timeoutMs)
+          );
+
+          const result = await Promise.race([rpcPromise, timeoutPromise]);
+
+          // Timeout - usar fail-open
+          if (result === null) {
+            console.warn(`⏱️ [TIMEOUT] ${custodio.nombre} - usando fail-open`);
+            const scoring = calcularProximidadOperacional(custodioProcessed, servicioNuevo, serviciosProximos);
+            custodioProcessed.scoring_proximidad = scoring;
+            return custodioProcessed;
+          }
+
+          const { data: disponibilidadEquitativa, error: rpcError } = result;
+
+          if (rpcError) {
+            console.warn(`⚠️ [FAIL-OPEN] RPC error para ${custodio.nombre}: ${rpcError.message}`);
+            const scoring = calcularProximidadOperacional(custodioProcessed, servicioNuevo, serviciosProximos);
+            custodioProcessed.scoring_proximidad = scoring;
+            return custodioProcessed;
+          }
+
+          if (disponibilidadEquitativa) {
+            const factorEquidad: FactorEquidad = {
+              servicios_hoy: disponibilidadEquitativa.servicios_hoy || 0,
+              dias_sin_asignar: disponibilidadEquitativa.dias_sin_asignar || 0,
+              nivel_fatiga: disponibilidadEquitativa.nivel_fatiga || 'bajo',
+              score_equidad: disponibilidadEquitativa.factor_equidad || 50,
+              score_oportunidad: disponibilidadEquitativa.factor_oportunidad || 50,
+              categoria_disponibilidad: disponibilidadEquitativa.categoria_disponibilidad || 'libre',
+              balance_recommendation: disponibilidadEquitativa.scoring_equitativo?.balance_recommendation || 'bueno'
+            };
+
+            custodioProcessed.datos_equidad = factorEquidad;
+            
+            // Mapear categorías del RPC al formato estándar
+            const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {
+              switch (categoria) {
+                case 'libre': return 'disponible';
+                case 'parcialmente_ocupado': return 'parcialmente_ocupado';
+                case 'ocupado_disponible': return 'ocupado';
+                case 'no_disponible': return 'no_disponible';
+                default: return 'disponible';
+              }
+            };
+
+            custodioProcessed.categoria_disponibilidad = mapearCategoria(factorEquidad.categoria_disponibilidad);
+
+            if (!disponibilidadEquitativa.disponible) {
+              custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+              custodioProcessed.categoria_disponibilidad = 'no_disponible';
+              custodioProcessed.conflictos_detectados = true;
+              custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado';
+            }
+
+            const scoring = calcularProximidadOperacional(
+              custodioProcessed,
+              servicioNuevo,
+              serviciosProximos,
+              factorEquidad
+            );
+            custodioProcessed.scoring_proximidad = scoring;
+          }
+        } catch (error: any) {
+          console.warn(`⚠️ [FAIL-OPEN] Error para ${custodio.nombre}:`, error.message);
+          const scoring = calcularProximidadOperacional(custodioProcessed, servicioNuevo, serviciosProximos);
+          custodioProcessed.scoring_proximidad = scoring;
+        }
+
+        return custodioProcessed;
+      };
+
+      // PROCESAMIENTO EN PARALELO CON BATCHES
+      const BATCH_SIZE = 25;
+      const custodiosProcessed: CustodioConProximidad[] = [];
+      
+      for (let i = 0; i < custodiosDisponibles.length; i += BATCH_SIZE) {
+        const batch = custodiosDisponibles.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(custodiosDisponibles.length / BATCH_SIZE);
+        
+        console.log(`📦 Procesando batch ${batchNum}/${totalBatches} (${batch.length} custodios)...`);
+        
+        const results = await Promise.allSettled(
+          batch.map(custodio => procesarCustodioConTimeout(custodio, 3000))
+        );
+        
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            custodiosProcessed.push(result.value);
+          } else {
+            console.warn('❌ Custodio rechazado en Promise.allSettled:', result.reason);
+          }
+        }
       }
+      
+      console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios en paralelo`);
 
       // NUEVO: Separar en categorías según disponibilidad REAL (sin conflictos)
       const categorizado: CustodiosCategorizados = {
