@@ -4,12 +4,16 @@
  * Includes prefetch of custodians for faster next step
  */
 
-import { useEffect, useMemo } from 'react';
-import { Settings, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Settings, ArrowLeft, ArrowRight, Clock } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useServiceStepLogic } from './hooks/useServiceStepLogic';
+import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
+import { buildCDMXTimestamp } from '@/utils/cdmxTimezone';
 import { supabase } from '@/integrations/supabase/client';
 
 // Components
@@ -22,7 +26,10 @@ import { GadgetSection } from './components/GadgetSection';
 import { ObservationsSection } from './components/ObservationsSection';
 
 export default function ServiceStep() {
-  const { formData, nextStep, previousStep, markStepCompleted } = useServiceCreation();
+  const { formData, nextStep, previousStep, markStepCompleted, clearDraft } = useServiceCreation();
+  const navigate = useNavigate();
+  const { createServicioPlanificado, isCreating } = useServiciosPlanificados();
+  const [isSavingPending, setIsSavingPending] = useState(false);
   
   const {
     // State
@@ -99,6 +106,61 @@ export default function ServiceStep() {
   const handleContinue = () => {
     markStepCompleted('service');
     nextStep();
+  };
+
+  const handleSaveAsPending = async () => {
+    // Validate minimum required fields
+    if (!servicioId || !formData.cliente || !formData.origen || 
+        !formData.destino || !fecha || !hora) {
+      toast.error('Completa los campos requeridos', {
+        description: 'ID, cliente, ruta, fecha y hora son obligatorios'
+      });
+      return;
+    }
+
+    setIsSavingPending(true);
+    
+    try {
+      const fechaHoraCita = buildCDMXTimestamp(fecha, hora);
+      
+      const gadgetsCantidades = Object.entries(gadgets || {})
+        .filter(([_, cantidad]) => cantidad > 0)
+        .map(([tipo, cantidad]) => ({ tipo, cantidad }));
+      
+      const servicePayload = {
+        id_servicio: servicioId,
+        nombre_cliente: formData.cliente,
+        origen: formData.origen,
+        destino: formData.destino,
+        fecha_hora_cita: fechaHoraCita,
+        tipo_servicio: tipoServicio || 'custodia',
+        requiere_armado: requiereArmado || false,
+        tarifa_acordada: formData.precioCotizado || undefined,
+        observaciones: observaciones || undefined,
+        gadgets_cantidades: gadgetsCantidades.length > 0 ? gadgetsCantidades : undefined,
+        estado_planeacion: 'pendiente_asignacion',
+        // Without custodio or armado assigned
+      };
+      
+      createServicioPlanificado(servicePayload, {
+        onSuccess: () => {
+          clearDraft();
+          toast.success('Servicio guardado como pendiente', {
+            description: `${servicioId} - Asigna custodio cuando estés listo`
+          });
+          navigate('/planeacion');
+        },
+        onError: (error: any) => {
+          toast.error('Error al guardar servicio', {
+            description: error.message || 'Intenta de nuevo'
+          });
+          setIsSavingPending(false);
+        }
+      });
+    } catch (error: any) {
+      toast.error('Error al preparar datos');
+      setIsSavingPending(false);
+    }
   };
 
   return (
@@ -178,23 +240,51 @@ export default function ServiceStep() {
       </div>
 
       {/* Footer */}
-      <div className="flex justify-between gap-3 pt-4 border-t">
-        <Button
-          variant="outline"
-          onClick={previousStep}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Anterior
-        </Button>
-        <Button
-          onClick={handleContinue}
-          className="gap-2"
-          disabled={!canContinue}
-        >
-          Continuar
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+      <div className="flex flex-col gap-3 pt-4 border-t">
+        {/* Primary row: Previous + Continue */}
+        <div className="flex justify-between gap-3">
+          <Button
+            variant="outline"
+            onClick={previousStep}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Anterior
+          </Button>
+          <Button
+            onClick={handleContinue}
+            className="gap-2"
+            disabled={!canContinue}
+          >
+            Continuar
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {/* Secondary option: Save as Pending */}
+        {canContinue && (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSaveAsPending}
+              disabled={isSavingPending || isCreating}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              {isSavingPending || isCreating ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Clock className="h-4 w-4" />
+                  Guardar como Pendiente (sin asignar)
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
