@@ -44,13 +44,19 @@ interface SimplifiedArmedAssignmentProps {
   onComplete: (data: ArmedGuardData) => void;
   onSkip: () => void;
   onBack: () => void;
+  /** Custom label for the back button */
+  backLabel?: string;
+  /** Whether to show the back button at all */
+  showBackButton?: boolean;
 }
 
 export function SimplifiedArmedAssignment({
   serviceData,
   onComplete,
   onSkip,
-  onBack
+  onBack,
+  backLabel = 'Volver',
+  showBackButton = true
 }: SimplifiedArmedAssignmentProps) {
   const [activeTab, setActiveTab] = useState<'externos' | 'internos'>('externos');
   const [globalSearch, setGlobalSearch] = useState('');
@@ -399,9 +405,11 @@ export function SimplifiedArmedAssignment({
 
       {/* Action Buttons */}
       <div className="flex gap-2 pt-4 border-t">
-        <Button variant="outline" onClick={onBack}>
-          Volver
-        </Button>
+        {showBackButton && (
+          <Button variant="outline" onClick={onBack}>
+            {backLabel}
+          </Button>
+        )}
         <Button variant="ghost" onClick={onSkip}>
           Continuar sin armado
         </Button>

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, MapPin, Clock, Shield, Calendar, X } from 'lucide-react';
+import { User, MapPin, Clock, Shield, Calendar, X, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CustodianAssignmentStep } from '@/pages/Planeacion/components/workflow/CustodianAssignmentStep';
@@ -418,6 +418,16 @@ export function PendingAssignmentModal({
               </CardContent>
             </Card>
 
+            {/* Indicador visual de custodio ya asignado (solo en modo edición directo de armado) */}
+            {currentStep === 'armed' && (mode === 'direct_armed' || isEditingExisting) && service?.custodio_asignado && (
+              <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm text-green-800 dark:text-green-300">
+                  Custodio asignado: <strong>{custodianAssigned?.custodio_nombre || service.custodio_asignado}</strong>
+                </span>
+              </div>
+            )}
+
             {/* Component de Asignación */}
             <div className="space-y-4">
               {currentStep === 'custodian' && (
@@ -436,7 +446,17 @@ export function PendingAssignmentModal({
                   }}
                   onComplete={handleArmedGuardAssignmentComplete}
                   onSkip={handleArmedGuardSkip}
-                  onBack={() => setCurrentStep('custodian')}
+                  onBack={() => {
+                    // Si el servicio ya tiene custodio asignado y estamos en modo edición directa de armado,
+                    // cerrar el modal en lugar de forzar re-selección del custodio
+                    if (service?.custodio_asignado && (mode === 'direct_armed' || isEditingExisting)) {
+                      onOpenChange(false);
+                    } else {
+                      setCurrentStep('custodian');
+                    }
+                  }}
+                  backLabel={service?.custodio_asignado && (mode === 'direct_armed' || isEditingExisting) ? 'Cancelar' : 'Volver'}
+                  showBackButton={true}
                 />
               )}
             </div>
