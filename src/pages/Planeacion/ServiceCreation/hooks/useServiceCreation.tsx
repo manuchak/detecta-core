@@ -127,8 +127,8 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   horaEncuentro: '',
 };
 
-// Calculate progress score for comparing states
-function calculateProgressScore(data: Partial<ServiceFormData>): number {
+// Calculate progress score for comparing states (includes completedSteps)
+function calculateProgressScore(data: Partial<ServiceFormData>, completedSteps?: StepId[]): number {
   let score = 0;
   if (data.cliente) score += 1;
   if (data.clienteId) score += 1;
@@ -138,6 +138,12 @@ function calculateProgressScore(data: Partial<ServiceFormData>): number {
   if (data.routeData) score += 2;
   if (data.fecha) score += 1;
   if (data.custodioId) score += 2;
+  
+  // Include completed steps in score calculation (5 points each)
+  if (completedSteps && completedSteps.length > 0) {
+    score += completedSteps.length * 5;
+  }
+  
   return score;
 }
 
@@ -306,15 +312,32 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
           try {
             const parsed = JSON.parse(savedDraft);
             const persistedData = parsed.formData || {};
-            const persistedScore = calculateProgressScore(persistedData);
-            const localScore = calculateProgressScore(formDataRef.current);
+            const persistedCompleted: StepId[] = parsed.completedSteps || [];
             
-            // Only hydrate if persisted has MORE progress (not equal, to avoid loops)
-            if (persistedScore > localScore) {
+            // Calculate scores including completedSteps
+            const persistedScore = calculateProgressScore(persistedData, persistedCompleted);
+            const localScore = calculateProgressScore(formDataRef.current, completedStepsRef.current);
+            
+            // Check if persisted has steps missing from local memory
+            const missingSteps = persistedCompleted.filter(
+              step => !completedStepsRef.current.includes(step)
+            );
+            
+            // Reconcile if persisted has more progress OR has missing completed steps
+            if (persistedScore > localScore || missingSteps.length > 0) {
               const validatedFormData = validateFormDataConsistency(persistedData);
               setFormData(validatedFormData);
-              setCompletedSteps(parsed.completedSteps || []);
-              console.log('[ServiceCreation] Reconciled from storage (persisted had more progress)');
+              
+              // Merge completed steps to preserve any local ones + restore missing
+              const mergedSteps = [...new Set([...completedStepsRef.current, ...persistedCompleted])];
+              setCompletedSteps(mergedSteps);
+              
+              console.log('[ServiceCreation] Reconciled from storage', {
+                persistedScore,
+                localScore,
+                missingSteps,
+                mergedSteps
+              });
             }
           } catch (e) {
             console.error('Error reconciling draft:', e);
