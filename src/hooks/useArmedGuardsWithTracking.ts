@@ -45,6 +45,9 @@ export interface ArmedProvider {
   observaciones?: string;
   created_at?: string;
   updated_at?: string;
+  // Zone coverage info (computed at runtime)
+  cubre_zona_servicio?: boolean;
+  prioridad_zona?: number;
 }
 
 export interface ServiceRequest {

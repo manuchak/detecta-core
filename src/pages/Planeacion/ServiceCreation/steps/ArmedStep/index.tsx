@@ -243,6 +243,8 @@ export default function ArmedStep() {
 
   // Provider card component
   const ProviderCard = ({ provider }: { provider: ArmedProvider }) => {
+    const cubreZona = provider.cubre_zona_servicio !== false;
+    
     return (
       <Card 
         className="cursor-pointer transition-all hover:border-primary/50"
@@ -255,10 +257,17 @@ export default function ArmedStep() {
             </div>
             
             <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium truncate">{provider.nombre_empresa}</span>
                 {provider.disponibilidad_24h && (
                   <Badge variant="secondary" className="text-[10px]">24h</Badge>
+                )}
+                {/* Zone coverage indicator */}
+                {!cubreZona && (
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800 text-[10px] gap-1">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    Fuera de zona
+                  </Badge>
                 )}
               </div>
               
