@@ -62,22 +62,28 @@ export default function PlanningHub() {
     const resumeFlag = searchParams.get('resume');
     
     if (resumeFlag === '1') {
-      console.log('🔄 [PlanningHub] Deep-link resume detected - opening dialog unconditionally');
+      console.log('🔄 [PlanningHub] Deep-link resume detected');
       
-      // Set flags for idempotent restoration
-      localStorage.setItem('service_creation_workflow_dialog_state', 'open');
-      sessionStorage.removeItem('scw_suppress_restore');
-      
-      // Open dialog
-      setShowCreateWorkflow(true);
+      // ✅ FIX: Check feature flag FIRST - redirect to new system if active
+      if (FEATURE_FLAGS.USE_NEW_SERVICE_CREATION) {
+        console.log('🆕 [PlanningHub] Feature flag ON - redirecting to NEW system');
+        navigate('/planeacion/nuevo-servicio');
+      } else {
+        console.log('📂 [PlanningHub] Feature flag OFF - opening LEGACY dialog');
+        // Set flags for idempotent restoration
+        localStorage.setItem('service_creation_workflow_dialog_state', 'open');
+        sessionStorage.removeItem('scw_suppress_restore');
+        setShowCreateWorkflow(true);
+      }
       
       // Clean up query param
       searchParams.delete('resume');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, navigate]);
 
   // Check for draft on mount and auto-open dialog if exists (proactive detection)
+  // ✅ NOTE: This only handles LEGACY drafts - new system drafts are handled by ServiceCreation page
   useEffect(() => {
     try {
       const stored = localStorage.getItem('service_creation_workflow_dialog_state');
@@ -107,12 +113,22 @@ export default function PlanningHub() {
           const hasMeaningfulData = hasCompletedData || hasRouteDraft || hasServiceDraft;
           
           if (hasMeaningfulData && (stored === 'open' || !stored)) {
-            console.log('📂 [PlanningHub] Meaningful draft detected - auto-opening creation dialog', {
-              hasCompletedData,
-              hasRouteDraft,
-              hasServiceDraft
-            });
-            setShowCreateWorkflow(true);
+            // ✅ FIX: Check feature flag - redirect to new system if active
+            if (FEATURE_FLAGS.USE_NEW_SERVICE_CREATION) {
+              console.log('🆕 [PlanningHub] Legacy draft detected but NEW system active - redirecting', {
+                hasCompletedData,
+                hasRouteDraft,
+                hasServiceDraft
+              });
+              navigate('/planeacion/nuevo-servicio');
+            } else {
+              console.log('📂 [PlanningHub] Meaningful draft detected - auto-opening LEGACY dialog', {
+                hasCompletedData,
+                hasRouteDraft,
+                hasServiceDraft
+              });
+              setShowCreateWorkflow(true);
+            }
           }
         } catch (parseError) {
           console.error('Error parsing draft data:', parseError);
