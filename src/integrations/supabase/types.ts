@@ -15892,6 +15892,15 @@ export type Database = {
         Returns: Json
       }
       lms_verificar_certificado: { Args: { p_codigo: string }; Returns: Json }
+      log_custodio_access_secure: {
+        Args: {
+          p_accion: string
+          p_entidad?: string
+          p_entidad_id?: string
+          p_payload?: Json
+        }
+        Returns: undefined
+      }
       log_sensitive_access:
         | {
             Args: {

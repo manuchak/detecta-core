@@ -2,6 +2,26 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { calcularProximidadOperacional, type CustodioConHistorial, type ServicioNuevo, type ScoringProximidad, type FactorEquidad } from '@/utils/proximidadOperacional';
 
+/**
+ * Función de auditoría para registrar accesos a custodios
+ * No bloquea la operación principal si falla
+ */
+const logCustodioAccess = async (
+  accion: string, 
+  payload: Record<string, unknown>
+): Promise<void> => {
+  try {
+    await supabase.rpc('log_custodio_access_secure', {
+      p_accion: accion,
+      p_entidad: 'custodios_operativos',
+      p_payload: payload
+    });
+  } catch (err) {
+    console.warn('⚠️ Error logging custodio access (non-blocking):', err);
+    // No bloquear por error de logging
+  }
+};
+
 export interface CustodioConProximidad extends CustodioConHistorial {
   scoring_proximidad?: ScoringProximidad;
   indisponibilidades_activas?: any[];
@@ -116,6 +136,14 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       }
 
       console.log(`✅ Encontrados ${custodiosDisponibles.length} custodios disponibles`);
+
+      // AUDITORÍA: Registrar consulta de custodios
+      logCustodioAccess('CUSTODIO_CONSULTA', {
+        custodios_encontrados: custodiosDisponibles.length,
+        origen: 'useCustodiosConProximidad',
+        tiene_servicio_nuevo: !!servicioNuevo,
+        fecha_consulta: new Date().toISOString()
+      });
 
       // Obtener servicios históricos recientes para contexto temporal
       let serviciosProximos: any[] = [];
