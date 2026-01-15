@@ -1,4 +1,4 @@
-import { ClipboardCheck, ArrowLeft, Check, MapPin, Calendar, Clock, User, Shield, Edit2 } from 'lucide-react';
+import { ClipboardCheck, ArrowLeft, Check, MapPin, Calendar, Clock, User, Shield, Edit2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -6,19 +6,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
+import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
+import { buildCDMXTimestamp } from '@/utils/cdmxTimezone';
 
 /**
  * ConfirmationStep - Final step in service creation
- * Shows a summary of all data and allows final confirmation
- * 
- * TODO (Phase 6): 
- * - Implement actual service creation
- * - Add inline editing capability
- * - Connect to servicios_planificados table
+ * Shows a summary of all data and creates the service in the database
  */
 export default function ConfirmationStep() {
   const navigate = useNavigate();
-  const { formData, previousStep, goToStep } = useServiceCreation();
+  const { formData, previousStep, goToStep, clearDraft } = useServiceCreation();
+  const { createServicioPlanificado, isCreating } = useServiciosPlanificados();
   const [confirmed, setConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,13 +26,86 @@ export default function ConfirmationStep() {
       return;
     }
 
+    // Validate required fields
+    if (!formData.servicioId || !formData.cliente || !formData.origen || 
+        !formData.destino || !formData.fecha || !formData.hora) {
+      toast.error('Faltan campos requeridos para crear el servicio', {
+        description: 'ID, cliente, origen, destino, fecha y hora son obligatorios'
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // TODO: Implement actual service creation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast.success('Servicio creado exitosamente');
-    navigate('/planeacion');
+    try {
+      // Build timestamp with correct CDMX timezone offset (-06:00)
+      const fechaHoraCita = buildCDMXTimestamp(formData.fecha, formData.hora);
+      
+      // Transform gadgets to expected JSONB format
+      const gadgetsCantidades = Object.entries(formData.gadgets || {})
+        .filter(([_, cantidad]) => cantidad > 0)
+        .map(([tipo, cantidad]) => ({ tipo, cantidad }));
+      
+      // Build payload for insertion
+      const servicePayload = {
+        id_servicio: formData.servicioId,
+        nombre_cliente: formData.cliente,
+        origen: formData.origen,
+        destino: formData.destino,
+        fecha_hora_cita: fechaHoraCita,
+        tipo_servicio: formData.tipoServicio || 'custodia',
+        custodio_asignado: formData.custodio || undefined,
+        custodio_id: formData.custodioId || undefined,
+        requiere_armado: formData.requiereArmado || false,
+        armado_asignado: formData.armado || undefined,
+        armado_id: formData.armadoId || undefined,
+        tipo_asignacion_armado: formData.tipoAsignacionArmado || undefined,
+        proveedor_armado_id: formData.proveedorArmadoId || undefined,
+        punto_encuentro: formData.puntoEncuentro || undefined,
+        hora_encuentro: formData.horaEncuentro || undefined,
+        tarifa_acordada: formData.precioCotizado || undefined,
+        observaciones: formData.observaciones || undefined,
+        gadgets_cantidades: gadgetsCantidades.length > 0 ? gadgetsCantidades : undefined,
+        estado_planeacion: 'planificado'
+      };
+      
+      // Create service using the mutation
+      createServicioPlanificado(servicePayload, {
+        onSuccess: () => {
+          // Clear draft from localStorage after successful creation
+          clearDraft();
+          
+          toast.success('Servicio creado exitosamente', {
+            description: `ID: ${formData.servicioId}`
+          });
+          
+          navigate('/planeacion');
+        },
+        onError: (error: any) => {
+          console.error('Error creating service:', error);
+          toast.error('Error al crear el servicio', {
+            description: error.message || 'Intenta de nuevo'
+          });
+          setIsSubmitting(false);
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('Error preparing service data:', error);
+      toast.error('Error al preparar los datos del servicio', {
+        description: error.message || 'Revisa la información e intenta de nuevo'
+      });
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get gadgets display text
+  const getGadgetsDisplay = () => {
+    if (!formData.gadgets) return null;
+    const activeGadgets = Object.entries(formData.gadgets)
+      .filter(([_, qty]) => qty > 0)
+      .map(([tipo, qty]) => `${qty}x ${tipo.replace(/_/g, ' ')}`);
+    return activeGadgets.length > 0 ? activeGadgets.join(', ') : null;
   };
 
   const SummarySection = ({ 
@@ -69,6 +140,8 @@ export default function ConfirmationStep() {
       </div>
     </div>
   );
+
+  const gadgetsDisplay = getGadgetsDisplay();
 
   return (
     <div className="space-y-6">
@@ -112,6 +185,10 @@ export default function ConfirmationStep() {
         {/* Service */}
         <SummarySection title="Servicio" icon={Calendar} stepId="service">
           <div className="flex justify-between">
+            <span className="text-muted-foreground">ID Servicio:</span>
+            <span className="font-medium font-mono text-xs">{formData.servicioId || '—'}</span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-muted-foreground">Fecha:</span>
             <span className="font-medium">{formData.fecha || '—'}</span>
           </div>
@@ -127,6 +204,15 @@ export default function ConfirmationStep() {
             <span className="text-muted-foreground">Armado requerido:</span>
             <span className="font-medium">{formData.requiereArmado ? 'Sí' : 'No'}</span>
           </div>
+          {gadgetsDisplay && (
+            <div className="flex justify-between pt-1 border-t">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Package className="h-3 w-3" />
+                Gadgets:
+              </span>
+              <span className="font-medium text-xs">{gadgetsDisplay}</span>
+            </div>
+          )}
         </SummarySection>
 
         {/* Custodian */}
@@ -144,6 +230,12 @@ export default function ConfirmationStep() {
               <span className="text-muted-foreground">Asignado:</span>
               <span className="font-medium">{formData.armado || '—'}</span>
             </div>
+            {formData.tipoAsignacionArmado && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tipo:</span>
+                <span className="font-medium capitalize">{formData.tipoAsignacionArmado}</span>
+              </div>
+            )}
             {formData.puntoEncuentro && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Punto encuentro:</span>
@@ -190,9 +282,9 @@ export default function ConfirmationStep() {
         <Button
           onClick={handleCreateService}
           className="gap-2"
-          disabled={!confirmed || isSubmitting}
+          disabled={!confirmed || isSubmitting || isCreating}
         >
-          {isSubmitting ? (
+          {(isSubmitting || isCreating) ? (
             <>
               <span className="animate-spin">⏳</span>
               Creando...
