@@ -336,8 +336,8 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
   admin: {
     hero: {
       type: 'monthlyTrend',
-      title: 'Rendimiento del mes',
-      description: 'Métricas financieras y crecimiento del negocio',
+      title: 'servicios finalizados',
+      description: 'Servicios completados este mes vs plan 2026',
       cta: { label: 'Dashboard ejecutivo', route: '/executive-dashboard' },
       icon: TrendingUp
       // Sin urgencyThreshold - métricas financieras no son "urgentes"

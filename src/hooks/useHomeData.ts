@@ -12,6 +12,9 @@ interface UseHomeDataResult {
     formattedValue?: string;
     trend?: number;
     trendDirection?: 'up' | 'down' | 'neutral';
+    gapPercentage?: number;
+    gmvTotal?: number;
+    hasTarget?: boolean;
     cta: { label: string; route: string };
     icon: any;
     urgency: 'normal' | 'warning' | 'critical';
@@ -85,17 +88,21 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
     }
 
     // Build hero
+    const heroData = heroQuery.data as any;
     const hero = config.hero ? {
       title: config.hero.title,
       description: config.hero.description,
-      value: heroQuery.data?.formattedValue || heroQuery.data?.count || 0,
-      formattedValue: heroQuery.data?.formattedValue,
-      trend: heroQuery.data?.trend,
-      trendDirection: heroQuery.data?.trendDirection,
+      value: heroData?.count || 0,
+      formattedValue: heroData?.formattedValue,
+      trend: heroData?.trend,
+      trendDirection: heroData?.trendDirection,
+      gapPercentage: heroData?.gapPercentage,
+      gmvTotal: heroData?.gmvTotal,
+      hasTarget: heroData?.hasTarget,
       cta: config.hero.cta,
       icon: config.hero.icon,
       urgency: getUrgencyLevel(
-        heroQuery.data?.count || 0, 
+        heroData?.count || 0, 
         config.hero.urgencyThreshold
       ),
       isLoading: heroQuery.isLoading,
