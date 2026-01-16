@@ -49,6 +49,7 @@ export default function ConfirmationStep() {
       // Build payload for insertion
       const servicePayload = {
         id_servicio: formData.servicioId,
+        id_interno_cliente: formData.idInterno || undefined,
         nombre_cliente: formData.cliente,
         origen: formData.origen,
         destino: formData.destino,

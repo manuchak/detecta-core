@@ -129,6 +129,7 @@ export default function ServiceStep() {
       
       const servicePayload = {
         id_servicio: servicioId,
+        id_interno_cliente: idInterno || undefined,
         nombre_cliente: formData.cliente,
         origen: formData.origen,
         destino: formData.destino,
