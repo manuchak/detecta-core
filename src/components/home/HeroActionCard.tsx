@@ -195,10 +195,10 @@ export const HeroActionCard = ({
                 </span>
                 <span>•</span>
                 <span>Meta: {targetServices} servicios</span>
-                {requiredDailyPace !== undefined && requiredDailyPace > 0 && daysRemaining !== undefined && daysRemaining > 0 && (
+                {targetServices !== undefined && daysInMonth !== undefined && (
                   <>
                     <span>•</span>
-                    <span>Requiere {requiredDailyPace}/día</span>
+                    <span>Ritmo: {Math.round(targetServices / daysInMonth)}/día</span>
                   </>
                 )}
               </div>
