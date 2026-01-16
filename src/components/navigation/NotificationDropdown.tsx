@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, type Notification } from '@/hooks/useNotifications';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,6 +34,9 @@ const getNotificationIcon = (type: Notification['type']) => {
 export function NotificationDropdown() {
   const navigate = useNavigate();
   const { data, isLoading } = useNotifications();
+  
+  // Activar suscripción realtime para notificaciones push
+  useRealtimeNotifications();
 
   const notifications = data?.notifications || [];
   const unreadCount = data?.unreadCount || 0;
