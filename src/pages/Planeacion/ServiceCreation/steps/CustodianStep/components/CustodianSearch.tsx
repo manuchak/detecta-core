@@ -1,7 +1,9 @@
 /**
- * CustodianSearch - Search bar with quick filters for custodian selection
+ * CustodianSearch - Search bar with debounced input and quick filters
+ * OPTIMIZED: Debounce prevents excessive re-renders while typing
  */
 
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,6 +19,9 @@ interface CustodianSearchProps {
   totalCount: number;
 }
 
+// Debounce delay in ms - optimized for i3 laptops
+const DEBOUNCE_MS = 300;
+
 export function CustodianSearch({
   searchTerm,
   onSearchChange,
@@ -25,6 +30,47 @@ export function CustodianSearch({
   resultsCount,
   totalCount,
 }: CustodianSearchProps) {
+  // Local state for immediate UI feedback
+  const [localSearch, setLocalSearch] = useState(searchTerm);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync external changes to local state
+  useEffect(() => {
+    setLocalSearch(searchTerm);
+  }, [searchTerm]);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value); // Immediate UI update
+    
+    // Clear previous timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Set new debounced call
+    debounceRef.current = setTimeout(() => {
+      onSearchChange(value);
+    }, DEBOUNCE_MS);
+  }, [onSearchChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setLocalSearch('');
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    onSearchChange('');
+  }, [onSearchChange]);
+
   return (
     <div className="space-y-3">
       {/* Search input */}
@@ -32,16 +78,16 @@ export function CustodianSearch({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Buscar por nombre, teléfono o zona..."
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
+          value={localSearch}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="pl-10 pr-10"
         />
-        {searchTerm && (
+        {localSearch && (
           <Button
             variant="ghost"
             size="icon"
             className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-            onClick={() => onSearchChange('')}
+            onClick={handleClear}
           >
             <X className="h-4 w-4" />
           </Button>
