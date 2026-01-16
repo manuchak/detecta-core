@@ -85,13 +85,11 @@ export const useSIERCPResults = () => {
       const transformedResults = (data || []).map((row: any) => ({
         id: row.id,
         user_id: row.user_id,
-        global_score: row.global_score,
-        dimension_scores: row.dimension_scores,
-        dimension_percentiles: row.dimension_percentiles,
+        global_score: Number(row.global_score),
+        scores: row.scores,
+        percentiles: row.percentiles,
         risk_flags: row.risk_flags,
         clinical_interpretation: row.clinical_interpretation,
-        recommendations: row.recommendations,
-        raw_responses: row.raw_responses,
         completed_at: row.completed_at,
         created_at: row.created_at,
         // Mantener compatibilidad con el formato anterior (nested profiles)

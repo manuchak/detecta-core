@@ -15547,15 +15547,13 @@ export type Database = {
           clinical_interpretation: string
           completed_at: string
           created_at: string
-          dimension_percentiles: Json
-          dimension_scores: Json
           display_name: string
           email: string
           global_score: number
           id: string
-          raw_responses: Json
-          recommendations: string[]
+          percentiles: Json
           risk_flags: string[]
+          scores: Json
           user_id: string
         }[]
       }
