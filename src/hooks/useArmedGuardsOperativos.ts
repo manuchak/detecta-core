@@ -60,6 +60,12 @@ export interface ArmedGuardOperativo {
   es_lead_virtual?: boolean;      // Flag: ¿Es un lead de Supply?
   lead_id_origen?: string;        // ID original del lead
   lead_estado_original?: string;  // Estado del lead (contactado/aprobado)
+  
+  // 🆕 Campos de actividad reciente (desde servicios_custodia)
+  fecha_ultimo_servicio_real?: string;
+  servicios_90dias?: number;
+  servicios_historico_total?: number;
+  tiene_actividad_90dias?: boolean;
 }
 
 export interface ProveedorArmado {
@@ -112,6 +118,8 @@ export interface ServiceRequestFilters {
   fecha_programada?: string;
   hora_ventana_inicio?: string;
   urgente?: boolean;
+  // 🆕 Filtro de actividad reciente (90 días)
+  soloConActividad90Dias?: boolean;
 }
 
 export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
@@ -444,9 +452,23 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         console.log(`Conflict validation applied: ${processedGuards.length} -> ${availableGuards.length} available guards`);
       }
 
+      // 🆕 Apply 90-day activity filter if enabled (only for internal guards)
+      let filteredByActivity = availableGuards;
+      if (filters?.soloConActividad90Dias) {
+        filteredByActivity = availableGuards.filter(guard => {
+          // External providers are not filtered by activity
+          if (guard.tipo_armado === 'proveedor_externo') return true;
+          // Virtual leads are included (they're new, no history expected)
+          if (guard.es_lead_virtual) return true;
+          // Real internal guards must have recent activity
+          return guard.tiene_actividad_90dias === true;
+        });
+        console.log(`[Armed] Activity filter (90 days): ${availableGuards.length} -> ${filteredByActivity.length} guards`);
+      }
+
       // Separate internal guards from provider guards
-      const internalGuards = availableGuards.filter(guard => guard.tipo_armado === 'interno');
-      const providerGuards = availableGuards.filter(guard => guard.tipo_armado === 'proveedor_externo');
+      const internalGuards = filteredByActivity.filter(guard => guard.tipo_armado === 'interno');
+      const providerGuards = filteredByActivity.filter(guard => guard.tipo_armado === 'proveedor_externo');
 
       // Sort by availability category and score for internal guards
       const sortedInternalGuards = internalGuards.sort((a, b) => {

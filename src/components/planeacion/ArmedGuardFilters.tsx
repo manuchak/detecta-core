@@ -37,13 +37,20 @@ export function ArmedGuardFilters({
     filterConfig.disponibilidad !== 'todos' ||
     filterConfig.ratingMinimo > 0 ||
     filterConfig.experienciaMinima > 0 ||
-    (filterConfig.zonasGeograficas && filterConfig.zonasGeograficas.length > 0);
+    (filterConfig.zonasGeograficas && filterConfig.zonasGeograficas.length > 0) ||
+    !filterConfig.soloConActividad90Dias; // Si está desactivado, es un filtro activo
 
   const quickFilters = [
     {
+      label: 'Activos (90 días)',
+      active: filterConfig.soloConActividad90Dias,
+      onClick: () => onFilterChange({ soloConActividad90Dias: !filterConfig.soloConActividad90Dias }),
+      tooltip: 'Mostrar solo armados con servicios en los últimos 90 días',
+    },
+    {
       label: 'Todos',
-      active: !hasActiveFilters && filterConfig.ordenarPor === 'productividad',
-      onClick: () => onReset(),
+      active: !filterConfig.soloConActividad90Dias && !hasActiveFilters,
+      onClick: () => onFilterChange({ soloConActividad90Dias: false }),
     },
     {
       label: 'Disponibles',
@@ -54,11 +61,6 @@ export function ArmedGuardFilters({
       label: 'Top Rated (4.5+)',
       active: filterConfig.ratingMinimo >= 4.5,
       onClick: () => onFilterChange({ ratingMinimo: 4.5, ordenarPor: 'rating' }),
-    },
-    {
-      label: 'Más Productivos',
-      active: filterConfig.ordenarPor === 'productividad',
-      onClick: () => onFilterChange({ ordenarPor: 'productividad' }),
     },
   ];
 
