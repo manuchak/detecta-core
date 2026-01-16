@@ -9,6 +9,7 @@ const logger = createLogger('useServiciosPlanificados');
 
 export interface ServicioPlanificadoData {
   id_servicio: string;
+  id_interno_cliente?: string;
   nombre_cliente: string;
   empresa_cliente?: string;
   email_cliente?: string;
@@ -169,6 +170,7 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .insert([{
           id_servicio: data.id_servicio,
+          id_interno_cliente: data.id_interno_cliente,
           nombre_cliente: data.nombre_cliente,
           empresa_cliente: data.empresa_cliente,
           email_cliente: data.email_cliente,
