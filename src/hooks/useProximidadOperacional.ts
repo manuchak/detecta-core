@@ -254,11 +254,37 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
 
             custodioProcessed.categoria_disponibilidad = mapearCategoria(factorEquidad.categoria_disponibilidad);
 
+            // CRITICAL FIX: Differentiate between "schedule conflict" vs "workload limit"
+            // - Schedule conflict (overlap): goes to noDisponibles (requires override)
+            // - Workload limit (3+ services): stays in ocupados (visible, can still assign)
             if (!disponibilidadEquitativa.disponible) {
-              custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-              custodioProcessed.categoria_disponibilidad = 'no_disponible';
-              custodioProcessed.conflictos_detectados = true;
-              custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios alcanzado';
+              const razon = (disponibilidadEquitativa.razon_no_disponible || '').toLowerCase();
+              const esConflictoHorario = razon.includes('conflicto') || 
+                                          razon.includes('overlap') ||
+                                          razon.includes('solapamiento') ||
+                                          (disponibilidadEquitativa.servicios_en_conflicto || 0) > 0;
+              const esLimiteWorkload = razon.includes('límite') || 
+                                       razon.includes('máximo') || 
+                                       razon.includes('alcanzado');
+
+              if (esConflictoHorario) {
+                // Real schedule conflict - must use override
+                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
+                custodioProcessed.categoria_disponibilidad = 'no_disponible';
+                custodioProcessed.conflictos_detectados = true;
+                custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Conflicto de horario';
+              } else if (esLimiteWorkload) {
+                // Workload limit - keep visible in "ocupados" with warning badge
+                custodioProcessed.categoria_disponibilidad = 'ocupado';
+                custodioProcessed.conflictos_detectados = false; // Don't hide, just show as busy
+                custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite de servicios (3/día)';
+              } else {
+                // Unknown reason - default to ocupado to keep visible (fail-open)
+                console.warn(`⚠️ Razón desconocida para ${custodio.nombre}: "${razon}", usando ocupado`);
+                custodioProcessed.categoria_disponibilidad = 'ocupado';
+                custodioProcessed.conflictos_detectados = false;
+                custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Límite alcanzado';
+              }
             }
 
             const scoring = calcularProximidadOperacional(

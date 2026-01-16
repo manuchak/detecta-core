@@ -2,6 +2,9 @@
  * CustodianStep - Phase 3 of Service Creation
  * Modular custodian selection with search, filters, and communication tracking
  * Includes keyboard shortcuts for faster navigation
+ * 
+ * CRITICAL FIX: Now handles the case where ALL custodians are in conflict,
+ * showing them prominently instead of displaying "empty list" to the planner.
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -22,6 +25,7 @@ import { QuickStats } from './components/QuickStats';
 import { CustodianList } from './components/CustodianList';
 import { ConflictSection } from './components/ConflictSection';
 import { SelectedCustodianSummary } from './components/SelectedCustodianSummary';
+import { NoCustodiansAlert } from './components/NoCustodiansAlert';
 import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
 
 // Dialogs (reuse existing)
@@ -65,7 +69,7 @@ export default function CustodianStep() {
     return allCustodians.find(c => c.id === state.selectedCustodianId);
   }, [state.selectedCustodianId, categorized]);
   
-  // Total count for stats
+  // Total count for stats (excludes noDisponibles)
   const totalCount = useMemo(() => {
     if (!categorized) return 0;
     return (categorized.disponibles?.length || 0) + 
@@ -73,9 +77,45 @@ export default function CustodianStep() {
            (categorized.ocupados?.length || 0);
   }, [categorized]);
 
-  // Ref for keyboard navigation
+  // CRITICAL: Detect "all in conflict" scenario
+  const allInConflict = useMemo(() => {
+    if (!categorized) return false;
+    const disponiblesCount = totalCount;
+    const conflictCount = categorized.noDisponibles?.length || 0;
+    return disponiblesCount === 0 && conflictCount > 0;
+  }, [categorized, totalCount]);
+
+  // Counts for diagnostic alert
+  const custodianCounts = useMemo(() => ({
+    disponibles: categorized?.disponibles?.length || 0,
+    parcialmenteOcupados: categorized?.parcialmenteOcupados?.length || 0,
+    ocupados: categorized?.ocupados?.length || 0,
+    noDisponibles: categorized?.noDisponibles?.length || 0,
+  }), [categorized]);
+
+  // Check if filters are actively hiding results
+  const hasActiveFilters = useMemo(() => {
+    return state.searchTerm.trim() !== '' || 
+           !state.filters.disponibles || 
+           !state.filters.parcialmenteOcupados;
+  }, [state.searchTerm, state.filters]);
+
+  // Ref for keyboard navigation and conflict section
   const containerRef = useRef<HTMLDivElement>(null);
+  const conflictSectionRef = useRef<HTMLDivElement>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Handler to scroll to conflict section
+  const scrollToConflicts = useCallback(() => {
+    conflictSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Handler to reset filters
+  const resetFilters = useCallback(() => {
+    actions.setSearchTerm('');
+    if (!state.filters.disponibles) actions.toggleFilter('disponibles');
+    if (!state.filters.parcialmenteOcupados) actions.toggleFilter('parcialmenteOcupados');
+  }, [actions, state.filters]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -342,6 +382,19 @@ export default function CustodianStep() {
         />
       )}
 
+      {/* Diagnostic Alert - Shows when no custodians visible */}
+      {!state.selectedCustodianId && !isLoading && filteredCustodians.length === 0 && (
+        <NoCustodiansAlert
+          counts={custodianCounts}
+          hasActiveFilters={hasActiveFilters}
+          searchTerm={state.searchTerm}
+          onResetFilters={resetFilters}
+          onScrollToConflicts={scrollToConflicts}
+          onRefetch={() => refetchCustodians()}
+          isLoading={isLoading}
+        />
+      )}
+
       {/* Custodian List - Auto-collapses when selection is made */}
       <CustodianList
         custodians={filteredCustodians}
@@ -354,10 +407,12 @@ export default function CustodianStep() {
         onReportUnavailability={handleReportUnavailability}
       />
 
-      {/* Conflict Section */}
+      {/* Conflict Section - Force open when all custodians are in conflict */}
       <ConflictSection
         custodians={categorized?.noDisponibles || []}
         onOverrideSelect={handleOverrideSelect}
+        forceOpen={allInConflict}
+        sectionRef={conflictSectionRef}
       />
 
       {/* Footer Navigation - Contextual status */}
