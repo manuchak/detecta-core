@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Database, GitBranch } from "lucide-react";
+import { Shield, Database, GitBranch, Target } from "lucide-react";
 import DuplicateCleanupManager from "@/components/maintenance/DuplicateCleanupManager";
 import { VersionControlManager } from "@/components/version-control/VersionControlManager";
+import BusinessTargetsManager from "@/components/administration/BusinessTargetsManager";
 
 const AdministrationHub = () => {
   return (
@@ -17,8 +18,12 @@ const AdministrationHub = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="database" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="targets" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="targets" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Metas de Negocio
+          </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Limpieza de BDD
@@ -28,6 +33,20 @@ const AdministrationHub = () => {
             Control de Versiones
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="targets" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Metas de Negocio</CardTitle>
+              <CardDescription>
+                Configura las metas mensuales de servicios, GMV y custodios activos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BusinessTargetsManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="database" className="mt-6">
           <Card>

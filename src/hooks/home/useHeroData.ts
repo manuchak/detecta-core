@@ -163,7 +163,14 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
       }
 
       case 'monthlyTrend': {
-        // Fetch current month GMV
+        // Get current date info for pro-rata calculation
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const currentDay = now.getDate();
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // Fetch current month completed services
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
@@ -180,26 +187,38 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         
         if (currentError) throw currentError;
         
-        // Fetch previous month GMV
-        const startOfPrevMonth = new Date(startOfMonth);
-        startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
-        
-        const { data: prevData, error: prevError } = await supabase
-          .from('servicios_custodia')
-          .select('cobro_cliente')
-          .gte('fecha_hora_cita', startOfPrevMonth.toISOString())
-          .lt('fecha_hora_cita', startOfMonth.toISOString())
-          .in('estado', ['completado', 'finalizado', 'Finalizado', 'Completado'])
-          .gt('cobro_cliente', 0);
-        
-        if (prevError) throw prevError;
-        
         const currentTotal = currentData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
-        const prevTotal = prevData?.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0) || 0;
+        const completedServices = currentData?.length || 0;
         
-        const variation = prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : 0;
+        // Fetch business target for current month
+        const { data: targetData } = await supabase
+          .from('business_targets')
+          .select('target_services, target_gmv')
+          .eq('year', year)
+          .eq('month', month)
+          .maybeSingle();
         
-        // Format value
+        // Calculate pro-rata and gap
+        let gapServices = 0;
+        let gapPercentage = 0;
+        let trendDirection: 'up' | 'down' | 'neutral' = 'neutral';
+        
+        if (targetData) {
+          const proRataServices = Math.round((targetData.target_services / daysInMonth) * currentDay);
+          gapServices = completedServices - proRataServices;
+          gapPercentage = proRataServices > 0 ? Math.round((completedServices / proRataServices) * 100) : 0;
+          
+          // Trend based on gap: +10% = up, -10% = down, else neutral
+          if (gapPercentage >= 110) {
+            trendDirection = 'up';
+          } else if (gapPercentage < 90) {
+            trendDirection = 'down';
+          } else {
+            trendDirection = 'neutral';
+          }
+        }
+        
+        // Format GMV value
         let formattedValue: string;
         if (currentTotal >= 1000000) {
           formattedValue = `$${(currentTotal / 1000000).toFixed(1)}M`;
@@ -210,11 +229,15 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         }
         
         return { 
-          count: Math.round(currentTotal),
+          count: completedServices,
           formattedValue,
-          trend: variation,
-          trendDirection: variation > 0 ? 'up' : variation < 0 ? 'down' : 'neutral'
-        };
+          trend: gapServices,
+          trendDirection,
+          // Extended data for the hero card
+          gapPercentage,
+          gmvTotal: currentTotal,
+          hasTarget: !!targetData,
+        } as HeroData & { gapPercentage?: number; gmvTotal?: number; hasTarget?: boolean };
       }
 
       case 'businessHealth': {
