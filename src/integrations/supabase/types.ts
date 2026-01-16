@@ -15541,6 +15541,24 @@ export type Database = {
         Args: { servicio_uuid: string }
         Returns: Json
       }
+      get_siercp_calibration_results: {
+        Args: never
+        Returns: {
+          clinical_interpretation: string
+          completed_at: string
+          created_at: string
+          dimension_percentiles: Json
+          dimension_scores: Json
+          display_name: string
+          email: string
+          global_score: number
+          id: string
+          raw_responses: Json
+          recommendations: string[]
+          risk_flags: string[]
+          user_id: string
+        }[]
+      }
       get_supply_growth_metrics: {
         Args: { fecha_fin: string; fecha_inicio: string }
         Returns: {

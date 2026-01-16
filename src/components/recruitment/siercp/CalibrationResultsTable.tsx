@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Eye, Trash2, AlertTriangle, FlaskConical, User } from 'lucide-react';
+import { Eye, Trash2, AlertTriangle, FlaskConical, User, XCircle, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -32,13 +32,29 @@ import { useNavigate } from 'react-router-dom';
 const HIDE_CALIBRATION_IN_PRODUCTION = false;
 
 export function CalibrationResultsTable() {
-  const { allResults, loading, isAdmin, deleteResult, refetch } = useSIERCPResults();
+  const { allResults, loading, loadingAll, errorAllResults, isAdmin, deleteResult, refetch } = useSIERCPResults();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
 
   if (HIDE_CALIBRATION_IN_PRODUCTION) {
     return null;
+  }
+
+  // Mostrar error si falló la carga
+  if (errorAllResults) {
+    return (
+      <Alert variant="destructive">
+        <XCircle className="h-4 w-4" />
+        <AlertDescription className="flex items-center justify-between">
+          <span>Error al cargar resultados: {errorAllResults}</span>
+          <Button variant="outline" size="sm" onClick={refetch} className="ml-4 gap-2">
+            <RefreshCw className="h-3 w-3" />
+            Reintentar
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   const handleDelete = async () => {
@@ -68,7 +84,7 @@ export function CalibrationResultsTable() {
     return 'text-red-600';
   };
 
-  if (loading) {
+  if (loading || loadingAll) {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
