@@ -1,5 +1,5 @@
 
-import { UseFormRegister } from 'react-hook-form';
+import { UseFormRegister } from 'react-hook-form'; // Technical specifications form
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
