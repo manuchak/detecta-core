@@ -173,14 +173,17 @@ const RouteManagementFormComponent = ({
     setLoading(true);
     
     try {
-      // Calculate margin if not provided
-      const calculatedMargin = formData.valor_bruto - formData.precio_custodio - formData.costo_operativo;
-      const calculatedPercentage = formData.valor_bruto > 0 ? (calculatedMargin / formData.valor_bruto) * 100 : 0;
+      // IMPORTANT: margen_neto_calculado is a GENERATED ALWAYS column in PostgreSQL
+      // We must NOT include it in insert/update - the DB calculates it automatically
+      // Formula: valor_bruto - precio_custodio - costo_operativo
+      const { 
+        margen_neto_calculado: _excludedMargin, 
+        porcentaje_utilidad: _excludedPercentage,
+        ...cleanFormData 
+      } = formData as any;
 
       const routeData = {
-        ...formData,
-        margen_neto_calculado: calculatedMargin,
-        porcentaje_utilidad: calculatedPercentage,
+        ...cleanFormData,
         updated_at: new Date().toISOString()
       };
 
