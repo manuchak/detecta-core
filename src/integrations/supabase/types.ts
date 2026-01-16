@@ -14906,15 +14906,20 @@ export type Database = {
       get_custodios_activos_disponibles: {
         Args: never
         Returns: {
+          certificaciones: string[]
           created_at: string
           disponibilidad: string
+          email: string
           estado: string
           experiencia_seguridad: boolean
           fecha_ultimo_servicio: string
           fuente: string
           id: string
+          lat: number
+          lng: number
           nombre: string
           numero_servicios: number
+          pc_custodio_id: string
           rating_promedio: number
           score_aceptacion: number
           score_comunicacion: number
