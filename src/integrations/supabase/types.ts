@@ -15844,9 +15844,9 @@ export type Database = {
       is_whatsapp_admin: { Args: never; Returns: boolean }
       liberar_custodio_a_planeacion: {
         Args: {
+          p_aprobado_por: string
+          p_custodio_liberacion_id: string
           p_forzar_liberacion?: boolean
-          p_liberacion_id: string
-          p_liberado_por?: string
         }
         Returns: Json
       }
