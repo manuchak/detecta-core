@@ -169,6 +169,7 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         const month = now.getMonth() + 1;
         const currentDay = now.getDate();
         const daysInMonth = new Date(year, month, 0).getDate();
+        const daysRemaining = daysInMonth - currentDay;
 
         // Fetch current month completed services
         const startOfMonth = new Date();
@@ -201,12 +202,20 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
         // Calculate pro-rata and gap
         let gapServices = 0;
         let gapPercentage = 0;
+        let proRataServices = 0;
         let trendDirection: 'up' | 'down' | 'neutral' = 'neutral';
+        let targetServices = 0;
+        let requiredDailyPace = 0;
         
         if (targetData) {
-          const proRataServices = Math.round((targetData.target_services / daysInMonth) * currentDay);
+          targetServices = targetData.target_services;
+          proRataServices = Math.round((targetServices / daysInMonth) * currentDay);
           gapServices = completedServices - proRataServices;
           gapPercentage = proRataServices > 0 ? Math.round((completedServices / proRataServices) * 100) : 0;
+          
+          // Calculate required daily pace to meet target
+          const remaining = targetServices - completedServices;
+          requiredDailyPace = daysRemaining > 0 ? Math.ceil(remaining / daysRemaining) : 0;
           
           // Trend based on gap: +10% = up, -10% = down, else neutral
           if (gapPercentage >= 110) {
@@ -237,7 +246,24 @@ const fetchHeroData = async (type: HeroType): Promise<HeroData> => {
           gapPercentage,
           gmvTotal: currentTotal,
           hasTarget: !!targetData,
-        } as HeroData & { gapPercentage?: number; gmvTotal?: number; hasTarget?: boolean };
+          // New temporal context
+          daysElapsed: currentDay,
+          daysInMonth,
+          daysRemaining,
+          targetServices,
+          proRataServices,
+          requiredDailyPace,
+        } as HeroData & { 
+          gapPercentage?: number; 
+          gmvTotal?: number; 
+          hasTarget?: boolean;
+          daysElapsed?: number;
+          daysInMonth?: number;
+          daysRemaining?: number;
+          targetServices?: number;
+          proRataServices?: number;
+          requiredDailyPace?: number;
+        };
       }
 
       case 'businessHealth': {
