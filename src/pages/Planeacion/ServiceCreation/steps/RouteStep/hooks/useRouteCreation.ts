@@ -83,11 +83,7 @@ export function useRouteCreation(): UseRouteCreationReturn {
         return null;
       }
 
-      // Calculate margin
-      const costoOp = data.costo_operativo || 0;
-      const margen = data.precio_sugerido - data.precio_custodio - costoOp;
-
-      // Insert route
+      // Insert route (margen_neto_calculado se calcula automáticamente por PostgreSQL)
       const { data: newRoute, error } = await supabase
         .from('matriz_precios_rutas')
         .insert({
@@ -100,7 +96,6 @@ export function useRouteCreation(): UseRouteCreationReturn {
           tipo_servicio: data.tipo_servicio || 'ARMADA',
           costo_operativo: data.costo_operativo || null,
           pago_custodio_sin_arma: data.pago_custodio_sin_arma || null,
-          margen_neto_calculado: margen,
           activo: true,
         })
         .select()
