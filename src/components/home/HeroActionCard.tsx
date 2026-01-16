@@ -13,6 +13,9 @@ interface HeroActionCardProps {
   icon: LucideIcon;
   urgency: 'normal' | 'warning' | 'critical';
   isLoading?: boolean;
+  gapPercentage?: number;
+  gmvTotal?: number;
+  hasTarget?: boolean;
 }
 
 export const HeroActionCard = ({
@@ -26,6 +29,9 @@ export const HeroActionCard = ({
   icon: Icon,
   urgency,
   isLoading,
+  gapPercentage,
+  gmvTotal,
+  hasTarget,
 }: HeroActionCardProps) => {
   if (isLoading) {
     return (
@@ -69,7 +75,19 @@ export const HeroActionCard = ({
               `}>
                 {displayValue}
               </span>
-              {trend !== undefined && (
+              {trend !== undefined && hasTarget && (
+                <span className={`
+                  flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full
+                  ${trendDirection === 'up' ? 'bg-success/10 text-success' : 
+                    trendDirection === 'down' ? 'bg-destructive/10 text-destructive' : 
+                    'bg-muted text-muted-foreground'}
+                `}>
+                  <TrendIcon className="h-3.5 w-3.5" />
+                  {trend > 0 ? '+' : ''}{trend} vs plan
+                  {gapPercentage !== undefined && ` (${gapPercentage}%)`}
+                </span>
+              )}
+              {trend !== undefined && !hasTarget && (
                 <span className={`
                   flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full
                   ${trendDirection === 'up' ? 'bg-success/10 text-success' : 

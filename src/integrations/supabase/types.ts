@@ -1406,6 +1406,45 @@ export type Database = {
         }
         Relationships: []
       }
+      business_targets: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          month: number
+          target_active_custodians: number | null
+          target_aov: number
+          target_gmv: number
+          target_services: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          month: number
+          target_active_custodians?: number | null
+          target_aov?: number
+          target_gmv: number
+          target_services: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          month?: number
+          target_active_custodians?: number | null
+          target_aov?: number
+          target_gmv?: number
+          target_services?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       calendario_feriados_mx: {
         Row: {
           activo: boolean | null
