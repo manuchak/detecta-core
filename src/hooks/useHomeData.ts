@@ -15,6 +15,13 @@ interface UseHomeDataResult {
     gapPercentage?: number;
     gmvTotal?: number;
     hasTarget?: boolean;
+    // Temporal context for North Star Hero
+    daysElapsed?: number;
+    daysInMonth?: number;
+    daysRemaining?: number;
+    targetServices?: number;
+    proRataServices?: number;
+    requiredDailyPace?: number;
     cta: { label: string; route: string };
     icon: any;
     urgency: 'normal' | 'warning' | 'critical';
@@ -99,6 +106,13 @@ export const useHomeData = (userRole: UserRole | null | undefined): UseHomeDataR
       gapPercentage: heroData?.gapPercentage,
       gmvTotal: heroData?.gmvTotal,
       hasTarget: heroData?.hasTarget,
+      // Temporal context for North Star Hero
+      daysElapsed: heroData?.daysElapsed,
+      daysInMonth: heroData?.daysInMonth,
+      daysRemaining: heroData?.daysRemaining,
+      targetServices: heroData?.targetServices,
+      proRataServices: heroData?.proRataServices,
+      requiredDailyPace: heroData?.requiredDailyPace,
       cta: config.hero.cta,
       icon: config.hero.icon,
       urgency: getUrgencyLevel(

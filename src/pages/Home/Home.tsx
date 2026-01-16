@@ -57,6 +57,11 @@ const Home = () => {
           gapPercentage={hero.gapPercentage}
           gmvTotal={hero.gmvTotal}
           hasTarget={hero.hasTarget}
+          daysElapsed={hero.daysElapsed}
+          daysInMonth={hero.daysInMonth}
+          daysRemaining={hero.daysRemaining}
+          targetServices={hero.targetServices}
+          requiredDailyPace={hero.requiredDailyPace}
           cta={hero.cta}
           icon={hero.icon}
           urgency={hero.urgency}
