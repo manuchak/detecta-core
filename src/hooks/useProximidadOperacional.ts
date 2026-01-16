@@ -31,6 +31,9 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   conflictos_detectados?: boolean;
   razon_no_disponible?: string;
   
+  // Pre-fetched vehicle info (OPTIMIZATION: avoids per-card RPC calls)
+  vehiculo_info?: string | null;
+  
   // Properties needed for CustodioPerformanceCard compatibility
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
   rejection_risk: 'bajo' | 'medio' | 'alto';
@@ -170,6 +173,11 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
         custodio: any,
         timeoutMs: number = 3000
       ): Promise<CustodioConProximidad> => {
+        // Build vehicle info string from pre-fetched RPC data (OPTIMIZATION)
+        const vehiculoInfo = custodio.vehiculo_marca && custodio.vehiculo_modelo
+          ? `${custodio.vehiculo_marca} ${custodio.vehiculo_modelo}${custodio.vehiculo_placas ? ` (${custodio.vehiculo_placas})` : ''}`
+          : null;
+        
         const custodioProcessed: CustodioConProximidad = {
           ...custodio,
           fuente: 'custodios_operativos' as const,
@@ -177,6 +185,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
           disponibilidad_efectiva: custodio.disponibilidad_efectiva || 'disponible',
           categoria_disponibilidad: 'disponible', // FAIL-OPEN default
           conflictos_detectados: false,
+          vehiculo_info: vehiculoInfo, // Pre-built vehicle string
           performance_level: 'nuevo',
           rejection_risk: 'medio',
           response_speed: 'normal',
@@ -305,9 +314,16 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
       };
 
       // PROCESAMIENTO EN PARALELO CON BATCHES
-      const BATCH_SIZE = 25;
-      // Reducir timeout si hay muchos custodios para evitar bloqueos
-      const TIMEOUT_MS = custodiosDisponibles.length > 100 ? 2000 : 3000;
+      // OPTIMIZATION: Detect low-end hardware and adjust parameters
+      const isLowEndDevice = typeof navigator !== 'undefined' && 
+        (navigator.hardwareConcurrency ?? 8) <= 4;
+      
+      const BATCH_SIZE = isLowEndDevice ? 15 : 25;
+      const TIMEOUT_MS = isLowEndDevice ? 1500 : (custodiosDisponibles.length > 100 ? 2000 : 3000);
+      
+      console.log(`🔧 Hardware detection: ${isLowEndDevice ? 'Low-end' : 'Standard'} (cores: ${navigator.hardwareConcurrency ?? 'unknown'})`);
+      console.log(`📊 Batch config: size=${BATCH_SIZE}, timeout=${TIMEOUT_MS}ms`);
+      
       const custodiosProcessed: CustodioConProximidad[] = [];
       
       let successCount = 0;

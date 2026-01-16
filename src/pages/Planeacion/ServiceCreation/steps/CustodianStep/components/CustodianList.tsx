@@ -1,9 +1,10 @@
 /**
- * CustodianList - Renders the list of available custodians
- * Supports collapsing when a custodian is selected to reduce visual noise
+ * CustodianList - Optimized list with windowing
+ * Uses native IntersectionObserver for lightweight virtualization
+ * Memoized for minimal re-renders on i3/8GB hardware
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CustodianCard } from './CustodianCard';
@@ -21,6 +22,11 @@ interface CustodianListProps {
   onReportUnavailability?: (custodio: CustodioConProximidad) => void;
 }
 
+// Configuration for windowing
+const INITIAL_VISIBLE = 8; // Render first 8 immediately
+const LOAD_MORE_THRESHOLD = 4; // Load more when 4 from end
+const BATCH_SIZE = 6; // Load 6 more at a time
+
 export function CustodianList({
   custodians,
   isLoading,
@@ -34,11 +40,57 @@ export function CustodianList({
   // Auto-collapse when a custodian is selected
   const [isCollapsed, setIsCollapsed] = useState(false);
   
+  // Progressive rendering: start with first batch, load more on scroll
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     if (selectedId) {
       setIsCollapsed(true);
     }
   }, [selectedId]);
+
+  // Reset visible count when custodians change
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [custodians.length]);
+
+  // IntersectionObserver for lazy loading more items
+  useEffect(() => {
+    if (!loadMoreRef.current || visibleCount >= custodians.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + BATCH_SIZE, custodians.length));
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [visibleCount, custodians.length]);
+
+  // Memoize callbacks to prevent re-renders
+  const handleSelect = useCallback((custodio: CustodioConProximidad) => {
+    onSelect(custodio);
+  }, [onSelect]);
+
+  const handleContact = useCallback((custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => {
+    onContact(custodio, method);
+  }, [onContact]);
+
+  const handleReportUnavailability = useCallback((custodio: CustodioConProximidad) => {
+    onReportUnavailability?.(custodio);
+  }, [onReportUnavailability]);
+
+  // Memoized visible slice
+  const visibleCustodians = useMemo(() => 
+    custodians.slice(0, visibleCount),
+    [custodians, visibleCount]
+  );
 
   if (isLoading) {
     return (
@@ -49,8 +101,6 @@ export function CustodianList({
     );
   }
 
-  // Empty state is now handled by NoCustodiansAlert in parent
-  // This component just renders nothing when empty
   if (custodians.length === 0) {
     return null;
   }
@@ -89,19 +139,32 @@ export function CustodianList({
         </Button>
       )}
       
-      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-        {custodians.map((custodio, index) => (
+      {/* Scrollable list with progressive loading */}
+      <div 
+        ref={containerRef}
+        className="space-y-3 max-h-[400px] overflow-y-auto pr-1"
+      >
+        {visibleCustodians.map((custodio, index) => (
           <CustodianCard
             key={custodio.id}
             custodio={custodio}
             selected={selectedId === custodio.id}
             highlighted={highlightedIndex === index}
             comunicacion={comunicaciones[custodio.id]}
-            onSelect={() => onSelect(custodio)}
-            onContact={(method) => onContact(custodio, method)}
-            onReportUnavailability={onReportUnavailability ? () => onReportUnavailability(custodio) : undefined}
+            onSelect={() => handleSelect(custodio)}
+            onContact={(method) => handleContact(custodio, method)}
+            onReportUnavailability={onReportUnavailability ? () => handleReportUnavailability(custodio) : undefined}
           />
         ))}
+        
+        {/* Sentinel for loading more */}
+        {visibleCount < custodians.length && (
+          <div ref={loadMoreRef} className="h-4 flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">
+              Cargando más... ({visibleCount}/{custodians.length})
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
