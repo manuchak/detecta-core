@@ -6,13 +6,20 @@ import { useAuth } from '@/contexts/AuthContext';
 export interface SIERCPResult {
   id: string;
   user_id: string;
-  scores: any; // Json type from Supabase
-  percentiles: any; // Json type from Supabase  
+  scores: any;
+  percentiles: any;
   clinical_interpretation: string | null;
   risk_flags: string[] | null;
   global_score: number;
   completed_at: string;
   created_at: string;
+  // Profile info (from RPC join)
+  profiles?: {
+    display_name: string | null;
+    email: string | null;
+  };
+  display_name?: string | null;
+  email?: string | null;
 }
 
 export const useSIERCPResults = () => {
@@ -20,6 +27,8 @@ export const useSIERCPResults = () => {
   const [existingResult, setExistingResult] = useState<SIERCPResult | null>(null);
   const [allResults, setAllResults] = useState<SIERCPResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [errorAllResults, setErrorAllResults] = useState<string | null>(null);
 
   const isAdmin = userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin';
 
@@ -58,26 +67,47 @@ export const useSIERCPResults = () => {
   const fetchAllResults = async () => {
     if (!isAdmin) return;
 
+    setLoadingAll(true);
+    setErrorAllResults(null);
+
     try {
+      // Usar RPC segura que hace el join correcto con profiles
       const { data, error } = await supabase
-        .from('siercp_results')
-        .select(`
-          *,
-          profiles:user_id (
-            display_name,
-            email
-          )
-        `)
-        .order('completed_at', { ascending: false });
+        .rpc('get_siercp_calibration_results');
 
       if (error) {
-        console.error('Error fetching all results:', error);
+        console.error('Error fetching calibration results:', error);
+        setErrorAllResults(error.message || 'Error al cargar resultados de calibración');
         return;
       }
 
-      setAllResults(data || []);
+      // Transformar datos de RPC al formato esperado por los componentes
+      const transformedResults = (data || []).map((row: any) => ({
+        id: row.id,
+        user_id: row.user_id,
+        global_score: row.global_score,
+        dimension_scores: row.dimension_scores,
+        dimension_percentiles: row.dimension_percentiles,
+        risk_flags: row.risk_flags,
+        clinical_interpretation: row.clinical_interpretation,
+        recommendations: row.recommendations,
+        raw_responses: row.raw_responses,
+        completed_at: row.completed_at,
+        created_at: row.created_at,
+        // Mantener compatibilidad con el formato anterior (nested profiles)
+        profiles: {
+          display_name: row.display_name,
+          email: row.email
+        }
+      }));
+
+      console.log('SIERCP: Resultados de calibración cargados:', transformedResults.length);
+      setAllResults(transformedResults);
     } catch (err) {
       console.error('Error in fetchAllResults:', err);
+      setErrorAllResults('Error inesperado al cargar resultados');
+    } finally {
+      setLoadingAll(false);
     }
   };
 
@@ -156,6 +186,8 @@ export const useSIERCPResults = () => {
     existingResult,
     allResults,
     loading,
+    loadingAll,
+    errorAllResults,
     isAdmin,
     canTakeEvaluation: canTakeEvaluation(),
     saveResult,
