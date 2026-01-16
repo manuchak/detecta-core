@@ -191,8 +191,8 @@ export const useCustodioLiberacion = () => {
       const { data: user } = await supabase.auth.getUser();
       
       const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion', {
-        p_liberacion_id: liberacion_id,
-        p_liberado_por: user.user?.id,
+        p_custodio_liberacion_id: liberacion_id,
+        p_aprobado_por: user.user?.id,
         p_forzar_liberacion: forzar
       });
       
