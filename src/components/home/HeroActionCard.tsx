@@ -198,7 +198,7 @@ export const HeroActionCard = ({
                 {requiredDailyPace !== undefined && requiredDailyPace > 0 && daysRemaining !== undefined && daysRemaining > 0 && (
                   <>
                     <span>•</span>
-                    <span>{requiredDailyPace}/día restante</span>
+                    <span>Requiere {requiredDailyPace}/día</span>
                   </>
                 )}
               </div>
