@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
@@ -597,10 +597,16 @@ const SIERCPPage = () => {
     }
   };
 
-  // Auto-guardar resultados para usuarios no admin
+  // Auto-guardar resultados para todos los usuarios
+  // Admins: siempre guardar (modo calibración, pueden repetir)
+  // No-admins: solo si no tienen resultado previo
   useEffect(() => {
-    if (showResults && savedResults && !isAdmin && !existingResult && !saving) {
-      handleSaveResults(savedResults);
+    if (showResults && savedResults && !saving) {
+      const shouldSave = isAdmin || !existingResult;
+      if (shouldSave) {
+        console.log('SIERCP: Auto-guardando resultados', { isAdmin, existingResult: !!existingResult });
+        handleSaveResults(savedResults);
+      }
     }
   }, [showResults, savedResults, isAdmin, existingResult]);
 
@@ -900,18 +906,39 @@ const SIERCPPage = () => {
           {/* Header Card */}
           <Card className="overflow-hidden">
             <CardHeader className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white`}>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                  <FileText className="h-7 w-7 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                    <FileText className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl">Resultados SIERCP</CardTitle>
+                    <CardDescription className="text-white/90 text-base">
+                      Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl">Resultados SIERCP</CardTitle>
-                  <CardDescription className="text-white/90 text-base">
-                    Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica
-                  </CardDescription>
-                </div>
+                {isAdmin && (
+                  <Badge className="bg-white/20 text-white border-white/30 gap-1.5">
+                    <FlaskConical className="h-3.5 w-3.5" />
+                    Modo Calibración
+                  </Badge>
+                )}
               </div>
             </CardHeader>
+            {/* Confirmación de guardado para admins */}
+            {isAdmin && saving && (
+              <div className="px-6 py-2 bg-amber-50 border-b border-amber-200 flex items-center gap-2 text-amber-700 text-sm">
+                <div className="h-3 w-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                Guardando resultados de calibración...
+              </div>
+            )}
+            {isAdmin && !saving && savedResults && (
+              <div className="px-6 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center gap-2 text-emerald-700 text-sm">
+                <CheckCircle className="h-4 w-4" />
+                Resultados guardados en el dashboard de calibración
+              </div>
+            )}
           </Card>
 
           {/* Main Results */}
