@@ -190,7 +190,8 @@ export const useCustodioLiberacion = () => {
       
       const { data: user } = await supabase.auth.getUser();
       
-      const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion', {
+      // Usar v2 canónica para máxima estabilidad (wrapper legacy sigue existiendo para clientes viejos)
+      const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion_v2', {
         p_custodio_liberacion_id: liberacion_id,
         p_aprobado_por: user.user?.id,
         p_forzar_liberacion: forzar
@@ -198,6 +199,10 @@ export const useCustodioLiberacion = () => {
       
       if (error) {
         console.error('❌ Error RPC liberación:', error);
+        // Mensaje accionable para usuarios con build viejo
+        if (error.message?.includes('schema cache') || error.message?.includes('function')) {
+          throw new Error('Tu app parece desactualizada. Recarga con Ctrl+Shift+R o abre en modo incógnito.');
+        }
         throw error;
       }
       
