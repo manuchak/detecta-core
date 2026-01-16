@@ -54,6 +54,9 @@ const Home = () => {
           formattedValue={hero.formattedValue}
           trend={hero.trend}
           trendDirection={hero.trendDirection}
+          gapPercentage={hero.gapPercentage}
+          gmvTotal={hero.gmvTotal}
+          hasTarget={hero.hasTarget}
           cta={hero.cta}
           icon={hero.icon}
           urgency={hero.urgency}

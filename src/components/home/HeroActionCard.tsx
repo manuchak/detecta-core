@@ -75,6 +75,13 @@ export const HeroActionCard = ({
               `}>
                 {displayValue}
               </span>
+              {gmvTotal !== undefined && gmvTotal > 0 && (
+                <span className="text-lg text-muted-foreground font-medium">
+                  ({gmvTotal >= 1000000 
+                    ? `$${(gmvTotal / 1000000).toFixed(1)}M` 
+                    : `$${Math.round(gmvTotal / 1000)}K`} GMV)
+                </span>
+              )}
               {trend !== undefined && hasTarget && (
                 <span className={`
                   flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full
