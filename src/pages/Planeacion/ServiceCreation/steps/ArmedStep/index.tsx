@@ -21,13 +21,17 @@ import { MeetingPointSection } from './components/MeetingPointSection';
 export default function ArmedStep() {
   const { formData, updateFormData, nextStep, previousStep, markStepCompleted } = useServiceCreation();
   
+  // Filter state for 90-day activity (UI toggle)
+  const [soloConActividad90Dias, setSoloConActividad90Dias] = useState(true);
+  
   // Load armed guards with service context
   const { armedGuards, providers, loading, error, refetch } = useArmedGuardsWithTracking({
     zona_base: formData.origen,
     tipo_servicio: formData.tipoServicio as 'local' | 'foraneo' | 'alta_seguridad',
     incluye_armado: formData.requiereArmado,
     fecha_programada: formData.fecha,
-    hora_ventana_inicio: formData.hora
+    hora_ventana_inicio: formData.hora,
+    soloConActividad90Dias
   });
 
   // Local state
@@ -323,19 +327,36 @@ export default function ArmedStep() {
       </div>
 
       {/* Search and filters */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre, zona o proveedor..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre, zona o proveedor..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button variant="outline" size="icon" onClick={refetch} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+          </Button>
         </div>
-        <Button variant="outline" size="icon" onClick={refetch} disabled={loading}>
-          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-        </Button>
+        {/* 90-day activity filter toggle */}
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={soloConActividad90Dias ? 'default' : 'outline'}
+            className="cursor-pointer transition-all"
+            onClick={() => setSoloConActividad90Dias(!soloConActividad90Dias)}
+          >
+            {soloConActividad90Dias ? '✓ ' : ''}Activos (90 días)
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {soloConActividad90Dias 
+              ? 'Mostrando solo armados con servicios recientes' 
+              : 'Mostrando todos los armados'}
+          </span>
+        </div>
       </div>
 
       {/* Tabs for internal vs external */}

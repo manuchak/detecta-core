@@ -13671,6 +13671,7 @@ export type Database = {
           estado: string | null
           experiencia_anos: number | null
           fecha_ultimo_servicio: string | null
+          fecha_ultimo_servicio_real: string | null
           fecha_vencimiento_licencia: string | null
           fuente: string | null
           id: string | null
@@ -13686,11 +13687,14 @@ export type Database = {
           score_confiabilidad: number | null
           score_disponibilidad: number | null
           score_total: number | null
+          servicios_90dias: number | null
+          servicios_historico_total: number | null
           servicios_permitidos: string[] | null
           tasa_confiabilidad: number | null
           tasa_confirmacion: number | null
           tasa_respuesta: number | null
           telefono: string | null
+          tiene_actividad_90dias: boolean | null
           tipo_armado: string | null
           updated_at: string | null
           zona_base: string | null
@@ -14741,6 +14745,15 @@ export type Database = {
           phone_interview_completed: boolean
           second_interview_required: boolean
           zona_nombre: string
+        }[]
+      }
+      get_armados_actividad_reciente: {
+        Args: never
+        Returns: {
+          fecha_ultimo_servicio: string
+          nombre_normalizado: string
+          total_servicios_90dias: number
+          total_servicios_historico: number
         }[]
       }
       get_available_roles_secure: { Args: never; Returns: string[] }

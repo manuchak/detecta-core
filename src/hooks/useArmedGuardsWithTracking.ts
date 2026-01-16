@@ -56,6 +56,7 @@ export interface ServiceRequest {
   incluye_armado?: boolean;
   fecha_programada?: string;
   hora_ventana_inicio?: string;
+  soloConActividad90Dias?: boolean;
 }
 
 export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
@@ -65,7 +66,8 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
     tipo_servicio: serviceData?.tipo_servicio as 'local' | 'foraneo' | 'alta_seguridad',
     incluye_armado: serviceData?.incluye_armado,
     fecha_programada: serviceData?.fecha_programada,
-    hora_ventana_inicio: serviceData?.hora_ventana_inicio
+    hora_ventana_inicio: serviceData?.hora_ventana_inicio,
+    soloConActividad90Dias: serviceData?.soloConActividad90Dias ?? true // Default true
   };
 
   // Use the optimized hook

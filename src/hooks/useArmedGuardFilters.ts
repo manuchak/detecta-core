@@ -7,6 +7,8 @@ export interface FilterConfig {
   experienciaMinima: number;
   zonasGeograficas?: string[];
   ordenarPor: 'productividad' | 'rating' | 'experiencia' | 'servicios' | 'nombre';
+  // 🆕 Filtro de actividad reciente
+  soloConActividad90Dias: boolean;
 }
 
 const DEFAULT_FILTER_CONFIG: FilterConfig = {
@@ -15,6 +17,7 @@ const DEFAULT_FILTER_CONFIG: FilterConfig = {
   experienciaMinima: 0,
   zonasGeograficas: [],
   ordenarPor: 'productividad',
+  soloConActividad90Dias: true, // Por defecto activado para reducir saturación
 };
 
 const STORAGE_KEY = 'detecta-armados-filter-config';
