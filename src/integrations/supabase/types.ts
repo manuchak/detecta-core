@@ -645,6 +645,13 @@ export type Database = {
             foreignKeyName: "armados_indisponibilidades_armado_id_fkey"
             columns: ["armado_id"]
             isOneToOne: false
+            referencedRelation: "armados_disponibles_extendido"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armados_indisponibilidades_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: false
             referencedRelation: "armados_operativos"
             referencedColumns: ["id"]
           },
@@ -823,6 +830,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "armados_performance_metrics_armado_id_fkey"
+            columns: ["armado_id"]
+            isOneToOne: true
+            referencedRelation: "armados_disponibles_extendido"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "armados_performance_metrics_armado_id_fkey"
             columns: ["armado_id"]
@@ -10783,6 +10797,13 @@ export type Database = {
             foreignKeyName: "puntos_encuentro_predefinidos_armado_interno_id_fkey"
             columns: ["armado_interno_id"]
             isOneToOne: false
+            referencedRelation: "armados_disponibles_extendido"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "puntos_encuentro_predefinidos_armado_interno_id_fkey"
+            columns: ["armado_interno_id"]
+            isOneToOne: false
             referencedRelation: "armados_operativos"
             referencedColumns: ["id"]
           },
@@ -13700,7 +13721,15 @@ export type Database = {
           zona_base: string | null
           zonas_permitidas: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_armados_proveedor"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       armados_operativos_disponibles: {
         Row: {
