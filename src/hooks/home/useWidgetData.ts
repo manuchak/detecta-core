@@ -422,7 +422,7 @@ const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
         
-        // Custodians with services this month
+        // Custodians with services this month (activos)
         const { data: servicesData } = await supabase
           .from('servicios_custodia')
           .select('nombre_custodio')
@@ -433,19 +433,19 @@ const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
         const activeCustodians = new Set(servicesData?.map(d => d.nombre_custodio) || []);
         const activeCount = activeCustodians.size;
         
-        // Total released custodians
-        const { count: totalReleased } = await supabase
-          .from('candidatos_custodios')
+        // Custodians released THIS MONTH by Supply
+        const { count: releasedThisMonth } = await supabase
+          .from('custodio_liberacion')
           .select('*', { count: 'exact', head: true })
-          .eq('estado_proceso', 'liberado');
+          .eq('estado_liberacion', 'liberado')
+          .gte('fecha_liberacion', startOfMonth.toISOString());
         
-        const total = totalReleased || 0;
-        const percentage = total > 0 ? Math.round((activeCount / total) * 100) : 0;
+        const released = releasedThisMonth || 0;
         
         return { 
           value: activeCount,
-          subtext: `de ${total} liberados (${percentage}%)`,
-          trendDirection: percentage >= 80 ? 'up' : percentage >= 60 ? 'neutral' : 'down'
+          subtext: `${released} liberados este mes`,
+          trendDirection: released >= 15 ? 'up' : released >= 5 ? 'neutral' : 'down'
         };
       }
 
