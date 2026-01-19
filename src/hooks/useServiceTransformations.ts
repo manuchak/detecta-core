@@ -21,7 +21,13 @@ export function useServiceTransformations() {
       requiere_armado: servicio.requiere_armado || false,
       observaciones: servicio.notas_especiales,
       created_at: servicio.created_at,
-      custodio_asignado: servicio.custodio_asignado?.nombre,
+      // Normalize: accept both string and object formats
+      custodio_asignado: typeof servicio.custodio_asignado === 'string'
+        ? servicio.custodio_asignado
+        : servicio.custodio_asignado?.nombre,
+      armado_asignado: typeof (servicio as any).armado_asignado === 'string'
+        ? (servicio as any).armado_asignado
+        : (servicio as any).armado_asignado?.nombre || null,
       estado: servicio.estado
     };
   };
@@ -39,7 +45,13 @@ export function useServiceTransformations() {
       fecha_hora_cita: `${servicio.fecha_programada}T${servicio.hora_ventana_inicio}`,
       tipo_servicio: servicio.tipo_servicio,
       requiere_armado: servicio.requiere_armado || false,
-      custodio_asignado: servicio.custodio_asignado?.nombre,
+      // Normalize: accept both string and object formats
+      custodio_asignado: typeof servicio.custodio_asignado === 'string'
+        ? servicio.custodio_asignado
+        : servicio.custodio_asignado?.nombre,
+      armado_asignado: typeof (servicio as any).armado_asignado === 'string'
+        ? (servicio as any).armado_asignado
+        : (servicio as any).armado_asignado?.nombre || null,
       estado_planeacion: servicio.estado,
       observaciones: servicio.notas_especiales
     };
