@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2, User, Mail, Phone } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
@@ -318,6 +318,11 @@ const SIERCPPage = () => {
   const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
   const [loadingHistorical, setLoadingHistorical] = useState(false);
   const [generatedAIReport, setGeneratedAIReport] = useState<SIERCPReport | null>(null);
+  const [evalueeProfile, setEvalueeProfile] = useState<{
+    display_name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null>(null);
 
   // Cargar resultado histórico si viene por parámetro ?result=ID
   useEffect(() => {
@@ -325,11 +330,29 @@ const SIERCPPage = () => {
       setLoadingHistorical(true);
       supabase
         .from('siercp_results')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            display_name,
+            email,
+            phone
+          )
+        `)
         .eq('id', resultIdParam)
         .maybeSingle()
         .then(({ data, error }) => {
           if (data && !error) {
+            // Extraer perfil del evaluado
+            const profileData = data.profiles as { display_name: string | null; email: string | null; phone: string | null } | null;
+            if (profileData) {
+              setEvalueeProfile({
+                display_name: profileData.display_name,
+                email: profileData.email,
+                phone: profileData.phone
+              });
+            }
+            
             // Transformar el resultado almacenado al formato del UI
             const transformedResult = {
               globalScore: data.global_score,
@@ -953,7 +976,10 @@ const SIERCPPage = () => {
         {/* Print-only content - AI Generated Report */}
         {generatedAIReport ? (
           <div className="print-content" style={{ display: 'none' }}>
-            <SIERCPPrintableReport report={generatedAIReport} />
+            <SIERCPPrintableReport 
+              report={generatedAIReport} 
+              candidateName={evalueeProfile?.display_name || undefined}
+            />
           </div>
         ) : (
           <div className="print-content" style={{ display: 'none' }}>
@@ -1071,6 +1097,39 @@ const SIERCPPage = () => {
               </div>
             )}
           </Card>
+
+          {/* Evaluee Profile Card */}
+          {evalueeProfile && (
+            <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">
+                        {evalueeProfile.display_name || 'Candidato sin nombre'}
+                      </h3>
+                      <Badge variant="outline" className="text-xs">Evaluado</Badge>
+                    </div>
+                    {evalueeProfile.email && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />
+                        {evalueeProfile.email}
+                      </p>
+                    )}
+                    {evalueeProfile.phone && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {evalueeProfile.phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Main Results */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1226,6 +1285,7 @@ const SIERCPPage = () => {
                   globalScore: results.globalScore,
                   moduleScores,
                   riskFlags,
+                  candidateName: evalueeProfile?.display_name || 'Candidato',
                   evaluationDate: new Date().toISOString()
                 });
 
