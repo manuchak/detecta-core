@@ -417,71 +417,20 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const processedGuards = allProcessedGuards;
       console.log(`[Armed] Processed ${processedGuards.length} guards with fail-open strategy`);
 
-      // 🆕 Apply zone coverage marking POST-FETCH (not as a filter, just marking)
-      const guardsWithZoneCoverage = processedGuards.map(guard => {
-        let cubreZona = true; // Default true if no zone filter
-        let prioridadZona = 0;
-        
-        if (zoneFilterInfo) {
-          const zoneName = zoneFilterInfo;
-          const zoneTokens = zoneName.split(/[,\s]+/).filter(token => token.length > 2);
-          
-          cubreZona = false; // Will be set to true if match found
-          
-          // Check zona_base
-          if (guard.zona_base) {
-            const zonaBaseLower = guard.zona_base.toLowerCase();
-            const zoneNameLower = zoneName.toLowerCase();
-            
-            if (zonaBaseLower.includes(zoneNameLower) || zoneNameLower.includes(zonaBaseLower)) {
-              cubreZona = true;
-            } else {
-              // Check token matches
-              cubreZona = zoneTokens.some(token => 
-                zonaBaseLower.includes(token.toLowerCase())
-              );
-            }
-          }
-          
-          // Check zonas_permitidas if not already covered
-          if (!cubreZona && guard.zonas_permitidas && guard.zonas_permitidas.length > 0) {
-            cubreZona = guard.zonas_permitidas.some((zona: string) => {
-              const zonaLower = zona.toLowerCase();
-              const zoneNameLower = zoneName.toLowerCase();
-              
-              if (zonaLower.includes(zoneNameLower) || zoneNameLower.includes(zonaLower)) {
-                return true;
-              }
-              
-              return zoneTokens.some(token => 
-                zonaLower.includes(token.toLowerCase())
-              );
-            });
-          }
-          
-          prioridadZona = cubreZona ? 0 : 1; // Guards covering zone come first
-        }
-        
-        return {
-          ...guard,
-          cubre_zona_servicio: cubreZona,
-          prioridad_zona: prioridadZona
-        };
-      });
-      
-      console.log(`[Armed] Zone coverage marked: ${guardsWithZoneCoverage.filter(g => g.cubre_zona_servicio).length} in zone, ${guardsWithZoneCoverage.filter(g => !g.cubre_zona_servicio).length} outside zone`);
+      // All processed guards are ready for use
+      console.log(`[Armed] Processed ${processedGuards.length} guards with fail-open strategy`);
 
       // Filter out unavailable guards based on conflict validation (if validation was performed)
-      let availableGuards = guardsWithZoneCoverage;
+      let availableGuards = processedGuards;
       if (filters?.fecha_programada && filters?.hora_ventana_inicio) {
-        availableGuards = guardsWithZoneCoverage.filter(guard => {
+        availableGuards = processedGuards.filter(guard => {
           if (guard.conflicto_validacion) {
             return guard.conflicto_validacion.disponible;
           }
           return guard.disponibilidad === 'disponible';
         });
         
-        console.log(`Conflict validation applied: ${guardsWithZoneCoverage.length} -> ${availableGuards.length} available guards`);
+        console.log(`Conflict validation applied: ${processedGuards.length} -> ${availableGuards.length} available guards`);
       }
 
       // 🆕 Apply 90-day activity filter if enabled (only for internal guards)
@@ -502,13 +451,8 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const internalGuards = filteredByActivity.filter(guard => guard.tipo_armado === 'interno');
       const providerGuards = filteredByActivity.filter(guard => guard.tipo_armado === 'proveedor_externo');
 
-      // Sort by zone coverage, availability category and score for internal guards
+      // Sort by availability category and score for internal guards
       const sortedInternalGuards = internalGuards.sort((a, b) => {
-        // 🆕 First priority: Zone coverage (in-zone first)
-        if (a.prioridad_zona !== b.prioridad_zona) {
-          return (a.prioridad_zona || 0) - (b.prioridad_zona || 0);
-        }
-        
         // If conflict validation was performed, use conflict categories
         if (a.conflicto_validacion && b.conflicto_validacion) {
           const categoryPriority = {

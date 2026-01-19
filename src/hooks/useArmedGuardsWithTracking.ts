@@ -26,9 +26,6 @@ export interface ArmedGuard {
   es_lead_virtual?: boolean;
   lead_id_origen?: string;
   lead_estado_original?: string;
-  // 🆕 Zone coverage fields (calculated post-fetch)
-  cubre_zona_servicio?: boolean;
-  prioridad_zona?: number;
 }
 
 export interface ArmedProvider {
@@ -48,9 +45,6 @@ export interface ArmedProvider {
   observaciones?: string;
   created_at?: string;
   updated_at?: string;
-  // Zone coverage info (computed at runtime)
-  cubre_zona_servicio?: boolean;
-  prioridad_zona?: number;
 }
 
 export interface ServiceRequest {
@@ -108,10 +102,7 @@ export function useArmedGuardsWithTracking(serviceData?: ServiceRequest) {
     updated_at: guard.updated_at,
     es_lead_virtual: guard.es_lead_virtual,
     lead_id_origen: guard.lead_id_origen,
-    lead_estado_original: guard.lead_estado_original,
-    // 🆕 Zone coverage fields
-    cubre_zona_servicio: guard.cubre_zona_servicio,
-    prioridad_zona: guard.prioridad_zona
+    lead_estado_original: guard.lead_estado_original
   }));
 
   const providers: ArmedProvider[] = operativeProviders.map(provider => ({

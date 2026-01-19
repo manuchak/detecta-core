@@ -22,7 +22,7 @@ export default function ArmedStep() {
   const { formData, updateFormData, nextStep, previousStep, markStepCompleted } = useServiceCreation();
   
   // Filter state for 90-day activity (UI toggle)
-  const [soloConActividad90Dias, setSoloConActividad90Dias] = useState(true);
+  const [soloConActividad90Dias, setSoloConActividad90Dias] = useState(false);
   
   // Load armed guards with service context
   const { armedGuards, providers, loading, error, refetch } = useArmedGuardsWithTracking({
@@ -178,7 +178,6 @@ export default function ArmedStep() {
   const GuardCard = ({ guard }: { guard: ArmedGuard }) => {
     const isSelected = selectedGuardId === guard.id && selectedType === 'interno';
     const isNewGuard = guard.es_lead_virtual || guard.numero_servicios === 0;
-    const cubreZona = guard.cubre_zona_servicio !== false; // 🆕 Zone coverage check
     
     return (
       <Card 
@@ -204,13 +203,6 @@ export default function ArmedStep() {
                   <Badge variant="secondary" className="text-[10px] gap-1">
                     <Sparkles className="h-2.5 w-2.5" />
                     Nuevo
-                  </Badge>
-                )}
-                {/* 🆕 Zone coverage indicator */}
-                {!cubreZona && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800 text-[10px] gap-1">
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Fuera de zona
                   </Badge>
                 )}
               </div>
@@ -255,8 +247,6 @@ export default function ArmedStep() {
 
   // Provider card component
   const ProviderCard = ({ provider }: { provider: ArmedProvider }) => {
-    const cubreZona = provider.cubre_zona_servicio !== false;
-    
     return (
       <Card 
         className="cursor-pointer transition-all hover:border-primary/50"
@@ -273,13 +263,6 @@ export default function ArmedStep() {
                 <span className="font-medium truncate">{provider.nombre_empresa}</span>
                 {provider.disponibilidad_24h && (
                   <Badge variant="secondary" className="text-[10px]">24h</Badge>
-                )}
-                {/* Zone coverage indicator */}
-                {!cubreZona && (
-                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800 text-[10px] gap-1">
-                    <AlertTriangle className="h-2.5 w-2.5" />
-                    Fuera de zona
-                  </Badge>
                 )}
               </div>
               
