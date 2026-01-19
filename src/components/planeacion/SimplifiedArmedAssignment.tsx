@@ -67,7 +67,27 @@ export function SimplifiedArmedAssignment({
   const [meetingTime, setMeetingTime] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  const { armedGuards, providers, loading, error } = useArmedGuardsWithTracking();
+  // Extract service context for armed guard filtering
+  const serviceContext = useMemo(() => {
+    // Parse date/time from fecha_hora_cita
+    let fechaProgramada: string | undefined;
+    let horaVentanaInicio: string | undefined;
+    
+    if (serviceData.fecha_hora_cita) {
+      const dateObj = new Date(serviceData.fecha_hora_cita);
+      fechaProgramada = dateObj.toISOString().split('T')[0];
+      horaVentanaInicio = dateObj.toTimeString().slice(0, 5);
+    }
+    
+    return {
+      zona_base: serviceData.origen,
+      fecha_programada: fechaProgramada,
+      hora_ventana_inicio: horaVentanaInicio,
+      soloConActividad90Dias: false // Mostrar todos para asignación manual
+    };
+  }, [serviceData.origen, serviceData.fecha_hora_cita]);
+
+  const { armedGuards, providers, loading, error, refetch } = useArmedGuardsWithTracking(serviceContext);
   const { isHybridCustodian } = useCustodioVehicleData(serviceData.custodio_asignado || undefined);
   const custodioIsHybrid = isHybridCustodian();
 
@@ -273,16 +293,23 @@ export function SimplifiedArmedAssignment({
             availableZones={availableZones}
           />
 
-          {searchedGuards.length === 0 ? (
+        {searchedGuards.length === 0 ? (
             <div className="text-center py-12">
               <Shield className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-              <p className="text-lg font-medium">No se encontraron armados</p>
+              <p className="text-lg font-medium">No se encontraron armados internos</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Intenta ajustar los filtros o buscar por zona
+                {totalCount === 0 
+                  ? 'No tienes permisos para ver armados internos o no hay armados registrados.'
+                  : 'Intenta ajustar los filtros o buscar por zona.'}
               </p>
-              <Button variant="outline" className="mt-4" onClick={resetFilters}>
-                Limpiar Filtros
-              </Button>
+              <div className="flex gap-2 justify-center mt-4">
+                <Button variant="outline" onClick={resetFilters}>
+                  Limpiar Filtros
+                </Button>
+                <Button variant="ghost" onClick={() => refetch()}>
+                  Recargar Lista
+                </Button>
+              </div>
             </div>
           ) : (
             <>
