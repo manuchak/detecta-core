@@ -8,22 +8,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2 } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { useSIERCPAI } from "@/hooks/useSIERCPAI";
+import { useSIERCPReport, SIERCPReport } from "@/hooks/useSIERCPReport";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { SIERCPPrintableReport } from "@/components/evaluation/SIERCPPrintableReport";
 
 
 // Estilos CSS para impresión
 const printStyles = `
   @media print {
     @page {
-      margin: 15mm;
+      margin: 10mm;
       size: A4;
     }
     
@@ -32,7 +34,7 @@ const printStyles = `
     }
     
     .print-content, .print-content * {
-      visibility: visible;
+      visibility: visible !important;
     }
     
     .print-content {
@@ -42,15 +44,71 @@ const printStyles = `
       width: 100%;
       background: white !important;
       color: black !important;
-      font-family: Arial, sans-serif;
-      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
       line-height: 1.4;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     
     .no-print {
       display: none !important;
     }
+
+    /* AI Report specific styles */
+    #siercp-detailed-report {
+      padding: 20px !important;
+    }
+
+    #siercp-detailed-report .bg-green-100,
+    #siercp-detailed-report .bg-yellow-100,
+    #siercp-detailed-report .bg-orange-100,
+    #siercp-detailed-report .bg-red-100,
+    #siercp-detailed-report .bg-slate-50,
+    #siercp-detailed-report .bg-blue-50\\/50,
+    #siercp-detailed-report .bg-amber-50\\/50,
+    #siercp-detailed-report .bg-green-50\\/50,
+    #siercp-detailed-report .bg-red-50\\/50,
+    #siercp-detailed-report .bg-slate-100 {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    #siercp-detailed-report .border {
+      border-width: 1px !important;
+    }
+
+    #siercp-detailed-report .rounded-lg {
+      border-radius: 8px !important;
+    }
+
+    /* Progress bars in print */
+    #siercp-detailed-report .bg-green-500,
+    #siercp-detailed-report .bg-yellow-500,
+    #siercp-detailed-report .bg-red-500 {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Page breaks */
+    #siercp-detailed-report > div {
+      page-break-inside: avoid;
+    }
+
+    /* Ensure grid layouts print correctly */
+    #siercp-detailed-report .grid {
+      display: grid !important;
+    }
+
+    #siercp-detailed-report .grid-cols-2 {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    #siercp-detailed-report .grid-cols-3 {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
     
+    /* Legacy print styles for fallback */
     .print-header {
       text-align: center;
       margin-bottom: 20px;
@@ -78,6 +136,7 @@ const printStyles = `
       padding: 15px;
       border: 2px solid #333;
       background: #f9f9f9 !important;
+      -webkit-print-color-adjust: exact !important;
     }
     
     .print-global-score {
@@ -119,6 +178,7 @@ const printStyles = `
       border: 1px solid #333;
       padding: 10px;
       background: #f9f9f9 !important;
+      -webkit-print-color-adjust: exact !important;
     }
     
     .print-module-header {
@@ -245,6 +305,9 @@ const SIERCPPage = () => {
 
   // Hook para verificar conexión con IA automáticamente
   const { loading: aiLoading, connected, validateConnection } = useSIERCPAI();
+  
+  // Hook para generar reportes con IA
+  const { loading: generatingReport, report: aiReport, generateReport } = useSIERCPReport();
 
   const [showResults, setShowResults] = useState(false);
   const [answered, setAnswered] = useState(false);
@@ -254,6 +317,7 @@ const SIERCPPage = () => {
   const [consentGiven, setConsentGiven] = useState(false);
   const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
   const [loadingHistorical, setLoadingHistorical] = useState(false);
+  const [generatedAIReport, setGeneratedAIReport] = useState<SIERCPReport | null>(null);
 
   // Cargar resultado histórico si viene por parámetro ?result=ID
   useEffect(() => {
@@ -886,81 +950,87 @@ const SIERCPPage = () => {
     
     return (
       <>
-        {/* Print-only content */}
-        <div className="print-content" style={{ display: 'none' }}>
-          <div className="print-header">
-            <h1>RESULTADOS SIERCP</h1>
-            <p>Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica</p>
-            <p>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}</p>
+        {/* Print-only content - AI Generated Report */}
+        {generatedAIReport ? (
+          <div className="print-content" style={{ display: 'none' }}>
+            <SIERCPPrintableReport report={generatedAIReport} />
           </div>
+        ) : (
+          <div className="print-content" style={{ display: 'none' }}>
+            <div className="print-header">
+              <h1>RESULTADOS SIERCP</h1>
+              <p>Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica</p>
+              <p>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</p>
+            </div>
 
-          <div className="print-score-section">
-            <div className="print-global-score">
-              <h2>Puntuación Global</h2>
-              <div className="score">{results.globalScore}</div>
-              <div className="print-progress-bar">
-                <div className="print-progress-fill" style={{ width: `${results.globalScore}%` }}></div>
+            <div className="print-score-section">
+              <div className="print-global-score">
+                <h2>Puntuación Global</h2>
+                <div className="score">{results.globalScore}</div>
+                <div className="print-progress-bar">
+                  <div className="print-progress-fill" style={{ width: `${results.globalScore}%` }}></div>
+                </div>
+              </div>
+              
+              <div className="print-classification">
+                <h3>Clasificación de Riesgo</h3>
+                <p><strong>{riskInfo.level}</strong></p>
+                <p>Basado en la puntuación global de {results.globalScore}/100</p>
+                
+                <h3>Recomendación</h3>
+                <p><strong>{getRecommendation(results.globalScore)}</strong></p>
               </div>
             </div>
-            
-            <div className="print-classification">
-              <h3>Clasificación de Riesgo</h3>
-              <p><strong>{riskInfo.level}</strong></p>
-              <p>Basado en la puntuación global de {results.globalScore}/100</p>
-              
-              <h3>Recomendación</h3>
-              <p><strong>{getRecommendation(results.globalScore)}</strong></p>
-            </div>
-          </div>
 
-          <div className="print-modules">
-            <h3>Detalle por Módulos</h3>
-            <div className="print-module-grid">
-              {Object.entries(moduleConfig).map(([key, config]) => {
-                if (key === 'entrevista') return null;
-                
-                const score = results[key as keyof typeof results] as number;
-                
-                return (
-                  <div key={key} className="print-module">
-                    <div className="print-module-header">
-                      <div>
-                        <strong>{config.title}</strong>
-                        <div style={{ fontSize: '10px', color: '#666' }}>{config.description}</div>
+            <div className="print-modules">
+              <h3>Detalle por Módulos</h3>
+              <div className="print-module-grid">
+                {Object.entries(moduleConfig).map(([key, config]) => {
+                  if (key === 'entrevista') return null;
+                  
+                  const score = results[key as keyof typeof results] as number;
+                  
+                  return (
+                    <div key={key} className="print-module">
+                      <div className="print-module-header">
+                        <div>
+                          <strong>{config.title}</strong>
+                          <div style={{ fontSize: '10px', color: '#666' }}>{config.description}</div>
+                        </div>
+                        <div className="print-module-score">{score}</div>
                       </div>
-                      <div className="print-module-score">{score}</div>
+                      <div className="print-progress-bar">
+                        <div className="print-progress-fill" style={{ width: `${score}%` }}></div>
+                      </div>
+                      <div style={{ fontSize: '10px', marginTop: '5px' }}>
+                        Estado: {score >= 70 ? 'Normal' : 'Requiere Atención'}
+                      </div>
                     </div>
-                    <div className="print-progress-bar">
-                      <div className="print-progress-fill" style={{ width: `${score}%` }}></div>
-                    </div>
-                    <div style={{ fontSize: '10px', marginTop: '5px' }}>
-                      Estado: {score >= 70 ? 'Normal' : 'Requiere Atención'}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="print-footer">
+              <h4>Información Importante:</h4>
+              <ul>
+                <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
+                <li>Los resultados deben ser interpretados por personal calificado.</li>
+                <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
+                <li>Este documento contiene información confidencial y debe ser tratado con la debida reserva.</li>
+              </ul>
+              <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '10px' }}>
+                Sistema SIERCP - Documento generado automáticamente - Confidencial
+              </p>
             </div>
           </div>
-
-          <div className="print-footer">
-            <h4>Información Importante:</h4>
-            <ul>
-              <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
-              <li>Los resultados deben ser interpretados por personal calificado.</li>
-              <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
-              <li>Este documento contiene información confidencial y debe ser tratado con la debida reserva.</li>
-            </ul>
-            <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '10px' }}>
-              Sistema SIERCP - Documento generado automáticamente - Confidencial
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Screen content */}
         <div className="container mx-auto p-6 space-y-6 max-w-5xl no-print">
@@ -1130,6 +1200,7 @@ const SIERCPPage = () => {
                 resetTest();
                 setShowResults(false);
                 setCurrentQuestionIndex(0);
+                setGeneratedAIReport(null);
               }}
               className="flex items-center gap-2"
             >
@@ -1138,13 +1209,70 @@ const SIERCPPage = () => {
             </Button>
             
             <Button
-              onClick={() => window.print()}
+              onClick={async () => {
+                // Preparar datos para el reporte con IA
+                const moduleScores = Object.entries(moduleConfig)
+                  .filter(([key]) => key !== 'entrevista')
+                  .map(([key, config]) => ({
+                    name: config.title,
+                    score: results[key as keyof typeof results] as number,
+                    maxScore: 100,
+                    percentage: results[key as keyof typeof results] as number
+                  }));
+
+                const riskFlags = results.clinicalInterpretation?.validityFlags || [];
+
+                const report = await generateReport({
+                  globalScore: results.globalScore,
+                  moduleScores,
+                  riskFlags,
+                  evaluationDate: new Date().toISOString()
+                });
+
+                if (report) {
+                  setGeneratedAIReport(report);
+                  // Esperar a que se renderice el reporte y luego imprimir
+                  setTimeout(() => window.print(), 800);
+                }
+              }}
+              disabled={generatingReport}
               className={`bg-gradient-to-r ${getGradientColor(results.globalScore)} text-white hover:opacity-90 flex items-center gap-2`}
             >
-              <FileText className="h-4 w-4" />
-              Imprimir Resultados
+              {generatingReport ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generando Informe con IA...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4" />
+                  Imprimir Informe Detallado
+                </>
+              )}
             </Button>
           </div>
+
+          {/* AI Report Preview - shown when generated */}
+          {generatedAIReport && (
+            <Card className="border-primary/50">
+              <CardHeader className="py-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-primary" />
+                    Informe Generado con IA
+                  </CardTitle>
+                  <Badge variant="outline" className="text-xs">
+                    Listo para imprimir
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-sm text-muted-foreground">
+                  El informe detallado ha sido generado. Usa el diálogo de impresión para guardarlo como PDF.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Additional Information */}
           <Card className="bg-gray-50">
