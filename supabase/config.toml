@@ -116,3 +116,9 @@ verify_jwt = false
 
 [functions.lms-ai-assistant]
 verify_jwt = false
+
+[functions.generate-siercp-report]
+verify_jwt = false
+
+[functions.siercp-ai-assistant]
+verify_jwt = false
