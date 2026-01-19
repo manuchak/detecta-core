@@ -319,6 +319,7 @@ const SIERCPPage = () => {
   const [consentGiven, setConsentGiven] = useState(false);
   const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
   const [loadingHistorical, setLoadingHistorical] = useState(false);
+  const [historicalError, setHistoricalError] = useState<string | null>(null);
   const [generatedAIReport, setGeneratedAIReport] = useState<SIERCPReport | null>(null);
   const [evalueeProfile, setEvalueeProfile] = useState<{
     display_name: string | null;
@@ -326,53 +327,55 @@ const SIERCPPage = () => {
     phone: string | null;
   } | null>(null);
 
-  // Cargar resultado histórico si viene por parámetro ?result=ID
+  // Cargar resultado histórico si viene por parámetro ?result=ID usando RPC segura
   useEffect(() => {
-    if (resultIdParam && !savedResults) {
+    if (resultIdParam && !savedResults && !historicalError) {
       setLoadingHistorical(true);
+      setHistoricalError(null);
+      
       supabase
-        .from('siercp_results')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            display_name,
-            email,
-            phone
-          )
-        `)
-        .eq('id', resultIdParam)
-        .maybeSingle()
+        .rpc('get_siercp_result_by_id', { p_result_id: resultIdParam })
         .then(({ data, error }) => {
-          if (data && !error) {
-            // Extraer perfil del evaluado
-            const profileData = data.profiles as { display_name: string | null; email: string | null; phone: string | null } | null;
-            if (profileData) {
-              setEvalueeProfile({
-                display_name: profileData.display_name,
-                email: profileData.email,
-                phone: profileData.phone
-              });
-            }
-            
-            // Transformar el resultado almacenado al formato del UI
-            const transformedResult = {
-              globalScore: data.global_score,
-              ...(data.scores as Record<string, number>),
-              percentiles: data.percentiles,
-              clinicalInterpretation: {
-                interpretation: data.clinical_interpretation,
-                validityFlags: data.risk_flags
-              },
-              classification: data.clinical_interpretation
-            };
-            setSavedResults(transformedResult);
-            setShowResults(true);
+          if (error) {
+            console.error('SIERCP: Error cargando resultado histórico:', error);
+            setHistoricalError('No se pudo cargar el resultado. Es posible que no tengas permisos para verlo.');
+            setLoadingHistorical(false);
+            return;
           }
+          
+          // RPC devuelve array, tomar el primer elemento
+          const resultRow = Array.isArray(data) ? data[0] : data;
+          
+          if (!resultRow) {
+            setHistoricalError('No se encontró el resultado solicitado o no tienes permisos para verlo.');
+            setLoadingHistorical(false);
+            return;
+          }
+          
+          // Extraer perfil del evaluado
+          setEvalueeProfile({
+            display_name: resultRow.display_name,
+            email: resultRow.email,
+            phone: resultRow.phone
+          });
+          
+          // Transformar el resultado almacenado al formato del UI
+          const transformedResult = {
+            globalScore: resultRow.global_score,
+            ...(resultRow.scores as Record<string, number>),
+            percentiles: resultRow.percentiles,
+            clinicalInterpretation: {
+              interpretation: resultRow.clinical_interpretation,
+              validityFlags: resultRow.risk_flags
+            },
+            classification: resultRow.clinical_interpretation
+          };
+          setSavedResults(transformedResult);
+          setShowResults(true);
           setLoadingHistorical(false);
         });
     }
-  }, [resultIdParam]);
+  }, [resultIdParam, savedResults, historicalError]);
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -725,7 +728,13 @@ const SIERCPPage = () => {
   // Auto-guardar resultados para todos los usuarios
   // Admins: siempre guardar (modo calibración, pueden repetir)
   // No-admins: solo si no tienen resultado previo
+  // IMPORTANTE: NO auto-guardar cuando se está viendo un resultado histórico
   useEffect(() => {
+    // Si estamos viendo un resultado histórico por parámetro, NO auto-guardar
+    if (resultIdParam) {
+      return;
+    }
+    
     if (showResults && savedResults && !saving) {
       const shouldSave = isAdmin || !existingResult;
       if (shouldSave) {
@@ -733,7 +742,7 @@ const SIERCPPage = () => {
         handleSaveResults(savedResults);
       }
     }
-  }, [showResults, savedResults, isAdmin, existingResult]);
+  }, [showResults, savedResults, isAdmin, existingResult, resultIdParam]);
 
   if (loading || aiLoading || !persistenceInitialized || loadingHistorical) {
     return (
@@ -752,8 +761,54 @@ const SIERCPPage = () => {
     );
   }
 
-  // Solo requerir conexión IA si NO estamos viendo un resultado histórico
-  const isViewingHistoricalResult = resultIdParam && showResults;
+  // Si hay resultIdParam, estamos en modo "ver detalle" - no requiere IA
+  const isViewingHistoricalResult = Boolean(resultIdParam);
+  
+  // Mostrar error si falló la carga del resultado histórico
+  if (historicalError) {
+    return (
+      <div className="container mx-auto p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+              <div>
+                <CardTitle className="text-red-800">Error al cargar resultado</CardTitle>
+                <CardDescription>
+                  No se pudo cargar el resultado de la evaluación
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-700">{historicalError}</p>
+            </div>
+            
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={() => {
+                  setHistoricalError(null);
+                  setLoadingHistorical(true);
+                }}
+                variant="outline"
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Reintentar
+              </Button>
+              <Button
+                onClick={() => window.history.back()}
+                variant="default"
+              >
+                Volver
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Verificar conexión con IA antes de permitir continuar (excepto para resultados históricos)
   if (connected === false && !isViewingHistoricalResult) {
