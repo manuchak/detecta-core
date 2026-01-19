@@ -35,6 +35,7 @@ const printStyles = `
     
     .print-content, .print-content * {
       visibility: visible !important;
+      display: block !important;
     }
     
     .print-content {
@@ -42,6 +43,7 @@ const printStyles = `
       left: 0;
       top: 0;
       width: 100%;
+      display: block !important;
       background: white !important;
       color: black !important;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
