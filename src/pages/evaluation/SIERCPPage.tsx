@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSIERCPAI } from "@/hooks/useSIERCPAI";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary";
+import { supabase } from "@/integrations/supabase/client";
 
 
 // Estilos CSS para impresión
@@ -208,6 +210,9 @@ const moduleConfig = {
 
 const SIERCPPage = () => {
   const { userRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const resultIdParam = searchParams.get('result');
+
   const {
     responses,
     currentModule,
@@ -248,6 +253,37 @@ const SIERCPPage = () => {
   const [remainingTime, setRemainingTime] = useState(SESSION_TIMEOUT_MS);
   const [consentGiven, setConsentGiven] = useState(false);
   const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
+  const [loadingHistorical, setLoadingHistorical] = useState(false);
+
+  // Cargar resultado histórico si viene por parámetro ?result=ID
+  useEffect(() => {
+    if (resultIdParam && !savedResults) {
+      setLoadingHistorical(true);
+      supabase
+        .from('siercp_results')
+        .select('*')
+        .eq('id', resultIdParam)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            // Transformar el resultado almacenado al formato del UI
+            const transformedResult = {
+              globalScore: data.global_score,
+              ...(data.scores as Record<string, number>),
+              percentiles: data.percentiles,
+              clinicalInterpretation: {
+                interpretation: data.clinical_interpretation,
+                validityFlags: data.risk_flags
+              },
+              classification: data.clinical_interpretation
+            };
+            setSavedResults(transformedResult);
+            setShowResults(true);
+          }
+          setLoadingHistorical(false);
+        });
+    }
+  }, [resultIdParam]);
 
   const modules = Object.keys(moduleConfig);
   const currentModuleIndex = modules.indexOf(currentModule);
@@ -610,7 +646,7 @@ const SIERCPPage = () => {
     }
   }, [showResults, savedResults, isAdmin, existingResult]);
 
-  if (loading || aiLoading || !persistenceInitialized) {
+  if (loading || aiLoading || !persistenceInitialized || loadingHistorical) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
@@ -618,7 +654,7 @@ const SIERCPPage = () => {
             <div className="flex flex-col items-center gap-4">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
               <p className="text-muted-foreground">
-                {aiLoading ? 'Verificando conexión con ChatGPT...' : 'Cargando evaluación...'}
+                {loadingHistorical ? 'Cargando resultado...' : aiLoading ? 'Verificando conexión con ChatGPT...' : 'Cargando evaluación...'}
               </p>
             </div>
           </CardContent>
@@ -697,7 +733,7 @@ const SIERCPPage = () => {
   }
 
   // Mostrar mensaje si ya completó la evaluación
-  if (!canTakeEvaluation && existingResult) {
+  if (!canTakeEvaluation && existingResult && !showResults) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
@@ -732,20 +768,45 @@ const SIERCPPage = () => {
               Si necesitas realizar una nueva evaluación, contacta al administrador.
             </div>
 
-            {isAdmin && (
-              <div className="pt-4 border-t">
+            {/* Botón para ver resultados propios - disponible para todos */}
+            <div className="pt-4 border-t space-y-2">
+              <Button
+                onClick={() => {
+                  // Transformar resultado existente al formato del UI
+                  const transformedResult = {
+                    globalScore: existingResult.global_score,
+                    ...(existingResult.scores as Record<string, number>),
+                    percentiles: existingResult.percentiles,
+                    clinicalInterpretation: {
+                      interpretation: existingResult.clinical_interpretation,
+                      validityFlags: existingResult.risk_flags
+                    },
+                    classification: existingResult.clinical_interpretation
+                  };
+                  setSavedResults(transformedResult);
+                  setShowResults(true);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Ver mis resultados
+              </Button>
+
+              {isAdmin && (
                 <Button
                   onClick={() => {
                     resetTest();
                     setShowResults(false);
+                    setSavedResults(null);
                   }}
                   className="w-full"
                 >
                   <Brain className="h-4 w-4 mr-2" />
                   Realizar nueva evaluación (Modo Admin)
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
