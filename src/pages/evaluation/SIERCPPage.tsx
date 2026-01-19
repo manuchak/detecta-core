@@ -752,8 +752,11 @@ const SIERCPPage = () => {
     );
   }
 
-  // Verificar conexión con IA antes de permitir continuar
-  if (connected === false) {
+  // Solo requerir conexión IA si NO estamos viendo un resultado histórico
+  const isViewingHistoricalResult = resultIdParam && showResults;
+
+  // Verificar conexión con IA antes de permitir continuar (excepto para resultados históricos)
+  if (connected === false && !isViewingHistoricalResult) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
