@@ -306,7 +306,14 @@ export function SimplifiedArmedAssignment({
                 <Button variant="outline" onClick={resetFilters}>
                   Limpiar Filtros
                 </Button>
-                <Button variant="ghost" onClick={() => refetch()}>
+                <Button 
+                  variant="ghost" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    refetch();
+                  }}
+                >
                   Recargar Lista
                 </Button>
               </div>
@@ -335,6 +342,13 @@ export function SimplifiedArmedAssignment({
                             <Badge variant="default" className="bg-amber-500 text-white font-semibold border-0 shadow-sm hover:bg-amber-600 transition-colors">
                               <Zap className="h-3 w-3 mr-1" />
                               Top Performer
+                            </Badge>
+                          )}
+                          
+                          {/* Virtual Lead Badge - Nuevo candidato aprobado */}
+                          {guard.es_lead_virtual && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-medium text-xs">
+                              ✨ Nuevo
                             </Badge>
                           )}
                           

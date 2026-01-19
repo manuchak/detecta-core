@@ -119,7 +119,7 @@ export function PendingAssignmentModal({
       setHasInteracted(false);
       setShowContextualEdit(false);
     }
-  }, [open, isEditingExisting, mode, service?.custodio_asignado, hasInteracted]);
+  }, [open, isEditingExisting, mode, hasInteracted]); // Removed service?.custodio_asignado to prevent unwanted resets on data refetch
 
   // Debug: Monitor state changes
   React.useEffect(() => {
