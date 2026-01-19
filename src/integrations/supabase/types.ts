@@ -15586,6 +15586,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_siercp_result_by_id: {
+        Args: { p_result_id: string }
+        Returns: {
+          clinical_interpretation: string
+          completed_at: string
+          created_at: string
+          display_name: string
+          email: string
+          global_score: number
+          id: string
+          percentiles: Json
+          phone: string
+          risk_flags: string[]
+          scores: Json
+          user_id: string
+        }[]
+      }
       get_supply_growth_metrics: {
         Args: { fecha_fin: string; fecha_inicio: string }
         Returns: {
