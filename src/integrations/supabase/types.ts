@@ -12374,6 +12374,7 @@ export type Database = {
           created_at: string
           global_score: number
           id: string
+          interview_responses: Json | null
           percentiles: Json
           risk_flags: string[] | null
           scores: Json
@@ -12386,6 +12387,7 @@ export type Database = {
           created_at?: string
           global_score: number
           id?: string
+          interview_responses?: Json | null
           percentiles: Json
           risk_flags?: string[] | null
           scores: Json
@@ -12398,6 +12400,7 @@ export type Database = {
           created_at?: string
           global_score?: number
           id?: string
+          interview_responses?: Json | null
           percentiles?: Json
           risk_flags?: string[] | null
           scores?: Json
