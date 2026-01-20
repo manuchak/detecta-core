@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, BarChart3, Calendar, RefreshCw } from 'lucide-react';
+import { Target, TrendingUp, BarChart3, Calendar, Clock } from 'lucide-react';
 import { useStrategicPlanTracking } from '@/hooks/useStrategicPlanTracking';
 import { BulletChart } from './BulletChart';
 import { BurnUpChart } from './BurnUpChart';
 import { PaceIndicator } from './PaceIndicator';
 import { cn } from '@/lib/utils';
+import { getLastDataDate, MONTH_NAMES_SHORT_ES } from '@/utils/timezoneUtils';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -22,6 +23,11 @@ export const StrategicPlanTracker: React.FC = () => {
   const now = new Date();
   const currentMonth = MONTH_NAMES[now.getMonth()];
   const currentYear = now.getFullYear();
+  
+  // Fecha del último día con datos disponibles
+  const lastDataDate = getLastDataDate();
+  const lastDataDay = lastDataDate.getDate();
+  const lastDataMonth = MONTH_NAMES_SHORT_ES[lastDataDate.getMonth()];
 
   if (isLoading) {
     return (
@@ -71,6 +77,10 @@ export const StrategicPlanTracker: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                Datos hasta {lastDataDay} {lastDataMonth}
+              </Badge>
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
                 Día {summary.currentDay} de {summary.daysInMonth}

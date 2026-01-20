@@ -1,6 +1,7 @@
 import { useCurrentMonthTarget } from './useBusinessTargets';
 import { useDailyActualServices } from './useDailyActualServices';
 import { useRealisticProjectionsWithGuardrails } from './useRealisticProjectionsWithGuardrails';
+import { getDataCurrentDay, getDataDaysRemaining } from '@/utils/timezoneUtils';
 
 export interface StrategicPlanDay {
   day: number;
@@ -83,8 +84,11 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
-  const currentDay = now.getDate();
   const daysInMonth = new Date(year, month, 0).getDate();
+  
+  // Considerar retraso de 1 día en la alimentación de datos
+  const currentDay = getDataCurrentDay();
+  const daysRemaining = getDataDaysRemaining();
   
   const { data: targetData, isLoading: targetLoading } = useCurrentMonthTarget();
   const { data: dailyActuals, isLoading: actualsLoading } = useDailyActualServices(year, month);
@@ -146,7 +150,7 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const proRataGMV = targetData?.proRataGMV || 0;
   
   const daysElapsed = currentDay;
-  const daysRemaining = daysInMonth - currentDay;
+  // daysRemaining ya está calculado arriba con getDataDaysRemaining()
   
   // Pace calculations (still useful for display)
   const paceActual = daysElapsed > 0 ? actualServices / daysElapsed : 0;

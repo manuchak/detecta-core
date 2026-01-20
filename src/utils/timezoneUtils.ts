@@ -201,3 +201,55 @@ export const MONTH_NAMES_SHORT_ES = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
 ] as const;
+
+// ============= MANEJO DE RETRASO DE DATOS =============
+
+/**
+ * DATA_LAG_DAYS: Días de retraso en la alimentación de datos
+ * La BDD se alimenta de manera histórica, no en tiempo real.
+ * Si hoy es día 20, los datos solo cubren hasta día 19.
+ */
+export const DATA_LAG_DAYS = 1;
+
+/**
+ * Obtiene el día actual ajustado por retraso de datos
+ * Para cálculos de pace, pro-rata y métricas que dependen de datos reales
+ * 
+ * @returns Día del mes con datos disponibles (hoy - DATA_LAG_DAYS)
+ * 
+ * @example
+ * // Si hoy es día 20:
+ * getDataCurrentDay() // 19 (datos hasta ayer)
+ */
+export const getDataCurrentDay = (): number => {
+  const today = new Date().getDate();
+  return Math.max(1, today - DATA_LAG_DAYS);
+};
+
+/**
+ * Obtiene días restantes del mes considerando el retraso de datos
+ * Para cálculos de pace necesario y proyecciones
+ * 
+ * @returns Días desde el último día con datos hasta fin de mes
+ * 
+ * @example
+ * // Si hoy es día 20 en un mes de 31 días:
+ * getDataDaysRemaining() // 12 (31 - 19)
+ */
+export const getDataDaysRemaining = (): number => {
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return daysInMonth - getDataCurrentDay();
+};
+
+/**
+ * Obtiene la fecha del último día con datos disponibles
+ * Útil para mostrar en UI "Datos actualizados hasta..."
+ * 
+ * @returns Date object del día con datos más reciente
+ */
+export const getLastDataDate = (): Date => {
+  const date = new Date();
+  date.setDate(date.getDate() - DATA_LAG_DAYS);
+  return date;
+};

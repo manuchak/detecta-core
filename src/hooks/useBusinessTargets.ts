@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getDataCurrentDay } from '@/utils/timezoneUtils';
 
 export interface BusinessTarget {
   id: string;
@@ -53,7 +54,8 @@ export const useCurrentMonthTarget = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1; // JavaScript months are 0-indexed
-  const currentDay = now.getDate();
+  // Usamos getDataCurrentDay() para considerar el retraso de 1 día en la data
+  const currentDay = getDataCurrentDay();
   const daysInMonth = new Date(year, month, 0).getDate();
 
   return useQuery({
