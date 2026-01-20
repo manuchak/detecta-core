@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { SIERCPPrintableReport } from "@/components/evaluation/SIERCPPrintableReport";
+import { StructuredInterviewSection } from "@/components/evaluation/StructuredInterviewSection";
 
 
 // Estilos CSS para impresión
@@ -1461,6 +1462,13 @@ const SIERCPPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Structured Interview Section */}
+          <StructuredInterviewSection
+            resultId={resultIdParam}
+            candidatoEmail={evalueeProfile?.email}
+            candidatoNombre={evalueeProfile?.display_name}
+          />
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between">
