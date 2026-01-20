@@ -13,6 +13,7 @@ export interface SIERCPResult {
   global_score: number;
   completed_at: string;
   created_at: string;
+  ai_report?: any; // AI-generated analysis stored at completion
   // Profile info (from RPC join)
   profiles?: {
     display_name: string | null;
@@ -92,6 +93,7 @@ export const useSIERCPResults = () => {
         clinical_interpretation: row.clinical_interpretation,
         completed_at: row.completed_at,
         created_at: row.created_at,
+        ai_report: row.ai_report,
         // Mantener compatibilidad con el formato anterior (nested profiles)
         profiles: {
           display_name: row.display_name,
@@ -115,6 +117,7 @@ export const useSIERCPResults = () => {
     clinical_interpretation: string;
     risk_flags: string[];
     global_score: number;
+    ai_report?: any;
   }) => {
     if (!user) {
       throw new Error('Usuario no autenticado');
