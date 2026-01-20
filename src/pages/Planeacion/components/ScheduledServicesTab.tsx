@@ -15,6 +15,7 @@ import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History } from 'lucide-react';
+import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -419,6 +420,20 @@ export function ScheduledServicesTab() {
                         >
                           <History className="h-3 w-3" />
                         </Button>
+                        
+                        <CancelServiceButton
+                          serviceId={service.id}
+                          serviceName={service.cliente_nombre}
+                          serviceStarted={service.estado === 'en_sitio' || service.estado === 'en_curso'}
+                          onCancel={async (id, reason) => {
+                            await updateServiceConfiguration({
+                              id,
+                              data: { estado_asignacion: 'cancelado', motivo_cancelacion: reason }
+                            });
+                            await refetch();
+                          }}
+                          disabled={service.estado === 'cancelado'}
+                        />
                         
                         {service.custodio_nombre && (
                           <Button
