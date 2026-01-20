@@ -11,6 +11,8 @@ interface PaceIndicatorProps {
   target: number;
   format?: 'number' | 'currency';
   daysRemaining: number;
+  seasonalConfidence?: 'Alta' | 'Media' | 'Baja';
+  methodology?: string;
 }
 
 export const PaceIndicator: React.FC<PaceIndicatorProps> = ({
@@ -21,6 +23,8 @@ export const PaceIndicator: React.FC<PaceIndicatorProps> = ({
   target,
   format = 'number',
   daysRemaining,
+  seasonalConfidence,
+  methodology,
 }) => {
   const deficit = projected - target;
   const willMeetTarget = projected >= target;
@@ -137,9 +141,26 @@ export const PaceIndicator: React.FC<PaceIndicatorProps> = ({
       {/* Projection */}
       <div className="pt-2 border-t border-border/50 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Proyección fin de mes</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">Proyección fin de mes</span>
+            {seasonalConfidence && (
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                seasonalConfidence === 'Alta' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                seasonalConfidence === 'Media' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+                "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              )}>
+                {seasonalConfidence}
+              </span>
+            )}
+          </div>
           <span className="text-sm font-semibold">{formatValue(projected)}</span>
         </div>
+        {methodology && (
+          <p className="text-[10px] text-muted-foreground/70 italic">
+            {methodology}
+          </p>
+        )}
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Meta mensual</span>
           <span className="text-sm font-medium text-muted-foreground">{formatValue(target)}</span>
