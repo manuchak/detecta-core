@@ -159,6 +159,8 @@ export const StrategicPlanTracker: React.FC = () => {
           target={summary.targetServices}
           format="number"
           daysRemaining={summary.daysRemaining}
+          seasonalConfidence={summary.seasonalConfidence}
+          methodology={summary.projectionMethodology}
         />
 
         <PaceIndicator
@@ -169,6 +171,8 @@ export const StrategicPlanTracker: React.FC = () => {
           target={summary.targetGMV}
           format="currency"
           daysRemaining={summary.daysRemaining}
+          seasonalConfidence={summary.seasonalConfidence}
+          methodology={summary.projectionMethodology}
         />
       </div>
 
