@@ -124,14 +124,17 @@ export const useSIERCPResults = () => {
     }
 
     try {
+      // Usar upsert para permitir que admins retomen evaluaciones
       const { data, error } = await supabase
         .from('siercp_results')
-        .insert([
+        .upsert(
           {
             user_id: user.id,
-            ...resultData
-          }
-        ])
+            ...resultData,
+            completed_at: new Date().toISOString()
+          },
+          { onConflict: 'user_id' }
+        )
         .select()
         .single();
 
