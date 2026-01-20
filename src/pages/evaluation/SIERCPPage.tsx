@@ -1113,87 +1113,12 @@ const SIERCPPage = () => {
     return (
       <>
         {/* Print-only content - AI Generated Report */}
-        {generatedAIReport ? (
-          <div className="print-content" style={{ display: 'none' }}>
+        {generatedAIReport && (
+          <div className="print-content">
             <SIERCPPrintableReport 
               report={generatedAIReport} 
               candidateName={evalueeProfile?.display_name || undefined}
             />
-          </div>
-        ) : (
-          <div className="print-content" style={{ display: 'none' }}>
-            <div className="print-header">
-              <h1>RESULTADOS SIERCP</h1>
-              <p>Sistema Integrado de Evaluación de Riesgo y Confiabilidad Psico-Criminológica</p>
-              <p>Fecha de evaluación: {new Date().toLocaleDateString('es-ES', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}</p>
-            </div>
-
-            <div className="print-score-section">
-              <div className="print-global-score">
-                <h2>Puntuación Global</h2>
-                <div className="score">{results.globalScore}</div>
-                <div className="print-progress-bar">
-                  <div className="print-progress-fill" style={{ width: `${results.globalScore}%` }}></div>
-                </div>
-              </div>
-              
-              <div className="print-classification">
-                <h3>Clasificación de Riesgo</h3>
-                <p><strong>{riskInfo.level}</strong></p>
-                <p>Basado en la puntuación global de {results.globalScore}/100</p>
-                
-                <h3>Recomendación</h3>
-                <p><strong>{getRecommendation(results.globalScore)}</strong></p>
-              </div>
-            </div>
-
-            <div className="print-modules">
-              <h3>Detalle por Módulos</h3>
-              <div className="print-module-grid">
-                {Object.entries(moduleConfig).map(([key, config]) => {
-                  if (key === 'entrevista') return null;
-                  
-                  const score = results[key as keyof typeof results] as number;
-                  
-                  return (
-                    <div key={key} className="print-module">
-                      <div className="print-module-header">
-                        <div>
-                          <strong>{config.title}</strong>
-                          <div style={{ fontSize: '10px', color: '#666' }}>{config.description}</div>
-                        </div>
-                        <div className="print-module-score">{score}</div>
-                      </div>
-                      <div className="print-progress-bar">
-                        <div className="print-progress-fill" style={{ width: `${score}%` }}></div>
-                      </div>
-                      <div style={{ fontSize: '10px', marginTop: '5px' }}>
-                        Estado: {score >= 70 ? 'Normal' : 'Requiere Atención'}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="print-footer">
-              <h4>Información Importante:</h4>
-              <ul>
-                <li>Esta evaluación es una herramienta de apoyo y no sustituye el criterio profesional.</li>
-                <li>Los resultados deben ser interpretados por personal calificado.</li>
-                <li>Se recomienda complementar con entrevistas y verificación de referencias.</li>
-                <li>Este documento contiene información confidencial y debe ser tratado con la debida reserva.</li>
-              </ul>
-              <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '10px' }}>
-                Sistema SIERCP - Documento generado automáticamente - Confidencial
-              </p>
-            </div>
           </div>
         )}
 
@@ -1548,7 +1473,7 @@ const SIERCPPage = () => {
               ) : (
                 <>
                   <FileText className="h-4 w-4" />
-                  {generatedAIReport ? 'Imprimir Informe' : 'Generar e Imprimir Informe'}
+                  {generatedAIReport ? 'Imprimir / Guardar PDF' : 'Generar Informe PDF'}
                 </>
               )}
             </Button>

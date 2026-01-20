@@ -961,13 +961,18 @@
 }
 
 /* Print content visibility */
-.print-content {
-  display: block !important;
-}
-
 @media screen {
+  .print-content {
+    display: none !important;
+  }
   .print-only {
     display: none !important;
+  }
+}
+
+@media print {
+  .print-content {
+    display: block !important;
   }
 }
 
