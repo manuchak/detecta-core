@@ -1204,8 +1204,28 @@ const SIERCPPage = () => {
             isGenerating={generatingReport}
             isHistorical={!!resultIdParam}
             onPrint={async () => {
+              // Helper to set dynamic filename via document.title
+              const setDynamicFilename = () => {
+                const candidateSanitized = (evalueeProfile?.display_name || 'Candidato')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '') // Remove accents
+                  .replace(/[^a-zA-Z0-9\s]/g, '') // Only alphanumeric
+                  .replace(/\s+/g, '_') // Spaces to underscores
+                  .substring(0, 30);
+                
+                const dateFormatted = new Date().toISOString().split('T')[0];
+                const suggestedFilename = `SIERCP_${candidateSanitized}_${dateFormatted}`;
+                
+                const originalTitle = document.title;
+                document.title = suggestedFilename;
+                
+                return originalTitle;
+              };
+
               if (generatedAIReport) {
+                const originalTitle = setDynamicFilename();
                 window.print();
+                setTimeout(() => { document.title = originalTitle; }, 1500);
                 return;
               }
 
@@ -1230,7 +1250,11 @@ const SIERCPPage = () => {
 
               if (report) {
                 setGeneratedAIReport(report);
-                setTimeout(() => window.print(), 800);
+                setTimeout(() => {
+                  const originalTitle = setDynamicFilename();
+                  window.print();
+                  setTimeout(() => { document.title = originalTitle; }, 1500);
+                }, 800);
               }
             }}
             onNewEvaluation={() => {
