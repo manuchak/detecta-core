@@ -968,11 +968,33 @@
   .print-only {
     display: none !important;
   }
+  .print-hide {
+    display: block;
+  }
 }
 
 @media print {
   .print-content {
     display: block !important;
+  }
+  
+  .print-hide,
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-page-break {
+    page-break-before: always;
+  }
+  
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  /* Hide browser URLs in print */
+  @page {
+    margin: 0.5in;
   }
 }
 

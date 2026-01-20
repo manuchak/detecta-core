@@ -58,11 +58,11 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
   const reportId = `SIERCP-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
   return (
-    <div className="print-content bg-white max-w-4xl mx-auto" id="siercp-detailed-report">
+    <div className="print-content bg-white max-w-4xl mx-auto print-avoid-break" id="siercp-detailed-report">
       {/* ============================================= */}
       {/* COVER / HERO SECTION                         */}
       {/* ============================================= */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-10 rounded-t-xl">
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-10 rounded-t-xl print-avoid-break">
         {/* Header bar */}
         <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/20">
           <div>
@@ -129,9 +129,9 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
       <div className="p-8 space-y-8">
         
         {/* Radar + Executive Summary */}
-        <div className="grid grid-cols-5 gap-6">
+        <div className="grid grid-cols-5 gap-6 print-avoid-break">
           {/* Radar Chart */}
-          <div className="col-span-2 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+          <div className="col-span-2 border border-gray-200 rounded-xl p-4 bg-gray-50/50 print-avoid-break">
             <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <Target className="h-4 w-4 text-blue-600" />
               Perfil Multidimensional
@@ -160,12 +160,12 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Module Cards Grid */}
-        <div>
+        <div className="print-page-break">
           <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
             <Eye className="h-5 w-5 text-blue-600" />
             Análisis por Módulo
           </h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 print-avoid-break">
             {report.analisis_modulos?.map((modulo, index) => {
               const level = getScoreLevel(modulo.score);
               return (
@@ -202,9 +202,9 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Risk & Protection Factors */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 print-avoid-break">
           {/* Risk Factors */}
-          <div className="border-2 border-red-200 rounded-xl p-5 bg-gradient-to-br from-red-50 to-white">
+          <div className="border-2 border-red-200 rounded-xl p-5 bg-gradient-to-br from-red-50 to-white print-avoid-break">
             <h3 className="font-bold text-red-800 flex items-center gap-2 mb-4 text-base">
               <AlertTriangle className="h-5 w-5" />
               Factores de Riesgo
@@ -250,7 +250,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Recommendations */}
-        <div className="border border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50/50 to-white">
+        <div className="border border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50/50 to-white print-avoid-break">
           <h3 className="font-bold text-blue-800 flex items-center gap-2 mb-4 text-base">
             <Lightbulb className="h-5 w-5" />
             Recomendaciones
@@ -291,7 +291,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         {/* ============================================= */}
         {/* CONCLUSION & DECISION SEAL                   */}
         {/* ============================================= */}
-        <div className="border-2 border-gray-300 rounded-xl p-6 bg-gradient-to-br from-slate-50 to-white">
+        <div className="border-2 border-gray-300 rounded-xl p-6 bg-gradient-to-br from-slate-50 to-white print-page-break print-avoid-break">
           <h3 className="font-bold text-gray-800 mb-4 text-base">Conclusión Profesional</h3>
           <p className="text-gray-700 leading-relaxed mb-6">
             {report.conclusion_profesional}
