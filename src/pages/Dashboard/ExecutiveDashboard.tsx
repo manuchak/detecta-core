@@ -1,8 +1,8 @@
 // @ts-nocheck
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { BarChart3, TrendingUp, Target } from 'lucide-react';
 import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard';
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
@@ -12,17 +12,26 @@ import { TopClientsMTD } from '@/components/executive/TopClientsMTD';
 import { ServiceDistributionChart } from '@/components/executive/ServiceDistributionChart';
 import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
 import { QuarterlyServicesChart } from '@/components/executive/QuarterlyServicesChart';
+import { StrategicPlanTracker } from '@/components/executive/StrategicPlanTracker';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
+  const getInitialTab = () => {
+    if (location.pathname === '/dashboard/kpis') return 'kpis';
+    if (location.pathname === '/dashboard/plan') return 'plan';
+    return 'executive';
+  };
+  
+  const currentTab = getInitialTab();
 
   const handleTabChange = (value: string) => {
     if (value === 'kpis') {
       navigate('/dashboard/kpis');
+    } else if (value === 'plan') {
+      navigate('/dashboard/plan');
     } else {
       navigate('/dashboard');
     }
@@ -45,10 +54,14 @@ const ExecutiveDashboard = () => {
             
             {/* Navigation Tabs */}
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="executive" className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
                   Proyecciones
+                </TabsTrigger>
+                <TabsTrigger value="plan" className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Plan 2026
                 </TabsTrigger>
                 <TabsTrigger value="kpis" className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
@@ -62,30 +75,37 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* NEW: Executive KPIs Bar (Looker Style - Page 1) */}
-        <ExecutiveKPIsBar />
+        {/* Conditional content based on tab */}
+        {currentTab === 'plan' ? (
+          <StrategicPlanTracker />
+        ) : (
+          <>
+            {/* NEW: Executive KPIs Bar (Looker Style - Page 1) */}
+            <ExecutiveKPIsBar />
 
-        {/* Barra de Alertas Críticas */}
-        <CriticalAlertsBar />
+            {/* Barra de Alertas Críticas */}
+            <CriticalAlertsBar />
 
-        {/* Componente Principal Unificado */}
-        <UnifiedGMVDashboard />
+            {/* Componente Principal Unificado */}
+            <UnifiedGMVDashboard />
 
-        {/* NEW: Grid de 3 columnas con nuevos componentes (Looker Style) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <TopClientsMTD />
-          <ServiceDistributionChart />
-          <QuarterlyServicesChart />
-        </div>
+            {/* NEW: Grid de 3 columnas con nuevos componentes (Looker Style) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <TopClientsMTD />
+              <ServiceDistributionChart />
+              <QuarterlyServicesChart />
+            </div>
 
-        {/* NEW: Panel de Finanzas (Looker Style - Page 3) */}
-        <FinancialSummaryPanel />
+            {/* NEW: Panel de Finanzas (Looker Style - Page 3) */}
+            <FinancialSummaryPanel />
 
-        {/* Grid Secundario - Existente */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AnnualComparisonCard />
-          <AdvancedForecastDashboard />
-        </div>
+            {/* Grid Secundario - Existente */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AnnualComparisonCard />
+              <AdvancedForecastDashboard />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
