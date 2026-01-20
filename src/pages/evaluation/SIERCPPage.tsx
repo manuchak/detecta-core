@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2, User, Mail, Phone, XCircle } from "lucide-react";
-import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
+import { useSIERCP, SIERCPQuestion, interviewQuestions } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -696,6 +696,18 @@ const SIERCPPage = () => {
 
     setSaving(true);
     try {
+      // Extract open-ended interview responses for AI analysis
+      const interviewResponsesData = responses
+        .filter(r => r.questionId.startsWith('ENT') && typeof r.value === 'string')
+        .map(r => {
+          const question = interviewQuestions.find(q => q.id === r.questionId);
+          return {
+            questionId: r.questionId,
+            question: question?.text || r.questionId,
+            answer: r.value as string
+          };
+        });
+
       await saveResult({
         scores: {
           integridad: resultsToSave.integridad,
@@ -710,7 +722,8 @@ const SIERCPPage = () => {
         clinical_interpretation: resultsToSave.clinicalInterpretation?.interpretation || resultsToSave.classification,
         risk_flags: resultsToSave.clinicalInterpretation?.validityFlags || [],
         global_score: resultsToSave.globalScore,
-        ai_report: aiReportToSave || null
+        ai_report: aiReportToSave || null,
+        interview_responses: interviewResponsesData.length > 0 ? interviewResponsesData : undefined
       });
 
       console.log('SIERCP: Resultados guardados exitosamente');

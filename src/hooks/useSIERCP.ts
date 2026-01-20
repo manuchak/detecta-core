@@ -172,7 +172,7 @@ const questionBank: SIERCPQuestion[] = [
   { id: 'VR020', text: 'He tenido dudas sobre mis propias capacidades.', type: 'likert', module: 'veracidad' },
 ];
 
-const interviewQuestions = [
+export const interviewQuestions = [
   // Preguntas principales de evaluación
   { id: 'ENT001', text: '¿Ha sido testigo o víctima de un delito en su vida? Describa la situación y cómo la manejó.', type: 'open' },
   { id: 'ENT002', text: 'Describa una situación en la que se sintió tentado a incumplir una norma o regla importante. ¿Qué hizo y por qué?', type: 'open' },

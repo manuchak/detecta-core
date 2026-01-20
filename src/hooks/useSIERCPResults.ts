@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+export interface InterviewResponse {
+  questionId: string;
+  question: string;
+  answer: string;
+}
+
 export interface SIERCPResult {
   id: string;
   user_id: string;
@@ -14,6 +20,7 @@ export interface SIERCPResult {
   completed_at: string;
   created_at: string;
   ai_report?: any; // AI-generated analysis stored at completion
+  interview_responses?: InterviewResponse[]; // Textual responses from Module 7
   // Profile info (from RPC join)
   profiles?: {
     display_name: string | null;
@@ -118,6 +125,7 @@ export const useSIERCPResults = () => {
     risk_flags: string[];
     global_score: number;
     ai_report?: any;
+    interview_responses?: InterviewResponse[];
   }) => {
     if (!user) {
       throw new Error('Usuario no autenticado');

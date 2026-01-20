@@ -14,12 +14,19 @@ interface ModuleScore {
   percentage: number;
 }
 
+interface InterviewResponse {
+  questionId: string;
+  question: string;
+  answer: string;
+}
+
 interface ReportRequest {
   globalScore: number;
   moduleScores: ModuleScore[];
   riskFlags: string[];
   candidateName?: string;
   evaluationDate: string;
+  interviewResponses?: InterviewResponse[];
 }
 
 serve(async (req) => {
@@ -35,7 +42,7 @@ serve(async (req) => {
       );
     }
 
-    const { globalScore, moduleScores, riskFlags, candidateName, evaluationDate }: ReportRequest = await req.json();
+    const { globalScore, moduleScores, riskFlags, candidateName, evaluationDate, interviewResponses }: ReportRequest = await req.json();
 
     const moduleDetails = moduleScores.map(m => 
       `- ${m.name}: ${m.percentage}% (${m.score}/${m.maxScore})`
@@ -44,6 +51,22 @@ serve(async (req) => {
     const flagsDetails = riskFlags.length > 0 
       ? `Banderas de riesgo identificadas:\n${riskFlags.map(f => `- ${f}`).join('\n')}`
       : 'No se identificaron banderas de riesgo críticas.';
+
+    // Build interview responses section for AI analysis
+    const interviewSection = interviewResponses && interviewResponses.length > 0
+      ? `\n## RESPUESTAS DE ENTREVISTA ESTRUCTURADA (Módulo 7)
+
+Analiza las siguientes respuestas del candidato buscando:
+- Señales de deshonestidad, evasión o respuestas superficiales
+- Indicadores de impulsividad, agresividad o falta de autocontrol
+- Coherencia y consistencia entre respuestas
+- Capacidad de autocrítica y reflexión genuina
+- Banderas rojas específicas para el puesto de custodio de mercancía
+
+${interviewResponses.map(r => `### ${r.questionId}: ${r.question}
+**Respuesta del candidato:** "${r.answer}"
+`).join('\n')}`
+      : '';
 
     const prompt = `Como experto en psicología forense y evaluación de personal de seguridad, genera un informe profesional COMPLETO para evaluar la aptitud de un candidato para el puesto de CUSTODIO DE MERCANCÍA.
 
@@ -66,6 +89,7 @@ El custodio debe:
 ${moduleDetails}
 
 **${flagsDetails}**
+${interviewSection}
 
 ## INSTRUCCIONES
 
