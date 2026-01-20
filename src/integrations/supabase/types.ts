@@ -15558,6 +15558,7 @@ export type Database = {
           email: string
           global_score: number
           id: string
+          interview_responses: Json
           percentiles: Json
           risk_flags: string[]
           scores: Json
@@ -15575,6 +15576,7 @@ export type Database = {
           email: string
           global_score: number
           id: string
+          interview_responses: Json
           percentiles: Json
           phone: string
           risk_flags: string[]
