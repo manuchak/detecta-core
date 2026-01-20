@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { SIERCPPrintableReport } from "@/components/evaluation/SIERCPPrintableReport";
-import { StructuredInterviewSection } from "@/components/evaluation/StructuredInterviewSection";
+
 import { SIERCPInterviewResponses } from "@/components/evaluation/SIERCPInterviewResponses";
 
 
@@ -1437,8 +1437,6 @@ const SIERCPPage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(moduleConfig).map(([key, config]) => {
-                  if (key === 'entrevista') return null; // Skip interview module for now
-                  
                   const score = results[key as keyof typeof results] as number;
                   const Icon = config.icon;
                   
@@ -1489,12 +1487,6 @@ const SIERCPPage = () => {
             interviewScore={results?.entrevista as number}
           />
 
-          {/* Structured Interview Section (Recruitment Interview) */}
-          <StructuredInterviewSection
-            resultId={resultIdParam}
-            candidatoEmail={evalueeProfile?.email}
-            candidatoNombre={evalueeProfile?.display_name}
-          />
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between">

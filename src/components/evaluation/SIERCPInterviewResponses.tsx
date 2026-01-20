@@ -27,15 +27,7 @@ const questionCategories: Record<string, { label: string; description: string }>
 
 export const SIERCPInterviewResponses = ({ responses, interviewScore }: SIERCPInterviewResponsesProps) => {
   if (!responses || responses.length === 0) {
-    return (
-      <Card className="border-dashed border-muted-foreground/30">
-        <CardContent className="p-6 text-center text-muted-foreground">
-          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No hay respuestas de entrevista disponibles para esta evaluación.</p>
-          <p className="text-sm mt-1">Las respuestas se capturan en evaluaciones nuevas.</p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   // Only show open-ended questions (the ones with textual answers)
