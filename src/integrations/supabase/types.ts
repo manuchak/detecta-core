@@ -12368,6 +12368,7 @@ export type Database = {
       }
       siercp_results: {
         Row: {
+          ai_report: Json | null
           clinical_interpretation: string | null
           completed_at: string
           created_at: string
@@ -12379,6 +12380,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_report?: Json | null
           clinical_interpretation?: string | null
           completed_at?: string
           created_at?: string
@@ -12390,6 +12392,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_report?: Json | null
           clinical_interpretation?: string | null
           completed_at?: string
           created_at?: string
@@ -15544,6 +15547,7 @@ export type Database = {
       get_siercp_calibration_results: {
         Args: never
         Returns: {
+          ai_report: Json
           clinical_interpretation: string
           completed_at: string
           created_at: string
@@ -15560,6 +15564,7 @@ export type Database = {
       get_siercp_result_by_id: {
         Args: { p_result_id: string }
         Returns: {
+          ai_report: Json
           clinical_interpretation: string
           completed_at: string
           created_at: string

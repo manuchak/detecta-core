@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2, User, Mail, Phone } from "lucide-react";
+import { AlertCircle, CheckCircle, FileText, Brain, Shield, Zap, Heart, Eye, MessageSquare, ArrowRight, ArrowLeft, UserCheck, History, Clock, AlertTriangle, Target, Briefcase, Lock, Users, Bot, RefreshCw, FlaskConical, Loader2, User, Mail, Phone, XCircle } from "lucide-react";
 import { useSIERCP, SIERCPQuestion } from "@/hooks/useSIERCP";
 import { useSIERCPResults } from "@/hooks/useSIERCPResults";
 import { useAuth } from "@/contexts/AuthContext";
@@ -371,6 +371,12 @@ const SIERCPPage = () => {
             classification: resultRow.clinical_interpretation
           };
           setSavedResults(transformedResult);
+          
+          // Si hay ai_report almacenado, usarlo directamente
+          if (resultRow.ai_report) {
+            setGeneratedAIReport(resultRow.ai_report);
+          }
+          
           setShowResults(true);
           setLoadingHistorical(false);
         });
@@ -663,8 +669,8 @@ const SIERCPPage = () => {
   // Usar resultados guardados o calcular nuevos
   const results = showResults ? (savedResults || calculateResults()) : null;
 
-  // Manejar guardado de resultados
-  const handleSaveResults = async (resultsToSave: any) => {
+  // Manejar guardado de resultados (ahora incluye ai_report)
+  const handleSaveResults = async (resultsToSave: any, aiReportToSave?: any) => {
     if (!resultsToSave) {
       console.error('SIERCP: No hay resultados para guardar');
       return;
@@ -682,6 +688,7 @@ const SIERCPPage = () => {
     console.log('SIERCP: Intentando guardar resultados:', {
       globalScore: resultsToSave.globalScore,
       hasScores: !!resultsToSave.integridad,
+      hasAIReport: !!aiReportToSave,
       isAdmin,
       hasExistingResult: !!existingResult
     });
@@ -701,7 +708,8 @@ const SIERCPPage = () => {
         percentiles: resultsToSave.percentiles || {},
         clinical_interpretation: resultsToSave.clinicalInterpretation?.interpretation || resultsToSave.classification,
         risk_flags: resultsToSave.clinicalInterpretation?.validityFlags || [],
-        global_score: resultsToSave.globalScore
+        global_score: resultsToSave.globalScore,
+        ai_report: aiReportToSave || null
       });
 
       console.log('SIERCP: Resultados guardados exitosamente');
@@ -725,6 +733,40 @@ const SIERCPPage = () => {
     }
   };
 
+  // Generar análisis de IA cuando se completa la evaluación (no cuando se visualiza)
+  const generateAndSaveWithAI = useCallback(async (resultsToProcess: any) => {
+    // Preparar datos para el reporte con IA
+    const moduleScores = Object.entries(moduleConfig)
+      .filter(([key]) => key !== 'entrevista')
+      .map(([key, config]) => ({
+        name: config.title,
+        score: resultsToProcess[key as keyof typeof resultsToProcess] as number,
+        maxScore: 100,
+        percentage: resultsToProcess[key as keyof typeof resultsToProcess] as number
+      }));
+
+    const riskFlags = resultsToProcess.clinicalInterpretation?.validityFlags || [];
+
+    console.log('SIERCP: Generando análisis de IA...');
+    
+    const report = await generateReport({
+      globalScore: resultsToProcess.globalScore,
+      moduleScores,
+      riskFlags,
+      candidateName: 'Candidato', // Se actualiza con el nombre real en perfil
+      evaluationDate: new Date().toISOString()
+    });
+
+    if (report) {
+      console.log('SIERCP: Análisis de IA generado exitosamente');
+      setGeneratedAIReport(report);
+      return report;
+    }
+    
+    console.warn('SIERCP: No se pudo generar análisis de IA');
+    return null;
+  }, [generateReport]);
+
   // Auto-guardar resultados para todos los usuarios
   // Admins: siempre guardar (modo calibración, pueden repetir)
   // No-admins: solo si no tienen resultado previo
@@ -735,14 +777,19 @@ const SIERCPPage = () => {
       return;
     }
     
-    if (showResults && savedResults && !saving) {
+    // Si ya hay un ai_report generado (ya guardamos), no volver a guardar
+    if (showResults && savedResults && !saving && !generatedAIReport) {
       const shouldSave = isAdmin || !existingResult;
       if (shouldSave) {
-        console.log('SIERCP: Auto-guardando resultados', { isAdmin, existingResult: !!existingResult });
-        handleSaveResults(savedResults);
+        console.log('SIERCP: Generando IA y guardando resultados', { isAdmin, existingResult: !!existingResult });
+        
+        // Primero generar IA, luego guardar con el reporte
+        generateAndSaveWithAI(savedResults).then((aiReport) => {
+          handleSaveResults(savedResults, aiReport);
+        });
       }
     }
-  }, [showResults, savedResults, isAdmin, existingResult, resultIdParam]);
+  }, [showResults, savedResults, isAdmin, existingResult, resultIdParam, generatedAIReport, saving, generateAndSaveWithAI]);
 
   if (loading || aiLoading || !persistenceInitialized || loadingHistorical) {
     return (
@@ -1029,6 +1076,17 @@ const SIERCPPage = () => {
       };
     };
 
+    // Color de fondo para nivel de aptitud de IA
+    const getFitBackgroundColor = (nivel: string) => {
+      switch (nivel) {
+        case 'Alta': return 'bg-green-100 border-green-300 text-green-800';
+        case 'Media': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
+        case 'Baja': return 'bg-orange-100 border-orange-300 text-orange-800';
+        case 'No apto': return 'bg-red-100 border-red-300 text-red-800';
+        default: return 'bg-gray-100 border-gray-300 text-gray-800';
+      }
+    };
+
     const riskInfo = getRiskLevel(results.globalScore);
     
     return (
@@ -1212,42 +1270,135 @@ const SIERCPPage = () => {
               </CardContent>
             </Card>
 
-            {/* Classification and Recommendation */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <riskInfo.icon className={`h-5 w-5 ${riskInfo.color}`} />
-                    Clasificación
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`p-4 rounded-lg border-2 ${getBgColor(results.globalScore)}`}>
-                    <div className={`text-xl font-semibold ${riskInfo.color}`}>
-                      {riskInfo.level}
+            {/* Classification and AI-Powered Recommendation */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* AI Analysis Loading State */}
+              {!generatedAIReport && generatingReport && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <div>
+                        <p className="font-medium">Analizando perfil con IA...</p>
+                        <p className="text-sm text-muted-foreground">
+                          Generando evaluación de aptitud para custodio de mercancía
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Basado en la puntuación global de {results.globalScore}/100
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserCheck className="h-5 w-5 text-blue-600" />
-                    Recomendación
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                    <div className="text-lg font-medium text-blue-800">
-                      {getRecommendation(results.globalScore)}
+              {/* AI-Powered Aptitude Card */}
+              {generatedAIReport?.fit_custodio ? (
+                <Card className="overflow-hidden border-2">
+                  <div className={`p-5 ${getFitBackgroundColor(generatedAIReport.fit_custodio.nivel)}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide opacity-75 font-medium">
+                          Aptitud para Custodio de Mercancía
+                        </p>
+                        <p className="text-2xl font-bold mt-1">
+                          {generatedAIReport.fit_custodio.nivel}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs opacity-75">Confianza</p>
+                        <p className="text-xl font-bold">
+                          {generatedAIReport.fit_custodio.porcentaje_confianza}%
+                        </p>
+                      </div>
                     </div>
+                    {generatedAIReport.fit_custodio.justificacion && (
+                      <p className="mt-3 text-sm border-t border-current/20 pt-3 opacity-90">
+                        {generatedAIReport.fit_custodio.justificacion}
+                      </p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
+                </Card>
+              ) : !generatingReport && (
+                // Fallback: Score-based classification when no AI report
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <riskInfo.icon className={`h-5 w-5 ${riskInfo.color}`} />
+                      Clasificación
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className={`p-4 rounded-lg border-2 ${getBgColor(results.globalScore)}`}>
+                      <div className={`text-xl font-semibold ${riskInfo.color}`}>
+                        {riskInfo.level}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Basado en puntuación global de {results.globalScore}/100
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Risk Factors Alert */}
+              {generatedAIReport?.factores_riesgo && generatedAIReport.factores_riesgo.length > 0 && (
+                <Alert variant="destructive" className="border-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <div className="ml-2">
+                    <p className="font-semibold text-sm">Factores de Riesgo Identificados</p>
+                    <ul className="mt-2 space-y-1.5">
+                      {generatedAIReport.factores_riesgo.map((factor: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                          <span>{factor}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Alert>
+              )}
+
+              {/* Actionable Recommendations */}
+              {generatedAIReport?.recomendaciones && generatedAIReport.recomendaciones.length > 0 && (
+                <Card className="border-2 border-blue-200 bg-blue-50/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base text-blue-800">
+                      <Target className="h-4 w-4" />
+                      Acciones Recomendadas
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ul className="space-y-2">
+                      {generatedAIReport.recomendaciones.map((rec: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-blue-700">
+                          <span className="font-bold text-blue-800 min-w-[20px]">{i + 1}.</span>
+                          <span>{rec}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Protection Factors (if any) */}
+              {generatedAIReport?.factores_proteccion && generatedAIReport.factores_proteccion.length > 0 && (
+                <Card className="border-2 border-green-200 bg-green-50/50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base text-green-800">
+                      <CheckCircle className="h-4 w-4" />
+                      Factores de Protección
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ul className="space-y-1.5">
+                      {generatedAIReport.factores_proteccion.map((factor: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-green-700">
+                          <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-green-600" />
+                          <span>{factor}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
 
@@ -1329,7 +1480,13 @@ const SIERCPPage = () => {
             
             <Button
               onClick={async () => {
-                // Preparar datos para el reporte con IA
+                // Si ya tenemos el reporte de IA, solo imprimir
+                if (generatedAIReport) {
+                  window.print();
+                  return;
+                }
+
+                // Si no, generar el reporte primero
                 const moduleScores = Object.entries(moduleConfig)
                   .filter(([key]) => key !== 'entrevista')
                   .map(([key, config]) => ({
@@ -1351,7 +1508,6 @@ const SIERCPPage = () => {
 
                 if (report) {
                   setGeneratedAIReport(report);
-                  // Esperar a que se renderice el reporte y luego imprimir
                   setTimeout(() => window.print(), 800);
                 }
               }}
@@ -1365,33 +1521,21 @@ const SIERCPPage = () => {
                 </>
               ) : (
                 <>
-                  <Brain className="h-4 w-4" />
-                  Imprimir Informe Detallado
+                  <FileText className="h-4 w-4" />
+                  {generatedAIReport ? 'Imprimir Informe' : 'Generar e Imprimir Informe'}
                 </>
               )}
             </Button>
           </div>
 
-          {/* AI Report Preview - shown when generated */}
-          {generatedAIReport && (
-            <Card className="border-primary/50">
-              <CardHeader className="py-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-primary" />
-                    Informe Generado con IA
-                  </CardTitle>
-                  <Badge variant="outline" className="text-xs">
-                    Listo para imprimir
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground">
-                  El informe detallado ha sido generado. Usa el diálogo de impresión para guardarlo como PDF.
-                </p>
-              </CardContent>
-            </Card>
+          {/* AI Report Status - only show if report was generated for printing */}
+          {generatedAIReport && !resultIdParam && (
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                Análisis de IA completado y almacenado. Puedes imprimir el informe detallado cuando lo necesites.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Additional Information */}
