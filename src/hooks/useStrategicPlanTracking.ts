@@ -1,7 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { useCurrentMonthTarget } from './useBusinessTargets';
 import { useDailyActualServices } from './useDailyActualServices';
-import { analyzeWeekdaySeasonality, calculateWeekdayAdjustedProjection, SeasonalProjection } from '@/utils/weekdaySeasonalityAnalysis';
+import { useRealisticProjectionsWithGuardrails } from './useRealisticProjectionsWithGuardrails';
 
 export interface StrategicPlanDay {
   day: number;
@@ -90,18 +89,10 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const { data: targetData, isLoading: targetLoading } = useCurrentMonthTarget();
   const { data: dailyActuals, isLoading: actualsLoading } = useDailyActualServices(year, month);
 
-  // Seasonal projection query
-  const { data: seasonalProjection, isLoading: seasonalLoading } = useQuery({
-    queryKey: ['seasonal-projection', year, month, currentDay],
-    queryFn: async (): Promise<SeasonalProjection> => {
-      const weekdayPattern = await analyzeWeekdaySeasonality();
-      return await calculateWeekdayAdjustedProjection(weekdayPattern);
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-  });
+  // Use the unified ensemble projection model (same as Proyecciones tab)
+  const { data: ensembleProjection, isLoading: projectionLoading } = useRealisticProjectionsWithGuardrails();
 
-  const isLoading = targetLoading || actualsLoading || seasonalLoading;
+  const isLoading = targetLoading || actualsLoading || projectionLoading;
 
   // Calculate daily data
   const dailyData: StrategicPlanDay[] = [];
@@ -168,17 +159,27 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
     ? (targetGMV - actualGMV) / daysRemaining 
     : 0;
   
-  // Linear projection (for reference/comparison)
+  // Linear projection (for reference/comparison only)
   const projectedGMVLinear = Math.round(paceActualGMV * daysInMonth);
   
-  // Use seasonal projection as primary (more accurate)
-  const projectedGMV = seasonalProjection?.totalProjectedGMV || projectedGMVLinear;
+  // Get the Realista scenario from the ensemble model (same source as Proyecciones tab)
+  const realistaScenario = ensembleProjection?.scenarios?.find(s => s.name === 'Realista');
   
-  // Calculate projected services based on actual AOV and seasonal GMV
+  // Use ensemble projection as primary (consistent with Proyecciones)
+  const projectedGMV = realistaScenario 
+    ? Math.round(realistaScenario.gmv * 1000000) // Convert from millions
+    : projectedGMVLinear;
+  
+  // Calculate projected services from ensemble model
   const actualAOV = actualServices > 0 ? actualGMV / actualServices : 0;
-  const projectedServices = actualAOV > 0 
-    ? Math.round(projectedGMV / actualAOV)
-    : Math.round(paceActual * daysInMonth);
+  const projectedServices = realistaScenario?.services 
+    || (actualAOV > 0 ? Math.round(projectedGMV / actualAOV) : Math.round(paceActual * daysInMonth));
+  
+  // Map confidence from ensemble model
+  const confidenceMap = { 'high': 'Alta', 'medium': 'Media', 'low': 'Baja' } as const;
+  const ensembleConfidence = ensembleProjection?.confidence?.overall || 'medium';
+  const ensembleMethodology = ensembleProjection?.regime?.mathematicalJustification 
+    || 'Ensemble con guardrails físicos';
   
   const summary: StrategicPlanSummary = {
     targetServices,
@@ -210,9 +211,9 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
     willMeetServicesTarget: projectedServices >= targetServices,
     willMeetGMVTarget: projectedGMV >= targetGMV,
     
-    // Seasonal metadata
-    seasonalConfidence: seasonalProjection?.confidence || 'Media',
-    projectionMethodology: seasonalProjection?.methodology || 'Proyección lineal (cargando estacional...)',
+    // Ensemble projection metadata (unified with Proyecciones tab)
+    seasonalConfidence: confidenceMap[ensembleConfidence],
+    projectionMethodology: ensembleMethodology,
     
     percentCompleteServices: targetServices > 0 ? (actualServices / targetServices) * 100 : 0,
     percentCompleteGMV: targetGMV > 0 ? (actualGMV / targetGMV) * 100 : 0,
