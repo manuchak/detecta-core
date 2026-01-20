@@ -412,7 +412,8 @@ export const useRealisticProjectionsWithGuardrails = () => {
         historicalMode: undefined
       };
     },
-    enabled: !!user && !dynamicDataLoading && !!dynamicData && !historicalLoading && !!holidayAdjustment,
+    // Relajar condición: no requerir holidayAdjustment para evitar bloqueo
+    enabled: !!user && !dynamicDataLoading && !!dynamicData && !historicalLoading,
     staleTime: 0, // Force fresh calculation for debugging
     refetchOnWindowFocus: true,
     refetchInterval: 60 * 60 * 1000
