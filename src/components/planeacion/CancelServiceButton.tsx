@@ -111,7 +111,7 @@ export function CancelServiceButton({
 
       <Dialog open={open} onOpenChange={setOpen} modal={true}>
         <DialogContent 
-          className="apple-card p-6 shadow-lg max-w-md z-[200]"
+          className="bg-card border border-border/50 rounded-xl shadow-lg p-6 max-w-md z-[200]"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
         >
