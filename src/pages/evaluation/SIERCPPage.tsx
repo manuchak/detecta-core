@@ -20,6 +20,7 @@ import { RecruitmentErrorBoundary } from "@/components/recruitment/ErrorBoundary
 import { supabase } from "@/integrations/supabase/client";
 import { SIERCPPrintableReport } from "@/components/evaluation/SIERCPPrintableReport";
 import { StructuredInterviewSection } from "@/components/evaluation/StructuredInterviewSection";
+import { SIERCPInterviewResponses } from "@/components/evaluation/SIERCPInterviewResponses";
 
 
 // Estilos CSS para impresión
@@ -327,6 +328,7 @@ const SIERCPPage = () => {
     email: string | null;
     phone: string | null;
   } | null>(null);
+  const [historicalInterviewResponses, setHistoricalInterviewResponses] = useState<any[] | null>(null);
 
   // Cargar resultado histórico si viene por parámetro ?result=ID usando RPC segura
   useEffect(() => {
@@ -376,6 +378,11 @@ const SIERCPPage = () => {
           // Si hay ai_report almacenado, usarlo directamente
           if (resultRow.ai_report) {
             setGeneratedAIReport(resultRow.ai_report);
+          }
+          
+          // Cargar respuestas de entrevista si existen
+          if (resultRow.interview_responses) {
+            setHistoricalInterviewResponses(resultRow.interview_responses);
           }
           
           setShowResults(true);
@@ -1476,7 +1483,13 @@ const SIERCPPage = () => {
             </CardContent>
           </Card>
 
-          {/* Structured Interview Section */}
+          {/* SIERCP Interview Responses (Module 7) */}
+          <SIERCPInterviewResponses 
+            responses={historicalInterviewResponses || []}
+            interviewScore={results?.entrevista as number}
+          />
+
+          {/* Structured Interview Section (Recruitment Interview) */}
           <StructuredInterviewSection
             resultId={resultIdParam}
             candidatoEmail={evalueeProfile?.email}
