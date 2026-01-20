@@ -912,3 +912,72 @@
 .stagger-4 { animation-delay: 150ms; }
 .stagger-5 { animation-delay: 200ms; }
 .stagger-6 { animation-delay: 250ms; }
+
+/* ============================================= */
+/* SIERCP REPORT PRINT STYLES                   */
+/* ============================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 20mm 15mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: white !important;
+  }
+
+  #siercp-detailed-report {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #siercp-detailed-report .rounded-t-xl,
+  #siercp-detailed-report .rounded-xl,
+  #siercp-detailed-report .rounded-lg,
+  #siercp-detailed-report .rounded-2xl {
+    border-radius: 8px !important;
+  }
+
+  /* Ensure gradients print */
+  #siercp-detailed-report [class*="bg-gradient"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Page break controls */
+  #siercp-detailed-report > div:first-child {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  #siercp-detailed-report .grid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Print content visibility */
+.print-content {
+  display: block !important;
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  .no-print,
+  .pdf-ignore {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+}
