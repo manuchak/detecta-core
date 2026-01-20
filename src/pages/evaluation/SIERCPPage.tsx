@@ -318,7 +318,7 @@ const SIERCPPage = () => {
   const [remainingTime, setRemainingTime] = useState(SESSION_TIMEOUT_MS);
   const [consentGiven, setConsentGiven] = useState(false);
   const [savedResults, setSavedResults] = useState<any>(null); // Almacenar resultados calculados
-  const [loadingHistorical, setLoadingHistorical] = useState(false);
+  const [loadingHistorical, setLoadingHistorical] = useState(!!resultIdParam);
   const [historicalError, setHistoricalError] = useState<string | null>(null);
   const [generatedAIReport, setGeneratedAIReport] = useState<SIERCPReport | null>(null);
   const [evalueeProfile, setEvalueeProfile] = useState<{
@@ -879,8 +879,8 @@ const SIERCPPage = () => {
     );
   }
 
-  // Mostrar mensaje si ya completó la evaluación
-  if (!canTakeEvaluation && existingResult && !showResults) {
+  // Mostrar mensaje si ya completó la evaluación (solo si NO está viendo un resultado histórico)
+  if (!canTakeEvaluation && existingResult && !showResults && !resultIdParam) {
     return (
       <div className="container mx-auto p-6 space-y-6 max-w-3xl">
         <Card>
