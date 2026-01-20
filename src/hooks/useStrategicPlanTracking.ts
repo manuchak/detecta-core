@@ -94,9 +94,11 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const { data: dailyActuals, isLoading: actualsLoading } = useDailyActualServices(year, month);
 
   // Use the unified ensemble projection model (same as Proyecciones tab)
-  const { data: ensembleProjection, isLoading: projectionLoading } = useRealisticProjectionsWithGuardrails();
+  // No bloquear el componente si falla la proyección - usar fallback lineal
+  const { data: ensembleProjection, isLoading: projectionLoading, isError: projectionError } = useRealisticProjectionsWithGuardrails();
 
-  const isLoading = targetLoading || actualsLoading || projectionLoading;
+  // No bloquear por projectionLoading - mostrar datos básicos mientras carga proyección
+  const isLoading = targetLoading || actualsLoading;
 
   // Calculate daily data
   const dailyData: StrategicPlanDay[] = [];
@@ -167,9 +169,10 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const projectedGMVLinear = Math.round(paceActualGMV * daysInMonth);
   
   // Get the Realista scenario from the ensemble model (same source as Proyecciones tab)
-  const realistaScenario = ensembleProjection?.scenarios?.find(s => s.name === 'Realista');
+  // Si hay error o no hay datos, usar proyección lineal como fallback
+  const realistaScenario = !projectionError && ensembleProjection?.scenarios?.find(s => s.name === 'Realista');
   
-  // Use ensemble projection as primary (consistent with Proyecciones)
+  // Use ensemble projection as primary (consistent with Proyecciones), fallback to linear
   const projectedGMV = realistaScenario 
     ? Math.round(realistaScenario.gmv * 1000000) // Convert from millions
     : projectedGMVLinear;
@@ -179,11 +182,11 @@ export const useStrategicPlanTracking = (): StrategicPlanMetrics => {
   const projectedServices = realistaScenario?.services 
     || (actualAOV > 0 ? Math.round(projectedGMV / actualAOV) : Math.round(paceActual * daysInMonth));
   
-  // Map confidence from ensemble model
+  // Map confidence from ensemble model - fallback a 'Media' si no hay datos
   const confidenceMap = { 'high': 'Alta', 'medium': 'Media', 'low': 'Baja' } as const;
-  const ensembleConfidence = ensembleProjection?.confidence?.overall || 'medium';
-  const ensembleMethodology = ensembleProjection?.regime?.mathematicalJustification 
-    || 'Ensemble con guardrails físicos';
+  const ensembleConfidence = (!projectionError && ensembleProjection?.confidence?.overall) || 'medium';
+  const ensembleMethodology = (!projectionError && ensembleProjection?.regime?.mathematicalJustification) 
+    || (projectionError ? 'Proyección lineal (fallback)' : 'Cargando modelo ensemble...');
   
   const summary: StrategicPlanSummary = {
     targetServices,
