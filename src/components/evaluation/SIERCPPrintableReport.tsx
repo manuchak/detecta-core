@@ -57,16 +57,19 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
 
   const reportId = `SIERCP-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+  // Format date for filename suggestion (used by parent)
+  const filenameDate = format(new Date(), 'yyyy-MM-dd');
+
   return (
-    <div className="print-content bg-white max-w-4xl mx-auto print-avoid-break" id="siercp-detailed-report">
+    <div className="print-content bg-white max-w-4xl mx-auto" id="siercp-detailed-report">
       {/* ============================================= */}
-      {/* COVER / HERO SECTION                         */}
+      {/* COVER / HERO SECTION (Page 1)                */}
       {/* ============================================= */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-10 rounded-t-xl print-avoid-break">
+      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-8 rounded-t-xl print-section-hero print-avoid-break">
         {/* Header bar */}
-        <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/20">
+        <div className="flex justify-between items-center mb-6 pb-3 border-b border-white/20">
           <div>
-            <h1 className="text-lg font-bold tracking-tight">DETECTA</h1>
+            <h1 className="text-xl font-bold tracking-tight">DETECTA</h1>
             <p className="text-xs text-white/60">Sistema de Evaluación de Confiabilidad</p>
           </div>
           <div className="text-right text-xs text-white/60">
@@ -75,9 +78,9 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
           </div>
         </div>
 
-        {/* Hero Score */}
-        <div className="flex items-center justify-center gap-12 py-8">
-          <div className="bg-white rounded-2xl p-6 shadow-2xl">
+        {/* Hero Score - Centered */}
+        <div className="flex items-center justify-center gap-10 py-6">
+          <div className="bg-white rounded-2xl p-5 shadow-2xl">
             <SIERCPScoreGauge 
               score={report.metadata?.score_global || 0} 
               size="xl" 
@@ -85,10 +88,10 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
           </div>
           
           <div className="text-center">
-            <p className="text-sm uppercase tracking-widest text-white/60 mb-2">
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-1">
               Aptitud para Custodio
             </p>
-            <p className="text-4xl font-bold mb-2">
+            <p className="text-3xl font-bold mb-1">
               {report.fit_custodio?.nivel || 'Pendiente'}
             </p>
             <p className="text-sm text-white/70">
@@ -97,27 +100,27 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
           </div>
         </div>
 
-        {/* Candidate Info */}
-        <div className="grid grid-cols-3 gap-6 mt-8 pt-6 border-t border-white/20 text-sm">
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-white/50" />
+        {/* Candidate Info - Compact Grid */}
+        <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-white/20 text-sm">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-white/50" />
             <div>
               <p className="text-xs text-white/50 uppercase tracking-wide">Candidato</p>
-              <p className="font-semibold">{candidateName || report.metadata?.candidato || 'No especificado'}</p>
+              <p className="font-semibold text-sm">{candidateName || report.metadata?.candidato || 'No especificado'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Calendar className="h-5 w-5 text-white/50" />
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-white/50" />
             <div>
               <p className="text-xs text-white/50 uppercase tracking-wide">Fecha</p>
-              <p className="font-semibold">{formattedDate}</p>
+              <p className="font-semibold text-sm">{formattedDate}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-white/50" />
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-white/50" />
             <div>
               <p className="text-xs text-white/50 uppercase tracking-wide">Posición</p>
-              <p className="font-semibold">Custodio de Mercancía</p>
+              <p className="font-semibold text-sm">Custodio de Mercancía</p>
             </div>
           </div>
         </div>
@@ -126,22 +129,24 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
       {/* ============================================= */}
       {/* MAIN CONTENT                                 */}
       {/* ============================================= */}
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-6">
         
-        {/* Radar + Executive Summary */}
-        <div className="grid grid-cols-5 gap-6 print-avoid-break">
-          {/* Radar Chart */}
-          <div className="col-span-2 border border-gray-200 rounded-xl p-4 bg-gray-50/50 print-avoid-break">
+        {/* Radar + Executive Summary - Print optimized */}
+        <div className="grid grid-cols-5 gap-4 print-avoid-break">
+          {/* Radar Chart - Fixed size for print */}
+          <div className="col-span-2 border border-gray-200 rounded-xl p-3 bg-gray-50/50 print-avoid-break">
             <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <Target className="h-4 w-4 text-blue-600" />
               Perfil Multidimensional
             </h2>
-            <SIERCPRadarProfile modules={radarModules} size="md" />
+            <div className="flex justify-center">
+              <SIERCPRadarProfile modules={radarModules} size="md" forPrint={true} />
+            </div>
           </div>
           
           {/* Executive Summary */}
-          <div className="col-span-3 border border-gray-200 rounded-xl p-5 bg-white">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <div className="col-span-3 border border-gray-200 rounded-xl p-4 bg-white">
+            <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-blue-600" />
               Resumen Ejecutivo
             </h2>
@@ -150,7 +155,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
             </p>
             
             {/* Justification */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
               <p className="text-xs font-medium text-blue-800 mb-1">Justificación de Aptitud</p>
               <p className="text-sm text-blue-900">
                 {report.fit_custodio?.justificacion}
@@ -159,23 +164,23 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
           </div>
         </div>
 
-        {/* Module Cards Grid */}
-        <div className="print-page-break">
-          <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+        {/* Module Cards Grid - Page 2 */}
+        <div className="print-section-analysis print-avoid-break">
+          <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
             <Eye className="h-5 w-5 text-blue-600" />
             Análisis por Módulo
           </h2>
-          <div className="grid grid-cols-3 gap-4 print-avoid-break">
+          <div className="grid grid-cols-3 gap-3">
             {report.analisis_modulos?.map((modulo, index) => {
               const level = getScoreLevel(modulo.score);
               return (
                 <div 
                   key={index} 
-                  className="border border-gray-200 rounded-xl p-4 bg-white hover:shadow-sm transition-shadow"
+                  className="border border-gray-200 rounded-lg p-3 bg-white print-avoid-break"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-gray-800 leading-tight">
+                      <h3 className="text-xs font-semibold text-gray-800 leading-tight">
                         {moduleShortNames[modulo.modulo] || modulo.modulo}
                       </h3>
                       <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${level.color}`}>
@@ -185,14 +190,14 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
                     <SIERCPScoreGauge score={modulo.score} size="sm" />
                   </div>
                   
-                  <div className="space-y-2 text-xs">
+                  <div className="space-y-1 text-xs">
                     <div>
-                      <p className="text-gray-500 font-medium uppercase tracking-wide mb-0.5">Interpretación</p>
-                      <p className="text-gray-700 leading-relaxed line-clamp-2">{modulo.interpretacion}</p>
+                      <p className="text-gray-500 font-medium uppercase tracking-wide text-[10px]">Interpretación</p>
+                      <p className="text-gray-700 leading-snug text-[11px]">{modulo.interpretacion}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 font-medium uppercase tracking-wide mb-0.5">Implicación</p>
-                      <p className="text-gray-700 leading-relaxed line-clamp-2">{modulo.implicacion_custodio}</p>
+                      <p className="text-gray-500 font-medium uppercase tracking-wide text-[10px]">Implicación</p>
+                      <p className="text-gray-700 leading-snug text-[11px]">{modulo.implicacion_custodio}</p>
                     </div>
                   </div>
                 </div>
@@ -289,16 +294,16 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         )}
 
         {/* ============================================= */}
-        {/* CONCLUSION & DECISION SEAL                   */}
+        {/* CONCLUSION & DECISION SEAL (Page 3)          */}
         {/* ============================================= */}
-        <div className="border-2 border-gray-300 rounded-xl p-6 bg-gradient-to-br from-slate-50 to-white print-page-break print-avoid-break">
-          <h3 className="font-bold text-gray-800 mb-4 text-base">Conclusión Profesional</h3>
-          <p className="text-gray-700 leading-relaxed mb-6">
+        <div className="border-2 border-gray-300 rounded-xl p-5 bg-gradient-to-br from-slate-50 to-white print-section-conclusion print-avoid-break">
+          <h3 className="font-bold text-gray-800 mb-3 text-base">Conclusión Profesional</h3>
+          <p className="text-gray-700 leading-relaxed mb-4 text-sm">
             {report.conclusion_profesional}
           </p>
           
           {/* Decision Badge Centered */}
-          <div className="flex justify-center pt-4 border-t border-gray-200">
+          <div className="flex justify-center pt-3 border-t border-gray-200">
             <SIERCPDecisionBadge 
               nivel={report.fit_custodio?.nivel || 'Media'} 
               size="lg" 
@@ -309,18 +314,18 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         {/* ============================================= */}
         {/* FOOTER / DISCLAIMER                          */}
         {/* ============================================= */}
-        <div className="text-xs text-gray-500 border-t-2 border-gray-200 pt-6 mt-8">
-          <p className="font-semibold text-gray-600 mb-2">AVISO LEGAL</p>
-          <p className="leading-relaxed">
+        <div className="text-xs text-gray-500 border-t-2 border-gray-200 pt-4 mt-6">
+          <p className="font-semibold text-gray-600 mb-1 text-[11px]">AVISO LEGAL</p>
+          <p className="leading-relaxed text-[10px]">
             Este informe es generado con asistencia de inteligencia artificial y debe ser interpretado 
             por profesionales calificados en psicología o recursos humanos. Los resultados son orientativos 
             y no sustituyen una evaluación clínica completa. La decisión final de contratación debe 
             considerar múltiples factores adicionales incluyendo entrevistas, verificación de antecedentes 
             y referencias laborales.
           </p>
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-100">
+          <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100 text-[10px]">
             <span>Generado por: {report.metadata?.generado_por || 'SIERCP AI'} v2.0</span>
-            <span>© Detecta {new Date().getFullYear()}</span>
+            <span className="font-semibold">DETECTA © {new Date().getFullYear()}</span>
           </div>
         </div>
       </div>

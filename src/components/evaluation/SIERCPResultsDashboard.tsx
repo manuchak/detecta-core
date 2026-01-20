@@ -516,7 +516,7 @@ export const SIERCPResultsDashboard: React.FC<SIERCPResultsDashboardProps> = ({
         {/* ============================================= */}
         {/* ACTIONS                                      */}
         {/* ============================================= */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
           <Button
             variant="outline"
             onClick={onNewEvaluation}
@@ -526,23 +526,28 @@ export const SIERCPResultsDashboard: React.FC<SIERCPResultsDashboardProps> = ({
             Nueva Evaluación
           </Button>
           
-          <Button
-            onClick={onPrint}
-            disabled={isGenerating}
-            className="bg-gradient-to-r from-slate-800 to-slate-900 text-white hover:from-slate-700 hover:to-slate-800 flex items-center gap-2"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generando Informe...
-              </>
-            ) : (
-              <>
-                <FileText className="h-4 w-4" />
-                {report ? 'Imprimir / Guardar PDF' : 'Generar Informe PDF'}
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              onClick={onPrint}
+              disabled={isGenerating}
+              className="bg-gradient-to-r from-slate-800 to-slate-900 text-white hover:from-slate-700 hover:to-slate-800 flex items-center gap-2"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generando Informe...
+                </>
+              ) : (
+                <>
+                  <FileText className="h-4 w-4" />
+                  {report ? 'Imprimir / Guardar PDF' : 'Generar Informe PDF'}
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground max-w-xs text-right">
+              💡 Para un PDF limpio, desmarque "Encabezados y pies de página" en el diálogo de impresión
+            </p>
+          </div>
         </div>
 
         {/* ============================================= */}
