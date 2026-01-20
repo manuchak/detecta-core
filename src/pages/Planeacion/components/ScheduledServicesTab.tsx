@@ -428,7 +428,7 @@ export function ScheduledServicesTab() {
                           onCancel={async (id, reason) => {
                             await updateServiceConfiguration({
                               id,
-                              data: { estado_asignacion: 'cancelado', motivo_cancelacion: reason }
+                              data: { estado_planeacion: 'cancelado' }
                             });
                             await refetch();
                           }}
