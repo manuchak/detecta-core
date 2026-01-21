@@ -20,7 +20,7 @@ import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleIn
 import { StatusUpdateButton, type OperationalStatus } from '@/components/planeacion/StatusUpdateButton';
 import { HourDivider } from '@/components/planeacion/HourDivider';
 import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/planeacion/UpcomingServiceBadge';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy, MapPinOff } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
@@ -833,6 +833,14 @@ export function ScheduledServicesTab() {
                             <Badge variant="outline" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border-purple-200 text-[10px] px-1.5 py-0.5 flex-shrink-0">
                               <User className="w-2.5 h-2.5 mr-0.5" />
                               PF
+                            </Badge>
+                          )}
+                          
+                          {/* False Positioning Badge */}
+                          {service.posicionamiento_falso && (
+                            <Badge variant="outline" className="bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border-violet-300 text-[10px] px-1.5 py-0.5 flex-shrink-0">
+                              <MapPinOff className="w-2.5 h-2.5 mr-0.5" />
+                              Pos. Falso
                             </Badge>
                           )}
                         </div>
