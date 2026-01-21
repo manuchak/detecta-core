@@ -98,23 +98,44 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     const normalizedId = serviceId.trim().toUpperCase();
 
     try {
-      // Buscar en servicios_custodia - search in multiple fields
-      const { data: custodiaData, error: custodiaError } = await supabase
-        .from('servicios_custodia')
-        .select('*')
-        .ilike('id_servicio', `%${normalizedId}%`)
-        .order('fecha_hora_cita', { ascending: false });
+      // ✅ Usar Promise.allSettled para resiliencia - si una tabla falla, aún mostramos la otra
+      const [custodiaResult, planificadosResult] = await Promise.allSettled([
+        supabase
+          .from('servicios_custodia')
+          .select('*')
+          .ilike('id_servicio', `%${normalizedId}%`)
+          .order('fecha_hora_cita', { ascending: false }),
+        supabase
+          .from('servicios_planificados')
+          .select('*')
+          .or(`id_servicio.ilike.%${normalizedId}%,id_interno_cliente.ilike.%${normalizedId}%`)
+          .order('fecha_hora_cita', { ascending: false })
+      ]);
 
-      if (custodiaError) throw custodiaError;
+      // Extraer datos con manejo de errores individuales
+      const custodiaData = custodiaResult.status === 'fulfilled' && !custodiaResult.value.error
+        ? custodiaResult.value.data
+        : [];
+      const planificadosData = planificadosResult.status === 'fulfilled' && !planificadosResult.value.error
+        ? planificadosResult.value.data
+        : [];
 
-      // Buscar en servicios_planificados - search in multiple fields
-      const { data: planificadosData, error: planificadosError } = await supabase
-        .from('servicios_planificados')
-        .select('*')
-        .or(`id_servicio.ilike.%${normalizedId}%,id_interno_cliente.ilike.%${normalizedId}%`)
-        .order('fecha_hora_cita', { ascending: false });
+      // Log de advertencias si alguna tabla falló
+      if (custodiaResult.status === 'rejected' || (custodiaResult.status === 'fulfilled' && custodiaResult.value.error)) {
+        console.warn('[ServiceQuery] No access to servicios_custodia, showing only planificados');
+      }
+      if (planificadosResult.status === 'rejected' || (planificadosResult.status === 'fulfilled' && planificadosResult.value.error)) {
+        console.warn('[ServiceQuery] No access to servicios_planificados, showing only custodia');
+      }
 
-      if (planificadosError) throw planificadosError;
+      // Si ambas fallaron, entonces sí lanzar error
+      const bothFailed = 
+        (custodiaResult.status === 'rejected' || custodiaResult.value?.error) &&
+        (planificadosResult.status === 'rejected' || planificadosResult.value?.error);
+      
+      if (bothFailed) {
+        throw new Error('No tienes permisos para realizar búsquedas en ninguna tabla');
+      }
 
       // Combinar y mapear resultados
       const custodiaResults: ServiceQueryResult[] = (custodiaData || []).map(service => ({
@@ -291,41 +312,50 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         ? `${format(endDate, 'yyyy-MM-dd')}T23:59:59${CDMX_OFFSET}` 
         : undefined;
 
-      // Query para servicios_custodia
+      // ✅ Construir queries
       let custodiaQuery = supabase
         .from('servicios_custodia')
         .select('*')
         .ilike('nombre_cliente', `%${clientName}%`);
 
-      if (startISO) {
-        custodiaQuery = custodiaQuery.gte('fecha_hora_cita', startISO);
-      }
-      if (endISO) {
-        custodiaQuery = custodiaQuery.lte('fecha_hora_cita', endISO);
-      }
+      if (startISO) custodiaQuery = custodiaQuery.gte('fecha_hora_cita', startISO);
+      if (endISO) custodiaQuery = custodiaQuery.lte('fecha_hora_cita', endISO);
 
-      const { data: custodiaData, error: custodiaError } = await custodiaQuery
-        .order('fecha_hora_cita', { ascending: false });
-
-      if (custodiaError) throw custodiaError;
-
-      // Query para servicios_planificados
       let planificadosQuery = supabase
         .from('servicios_planificados')
         .select('*')
         .ilike('nombre_cliente', `%${clientName}%`);
 
-      if (startISO) {
-        planificadosQuery = planificadosQuery.gte('fecha_hora_cita', startISO);
-      }
-      if (endISO) {
-        planificadosQuery = planificadosQuery.lte('fecha_hora_cita', endISO);
+      if (startISO) planificadosQuery = planificadosQuery.gte('fecha_hora_cita', startISO);
+      if (endISO) planificadosQuery = planificadosQuery.lte('fecha_hora_cita', endISO);
+
+      // ✅ Usar Promise.allSettled para resiliencia
+      const [custodiaResult, planificadosResult] = await Promise.allSettled([
+        custodiaQuery.order('fecha_hora_cita', { ascending: false }),
+        planificadosQuery.order('fecha_hora_cita', { ascending: false })
+      ]);
+
+      // Extraer datos con manejo de errores individuales
+      const custodiaData = custodiaResult.status === 'fulfilled' && !custodiaResult.value.error
+        ? custodiaResult.value.data
+        : [];
+      const planificadosData = planificadosResult.status === 'fulfilled' && !planificadosResult.value.error
+        ? planificadosResult.value.data
+        : [];
+
+      // Log de advertencias si alguna tabla falló
+      if (custodiaResult.status === 'rejected' || (custodiaResult.status === 'fulfilled' && custodiaResult.value.error)) {
+        console.warn('[ServiceQuery] No access to servicios_custodia, showing only planificados');
       }
 
-      const { data: planificadosData, error: planificadosError } = await planificadosQuery
-        .order('fecha_hora_cita', { ascending: false });
-
-      if (planificadosError) throw planificadosError;
+      // Si ambas fallaron, lanzar error
+      const bothFailed = 
+        (custodiaResult.status === 'rejected' || custodiaResult.value?.error) &&
+        (planificadosResult.status === 'rejected' || planificadosResult.value?.error);
+      
+      if (bothFailed) {
+        throw new Error('No tienes permisos para realizar búsquedas en ninguna tabla');
+      }
 
       // Mapear resultados igual que antes
       const custodiaResults: ServiceQueryResult[] = (custodiaData || []).map(service => ({
