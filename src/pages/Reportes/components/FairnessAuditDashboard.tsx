@@ -1,12 +1,45 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertTriangle, Scale, Users, TrendingUp, UserCheck, BarChart3 } from 'lucide-react';
-import { useFairnessAuditMetrics } from '../hooks/useFairnessAuditMetrics';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertTriangle, Scale, Users, TrendingUp, UserCheck, BarChart3, Calendar, Info } from 'lucide-react';
+import { useFairnessAuditMetrics, PeriodoEquidad } from '../hooks/useFairnessAuditMetrics';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format, subDays, subMonths } from 'date-fns';
+import { es } from 'date-fns/locale';
 
+const PERIODO_OPTIONS: { value: PeriodoEquidad; label: string }[] = [
+  { value: 'semana', label: 'Última semana' },
+  { value: 'mes', label: 'Último mes' },
+  { value: 'trimestre', label: 'Último trimestre' },
+  { value: 'todo', label: 'Todo el tiempo' },
+];
+
+const INDICATOR_TOOLTIPS = {
+  gini: 'El Índice Gini mide la desigualdad en la distribución de asignaciones. 0 = igualdad perfecta (todos reciben igual), 1 = desigualdad máxima (uno recibe todo). Meta: <0.25',
+  entropia: 'La Entropía de Shannon mide la diversidad en la distribución. 100% = asignaciones perfectamente distribuidas. Valores bajos indican concentración en pocos custodios.',
+  palma: 'El Ratio Palma compara las asignaciones del 10% más favorecido vs el 40% menos favorecido. >2x indica desigualdad significativa que requiere atención.',
+  desviados: 'Número de custodios que reciben significativamente más (+) o menos (-) asignaciones que el promedio, basado en desviación estándar (Z-Score).',
+  hhi: 'El Índice Herfindahl-Hirschman mide concentración de mercado. <1,500 = baja concentración (saludable), 1,500-2,500 = moderada, >2,500 = alta (problema).',
+};
+
+function getDateRangeLabel(periodo: PeriodoEquidad): string {
+  const hoy = new Date();
+  switch (periodo) {
+    case 'semana':
+      return `${format(subDays(hoy, 7), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
+    case 'mes':
+      return `${format(subMonths(hoy, 1), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
+    case 'trimestre':
+      return `${format(subMonths(hoy, 3), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
+    case 'todo':
+      return 'Histórico completo';
+  }
+}
 const CATEGORIA_COLORS = {
   MUY_FAVORECIDO: 'hsl(var(--destructive))',
   FAVORECIDO: 'hsl(25 95% 53%)',
@@ -24,7 +57,8 @@ const CATEGORIA_LABELS = {
 };
 
 export default function FairnessAuditDashboard() {
-  const { data: metrics, isLoading, error } = useFairnessAuditMetrics();
+  const [periodo, setPeriodo] = useState<PeriodoEquidad>('mes');
+  const { data: metrics, isLoading, error } = useFairnessAuditMetrics(periodo);
 
   if (isLoading) {
     return (
@@ -63,7 +97,25 @@ export default function FairnessAuditDashboard() {
   const favorecidos = custodiosDesviados.filter(c => c.categoria === 'FAVORECIDO').length;
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
+      {/* Period Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-muted/30 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">Período de análisis</p>
+            <p className="text-xs text-muted-foreground">{getDateRangeLabel(periodo)}</p>
+          </div>
+        </div>
+        <ToggleGroup type="single" value={periodo} onValueChange={(v) => v && setPeriodo(v as PeriodoEquidad)}>
+          {PERIODO_OPTIONS.map(opt => (
+            <ToggleGroupItem key={opt.value} value={opt.value} size="sm">
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </div>
       {/* Status Banner */}
       <Card className={`${statusColor}/10 border-${statusColor.replace('bg-', '')}/30`}>
         <CardContent className="pt-6">
@@ -94,6 +146,14 @@ export default function FairnessAuditDashboard() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Scale className="h-4 w-4" />
               Índice Gini
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{INDICATOR_TOOLTIPS.gini}</p>
+                </TooltipContent>
+              </UITooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -120,6 +180,14 @@ export default function FairnessAuditDashboard() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Entropía Shannon
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{INDICATOR_TOOLTIPS.entropia}</p>
+                </TooltipContent>
+              </UITooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -138,6 +206,14 @@ export default function FairnessAuditDashboard() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Ratio Palma
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{INDICATOR_TOOLTIPS.palma}</p>
+                </TooltipContent>
+              </UITooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -158,6 +234,14 @@ export default function FairnessAuditDashboard() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
               Custodios Desviados
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{INDICATOR_TOOLTIPS.desviados}</p>
+                </TooltipContent>
+              </UITooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -235,6 +319,14 @@ export default function FairnessAuditDashboard() {
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               Índice Herfindahl-Hirschman (HHI)
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p className="text-xs">{INDICATOR_TOOLTIPS.hhi}</p>
+                </TooltipContent>
+              </UITooltip>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -420,5 +512,6 @@ export default function FairnessAuditDashboard() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
