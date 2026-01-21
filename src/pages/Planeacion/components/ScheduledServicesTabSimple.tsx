@@ -102,25 +102,24 @@ export function ScheduledServicesTab() {
     ).length;
   }, [summary?.services_data]);
 
-  // Config for estado_planeacion semáforo
-  const ESTADO_PLANEACION_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
-    'pendiente_asignacion': { label: 'Sin asignar', bgColor: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
-    'planificado': { label: 'Planificado', bgColor: 'bg-slate-400', textColor: 'text-slate-600 dark:text-slate-400' },
-    'confirmado': { label: 'Confirmado', bgColor: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400' },
-    'en_progreso': { label: 'En progreso', bgColor: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
-    'en_sitio': { label: 'En sitio', bgColor: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
-    'finalizado': { label: 'Finalizado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400' },
-    'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400' },
-    'cancelado': { label: 'Cancelado', bgColor: 'bg-gray-400', textColor: 'text-gray-500 dark:text-gray-400' },
+  // Config for estados OPERATIVOS del semáforo (calculados en tiempo real)
+  const ESTADO_OPERATIVO_CONFIG: Record<string, { label: string; bgColor: string; textColor: string; priority: number }> = {
+    'sin_asignar': { label: 'Sin asignar', bgColor: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', priority: 1 },
+    'armado_pendiente': { label: 'Armado pend.', bgColor: 'bg-orange-500', textColor: 'text-orange-600 dark:text-orange-400', priority: 2 },
+    'pendiente_inicio': { label: 'Pend. arribar', bgColor: 'bg-rose-500', textColor: 'text-rose-600 dark:text-rose-400', priority: 3 },
+    'pendiente': { label: 'Pendiente', bgColor: 'bg-yellow-500', textColor: 'text-yellow-600 dark:text-yellow-400', priority: 4 },
+    'programado': { label: 'Programado', bgColor: 'bg-slate-400', textColor: 'text-slate-600 dark:text-slate-400', priority: 5 },
+    'en_sitio': { label: 'En sitio', bgColor: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', priority: 6 },
+    'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400', priority: 7 },
   };
 
-  // Count services by estado_planeacion
-  const statusCounts = useMemo((): Record<string, number> => {
+  // Count services by ESTADO OPERATIVO (calculado en tiempo real)
+  const operationalStatusCounts = useMemo((): Record<string, number> => {
     if (!summary?.services_data) return {};
     const counts: Record<string, number> = {};
     summary.services_data.forEach((service: any) => {
-      const estado = service.estado_planeacion || service.estado || 'sin_estado';
-      counts[estado] = (counts[estado] || 0) + 1;
+      const opStatus = getOperationalStatus(service);
+      counts[opStatus.status] = (counts[opStatus.status] || 0) + 1;
     });
     return counts;
   }, [summary?.services_data]);
@@ -768,15 +767,20 @@ export function ScheduledServicesTab() {
               )}
             </div>
             
-            {/* Right: Status Semáforo - Compact Pills */}
+            {/* Right: Status Semáforo OPERATIVO - Compact Pills (ordenado por prioridad) */}
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground font-medium hidden lg:inline">Estados:</span>
+              <span className="text-muted-foreground font-medium hidden lg:inline">Estado operativo:</span>
               <div className="flex flex-wrap items-center gap-1.5">
-                {Object.entries(statusCounts)
+                {Object.entries(operationalStatusCounts)
                   .filter(([_, count]) => count > 0)
-                  .sort((a, b) => b[1] - a[1])
+                  .sort((a, b) => {
+                    // Ordenar por prioridad operativa (urgentes primero)
+                    const priorityA = ESTADO_OPERATIVO_CONFIG[a[0]]?.priority ?? 99;
+                    const priorityB = ESTADO_OPERATIVO_CONFIG[b[0]]?.priority ?? 99;
+                    return priorityA - priorityB;
+                  })
                   .map(([estado, count]) => {
-                    const config = ESTADO_PLANEACION_CONFIG[estado] || { 
+                    const config = ESTADO_OPERATIVO_CONFIG[estado] || { 
                       label: estado.replace(/_/g, ' '), 
                       bgColor: 'bg-gray-400', 
                       textColor: 'text-gray-600 dark:text-gray-400' 
