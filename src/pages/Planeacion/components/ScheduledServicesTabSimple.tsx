@@ -94,6 +94,14 @@ export function ScheduledServicesTab() {
   
   const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
 
+  // Count false positionings
+  const falsePositioningCount = useMemo((): number => {
+    if (!summary?.services_data) return 0;
+    return summary.services_data.filter(
+      (s: any) => s.posicionamiento_falso === true || s.posicionamiento_falso === 'true'
+    ).length;
+  }, [summary?.services_data]);
+
   // Group services by client for breakdown popover
   const servicesByClient = useMemo((): Array<{ name: string; count: number }> => {
     if (!summary?.services_data) return [];
@@ -668,6 +676,12 @@ export function ScheduledServicesTab() {
             <span className="apple-summary-value apple-text-warning">{pendingSummary?.total_pending || 0}</span>
             <span className="apple-summary-label">pendientes</span>
           </div>
+          {falsePositioningCount > 0 && (
+            <div className="apple-summary-item">
+              <span className="apple-summary-value text-violet-600 dark:text-violet-400">{falsePositioningCount}</span>
+              <span className="apple-summary-label">pos. falso</span>
+            </div>
+          )}
         </div>
       </div>
 
