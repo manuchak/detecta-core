@@ -332,13 +332,16 @@ export function ScheduledServicesTab() {
         <div className="apple-summary-compact">
           <Popover>
             <PopoverTrigger asChild>
-              <div className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors group">
+              <button 
+                type="button"
+                className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors group focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
                 <div className="flex items-center gap-1">
                   <span className="apple-summary-value">{summary?.total_services || 0}</span>
                   <Info className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <span className="apple-summary-label">total</span>
-              </div>
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-80 bg-popover z-[100] border-2 border-slate-200 shadow-lg" align="center" sideOffset={8}>
               <div className="space-y-3">
