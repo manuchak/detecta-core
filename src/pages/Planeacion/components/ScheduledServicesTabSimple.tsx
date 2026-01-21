@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
@@ -19,7 +20,7 @@ import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleIn
 import { StatusUpdateButton, type OperationalStatus } from '@/components/planeacion/StatusUpdateButton';
 import { HourDivider } from '@/components/planeacion/HourDivider';
 import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/planeacion/UpcomingServiceBadge';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2 } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
@@ -92,6 +93,36 @@ export function ScheduledServicesTab() {
   };
   
   const { data: summary, isLoading: loading, error, refetch } = useScheduledServices(selectedDate);
+
+  // Group services by client for breakdown popover
+  const servicesByClient = useMemo((): Array<{ name: string; count: number }> => {
+    if (!summary?.services_data) return [];
+    const clientCounts: Record<string, number> = {};
+    summary.services_data.forEach((service) => {
+      const clientName = service.cliente_nombre || 'Sin cliente';
+      clientCounts[clientName] = (clientCounts[clientName] || 0) + 1;
+    });
+    return Object.entries(clientCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [summary?.services_data]);
+
+  // Copy client breakdown to clipboard
+  const copyClientBreakdown = async () => {
+    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: es });
+    const lines = [
+      `Servicios del ${dateStr}`,
+      '─'.repeat(30),
+      ...servicesByClient.map(({ name, count }) => 
+        `${name.padEnd(25)} ${count}`
+      ),
+      '─'.repeat(30),
+      `Total:${' '.repeat(19)}${summary?.total_services || 0}`,
+    ];
+    
+    await navigator.clipboard.writeText(lines.join('\n'));
+    toast.success('Lista copiada al portapapeles');
+  };
   const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
   const { 
@@ -581,10 +612,54 @@ export function ScheduledServicesTab() {
       <div className="apple-date-header">
         <div className="apple-text-title">{format(selectedDate, 'PPP', { locale: es })}</div>
         <div className="apple-summary-compact">
-          <div className="apple-summary-item">
-            <span className="apple-summary-value">{summary?.total_services || 0}</span>
-            <span className="apple-summary-label">total</span>
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button 
+                type="button"
+                className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors group focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <div className="flex items-center gap-1">
+                  <span className="apple-summary-value">{summary?.total_services || 0}</span>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <span className="apple-summary-label">total</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 bg-popover z-[100] border-2 border-slate-200 shadow-lg" align="center" sideOffset={8}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm">Desglose por Cliente</h4>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={copyClientBreakdown}
+                    className="h-7 px-2"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                    Copiar
+                  </Button>
+                </div>
+                
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {servicesByClient.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin servicios</p>
+                  ) : (
+                    servicesByClient.map(({ name, count }) => (
+                      <div key={name} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground truncate max-w-[200px]">{name}</span>
+                        <span className="font-medium tabular-nums">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="pt-2 border-t flex justify-between font-semibold text-sm">
+                  <span>Total</span>
+                  <span className="tabular-nums">{summary?.total_services || 0}</span>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="apple-summary-item">
             <span className="apple-summary-value apple-text-success">{summary?.assigned_services || 0}</span>
             <span className="apple-summary-label">asignados</span>
