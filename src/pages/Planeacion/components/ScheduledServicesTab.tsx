@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useScheduledServices } from '@/hooks/useScheduledServices';
 import { usePendingServices } from '@/hooks/usePendingServices';
 import { usePendingArmadoServices } from '@/hooks/usePendingArmadoServices';
@@ -14,7 +15,7 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History, Copy } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -56,6 +57,42 @@ export function ScheduledServicesTab() {
   // Estado para modal de asignación de armado/abordo
   const [armedAssignmentModalOpen, setArmedAssignmentModalOpen] = useState(false);
   const [selectedArmadoService, setSelectedArmadoService] = useState<any>(null);
+
+  // Agrupar servicios por cliente para el tooltip
+  const servicesByClient = useMemo((): Array<{ name: string; count: number }> => {
+    if (!summary?.services_data) return [];
+    
+    const clientCounts: Record<string, number> = {};
+    summary.services_data.forEach((service) => {
+      const clientName = service.cliente_nombre || 'Sin cliente';
+      clientCounts[clientName] = (clientCounts[clientName] || 0) + 1;
+    });
+    
+    return Object.entries(clientCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [summary?.services_data]);
+
+  // Función para copiar desglose al portapapeles
+  const copyClientBreakdown = async () => {
+    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: es });
+    const lines = [
+      `Servicios del ${dateStr}`,
+      '─'.repeat(35),
+      ...servicesByClient.map(({ name, count }) => 
+        `${name.padEnd(28)} ${String(count).padStart(3)}`
+      ),
+      '─'.repeat(35),
+      `Total:${' '.repeat(22)}${String(summary?.total_services || 0).padStart(3)}`,
+    ];
+    
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      toast.success('Lista copiada al portapapeles');
+    } catch (err) {
+      toast.error('Error al copiar');
+    }
+  };
 
   // Handler para completar asignación de armado
   const handleArmedAssignmentComplete = async (data: any) => {
@@ -293,10 +330,48 @@ export function ScheduledServicesTab() {
       <div className="apple-date-header">
         <div className="apple-text-title">{format(selectedDate, 'PPP', { locale: es })}</div>
         <div className="apple-summary-compact">
-          <div className="apple-summary-item">
-            <span className="apple-summary-value">{summary?.total_services || 0}</span>
-            <span className="apple-summary-label">total</span>
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <div className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors">
+                <span className="apple-summary-value">{summary?.total_services || 0}</span>
+                <span className="apple-summary-label">total</span>
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 bg-popover" align="center">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm">Desglose por Cliente</h4>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={copyClientBreakdown}
+                    className="h-7 px-2"
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                    Copiar
+                  </Button>
+                </div>
+                
+                <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {servicesByClient.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin servicios</p>
+                  ) : (
+                    servicesByClient.map(({ name, count }) => (
+                      <div key={name} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground truncate max-w-[200px]">{name}</span>
+                        <span className="font-medium tabular-nums">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="pt-2 border-t flex justify-between font-semibold text-sm">
+                  <span>Total</span>
+                  <span className="tabular-nums">{summary?.total_services || 0}</span>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="apple-summary-item">
             <span className="apple-summary-value apple-text-success">{summary?.assigned_services || 0}</span>
             <span className="apple-summary-label">asignados</span>
