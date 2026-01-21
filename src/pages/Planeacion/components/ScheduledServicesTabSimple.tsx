@@ -102,6 +102,29 @@ export function ScheduledServicesTab() {
     ).length;
   }, [summary?.services_data]);
 
+  // Config for estado_planeacion semáforo
+  const ESTADO_PLANEACION_CONFIG: Record<string, { label: string; bgColor: string; textColor: string }> = {
+    'pendiente_asignacion': { label: 'Sin asignar', bgColor: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
+    'planificado': { label: 'Planificado', bgColor: 'bg-slate-400', textColor: 'text-slate-600 dark:text-slate-400' },
+    'confirmado': { label: 'Confirmado', bgColor: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400' },
+    'en_progreso': { label: 'En progreso', bgColor: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
+    'en_sitio': { label: 'En sitio', bgColor: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
+    'finalizado': { label: 'Finalizado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400' },
+    'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400' },
+    'cancelado': { label: 'Cancelado', bgColor: 'bg-gray-400', textColor: 'text-gray-500 dark:text-gray-400' },
+  };
+
+  // Count services by estado_planeacion
+  const statusCounts = useMemo((): Record<string, number> => {
+    if (!summary?.services_data) return {};
+    const counts: Record<string, number> = {};
+    summary.services_data.forEach((service: any) => {
+      const estado = service.estado_planeacion || service.estado || 'sin_estado';
+      counts[estado] = (counts[estado] || 0) + 1;
+    });
+    return counts;
+  }, [summary?.services_data]);
+
   // Group services by client for breakdown popover
   const servicesByClient = useMemo((): Array<{ name: string; count: number }> => {
     if (!summary?.services_data) return [];
@@ -683,6 +706,32 @@ export function ScheduledServicesTab() {
             </div>
           )}
         </div>
+
+        {/* Semáforo de Estados de Planeación */}
+        {summary?.services_data && summary.services_data.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs border-t border-slate-100 dark:border-slate-800 mt-2">
+            <span className="text-muted-foreground font-medium">Estado planeación:</span>
+            {Object.entries(statusCounts)
+              .filter(([_, count]) => count > 0)
+              .sort((a, b) => b[1] - a[1])
+              .map(([estado, count]) => {
+                const config = ESTADO_PLANEACION_CONFIG[estado] || { 
+                  label: estado.replace(/_/g, ' '), 
+                  bgColor: 'bg-gray-400', 
+                  textColor: 'text-gray-600 dark:text-gray-400' 
+                };
+                return (
+                  <div key={estado} className="flex items-center gap-1.5">
+                    <div className={cn("w-2.5 h-2.5 rounded-full", config.bgColor)} />
+                    <span className={cn("font-semibold tabular-nums", config.textColor)}>
+                      {count}
+                    </span>
+                    <span className="text-muted-foreground">{config.label}</span>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       {/* Services Agenda */}
