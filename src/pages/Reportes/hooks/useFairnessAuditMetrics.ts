@@ -75,11 +75,9 @@ export function useFairnessAuditMetrics() {
     queryKey: ['fairness-audit-metrics'],
     queryFn: async (): Promise<FairnessAuditMetrics> => {
       // Fetch all custodian assignments
-    const { data: servicios, error } = await supabase
-      .from('servicios_planificados')
-      .select('id, custodio_id, custodio_asignado, asignado_por, created_by, created_at')
-      .not('custodio_id', 'is', null)
-      .order('created_at', { ascending: false })
+      const { data: servicios, error } = await supabase
+        .from('servicios_planificados')
+        .select('id, custodio_id, custodio_asignado, asignado_por, created_by, created_at')
         .not('custodio_id', 'is', null)
         .order('created_at', { ascending: false });
 
