@@ -1,6 +1,32 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FairnessAuditMetrics } from '../types';
+import { subDays, subMonths } from 'date-fns';
+
+export type PeriodoEquidad = 'semana' | 'mes' | 'trimestre' | 'todo';
+
+function getDateRangeForPeriodo(periodo: PeriodoEquidad): { desde: Date; hasta: Date } {
+  const hasta = new Date();
+  let desde: Date;
+  
+  switch (periodo) {
+    case 'semana':
+      desde = subDays(hasta, 7);
+      break;
+    case 'mes':
+      desde = subMonths(hasta, 1);
+      break;
+    case 'trimestre':
+      desde = subMonths(hasta, 3);
+      break;
+    case 'todo':
+    default:
+      desde = new Date('2020-01-01');
+      break;
+  }
+  
+  return { desde, hasta };
+}
 
 // ===== ALGORITMOS DE EQUIDAD =====
 
@@ -70,15 +96,19 @@ function categorizarZScore(z: number): FairnessAuditMetrics['custodiosDesviados'
   return 'NORMAL';
 }
 
-export function useFairnessAuditMetrics() {
+export function useFairnessAuditMetrics(periodo: PeriodoEquidad = 'mes') {
   return useQuery({
-    queryKey: ['fairness-audit-metrics'],
+    queryKey: ['fairness-audit-metrics', periodo],
     queryFn: async (): Promise<FairnessAuditMetrics> => {
-      // Fetch all custodian assignments
+      const { desde, hasta } = getDateRangeForPeriodo(periodo);
+      
+      // Fetch all custodian assignments within period
       const { data: servicios, error } = await supabase
         .from('servicios_planificados')
         .select('id, custodio_id, custodio_asignado, asignado_por, created_by, created_at')
         .not('custodio_id', 'is', null)
+        .gte('created_at', desde.toISOString())
+        .lte('created_at', hasta.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
