@@ -212,15 +212,28 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
       // Si un id_servicio existe en custodia, excluirlo de planificados
       const custodiaIds = new Set(
         custodiaResults
-          .map(s => s.id_servicio?.toUpperCase())
-          .filter(Boolean)
+          .map(s => s.id_servicio?.trim().toUpperCase())
+          .filter((id): id is string => !!id)
       );
       
-      const planificadosSinDuplicados = planificadosResults.filter(
-        s => !custodiaIds.has(s.id_servicio?.toUpperCase())
-      );
+      console.log('[ServiceQuery] Dedup - Custodia IDs:', Array.from(custodiaIds));
+      
+      const planificadosSinDuplicados = planificadosResults.filter(s => {
+        const normalizedId = s.id_servicio?.trim().toUpperCase();
+        const isDuplicate = normalizedId ? custodiaIds.has(normalizedId) : false;
+        if (isDuplicate) {
+          console.log('[ServiceQuery] Removing duplicate planificado:', s.id_servicio);
+        }
+        return !isDuplicate;
+      });
 
-      const allResults = [...custodiaResults, ...planificadosSinDuplicados];
+      // Ordenar: servicios_custodia primero, luego planificados
+      const allResults = [...custodiaResults, ...planificadosSinDuplicados].sort((a, b) => {
+        if (a.fuente_tabla === 'servicios_custodia' && b.fuente_tabla !== 'servicios_custodia') return -1;
+        if (b.fuente_tabla === 'servicios_custodia' && a.fuente_tabla !== 'servicios_custodia') return 1;
+        return new Date(b.fecha_hora_cita).getTime() - new Date(a.fecha_hora_cita).getTime();
+      });
+      
       setResults(allResults);
 
       if (allResults.length === 0) {
@@ -410,15 +423,22 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
       // ✅ Deduplicar: priorizar servicios_custodia sobre servicios_planificados
       const custodiaIds = new Set(
         custodiaResults
-          .map(s => s.id_servicio?.toUpperCase())
-          .filter(Boolean)
+          .map(s => s.id_servicio?.trim().toUpperCase())
+          .filter((id): id is string => !!id)
       );
       
-      const planificadosSinDuplicados = planificadosResults.filter(
-        s => !custodiaIds.has(s.id_servicio?.toUpperCase())
-      );
+      const planificadosSinDuplicados = planificadosResults.filter(s => {
+        const normalizedId = s.id_servicio?.trim().toUpperCase();
+        return !(normalizedId && custodiaIds.has(normalizedId));
+      });
 
-      const allResults = [...custodiaResults, ...planificadosSinDuplicados];
+      // Ordenar: servicios_custodia primero, luego planificados
+      const allResults = [...custodiaResults, ...planificadosSinDuplicados].sort((a, b) => {
+        if (a.fuente_tabla === 'servicios_custodia' && b.fuente_tabla !== 'servicios_custodia') return -1;
+        if (b.fuente_tabla === 'servicios_custodia' && a.fuente_tabla !== 'servicios_custodia') return 1;
+        return new Date(b.fecha_hora_cita).getTime() - new Date(a.fecha_hora_cita).getTime();
+      });
+      
       setResults(allResults);
 
       if (allResults.length === 0) {

@@ -1,8 +1,7 @@
 import React from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { formatCDMXTime } from '@/utils/cdmxTimezone';
-import { MapPin, User, Shield, Clock, CheckCircle2, AlertCircle, Calendar } from 'lucide-react';
+import { MapPin, User, Shield, Clock, CheckCircle2, AlertCircle, Calendar, Database, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 
 interface ServiceQueryCardProps {
@@ -65,9 +64,20 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
             <span className="apple-text-body font-semibold text-foreground">
               {service.id_servicio}
             </span>
-            <span className="apple-text-caption text-muted-foreground">
-              {service.fuente_tabla === 'servicios_custodia' ? 'Ejecutado' : 'Planificado'}
-            </span>
+            <Badge 
+              variant="outline" 
+              className={`text-xs w-fit mt-1 ${
+                service.fuente_tabla === 'servicios_custodia' 
+                  ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800' 
+                  : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+              }`}
+            >
+              {service.fuente_tabla === 'servicios_custodia' ? (
+                <><Database className="w-3 h-3 mr-1" /> Ejecutado</>
+              ) : (
+                <><FileText className="w-3 h-3 mr-1" /> Planificado</>
+              )}
+            </Badge>
           </div>
         </div>
         
