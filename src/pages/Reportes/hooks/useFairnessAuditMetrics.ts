@@ -119,10 +119,10 @@ export function useFairnessAuditMetrics(periodo: PeriodoEquidad = 'mes') {
       const planificadorIds = [...new Set(allServices.map(s => s.asignado_por || s.created_by).filter(Boolean))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, display_name')
         .in('id', planificadorIds);
       
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name || 'Sin nombre']));
+      const profileMap = new Map((profiles || []).map(p => [p.id, p.display_name || 'Sin nombre']));
 
       // Group services by custodio
       const custodioMap = new Map<string, { id: string; nombre: string; servicios: number }>();
