@@ -131,7 +131,7 @@ export function ScheduledServicesTab() {
     await navigator.clipboard.writeText(lines.join('\n'));
     toast.success('Lista copiada al portapapeles');
   };
-  const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices();
+  const { summary: pendingSummary, loading: pendingLoading, refetch: refetchPending } = usePendingServices(selectedDate);
   const { summary: pendingArmadoSummary, loading: pendingArmadoLoading, refetch: refetchPendingArmado } = usePendingArmadoServices();
   const { 
     updateServiceConfiguration, 
