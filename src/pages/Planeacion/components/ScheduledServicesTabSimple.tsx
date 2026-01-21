@@ -779,6 +779,20 @@ export function ScheduledServicesTab() {
                   const hasArmedGuard = !!(service.armado_nombre);
                   const needsArmedGuard = service.incluye_armado || service.requiere_armado;
                   
+                  // False positioning detection (robust for both boolean and string)
+                  const hasFalsePositioning = service.posicionamiento_falso === true || service.posicionamiento_falso === 'true';
+                  
+                  // TEMPORARY DEBUG - Remove after fix
+                  if (service.id_servicio === 'PRCOPEM-7') {
+                    console.log('🔍 PRCOPEM-7 data:', {
+                      posicionamiento_falso: service.posicionamiento_falso,
+                      typeof_pf: typeof service.posicionamiento_falso,
+                      hasFalsePositioning,
+                      cobro_posicionamiento: service.cobro_posicionamiento,
+                      estado_planeacion: service.estado_planeacion
+                    });
+                  }
+                  
                   return (
                     <div 
                       key={service.id || index} 
@@ -837,9 +851,9 @@ export function ScheduledServicesTab() {
                           )}
                           
                           {/* False Positioning Badge */}
-                          {service.posicionamiento_falso && (
-                            <Badge variant="outline" className="bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 border-violet-300 text-[10px] px-1.5 py-0.5 flex-shrink-0">
-                              <MapPinOff className="w-2.5 h-2.5 mr-0.5" />
+                          {hasFalsePositioning && (
+                            <Badge variant="outline" className="bg-violet-200 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300 border-violet-400 border-2 text-[10px] px-2 py-0.5 flex-shrink-0 font-semibold">
+                              <MapPinOff className="w-3 h-3 mr-1" />
                               Pos. Falso
                             </Badge>
                           )}
