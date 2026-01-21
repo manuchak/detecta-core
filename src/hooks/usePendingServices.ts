@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export interface PendingService {
   id: string;
@@ -24,7 +25,7 @@ export interface PendingServicesSummary {
   pending_services: PendingService[];
 }
 
-export function usePendingServices() {
+export function usePendingServices(selectedDate: Date = new Date()) {
   const [summary, setSummary] = useState<PendingServicesSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +35,17 @@ export function usePendingServices() {
     setError(null);
     
     try {
-      // Obtener servicios planificados sin custodio asignado
+      // Formatear fecha usando date-fns para evitar bug de timezone
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Obtener servicios planificados sin custodio asignado del día seleccionado
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('*')
         .is('custodio_asignado', null)
         .not('estado_planeacion', 'in', '(cancelado,completado)')
+        .gte('fecha_hora_cita', `${dateStr}T00:00:00`)
+        .lt('fecha_hora_cita', `${dateStr}T23:59:59`)
         .order('fecha_hora_cita', { ascending: true });
 
       if (error) throw error;
@@ -72,7 +78,7 @@ export function usePendingServices() {
 
   useEffect(() => {
     loadPendingServices();
-  }, []);
+  }, [selectedDate]);
 
   const refetch = () => loadPendingServices();
 
