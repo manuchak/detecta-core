@@ -14,7 +14,8 @@ import { es } from 'date-fns/locale';
 
 const PERIODO_OPTIONS: { value: PeriodoEquidad; label: string }[] = [
   { value: 'semana', label: 'Última semana' },
-  { value: 'mes', label: 'Último mes' },
+  { value: 'mes_actual', label: 'Mes en curso' },
+  { value: 'ultimos_30', label: 'Últimos 30 días' },
   { value: 'trimestre', label: 'Último trimestre' },
   { value: 'todo', label: 'Todo el tiempo' },
 ];
@@ -32,8 +33,11 @@ function getDateRangeLabel(periodo: PeriodoEquidad): string {
   switch (periodo) {
     case 'semana':
       return `${format(subDays(hoy, 7), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
-    case 'mes':
-      return `${format(subMonths(hoy, 1), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
+    case 'mes_actual':
+      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      return `${format(inicioMes, 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
+    case 'ultimos_30':
+      return `${format(subDays(hoy, 30), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
     case 'trimestre':
       return `${format(subMonths(hoy, 3), 'd MMM', { locale: es })} - ${format(hoy, 'd MMM yyyy', { locale: es })}`;
     case 'todo':
@@ -57,7 +61,7 @@ const CATEGORIA_LABELS = {
 };
 
 export default function FairnessAuditDashboard() {
-  const [periodo, setPeriodo] = useState<PeriodoEquidad>('mes');
+  const [periodo, setPeriodo] = useState<PeriodoEquidad>('mes_actual');
   const { data: metrics, isLoading, error } = useFairnessAuditMetrics(periodo);
 
   if (isLoading) {
