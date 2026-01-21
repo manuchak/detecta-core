@@ -37,6 +37,10 @@ export interface ScheduledService {
   // Campo para comentarios internos de planeación
   comentarios_planeacion?: string;
   id_interno_cliente?: string;
+  // Campos para posicionamiento en falso
+  posicionamiento_falso?: boolean;
+  cobro_posicionamiento?: boolean;
+  motivo_posicionamiento_falso?: string;
 }
 
 export interface ScheduledServicesSummary {
