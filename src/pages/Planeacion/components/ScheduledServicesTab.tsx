@@ -15,7 +15,7 @@ import { ReassignmentModal, type ServiceForReassignment } from '@/components/pla
 import { ServiceHistoryModal } from '@/components/planeacion/ServiceHistoryModal';
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { AirlineDateSelector } from '@/components/planeacion/AirlineDateSelector';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History, Copy } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Users, Timer, Edit, RefreshCw, History, Copy, Info } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -332,12 +332,15 @@ export function ScheduledServicesTab() {
         <div className="apple-summary-compact">
           <Popover>
             <PopoverTrigger asChild>
-              <div className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors">
-                <span className="apple-summary-value">{summary?.total_services || 0}</span>
+              <div className="apple-summary-item cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg px-3 py-2 transition-colors group">
+                <div className="flex items-center gap-1">
+                  <span className="apple-summary-value">{summary?.total_services || 0}</span>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity" />
+                </div>
                 <span className="apple-summary-label">total</span>
               </div>
             </PopoverTrigger>
-            <PopoverContent className="w-80 bg-popover" align="center">
+            <PopoverContent className="w-80 bg-popover z-[100] border-2 border-slate-200 shadow-lg" align="center" sideOffset={8}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold text-sm">Desglose por Cliente</h4>
