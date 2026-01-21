@@ -113,17 +113,6 @@ export function ScheduledServicesTab() {
     'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400', priority: 7 },
   };
 
-  // Count services by ESTADO OPERATIVO (calculado en tiempo real)
-  const operationalStatusCounts = useMemo((): Record<string, number> => {
-    if (!summary?.services_data) return {};
-    const counts: Record<string, number> = {};
-    summary.services_data.forEach((service: any) => {
-      const opStatus = getOperationalStatus(service);
-      counts[opStatus.status] = (counts[opStatus.status] || 0) + 1;
-    });
-    return counts;
-  }, [summary?.services_data]);
-
   // Group services by client for breakdown popover
   const servicesByClient = useMemo((): Array<{ name: string; count: number }> => {
     if (!summary?.services_data) return [];
@@ -293,6 +282,18 @@ export function ScheduledServicesTab() {
       priority: 3
     };
   };
+
+  // Count services by ESTADO OPERATIVO (calculado en tiempo real)
+  // Must be defined AFTER getOperationalStatus
+  const operationalStatusCounts = useMemo((): Record<string, number> => {
+    if (!summary?.services_data) return {};
+    const counts: Record<string, number> = {};
+    summary.services_data.forEach((service: any) => {
+      const opStatus = getOperationalStatus(service);
+      counts[opStatus.status] = (counts[opStatus.status] || 0) + 1;
+    });
+    return counts;
+  }, [summary?.services_data]);
 
   const getStatusConfig = (service: any) => {
     const isFullyPlanned = service.custodio_nombre && (!service.incluye_armado || service.armado_asignado);
