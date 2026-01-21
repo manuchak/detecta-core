@@ -707,31 +707,6 @@ export function ScheduledServicesTab() {
           )}
         </div>
 
-        {/* Semáforo de Estados de Planeación */}
-        {summary?.services_data && summary.services_data.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs border-t border-slate-100 dark:border-slate-800 mt-2">
-            <span className="text-muted-foreground font-medium">Estado planeación:</span>
-            {Object.entries(statusCounts)
-              .filter(([_, count]) => count > 0)
-              .sort((a, b) => b[1] - a[1])
-              .map(([estado, count]) => {
-                const config = ESTADO_PLANEACION_CONFIG[estado] || { 
-                  label: estado.replace(/_/g, ' '), 
-                  bgColor: 'bg-gray-400', 
-                  textColor: 'text-gray-600 dark:text-gray-400' 
-                };
-                return (
-                  <div key={estado} className="flex items-center gap-1.5">
-                    <div className={cn("w-2.5 h-2.5 rounded-full", config.bgColor)} />
-                    <span className={cn("font-semibold tabular-nums", config.textColor)}>
-                      {count}
-                    </span>
-                    <span className="text-muted-foreground">{config.label}</span>
-                  </div>
-                );
-              })}
-          </div>
-        )}
       </div>
 
       {/* Services Agenda */}
@@ -752,12 +727,12 @@ export function ScheduledServicesTab() {
           </div>
         )}
 
-        {/* Sprint 3: PF Filter Buttons + Status Legend */}
+        {/* Consolidated Controls Row: Filters + Status Semáforo */}
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div className="space-y-3">
-            {/* PF Filter Buttons */}
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-xs text-muted-foreground font-medium">Tipo cliente:</span>
+          <div className="flex flex-wrap items-center justify-between gap-4 px-3 py-2.5 bg-muted/30 dark:bg-muted/10 rounded-lg border border-border/50">
+            {/* Left: Client Type Filters */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Filtrar:</span>
               <div className="flex gap-1">
                 <Button
                   variant={tipoClienteFilter === 'todos' ? 'default' : 'outline'}
@@ -793,24 +768,34 @@ export function ScheduledServicesTab() {
               )}
             </div>
             
-            {/* Status Legend - Updated colors */}
-            <div className="flex flex-wrap items-center gap-3 px-1 py-2 text-xs">
-              <span className="text-muted-foreground font-medium">Estados:</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-muted-foreground">Sin asignar</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-rose-500" />
-                <span className="text-muted-foreground">Pendiente arribar</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-slate-400" />
-                <span className="text-muted-foreground">Programado</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-muted-foreground">En sitio / Completado</span>
+            {/* Right: Status Semáforo - Compact Pills */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground font-medium hidden lg:inline">Estados:</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {Object.entries(statusCounts)
+                  .filter(([_, count]) => count > 0)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([estado, count]) => {
+                    const config = ESTADO_PLANEACION_CONFIG[estado] || { 
+                      label: estado.replace(/_/g, ' '), 
+                      bgColor: 'bg-gray-400', 
+                      textColor: 'text-gray-600 dark:text-gray-400' 
+                    };
+                    return (
+                      <div 
+                        key={estado} 
+                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-background/60 dark:bg-background/40 border border-border/30"
+                      >
+                        <div className={cn("w-2 h-2 rounded-full shrink-0", config.bgColor)} />
+                        <span className={cn("font-semibold tabular-nums", config.textColor)}>
+                          {count}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wide hidden sm:inline">
+                          {config.label}
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           </div>
