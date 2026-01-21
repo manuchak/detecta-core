@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FairnessAuditMetrics } from '../types';
 import { subDays, subMonths } from 'date-fns';
 
-export type PeriodoEquidad = 'semana' | 'mes' | 'trimestre' | 'todo';
+export type PeriodoEquidad = 'semana' | 'mes_actual' | 'ultimos_30' | 'trimestre' | 'todo';
 
 function getDateRangeForPeriodo(periodo: PeriodoEquidad): { desde: Date; hasta: Date } {
   const hasta = new Date();
@@ -13,8 +13,12 @@ function getDateRangeForPeriodo(periodo: PeriodoEquidad): { desde: Date; hasta: 
     case 'semana':
       desde = subDays(hasta, 7);
       break;
-    case 'mes':
-      desde = subMonths(hasta, 1);
+    case 'mes_actual':
+      // Current calendar month (1st of current month to today)
+      desde = new Date(hasta.getFullYear(), hasta.getMonth(), 1);
+      break;
+    case 'ultimos_30':
+      desde = subDays(hasta, 30);
       break;
     case 'trimestre':
       desde = subMonths(hasta, 3);
@@ -96,7 +100,7 @@ function categorizarZScore(z: number): FairnessAuditMetrics['custodiosDesviados'
   return 'NORMAL';
 }
 
-export function useFairnessAuditMetrics(periodo: PeriodoEquidad = 'mes') {
+export function useFairnessAuditMetrics(periodo: PeriodoEquidad = 'mes_actual') {
   return useQuery({
     queryKey: ['fairness-audit-metrics', periodo],
     queryFn: async (): Promise<FairnessAuditMetrics> => {
