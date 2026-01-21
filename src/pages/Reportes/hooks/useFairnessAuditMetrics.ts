@@ -75,9 +75,11 @@ export function useFairnessAuditMetrics() {
     queryKey: ['fairness-audit-metrics'],
     queryFn: async (): Promise<FairnessAuditMetrics> => {
       // Fetch all custodian assignments
-      const { data: servicios, error } = await supabase
-        .from('servicios_custodia')
-        .select('id, custodio_id, custodio_nombre, planificador_id, created_at')
+    const { data: servicios, error } = await supabase
+      .from('servicios_planificados')
+      .select('id, custodio_id, custodio_asignado, asignado_por, created_by, created_at')
+      .not('custodio_id', 'is', null)
+      .order('created_at', { ascending: false })
         .not('custodio_id', 'is', null)
         .order('created_at', { ascending: false });
 
@@ -86,7 +88,7 @@ export function useFairnessAuditMetrics() {
       const allServices = servicios || [];
       
       // Get planificadores names
-      const planificadorIds = [...new Set(allServices.map(s => s.planificador_id).filter(Boolean))];
+      const planificadorIds = [...new Set(allServices.map(s => s.asignado_por || s.created_by).filter(Boolean))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
@@ -96,9 +98,9 @@ export function useFairnessAuditMetrics() {
 
       // Group services by custodio
       const custodioMap = new Map<string, { id: string; nombre: string; servicios: number }>();
-      allServices.forEach(s => {
-        const id = s.custodio_id || 'unknown';
-        const nombre = s.custodio_nombre || 'Sin nombre';
+    allServices.forEach(s => {
+      const id = s.custodio_id || 'unknown';
+      const nombre = s.custodio_asignado || 'Sin nombre';
         if (!custodioMap.has(id)) {
           custodioMap.set(id, { id, nombre, servicios: 0 });
         }
@@ -146,15 +148,15 @@ export function useFairnessAuditMetrics() {
         asignaciones: { custodioId: string; custodioNombre: string }[];
       }>();
       
-      allServices.forEach(s => {
-        const planId = s.planificador_id || 'unknown';
+    allServices.forEach(s => {
+      const planId = s.asignado_por || s.created_by || 'unknown';
         if (!planificadorMap.has(planId)) {
           planificadorMap.set(planId, { id: planId, asignaciones: [] });
         }
-        planificadorMap.get(planId)!.asignaciones.push({
-          custodioId: s.custodio_id || '',
-          custodioNombre: s.custodio_nombre || '',
-        });
+      planificadorMap.get(planId)!.asignaciones.push({
+        custodioId: s.custodio_id || '',
+        custodioNombre: s.custodio_asignado || '',
+      });
       });
 
       const sesgoPlanificadores = Array.from(planificadorMap.entries())
