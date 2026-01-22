@@ -175,7 +175,7 @@ export const navigationModules: NavigationModule[] = [
         id: 'planeacion_reportes',
         label: 'Reportes',
         path: '/planeacion/reportes',
-        roles: ['admin', 'owner'],
+        roles: ['admin', 'owner', 'coordinador_operaciones', 'planificador'],
         icon: BarChart3
       }
     ]
