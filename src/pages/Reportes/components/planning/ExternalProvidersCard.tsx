@@ -49,13 +49,13 @@ export default function ExternalProvidersCard({ proveedores }: ExternalProviders
                 </Badge>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-54:                   <div className="flex items-center gap-2 text-sm">
-55:                     <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-56:                     <span className="text-muted-foreground">Servicios</span>
-57:                   </div>
-58:                   <div className="text-xl font-bold">{prov.serviciosTotales}</div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">Servicios</span>
+                  </div>
+                  <div className="text-xl font-bold">{prov.serviciosTotales}</div>
                 </div>
                 
                 <div className="space-y-2">
