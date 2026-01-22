@@ -48,8 +48,34 @@ export const SECURITY_ROLES = [
   'analista_seguridad'
 ] as const;
 
+/**
+ * Roles with FULL access to Reports Hub (all tabs)
+ */
+export const REPORTES_FULL_ACCESS_ROLES = [
+  'admin',
+  'owner',
+  'coordinador_operaciones'
+] as const;
+
+/**
+ * Roles with LIMITED access to Reports Hub (operational tabs only)
+ */
+export const REPORTES_LIMITED_ACCESS_ROLES = [
+  'planificador'
+] as const;
+
+/**
+ * All roles that can access the Reports module
+ */
+export const REPORTES_ALLOWED_ROLES = [
+  ...REPORTES_FULL_ACCESS_ROLES,
+  ...REPORTES_LIMITED_ACCESS_ROLES
+] as const;
+
 // Type exports for type-safe role checking
 export type SIERCPRole = typeof SIERCP_ALLOWED_ROLES[number];
 export type AdminRole = typeof ADMIN_ROLES[number];
 export type SupplyRole = typeof SUPPLY_ROLES[number];
 export type SecurityRole = typeof SECURITY_ROLES[number];
+export type ReportesFullAccessRole = typeof REPORTES_FULL_ACCESS_ROLES[number];
+export type ReportesLimitedAccessRole = typeof REPORTES_LIMITED_ACCESS_ROLES[number];
