@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda, ProveedorExternoMetrics } from '../types/planningResources';
+import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda, ProveedorExternoMetrics, FlujoOrigenDestino } from '../types/planningResources';
 import type { PeriodoReporte } from '../types';
 import { subDays, startOfMonth, subMonths, startOfYear } from 'date-fns';
 import { extraerCiudad, obtenerInfoCiudad } from '@/utils/geografico';
@@ -213,7 +213,7 @@ export const usePlanningResourcesMetrics = (periodo: PeriodoReporte = 'mes_actua
       // === TOP ZONAS DE DEMANDA ===
       const { data: serviciosRecientes, error: serviciosError } = await supabase
         .from('servicios_planificados')
-        .select('origen')
+        .select('origen, destino')
         .gte('created_at', fechaInicioStr)
         .not('origen', 'is', null);
       
@@ -247,6 +247,62 @@ export const usePlanningResourcesMetrics = (periodo: PeriodoReporte = 'mes_actua
         .sort((a, b) => b.cantidad_servicios - a.cantidad_servicios)
         .slice(0, 15); // Aumentado a 15 para soportar selector expandible
       
+      // === FLUJOS ORIGEN-DESTINO ===
+      const flujosMap = new Map<string, { origen: string; destino: string; cantidad: number }>();
+      
+      (serviciosRecientes || []).forEach(s => {
+        const origen = s.origen?.trim();
+        const destino = (s.destino as string)?.trim();
+        if (origen && destino && origen !== destino) {
+          const key = `${origen}|${destino}`;
+          const existing = flujosMap.get(key);
+          if (existing) {
+            existing.cantidad++;
+          } else {
+            flujosMap.set(key, { origen, destino, cantidad: 1 });
+          }
+        }
+      });
+      
+      const totalFlujos = Array.from(flujosMap.values()).reduce((sum, f) => sum + f.cantidad, 0);
+      
+      // Calcular flujos con geocodificación y ratio de desequilibrio
+      const flujosOrigenDestino: FlujoOrigenDestino[] = Array.from(flujosMap.values())
+        .map(flujo => {
+          // Geocodificar origen
+          const origenKey = extraerCiudad(flujo.origen);
+          const origenGeo = origenKey ? obtenerInfoCiudad(origenKey) : null;
+          
+          // Geocodificar destino
+          const destinoKey = extraerCiudad(flujo.destino);
+          const destinoGeo = destinoKey ? obtenerInfoCiudad(destinoKey) : null;
+          
+          // Buscar flujo inverso
+          const keyInverso = `${flujo.destino}|${flujo.origen}`;
+          const flujoInverso = flujosMap.get(keyInverso)?.cantidad || 0;
+          
+          // Calcular ratio de desequilibrio (ida vs vuelta)
+          const ratioDesequilibrio = flujoInverso > 0 
+            ? Math.max(flujo.cantidad / flujoInverso, flujoInverso / flujo.cantidad)
+            : flujo.cantidad > 3 ? flujo.cantidad : 1; // Si no hay inverso y hay muchos servicios, es alto desequilibrio
+          
+          return {
+            origen: flujo.origen,
+            destino: flujo.destino,
+            origen_lat: origenGeo?.lat,
+            origen_lng: origenGeo?.lng,
+            destino_lat: destinoGeo?.lat,
+            destino_lng: destinoGeo?.lng,
+            cantidad: flujo.cantidad,
+            porcentaje: totalFlujos > 0 ? Math.round((flujo.cantidad / totalFlujos) * 1000) / 10 : 0,
+            flujo_inverso: flujoInverso,
+            ratio_desequilibrio: Math.round(ratioDesequilibrio * 10) / 10,
+          };
+        })
+        .filter(f => f.origen_lat && f.destino_lat) // Solo flujos geocodificados
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, 20); // Top 20 flujos
+      
       // Calcular tasas de activación
       const custodiosActivos30d = custodiosClusters.activo_30d;
       const tasaActivacionCustodios = totalCustodiosOperativos > 0 
@@ -278,6 +334,7 @@ export const usePlanningResourcesMetrics = (periodo: PeriodoReporte = 'mes_actua
         },
         proveedores_externos: proveedoresMetrics,
         top_zonas_demanda: topZonasDemanda,
+        flujos_origen_destino: flujosOrigenDestino,
       };
     },
     staleTime: 5 * 60 * 1000,

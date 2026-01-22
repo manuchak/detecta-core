@@ -24,6 +24,19 @@ export interface ZonaDemanda {
   estado?: string;
 }
 
+export interface FlujoOrigenDestino {
+  origen: string;
+  destino: string;
+  origen_lat?: number;
+  origen_lng?: number;
+  destino_lat?: number;
+  destino_lng?: number;
+  cantidad: number;
+  porcentaje: number;
+  flujo_inverso: number;
+  ratio_desequilibrio: number;
+}
+
 export interface RecursosCustodios {
   total_activos: number;
   pool_registrado?: number; // Total registrados en DB (incluye migración histórica)
@@ -58,6 +71,7 @@ export interface RecursosPlaneacion {
   armados: RecursosArmados;
   proveedores_externos: ProveedorExternoMetrics[];
   top_zonas_demanda: ZonaDemanda[];
+  flujos_origen_destino: FlujoOrigenDestino[];
 }
 
 export const CLUSTER_CONFIG = {
