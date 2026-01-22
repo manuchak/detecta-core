@@ -278,6 +278,62 @@ export default function ArmadosFairnessAuditDashboard() {
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Sin Asignación
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="bottom" 
+                    align="start"
+                    className="w-72 p-0"
+                  >
+                    <div className="p-3 border-b bg-muted/50">
+                      <p className="font-semibold text-sm">
+                        Armados sin asignación en el período
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {metrics.armadosSinAsignacion.length} elementos activos sin trabajo
+                      </p>
+                    </div>
+                    
+                    {metrics.armadosSinAsignacion.length === 0 ? (
+                      <div className="p-3 text-center text-muted-foreground text-sm">
+                        <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                        Todos tienen asignaciones
+                      </div>
+                    ) : (
+                      <div className="max-h-60 overflow-y-auto">
+                        {metrics.armadosSinAsignacion.slice(0, 12).map((a) => (
+                          <div 
+                            key={a.id} 
+                            className="px-3 py-2 flex justify-between items-center gap-2 border-b last:border-0 hover:bg-muted/30"
+                          >
+                            <span className="text-sm font-medium truncate max-w-[140px]">
+                              {a.nombre}
+                            </span>
+                            <Badge 
+                              variant={
+                                a.diasSinServicio === null ? 'secondary' :
+                                a.diasSinServicio > 60 ? 'destructive' :
+                                a.diasSinServicio > 30 ? 'outline' : 'default'
+                              }
+                              className="text-xs whitespace-nowrap shrink-0"
+                            >
+                              {a.diasSinServicio === null 
+                                ? 'Sin historial' 
+                                : `${a.diasSinServicio}d`}
+                            </Badge>
+                          </div>
+                        ))}
+                        {metrics.armadosSinAsignacion.length > 12 && (
+                          <div className="px-3 py-2 text-xs text-center text-muted-foreground bg-muted/30">
+                            +{metrics.armadosSinAsignacion.length - 12} más...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
               </CardTitle>
             </CardHeader>
             <CardContent>
