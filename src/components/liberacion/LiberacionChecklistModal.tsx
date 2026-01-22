@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, Rocket, User, Car, Pencil, Database } from 'lucide-react';
+import { Loader2, CheckCircle2, Rocket, User, Car, Pencil, Database, Save } from 'lucide-react';
 import { CustodioLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
@@ -35,12 +35,24 @@ import { LiberacionWarningsDialog } from './LiberacionWarningsDialog';
 import { LiberacionSuccessModal } from './LiberacionSuccessModal';
 import { useDocumentosCandidato, TipoDocumento } from '@/hooks/useDocumentosCandidato';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
+import { usePersistedForm } from '@/hooks/usePersistedForm';
 
 interface LiberacionChecklistModalProps {
   liberacion: CustodioLiberacion;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+// Interface para el estado persistible del draft
+interface LiberacionDraftData {
+  liberacion: Partial<CustodioLiberacion>;
+  datosContacto: {
+    nombre: string;
+    telefono: string;
+    email: string;
+  };
+  tieneVehiculoPropio: boolean;
 }
 
 const LiberacionChecklistModal = ({
@@ -51,7 +63,6 @@ const LiberacionChecklistModal = ({
 }: LiberacionChecklistModalProps) => {
   const { updateChecklist, liberarCustodio, calculateProgress } = useCustodioLiberacion();
   const { toast } = useToast();
-  const [liberacion, setLiberacion] = useState<CustodioLiberacion>(initialLiberacion);
   const [isSaving, setIsSaving] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
   const [currentWarnings, setCurrentWarnings] = useState<string[]>([]);
@@ -71,17 +82,53 @@ const LiberacionChecklistModal = ({
   // Track si los datos fueron prellenados
   const [prefillApplied, setPrefillApplied] = useState({ docs: false, psico: false });
 
-  // Estado para datos de contacto editables
-  const [datosContacto, setDatosContacto] = useState({
-    nombre: initialLiberacion.candidato?.nombre || '',
-    telefono: initialLiberacion.candidato?.telefono || '',
-    email: initialLiberacion.candidato?.email || ''
+  // Clave dinámica por candidato para evitar colisiones entre drafts
+  const draftKey = `liberacion_checklist_${initialLiberacion.candidato_id}`;
+
+  // Hook de persistencia con draft por candidato
+  const {
+    formData: draftData,
+    updateFormData: updateDraft,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+  } = usePersistedForm<LiberacionDraftData>({
+    key: draftKey,
+    initialData: {
+      liberacion: initialLiberacion,
+      datosContacto: {
+        nombre: initialLiberacion.candidato?.nombre || '',
+        telefono: initialLiberacion.candidato?.telefono || '',
+        email: initialLiberacion.candidato?.email || '',
+      },
+      tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false,
+    },
+    hydrateOnMount: true,
+    saveOnChangeDebounceMs: 800,
+    isMeaningfulDraft: (data) => {
+      // Consideramos significativo si hay al menos un checkbox marcado o datos editados
+      const lib = data.liberacion;
+      return !!(
+        lib.documentacion_ine ||
+        lib.documentacion_licencia ||
+        lib.documentacion_antecedentes ||
+        lib.documentacion_domicilio ||
+        lib.documentacion_curp ||
+        lib.documentacion_rfc ||
+        lib.psicometricos_completado ||
+        lib.toxicologicos_completado ||
+        lib.vehiculo_capturado ||
+        lib.instalacion_gps_completado ||
+        (data.datosContacto.nombre && data.datosContacto.nombre !== initialLiberacion.candidato?.nombre) ||
+        (data.datosContacto.email && data.datosContacto.email !== initialLiberacion.candidato?.email)
+      );
+    },
   });
 
-  // Estado para controlar si tiene vehículo propio (editable)
-  const [tieneVehiculoPropio, setTieneVehiculoPropio] = useState(
-    initialLiberacion.candidato?.vehiculo_propio ?? false
-  );
+  // Extraer datos del draft para uso local
+  const liberacion = draftData.liberacion as CustodioLiberacion;
+  const datosContacto = draftData.datosContacto;
+  const tieneVehiculoPropio = draftData.tieneVehiculoPropio;
 
   // Mapeo de documentos validados a checkboxes
   const docPrefillData = useMemo(() => {
@@ -120,58 +167,83 @@ const LiberacionChecklistModal = ({
     };
   }, [evaluacionPsicometrica]);
 
+  // Reset del draft cuando cambia el candidato
   useEffect(() => {
-    setLiberacion(initialLiberacion);
-    setDatosContacto({
-      nombre: initialLiberacion.candidato?.nombre || '',
-      telefono: initialLiberacion.candidato?.telefono || '',
-      email: initialLiberacion.candidato?.email || ''
+    updateDraft({
+      liberacion: initialLiberacion,
+      datosContacto: {
+        nombre: initialLiberacion.candidato?.nombre || '',
+        telefono: initialLiberacion.candidato?.telefono || '',
+        email: initialLiberacion.candidato?.email || ''
+      },
+      tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
     });
-    setTieneVehiculoPropio(initialLiberacion.candidato?.vehiculo_propio ?? false);
     setPrefillApplied({ docs: false, psico: false });
-  }, [initialLiberacion]);
+  }, [initialLiberacion.id]);
 
   // Prellenar documentación si hay datos del workflow
   useEffect(() => {
     if (docPrefillData && !prefillApplied.docs) {
-      setLiberacion(prev => ({
+      updateDraft(prev => ({
         ...prev,
-        documentacion_ine: prev.documentacion_ine || docPrefillData.documentacion_ine,
-        documentacion_licencia: prev.documentacion_licencia || docPrefillData.documentacion_licencia,
-        documentacion_antecedentes: prev.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
-        documentacion_domicilio: prev.documentacion_domicilio || docPrefillData.documentacion_domicilio,
-        documentacion_curp: prev.documentacion_curp || docPrefillData.documentacion_curp,
-        documentacion_rfc: prev.documentacion_rfc || docPrefillData.documentacion_rfc,
+        liberacion: {
+          ...prev.liberacion,
+          documentacion_ine: prev.liberacion.documentacion_ine || docPrefillData.documentacion_ine,
+          documentacion_licencia: prev.liberacion.documentacion_licencia || docPrefillData.documentacion_licencia,
+          documentacion_antecedentes: prev.liberacion.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
+          documentacion_domicilio: prev.liberacion.documentacion_domicilio || docPrefillData.documentacion_domicilio,
+          documentacion_curp: prev.liberacion.documentacion_curp || docPrefillData.documentacion_curp,
+          documentacion_rfc: prev.liberacion.documentacion_rfc || docPrefillData.documentacion_rfc,
+        }
       }));
       setPrefillApplied(prev => ({ ...prev, docs: true }));
     }
-  }, [docPrefillData, prefillApplied.docs]);
+  }, [docPrefillData, prefillApplied.docs, updateDraft]);
 
   // Prellenar psicométricos si hay datos del workflow
   useEffect(() => {
     if (psicoPrefillData && !prefillApplied.psico) {
-      setLiberacion(prev => ({
+      updateDraft(prev => ({
         ...prev,
-        psicometricos_completado: prev.psicometricos_completado || psicoPrefillData.psicometricos_completado,
-        psicometricos_resultado: prev.psicometricos_resultado || psicoPrefillData.psicometricos_resultado,
-        psicometricos_puntaje: prev.psicometricos_puntaje || psicoPrefillData.psicometricos_puntaje,
+        liberacion: {
+          ...prev.liberacion,
+          psicometricos_completado: prev.liberacion.psicometricos_completado || psicoPrefillData.psicometricos_completado,
+          psicometricos_resultado: prev.liberacion.psicometricos_resultado || psicoPrefillData.psicometricos_resultado,
+          psicometricos_puntaje: prev.liberacion.psicometricos_puntaje || psicoPrefillData.psicometricos_puntaje,
+        }
       }));
       setPrefillApplied(prev => ({ ...prev, psico: true }));
     }
-  }, [psicoPrefillData, prefillApplied.psico]);
+  }, [psicoPrefillData, prefillApplied.psico, updateDraft]);
 
   const progress = calculateProgress(liberacion);
 
   const handleCheckboxChange = (field: keyof CustodioLiberacion, value: boolean) => {
-    setLiberacion(prev => ({ ...prev, [field]: value }));
+    updateDraft(prev => ({
+      ...prev,
+      liberacion: { ...prev.liberacion, [field]: value }
+    }));
   };
 
   const handleInputChange = (field: keyof CustodioLiberacion, value: any) => {
-    setLiberacion(prev => ({ ...prev, [field]: value }));
+    updateDraft(prev => ({
+      ...prev,
+      liberacion: { ...prev.liberacion, [field]: value }
+    }));
   };
 
   const handleContactoChange = (field: 'nombre' | 'telefono' | 'email', value: string) => {
-    setDatosContacto(prev => ({ ...prev, [field]: value }));
+    updateDraft(prev => ({
+      ...prev,
+      datosContacto: { ...prev.datosContacto, [field]: value }
+    }));
+  };
+
+  const handleVehiculoPropioChange = (value: boolean) => {
+    updateDraft(prev => ({
+      ...prev,
+      tieneVehiculoPropio: value
+    }));
   };
 
   const handleSave = async () => {
@@ -187,6 +259,7 @@ const LiberacionChecklistModal = ({
           vehiculo_propio: tieneVehiculoPropio
         }
       });
+      clearDraft(true); // Hard clear para evitar re-hidratación
       onSuccess();
     } catch (error) {
       console.error('Error guardando:', error);
@@ -221,6 +294,7 @@ const LiberacionChecklistModal = ({
         setIsSaving(false);
       } else {
         // Sin warnings - mostrar modal de éxito directamente
+        clearDraft(true); // Limpiar borrador al liberar exitosamente
         setSuccessData({
           candidato_nombre: result.candidato_nombre,
           candidato_email: result.candidato_email,
@@ -243,6 +317,7 @@ const LiberacionChecklistModal = ({
 
   const handleConfirmWithWarnings = async () => {
     setShowWarnings(false);
+    clearDraft(true); // Limpiar borrador al confirmar con warnings
     // Mostrar modal de éxito después de confirmar warnings
     setShowSuccessModal(true);
   };
@@ -258,7 +333,15 @@ const LiberacionChecklistModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Checklist de Liberación</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Checklist de Liberación
+            {hasDraft && (
+              <Badge variant="secondary" className="text-xs font-normal">
+                <Save className="h-3 w-3 mr-1" />
+                Borrador guardado {getTimeSinceSave()}
+              </Badge>
+            )}
+          </DialogTitle>
           <DialogDescription>
             {datosContacto.nombre} - {datosContacto.telefono}
           </DialogDescription>
@@ -521,7 +604,7 @@ const LiberacionChecklistModal = ({
                   <Checkbox
                     id="tiene_vehiculo_propio"
                     checked={tieneVehiculoPropio}
-                    onCheckedChange={(checked) => setTieneVehiculoPropio(checked as boolean)}
+                    onCheckedChange={(checked) => handleVehiculoPropioChange(checked as boolean)}
                   />
                   <Label htmlFor="tiene_vehiculo_propio" className="font-medium">
                     El candidato tiene vehículo propio

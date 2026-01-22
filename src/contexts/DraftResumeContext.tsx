@@ -166,6 +166,26 @@ const DRAFT_CATALOG: DraftInfo[] = [
     },
     previewText: 'Continúa evaluación de riesgo',
   },
+  // Liberación de Custodio
+  {
+    id: 'liberacion-checklist',
+    storageKey: 'liberacion_checklist',
+    moduleName: 'Liberación de Custodio',
+    resumePath: '/leads/liberacion',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      const lib = d?.liberacion;
+      return lib && (
+        lib.documentacion_ine ||
+        lib.documentacion_licencia ||
+        lib.psicometricos_completado ||
+        lib.toxicologicos_completado ||
+        lib.vehiculo_capturado ||
+        lib.instalacion_gps_completado
+      );
+    },
+    previewText: 'Continúa el checklist de liberación',
+  },
 ];
 
 interface DraftResumeContextType {
