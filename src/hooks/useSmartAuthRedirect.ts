@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFeatureAnnouncements } from '@/hooks/useFeatureAnnouncements';
 
 /**
  * Hook que maneja la redirección inteligente basada en el rol del usuario
@@ -10,6 +11,9 @@ export const useSmartAuthRedirect = () => {
   const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Show feature announcements for new functionality based on role
+  useFeatureAnnouncements(userRole, !!user);
 
   useEffect(() => {
     // No hacer nada mientras carga
