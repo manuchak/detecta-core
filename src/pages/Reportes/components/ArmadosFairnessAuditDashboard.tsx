@@ -148,7 +148,12 @@ export default function ArmadosFairnessAuditDashboard() {
               {excluirInactivos && metrics.resumen.poolExcluidoPorInactividad > 0 && (
                 <Badge variant="outline" className="text-xs whitespace-nowrap">
                   <AlertCircle className="h-3 w-3 mr-1" />
-                  {metrics.resumen.poolExcluidoPorInactividad} excluidos
+                  {metrics.resumen.poolExcluidoPorInactividad} por inactividad
+                </Badge>
+              )}
+              {metrics.resumen.registrosExcluidosPorNombre > 0 && (
+                <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                  {metrics.resumen.registrosExcluidosPorNombre} prueba/placeholder
                 </Badge>
               )}
             </div>

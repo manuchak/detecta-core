@@ -35,10 +35,21 @@ export interface ArmadoSinAsignacion {
   zona: string | null;
 }
 
+// Nombres a excluir del análisis (pruebas, placeholders)
+const NOMBRES_EXCLUIDOS = ['test', 'prueba', 'noaplica', 'no aplica', 'n/a', 'pendiente', 'verificacion'];
+
+function esNombreDePrueba(nombre: string): boolean {
+  const nombreLower = nombre.toLowerCase().trim().replace(/\s+/g, '');
+  return NOMBRES_EXCLUIDOS.some(excluido => 
+    nombreLower.includes(excluido.replace(/\s+/g, ''))
+  );
+}
+
 export interface ArmadosFairnessMetrics {
   resumen: {
     poolActivo: number;
     poolExcluidoPorInactividad: number;
+    registrosExcluidosPorNombre: number;
     armadosConAsignacion: number;
     coberturaPool: number;
     totalAsignaciones: number;
@@ -112,7 +123,11 @@ export function useArmadosFairnessMetrics(
       
       const poolBruto = poolArmados || [];
       
-      // 2. Get last service date for each armed element (for 90-day filter)
+      // 2. Exclude test/placeholder records first
+      const registrosExcluidosPorNombre = poolBruto.filter(a => esNombreDePrueba(a.nombre)).length;
+      const poolSinPruebas = poolBruto.filter(a => !esNombreDePrueba(a.nombre));
+      
+      // 3. Get last service date for each armed element (for 90-day filter)
       const { data: historialActividad } = await supabase
         .from('servicios_custodia')
         .select('nombre_armado, fecha_hora_cita')
@@ -129,12 +144,12 @@ export function useArmadosFairnessMetrics(
         }
       });
       
-      // 3. Filter pool by activity if toggle is active
+      // 4. Filter pool by activity if toggle is active
       const hace90Dias = subDays(new Date(), 90);
       let poolExcluidoPorInactividad = 0;
       
       const pool = excluirInactivos90Dias
-        ? poolBruto.filter(a => {
+        ? poolSinPruebas.filter(a => {
             const nombreNorm = normalizarNombre(a.nombre);
             const ultimoServicio = ultimoServicioPorNombre.get(nombreNorm);
             // Include if: recent service OR brand new (never assigned, zero services)
@@ -144,7 +159,7 @@ export function useArmadosFairnessMetrics(
             if (!incluir) poolExcluidoPorInactividad++;
             return incluir;
           })
-        : poolBruto;
+        : poolSinPruebas;
       
       const poolActivo = pool.length;
       
@@ -160,11 +175,22 @@ export function useArmadosFairnessMetrics(
       
       if (serviciosError) throw serviciosError;
       
-      // 5. Filter out external providers (CUSAEM, SEICSA)
-      const serviciosInternos = (servicios || []).filter(s => {
+      // 5. Filter out external providers (CUSAEM, SEICSA) and test names
+      const serviciosSinExternos = (servicios || []).filter(s => {
         const proveedor = (s.proveedor || '').toLowerCase();
         return !proveedor.includes('cusaem') && !proveedor.includes('seicsa');
-      });
+      }).filter(s => !esNombreDePrueba(s.nombre_armado || ''));
+      
+      // 6. Build set of active pool names for consistent filtering
+      const nombresPoolActivo = new Set(pool.map(a => normalizarNombre(a.nombre)));
+      
+      // 7. When filter is active, only include services from active pool members
+      const serviciosInternos = excluirInactivos90Dias
+        ? serviciosSinExternos.filter(s => {
+            const nombreNorm = normalizarNombre(s.nombre_armado || '');
+            return nombresPoolActivo.has(nombreNorm);
+          })
+        : serviciosSinExternos;
       
       const totalAsignaciones = serviciosInternos.length;
       
@@ -174,6 +200,7 @@ export function useArmadosFairnessMetrics(
           resumen: {
             poolActivo,
             poolExcluidoPorInactividad,
+            registrosExcluidosPorNombre,
             armadosConAsignacion: 0,
             coberturaPool: 0,
             totalAsignaciones,
@@ -204,13 +231,13 @@ export function useArmadosFairnessMetrics(
         };
       }
       
-      // 6. Build pool lookup map with normalized names
+      // 8. Build pool lookup map with normalized names
       const poolByNormalizedName = new Map<string, typeof pool[0]>();
       pool.forEach(a => {
         poolByNormalizedName.set(normalizarNombre(a.nombre), a);
       });
       
-      // 7. Count assignments per armed element (normalized)
+      // 9. Count assignments per armed element (normalized)
       const asignacionesPorNombre = new Map<string, {
         nombre: string; 
         count: number;
@@ -231,7 +258,7 @@ export function useArmadosFairnessMetrics(
         asignacionesPorNombre.get(nombreNormalizado)!.count++;
       });
       
-      // 8. Calculate fairness metrics
+      // 10. Calculate fairness metrics
       const asignacionesArray = Array.from(asignacionesPorNombre.values());
       const valores = asignacionesArray.map(a => a.count);
       
@@ -242,11 +269,11 @@ export function useArmadosFairnessMetrics(
       const zScores = calcularZScores(valores);
       const mean = calcularMedia(valores);
       
-      // 9. Pool coverage
+      // 11. Pool coverage
       const armadosConAsignacion = asignacionesPorNombre.size;
       const coberturaPool = poolActivo > 0 ? (armadosConAsignacion / poolActivo) * 100 : 0;
       
-      // 10. Identify deviations
+      // 12. Identify deviations
       const desviaciones: ArmadoDesviado[] = asignacionesArray
         .map((a, i) => ({
           id: a.poolRecord?.id || `temp-${i}`,
@@ -261,7 +288,7 @@ export function useArmadosFairnessMetrics(
         .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
         .slice(0, 15);
       
-      // 11. Identify pool members without assignments
+      // 13. Identify pool members without assignments
       const nombresAsignados = new Set(
         Array.from(asignacionesPorNombre.keys())
       );
@@ -277,7 +304,7 @@ export function useArmadosFairnessMetrics(
         }))
         .sort((a, b) => b.serviciosHistoricos - a.serviciosHistoricos);
       
-      // 12. Generate alerts
+      // 14. Generate alerts
       const alertas: ArmadosFairnessMetrics['alertas'] = [];
       
       if (coberturaPool < 30 && poolActivo > 10) {
@@ -321,6 +348,7 @@ export function useArmadosFairnessMetrics(
         resumen: {
           poolActivo,
           poolExcluidoPorInactividad,
+          registrosExcluidosPorNombre,
           armadosConAsignacion,
           coberturaPool,
           totalAsignaciones,
