@@ -149,6 +149,29 @@ export const navigationModules: NavigationModule[] = [
     group: 'supply',
     roles: ['admin', 'owner', 'manager', 'coordinador_operaciones']
   },
+  {
+    id: 'perfiles_operativos',
+    label: 'Perfiles',
+    icon: UserCheck,
+    path: '/perfiles-operativos',
+    group: 'supply',
+    matchPaths: ['/perfiles-operativos/custodio', '/perfiles-operativos/armado'],
+    roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador'],
+    children: [
+      {
+        id: 'perfiles_custodios',
+        label: 'Custodios',
+        path: '/perfiles-operativos',
+        icon: Shield
+      },
+      {
+        id: 'perfiles_armados',
+        label: 'Armados',
+        path: '/perfiles-operativos?tab=armados',
+        icon: Users
+      }
+    ]
+  },
 
   // ===== OPERACIONES GROUP =====
   {
