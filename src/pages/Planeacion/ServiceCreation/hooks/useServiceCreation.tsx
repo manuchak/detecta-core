@@ -53,6 +53,7 @@ export interface ServiceFormData {
   tipoServicio: string;
   tipoCustodia: string;
   requiereArmado: boolean;
+  esServicioRetorno: boolean; // Flag for return services - bypasses 30min validation
   gadgets: Record<string, number>;
   observaciones: string;   // Additional notes
   
@@ -113,6 +114,7 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   tipoServicio: '',
   tipoCustodia: '',
   requiereArmado: false,
+  esServicioRetorno: false,
   gadgets: {},
   observaciones: '',
   // Custodian step

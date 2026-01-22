@@ -24,6 +24,7 @@ import { AppointmentSection } from './components/AppointmentSection';
 import { ServiceTypeSection } from './components/ServiceTypeSection';
 import { GadgetSection } from './components/GadgetSection';
 import { ObservationsSection } from './components/ObservationsSection';
+import { ReturnServiceToggle } from './components/ReturnServiceToggle';
 
 export default function ServiceStep() {
   const { formData, nextStep, previousStep, markStepCompleted, clearDraft } = useServiceCreation();
@@ -51,6 +52,8 @@ export default function ServiceStep() {
     handleTipoServicioChange,
     handleRequiereArmadoChange,
     handleGadgetChange,
+    esServicioRetorno,
+    setEsServicioRetorno,
     
     // Validation
     validation,
@@ -137,7 +140,9 @@ export default function ServiceStep() {
         tipo_servicio: tipoServicio || 'custodia',
         requiere_armado: requiereArmado || false,
         tarifa_acordada: formData.precioCotizado || undefined,
-        observaciones: observaciones || undefined,
+        observaciones: esServicioRetorno 
+          ? `[RETORNO] ${observaciones || ''}`.trim() 
+          : (observaciones || undefined),
         gadgets_cantidades: gadgetsCantidades.length > 0 ? gadgetsCantidades : undefined,
         estado_planeacion: 'pendiente_asignacion',
         // Without custodio or armado assigned
@@ -214,6 +219,13 @@ export default function ServiceStep() {
           isToday={isToday}
           wasHoraOptimized={wasHoraOptimized}
           distanciaKm={distanciaKm}
+        />
+
+        {/* Return service toggle - shows bypass hint when time validation would fail */}
+        <ReturnServiceToggle
+          checked={esServicioRetorno}
+          onCheckedChange={setEsServicioRetorno}
+          showValidationBypass={isToday && !isDateTimeValid && !esServicioRetorno}
         />
 
         {/* Service type */}
