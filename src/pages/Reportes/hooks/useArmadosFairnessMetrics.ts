@@ -269,11 +269,18 @@ export function useArmadosFairnessMetrics(
       const zScores = calcularZScores(valores);
       const mean = calcularMedia(valores);
       
-      // 11. Pool coverage
-      const armadosConAsignacion = asignacionesPorNombre.size;
+      // 11. Build set of assigned names for coverage calculation
+      const nombresAsignados = new Set(
+        Array.from(asignacionesPorNombre.keys())
+      );
+      
+      // 12. Pool coverage - only count armados FROM THE POOL that received assignments
+      const armadosConAsignacion = pool.filter(a => 
+        nombresAsignados.has(normalizarNombre(a.nombre))
+      ).length;
       const coberturaPool = poolActivo > 0 ? (armadosConAsignacion / poolActivo) * 100 : 0;
       
-      // 12. Identify deviations
+      // 13. Identify deviations
       const desviaciones: ArmadoDesviado[] = asignacionesArray
         .map((a, i) => ({
           id: a.poolRecord?.id || `temp-${i}`,
@@ -288,10 +295,7 @@ export function useArmadosFairnessMetrics(
         .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
         .slice(0, 15);
       
-      // 13. Identify pool members without assignments
-      const nombresAsignados = new Set(
-        Array.from(asignacionesPorNombre.keys())
-      );
+      // 14. Identify pool members without assignments
       
       const armadosSinAsignacion: ArmadoSinAsignacion[] = pool
         .filter(a => !nombresAsignados.has(normalizarNombre(a.nombre)))
