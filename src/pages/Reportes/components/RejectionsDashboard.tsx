@@ -458,7 +458,11 @@ export default function RejectionsDashboard() {
                       {rechazo.motivo}
                     </TableCell>
                     <TableCell className="text-right">
-                      {rechazo.tiempoRespuesta ? `${rechazo.tiempoRespuesta} min` : '-'}
+                      {rechazo.tiempoRespuesta === null || rechazo.tiempoRespuesta === undefined
+                        ? '-'
+                        : rechazo.tiempoRespuesta === 0 
+                          ? '< 1 min' 
+                          : `${rechazo.tiempoRespuesta} min`}
                     </TableCell>
                   </TableRow>
                 ))}

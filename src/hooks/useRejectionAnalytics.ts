@@ -156,10 +156,10 @@ async function fetchRejectionData(periodo: PeriodoRechazo): Promise<RejectionMet
 
   if (prevError) throw prevError;
 
-  // Fetch custodian names
+  // Fetch custodian names from custodios_operativos (correct table)
   const custodioIds = [...new Set((responses || []).filter(r => r.tipo_respuesta === 'rechazo').map(r => r.custodio_id))];
   const { data: custodios } = await supabase
-    .from('custodios')
+    .from('custodios_operativos')
     .select('id, nombre')
     .in('id', custodioIds.length > 0 ? custodioIds : ['00000000-0000-0000-0000-000000000000']);
 
@@ -300,12 +300,23 @@ async function fetchRejectionData(periodo: PeriodoRechazo): Promise<RejectionMet
         if (parsed) categoryId = parsed.categoryId;
       }
 
+      // Extract specific reason: prefer metadata, then parse from composite string
+      let motivo = metadata?.razon_especifica || 'No especificado';
+      if (motivo === 'No especificado' && r.razon_rechazo) {
+        // Parse "Category: Specific Reason" format
+        if (r.razon_rechazo.includes(':')) {
+          motivo = r.razon_rechazo.split(':').slice(1).join(':').trim();
+        } else {
+          motivo = r.razon_rechazo;
+        }
+      }
+
       return {
         id: r.id,
         fecha: parseISO(r.created_at),
-        custodioNombre: custodioMap.get(r.custodio_id) || 'Desconocido',
+        custodioNombre: custodioMap.get(r.custodio_id) || 'Sin nombre',
         categoria: REJECTION_CATEGORIES[categoryId]?.label || 'Otros',
-        motivo: metadata?.razon_especifica || r.razon_rechazo || 'No especificado',
+        motivo: motivo || 'No especificado',
         tiempoRespuesta: r.tiempo_respuesta_minutos,
         metodoContacto: metadata?.metodo_contacto || null
       };
