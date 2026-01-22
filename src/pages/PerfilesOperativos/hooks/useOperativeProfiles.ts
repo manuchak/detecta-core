@@ -10,12 +10,13 @@ export interface CustodioProfile {
   zona_base: string | null;
   estado: string;
   disponibilidad: string;
-  vehiculo_info: string | null;
+  vehiculo_propio: boolean | null;
   rating_promedio: number | null;
   tasa_aceptacion: number | null;
   tasa_respuesta: number | null;
   numero_servicios: number | null;
   fecha_ultimo_servicio: string | null;
+  score_total: number | null;
   created_at: string;
   // Calculated fields
   dias_sin_actividad: number;
@@ -98,12 +99,13 @@ export function useOperativeProfiles() {
           zona_base,
           estado,
           disponibilidad,
-          vehiculo_info,
+          vehiculo_propio,
           rating_promedio,
           tasa_aceptacion,
           tasa_respuesta,
           numero_servicios,
           fecha_ultimo_servicio,
+          score_total,
           created_at
         `)
         .neq('estado', 'archivado')
