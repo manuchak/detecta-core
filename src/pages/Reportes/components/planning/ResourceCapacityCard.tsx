@@ -24,14 +24,14 @@ const TIPO_INDISPONIBILIDAD_LABELS: Record<string, { label: string; icon: typeof
 export default function ResourceCapacityCard({ title, type, data }: ResourceCapacityCardProps) {
   const Icon = type === 'custodios' ? Users : Shield;
   const totalActivos = data.total_activos;
-  const poolRegistrado = type === 'custodios' ? (data as RecursosCustodios).pool_registrado : undefined;
+  const poolRegistrado = data.pool_registrado;
   const disponibles = data.disponibles;
   const conServicio = type === 'custodios' 
     ? (data as RecursosCustodios).con_servicio_reciente 
     : (data as RecursosArmados).con_servicio_30d;
   
   const nuncaAsignados = data.clusters.nunca_asignado;
-  const hayAlertaNuncaAsignado = nuncaAsignados > totalActivos * 0.5;
+  const hayAlertaNuncaAsignado = totalActivos > 0 && nuncaAsignados > totalActivos * 0.5;
   
   // Calcular inactivos en riesgo (60-120 días)
   const inactivosRiesgo = data.clusters.inactivo_60_90d + data.clusters.inactivo_90_120d;
