@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, Users, BarChart3, CalendarCheck, Target, Building2, Scale, MapPin, LineChart, XCircle } from 'lucide-react';
+import { TrendingUp, Users, BarChart3, CalendarCheck, Target, Building2, Scale, MapPin, LineChart, XCircle, Shield } from 'lucide-react';
 import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import AreaPerformanceDashboard from './components/AreaPerformanceDashboard';
 import PlanificadoresPerformanceDashboard from './components/PlanificadoresPerformanceDashboard';
@@ -9,6 +9,7 @@ import ProveedoresExternosDashboard from './components/ProveedoresExternosDashbo
 import ProveedoresExternosBIDashboard from './components/ProveedoresExternosBIDashboard';
 import ArmadosInternosDashboard from './components/ArmadosInternosDashboard';
 import FairnessAuditDashboard from './components/FairnessAuditDashboard';
+import ArmadosFairnessAuditDashboard from './components/ArmadosFairnessAuditDashboard';
 import RejectionsDashboard from './components/RejectionsDashboard';
 
 export default function ReportesHub() {
@@ -34,7 +35,7 @@ export default function ReportesHub() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+        <TabsList className="grid w-full grid-cols-9 bg-background/95 backdrop-blur-apple supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
           <TabsTrigger value="adopcion" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white text-xs lg:text-sm">
             <Target className="h-4 w-4" />
             <span className="hidden md:inline">Adopción</span>
@@ -67,6 +68,10 @@ export default function ReportesHub() {
             <Scale className="h-4 w-4" />
             <span className="hidden md:inline">Equidad</span>
           </TabsTrigger>
+          <TabsTrigger value="equidad-armados" className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white text-xs lg:text-sm">
+            <Shield className="h-4 w-4" />
+            <span className="hidden md:inline">Eq. Armados</span>
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="adopcion"><AdoptionDashboard /></TabsContent>
@@ -77,6 +82,7 @@ export default function ReportesHub() {
         <TabsContent value="proveedores-bi"><ProveedoresExternosBIDashboard /></TabsContent>
         <TabsContent value="armados-internos"><ArmadosInternosDashboard /></TabsContent>
         <TabsContent value="auditoria-equidad"><FairnessAuditDashboard /></TabsContent>
+        <TabsContent value="equidad-armados"><ArmadosFairnessAuditDashboard /></TabsContent>
       </Tabs>
     </div>
   );
