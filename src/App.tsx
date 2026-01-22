@@ -89,6 +89,7 @@ const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
 const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
+const PerfilesOperativos = lazy(() => import('@/pages/PerfilesOperativos'));
 const LMSDashboard = lazy(() => import('@/pages/LMS/LMSDashboard'));
 const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
 const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
@@ -379,6 +380,46 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'manager', 'coordinador_operaciones']}>
                         <UnifiedLayout>
                           <ModernRecruitment />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Perfiles Operativos - Supply & Ops */}
+                <Route
+                  path="/perfiles-operativos"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador']}>
+                        <UnifiedLayout>
+                          <PerfilesOperativos />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/perfiles-operativos/custodio/:id"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador']}>
+                        <UnifiedLayout>
+                          <PerfilesOperativos />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/perfiles-operativos/armado/:id"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador']}>
+                        <UnifiedLayout>
+                          <PerfilesOperativos />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
