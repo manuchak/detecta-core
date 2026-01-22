@@ -1,15 +1,26 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMyPerformance, PeriodoReporte } from '../hooks/useMyPerformance';
+import { useMyPerformance, PeriodoReporte, CustomDateRange } from '../hooks/useMyPerformance';
 import { TrendingUp, TrendingDown, FileCheck, Clock, AlertCircle, BarChart3, Users, Shield, Minus } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function MyPerformanceDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoReporte>('mes');
-  const { data: metrics, isLoading, error } = useMyPerformance(periodo);
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  
+  // Build custom range params for the hook
+  const customRangeParams: CustomDateRange | undefined = periodo === 'custom' && customDateRange?.from
+    ? { startDate: customDateRange.from, endDate: customDateRange.to || customDateRange.from }
+    : undefined;
+  
+  const { data: metrics, isLoading, error } = useMyPerformance(periodo, customRangeParams);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -40,7 +51,22 @@ export default function MyPerformanceDashboard() {
     { name: 'Rechazados', value: metrics.desglosePorEstado.rechazados, color: '#f97316' },
   ].filter(item => item.value > 0);
 
-  const periodoLabel = periodo === 'semana' ? 'esta semana' : periodo === 'mes' ? 'este mes' : 'este trimestre';
+  const getPeriodoLabel = () => {
+    if (periodo === 'custom' && customDateRange?.from) {
+      const fromStr = format(customDateRange.from, 'dd MMM', { locale: es });
+      const toStr = customDateRange.to ? format(customDateRange.to, 'dd MMM', { locale: es }) : fromStr;
+      return `${fromStr} - ${toStr}`;
+    }
+    switch (periodo) {
+      case 'semana': return 'esta semana';
+      case 'mes': return 'este mes';
+      case 'trimestre': return 'este trimestre';
+      case 'year': return 'este año';
+      default: return 'este período';
+    }
+  };
+  
+  const periodoLabel = getPeriodoLabel();
 
   return (
     <div className="space-y-6">
@@ -57,16 +83,28 @@ export default function MyPerformanceDashboard() {
             </p>
           </div>
         </div>
-        <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoReporte)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Período" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="semana">Esta Semana</SelectItem>
-            <SelectItem value="mes">Este Mes</SelectItem>
-            <SelectItem value="trimestre">Trimestre</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoReporte)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="semana">Esta Semana</SelectItem>
+              <SelectItem value="mes">Este Mes</SelectItem>
+              <SelectItem value="trimestre">Trimestre</SelectItem>
+              <SelectItem value="year">Este Año</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {periodo === 'custom' && (
+            <DatePickerWithRange
+              date={customDateRange}
+              onDateChange={setCustomDateRange}
+              className="w-auto"
+            />
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}

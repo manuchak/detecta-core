@@ -1,8 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, startOfWeek, subDays, subMonths, format } from 'date-fns';
+import { startOfMonth, startOfWeek, subDays, subMonths, format, differenceInDays } from 'date-fns';
 
-export type PeriodoReporte = 'semana' | 'mes' | 'trimestre';
+export type PeriodoReporte = 'semana' | 'mes' | 'trimestre' | 'year' | 'custom';
+
+export interface CustomDateRange {
+  startDate?: Date;
+  endDate?: Date;
+}
 
 export interface MyPerformanceMetrics {
   serviciosCreados: number;
@@ -25,9 +30,12 @@ export interface MyPerformanceMetrics {
   armadosDistintos: number;
 }
 
-export const useMyPerformance = (periodo: PeriodoReporte = 'mes') => {
+export const useMyPerformance = (
+  periodo: PeriodoReporte = 'mes',
+  customRange?: CustomDateRange
+) => {
   return useQuery({
-    queryKey: ['my-performance', periodo],
+    queryKey: ['my-performance', periodo, customRange?.startDate?.toISOString(), customRange?.endDate?.toISOString()],
     queryFn: async (): Promise<MyPerformanceMetrics | null> => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
@@ -35,6 +43,7 @@ export const useMyPerformance = (periodo: PeriodoReporte = 'mes') => {
       // Calculate date ranges based on period
       const ahora = new Date();
       let fechaInicio: Date;
+      let fechaFin: Date = ahora;
       let fechaInicioPeriodoAnterior: Date;
       let fechaFinPeriodoAnterior: Date;
       
@@ -49,6 +58,25 @@ export const useMyPerformance = (periodo: PeriodoReporte = 'mes') => {
           fechaFinPeriodoAnterior = subDays(fechaInicio, 1);
           fechaInicioPeriodoAnterior = subMonths(fechaInicio, 3);
           break;
+        case 'year':
+          fechaInicio = subMonths(ahora, 12);
+          fechaFinPeriodoAnterior = subDays(fechaInicio, 1);
+          fechaInicioPeriodoAnterior = subMonths(fechaInicio, 12);
+          break;
+        case 'custom':
+          if (customRange?.startDate && customRange?.endDate) {
+            fechaInicio = customRange.startDate;
+            fechaFin = customRange.endDate;
+            const duracionDias = differenceInDays(fechaFin, fechaInicio) + 1;
+            fechaFinPeriodoAnterior = subDays(fechaInicio, 1);
+            fechaInicioPeriodoAnterior = subDays(fechaInicio, duracionDias);
+          } else {
+            // Fallback to current month if no custom range provided
+            fechaInicio = startOfMonth(ahora);
+            fechaFinPeriodoAnterior = subDays(fechaInicio, 1);
+            fechaInicioPeriodoAnterior = subMonths(fechaInicio, 1);
+          }
+          break;
         default: // mes
           fechaInicio = startOfMonth(ahora);
           fechaFinPeriodoAnterior = subDays(fechaInicio, 1);
@@ -56,16 +84,24 @@ export const useMyPerformance = (periodo: PeriodoReporte = 'mes') => {
       }
 
       // Current period services (only for this user)
-      const { data: serviciosActuales } = await supabase
+      // Using estado_planeacion (correct field name in servicios_planificados)
+      let queryActual = supabase
         .from('servicios_planificados')
-        .select('id, estado_servicio, created_at, custodio_asignado, armado_asignado_id')
+        .select('id, estado_planeacion, created_at, custodio_asignado, armado_asignado_id')
         .eq('created_by', user.id)
         .gte('created_at', fechaInicio.toISOString());
+      
+      // Apply end date filter for custom ranges
+      if (periodo === 'custom' && customRange?.endDate) {
+        queryActual = queryActual.lte('created_at', fechaFin.toISOString());
+      }
+      
+      const { data: serviciosActuales } = await queryActual;
 
       // Previous period services (for comparison)
       const { data: serviciosAnteriores } = await supabase
         .from('servicios_planificados')
-        .select('id, estado_servicio')
+        .select('id, estado_planeacion')
         .eq('created_by', user.id)
         .gte('created_at', fechaInicioPeriodoAnterior.toISOString())
         .lt('created_at', fechaInicio.toISOString());
@@ -73,33 +109,34 @@ export const useMyPerformance = (periodo: PeriodoReporte = 'mes') => {
       const serviciosCreados = serviciosActuales?.length || 0;
       const serviciosPeriodoAnterior = serviciosAnteriores?.length || 0;
       
-      // Calculate acceptance rate
+      // Calculate acceptance rate using correct field: estado_planeacion
+      // "Accepted/Active" services = planificado + confirmado (have been assigned)
       const aceptados = serviciosActuales?.filter(s => 
-        ['aceptado', 'completado', 'en_sitio', 'confirmado'].includes(s.estado_servicio || '')
+        ['planificado', 'confirmado'].includes(s.estado_planeacion || '')
       ).length || 0;
       const tasaAceptacion = serviciosCreados > 0 ? (aceptados / serviciosCreados) * 100 : 0;
 
       // Previous period acceptance rate
       const aceptadosAnteriores = serviciosAnteriores?.filter(s => 
-        ['aceptado', 'completado', 'en_sitio', 'confirmado'].includes(s.estado_servicio || '')
+        ['planificado', 'confirmado'].includes(s.estado_planeacion || '')
       ).length || 0;
       const tasaAceptacionAnterior = serviciosPeriodoAnterior > 0 
         ? (aceptadosAnteriores / serviciosPeriodoAnterior) * 100 : 0;
 
-      // Status breakdown
+      // Status breakdown using correct estado_planeacion values
       const desglosePorEstado = {
-        completados: serviciosActuales?.filter(s => s.estado_servicio === 'completado').length || 0,
+        completados: serviciosActuales?.filter(s => s.estado_planeacion === 'confirmado').length || 0,
         pendientes: serviciosActuales?.filter(s => 
-          ['pendiente', 'programado', 'en_sitio'].includes(s.estado_servicio || '')
+          ['pendiente_asignacion', 'planificado'].includes(s.estado_planeacion || '')
         ).length || 0,
-        cancelados: serviciosActuales?.filter(s => s.estado_servicio === 'cancelado').length || 0,
-        rechazados: serviciosActuales?.filter(s => s.estado_servicio === 'rechazado').length || 0,
+        cancelados: serviciosActuales?.filter(s => s.estado_planeacion === 'cancelado').length || 0,
+        rechazados: 0, // This state doesn't exist in servicios_planificados
       };
 
-      // Incidences (rejected + cancelled)
-      const incidencias = desglosePorEstado.rechazados + desglosePorEstado.cancelados;
+      // Incidences (cancelled only - rechazado doesn't exist in this table)
+      const incidencias = desglosePorEstado.cancelados;
       const incidenciasAnterior = serviciosAnteriores?.filter(s => 
-        ['rechazado', 'cancelado'].includes(s.estado_servicio || '')
+        s.estado_planeacion === 'cancelado'
       ).length || 0;
 
       // Activity per day (last 7 days)
