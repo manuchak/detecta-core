@@ -10,7 +10,7 @@ import { useAreaPerformanceMetrics } from '../hooks/useAreaPerformanceMetrics';
 import { usePlanningResourcesMetrics } from '../hooks/usePlanningResourcesMetrics';
 import type { PeriodoReporte } from '../types';
 import MetricCard from './MetricCard';
-import { ResourceCapacityCard, TopZonasDemandaCard, ExternalProvidersCard, DemandBubbleMap } from './planning';
+import { ResourceCapacityCard, TopZonasDemandaCard, ExternalProvidersCard, DemandBubbleMap, FlowMap } from './planning';
 
 export default function AreaPerformanceDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoReporte>('mes_actual');
@@ -95,6 +95,11 @@ export default function AreaPerformanceDashboard() {
                 <TopZonasDemandaCard zonas={recursos.top_zonas_demanda} />
                 <DemandBubbleMap zonas={recursos.top_zonas_demanda} />
               </div>
+              
+              {/* Mapa de Flujos Origen-Destino */}
+              {recursos.flujos_origen_destino && recursos.flujos_origen_destino.length > 0 && (
+                <FlowMap flujos={recursos.flujos_origen_destino} />
+              )}
             </>
           )}
         </TabsContent>
