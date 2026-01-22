@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, Users, Save } from "lucide-react";
 import { LeadEstado } from "@/types/leadTypes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PersonalInfoForm } from "./forms/PersonalInfoForm";
@@ -16,6 +16,8 @@ import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
 import { Lead } from "@/types/leadTypes";
 import { useSandboxAwareSupabase } from "@/hooks/useSandboxAwareSupabase";
 import { SandboxDataWarning } from "@/components/sandbox/SandboxDataWarning";
+import { usePersistedForm } from "@/hooks/usePersistedForm";
+import { Badge } from "@/components/ui/badge";
 
 interface EnhancedLeadFormProps {
   editingLead?: Lead | null;
@@ -65,6 +67,49 @@ interface FormData {
   notas: string;
 }
 
+// Initial form data extracted as constant
+const INITIAL_FORM_DATA: FormData = {
+  // Información personal
+  nombre: "",
+  email: "",
+  telefono: "",
+  edad: "",
+  nivel_escolaridad: "",
+  fuente: "",
+  
+  // Ubicación
+  direccion: "",
+  estado_id: "",
+  ciudad_id: "",
+  zona_trabajo_id: "",
+  
+  // Vehículo
+  vehiculo_propio: "",
+  marca_vehiculo: "",
+  modelo_vehiculo: "",
+  año_vehiculo: "",
+  
+  // Experiencia
+  experiencia_custodia: "",
+  años_experiencia: "",
+  empresas_anteriores: "",
+  licencia_conducir: "",
+  tipo_licencia: "",
+  antecedentes_penales: "",
+  institucion_publica: "",
+  baja_institucion: "",
+  referencias: "",
+  mensaje: "",
+  
+  // Referidos
+  custodio_referente_id: "",
+  custodio_referente_nombre: "",
+  
+  // Estado del lead
+  estado_lead: "nuevo",
+  notas: "",
+};
+
 interface ValidationResult {
   isValid: boolean;
   isDuplicate: boolean;
@@ -86,51 +131,34 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
-  const [formData, setFormData] = useState<FormData>({
-    // Información personal
-    nombre: "",
-    email: "",
-    telefono: "",
-    edad: "",
-    nivel_escolaridad: "",
-    fuente: "",
-    
-    // Ubicación
-    direccion: "",
-    estado_id: "",
-    ciudad_id: "",
-    zona_trabajo_id: "",
-    
-    // Vehículo
-    vehiculo_propio: "",
-    marca_vehiculo: "",
-    modelo_vehiculo: "",
-    año_vehiculo: "",
-    
-    // Experiencia
-    experiencia_custodia: "",
-    años_experiencia: "",
-    empresas_anteriores: "",
-    licencia_conducir: "",
-    tipo_licencia: "",
-    antecedentes_penales: "",
-    institucion_publica: "",
-    baja_institucion: "",
-    referencias: "",
-    mensaje: "",
-    
-    // Referidos
-    custodio_referente_id: "",
-    custodio_referente_nombre: "",
-    
-    // Estado del lead
-    estado_lead: "nuevo",
-    notas: "",
+  // Use persisted form for draft functionality (only for new leads, not editing)
+  const {
+    formData,
+    updateFormData,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+  } = usePersistedForm<FormData>({
+    key: 'enhanced_lead_form_draft',
+    initialData: INITIAL_FORM_DATA,
+    hydrateOnMount: !editingLead, // Only restore draft if not editing
+    saveOnChangeDebounceMs: 800,
+    isMeaningfulDraft: (data) => !!(data.nombre || data.email || data.telefono),
   });
+
+  // Track time since save for UI feedback
+  const [timeSinceSave, setTimeSinceSave] = useState<string>("");
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeSinceSave(getTimeSinceSave());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [getTimeSinceSave]);
 
   useEffect(() => {
     if (editingLead) {
-      setFormData({
+      updateFormData({
         // Información personal
         nombre: editingLead.nombre || "",
         email: editingLead.email || "",
@@ -175,10 +203,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
   }, [editingLead]);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    updateFormData({ [field]: value });
 
     // Limpiar validación cuando se cambian datos críticos
     if (['nombre', 'email', 'telefono'].includes(field)) {
@@ -188,17 +213,15 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
 
   const handleReferralChange = (referralData: { custodio_referente_id: string; custodio_referente_nombre: string } | null) => {
     if (referralData) {
-      setFormData(prev => ({
-        ...prev,
+      updateFormData({
         custodio_referente_id: referralData.custodio_referente_id,
         custodio_referente_nombre: referralData.custodio_referente_nombre
-      }));
+      });
     } else {
-      setFormData(prev => ({
-        ...prev,
+      updateFormData({
         custodio_referente_id: "",
         custodio_referente_nombre: ""
-      }));
+      });
     }
   };
 
@@ -343,6 +366,11 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         await createLead.mutateAsync(leadData);
       }
 
+      // Clear draft on successful submission (only for new leads)
+      if (!editingLead) {
+        clearDraft();
+      }
+
       toast({
         title: "Éxito",
         description: `Candidato ${editingLead ? 'actualizado' : 'creado'} correctamente`,
@@ -370,6 +398,16 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Advertencia de Sandbox */}
       <SandboxDataWarning entityType="lead" action={editingLead ? "update" : "create"} />
+      
+      {/* Draft indicator - only show for new leads */}
+      {!editingLead && hasDraft && timeSinceSave && (
+        <div className="flex items-center justify-end gap-2">
+          <Badge variant="secondary" className="flex items-center gap-1.5">
+            <Save className="h-3 w-3" />
+            Borrador guardado {timeSinceSave}
+          </Badge>
+        </div>
+      )}
       
       {/* Información Personal */}
       <Card>
