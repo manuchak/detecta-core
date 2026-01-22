@@ -176,10 +176,21 @@ export default function DemandBubbleMap({ zonas, height = 350 }: DemandBubbleMap
       el.addEventListener('mouseleave', () => {
         popup.remove();
       });
-      
+
+      // Click to fly to the zone
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (map.current && zona.lat && zona.lng) {
+          map.current.flyTo({
+            center: [zona.lng, zona.lat],
+            zoom: 7,
+            duration: 800
+          });
+        }
+      });
+
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([zona.lng, zona.lat])
-        .setPopup(popup)
         .addTo(map.current!);
       
       markersRef.current.push(marker);
