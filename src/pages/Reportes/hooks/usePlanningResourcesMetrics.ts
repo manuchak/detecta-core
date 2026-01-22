@@ -1,7 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda } from '../types/planningResources';
+import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda, ProveedorExternoMetrics } from '../types/planningResources';
 import { subDays } from 'date-fns';
+
+// Función de normalización de nombres para matching consistente
+function normalizarNombre(nombre: string): string {
+  if (!nombre) return '';
+  return nombre
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const NOMBRES_EXCLUIDOS = ['NOAPLICA', 'PRUEBA', 'TEST', 'NA', 'N/A', 'SIN ASIGNAR', 'PENDIENTE'];
 
 export const usePlanningResourcesMetrics = () => {
   return useQuery({
@@ -10,6 +23,7 @@ export const usePlanningResourcesMetrics = () => {
       const now = new Date();
       const hace30Dias = subDays(now, 30).toISOString();
       const hace120Dias = subDays(now, 120).toISOString();
+      const inicioAnio = new Date(now.getFullYear(), 0, 1).toISOString();
       
       // === CUSTODIOS ===
       // 1. Pool total registrado (para contexto)
@@ -44,7 +58,7 @@ export const usePlanningResourcesMetrics = () => {
         .filter(c => custodiosOperativosSet.has(c.id));
       const custodiosClusters = await calcularClustersCustodios(custodiosParaClusters);
       
-      // 3. Indisponibilidades temporales activas
+      // 5. Indisponibilidades temporales activas
       const { data: indisponibilidades, error: indispError } = await supabase
         .from('custodio_indisponibilidades')
         .select('tipo_indisponibilidad')
@@ -62,22 +76,53 @@ export const usePlanningResourcesMetrics = () => {
         .map(([tipo, cantidad]) => ({ tipo, cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad);
       
-      // === ARMADOS ===
-      // 1. Total armados activos
-      const { data: armadosActivos, error: armadosError } = await supabase
+      // === ARMADOS INTERNOS ===
+      // 1. Pool registrado de armados internos
+      const { data: armadosRegistrados, error: armadosError } = await supabase
         .from('armados_operativos')
-        .select('id, disponibilidad, estado')
+        .select('id, nombre, disponibilidad, estado, tipo_armado')
+        .eq('tipo_armado', 'interno')
         .eq('estado', 'activo');
       
       if (armadosError) throw armadosError;
       
-      const totalArmadosActivos = armadosActivos?.length || 0;
-      const armadosDisponibles = armadosActivos?.filter(a => a.disponibilidad === 'disponible').length || 0;
+      // Filtrar nombres de prueba/inválidos
+      const armadosInternosLimpios = (armadosRegistrados || []).filter(a => {
+        const nombreNorm = normalizarNombre(a.nombre || '');
+        return nombreNorm.length > 2 && !NOMBRES_EXCLUIDOS.some(excl => nombreNorm.includes(excl));
+      });
       
-      // 2. Clusters de inactividad de armados
-      const armadosClusters = await calcularClustersArmados(armadosActivos || []);
+      const poolRegistradoArmados = armadosInternosLimpios.length;
       
-      // 3. Indisponibilidades de armados (si existe la tabla)
+      // 2. Armados operativos = con servicios en últimos 30 días (desde servicios_planificados)
+      const { data: serviciosArmadosInternos, error: serviciosArmadosError } = await supabase
+        .from('servicios_planificados')
+        .select('armado_asignado, fecha_hora_cita')
+        .gte('fecha_hora_cita', hace30Dias)
+        .eq('tipo_asignacion_armado', 'interno')
+        .not('armado_asignado', 'is', null);
+      
+      if (serviciosArmadosError) throw serviciosArmadosError;
+      
+      // Obtener nombres únicos de armados con servicios recientes
+      const armadosActivosNombres = [...new Set(
+        (serviciosArmadosInternos || [])
+          .map(s => normalizarNombre(s.armado_asignado))
+          .filter(n => n.length > 2 && !NOMBRES_EXCLUIDOS.some(excl => n.includes(excl)))
+      )];
+      
+      const totalArmadosOperativos = armadosActivosNombres.length;
+      
+      // 3. Disponibles = armados registrados que están disponibles y han tenido servicios
+      const armadosDisponibles = armadosInternosLimpios.filter(a => {
+        const nombreNorm = normalizarNombre(a.nombre || '');
+        return a.disponibilidad === 'disponible' && armadosActivosNombres.includes(nombreNorm);
+      }).length;
+      
+      // 4. Clusters de inactividad usando servicios_planificados
+      const armadosClusters = await calcularClustersArmadosInterno(armadosInternosLimpios);
+      
+      // 5. Indisponibilidades de armados
       const armadosIndisponibilidades: IndisponibilidadTemporal[] = [];
       try {
         const { data: armadosIndisp } = await supabase
@@ -99,6 +144,32 @@ export const usePlanningResourcesMetrics = () => {
       } catch {
         // Tabla puede no existir, ignorar
       }
+      
+      // === PROVEEDORES EXTERNOS ===
+      const { data: proveedoresData, error: proveedoresError } = await supabase
+        .from('proveedores_armados')
+        .select('id, nombre_empresa, activo')
+        .eq('activo', true);
+      
+      if (proveedoresError) throw proveedoresError;
+      
+      const proveedorIds = (proveedoresData || []).map(p => p.id);
+      
+      // Servicios de proveedores externos YTD
+      const { data: serviciosExternos, error: serviciosExtError } = await supabase
+        .from('servicios_planificados')
+        .select('proveedor_armado_id, armado_asignado, fecha_hora_cita')
+        .eq('tipo_asignacion_armado', 'proveedor')
+        .gte('fecha_hora_cita', inicioAnio)
+        .in('proveedor_armado_id', proveedorIds);
+      
+      if (serviciosExtError) throw serviciosExtError;
+      
+      const proveedoresMetrics = calcularMetricasProveedores(
+        proveedoresData || [],
+        serviciosExternos || [],
+        hace30Dias
+      );
       
       // === TOP ZONAS DE DEMANDA ===
       const { data: serviciosRecientes, error: serviciosError } = await supabase
@@ -134,9 +205,8 @@ export const usePlanningResourcesMetrics = () => {
         ? Math.round((custodiosActivos30d / totalCustodiosOperativos) * 1000) / 10
         : 0;
       
-      const armadosActivos30d = armadosClusters.activo_30d;
-      const tasaActivacionArmados = totalArmadosActivos > 0
-        ? Math.round((armadosActivos30d / totalArmadosActivos) * 1000) / 10
+      const tasaActivacionArmados = poolRegistradoArmados > 0
+        ? Math.round((totalArmadosOperativos / poolRegistradoArmados) * 1000) / 10
         : 0;
       
       return {
@@ -150,13 +220,15 @@ export const usePlanningResourcesMetrics = () => {
           indisponibilidades: indisponibilidadesTemporales,
         },
         armados: {
-          total_activos: totalArmadosActivos,
+          total_activos: totalArmadosOperativos,
+          pool_registrado: poolRegistradoArmados,
           disponibles: armadosDisponibles,
-          con_servicio_30d: armadosActivos30d,
+          con_servicio_30d: totalArmadosOperativos, // Ahora son los mismos (operativos = activos 30d)
           tasa_activacion: tasaActivacionArmados,
           clusters: armadosClusters,
           indisponibilidades: armadosIndisponibilidades,
         },
+        proveedores_externos: proveedoresMetrics,
         top_zonas_demanda: topZonasDemanda,
       };
     },
@@ -164,6 +236,36 @@ export const usePlanningResourcesMetrics = () => {
     gcTime: 15 * 60 * 1000,
   });
 };
+
+function calcularMetricasProveedores(
+  proveedores: { id: string; nombre_empresa: string }[],
+  servicios: { proveedor_armado_id: string; armado_asignado: string; fecha_hora_cita: string }[],
+  hace30Dias: string
+): ProveedorExternoMetrics[] {
+  return proveedores.map(prov => {
+    const serviciosProv = servicios.filter(s => s.proveedor_armado_id === prov.id);
+    const servicios30d = serviciosProv.filter(s => 
+      new Date(s.fecha_hora_cita) >= new Date(hace30Dias)
+    );
+    const diasUnicos = new Set(
+      serviciosProv.map(s => new Date(s.fecha_hora_cita).toISOString().split('T')[0])
+    ).size;
+    const armadosUnicos = new Set(
+      serviciosProv
+        .map(s => normalizarNombre(s.armado_asignado))
+        .filter(n => n.length > 2)
+    ).size;
+    
+    return {
+      nombre: prov.nombre_empresa,
+      serviciosTotales: serviciosProv.length,
+      servicios30d: servicios30d.length,
+      diasActivos: diasUnicos,
+      armadosActivos: armadosUnicos,
+      activo: servicios30d.length > 0,
+    };
+  });
+}
 
 async function calcularClustersCustodios(custodios: { id: string }[]): Promise<ClusterInactividad> {
   if (custodios.length === 0) {
@@ -191,30 +293,61 @@ async function calcularClustersCustodios(custodios: { id: string }[]): Promise<C
   return clasificarEnClusters(custodioIds, ultimoServicioPorCustodio);
 }
 
-async function calcularClustersArmados(armados: { id: string }[]): Promise<ClusterInactividad> {
-  if (armados.length === 0) {
+async function calcularClustersArmadosInterno(
+  armadosRegistrados: { id: string; nombre?: string }[]
+): Promise<ClusterInactividad> {
+  if (armadosRegistrados.length === 0) {
     return getEmptyCluster();
   }
   
-  const armadoIds = armados.map(a => a.id);
+  // Obtener servicios de armados internos desde servicios_planificados
+  const { data: servicios } = await supabase
+    .from('servicios_planificados')
+    .select('armado_asignado, fecha_hora_cita')
+    .eq('tipo_asignacion_armado', 'interno')
+    .not('armado_asignado', 'is', null)
+    .order('fecha_hora_cita', { ascending: false });
   
-  // Obtener último servicio por armado desde asignacion_armados
-  const { data: asignaciones } = await supabase
-    .from('asignacion_armados')
-    .select('armado_id, created_at')
-    .in('armado_id', armadoIds)
-    .in('estado_asignacion', ['asignado', 'confirmado', 'completado'])
-    .order('created_at', { ascending: false });
-  
-  // Mapear último servicio por armado
-  const ultimoServicioPorArmado = new Map<string, Date>();
-  for (const a of asignaciones || []) {
-    if (a.armado_id && !ultimoServicioPorArmado.has(a.armado_id)) {
-      ultimoServicioPorArmado.set(a.armado_id, new Date(a.created_at));
+  // Mapear último servicio por nombre normalizado
+  const ultimoServicioPorNombre = new Map<string, Date>();
+  for (const s of servicios || []) {
+    const nombreNorm = normalizarNombre(s.armado_asignado);
+    if (nombreNorm && !ultimoServicioPorNombre.has(nombreNorm)) {
+      ultimoServicioPorNombre.set(nombreNorm, new Date(s.fecha_hora_cita));
     }
   }
   
-  return clasificarEnClusters(armadoIds, ultimoServicioPorArmado);
+  // Clasificar armados registrados por nombre normalizado
+  const clusters: ClusterInactividad = getEmptyCluster();
+  const now = new Date();
+  
+  for (const armado of armadosRegistrados) {
+    const nombreNorm = normalizarNombre(armado.nombre || '');
+    const ultimaFecha = ultimoServicioPorNombre.get(nombreNorm);
+    
+    if (!ultimaFecha) {
+      clusters.nunca_asignado++;
+      continue;
+    }
+    
+    const diasDesdeUltimo = Math.floor(
+      (now.getTime() - ultimaFecha.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    if (diasDesdeUltimo <= 30) {
+      clusters.activo_30d++;
+    } else if (diasDesdeUltimo <= 60) {
+      clusters.inactivo_30_60d++;
+    } else if (diasDesdeUltimo <= 90) {
+      clusters.inactivo_60_90d++;
+    } else if (diasDesdeUltimo <= 120) {
+      clusters.inactivo_90_120d++;
+    } else {
+      clusters.inactivo_mas_120d++;
+    }
+  }
+  
+  return clusters;
 }
 
 function clasificarEnClusters(ids: string[], ultimoServicio: Map<string, Date>): ClusterInactividad {

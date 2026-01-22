@@ -10,7 +10,7 @@ import { useAreaPerformanceMetrics } from '../hooks/useAreaPerformanceMetrics';
 import { usePlanningResourcesMetrics } from '../hooks/usePlanningResourcesMetrics';
 import type { PeriodoReporte } from '../types';
 import MetricCard from './MetricCard';
-import { ResourceCapacityCard, TopZonasDemandaCard } from './planning';
+import { ResourceCapacityCard, TopZonasDemandaCard, ExternalProvidersCard } from './planning';
 
 export default function AreaPerformanceDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoReporte>('mes');
@@ -78,11 +78,16 @@ export default function AreaPerformanceDashboard() {
                   data={recursos.custodios}
                 />
                 <ResourceCapacityCard 
-                  title="Capacidad de Armados"
+                  title="Capacidad de Armados Internos"
                   type="armados"
                   data={recursos.armados}
                 />
               </div>
+              
+              {/* Proveedores Externos */}
+              {recursos.proveedores_externos && recursos.proveedores_externos.length > 0 && (
+                <ExternalProvidersCard proveedores={recursos.proveedores_externos} />
+              )}
               
               {/* Top Zonas de Demanda */}
               <TopZonasDemandaCard zonas={recursos.top_zonas_demanda} />

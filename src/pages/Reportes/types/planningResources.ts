@@ -32,6 +32,7 @@ export interface RecursosCustodios {
 
 export interface RecursosArmados {
   total_activos: number;
+  pool_registrado?: number;
   disponibles: number;
   con_servicio_30d: number;
   tasa_activacion: number;
@@ -39,9 +40,19 @@ export interface RecursosArmados {
   indisponibilidades: IndisponibilidadTemporal[];
 }
 
+export interface ProveedorExternoMetrics {
+  nombre: string;
+  serviciosTotales: number;
+  servicios30d: number;
+  diasActivos: number;
+  armadosActivos: number;
+  activo: boolean;
+}
+
 export interface RecursosPlaneacion {
   custodios: RecursosCustodios;
   armados: RecursosArmados;
+  proveedores_externos: ProveedorExternoMetrics[];
   top_zonas_demanda: ZonaDemanda[];
 }
 
