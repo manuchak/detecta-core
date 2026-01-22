@@ -33,6 +33,8 @@ export interface ArmadoSinAsignacion {
   serviciosHistoricos: number;
   scoreTotal: number | null;
   zona: string | null;
+  ultimoServicio: Date | null;
+  diasSinServicio: number | null;
 }
 
 // Nombres a excluir del análisis (pruebas, placeholders)
@@ -214,13 +216,22 @@ export function useArmadosFairnessMetrics(
             palmaRatio: 1,
           },
           desviaciones: [],
-          armadosSinAsignacion: pool.map(a => ({
-            id: a.id,
-            nombre: a.nombre,
-            serviciosHistoricos: a.numero_servicios || 0,
-            scoreTotal: a.score_total,
-            zona: a.zona_base,
-          })),
+          armadosSinAsignacion: pool.map(a => {
+            const nombreNorm = normalizarNombre(a.nombre);
+            const ultimoServicio = ultimoServicioPorNombre.get(nombreNorm) || null;
+            const diasSinServicio = ultimoServicio 
+              ? Math.floor((new Date().getTime() - ultimoServicio.getTime()) / (1000 * 60 * 60 * 24))
+              : null;
+            return {
+              id: a.id,
+              nombre: a.nombre,
+              serviciosHistoricos: a.numero_servicios || 0,
+              scoreTotal: a.score_total,
+              zona: a.zona_base,
+              ultimoServicio,
+              diasSinServicio,
+            };
+          }),
           alertas: [{
             tipo: 'DATOS_INSUFICIENTES',
             severidad: 'baja',
@@ -299,14 +310,29 @@ export function useArmadosFairnessMetrics(
       
       const armadosSinAsignacion: ArmadoSinAsignacion[] = pool
         .filter(a => !nombresAsignados.has(normalizarNombre(a.nombre)))
-        .map(a => ({
-          id: a.id,
-          nombre: a.nombre,
-          serviciosHistoricos: a.numero_servicios || 0,
-          scoreTotal: a.score_total,
-          zona: a.zona_base,
-        }))
-        .sort((a, b) => b.serviciosHistoricos - a.serviciosHistoricos);
+        .map(a => {
+          const nombreNorm = normalizarNombre(a.nombre);
+          const ultimoServicio = ultimoServicioPorNombre.get(nombreNorm) || null;
+          const diasSinServicio = ultimoServicio 
+            ? Math.floor((new Date().getTime() - ultimoServicio.getTime()) / (1000 * 60 * 60 * 24))
+            : null;
+          return {
+            id: a.id,
+            nombre: a.nombre,
+            serviciosHistoricos: a.numero_servicios || 0,
+            scoreTotal: a.score_total,
+            zona: a.zona_base,
+            ultimoServicio,
+            diasSinServicio,
+          };
+        })
+        .sort((a, b) => {
+          // Sort by days without service (most recent first, null last)
+          if (a.diasSinServicio === null && b.diasSinServicio === null) return 0;
+          if (a.diasSinServicio === null) return 1;
+          if (b.diasSinServicio === null) return -1;
+          return a.diasSinServicio - b.diasSinServicio;
+        });
       
       // 14. Generate alerts
       const alertas: ArmadosFairnessMetrics['alertas'] = [];
