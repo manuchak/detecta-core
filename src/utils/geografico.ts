@@ -11,6 +11,10 @@ export const CIUDADES_PRINCIPALES = {
   'ecatepec': { lat: 19.6014, lng: -99.0602, estado: 'Estado de México', aliases: ['ecatepec de morelos'] },
   'tlalnepantla': { lat: 19.5409, lng: -99.1956, estado: 'Estado de México', aliases: [] },
   'naucalpan': { lat: 19.4781, lng: -99.2386, estado: 'Estado de México', aliases: ['naucalpan de juarez'] },
+  'cuautitlan_izcalli': { lat: 19.6533, lng: -99.2050, estado: 'Estado de México', aliases: ['cuautitlan', 'cuautitlán izcalli', 'cuautitlan izcalli'] },
+  'tultitlan': { lat: 19.6450, lng: -99.1675, estado: 'Estado de México', aliases: ['tultitlán'] },
+  'tultepec': { lat: 19.6850, lng: -99.1280, estado: 'Estado de México', aliases: [] },
+  'atizapan': { lat: 19.5578, lng: -99.2403, estado: 'Estado de México', aliases: ['atizapan de zaragoza', 'atizapán'] },
   
   // Guadalajara y zona metropolitana
   'guadalajara': { lat: 20.6597, lng: -103.3496, estado: 'Jalisco', aliases: ['gdl', 'metro guadalajara'] },
@@ -38,14 +42,28 @@ export const CIUDADES_PRINCIPALES = {
   'salamanca': { lat: 20.5739, lng: -101.1956, estado: 'Guanajuato', aliases: [] },
   'aguascalientes': { lat: 21.8853, lng: -102.2916, estado: 'Aguascalientes', aliases: ['ags'] },
   
+  // Puertos y logística
+  'manzanillo': { lat: 19.0522, lng: -104.3153, estado: 'Colima', aliases: ['puerto manzanillo'] },
+  'lazaro_cardenas': { lat: 17.9580, lng: -102.2000, estado: 'Michoacán', aliases: ['lazaro cardenas', 'lázaro cárdenas', 'puerto lazaro cardenas'] },
+  'veracruz': { lat: 19.1738, lng: -96.1342, estado: 'Veracruz', aliases: ['puerto de veracruz', 'puerto veracruz'] },
+  'altamira': { lat: 22.3930, lng: -97.9390, estado: 'Tamaulipas', aliases: ['puerto altamira'] },
+  'tampico': { lat: 22.2336, lng: -97.8614, estado: 'Tamaulipas', aliases: [] },
+  
   // Otras ciudades importantes
   'tijuana': { lat: 32.5149, lng: -117.0382, estado: 'Baja California', aliases: ['tj'] },
   'cancun': { lat: 21.1619, lng: -86.8515, estado: 'Quintana Roo', aliases: ['cancún'] },
   'merida': { lat: 20.9674, lng: -89.5926, estado: 'Yucatán', aliases: ['mérida'] },
-  'veracruz': { lat: 19.1738, lng: -96.1342, estado: 'Veracruz', aliases: ['puerto de veracruz'] },
-  'tampico': { lat: 22.2336, lng: -97.8614, estado: 'Tamaulipas', aliases: [] },
   'morelia': { lat: 19.7007, lng: -101.1884, estado: 'Michoacán', aliases: [] },
   'toluca': { lat: 19.2926, lng: -99.6544, estado: 'Estado de México', aliases: ['toluca de lerdo'] },
+  'san_luis_potosi': { lat: 22.1565, lng: -100.9855, estado: 'San Luis Potosí', aliases: ['slp', 'san luis'] },
+  'chihuahua': { lat: 28.6353, lng: -106.0889, estado: 'Chihuahua', aliases: ['chih'] },
+  'hermosillo': { lat: 29.0729, lng: -110.9559, estado: 'Sonora', aliases: [] },
+  'saltillo': { lat: 25.4232, lng: -100.9922, estado: 'Coahuila', aliases: [] },
+  'tuxtla_gutierrez': { lat: 16.7516, lng: -93.1152, estado: 'Chiapas', aliases: ['tuxtla'] },
+  'villahermosa': { lat: 17.9892, lng: -92.9475, estado: 'Tabasco', aliases: [] },
+  'oaxaca': { lat: 17.0732, lng: -96.7266, estado: 'Oaxaca', aliases: ['oaxaca de juarez'] },
+  'cuernavaca': { lat: 18.9242, lng: -99.2216, estado: 'Morelos', aliases: [] },
+  'pachuca': { lat: 20.1011, lng: -98.7591, estado: 'Hidalgo', aliases: ['pachuca de soto'] },
 } as const;
 
 // Mapeo de zonas de trabajo a ciudades principales
