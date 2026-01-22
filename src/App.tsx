@@ -793,7 +793,7 @@ function App() {
                   path="/planeacion/reportes"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
                         <UnifiedLayout>
                           <ReportesHub />
                         </UnifiedLayout>
