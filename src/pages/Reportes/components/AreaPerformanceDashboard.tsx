@@ -13,10 +13,10 @@ import MetricCard from './MetricCard';
 import { ResourceCapacityCard, TopZonasDemandaCard, ExternalProvidersCard } from './planning';
 
 export default function AreaPerformanceDashboard() {
-  const [periodo, setPeriodo] = useState<PeriodoReporte>('mes');
+  const [periodo, setPeriodo] = useState<PeriodoReporte>('mes_actual');
   const [activeTab, setActiveTab] = useState('recursos');
   const { data, isLoading, error } = useAreaPerformanceMetrics(periodo);
-  const { data: recursos, isLoading: loadingRecursos } = usePlanningResourcesMetrics();
+  const { data: recursos, isLoading: loadingRecursos } = usePlanningResourcesMetrics(periodo);
   
   if (isLoading || loadingRecursos) {
     return <LoadingSkeleton />;
@@ -46,10 +46,11 @@ export default function AreaPerformanceDashboard() {
             <SelectValue placeholder="Seleccionar período" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="mes_actual">Mes en Curso</SelectItem>
             <SelectItem value="semana">Última Semana</SelectItem>
-            <SelectItem value="mes">Último Mes</SelectItem>
+            <SelectItem value="mes">Últimos 30 Días</SelectItem>
             <SelectItem value="trimestre">Último Trimestre</SelectItem>
-            <SelectItem value="year">Último Año</SelectItem>
+            <SelectItem value="year">Año en Curso</SelectItem>
           </SelectContent>
         </Select>
       </div>

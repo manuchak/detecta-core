@@ -65,7 +65,7 @@ export interface PlanificadorPerformance {
   esControl?: boolean;
 }
 
-export type PeriodoReporte = 'semana' | 'mes' | 'trimestre' | 'year';
+export type PeriodoReporte = 'mes_actual' | 'semana' | 'mes' | 'trimestre' | 'year';
 export type CriterioOrdenamiento = 'score' | 'servicios' | 'calidad' | 'eficiencia';
 
 export interface AdoptionMetrics {
