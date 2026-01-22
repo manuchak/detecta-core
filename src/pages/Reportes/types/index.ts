@@ -60,6 +60,9 @@ export interface PlanificadorPerformance {
   
   // Estado actual
   serviciosActivosAhora: number;
+  
+  // Flag para admins/owners que crean servicios (no son planificadores regulares)
+  esControl?: boolean;
 }
 
 export type PeriodoReporte = 'semana' | 'mes' | 'trimestre' | 'year';

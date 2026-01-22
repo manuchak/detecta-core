@@ -30,23 +30,40 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
       const fechaInicioISO = fechaInicio.toISOString();
       const diasEnPeriodo = Math.ceil((now.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24));
       
-      // Obtener planificadores
+      // Obtener todos los usuarios
       const { data: allUsersData, error: planificadoresError } = await supabase
         .rpc('get_all_users_with_roles_secure');
       
       if (planificadoresError) throw planificadoresError;
       
-      const planificadores = allUsersData?.filter((user: any) => 
-        user.role === 'planificador'
-      ) || [];
-      
-      // Consultar servicios_planificados (tabla correcta con datos reales)
+      // Consultar servicios_planificados primero para saber qué admins tienen actividad
       const { data: servicios, error: serviciosError } = await supabase
         .from('servicios_planificados')
         .select('*')
         .gte('created_at', fechaInicioISO);
       
       if (serviciosError) throw serviciosError;
+      
+      // IDs de usuarios que crearon servicios en el período
+      const creadoresIds = [...new Set(servicios?.map(s => s.created_by) || [])];
+      
+      // Filtrar planificadores activos
+      const planificadoresActivos = allUsersData?.filter((user: any) => 
+        user.is_active === true && user.role === 'planificador'
+      ) || [];
+      
+      // Filtrar admins/owners activos que crearon servicios (se mostrarán como "Control")
+      const adminsConServicios = allUsersData?.filter((user: any) =>
+        user.is_active === true && 
+        ['admin', 'owner'].includes(user.role) && 
+        creadoresIds.includes(user.id)
+      ).map((admin: any) => ({
+        ...admin,
+        esControl: true
+      })) || [];
+      
+      // Combinar: planificadores activos + admins con servicios
+      const planificadores = [...planificadoresActivos, ...adminsConServicios];
       
       const performances: PlanificadorPerformance[] = planificadores.map((planificador: any) => {
         const userId = planificador.id;
@@ -147,7 +164,8 @@ export const usePlanificadoresPerformance = (periodo: PeriodoReporte = 'mes') =>
           ranking: 0,
           tendenciaSemanal: 0,
           
-          serviciosActivosAhora
+          serviciosActivosAhora,
+          esControl: planificador.esControl || false
         };
       });
       
