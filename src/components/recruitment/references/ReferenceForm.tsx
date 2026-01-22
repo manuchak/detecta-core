@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Users, Briefcase, User } from 'lucide-react';
+import { Loader2, Users, Briefcase, User, Save } from 'lucide-react';
 import { useCreateReferencia } from '@/hooks/useReferencias';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
   isOpen: boolean;
@@ -13,6 +16,26 @@ interface Props {
   candidatoId: string;
   tipoReferencia: 'laboral' | 'personal';
 }
+
+interface ReferenceFormData {
+  nombre: string;
+  relacion: string;
+  empresa: string;
+  cargo: string;
+  telefono: string;
+  email: string;
+  tiempoConocido: string;
+}
+
+const INITIAL_REFERENCE_DATA: ReferenceFormData = {
+  nombre: '',
+  relacion: '',
+  empresa: '',
+  cargo: '',
+  telefono: '',
+  email: '',
+  tiempoConocido: '',
+};
 
 const relacionesLaborales = [
   'Jefe directo',
@@ -35,17 +58,34 @@ const relacionesPersonales = [
 ];
 
 export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: Props) {
-  const [nombre, setNombre] = useState('');
-  const [relacion, setRelacion] = useState('');
-  const [empresa, setEmpresa] = useState('');
-  const [cargo, setCargo] = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [email, setEmail] = useState('');
-  const [tiempoConocido, setTiempoConocido] = useState('');
-
   const createMutation = useCreateReferencia();
+  const { user } = useAuth();
   const isLaboral = tipoReferencia === 'laboral';
   const relaciones = isLaboral ? relacionesLaborales : relacionesPersonales;
+
+  // Build user-scoped key for persistence
+  const persistenceKey = user 
+    ? `reference_${candidatoId}_${tipoReferencia}_${user.id}` 
+    : `reference_${candidatoId}_${tipoReferencia}`;
+
+  const {
+    data: formData,
+    updateData,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+    lastSaved,
+    setData,
+  } = useFormPersistence<ReferenceFormData>({
+    key: persistenceKey,
+    initialData: INITIAL_REFERENCE_DATA,
+    level: 'light',
+    debounceMs: 800,
+    enabled: !!candidatoId,
+    isMeaningful: (data) => !!(data.nombre || data.telefono || data.email),
+  });
+
+  const { nombre, relacion, empresa, cargo, telefono, email, tiempoConocido } = formData;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,28 +102,26 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
       tiempo_conocido: tiempoConocido || undefined,
     });
 
+    clearDraft();
     onClose();
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setNombre('');
-    setRelacion('');
-    setEmpresa('');
-    setCargo('');
-    setTelefono('');
-    setEmail('');
-    setTiempoConocido('');
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isLaboral ? <Briefcase className="h-5 w-5" /> : <User className="h-5 w-5" />}
-            Agregar Referencia {isLaboral ? 'Laboral' : 'Personal'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              {isLaboral ? <Briefcase className="h-5 w-5" /> : <User className="h-5 w-5" />}
+              Agregar Referencia {isLaboral ? 'Laboral' : 'Personal'}
+            </DialogTitle>
+            {hasDraft && lastSaved && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Save className="h-3 w-3" />
+                Borrador {getTimeSinceSave()}
+              </Badge>
+            )}
+          </div>
           <DialogDescription>
             Ingrese los datos de la referencia para su posterior validación
           </DialogDescription>
@@ -97,7 +135,7 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
               id="nombre"
               placeholder="Nombre de la referencia"
               value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              onChange={(e) => updateData({ nombre: e.target.value })}
               required
             />
           </div>
@@ -105,7 +143,7 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
           {/* Relación */}
           <div className="space-y-2">
             <Label htmlFor="relacion">Relación</Label>
-            <Select value={relacion} onValueChange={setRelacion}>
+            <Select value={relacion} onValueChange={(v) => updateData({ relacion: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccione la relación" />
               </SelectTrigger>
@@ -126,7 +164,7 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
                   id="empresa"
                   placeholder="Nombre de la empresa"
                   value={empresa}
-                  onChange={(e) => setEmpresa(e.target.value)}
+                  onChange={(e) => updateData({ empresa: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -135,7 +173,7 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
                   id="cargo"
                   placeholder="Puesto que ocupa"
                   value={cargo}
-                  onChange={(e) => setCargo(e.target.value)}
+                  onChange={(e) => updateData({ cargo: e.target.value })}
                 />
               </div>
             </>
@@ -149,7 +187,7 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
               type="tel"
               placeholder="Número de contacto"
               value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
+              onChange={(e) => updateData({ telefono: e.target.value })}
             />
           </div>
 
@@ -161,14 +199,14 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
               type="email"
               placeholder="Correo electrónico"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => updateData({ email: e.target.value })}
             />
           </div>
 
           {/* Tiempo conocido */}
           <div className="space-y-2">
             <Label htmlFor="tiempo">Tiempo de conocerse</Label>
-            <Select value={tiempoConocido} onValueChange={setTiempoConocido}>
+            <Select value={tiempoConocido} onValueChange={(v) => updateData({ tiempoConocido: v })}>
               <SelectTrigger>
                 <SelectValue placeholder="¿Cuánto tiempo se conocen?" />
               </SelectTrigger>

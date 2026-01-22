@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { useRiskChecklist, useUpsertRiskChecklist, RISK_FACTORS, RiskFactorKey } from '@/hooks/useRiskChecklist';
-import { Shield, AlertTriangle, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useAuth } from '@/contexts/AuthContext';
+import { Shield, AlertTriangle, AlertCircle, CheckCircle2, Loader2, Save } from 'lucide-react';
 
 interface Props {
   candidatoId: string;
@@ -17,45 +19,92 @@ interface Props {
   compact?: boolean;
 }
 
+interface RiskChecklistDraftData {
+  factors: Record<RiskFactorKey, boolean>;
+  notas: string;
+}
+
+const INITIAL_FACTORS: Record<RiskFactorKey, boolean> = {
+  antecedentes_penales: false,
+  antecedentes_laborales_negativos: false,
+  inconsistencias_cv: false,
+  actitud_defensiva: false,
+  respuestas_evasivas: false,
+  nerviosismo_excesivo: false,
+  cambios_frecuentes_empleo: false,
+  referencias_no_verificables: false,
+  documentacion_incompleta: false,
+  zona_alto_riesgo: false,
+};
+
+const INITIAL_RISK_DATA: RiskChecklistDraftData = {
+  factors: INITIAL_FACTORS,
+  notas: '',
+};
+
 export function RiskChecklistForm({ candidatoId, candidatoNombre, onClose, compact = false }: Props) {
   const { data: existingChecklist, isLoading } = useRiskChecklist(candidatoId);
   const upsertChecklist = useUpsertRiskChecklist();
+  const { user } = useAuth();
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const [factors, setFactors] = useState<Record<RiskFactorKey, boolean>>({
-    antecedentes_penales: false,
-    antecedentes_laborales_negativos: false,
-    inconsistencias_cv: false,
-    actitud_defensiva: false,
-    respuestas_evasivas: false,
-    nerviosismo_excesivo: false,
-    cambios_frecuentes_empleo: false,
-    referencias_no_verificables: false,
-    documentacion_incompleta: false,
-    zona_alto_riesgo: false,
+  // Build user-scoped key for persistence
+  const persistenceKey = user 
+    ? `risk_checklist_${candidatoId}_${user.id}` 
+    : `risk_checklist_${candidatoId}`;
+
+  const {
+    data: formData,
+    updateData,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+    lastSaved,
+    setData,
+  } = useFormPersistence<RiskChecklistDraftData>({
+    key: persistenceKey,
+    initialData: INITIAL_RISK_DATA,
+    level: 'light',
+    debounceMs: 800,
+    enabled: !!candidatoId,
+    isMeaningful: (data) => {
+      // Only meaningful if there are changes from default or existing data
+      const hasCheckedFactors = Object.values(data.factors).some(v => v);
+      return hasCheckedFactors || !!data.notas;
+    },
   });
-  const [notas, setNotas] = useState('');
 
+  const { factors, notas } = formData;
+
+  // Load existing checklist data when available (only if no draft exists)
   useEffect(() => {
-    if (existingChecklist) {
-      setFactors({
-        antecedentes_penales: existingChecklist.antecedentes_penales,
-        antecedentes_laborales_negativos: existingChecklist.antecedentes_laborales_negativos,
-        inconsistencias_cv: existingChecklist.inconsistencias_cv,
-        actitud_defensiva: existingChecklist.actitud_defensiva,
-        respuestas_evasivas: existingChecklist.respuestas_evasivas,
-        nerviosismo_excesivo: existingChecklist.nerviosismo_excesivo,
-        cambios_frecuentes_empleo: existingChecklist.cambios_frecuentes_empleo,
-        referencias_no_verificables: existingChecklist.referencias_no_verificables,
-        documentacion_incompleta: existingChecklist.documentacion_incompleta,
-        zona_alto_riesgo: existingChecklist.zona_alto_riesgo,
+    if (existingChecklist && !isInitialized && !hasDraft) {
+      setData({
+        factors: {
+          antecedentes_penales: existingChecklist.antecedentes_penales,
+          antecedentes_laborales_negativos: existingChecklist.antecedentes_laborales_negativos,
+          inconsistencias_cv: existingChecklist.inconsistencias_cv,
+          actitud_defensiva: existingChecklist.actitud_defensiva,
+          respuestas_evasivas: existingChecklist.respuestas_evasivas,
+          nerviosismo_excesivo: existingChecklist.nerviosismo_excesivo,
+          cambios_frecuentes_empleo: existingChecklist.cambios_frecuentes_empleo,
+          referencias_no_verificables: existingChecklist.referencias_no_verificables,
+          documentacion_incompleta: existingChecklist.documentacion_incompleta,
+          zona_alto_riesgo: existingChecklist.zona_alto_riesgo,
+        },
+        notas: existingChecklist.notas || '',
       });
-      setNotas(existingChecklist.notas || '');
+      setIsInitialized(true);
+    } else if (!existingChecklist && !isLoading) {
+      setIsInitialized(true);
     }
-  }, [existingChecklist]);
+  }, [existingChecklist, isInitialized, hasDraft, setData, isLoading]);
 
-  const calculatedScore = RISK_FACTORS.reduce((acc, factor) => {
-    return acc + (factors[factor.key] ? factor.weight : 0);
-  }, 0);
+  const calculatedScore = useMemo(() => {
+    return RISK_FACTORS.reduce((acc, factor) => {
+      return acc + (factors[factor.key] ? factor.weight : 0);
+    }, 0);
+  }, [factors]);
 
   const riskLevel = calculatedScore >= 50 ? 'alto' : calculatedScore >= 25 ? 'medio' : 'bajo';
 
@@ -79,12 +128,17 @@ export function RiskChecklistForm({ candidatoId, candidatoNombre, onClose, compa
     }
   };
 
+  const handleFactorChange = (factorKey: RiskFactorKey, checked: boolean) => {
+    updateData({ factors: { ...factors, [factorKey]: checked } });
+  };
+
   const handleSave = async () => {
     await upsertChecklist.mutateAsync({
       candidato_id: candidatoId,
       ...factors,
       notas,
     });
+    clearDraft();
     onClose?.();
   };
 
@@ -102,17 +156,35 @@ export function RiskChecklistForm({ candidatoId, candidatoNombre, onClose, compa
     <Card className={compact ? 'border-0 shadow-none' : 'w-full max-w-2xl mx-auto'}>
       {!compact && (
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Checklist de Riesgo
-          </CardTitle>
-          <CardDescription>
-            Evaluación de: <span className="font-semibold">{candidatoNombre}</span>
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Checklist de Riesgo
+              </CardTitle>
+              <CardDescription>
+                Evaluación de: <span className="font-semibold">{candidatoNombre}</span>
+              </CardDescription>
+            </div>
+            {hasDraft && lastSaved && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Save className="h-3 w-3" />
+                Borrador {getTimeSinceSave()}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
       )}
 
       <CardContent className="space-y-6">
+        {/* Draft indicator for compact mode */}
+        {compact && hasDraft && lastSaved && (
+          <Badge variant="outline" className="text-xs gap-1 mb-2">
+            <Save className="h-3 w-3" />
+            Borrador guardado {getTimeSinceSave()}
+          </Badge>
+        )}
+
         {/* Risk Score Display */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -155,7 +227,7 @@ export function RiskChecklistForm({ candidatoId, candidatoNombre, onClose, compa
                   <Checkbox
                     id={factor.key}
                     checked={factors[factor.key]}
-                    onCheckedChange={(checked) => setFactors({ ...factors, [factor.key]: checked as boolean })}
+                    onCheckedChange={(checked) => handleFactorChange(factor.key, checked as boolean)}
                   />
                   <Label htmlFor={factor.key} className="cursor-pointer font-normal">
                     {factor.label}
@@ -174,7 +246,7 @@ export function RiskChecklistForm({ candidatoId, candidatoNombre, onClose, compa
           <Label>Notas Adicionales</Label>
           <Textarea
             value={notas}
-            onChange={(e) => setNotas(e.target.value)}
+            onChange={(e) => updateData({ notas: e.target.value })}
             placeholder="Observaciones sobre los factores de riesgo identificados..."
             rows={3}
           />

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Phone, CheckCircle, XCircle } from "lucide-react";
+import { Phone, CheckCircle, XCircle, Save } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ManualInterviewDialogProps {
   open: boolean;
@@ -28,12 +31,55 @@ interface ManualInterviewDialogProps {
   onReject?: (lead: any) => void;
 }
 
+interface InterviewDraftData {
+  interviewNotes: string;
+  decision: string;
+  decisionReason: string;
+}
+
+const INITIAL_INTERVIEW_DATA: InterviewDraftData = {
+  interviewNotes: '',
+  decision: '',
+  decisionReason: '',
+};
+
 export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, onReject }: ManualInterviewDialogProps) => {
-  const [interviewNotes, setInterviewNotes] = useState('');
-  const [decision, setDecision] = useState('');
-  const [decisionReason, setDecisionReason] = useState('');
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  const leadId = lead?.id || lead?.lead_id || '';
+  
+  // Build user-scoped key for persistence
+  const persistenceKey = user && leadId
+    ? `manual_interview_${leadId}_${user.id}`
+    : `manual_interview_${leadId}`;
+
+  const {
+    data: formData,
+    updateData,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+    lastSaved,
+    setData,
+  } = useFormPersistence<InterviewDraftData>({
+    key: persistenceKey,
+    initialData: INITIAL_INTERVIEW_DATA,
+    level: 'light',
+    debounceMs: 800,
+    enabled: !!leadId,
+    isMeaningful: (data) => !!(data.interviewNotes || data.decision),
+  });
+
+  const { interviewNotes, decision, decisionReason } = formData;
+  
+  // Reset form when dialog opens with different lead
+  useEffect(() => {
+    if (!open) {
+      // Don't clear - keep draft for when they return
+    }
+  }, [open, leadId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +99,8 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
 
     try {
       // Determine the correct lead ID (handle both id and lead_id)
-      const leadId = lead.id || lead.lead_id;
-      if (!leadId) {
+      const currentLeadId = lead.id || lead.lead_id;
+      if (!currentLeadId) {
         throw new Error('No se pudo encontrar el ID del candidato');
       }
 
@@ -67,7 +113,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
 
       // Update approval process first
       const { error: approvalError } = await supabase.rpc('update_approval_process', {
-        p_lead_id: leadId,
+        p_lead_id: currentLeadId,
         p_stage: newStatus === 'approved' ? 'approved' : 'phone_interview',
         p_interview_method: 'manual',
         p_notes: fullInterviewNotes,
@@ -87,7 +133,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
 
       // Use the new secure RPC function to update lead state
       const { error: leadStateError } = await supabase.rpc('update_lead_state_after_interview', {
-        p_lead_id: leadId,
+        p_lead_id: currentLeadId,
         p_new_status: newStatus,
         p_interview_notes: fullInterviewNotes,
         p_rejection_reason: decision === 'rejected' ? decisionReason : null
@@ -108,13 +154,10 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
         });
       }
 
+      // Clear draft after successful submission
+      clearDraft();
       onComplete();
       onOpenChange(false);
-      
-      // Reset form
-      setInterviewNotes('');
-      setDecision('');
-      setDecisionReason('');
 
     } catch (error) {
       console.error('Error saving interview results:', error);
@@ -132,10 +175,18 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Entrevista Manual
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Entrevista Manual
+            </DialogTitle>
+            {hasDraft && lastSaved && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Save className="h-3 w-3" />
+                Borrador {getTimeSinceSave()}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
         <Card className="mb-4">
@@ -161,7 +212,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
             <Textarea
               id="notes"
               value={interviewNotes}
-              onChange={(e) => setInterviewNotes(e.target.value)}
+              onChange={(e) => updateData({ interviewNotes: e.target.value })}
               placeholder="Escribe aquí las notas de la entrevista, respuestas del candidato, impresiones, etc."
               rows={5}
               required
@@ -170,7 +221,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
 
           <div>
             <Label htmlFor="decision">Decisión *</Label>
-            <Select value={decision} onValueChange={setDecision} required>
+            <Select value={decision} onValueChange={(v) => updateData({ decision: v })} required>
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar decisión" />
               </SelectTrigger>
@@ -203,7 +254,7 @@ export const ManualInterviewDialog = ({ open, onOpenChange, lead, onComplete, on
               <Textarea
                 id="reason"
                 value={decisionReason}
-                onChange={(e) => setDecisionReason(e.target.value)}
+                onChange={(e) => updateData({ decisionReason: e.target.value })}
                 placeholder="Explica la razón de esta decisión..."
                 rows={3}
                 required

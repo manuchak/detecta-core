@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { useCreateInterview, InterviewFormData } from '@/hooks/useStructuredInterview';
-import { Star, MessageSquare, Clock, ThumbsUp, ThumbsDown, AlertTriangle, Plus, X } from 'lucide-react';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useAuth } from '@/contexts/AuthContext';
+import { Star, MessageSquare, Clock, ThumbsUp, ThumbsDown, AlertTriangle, Plus, X, Save } from 'lucide-react';
 
 interface Props {
   candidatoId: string;
@@ -28,28 +30,73 @@ const RATING_DIMENSIONS = [
 
 type RatingKey = typeof RATING_DIMENSIONS[number]['key'];
 
-export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose, onSuccess }: Props) {
-  const createInterview = useCreateInterview();
-  
-  const [ratings, setRatings] = useState<Record<RatingKey, number>>({
+interface InterviewDraftData {
+  ratings: Record<RatingKey, number>;
+  notas: string;
+  fortalezas: string[];
+  areasMejora: string[];
+  decision: 'aprobar' | 'rechazar' | 'segunda_entrevista' | 'pendiente';
+  motivoDecision: string;
+  duracion: number;
+  tipoEntrevista: string;
+  newFortaleza: string;
+  newAreaMejora: string;
+}
+
+const INITIAL_INTERVIEW_DATA: InterviewDraftData = {
+  ratings: {
     rating_comunicacion: 3,
     rating_actitud: 3,
     rating_experiencia: 3,
     rating_disponibilidad: 3,
     rating_motivacion: 3,
     rating_profesionalismo: 3,
+  },
+  notas: '',
+  fortalezas: [],
+  areasMejora: [],
+  decision: 'pendiente',
+  motivoDecision: '',
+  duracion: 30,
+  tipoEntrevista: 'inicial',
+  newFortaleza: '',
+  newAreaMejora: '',
+};
+
+export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose, onSuccess }: Props) {
+  const createInterview = useCreateInterview();
+  const { user } = useAuth();
+  
+  // Build user-scoped key for persistence
+  const persistenceKey = user 
+    ? `structured_interview_${candidatoId}_${user.id}` 
+    : `structured_interview_${candidatoId}`;
+  
+  const {
+    data: formData,
+    updateData,
+    hasDraft,
+    clearDraft,
+    getTimeSinceSave,
+    lastSaved,
+  } = useFormPersistence<InterviewDraftData>({
+    key: persistenceKey,
+    initialData: INITIAL_INTERVIEW_DATA,
+    level: 'standard',
+    debounceMs: 800,
+    isMeaningful: (data) => {
+      return !!(
+        data.notas || 
+        data.fortalezas.length > 0 || 
+        data.areasMejora.length > 0 ||
+        data.decision !== 'pendiente' ||
+        Object.values(data.ratings).some(r => r !== 3)
+      );
+    },
   });
-  
-  const [notas, setNotas] = useState('');
-  const [fortalezas, setFortalezas] = useState<string[]>([]);
-  const [areasMejora, setAreasMejora] = useState<string[]>([]);
-  const [decision, setDecision] = useState<'aprobar' | 'rechazar' | 'segunda_entrevista' | 'pendiente'>('pendiente');
-  const [motivoDecision, setMotivoDecision] = useState('');
-  const [duracion, setDuracion] = useState<number>(30);
-  const [tipoEntrevista, setTipoEntrevista] = useState<string>('inicial');
-  
-  const [newFortaleza, setNewFortaleza] = useState('');
-  const [newAreaMejora, setNewAreaMejora] = useState('');
+
+  // Destructure for easier access
+  const { ratings, notas, fortalezas, areasMejora, decision, motivoDecision, duracion, tipoEntrevista, newFortaleza, newAreaMejora } = formData;
 
   const promedio = useMemo(() => {
     const values = Object.values(ratings);
@@ -72,16 +119,28 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
 
   const handleAddFortaleza = () => {
     if (newFortaleza.trim() && !fortalezas.includes(newFortaleza.trim())) {
-      setFortalezas([...fortalezas, newFortaleza.trim()]);
-      setNewFortaleza('');
+      updateData({ 
+        fortalezas: [...fortalezas, newFortaleza.trim()],
+        newFortaleza: '',
+      });
     }
   };
 
   const handleAddAreaMejora = () => {
     if (newAreaMejora.trim() && !areasMejora.includes(newAreaMejora.trim())) {
-      setAreasMejora([...areasMejora, newAreaMejora.trim()]);
-      setNewAreaMejora('');
+      updateData({
+        areasMejora: [...areasMejora, newAreaMejora.trim()],
+        newAreaMejora: '',
+      });
     }
+  };
+
+  const handleRemoveFortaleza = (index: number) => {
+    updateData({ fortalezas: fortalezas.filter((_, j) => j !== index) });
+  };
+
+  const handleRemoveAreaMejora = (index: number) => {
+    updateData({ areasMejora: areasMejora.filter((_, j) => j !== index) });
   };
 
   const handleSubmit = async () => {
@@ -98,6 +157,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
     };
 
     await createInterview.mutateAsync(data);
+    clearDraft();
     onSuccess?.();
     onClose();
   };
@@ -105,13 +165,23 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5" />
-          Entrevista Estructurada
-        </CardTitle>
-        <CardDescription>
-          Evaluación de: <span className="font-semibold">{candidatoNombre}</span>
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Entrevista Estructurada
+            </CardTitle>
+            <CardDescription>
+              Evaluación de: <span className="font-semibold">{candidatoNombre}</span>
+            </CardDescription>
+          </div>
+          {hasDraft && lastSaved && (
+            <Badge variant="outline" className="text-xs gap-1">
+              <Save className="h-3 w-3" />
+              Borrador guardado {getTimeSinceSave()}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
@@ -119,7 +189,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Tipo de Entrevista</Label>
-            <Select value={tipoEntrevista} onValueChange={setTipoEntrevista}>
+            <Select value={tipoEntrevista} onValueChange={(v) => updateData({ tipoEntrevista: v })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -138,7 +208,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
             <Input
               type="number"
               value={duracion}
-              onChange={(e) => setDuracion(Number(e.target.value))}
+              onChange={(e) => updateData({ duracion: Number(e.target.value) })}
               min={5}
               max={180}
             />
@@ -169,7 +239,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
                 </div>
                 <Slider
                   value={[ratings[key]]}
-                  onValueChange={([value]) => setRatings({ ...ratings, [key]: value })}
+                  onValueChange={([value]) => updateData({ ratings: { ...ratings, [key]: value } })}
                   min={1}
                   max={5}
                   step={1}
@@ -196,7 +266,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
           <div className="flex gap-2">
             <Input
               value={newFortaleza}
-              onChange={(e) => setNewFortaleza(e.target.value)}
+              onChange={(e) => updateData({ newFortaleza: e.target.value })}
               placeholder="Agregar fortaleza..."
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddFortaleza())}
             />
@@ -208,7 +278,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
             {fortalezas.map((f, i) => (
               <Badge key={i} variant="secondary" className="gap-1">
                 {f}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setFortalezas(fortalezas.filter((_, j) => j !== i))} />
+                <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveFortaleza(i)} />
               </Badge>
             ))}
           </div>
@@ -223,7 +293,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
           <div className="flex gap-2">
             <Input
               value={newAreaMejora}
-              onChange={(e) => setNewAreaMejora(e.target.value)}
+              onChange={(e) => updateData({ newAreaMejora: e.target.value })}
               placeholder="Agregar área de mejora..."
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAreaMejora())}
             />
@@ -235,7 +305,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
             {areasMejora.map((a, i) => (
               <Badge key={i} variant="outline" className="gap-1 border-orange-300">
                 {a}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setAreasMejora(areasMejora.filter((_, j) => j !== i))} />
+                <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveAreaMejora(i)} />
               </Badge>
             ))}
           </div>
@@ -246,7 +316,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
           <Label>Notas Generales</Label>
           <Textarea
             value={notas}
-            onChange={(e) => setNotas(e.target.value)}
+            onChange={(e) => updateData({ notas: e.target.value })}
             placeholder="Observaciones adicionales de la entrevista..."
             rows={3}
           />
@@ -262,7 +332,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Decisión</Label>
-              <Select value={decision} onValueChange={(v) => setDecision(v as typeof decision)}>
+              <Select value={decision} onValueChange={(v) => updateData({ decision: v as typeof decision })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -281,7 +351,7 @@ export function StructuredInterviewForm({ candidatoId, candidatoNombre, onClose,
               <Label>Motivo de la Decisión</Label>
               <Textarea
                 value={motivoDecision}
-                onChange={(e) => setMotivoDecision(e.target.value)}
+                onChange={(e) => updateData({ motivoDecision: e.target.value })}
                 placeholder={`Justificación para ${decision === 'aprobar' ? 'aprobar' : decision === 'rechazar' ? 'rechazar' : 'requerir segunda entrevista'}...`}
                 rows={2}
               />
