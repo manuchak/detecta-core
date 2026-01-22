@@ -118,6 +118,54 @@ const DRAFT_CATALOG: DraftInfo[] = [
     },
     previewText: 'Continúa la importación Excel',
   },
+  // Recruitment - Entrevista Estructurada
+  {
+    id: 'structured-interview',
+    storageKey: 'structured_interview',
+    moduleName: 'Entrevista Estructurada',
+    resumePath: '/recruitment',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.notas || d.fortalezas?.length > 0 || d.decision !== 'pendiente');
+    },
+    previewText: 'Continúa la entrevista',
+  },
+  // Recruitment - Entrevista Manual de Lead
+  {
+    id: 'manual-interview',
+    storageKey: 'manual_interview',
+    moduleName: 'Entrevista Manual',
+    resumePath: '/leads',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.interviewNotes || d.decision);
+    },
+    previewText: 'Continúa la entrevista',
+  },
+  // Recruitment - Referencias
+  {
+    id: 'reference-form',
+    storageKey: 'reference',
+    moduleName: 'Agregar Referencia',
+    resumePath: '/recruitment',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.nombre || d.telefono || d.email);
+    },
+    previewText: 'Continúa agregando referencia',
+  },
+  // Recruitment - Risk Checklist
+  {
+    id: 'risk-checklist',
+    storageKey: 'risk_checklist',
+    moduleName: 'Checklist de Riesgo',
+    resumePath: '/recruitment',
+    isMeaningful: (data) => {
+      const d = data?.data || data;
+      return d && (d.notas || Object.values(d.factors || {}).some(v => v));
+    },
+    previewText: 'Continúa evaluación de riesgo',
+  },
 ];
 
 interface DraftResumeContextType {
