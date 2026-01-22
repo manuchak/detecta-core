@@ -70,15 +70,20 @@ export const LeadsInlineFilters = ({
       
       {/* Source Filter */}
       <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
-        <SelectTrigger className="w-[120px] h-8 bg-background/60 backdrop-blur-sm border-border/50">
+        <SelectTrigger className="w-[140px] h-8 bg-background/60 backdrop-blur-sm border-border/50">
           <SelectValue placeholder="Fuente" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todas</SelectItem>
-          <SelectItem value="facebook">Facebook</SelectItem>
           <SelectItem value="indeed">Indeed</SelectItem>
+          <SelectItem value="computrabajo">Computrabajo</SelectItem>
+          <SelectItem value="occ">OCC Mundial</SelectItem>
+          <SelectItem value="linkedin">LinkedIn</SelectItem>
+          <SelectItem value="facebook">Facebook</SelectItem>
+          <SelectItem value="whatsapp">WhatsApp</SelectItem>
           <SelectItem value="referido">Referido</SelectItem>
-          <SelectItem value="occ">OCC</SelectItem>
+          <SelectItem value="telefono">Llamada</SelectItem>
+          <SelectItem value="presencial">Presencial</SelectItem>
           <SelectItem value="otro">Otro</SelectItem>
         </SelectContent>
       </Select>

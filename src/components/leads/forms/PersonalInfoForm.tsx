@@ -1,7 +1,7 @@
-
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LEAD_SOURCES } from "@/constants/leadSources";
 
 interface PersonalInfoFormProps {
   formData: {
@@ -10,6 +10,7 @@ interface PersonalInfoFormProps {
     telefono: string;
     edad: string;
     nivel_escolaridad: string;
+    fuente?: string;
   };
   onInputChange: (field: string, value: string) => void;
 }
@@ -71,6 +72,21 @@ export const PersonalInfoForm = ({ formData, onInputChange }: PersonalInfoFormPr
             placeholder="10 dígitos sin espacios"
             required
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="fuente">Medio de Captación *</Label>
+          <Select value={formData.fuente || ""} onValueChange={(value) => onInputChange('fuente', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="¿Cómo llegó el candidato?" />
+            </SelectTrigger>
+            <SelectContent>
+              {LEAD_SOURCES.map((source) => (
+                <SelectItem key={source.value} value={source.value}>
+                  {source.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label htmlFor="edad">Rango de Edad</Label>
