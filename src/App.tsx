@@ -90,6 +90,7 @@ const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
 const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 const PerfilesOperativos = lazy(() => import('@/pages/PerfilesOperativos'));
+const PerfilForense = lazy(() => import('@/pages/PerfilesOperativos/PerfilForense'));
 const LMSDashboard = lazy(() => import('@/pages/LMS/LMSDashboard'));
 const CursoViewer = lazy(() => import('@/pages/LMS/CursoViewer'));
 const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
@@ -406,7 +407,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador']}>
                         <UnifiedLayout>
-                          <PerfilesOperativos />
+                          <PerfilForense />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
@@ -419,7 +420,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones', 'planificador']}>
                         <UnifiedLayout>
-                          <PerfilesOperativos />
+                          <PerfilForense />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
