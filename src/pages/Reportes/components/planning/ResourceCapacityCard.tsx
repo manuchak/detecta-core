@@ -24,6 +24,7 @@ const TIPO_INDISPONIBILIDAD_LABELS: Record<string, { label: string; icon: typeof
 export default function ResourceCapacityCard({ title, type, data }: ResourceCapacityCardProps) {
   const Icon = type === 'custodios' ? Users : Shield;
   const totalActivos = data.total_activos;
+  const poolRegistrado = type === 'custodios' ? (data as RecursosCustodios).pool_registrado : undefined;
   const disponibles = data.disponibles;
   const conServicio = type === 'custodios' 
     ? (data as RecursosCustodios).con_servicio_reciente 
@@ -36,6 +37,9 @@ export default function ResourceCapacityCard({ title, type, data }: ResourceCapa
   const inactivosRiesgo = data.clusters.inactivo_60_90d + data.clusters.inactivo_90_120d;
   const hayAlertaInactivos = inactivosRiesgo > 10;
   
+  // Alerta de datos fantasma (registros sin historial operativo)
+  const hayDatosFantasma = poolRegistrado && poolRegistrado > totalActivos * 2;
+  
   return (
     <Card className="shadow-apple-soft">
       <CardHeader className="pb-3">
@@ -46,9 +50,16 @@ export default function ResourceCapacityCard({ title, type, data }: ResourceCapa
             </div>
             <CardTitle className="text-lg">{title}</CardTitle>
           </div>
-          <Badge variant="secondary" className="text-sm font-medium">
-            {totalActivos} total
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm font-medium">
+              {totalActivos} operativos
+            </Badge>
+            {poolRegistrado && poolRegistrado !== totalActivos && (
+              <span className="text-xs text-muted-foreground">
+                (de {poolRegistrado} reg.)
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -90,8 +101,17 @@ export default function ResourceCapacityCard({ title, type, data }: ResourceCapa
         </div>
         
         {/* Alertas */}
-        {(hayAlertaNuncaAsignado || hayAlertaInactivos) && (
+        {(hayAlertaNuncaAsignado || hayAlertaInactivos || hayDatosFantasma) && (
           <div className="space-y-2 pt-2 border-t">
+            {hayDatosFantasma && poolRegistrado && (
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 text-xs">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>{poolRegistrado - totalActivos}</strong> registros históricos sin actividad operativa — 
+                  considerar depuración de datos
+                </span>
+              </div>
+            )}
             {hayAlertaNuncaAsignado && (
               <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />

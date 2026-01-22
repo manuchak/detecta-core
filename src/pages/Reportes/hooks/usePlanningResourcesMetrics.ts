@@ -9,21 +9,40 @@ export const usePlanningResourcesMetrics = () => {
     queryFn: async (): Promise<RecursosPlaneacion> => {
       const now = new Date();
       const hace30Dias = subDays(now, 30).toISOString();
+      const hace120Dias = subDays(now, 120).toISOString();
       
       // === CUSTODIOS ===
-      // 1. Total activos y por disponibilidad
-      const { data: custodiosActivos, error: custodiosError } = await supabase
+      // 1. Pool total registrado (para contexto)
+      const { data: custodiosRegistrados, error: custodiosError } = await supabase
         .from('custodios_operativos')
         .select('id, disponibilidad, estado')
         .eq('estado', 'activo');
       
       if (custodiosError) throw custodiosError;
       
-      const totalCustodiosActivos = custodiosActivos?.length || 0;
-      const custodiosDisponibles = custodiosActivos?.filter(c => c.disponibilidad === 'disponible').length || 0;
+      const poolTotalRegistrado = custodiosRegistrados?.length || 0;
       
-      // 2. Clusters de inactividad de custodios
-      const custodiosClusters = await calcularClustersCustodios(custodiosActivos || []);
+      // 2. Custodios OPERATIVOS = con al menos 1 servicio en últimos 120 días
+      const { data: serviciosCustodios, error: serviciosOpError } = await supabase
+        .from('servicios_planificados')
+        .select('custodio_id')
+        .gte('fecha_hora_cita', hace120Dias)
+        .not('custodio_id', 'is', null);
+      
+      if (serviciosOpError) throw serviciosOpError;
+      
+      const custodiosOperativosIds = [...new Set((serviciosCustodios || []).map(s => s.custodio_id))];
+      const totalCustodiosOperativos = custodiosOperativosIds.length;
+      
+      // 3. Disponibles = de los operativos, cuáles tienen disponibilidad='disponible'
+      const custodiosOperativosSet = new Set(custodiosOperativosIds);
+      const custodiosDisponibles = (custodiosRegistrados || [])
+        .filter(c => custodiosOperativosSet.has(c.id) && c.disponibilidad === 'disponible').length;
+      
+      // 4. Clusters de inactividad de custodios operativos
+      const custodiosParaClusters = (custodiosRegistrados || [])
+        .filter(c => custodiosOperativosSet.has(c.id));
+      const custodiosClusters = await calcularClustersCustodios(custodiosParaClusters);
       
       // 3. Indisponibilidades temporales activas
       const { data: indisponibilidades, error: indispError } = await supabase
@@ -111,8 +130,8 @@ export const usePlanningResourcesMetrics = () => {
       
       // Calcular tasas de activación
       const custodiosActivos30d = custodiosClusters.activo_30d;
-      const tasaActivacionCustodios = totalCustodiosActivos > 0 
-        ? Math.round((custodiosActivos30d / totalCustodiosActivos) * 1000) / 10
+      const tasaActivacionCustodios = totalCustodiosOperativos > 0 
+        ? Math.round((custodiosActivos30d / totalCustodiosOperativos) * 1000) / 10
         : 0;
       
       const armadosActivos30d = armadosClusters.activo_30d;
@@ -122,7 +141,8 @@ export const usePlanningResourcesMetrics = () => {
       
       return {
         custodios: {
-          total_activos: totalCustodiosActivos,
+          total_activos: totalCustodiosOperativos,
+          pool_registrado: poolTotalRegistrado,
           disponibles: custodiosDisponibles,
           con_servicio_reciente: custodiosActivos30d,
           tasa_activacion: tasaActivacionCustodios,
