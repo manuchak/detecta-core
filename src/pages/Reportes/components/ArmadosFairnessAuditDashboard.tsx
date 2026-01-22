@@ -8,6 +8,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Shield, 
   AlertTriangle, 
@@ -18,7 +20,8 @@ import {
   Users,
   Target,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertCircle
 } from 'lucide-react';
 import { useArmadosFairnessMetrics, PeriodoEquidadArmados, ArmadoDesviado } from '../hooks/useArmadosFairnessMetrics';
 
@@ -66,9 +69,10 @@ function getHealthStatus(gini: number, cobertura: number) {
 
 export default function ArmadosFairnessAuditDashboard() {
   const [periodo, setPeriodo] = useState<PeriodoEquidadArmados>('mes_actual');
+  const [excluirInactivos, setExcluirInactivos] = useState(true);
   const [showAllSinAsignacion, setShowAllSinAsignacion] = useState(false);
   
-  const { data: metrics, isLoading, error } = useArmadosFairnessMetrics(periodo);
+  const { data: metrics, isLoading, error } = useArmadosFairnessMetrics(periodo, excluirInactivos);
   
   if (isLoading) {
     return (
@@ -121,16 +125,45 @@ export default function ArmadosFairnessAuditDashboard() {
             </div>
           </div>
           
-          <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoEquidadArmados)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIODOS.map(p => (
-                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Activity Filter Toggle */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="excluir-inactivos"
+                checked={excluirInactivos}
+                onCheckedChange={setExcluirInactivos}
+              />
+              <Label htmlFor="excluir-inactivos" className="text-sm text-muted-foreground whitespace-nowrap">
+                Excluir &gt;90 días sin actividad
+              </Label>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Filtra elementos que llevan más de 90 días sin realizar un servicio. 
+                  Esto evita contaminar las métricas con personal potencialmente inactivo.</p>
+                </TooltipContent>
+              </Tooltip>
+              {excluirInactivos && metrics.resumen.poolExcluidoPorInactividad > 0 && (
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {metrics.resumen.poolExcluidoPorInactividad} excluidos
+                </Badge>
+              )}
+            </div>
+            
+            <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoEquidadArmados)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIODOS.map(p => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         
         {/* Health Status Banner */}

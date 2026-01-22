@@ -38,6 +38,7 @@ export interface ArmadoSinAsignacion {
 export interface ArmadosFairnessMetrics {
   resumen: {
     poolActivo: number;
+    poolExcluidoPorInactividad: number;
     armadosConAsignacion: number;
     coberturaPool: number;
     totalAsignaciones: number;
@@ -91,9 +92,12 @@ function getDateRangeForPeriodo(periodo: PeriodoEquidadArmados): { desde: Date; 
   return { desde, hasta };
 }
 
-export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_actual') {
+export function useArmadosFairnessMetrics(
+  periodo: PeriodoEquidadArmados = 'mes_actual',
+  excluirInactivos90Dias: boolean = true
+) {
   return useQuery({
-    queryKey: ['armados-fairness-metrics', periodo],
+    queryKey: ['armados-fairness-metrics', periodo, excluirInactivos90Dias],
     queryFn: async (): Promise<ArmadosFairnessMetrics> => {
       const { desde, hasta } = getDateRangeForPeriodo(periodo);
       
@@ -106,10 +110,45 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
       
       if (poolError) throw poolError;
       
-      const pool = poolArmados || [];
+      const poolBruto = poolArmados || [];
+      
+      // 2. Get last service date for each armed element (for 90-day filter)
+      const { data: historialActividad } = await supabase
+        .from('servicios_custodia')
+        .select('nombre_armado, fecha_hora_cita')
+        .not('nombre_armado', 'is', null);
+      
+      // Build map of last activity per normalized name
+      const ultimoServicioPorNombre = new Map<string, Date>();
+      (historialActividad || []).forEach(s => {
+        const nombreNorm = normalizarNombre(s.nombre_armado || '');
+        const fecha = new Date(s.fecha_hora_cita);
+        const actual = ultimoServicioPorNombre.get(nombreNorm);
+        if (!actual || fecha > actual) {
+          ultimoServicioPorNombre.set(nombreNorm, fecha);
+        }
+      });
+      
+      // 3. Filter pool by activity if toggle is active
+      const hace90Dias = subDays(new Date(), 90);
+      let poolExcluidoPorInactividad = 0;
+      
+      const pool = excluirInactivos90Dias
+        ? poolBruto.filter(a => {
+            const nombreNorm = normalizarNombre(a.nombre);
+            const ultimoServicio = ultimoServicioPorNombre.get(nombreNorm);
+            // Include if: recent service OR brand new (never assigned, zero services)
+            const esNuevo = (a.numero_servicios || 0) === 0 && !ultimoServicio;
+            const tieneActividadReciente = ultimoServicio && ultimoServicio >= hace90Dias;
+            const incluir = esNuevo || tieneActividadReciente;
+            if (!incluir) poolExcluidoPorInactividad++;
+            return incluir;
+          })
+        : poolBruto;
+      
       const poolActivo = pool.length;
       
-      // 2. Get services with armed assignments in the period
+      // 4. Get services with armed assignments in the period
       // Using servicios_custodia as it has more data (2500+ vs 8 in asignacion_armados)
       const { data: servicios, error: serviciosError } = await supabase
         .from('servicios_custodia')
@@ -121,7 +160,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
       
       if (serviciosError) throw serviciosError;
       
-      // 3. Filter out external providers (CUSAEM, SEICSA)
+      // 5. Filter out external providers (CUSAEM, SEICSA)
       const serviciosInternos = (servicios || []).filter(s => {
         const proveedor = (s.proveedor || '').toLowerCase();
         return !proveedor.includes('cusaem') && !proveedor.includes('seicsa');
@@ -134,6 +173,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
         return {
           resumen: {
             poolActivo,
+            poolExcluidoPorInactividad,
             armadosConAsignacion: 0,
             coberturaPool: 0,
             totalAsignaciones,
@@ -164,14 +204,14 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
         };
       }
       
-      // 4. Build pool lookup map with normalized names
+      // 6. Build pool lookup map with normalized names
       const poolByNormalizedName = new Map<string, typeof pool[0]>();
       pool.forEach(a => {
         poolByNormalizedName.set(normalizarNombre(a.nombre), a);
       });
       
-      // 5. Count assignments per armed element (normalized)
-      const asignacionesPorNombre = new Map<string, { 
+      // 7. Count assignments per armed element (normalized)
+      const asignacionesPorNombre = new Map<string, {
         nombre: string; 
         count: number;
         poolRecord?: typeof pool[0];
@@ -191,7 +231,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
         asignacionesPorNombre.get(nombreNormalizado)!.count++;
       });
       
-      // 6. Calculate fairness metrics
+      // 8. Calculate fairness metrics
       const asignacionesArray = Array.from(asignacionesPorNombre.values());
       const valores = asignacionesArray.map(a => a.count);
       
@@ -202,11 +242,11 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
       const zScores = calcularZScores(valores);
       const mean = calcularMedia(valores);
       
-      // 7. Pool coverage
+      // 9. Pool coverage
       const armadosConAsignacion = asignacionesPorNombre.size;
       const coberturaPool = poolActivo > 0 ? (armadosConAsignacion / poolActivo) * 100 : 0;
       
-      // 8. Identify deviations
+      // 10. Identify deviations
       const desviaciones: ArmadoDesviado[] = asignacionesArray
         .map((a, i) => ({
           id: a.poolRecord?.id || `temp-${i}`,
@@ -221,7 +261,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
         .sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))
         .slice(0, 15);
       
-      // 9. Identify pool members without assignments
+      // 11. Identify pool members without assignments
       const nombresAsignados = new Set(
         Array.from(asignacionesPorNombre.keys())
       );
@@ -237,7 +277,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
         }))
         .sort((a, b) => b.serviciosHistoricos - a.serviciosHistoricos);
       
-      // 10. Generate alerts
+      // 12. Generate alerts
       const alertas: ArmadosFairnessMetrics['alertas'] = [];
       
       if (coberturaPool < 30 && poolActivo > 10) {
@@ -280,6 +320,7 @@ export function useArmadosFairnessMetrics(periodo: PeriodoEquidadArmados = 'mes_
       return {
         resumen: {
           poolActivo,
+          poolExcluidoPorInactividad,
           armadosConAsignacion,
           coberturaPool,
           totalAsignaciones,
