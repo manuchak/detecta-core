@@ -62,6 +62,9 @@ export function useServiceStepLogic() {
   const [requiereArmado, setRequiereArmado] = useState(() => 
     formData.requiereArmado || false
   );
+  const [esServicioRetorno, setEsServicioRetorno] = useState(() => 
+    formData.esServicioRetorno || false
+  );
   const [gadgets, setGadgets] = useState<Record<string, number>>(() => 
     formData.gadgets || {}
   );
@@ -131,10 +134,11 @@ export function useServiceStepLogic() {
       hora,
       tipoServicio,
       requiereArmado,
+      esServicioRetorno,
       gadgets,
       observaciones,
     });
-  }, [servicioId, idInterno, fechaRecepcion, horaRecepcion, fecha, hora, tipoServicio, requiereArmado, gadgets, observaciones, updateFormData]);
+  }, [servicioId, idInterno, fechaRecepcion, horaRecepcion, fecha, hora, tipoServicio, requiereArmado, esServicioRetorno, gadgets, observaciones, updateFormData]);
 
   // Bidirectional sync: tipoServicio <-> requiereArmado
   const handleTipoServicioChange = useCallback((value: ServiceStepState['tipoServicio']) => {
@@ -187,17 +191,25 @@ export function useServiceStepLogic() {
       return false;
     }
     
-    // If today, check that time is at least 30 min in future
+    // If today, check time constraints
     if (fecha === format(now, 'yyyy-MM-dd')) {
       if (!hora) return false; // Need time for today validation
       const selectedDateTime = new Date(`${fecha}T${hora}:00`);
+      
+      // For return services: allow up to 10 minutes in the past (edge cases)
+      if (esServicioRetorno) {
+        const minRetornoTime = new Date(now.getTime() - 10 * 60 * 1000);
+        return !isBefore(selectedDateTime, minRetornoTime);
+      }
+      
+      // Standard validation: 30 min in future
       const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000);
       return !isBefore(selectedDateTime, minFutureTime);
     }
     
     // Tomorrow or later is always valid (if hora is set)
     return true;
-  }, [fecha, hora]);
+  }, [fecha, hora, esServicioRetorno]);
 
   // Specific error message for date/time
   const dateTimeErrorMessage = useMemo(() => {
@@ -212,6 +224,17 @@ export function useServiceStepLogic() {
     
     if (fecha === format(now, 'yyyy-MM-dd') && hora) {
       const selectedDateTime = new Date(`${fecha}T${hora}:00`);
+      
+      // For return services: relaxed validation
+      if (esServicioRetorno) {
+        const minRetornoTime = new Date(now.getTime() - 10 * 60 * 1000);
+        if (isBefore(selectedDateTime, minRetornoTime)) {
+          return 'La hora del retorno no puede ser más de 10 minutos en el pasado';
+        }
+        return null; // Valid for return service
+      }
+      
+      // Standard validation
       const minFutureTime = new Date(now.getTime() + 30 * 60 * 1000);
       if (isBefore(selectedDateTime, minFutureTime)) {
         return 'La hora debe ser al menos 30 minutos en el futuro';
@@ -219,7 +242,7 @@ export function useServiceStepLogic() {
     }
     
     return null;
-  }, [fecha, hora]);
+  }, [fecha, hora, esServicioRetorno]);
 
   // Keep isDateValid for backwards compatibility (now uses combined logic)
   const isDateValid = isDateTimeValid;
@@ -318,6 +341,7 @@ export function useServiceStepLogic() {
     hora,
     tipoServicio,
     requiereArmado,
+    esServicioRetorno,
     gadgets,
     observaciones,
     
@@ -329,6 +353,7 @@ export function useServiceStepLogic() {
     setObservaciones,
     handleTipoServicioChange,
     handleRequiereArmadoChange,
+    setEsServicioRetorno,
     handleGadgetChange,
     
     // Validation
