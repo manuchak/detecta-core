@@ -40,7 +40,9 @@ export default function PlanificadoresPerformanceDashboard() {
     }
   });
   
-  const top3 = planificadoresOrdenados.slice(0, 3);
+  // Excluir usuarios "Control" del podio (solo planificadores regulares compiten)
+  const planificadoresReales = planificadoresOrdenados.filter(p => !p.esControl);
+  const top3 = planificadoresReales.slice(0, 3);
   
   return (
     <div className="space-y-6">
@@ -134,9 +136,16 @@ export default function PlanificadoresPerformanceDashboard() {
                   </TableCell>
                   
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{planificador.nombre}</div>
-                      <div className="text-xs text-muted-foreground">{planificador.email}</div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="font-medium">{planificador.nombre}</div>
+                        <div className="text-xs text-muted-foreground">{planificador.email}</div>
+                      </div>
+                      {planificador.esControl && (
+                        <Badge variant="outline" className="text-xs border-blue-500 text-blue-600">
+                          Control
+                        </Badge>
+                      )}
                     </div>
                   </TableCell>
                   
