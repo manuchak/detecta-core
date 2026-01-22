@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -278,11 +279,13 @@ export default function ArmadosFairnessAuditDashboard() {
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Sin Asignación
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
-                  </TooltipTrigger>
-                  <TooltipContent 
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button type="button" className="inline-flex">
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent 
                     side="bottom" 
                     align="start"
                     className="w-72 p-0"
@@ -332,8 +335,8 @@ export default function ArmadosFairnessAuditDashboard() {
                         )}
                       </div>
                     )}
-                  </TooltipContent>
-                </Tooltip>
+                  </PopoverContent>
+                </Popover>
               </CardTitle>
             </CardHeader>
             <CardContent>
