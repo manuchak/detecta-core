@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda, ProveedorExternoMetrics } from '../types/planningResources';
-import { subDays } from 'date-fns';
+import type { PeriodoReporte } from '../types';
+import { subDays, startOfMonth, subMonths, startOfYear } from 'date-fns';
 
 // Función de normalización de nombres para matching consistente
 function normalizarNombre(nombre: string): string {
@@ -16,14 +17,51 @@ function normalizarNombre(nombre: string): string {
 
 const NOMBRES_EXCLUIDOS = ['NOAPLICA', 'PRUEBA', 'TEST', 'NA', 'N/A', 'SIN ASIGNAR', 'PENDIENTE'];
 
-export const usePlanningResourcesMetrics = () => {
+function calcularRangoFechas(periodo: PeriodoReporte): { fechaInicio: Date; hace30Dias: Date } {
+  const now = new Date();
+  switch (periodo) {
+    case 'mes_actual':
+      return {
+        fechaInicio: startOfMonth(now),
+        hace30Dias: startOfMonth(now),
+      };
+    case 'semana':
+      return {
+        fechaInicio: subDays(now, 7),
+        hace30Dias: subDays(now, 7),
+      };
+    case 'mes':
+      return {
+        fechaInicio: subDays(now, 30),
+        hace30Dias: subDays(now, 30),
+      };
+    case 'trimestre':
+      return {
+        fechaInicio: subMonths(now, 3),
+        hace30Dias: subMonths(now, 3),
+      };
+    case 'year':
+      return {
+        fechaInicio: startOfYear(now),
+        hace30Dias: startOfYear(now),
+      };
+    default:
+      return {
+        fechaInicio: startOfMonth(now),
+        hace30Dias: startOfMonth(now),
+      };
+  }
+}
+
+export const usePlanningResourcesMetrics = (periodo: PeriodoReporte = 'mes_actual') => {
   return useQuery({
-    queryKey: ['planning-resources-metrics'],
+    queryKey: ['planning-resources-metrics', periodo],
     queryFn: async (): Promise<RecursosPlaneacion> => {
       const now = new Date();
-      const hace30Dias = subDays(now, 30).toISOString();
+      const { fechaInicio, hace30Dias } = calcularRangoFechas(periodo);
+      const fechaInicioStr = fechaInicio.toISOString();
+      const hace30DiasStr = hace30Dias.toISOString();
       const hace120Dias = subDays(now, 120).toISOString();
-      const inicioAnio = new Date(now.getFullYear(), 0, 1).toISOString();
       
       // === CUSTODIOS ===
       // 1. Pool total registrado (para contexto)
@@ -94,11 +132,11 @@ export const usePlanningResourcesMetrics = () => {
       
       const poolRegistradoArmados = armadosInternosLimpios.length;
       
-      // 2. Armados operativos = con servicios en últimos 30 días (desde servicios_planificados)
+      // 2. Armados operativos = con servicios en el período seleccionado (desde servicios_planificados)
       const { data: serviciosArmadosInternos, error: serviciosArmadosError } = await supabase
         .from('servicios_planificados')
         .select('armado_asignado, fecha_hora_cita')
-        .gte('fecha_hora_cita', hace30Dias)
+        .gte('fecha_hora_cita', fechaInicioStr)
         .eq('tipo_asignacion_armado', 'interno')
         .not('armado_asignado', 'is', null);
       
@@ -113,11 +151,11 @@ export const usePlanningResourcesMetrics = () => {
       
       const totalArmadosOperativos = armadosActivosNombres.length;
       
-      // 3. Disponibles = armados registrados que están disponibles y han tenido servicios
-      const armadosDisponibles = armadosInternosLimpios.filter(a => {
-        const nombreNorm = normalizarNombre(a.nombre || '');
-        return a.disponibilidad === 'disponible' && armadosActivosNombres.includes(nombreNorm);
-      }).length;
+      // 3. Disponibles = armados registrados con estado 'disponible' (sin importar si tuvieron servicio)
+      // Esta métrica indica cuántos están LISTOS para asignar hoy
+      const armadosDisponibles = armadosInternosLimpios.filter(a => 
+        a.disponibilidad === 'disponible'
+      ).length;
       
       // 4. Clusters de inactividad usando servicios_planificados
       const armadosClusters = await calcularClustersArmadosInterno(armadosInternosLimpios);
@@ -155,12 +193,12 @@ export const usePlanningResourcesMetrics = () => {
       
       const proveedorIds = (proveedoresData || []).map(p => p.id);
       
-      // Servicios de proveedores externos YTD
+      // Servicios de proveedores externos en el período seleccionado
       const { data: serviciosExternos, error: serviciosExtError } = await supabase
         .from('servicios_planificados')
         .select('proveedor_armado_id, armado_asignado, fecha_hora_cita')
         .eq('tipo_asignacion_armado', 'proveedor')
-        .gte('fecha_hora_cita', inicioAnio)
+        .gte('fecha_hora_cita', fechaInicioStr)
         .in('proveedor_armado_id', proveedorIds);
       
       if (serviciosExtError) throw serviciosExtError;
@@ -168,14 +206,14 @@ export const usePlanningResourcesMetrics = () => {
       const proveedoresMetrics = calcularMetricasProveedores(
         proveedoresData || [],
         serviciosExternos || [],
-        hace30Dias
+        hace30DiasStr
       );
       
       // === TOP ZONAS DE DEMANDA ===
       const { data: serviciosRecientes, error: serviciosError } = await supabase
         .from('servicios_planificados')
         .select('origen')
-        .gte('created_at', hace30Dias)
+        .gte('created_at', fechaInicioStr)
         .not('origen', 'is', null);
       
       if (serviciosError) throw serviciosError;

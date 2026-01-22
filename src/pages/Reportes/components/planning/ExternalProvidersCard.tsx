@@ -22,7 +22,7 @@ export default function ExternalProvidersCard({ proveedores }: ExternalProviders
             <CardTitle className="text-lg">Proveedores Externos</CardTitle>
           </div>
           <Badge variant="secondary" className="text-sm font-medium">
-            {totalServicios30d} servicios (30d)
+            {totalServicios30d} servicios
           </Badge>
         </div>
       </CardHeader>
@@ -43,7 +43,7 @@ export default function ExternalProvidersCard({ proveedores }: ExternalProviders
                 <span className="font-semibold text-base">{prov.nombre}</span>
                 <Badge 
                   variant={prov.activo ? 'default' : 'secondary'}
-                  className={prov.activo ? 'bg-green-600' : ''}
+                  className={prov.activo ? 'bg-green-600 text-white' : ''}
                 >
                   {prov.activo ? 'Activo' : 'Inactivo'}
                 </Badge>
@@ -51,11 +51,11 @@ export default function ExternalProvidersCard({ proveedores }: ExternalProviders
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-muted-foreground">Servicios YTD</span>
-                  </div>
-                  <div className="text-xl font-bold">{prov.serviciosTotales}</div>
+54:                   <div className="flex items-center gap-2 text-sm">
+55:                     <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+56:                     <span className="text-muted-foreground">Servicios</span>
+57:                   </div>
+58:                   <div className="text-xl font-bold">{prov.serviciosTotales}</div>
                 </div>
                 
                 <div className="space-y-2">
