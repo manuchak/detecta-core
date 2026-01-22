@@ -30,6 +30,7 @@ interface FormData {
   telefono: string;
   edad: string;
   nivel_escolaridad: string;
+  fuente: string;
   
   // Ubicación
   direccion: string;
@@ -92,6 +93,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
     telefono: "",
     edad: "",
     nivel_escolaridad: "",
+    fuente: "",
     
     // Ubicación
     direccion: "",
@@ -135,6 +137,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         telefono: editingLead.telefono || "",
         edad: "",
         nivel_escolaridad: "",
+        fuente: editingLead.fuente || "",
         
         // Ubicación
         direccion: "",
@@ -295,7 +298,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         mensaje: formData.mensaje,
         notas: formData.notas,
         empresa: "",
-        fuente: "form_robusto",
+        fuente: formData.fuente || "manual",
         last_interview_data: {
           edad: formData.edad,
           nivel_escolaridad: formData.nivel_escolaridad,
@@ -326,7 +329,7 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
             custodio_id: formData.custodio_referente_id || null,
             custodio_nombre: formData.custodio_referente_nombre || null
           },
-          form_type: 'form_robusto',
+          form_type: formData.fuente || 'manual',
           fecha_llenado: new Date().toISOString()
         }
       };
@@ -462,15 +465,17 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
         </CardContent>
       </Card>
 
-      {/* Referidos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sistema de Referidos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ReferralForm onReferralChange={handleReferralChange} />
-        </CardContent>
-      </Card>
+      {/* Referidos - Solo mostrar si la fuente es 'referido' */}
+      {formData.fuente === 'referido' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sistema de Referidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReferralForm onReferralChange={handleReferralChange} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Botones de acción */}
       <div className="flex gap-2 justify-end">
