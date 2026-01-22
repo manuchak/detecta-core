@@ -18,6 +18,10 @@ export interface ZonaDemanda {
   origen: string;
   cantidad_servicios: number;
   porcentaje: number;
+  // Campos para geocodificación en mapa
+  lat?: number;
+  lng?: number;
+  estado?: string;
 }
 
 export interface RecursosCustodios {

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { RecursosPlaneacion, ClusterInactividad, IndisponibilidadTemporal, ZonaDemanda, ProveedorExternoMetrics } from '../types/planningResources';
 import type { PeriodoReporte } from '../types';
 import { subDays, startOfMonth, subMonths, startOfYear } from 'date-fns';
+import { extraerCiudad, obtenerInfoCiudad } from '@/utils/geografico';
 
 // Función de normalización de nombres para matching consistente
 function normalizarNombre(nombre: string): string {
@@ -229,13 +230,22 @@ export const usePlanningResourcesMetrics = (periodo: PeriodoReporte = 'mes_actua
       const totalDemanda = Object.values(demandaPorZona).reduce((a, b) => a + b, 0);
       
       const topZonasDemanda: ZonaDemanda[] = Object.entries(demandaPorZona)
-        .map(([origen, cantidad]) => ({
-          origen,
-          cantidad_servicios: cantidad,
-          porcentaje: totalDemanda > 0 ? Math.round((cantidad / totalDemanda) * 1000) / 10 : 0
-        }))
+        .map(([origen, cantidad]) => {
+          // Geocodificar el origen usando el diccionario de ciudades
+          const ciudadKey = extraerCiudad(origen);
+          const infoGeo = ciudadKey ? obtenerInfoCiudad(ciudadKey) : null;
+          
+          return {
+            origen,
+            cantidad_servicios: cantidad,
+            porcentaje: totalDemanda > 0 ? Math.round((cantidad / totalDemanda) * 1000) / 10 : 0,
+            lat: infoGeo?.lat,
+            lng: infoGeo?.lng,
+            estado: infoGeo?.estado,
+          };
+        })
         .sort((a, b) => b.cantidad_servicios - a.cantidad_servicios)
-        .slice(0, 5);
+        .slice(0, 15); // Aumentado a 15 para soportar selector expandible
       
       // Calcular tasas de activación
       const custodiosActivos30d = custodiosClusters.activo_30d;
