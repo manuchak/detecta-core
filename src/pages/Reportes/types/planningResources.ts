@@ -22,6 +22,7 @@ export interface ZonaDemanda {
 
 export interface RecursosCustodios {
   total_activos: number;
+  pool_registrado?: number; // Total registrados en DB (incluye migración histórica)
   disponibles: number;
   con_servicio_reciente: number;
   tasa_activacion: number;
