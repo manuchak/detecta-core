@@ -21,6 +21,7 @@ import { EconomicsTab } from './components/tabs/EconomicsTab';
 import { EvaluacionesTab } from './components/tabs/EvaluacionesTab';
 import { DocumentacionTab } from './components/tabs/DocumentacionTab';
 import { CapacitacionTab } from './components/tabs/CapacitacionTab';
+import { HistoricoTab } from './components/tabs/HistoricoTab';
 import { useOperativeProfile, type OperativeProfileFull } from './hooks/useOperativeProfile';
 
 export default function PerfilForense() {
@@ -152,7 +153,11 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="historico">
-          <PlaceholderTab icon={History} title="Histórico de Actividad" />
+          <HistoricoTab 
+            custodioId={id!} 
+            nombre={profile.nombre} 
+            telefono={profile.telefono || undefined}
+          />
         </TabsContent>
         
         <TabsContent value="calificaciones">
