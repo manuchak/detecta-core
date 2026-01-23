@@ -23,7 +23,7 @@ export function useArmadosInternosMetrics() {
       // Fetch services with km data (internal providers use km model)
       const { data: servicios, error } = await supabase
         .from('servicios_custodia')
-        .select('id, km_recorridos, custodio_nombre, created_at, estado')
+        .select('id, km_recorridos, nombre_custodio, created_at, estado')
         .not('proveedor', 'ilike', '%cusaem%')
         .not('proveedor', 'ilike', '%seicsa%')
         .order('created_at', { ascending: false });
@@ -89,7 +89,7 @@ export function useArmadosInternosMetrics() {
       // Group by armado (custodio)
       const armadoMap = new Map<string, typeof registrosValidos>();
       registrosValidos.forEach(s => {
-        const nombre = s.custodio_nombre || 'Sin asignar';
+        const nombre = s.nombre_custodio || 'Sin asignar';
         if (!armadoMap.has(nombre)) armadoMap.set(nombre, []);
         armadoMap.get(nombre)!.push(s);
       });
