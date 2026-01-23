@@ -6,7 +6,6 @@ import {
   Mail, 
   MapPin, 
   Calendar, 
-  Car,
   Shield,
   Award,
   Clock
@@ -14,6 +13,9 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { OperativeProfileFull, ArmadoProfileFull } from '../../hooks/useOperativeProfile';
+import { useProfileVehicle } from '../../hooks/useProfileVehicle';
+import { VehiculoCard } from './VehiculoCard';
+import { PermanenciaCard } from './PermanenciaCard';
 
 interface InformacionPersonalTabProps {
   profile: OperativeProfileFull | ArmadoProfileFull | null | undefined;
@@ -21,6 +23,13 @@ interface InformacionPersonalTabProps {
 }
 
 export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTabProps) {
+  const isCustodio = tipo === 'custodio';
+  const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
+  
+  const { data: vehicleData, isLoading: loadingVehicle } = useProfileVehicle(
+    isCustodio && custodioProfile?.vehiculo_propio ? profile?.id : undefined
+  );
+
   if (!profile) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -29,8 +38,6 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
     );
   }
 
-  const isCustodio = tipo === 'custodio';
-  const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
   const armadoProfile = !isCustodio ? profile as ArmadoProfileFull : null;
 
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) => (
@@ -99,50 +106,23 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
         </CardContent>
       </Card>
 
-      {/* Info específica por tipo */}
+      {/* Permanencia y Actividad */}
+      <PermanenciaCard 
+        createdAt={profile.created_at}
+        fechaUltimoServicio={isCustodio ? custodioProfile?.fecha_ultimo_servicio || null : null}
+        numeroServicios={profile.numero_servicios}
+      />
+
+      {/* Vehículo (solo si tiene vehículo propio) */}
       {isCustodio && custodioProfile && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Car className="h-5 w-5" />
-              Información Operativa
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <InfoRow 
-              icon={Car} 
-              label="Vehículo propio" 
-              value={custodioProfile.vehiculo_propio ? 'Sí' : 'No'} 
-            />
-            <InfoRow 
-              icon={Shield} 
-              label="Experiencia en seguridad" 
-              value={custodioProfile.experiencia_seguridad ? 'Sí' : 'No'} 
-            />
-            <InfoRow 
-              icon={MapPin} 
-              label="Fuente de registro" 
-              value={custodioProfile.fuente} 
-            />
-            {custodioProfile.certificaciones && custodioProfile.certificaciones.length > 0 && (
-              <div className="py-3">
-                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Certificaciones
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {custodioProfile.certificaciones.map((cert, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
-                      {cert}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <VehiculoCard 
+          vehicle={vehicleData}
+          isLoading={loadingVehicle}
+          tieneVehiculo={custodioProfile.vehiculo_propio || false}
+        />
       )}
 
+      {/* Info específica Armado */}
       {!isCustodio && armadoProfile && (
         <Card>
           <CardHeader>
@@ -193,46 +173,26 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
         </Card>
       )}
 
-      {/* Scores y Métricas Base */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Award className="h-5 w-5" />
-            Métricas de Rendimiento
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <InfoRow 
-            icon={Award} 
-            label="Rating promedio" 
-            value={profile.rating_promedio ? `${profile.rating_promedio.toFixed(1)} / 5.0` : '-'} 
-          />
-          <InfoRow 
-            icon={Clock} 
-            label="Total de servicios" 
-            value={profile.numero_servicios?.toString()} 
-          />
-          {isCustodio && custodioProfile && (
-            <>
-              <InfoRow 
-                icon={Shield} 
-                label="Tasa de aceptación" 
-                value={custodioProfile.tasa_aceptacion ? `${custodioProfile.tasa_aceptacion.toFixed(0)}%` : '-'} 
-              />
-              <InfoRow 
-                icon={Shield} 
-                label="Tasa de respuesta" 
-                value={custodioProfile.tasa_respuesta ? `${custodioProfile.tasa_respuesta.toFixed(0)}%` : '-'} 
-              />
-              <InfoRow 
-                icon={Shield} 
-                label="Score total" 
-                value={custodioProfile.score_total ? `${custodioProfile.score_total.toFixed(0)} / 100` : '-'} 
-              />
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* Certificaciones (custodios) */}
+      {isCustodio && custodioProfile?.certificaciones && custodioProfile.certificaciones.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Certificaciones
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap gap-2">
+              {custodioProfile.certificaciones.map((cert, idx) => (
+                <Badge key={idx} variant="secondary">
+                  {cert}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

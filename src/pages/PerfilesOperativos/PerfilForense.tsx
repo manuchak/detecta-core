@@ -19,6 +19,8 @@ import { InformacionPersonalTab } from './components/tabs/InformacionPersonalTab
 import { PerformanceServiciosTab } from './components/tabs/PerformanceServiciosTab';
 import { EconomicsTab } from './components/tabs/EconomicsTab';
 import { EvaluacionesTab } from './components/tabs/EvaluacionesTab';
+import { DocumentacionTab } from './components/tabs/DocumentacionTab';
+import { CapacitacionTab } from './components/tabs/CapacitacionTab';
 import { useOperativeProfile, type OperativeProfileFull } from './hooks/useOperativeProfile';
 
 export default function PerfilForense() {
@@ -53,7 +55,6 @@ export default function PerfilForense() {
     );
   }
 
-  // Cast to get pc_custodio_id for evaluations link
   const custodioProfile = tipo === 'custodio' ? profile as OperativeProfileFull : null;
   const candidatoId = custodioProfile?.pc_custodio_id || null;
 
@@ -124,6 +125,7 @@ export default function PerfilForense() {
             custodioId={id!} 
             nombre={profile.nombre} 
             telefono={profile.telefono}
+            profile={custodioProfile || undefined}
           />
         </TabsContent>
         
@@ -139,11 +141,11 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="documentacion">
-          <PlaceholderTab icon={FileText} title="Documentación" />
+          <DocumentacionTab candidatoId={candidatoId} />
         </TabsContent>
         
         <TabsContent value="capacitacion">
-          <PlaceholderTab icon={GraduationCap} title="Capacitación LMS" />
+          <CapacitacionTab userId={candidatoId} />
         </TabsContent>
         
         <TabsContent value="cumplimiento">
