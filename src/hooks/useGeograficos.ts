@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { isValidUUID } from '@/lib/validators';
 
 interface Estado {
   id: string;
@@ -74,6 +75,14 @@ export const useCiudades = (estadoId: string | null) => {
       return;
     }
 
+    // Validar que el estadoId sea un UUID válido
+    if (!isValidUUID(estadoId)) {
+      console.warn('⚠️ useCiudades: estadoId inválido (no es UUID):', estadoId);
+      setCiudades([]);
+      setLoading(false);
+      return;
+    }
+
     const fetchCiudades = async () => {
       try {
         setLoading(true);
@@ -118,6 +127,14 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
 
   useEffect(() => {
     if (!ciudadId) {
+      setZonas([]);
+      setLoading(false);
+      return;
+    }
+
+    // Validar que el ciudadId sea un UUID válido
+    if (!isValidUUID(ciudadId)) {
+      console.warn('⚠️ useZonasTrabajo: ciudadId inválido (no es UUID):', ciudadId);
       setZonas([]);
       setLoading(false);
       return;

@@ -23,14 +23,18 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
 
   // Limpiar ciudad cuando cambie el estado
   const handleEstadoChange = (value: string) => {
-    console.log("🔄 Estado changed to:", value);
+    console.log("🔄 Estado ANTES:", formData.estado_id);
+    console.log("🔄 Estado NUEVO:", value);
+    console.log("🔄 Es UUID válido:", /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
     onInputChange('estado_id', value);
     onInputChange('ciudad_id', ''); // Limpiar ciudad
     onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
   };
 
   const handleCiudadChange = (value: string) => {
-    console.log("🏙️ Ciudad changed to:", value);
+    console.log("🏙️ Ciudad ANTES:", formData.ciudad_id);
+    console.log("🏙️ Ciudad NUEVA:", value);
+    console.log("🏙️ Es UUID válido:", /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
     onInputChange('ciudad_id', value);
     onInputChange('zona_trabajo_id', ''); // Limpiar zona de trabajo
   };
