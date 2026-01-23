@@ -83,6 +83,7 @@ interface ServiceCreationContextValue {
   hasUnsavedChanges: boolean;
   draftId: string | null;
   clearDraft: () => void;
+  isHydrated: boolean;
 }
 
 const ServiceCreationContext = createContext<ServiceCreationContextValue | null>(null);
@@ -438,6 +439,7 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     hasUnsavedChanges,
     draftId,
     clearDraft,
+    isHydrated,
   };
 
   return (
