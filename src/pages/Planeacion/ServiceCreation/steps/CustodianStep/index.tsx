@@ -8,7 +8,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { User, ArrowLeft, ArrowRight, Keyboard, RefreshCw, ShieldAlert } from 'lucide-react';
+import { User, ArrowLeft, ArrowRight, Keyboard, RefreshCw, ShieldAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -35,7 +35,7 @@ import { ConflictOverrideModal } from '@/pages/Planeacion/components/dialogs/Con
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 
 export default function CustodianStep() {
-  const { formData, updateFormData, nextStep, previousStep, markStepCompleted, draftId } = useServiceCreation();
+  const { formData, updateFormData, nextStep, previousStep, markStepCompleted, draftId, isHydrated } = useServiceCreation();
   const { userRole } = useAuth();
   
   // Main hook for state management
@@ -48,8 +48,14 @@ export default function CustodianStep() {
   // Unavailability hook
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   
-  // Fetch custodians with proximity scoring
-  const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(servicioNuevo);
+  // Only query custodians AFTER form data is hydrated from draft
+  const queryableServicio = isHydrated && servicioNuevo ? servicioNuevo : undefined;
+  
+  // Fetch custodians with proximity scoring (blocked until hydrated)
+  const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(
+    queryableServicio,
+    { enabled: isHydrated }
+  );
   
   // Filter custodians locally (instant)
   const filteredCustodians = useMemo(() => 
@@ -262,6 +268,24 @@ export default function CustodianStep() {
     markStepCompleted('custodian');
     nextStep();
   };
+
+  // Loading state while hydrating draft data
+  if (!isHydrated) {
+    return (
+      <div className="space-y-6" ref={containerRef}>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            <User className="h-6 w-6 text-primary" />
+            Asignar Custodio
+          </h2>
+          <p className="text-muted-foreground">Cargando datos del servicio...</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   // Error state - show explicit error instead of empty list
   if (error) {

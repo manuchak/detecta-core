@@ -62,7 +62,12 @@ export interface CustodiosCategorizados {
  * - Factor de equidad/workload (25%) 
  * - Factor de oportunidad/rotación (15%)
  */
-export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
+export function useCustodiosConProximidad(
+  servicioNuevo?: ServicioNuevo,
+  options?: { enabled?: boolean }
+) {
+  const isEnabled = options?.enabled !== false; // Default true
+  
   // Usar un queryKey estable basado en primitivos para evitar re-fetch en loop
   const stableKey = servicioNuevo ? [
     servicioNuevo.fecha_programada ?? null,
@@ -438,7 +443,7 @@ export function useCustodiosConProximidad(servicioNuevo?: ServicioNuevo) {
 
       return categorizado;
     },
-    enabled: true,
+    enabled: isEnabled,
     staleTime: 5 * 60 * 1000, // 5 minutos
     refetchOnWindowFocus: false,
   });
