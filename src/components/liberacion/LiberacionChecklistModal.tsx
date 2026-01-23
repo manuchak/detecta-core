@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -78,6 +78,13 @@ const LiberacionChecklistModal = ({
   // Hooks para obtener datos del workflow anterior
   const { data: documentosExistentes } = useDocumentosCandidato(initialLiberacion.candidato_id);
   const { data: evaluacionPsicometrica } = useLatestEvaluacionPsicometrica(initialLiberacion.candidato_id);
+
+  // ✅ FIX: Guard para evitar reset durante hidratación del hook
+  const hydrationCompleteRef = useRef(false);
+  
+  // ✅ FIX: Refs para memoizar prefill y evitar ejecuciones redundantes
+  const lastDocPrefillHashRef = useRef<string>('');
+  const lastPsicoPrefillHashRef = useRef<string>('');
 
   // Track si los datos fueron prellenados
   const [prefillApplied, setPrefillApplied] = useState({ docs: false, psico: false });
@@ -167,60 +174,88 @@ const LiberacionChecklistModal = ({
     };
   }, [evaluacionPsicometrica]);
 
-  // Bug #5 Fix: Only reset when candidate changes AND there's no existing draft
-  // This prevents overwriting user's saved progress when modal re-opens
+  // ✅ FIX: Esperar hidratación antes de inicializar desde servidor
+  // Esto evita race condition donde se sobrescribe el draft durante hydration
   useEffect(() => {
-    if (!hasDraft) {
-      // No existing draft - initialize from server data
-      console.log('📋 [LiberacionChecklist] No draft found, initializing from server');
-      updateDraft({
-        liberacion: initialLiberacion,
-        datosContacto: {
-          nombre: initialLiberacion.candidato?.nombre || '',
-          telefono: initialLiberacion.candidato?.telefono || '',
-          email: initialLiberacion.candidato?.email || ''
-        },
-        tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
-      });
-    } else {
-      console.log('📋 [LiberacionChecklist] Existing draft found, preserving user data');
-    }
-    setPrefillApplied({ docs: false, psico: false });
-  }, [initialLiberacion.id, hasDraft]);
+    // Reset refs al cambiar de candidato
+    hydrationCompleteRef.current = false;
+    lastDocPrefillHashRef.current = '';
+    lastPsicoPrefillHashRef.current = '';
+    
+    // Dar tiempo al hook de persistencia para hidratar (50ms es suficiente)
+    const timer = setTimeout(() => {
+      hydrationCompleteRef.current = true;
+      
+      if (!hasDraft) {
+        // No existing draft - initialize from server data
+        console.log('📋 [LiberacionChecklist] No draft found, initializing from server');
+        updateDraft({
+          liberacion: initialLiberacion,
+          datosContacto: {
+            nombre: initialLiberacion.candidato?.nombre || '',
+            telefono: initialLiberacion.candidato?.telefono || '',
+            email: initialLiberacion.candidato?.email || ''
+          },
+          tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
+        });
+      } else {
+        console.log('📋 [LiberacionChecklist] Existing draft found, preserving user data');
+      }
+      setPrefillApplied({ docs: false, psico: false });
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [initialLiberacion.id]);
 
-  // Prellenar documentación si hay datos del workflow
+  // ✅ FIX: Prellenar documentación con memoización para evitar ejecuciones redundantes
   useEffect(() => {
-    if (docPrefillData && !prefillApplied.docs) {
-      updateDraft(prev => ({
-        ...prev,
-        liberacion: {
-          ...prev.liberacion,
-          documentacion_ine: prev.liberacion.documentacion_ine || docPrefillData.documentacion_ine,
-          documentacion_licencia: prev.liberacion.documentacion_licencia || docPrefillData.documentacion_licencia,
-          documentacion_antecedentes: prev.liberacion.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
-          documentacion_domicilio: prev.liberacion.documentacion_domicilio || docPrefillData.documentacion_domicilio,
-          documentacion_curp: prev.liberacion.documentacion_curp || docPrefillData.documentacion_curp,
-          documentacion_rfc: prev.liberacion.documentacion_rfc || docPrefillData.documentacion_rfc,
-        }
-      }));
-      setPrefillApplied(prev => ({ ...prev, docs: true }));
-    }
+    if (!docPrefillData || prefillApplied.docs) return;
+    if (!hydrationCompleteRef.current) return; // Esperar hidratación
+    
+    // Comparar hash para evitar actualizaciones redundantes
+    const currentHash = JSON.stringify(docPrefillData);
+    if (currentHash === lastDocPrefillHashRef.current) return;
+    
+    lastDocPrefillHashRef.current = currentHash;
+    console.log('📋 [LiberacionChecklist] Applying doc prefill:', docPrefillData.count, 'docs');
+    
+    updateDraft(prev => ({
+      ...prev,
+      liberacion: {
+        ...prev.liberacion,
+        documentacion_ine: prev.liberacion.documentacion_ine || docPrefillData.documentacion_ine,
+        documentacion_licencia: prev.liberacion.documentacion_licencia || docPrefillData.documentacion_licencia,
+        documentacion_antecedentes: prev.liberacion.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
+        documentacion_domicilio: prev.liberacion.documentacion_domicilio || docPrefillData.documentacion_domicilio,
+        documentacion_curp: prev.liberacion.documentacion_curp || docPrefillData.documentacion_curp,
+        documentacion_rfc: prev.liberacion.documentacion_rfc || docPrefillData.documentacion_rfc,
+      }
+    }));
+    setPrefillApplied(prev => ({ ...prev, docs: true }));
   }, [docPrefillData, prefillApplied.docs, updateDraft]);
 
-  // Prellenar psicométricos si hay datos del workflow
+  // ✅ FIX: Prellenar psicométricos con memoización para evitar ejecuciones redundantes
   useEffect(() => {
-    if (psicoPrefillData && !prefillApplied.psico) {
-      updateDraft(prev => ({
-        ...prev,
-        liberacion: {
-          ...prev.liberacion,
-          psicometricos_completado: prev.liberacion.psicometricos_completado || psicoPrefillData.psicometricos_completado,
-          psicometricos_resultado: prev.liberacion.psicometricos_resultado || psicoPrefillData.psicometricos_resultado,
-          psicometricos_puntaje: prev.liberacion.psicometricos_puntaje || psicoPrefillData.psicometricos_puntaje,
-        }
-      }));
-      setPrefillApplied(prev => ({ ...prev, psico: true }));
-    }
+    if (!psicoPrefillData || prefillApplied.psico) return;
+    if (!hydrationCompleteRef.current) return; // Esperar hidratación
+    
+    // Comparar hash para evitar actualizaciones redundantes
+    const currentHash = JSON.stringify(psicoPrefillData);
+    if (currentHash === lastPsicoPrefillHashRef.current) return;
+    
+    lastPsicoPrefillHashRef.current = currentHash;
+    console.log('📋 [LiberacionChecklist] Applying psico prefill:', psicoPrefillData.psicometricos_puntaje);
+    
+    updateDraft(prev => ({
+      ...prev,
+      liberacion: {
+        ...prev.liberacion,
+        psicometricos_completado: prev.liberacion.psicometricos_completado || psicoPrefillData.psicometricos_completado,
+        psicometricos_resultado: prev.liberacion.psicometricos_resultado || psicoPrefillData.psicometricos_resultado,
+        psicometricos_puntaje: prev.liberacion.psicometricos_puntaje || psicoPrefillData.psicometricos_puntaje,
+      }
+    }));
+    setPrefillApplied(prev => ({ ...prev, psico: true }));
   }, [psicoPrefillData, prefillApplied.psico, updateDraft]);
 
   const progress = calculateProgress(liberacion);

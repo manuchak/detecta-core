@@ -32,6 +32,12 @@ interface LiberacionSuccessModalProps {
   };
 }
 
+// ✅ FIX: Validar formato de email para mostrar estado correcto
+const isValidEmail = (email: string | null): boolean => {
+  if (!email) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
 export const LiberacionSuccessModal = ({
   isOpen,
   onClose,
@@ -39,6 +45,9 @@ export const LiberacionSuccessModal = ({
 }: LiberacionSuccessModalProps) => {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  
+  // Validar si el email es realmente válido
+  const emailIsValid = isValidEmail(data.candidato_email);
 
   const invitationLink = `${window.location.origin}/auth/registro-custodio?token=${data.invitation_token}`;
 
@@ -102,22 +111,26 @@ export const LiberacionSuccessModal = ({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Estado del email */}
+          {/* Estado del email - ✅ FIX: Validar formato de email */}
           <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
             <Mail className="h-5 w-5 text-muted-foreground" />
             <div className="flex-1">
               <p className="text-sm font-medium">Correo de invitación</p>
-              {data.emailSent ? (
+              {data.emailSent && emailIsValid ? (
                 <p className="text-xs text-green-600">
                   ✓ Enviado a {data.candidato_email}
                 </p>
+              ) : emailIsValid ? (
+                <p className="text-xs text-amber-600">
+                  No se pudo enviar automáticamente - Enviar manualmente a {data.candidato_email}
+                </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Sin email registrado - Enviar manualmente
+                  Sin email válido registrado - Enviar por WhatsApp
                 </p>
               )}
             </div>
-            {data.emailSent && (
+            {data.emailSent && emailIsValid && (
               <Badge variant="secondary" className="bg-green-100 text-green-700">
                 Enviado
               </Badge>
@@ -148,8 +161,8 @@ export const LiberacionSuccessModal = ({
             </div>
           </div>
 
-          {/* Opción WhatsApp (si no se envió email o siempre disponible) */}
-          {!data.emailSent && (
+          {/* Opción WhatsApp - ✅ FIX: Mostrar si no se envió email O si el email no es válido */}
+          {(!data.emailSent || !emailIsValid) && (
             <div className="pt-2">
               <Button
                 onClick={handleSendWhatsApp}

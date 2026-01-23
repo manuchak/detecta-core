@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CustodioLiberacion, EstadoLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
@@ -21,9 +22,10 @@ interface LiberacionTableProps {
   onViewDetails: (liberacion: CustodioLiberacion) => void;
   limit?: number;
   compact?: boolean;
+  isLoading?: boolean; // ✅ FIX: Prop para estado de carga
 }
 
-const LiberacionTable = ({ liberaciones, onViewDetails, limit, compact = false }: LiberacionTableProps) => {
+const LiberacionTable = ({ liberaciones, onViewDetails, limit, compact = false, isLoading = false }: LiberacionTableProps) => {
   const { calculateProgress } = useCustodioLiberacion();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = limit || 10;
@@ -49,6 +51,24 @@ const LiberacionTable = ({ liberaciones, onViewDetails, limit, compact = false }
     const config = variants[estado];
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
+
+  // ✅ FIX: Mostrar skeletons durante la carga inicial
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-4 p-4 border rounded-md">
+            <Skeleton className="h-5 w-32" />
+            {!compact && <Skeleton className="h-5 w-24" />}
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-4 w-48" />
+            {!compact && <Skeleton className="h-5 w-20" />}
+            <Skeleton className="h-8 w-24 ml-auto" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (liberaciones.length === 0) {
     return (
