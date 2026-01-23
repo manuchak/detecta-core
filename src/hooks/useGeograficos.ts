@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isValidUUID } from '@/lib/validators';
 
@@ -26,6 +26,7 @@ export const useEstados = () => {
   const [estados, setEstados] = useState<Estado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const fetchEstados = async () => {
@@ -33,6 +34,7 @@ export const useEstados = () => {
         console.log('Fetching estados...');
         setLoading(true);
         setError(null);
+        setReady(false);
         
         // Usar la función segura que creamos con tipo explícito
         const { data, error } = await supabase.rpc('get_estados_safe') as {
@@ -48,6 +50,7 @@ export const useEstados = () => {
         
         console.log('Estados fetched successfully:', data);
         setEstados(data || []);
+        setReady(true);
       } catch (err) {
         console.error('Error in fetchEstados:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar estados';
@@ -60,18 +63,29 @@ export const useEstados = () => {
     fetchEstados();
   }, []);
 
-  return { estados, loading, error };
+  return { estados, loading, error, ready };
 };
 
 export const useCiudades = (estadoId: string | null) => {
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  
+  // Track previous estadoId to detect real changes
+  const prevEstadoIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Reset ready when estadoId changes
+    if (estadoId !== prevEstadoIdRef.current) {
+      setReady(false);
+      prevEstadoIdRef.current = estadoId;
+    }
+
     if (!estadoId) {
       setCiudades([]);
       setLoading(false);
+      setReady(true); // Ready with empty array
       return;
     }
 
@@ -80,6 +94,7 @@ export const useCiudades = (estadoId: string | null) => {
       console.warn('⚠️ useCiudades: estadoId inválido (no es UUID):', estadoId);
       setCiudades([]);
       setLoading(false);
+      setReady(true); // Ready with empty array (invalid input)
       return;
     }
 
@@ -87,6 +102,7 @@ export const useCiudades = (estadoId: string | null) => {
       try {
         setLoading(true);
         setError(null);
+        setReady(false);
         console.log('Fetching ciudades for estado:', estadoId);
         
         // Usar la función segura que creamos con tipo explícito
@@ -105,6 +121,7 @@ export const useCiudades = (estadoId: string | null) => {
         
         console.log('Ciudades fetched:', data);
         setCiudades(data || []);
+        setReady(true);
       } catch (err) {
         console.error('Error in fetchCiudades:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar ciudades';
@@ -117,18 +134,27 @@ export const useCiudades = (estadoId: string | null) => {
     fetchCiudades();
   }, [estadoId]);
 
-  return { ciudades, loading, error };
+  return { ciudades, loading, error, ready };
 };
 
 export const useZonasTrabajo = (ciudadId: string | null) => {
   const [zonas, setZonas] = useState<ZonaTrabajo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  
+  const prevCiudadIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (ciudadId !== prevCiudadIdRef.current) {
+      setReady(false);
+      prevCiudadIdRef.current = ciudadId;
+    }
+
     if (!ciudadId) {
       setZonas([]);
       setLoading(false);
+      setReady(true);
       return;
     }
 
@@ -137,6 +163,7 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
       console.warn('⚠️ useZonasTrabajo: ciudadId inválido (no es UUID):', ciudadId);
       setZonas([]);
       setLoading(false);
+      setReady(true);
       return;
     }
 
@@ -144,6 +171,7 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
       try {
         setLoading(true);
         setError(null);
+        setReady(false);
         console.log('Fetching zonas for ciudad:', ciudadId);
         
         // Usar la función segura que creamos con tipo explícito
@@ -162,6 +190,7 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
         
         console.log('Zonas fetched:', data);
         setZonas(data || []);
+        setReady(true);
       } catch (err) {
         console.error('Error in fetchZonas:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar zonas';
@@ -174,5 +203,5 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
     fetchZonas();
   }, [ciudadId]);
 
-  return { zonas, loading, error };
+  return { zonas, loading, error, ready };
 };
