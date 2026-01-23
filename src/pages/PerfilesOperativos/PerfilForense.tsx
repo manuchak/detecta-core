@@ -129,7 +129,7 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="economics">
-          <EconomicsTab custodioId={id!} tipo={tipo} />
+          <EconomicsTab nombre={profile.nombre} tipo={tipo} />
         </TabsContent>
         
         <TabsContent value="evaluaciones">
