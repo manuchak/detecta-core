@@ -2,9 +2,22 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Fields that should contain valid UUIDs - if they have values, they must be UUIDs
+const UUID_FIELD_PATTERNS = ['_id', 'Id', '_uuid', 'Uuid'];
+
+/**
+ * Checks if a field name suggests it should contain a UUID
+ */
+const isUUIDField = (fieldName: string): boolean => {
+  return UUID_FIELD_PATTERNS.some(pattern => fieldName.includes(pattern));
+};
+
 /**
  * Sanitizes draft data before persisting to localStorage
- * Removes undefined values and non-serializable objects
+ * Removes undefined values, non-serializable objects, and invalid UUIDs in ID fields
  */
 const sanitizeDraft = <T,>(data: T): T => {
   if (data === null || data === undefined) return data;
@@ -19,7 +32,18 @@ const sanitizeDraft = <T,>(data: T): T => {
   for (const key in data) {
     const value = data[key];
     if (value !== undefined && value !== null) {
-      sanitized[key] = sanitizeDraft(value);
+      // If this is a UUID field with a string value, validate it
+      if (isUUIDField(key) && typeof value === 'string' && value.trim() !== '') {
+        if (UUID_REGEX.test(value)) {
+          sanitized[key] = sanitizeDraft(value);
+        } else {
+          // Invalid UUID - clear the field
+          console.warn(`⚠️ [usePersistedForm] Invalid UUID in field '${key}': '${value}' - clearing`);
+          sanitized[key] = '';
+        }
+      } else {
+        sanitized[key] = sanitizeDraft(value);
+      }
     }
   }
   return sanitized;
