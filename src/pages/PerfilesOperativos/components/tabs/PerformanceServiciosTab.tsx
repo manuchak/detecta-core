@@ -3,6 +3,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, TrendingUp, CheckCircle, XCircle, Clock, MapPin, DollarSign, MessageSquare, ThumbsUp, Shield } from 'lucide-react';
 import { useProfilePerformance } from '../../hooks/useProfilePerformance';
 import type { OperativeProfileFull } from '../../hooks/useOperativeProfile';
+import { TrendCharts } from './TrendCharts';
 
 interface PerformanceServiciosTabProps {
   custodioId: string;
@@ -273,6 +274,12 @@ export function PerformanceServiciosTab({ custodioId, nombre, profile }: Perform
             color="bg-emerald-500/10 text-emerald-500"
           />
         </div>
+      </div>
+
+      {/* Gráficos de Tendencia Temporal */}
+      <div className="pt-2">
+        <h3 className="text-lg font-semibold mb-4">Tendencias Temporales</h3>
+        <TrendCharts custodioId={custodioId} nombre={nombre} />
       </div>
     </div>
   );
