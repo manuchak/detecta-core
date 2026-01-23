@@ -27,7 +27,10 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
   const [errorModelos, setErrorModelos] = useState<string | null>(null);
 
   const handleMarcaChange = async (marcaNombre: string) => {
-    console.log("🔄 Marca changed to:", marcaNombre);
+    console.log("🔄 Marca ANTES:", formData.marca_vehiculo);
+    console.log("🔄 Marca NUEVA:", marcaNombre);
+    console.log("🔄 Tipo custodio:", formData.tipo_custodio);
+    
     onInputChange('marca_vehiculo', marcaNombre);
     onInputChange('modelo_vehiculo', ''); // Limpiar modelo cuando cambia la marca
     
@@ -36,8 +39,8 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
       setErrorModelos(null);
       try {
         const modelosData = await fetchModelosPorMarca(marcaNombre);
+        console.log("✅ Modelos cargados:", modelosData.length, "para marca:", marcaNombre);
         setModelos(modelosData);
-        console.log("✅ Modelos loaded:", modelosData);
       } catch (error) {
         console.error('❌ Error loading modelos:', error);
         setErrorModelos('Error al cargar modelos');
@@ -51,12 +54,29 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
     }
   };
 
-  // Cargar modelos si ya hay una marca seleccionada
+  // Cargar modelos si ya hay una marca seleccionada (al restaurar draft o navegar entre pasos)
   useEffect(() => {
-    if (formData.marca_vehiculo && formData.tipo_custodio !== 'armado' && formData.tipo_custodio !== 'abordo') {
-      handleMarcaChange(formData.marca_vehiculo);
+    const requiereVehiculoActual = formData.tipo_custodio === 'custodio_vehiculo' || 
+                                   formData.tipo_custodio === 'armado_vehiculo';
+    
+    // Solo cargar modelos si hay marca, requiere vehículo, y no hay modelos cargados
+    if (formData.marca_vehiculo && requiereVehiculoActual && modelos.length === 0 && !loadingModelos) {
+      console.log('🔄 Cargando modelos para marca existente:', formData.marca_vehiculo);
+      setLoadingModelos(true);
+      fetchModelosPorMarca(formData.marca_vehiculo)
+        .then((modelosData) => {
+          console.log('✅ Modelos restaurados:', modelosData.length);
+          setModelos(modelosData);
+        })
+        .catch((err) => {
+          console.error('❌ Error restaurando modelos:', err);
+          setModelos([]);
+        })
+        .finally(() => {
+          setLoadingModelos(false);
+        });
     }
-  }, [formData.tipo_custodio]);
+  }, [formData.marca_vehiculo, formData.tipo_custodio]);
 
   // Limpiar campos de vehículo cuando cambia a tipos sin vehículo
   useEffect(() => {
@@ -314,15 +334,23 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
                         </div>
                       </SelectItem>
                     ) : modelos.length > 0 ? (
-                      modelos.map((modelo) => (
-                        <SelectItem key={modelo.id} value={modelo.nombre}>
-                          {modelo.nombre} ({modelo.tipo_vehiculo})
-                        </SelectItem>
-                      ))
+                      <>
+                        {modelos.map((modelo) => (
+                          <SelectItem key={modelo.id} value={modelo.nombre}>
+                            {modelo.nombre} ({modelo.tipo_vehiculo})
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="otro_modelo">Otro modelo (no listado)</SelectItem>
+                      </>
                     ) : formData.marca_vehiculo ? (
-                      <SelectItem value="no_models_available" disabled>
-                        No hay modelos disponibles para esta marca
-                      </SelectItem>
+                      <>
+                        <SelectItem value="sin_modelos_catalogo" disabled>
+                          No hay modelos en catálogo para esta marca
+                        </SelectItem>
+                        <SelectItem value="escribir_manual">
+                          Escribir modelo manualmente
+                        </SelectItem>
+                      </>
                     ) : null}
                   </SelectContent>
                 </Select>
