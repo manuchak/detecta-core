@@ -443,8 +443,11 @@ export function useCustodiosConProximidad(
 
       return categorizado;
     },
-    enabled: isEnabled,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    // ✅ Don't execute with invalid key
+    enabled: isEnabled && stableKey[0] !== 'sin-servicio',
+    staleTime: 0, // Force refetch when key changes
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
+    retry: 2,
   });
 }

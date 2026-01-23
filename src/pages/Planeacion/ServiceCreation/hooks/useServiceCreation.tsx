@@ -234,17 +234,26 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
           
           setFormData(validatedFormData);
           setCompletedSteps(parsed.completedSteps || []);
-          setIsHydrated(true);
+          // ✅ Delay hydration flag to next tick to ensure formData has propagated
+          requestAnimationFrame(() => {
+            setIsHydrated(true);
+          });
           toast.success('Borrador restaurado');
         } catch (e) {
           console.error('Error loading draft:', e);
-          setIsHydrated(true);
+          requestAnimationFrame(() => {
+            setIsHydrated(true);
+          });
         }
       } else {
-        setIsHydrated(true);
+        requestAnimationFrame(() => {
+          setIsHydrated(true);
+        });
       }
     } else if (!draftIdFromUrl) {
-      setIsHydrated(true);
+      requestAnimationFrame(() => {
+        setIsHydrated(true);
+      });
     }
   }, [draftIdFromUrl, isHydrated]);
 
