@@ -121,19 +121,42 @@ async function auditarServicio(
   const destinoNorm = normalizarUbicacion(servicio.destino);
   const kmOriginal = servicio.km_recorridos;
 
-  // Si no hay km_recorridos o ya está auditado, saltar
-  if (kmOriginal === null || servicio.km_auditado) {
+  // Si ya está auditado, saltar
+  if (servicio.km_auditado) {
     return null;
   }
 
-  let kmCorregido = kmOriginal;
+  // Detectar NaN: en JavaScript NaN !== NaN, y también detectar Infinity
+  const esNaN = kmOriginal === null || 
+                (typeof kmOriginal === 'number' && (isNaN(kmOriginal) || !isFinite(kmOriginal)));
+
+  let kmCorregido = esNaN ? 0 : kmOriginal;
   let metodo = "sin_cambio";
   let razon = "";
   let distanciaMapbox: number | null = null;
   let margenError: number | null = null;
 
+  // Regla 0: NaN/Infinity → usar km_teorico o establecer a 0
+  if (esNaN) {
+    if (servicio.km_teorico && servicio.km_teorico > 0) {
+      kmCorregido = servicio.km_teorico;
+      metodo = "correccion_nan";
+      razon = `km_recorridos era NaN/inválido, corregido con km_teorico: ${servicio.km_teorico}km`;
+      console.log(`[Regla 0-NaN] Servicio ${servicio.id_servicio}: NaN → ${kmCorregido}km (km_teorico)`);
+    } else if (origenNorm && destinoNorm && origenNorm === destinoNorm) {
+      kmCorregido = 0;
+      metodo = "correccion_nan";
+      razon = `km_recorridos era NaN y origen=destino, corregido a 0km`;
+      console.log(`[Regla 0-NaN] Servicio ${servicio.id_servicio}: NaN → 0km (mismo punto)`);
+    } else {
+      kmCorregido = 0;
+      metodo = "correccion_nan";
+      razon = `km_recorridos era NaN, sin km_teorico disponible, establecido a 0km para revisión manual`;
+      console.log(`[Regla 0-NaN] Servicio ${servicio.id_servicio}: NaN → 0km (sin referencia)`);
+    }
+  }
   // Regla 1: Mismo origen/destino normalizado
-  if (origenNorm && destinoNorm && origenNorm === destinoNorm) {
+  else if (origenNorm && destinoNorm && origenNorm === destinoNorm) {
     if (kmOriginal > 0) {
       kmCorregido = 0;
       metodo = "origen_igual_destino";
@@ -163,8 +186,8 @@ async function auditarServicio(
     }
   }
 
-  // Regla 4: Mapbox API para casos que aún son sospechosos
-  const necesitaMapbox = usarMapbox && (
+  // Regla 4: Mapbox API para casos que aún son sospechosos (solo si no es NaN)
+  const necesitaMapbox = !esNaN && usarMapbox && (
     kmCorregido > 1500 || // Distancias muy largas
     (metodo === "sin_cambio" && kmOriginal > 500) // Sin corrección pero sospechoso
   );
@@ -199,7 +222,7 @@ async function auditarServicio(
   return {
     servicio_id: servicio.id,
     id_servicio: servicio.id_servicio,
-    km_original: kmOriginal,
+    km_original: esNaN ? null : kmOriginal, // Guardar null si era NaN
     km_corregido: kmCorregido,
     distancia_mapbox: distanciaMapbox,
     margen_error_pct: margenError,
@@ -243,13 +266,12 @@ serve(async (req) => {
     console.log(`=== Iniciando auditoría KM ===`);
     console.log(`Prioridad: ${prioridad}, Límite: ${limite}, Aplicar: ${aplicarCambios}, Mapbox: ${usarMapbox}`);
 
-    // Construir query según prioridad
+    // Construir query según prioridad - NO usar gt(0) para incluir NaN
     let query = supabase
       .from("servicios_custodia")
       .select("id, id_servicio, origen, destino, km_recorridos, km_teorico, km_auditado")
       .eq("km_auditado", false)
       .not("km_recorridos", "is", null)
-      .gt("km_recorridos", 0)
       .limit(limite);
 
     switch (prioridad) {
@@ -350,6 +372,7 @@ serve(async (req) => {
         division_1000: resultados.filter(r => r.metodo_correccion === "division_1000").length,
         km_teorico: resultados.filter(r => r.metodo_correccion === "km_teorico").length,
         mapbox_api: resultados.filter(r => r.metodo_correccion === "mapbox_api").length,
+        correccion_nan: resultados.filter(r => r.metodo_correccion === "correccion_nan").length,
       },
     };
 

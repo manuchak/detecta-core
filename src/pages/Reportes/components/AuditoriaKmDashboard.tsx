@@ -41,9 +41,14 @@ const METODO_LABELS: Record<string, { label: string; color: string; icon: React.
     color: 'bg-green-100 text-green-800',
     icon: <MapPin className="h-3 w-3" />
   },
+  correccion_nan: { 
+    label: 'Fix NaN', 
+    color: 'bg-purple-100 text-purple-800',
+    icon: <AlertTriangle className="h-3 w-3" />
+  },
   manual: { 
     label: 'Manual', 
-    color: 'bg-purple-100 text-purple-800',
+    color: 'bg-gray-100 text-gray-800',
     icon: <CheckCircle2 className="h-3 w-3" />
   },
 };
@@ -109,9 +114,16 @@ export default function AuditoriaKmDashboard() {
             {loadingStats ? (
               <Skeleton className="h-8 w-20" />
             ) : (
-              <div className="text-2xl font-bold text-amber-600">
-                {formatNumber(estadisticas?.pendientes_auditoria || 0)}
-              </div>
+              <>
+                <div className="text-2xl font-bold text-amber-600">
+                  {formatNumber(estadisticas?.pendientes_auditoria || 0)}
+                </div>
+                {(estadisticas?.registros_nan || 0) > 0 && (
+                  <p className="text-xs text-purple-600">
+                    Incluye {estadisticas?.registros_nan} con NaN
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

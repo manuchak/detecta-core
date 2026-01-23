@@ -20,11 +20,13 @@ export interface AuditoriaKmCorreccion {
 export interface AuditoriaEstadisticas {
   total_auditados: number;
   pendientes_auditoria: number;
+  registros_nan: number;
   por_metodo: {
     origen_igual_destino: number;
     division_1000: number;
     km_teorico: number;
     mapbox_api: number;
+    correccion_nan: number;
     manual: number;
   };
   km_total_corregido: number;
@@ -42,13 +44,12 @@ export function useAuditoriaKmEstadisticas() {
 
       if (corrError) throw corrError;
 
-      // Contar pendientes de auditoría
+      // Contar pendientes de auditoría (incluyendo NaN)
       const { count: pendientes, error: pendError } = await supabase
         .from('servicios_custodia')
         .select('id', { count: 'exact', head: true })
         .eq('km_auditado', false)
-        .not('km_recorridos', 'is', null)
-        .gt('km_recorridos', 0);
+        .not('km_recorridos', 'is', null);
 
       if (pendError) throw pendError;
 
@@ -60,12 +61,21 @@ export function useAuditoriaKmEstadisticas() {
 
       if (audError) throw audError;
 
+      // Contar registros con NaN específicamente (usando RPC o query especial)
+      // PostgreSQL: 'NaN'::numeric para detectar NaN
+      const { count: registrosNaN, error: nanError } = await supabase
+        .rpc('count_nan_km_recorridos');
+      
+      // Si no existe la función, usar 0 como fallback
+      const nanCount = nanError ? 0 : (registrosNaN || 0);
+
       // Calcular estadísticas
       const porMetodo = {
         origen_igual_destino: 0,
         division_1000: 0,
         km_teorico: 0,
         mapbox_api: 0,
+        correccion_nan: 0,
         manual: 0,
       };
 
@@ -86,6 +96,7 @@ export function useAuditoriaKmEstadisticas() {
       return {
         total_auditados: auditados || 0,
         pendientes_auditoria: pendientes || 0,
+        registros_nan: nanCount,
         por_metodo: porMetodo,
         km_total_corregido: kmTotalCorregido,
         impacto_financiero_estimado: impactoFinanciero,
