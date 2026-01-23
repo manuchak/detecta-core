@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -23,6 +23,20 @@ export const useEstadosYCiudades = () => {
   const [loadingEstados, setLoadingEstados] = useState(true);
   const [loadingCiudades, setLoadingCiudades] = useState(true);
   const [ciudadesReady, setCiudadesReady] = useState(false);
+  const [estadosReady, setEstadosReady] = useState(false);
+  
+  // Use refs to avoid stale closures in callbacks
+  const ciudadesRef = useRef<Ciudad[]>([]);
+  const ciudadesReadyRef = useRef(false);
+
+  // Sync refs with state
+  useEffect(() => {
+    ciudadesRef.current = ciudades;
+  }, [ciudades]);
+
+  useEffect(() => {
+    ciudadesReadyRef.current = ciudadesReady;
+  }, [ciudadesReady]);
 
   // Cargar estados al inicializar
   useEffect(() => {
@@ -33,6 +47,7 @@ export const useEstadosYCiudades = () => {
   const fetchEstados = async () => {
     try {
       setLoadingEstados(true);
+      setEstadosReady(false);
       const { data, error } = await supabase
         .from('estados')
         .select('*')
@@ -41,6 +56,8 @@ export const useEstadosYCiudades = () => {
 
       if (error) throw error;
       setEstados(data || []);
+      setEstadosReady(true);
+      console.log('✅ Estados cargados:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching estados:', error);
       toast.error('Error al cargar estados');
@@ -53,6 +70,8 @@ export const useEstadosYCiudades = () => {
     try {
       setLoadingCiudades(true);
       setCiudadesReady(false);
+      ciudadesReadyRef.current = false;
+      
       const { data, error } = await supabase
         .from('ciudades')
         .select('*')
@@ -60,9 +79,13 @@ export const useEstadosYCiudades = () => {
         .order('nombre');
 
       if (error) throw error;
-      setCiudades(data || []);
+      
+      const ciudadesData = data || [];
+      setCiudades(ciudadesData);
+      ciudadesRef.current = ciudadesData;
       setCiudadesReady(true);
-      console.log('✅ Ciudades cargadas:', data?.length || 0);
+      ciudadesReadyRef.current = true;
+      console.log('✅ Ciudades cargadas:', ciudadesData.length);
     } catch (error) {
       console.error('Error fetching ciudades:', error);
       toast.error('Error al cargar ciudades');
@@ -71,28 +94,40 @@ export const useEstadosYCiudades = () => {
     }
   };
 
+  // Use ref-based filtering to avoid stale closure issues
   const getCiudadesByEstado = useCallback((estadoId: string) => {
-    console.log('🔍 getCiudadesByEstado:', { estadoId, ciudadesCount: ciudades.length, ready: ciudadesReady });
+    console.log('🔍 getCiudadesByEstado:', { 
+      estadoId, 
+      ciudadesCount: ciudadesRef.current.length, 
+      ready: ciudadesReadyRef.current 
+    });
     
-    if (!ciudadesReady || !estadoId) {
-      console.warn('⚠️ Ciudades aún no listas o estadoId vacío');
+    if (!estadoId) {
+      console.warn('⚠️ estadoId vacío');
+      setCiudadesFiltradas([]);
+      return [];
+    }
+
+    // Wait for ciudades to be ready
+    if (!ciudadesReadyRef.current) {
+      console.warn('⚠️ Ciudades aún no listas, esperando...');
       setCiudadesFiltradas([]);
       return [];
     }
     
-    const ciudadesDelEstado = ciudades.filter(ciudad => ciudad.estado_id === estadoId);
+    const ciudadesDelEstado = ciudadesRef.current.filter(ciudad => ciudad.estado_id === estadoId);
     console.log('✅ Ciudades filtradas para estado:', ciudadesDelEstado.length);
     setCiudadesFiltradas(ciudadesDelEstado);
     return ciudadesDelEstado;
-  }, [ciudades, ciudadesReady]);
+  }, []); // No dependencies needed - uses refs
 
   const getEstadoById = useCallback((estadoId: string) => {
     return estados.find(estado => estado.id === estadoId);
   }, [estados]);
 
   const getCiudadById = useCallback((ciudadId: string) => {
-    return ciudades.find(ciudad => ciudad.id === ciudadId);
-  }, [ciudades]);
+    return ciudadesRef.current.find(ciudad => ciudad.id === ciudadId);
+  }, []);
 
   return {
     estados,
@@ -101,6 +136,7 @@ export const useEstadosYCiudades = () => {
     loading: loadingEstados, // Backward compatible
     loadingEstados,
     loadingCiudades,
+    estadosReady,
     ciudadesReady,
     getCiudadesByEstado,
     getEstadoById,

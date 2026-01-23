@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 interface LocationFormProps {
   formData: {
@@ -17,9 +18,9 @@ interface LocationFormProps {
 export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => {
   console.log("🏠 LocationForm - Rendering with data:", formData);
   
-  const { estados, loading: loadingEstados, error: errorEstados } = useEstados();
-  const { ciudades, loading: loadingCiudades, error: errorCiudades } = useCiudades(formData.estado_id);
-  const { zonas, loading: loadingZonas, error: errorZonas } = useZonasTrabajo(formData.ciudad_id);
+  const { estados, loading: loadingEstados, error: errorEstados, ready: estadosReady } = useEstados();
+  const { ciudades, loading: loadingCiudades, error: errorCiudades, ready: ciudadesReady } = useCiudades(formData.estado_id || null);
+  const { zonas, loading: loadingZonas, error: errorZonas, ready: zonasReady } = useZonasTrabajo(formData.ciudad_id || null);
 
   // Debug log para diagnosticar problemas de carga
   console.log("📍 LocationForm state:", {
@@ -27,6 +28,7 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
     isValidUUID: formData.estado_id ? /^[0-9a-f-]{36}$/i.test(formData.estado_id) : false,
     ciudadesCount: ciudades.length,
     loadingCiudades,
+    ciudadesReady,
     errorCiudades
   });
 
@@ -61,6 +63,10 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
     console.error('❌ Error loading zonas:', errorZonas);
   }
 
+  // Helper to determine if ciudad select should be enabled
+  const isCiudadEnabled = formData.estado_id && !loadingCiudades && ciudadesReady;
+  const isZonaEnabled = formData.ciudad_id && !loadingZonas && zonasReady;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -82,6 +88,12 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               ))}
             </SelectContent>
           </Select>
+          {errorEstados && (
+            <p className="text-sm text-destructive flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Error al cargar estados
+            </p>
+          )}
         </div>
         
         <div className="space-y-2">
@@ -89,18 +101,25 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
           <Select 
             value={formData.ciudad_id} 
             onValueChange={handleCiudadChange}
-            disabled={!formData.estado_id || loadingCiudades}
+            disabled={!isCiudadEnabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder={
-                !formData.estado_id 
-                  ? "Primero selecciona un estado" 
-                  : loadingCiudades 
-                  ? "Cargando ciudades..." 
-                  : errorCiudades
-                  ? "Error al cargar ciudades"
-                  : "Seleccionar ciudad"
-              } />
+              {loadingCiudades ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando ciudades...
+                </span>
+              ) : (
+                <SelectValue placeholder={
+                  !formData.estado_id 
+                    ? "Primero selecciona un estado" 
+                    : errorCiudades
+                    ? "Error al cargar ciudades"
+                    : ciudades.length === 0 && ciudadesReady
+                    ? "No hay ciudades disponibles"
+                    : "Seleccionar ciudad"
+                } />
+              )}
             </SelectTrigger>
             <SelectContent>
               {ciudades.map((ciudad) => (
@@ -110,6 +129,18 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               ))}
             </SelectContent>
           </Select>
+          {errorCiudades && (
+            <p className="text-sm text-destructive flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Error al cargar ciudades
+            </p>
+          )}
+          {formData.estado_id && !loadingCiudades && ciudadesReady && ciudades.length === 0 && !errorCiudades && (
+            <p className="text-sm text-amber-600 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              No se encontraron ciudades para este estado
+            </p>
+          )}
         </div>
         
         <div className="space-y-2 md:col-span-2">
@@ -127,18 +158,23 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
           <Select 
             value={formData.zona_trabajo_id} 
             onValueChange={(value) => onInputChange('zona_trabajo_id', value)}
-            disabled={!formData.ciudad_id || loadingZonas}
+            disabled={!isZonaEnabled}
           >
             <SelectTrigger>
-              <SelectValue placeholder={
-                !formData.ciudad_id 
-                  ? "Primero selecciona una ciudad" 
-                  : loadingZonas 
-                  ? "Cargando zonas..." 
-                  : errorZonas
-                  ? "Error al cargar zonas"
-                  : "Seleccionar zona de trabajo"
-              } />
+              {loadingZonas ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando zonas...
+                </span>
+              ) : (
+                <SelectValue placeholder={
+                  !formData.ciudad_id 
+                    ? "Primero selecciona una ciudad" 
+                    : errorZonas
+                    ? "Error al cargar zonas"
+                    : "Seleccionar zona de trabajo"
+                } />
+              )}
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="sin-zona-especifica">
@@ -153,6 +189,12 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               )}
             </SelectContent>
           </Select>
+          {errorZonas && (
+            <p className="text-sm text-destructive flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Error al cargar zonas
+            </p>
+          )}
         </div>
       </div>
     </div>
