@@ -126,11 +126,22 @@ async function auditarServicio(
     return null;
   }
 
-  // Detectar NaN: en JavaScript NaN !== NaN, y también detectar Infinity
+  // DEBUG: Ver qué tipo de valor llega desde PostgreSQL
+  console.log(`[DEBUG] Servicio ${servicio.id_servicio}: km_recorridos = ${JSON.stringify(kmOriginal)} (tipo: ${typeof kmOriginal})`);
+
+  // Detectar NaN en TODAS sus formas posibles:
+  // - null (cuando PostgreSQL devuelve null)
+  // - undefined
+  // - string "NaN" (cuando se serializa desde PostgreSQL a JSON)
+  // - number NaN (JavaScript nativo)
+  // - Infinity
   const esNaN = kmOriginal === null || 
+                kmOriginal === undefined ||
+                kmOriginal === "NaN" ||
+                (typeof kmOriginal === 'string' && kmOriginal.toLowerCase() === 'nan') ||
                 (typeof kmOriginal === 'number' && (isNaN(kmOriginal) || !isFinite(kmOriginal)));
 
-  let kmCorregido = esNaN ? 0 : kmOriginal;
+  let kmCorregido = esNaN ? 0 : (typeof kmOriginal === 'number' ? kmOriginal : 0);
   let metodo = "sin_cambio";
   let razon = "";
   let distanciaMapbox: number | null = null;
