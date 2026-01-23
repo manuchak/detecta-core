@@ -117,6 +117,7 @@ const LiberacionPage = () => {
               <LiberacionTable 
                 liberaciones={filteredLiberaciones}
                 onViewDetails={handleOpenModal}
+                isLoading={isLoading}
               />
             </TabsContent>
           </Tabs>
