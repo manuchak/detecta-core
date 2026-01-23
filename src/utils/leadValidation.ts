@@ -1,5 +1,5 @@
-
 import { AssignedLead } from "@/types/leadTypes";
+import { isValidUUID } from "@/lib/validators";
 
 interface LeadNotesData {
   datos_personales?: {
@@ -92,7 +92,9 @@ export const validateLeadForApproval = (lead: AssignedLead): { isValid: boolean;
     missingFields.push("Ciudad");
   }
   
-  if (isEmpty(notesData.datos_personales?.zona_trabajo_id)) {
+  // ✅ Zona es válida si tiene un UUID válido o el valor especial "sin-zona-especifica"
+  const zonaId = notesData.datos_personales?.zona_trabajo_id;
+  if (isEmpty(zonaId) || (zonaId !== 'sin-zona-especifica' && !isValidUUID(zonaId))) {
     missingFields.push("Zona de trabajo");
   }
 

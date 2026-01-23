@@ -138,6 +138,18 @@ export const useCiudades = (estadoId: string | null) => {
 
     const fetchCiudades = async () => {
       fetchInProgressRef.current = true;
+      
+      // ✅ Timeout de seguridad: 10 segundos máximo
+      const timeoutId = setTimeout(() => {
+        if (fetchInProgressRef.current) {
+          console.error('⏰ useCiudades: Fetch timeout after 10s for estado:', estadoId);
+          setLoading(false);
+          setReady(true);
+          setError('Tiempo de espera agotado');
+          fetchInProgressRef.current = false;
+        }
+      }, 10000);
+      
       try {
         setLoading(true);
         setError(null);
@@ -151,9 +163,12 @@ export const useCiudades = (estadoId: string | null) => {
           error: any;
         };
         
+        clearTimeout(timeoutId);
+        
         if (error) {
           console.error('❌ Error fetching ciudades:', error);
           setError(error.message);
+          setReady(true);
           return;
         }
         
@@ -161,9 +176,11 @@ export const useCiudades = (estadoId: string | null) => {
         setCiudades(data || []);
         setReady(true);
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('❌ Error in fetchCiudades:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar ciudades';
         setError(errorMessage);
+        setReady(true);
       } finally {
         setLoading(false);
         fetchInProgressRef.current = false;
@@ -171,7 +188,7 @@ export const useCiudades = (estadoId: string | null) => {
     };
 
     fetchCiudades();
-  }, [estadoId, loading]); // Added loading to deps to handle refetch trigger
+  }, [estadoId]); // ✅ Solo estadoId como dependencia - sin loading para evitar loops
 
   return { ciudades, loading, error, ready, refetch };
 };
@@ -236,6 +253,18 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
 
     const fetchZonas = async () => {
       fetchInProgressRef.current = true;
+      
+      // ✅ Timeout de seguridad: 10 segundos máximo
+      const timeoutId = setTimeout(() => {
+        if (fetchInProgressRef.current) {
+          console.error('⏰ useZonasTrabajo: Fetch timeout after 10s for ciudad:', ciudadId);
+          setLoading(false);
+          setReady(true); // Marcar como ready para desbloquear UI
+          setError('Tiempo de espera agotado. Puedes seleccionar "Sin zona específica".');
+          fetchInProgressRef.current = false;
+        }
+      }, 10000);
+      
       try {
         setLoading(true);
         setError(null);
@@ -249,9 +278,12 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
           error: any;
         };
         
+        clearTimeout(timeoutId); // Limpiar timeout si completa antes
+        
         if (error) {
           console.error('❌ Error fetching zonas:', error);
           setError(error.message);
+          setReady(true); // Marcar ready para permitir "Sin zona específica"
           return;
         }
         
@@ -259,9 +291,11 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
         setZonas(data || []);
         setReady(true);
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('❌ Error in fetchZonas:', err);
         const errorMessage = err instanceof Error ? err.message : 'Error al cargar zonas';
         setError(errorMessage);
+        setReady(true); // Marcar ready para permitir "Sin zona específica"
       } finally {
         setLoading(false);
         fetchInProgressRef.current = false;
@@ -269,7 +303,7 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
     };
 
     fetchZonas();
-  }, [ciudadId, loading]); // Added loading to deps to handle refetch trigger
+  }, [ciudadId]); // ✅ Solo ciudadId como dependencia - sin loading para evitar loops
 
   return { zonas, loading, error, ready, refetch };
 };

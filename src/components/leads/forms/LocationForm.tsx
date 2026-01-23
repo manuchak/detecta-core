@@ -66,7 +66,8 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
 
   // Helper to determine if ciudad select should be enabled
   const isCiudadEnabled = formData.estado_id && !loadingCiudades && ciudadesReady;
-  const isZonaEnabled = formData.ciudad_id && !loadingZonas && zonasReady;
+  // ✅ FIX: Permitir selección de zona si hay ciudad Y está ready (incluso si hay error)
+  const isZonaEnabled = Boolean(formData.ciudad_id) && zonasReady;
 
   return (
     <div className="space-y-6">
