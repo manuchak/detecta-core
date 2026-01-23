@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -14,6 +15,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { OperativeProfileFull, ArmadoProfileFull } from '../../hooks/useOperativeProfile';
 import { useProfileVehicle } from '../../hooks/useProfileVehicle';
+import { useProfileEconomics } from '../../hooks/useProfileEconomics';
 import { VehiculoCard } from './VehiculoCard';
 import { PermanenciaCard } from './PermanenciaCard';
 
@@ -29,6 +31,24 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
   const { data: vehicleData, isLoading: loadingVehicle } = useProfileVehicle(
     isCustodio && custodioProfile?.vehiculo_propio ? profile?.id : undefined
   );
+
+  // Obtener datos de economics para fecha de primer servicio (solo custodios)
+  const { data: economics } = useProfileEconomics(isCustodio ? profile?.nombre : undefined);
+
+  // Calcular fecha de inicio REAL: la más antigua entre created_at y primer servicio
+  const fechaInicioReal = useMemo(() => {
+    if (!profile) return new Date();
+    
+    const fechaCreated = new Date(profile.created_at);
+    
+    if (isCustodio && economics?.primerServicio) {
+      const fechaPrimerServicio = new Date(economics.primerServicio);
+      // Usar la fecha más antigua
+      return fechaPrimerServicio < fechaCreated ? fechaPrimerServicio : fechaCreated;
+    }
+    
+    return fechaCreated;
+  }, [profile?.created_at, economics?.primerServicio, isCustodio]);
 
   if (!profile) {
     return (
@@ -93,8 +113,8 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
           />
           <InfoRow 
             icon={Calendar} 
-            label="Fecha de registro" 
-            value={format(new Date(profile.created_at), "d 'de' MMMM yyyy", { locale: es })} 
+            label={isCustodio && economics?.primerServicio ? "Activo desde" : "Fecha de registro"} 
+            value={format(fechaInicioReal, "d 'de' MMMM yyyy", { locale: es })} 
           />
           {isCustodio && custodioProfile?.fecha_ultimo_servicio && (
             <InfoRow 
@@ -108,7 +128,7 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
 
       {/* Permanencia y Actividad */}
       <PermanenciaCard 
-        createdAt={profile.created_at}
+        createdAt={fechaInicioReal.toISOString()}
         fechaUltimoServicio={isCustodio ? custodioProfile?.fecha_ultimo_servicio || null : null}
         numeroServicios={profile.numero_servicios}
       />
