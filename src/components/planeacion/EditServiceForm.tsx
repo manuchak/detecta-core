@@ -334,6 +334,19 @@ export function EditServiceForm({
     });
   }, [service]);
 
+  // Mapeo de campos a etiquetas legibles
+  const fieldLabels: Record<string, string> = {
+    id_servicio: 'ID del Servicio',
+    id_interno_cliente: 'Referencia Cliente',
+    nombre_cliente: 'Nombre del Cliente',
+    origen: 'Origen',
+    destino: 'Destino',
+    fecha_hora_cita: 'Fecha y Hora',
+    tipo_servicio: 'Tipo de Servicio',
+    requiere_armado: 'Requiere Armado',
+    observaciones: 'Observaciones'
+  };
+
   const handleSave = async () => {
     if (!service || !hasChanges) return;
 
@@ -348,7 +361,31 @@ export function EditServiceForm({
           errors[field] = err.message;
         });
         setValidationErrors(errors);
-        toast.error('Por favor, corrige los errores en el formulario');
+        
+        // Toast detallado con lista de campos con error
+        const errorFieldNames = Object.keys(errors).map(f => fieldLabels[f] || f);
+        toast.error(
+          <div className="space-y-1">
+            <p className="font-medium">Campos con errores:</p>
+            <ul className="list-disc list-inside text-sm">
+              {errorFieldNames.map(field => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+          </div>,
+          { duration: 5000 }
+        );
+        
+        // Scroll al primer campo con error
+        const firstErrorField = Object.keys(errors)[0];
+        if (firstErrorField) {
+          const element = document.getElementById(firstErrorField);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => element.focus(), 300);
+          }
+        }
+        
         return;
       }
       
@@ -513,7 +550,13 @@ export function EditServiceForm({
                 onChange={(e) => handleInputChange('id_servicio', e.target.value)}
                 placeholder="Ej: SRV-2024-001"
                 disabled={!canEditServiceId()}
-                className={!canEditServiceId() ? 'bg-muted cursor-not-allowed' : ''}
+                className={
+                  !canEditServiceId() 
+                    ? 'bg-muted cursor-not-allowed' 
+                    : validationErrors.id_servicio 
+                      ? 'border-destructive focus-visible:ring-destructive' 
+                      : ''
+                }
                 maxLength={50}
               />
               {validationErrors.id_servicio && (
@@ -543,6 +586,7 @@ export function EditServiceForm({
                 onChange={(e) => handleInputChange('nombre_cliente', e.target.value)}
                 placeholder="Nombre completo del cliente"
                 maxLength={200}
+                className={validationErrors.nombre_cliente ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {validationErrors.nombre_cliente && (
                 <p className="text-xs text-destructive flex items-center gap-1">
@@ -609,6 +653,7 @@ export function EditServiceForm({
                 onChange={(e) => handleInputChange('origen', e.target.value)}
                 placeholder="Dirección de origen"
                 maxLength={500}
+                className={validationErrors.origen ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {validationErrors.origen && (
                 <p className="text-xs text-destructive flex items-center gap-1">
@@ -626,6 +671,7 @@ export function EditServiceForm({
                 onChange={(e) => handleInputChange('destino', e.target.value)}
                 placeholder="Dirección de destino"
                 maxLength={500}
+                className={validationErrors.destino ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
               {validationErrors.destino && (
                 <p className="text-xs text-destructive flex items-center gap-1">
@@ -642,16 +688,26 @@ export function EditServiceForm({
                 type="datetime-local"
                 value={formatDateTime(formData.fecha_hora_cita || '')}
                 onChange={(e) => handleInputChange('fecha_hora_cita', parseLocalDateTime(e.target.value))}
+                className={validationErrors.fecha_hora_cita ? 'border-destructive focus-visible:ring-destructive' : ''}
               />
+              {validationErrors.fecha_hora_cita && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.fecha_hora_cita}
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="tipo_servicio">Tipo de Servicio</Label>
+              <Label htmlFor="tipo_servicio">Tipo de Servicio *</Label>
               <Select
                 value={formData.tipo_servicio || ''}
                 onValueChange={(value) => handleInputChange('tipo_servicio', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger 
+                  id="tipo_servicio"
+                  className={validationErrors.tipo_servicio ? 'border-destructive focus-visible:ring-destructive' : ''}
+                >
                   <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -661,6 +717,12 @@ export function EditServiceForm({
                   <SelectItem value="vigilancia">Vigilancia</SelectItem>
                 </SelectContent>
               </Select>
+              {validationErrors.tipo_servicio && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {validationErrors.tipo_servicio}
+                </p>
+              )}
             </div>
           </div>
         </div>
