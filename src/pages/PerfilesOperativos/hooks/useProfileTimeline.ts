@@ -71,7 +71,7 @@ export function useProfileTimeline(
         const nombreNormalizado = normalizarNombre(nombre);
         let query = supabase
           .from('servicios_custodia')
-          .select('id, fecha_hora_cita, cliente, origen, destino, estado, costo_custodio, km_recorridos')
+          .select('id, fecha_hora_cita, nombre_cliente, origen, destino, estado, costo_custodio, km_recorridos')
           .ilike('nombre_custodio', nombreNormalizado)
           .eq('estado', 'Finalizado')
           .order('fecha_hora_cita', { ascending: false })
@@ -80,7 +80,10 @@ export function useProfileTimeline(
         if (fechaDesde) query = query.gte('fecha_hora_cita', fechaDesde);
         if (fechaHasta) query = query.lte('fecha_hora_cita', fechaHasta);
         
-        const { data: serviciosEjecutados } = await query;
+        const { data: serviciosEjecutados, error: errorCustodia } = await query;
+        if (errorCustodia) {
+          console.error('[useProfileTimeline] Error servicios_custodia:', errorCustodia);
+        }
         
         (serviciosEjecutados || []).forEach(s => {
           serviciosCompletados++;
@@ -92,7 +95,7 @@ export function useProfileTimeline(
             fecha: s.fecha_hora_cita,
             metadata: {
               servicioId: s.id,
-              cliente: s.cliente,
+              cliente: s.nombre_cliente,
               origen: s.origen,
               destino: s.destino,
               costo: s.costo_custodio,
@@ -115,7 +118,10 @@ export function useProfileTimeline(
         if (fechaDesde) query = query.gte('fecha_hora_cita', fechaDesde);
         if (fechaHasta) query = query.lte('fecha_hora_cita', fechaHasta);
         
-        const { data: serviciosPlanificados } = await query;
+        const { data: serviciosPlanificados, error: errorPlanificados } = await query;
+        if (errorPlanificados) {
+          console.error('[useProfileTimeline] Error servicios_planificados:', errorPlanificados);
+        }
         
         (serviciosPlanificados || []).forEach(s => {
           let tipo: TimelineEventType = 'servicio_asignado';
@@ -189,7 +195,10 @@ export function useProfileTimeline(
         if (fechaDesde) query = query.gte('created_at', fechaDesde);
         if (fechaHasta) query = query.lte('created_at', fechaHasta);
         
-        const { data: tickets } = await query;
+        const { data: tickets, error: errorTickets } = await query;
+        if (errorTickets) {
+          console.error('[useProfileTimeline] Error tickets:', errorTickets);
+        }
         
         (tickets || []).forEach(t => {
           ticketsCreados++;
