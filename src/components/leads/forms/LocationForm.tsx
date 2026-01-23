@@ -21,6 +21,15 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
   const { ciudades, loading: loadingCiudades, error: errorCiudades } = useCiudades(formData.estado_id);
   const { zonas, loading: loadingZonas, error: errorZonas } = useZonasTrabajo(formData.ciudad_id);
 
+  // Debug log para diagnosticar problemas de carga
+  console.log("📍 LocationForm state:", {
+    estado_id: formData.estado_id,
+    isValidUUID: formData.estado_id ? /^[0-9a-f-]{36}$/i.test(formData.estado_id) : false,
+    ciudadesCount: ciudades.length,
+    loadingCiudades,
+    errorCiudades
+  });
+
   // Limpiar ciudad cuando cambie el estado
   const handleEstadoChange = (value: string) => {
     console.log("🔄 Estado ANTES:", formData.estado_id);

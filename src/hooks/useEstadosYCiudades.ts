@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -21,7 +20,9 @@ export const useEstadosYCiudades = () => {
   const [estados, setEstados] = useState<Estado[]>([]);
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [ciudadesFiltradas, setCiudadesFiltradas] = useState<Ciudad[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingEstados, setLoadingEstados] = useState(true);
+  const [loadingCiudades, setLoadingCiudades] = useState(true);
+  const [ciudadesReady, setCiudadesReady] = useState(false);
 
   // Cargar estados al inicializar
   useEffect(() => {
@@ -31,7 +32,7 @@ export const useEstadosYCiudades = () => {
 
   const fetchEstados = async () => {
     try {
-      setLoading(true);
+      setLoadingEstados(true);
       const { data, error } = await supabase
         .from('estados')
         .select('*')
@@ -44,12 +45,14 @@ export const useEstadosYCiudades = () => {
       console.error('Error fetching estados:', error);
       toast.error('Error al cargar estados');
     } finally {
-      setLoading(false);
+      setLoadingEstados(false);
     }
   };
 
   const fetchCiudades = async () => {
     try {
+      setLoadingCiudades(true);
+      setCiudadesReady(false);
       const { data, error } = await supabase
         .from('ciudades')
         .select('*')
@@ -58,31 +61,47 @@ export const useEstadosYCiudades = () => {
 
       if (error) throw error;
       setCiudades(data || []);
+      setCiudadesReady(true);
+      console.log('✅ Ciudades cargadas:', data?.length || 0);
     } catch (error) {
       console.error('Error fetching ciudades:', error);
       toast.error('Error al cargar ciudades');
+    } finally {
+      setLoadingCiudades(false);
     }
   };
 
-  const getCiudadesByEstado = (estadoId: string) => {
+  const getCiudadesByEstado = useCallback((estadoId: string) => {
+    console.log('🔍 getCiudadesByEstado:', { estadoId, ciudadesCount: ciudades.length, ready: ciudadesReady });
+    
+    if (!ciudadesReady || !estadoId) {
+      console.warn('⚠️ Ciudades aún no listas o estadoId vacío');
+      setCiudadesFiltradas([]);
+      return [];
+    }
+    
     const ciudadesDelEstado = ciudades.filter(ciudad => ciudad.estado_id === estadoId);
+    console.log('✅ Ciudades filtradas para estado:', ciudadesDelEstado.length);
     setCiudadesFiltradas(ciudadesDelEstado);
     return ciudadesDelEstado;
-  };
+  }, [ciudades, ciudadesReady]);
 
-  const getEstadoById = (estadoId: string) => {
+  const getEstadoById = useCallback((estadoId: string) => {
     return estados.find(estado => estado.id === estadoId);
-  };
+  }, [estados]);
 
-  const getCiudadById = (ciudadId: string) => {
+  const getCiudadById = useCallback((ciudadId: string) => {
     return ciudades.find(ciudad => ciudad.id === ciudadId);
-  };
+  }, [ciudades]);
 
   return {
     estados,
     ciudades,
     ciudadesFiltradas,
-    loading,
+    loading: loadingEstados, // Backward compatible
+    loadingEstados,
+    loadingCiudades,
+    ciudadesReady,
     getCiudadesByEstado,
     getEstadoById,
     getCiudadById,
