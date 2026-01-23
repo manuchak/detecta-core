@@ -122,3 +122,6 @@ verify_jwt = false
 
 [functions.siercp-ai-assistant]
 verify_jwt = false
+
+[functions.auditar-km-recorridos]
+verify_jwt = false
