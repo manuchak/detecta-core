@@ -7,12 +7,11 @@ import type { OperativeProfileFull } from '../../hooks/useOperativeProfile';
 interface PerformanceServiciosTabProps {
   custodioId: string;
   nombre: string;
-  telefono: string | null;
   profile?: OperativeProfileFull;
 }
 
-export function PerformanceServiciosTab({ custodioId, nombre, telefono, profile }: PerformanceServiciosTabProps) {
-  const { metrics, isLoading, isError } = useProfilePerformance(custodioId, nombre, telefono || undefined);
+export function PerformanceServiciosTab({ custodioId, nombre, profile }: PerformanceServiciosTabProps) {
+  const { metrics, isLoading, isError } = useProfilePerformance(custodioId, nombre);
 
   if (isLoading) {
     return (

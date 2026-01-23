@@ -8,7 +8,7 @@ export interface PerformanceMetrics {
   asignacionesCanceladas: number;
   tasaAsignacion: number;
   
-  // From servicios_custodia (execution by name/phone)
+  // From servicios_custodia (execution by name)
   totalEjecuciones: number;
   ejecucionesCompletadas: number;
   kmTotales: number;
@@ -20,7 +20,7 @@ export interface PerformanceMetrics {
   scoreConfiabilidad: number;
 }
 
-export function useProfilePerformance(custodioId: string | undefined, nombre: string | undefined, telefono: string | undefined) {
+export function useProfilePerformance(custodioId: string | undefined, nombre: string | undefined) {
   // Query for servicios_planificados (by custodio_id UUID)
   const planificacionQuery = useQuery({
     queryKey: ['profile-performance-planificacion', custodioId],
@@ -29,7 +29,7 @@ export function useProfilePerformance(custodioId: string | undefined, nombre: st
       
       const { data, error } = await supabase
         .from('servicios_planificados')
-        .select('id, estado, fecha_servicio, created_at')
+        .select('id, estado_planeacion, fecha_hora_cita, created_at')
         .eq('custodio_id', custodioId);
       
       if (error) throw error;
@@ -38,28 +38,21 @@ export function useProfilePerformance(custodioId: string | undefined, nombre: st
     enabled: !!custodioId
   });
 
-  // Query for servicios_custodia (by nombre or telefono - legacy)
+  // Query for servicios_custodia (by nombre - legacy)
   const ejecucionQuery = useQuery({
-    queryKey: ['profile-performance-ejecucion', nombre, telefono],
+    queryKey: ['profile-performance-ejecucion', nombre],
     queryFn: async () => {
-      if (!nombre && !telefono) return null;
+      if (!nombre) return null;
       
-      let query = supabase
+      const { data, error } = await supabase
         .from('servicios_custodia')
-        .select('id, estado, total_servicio, km_totales, fecha_servicio, created_at');
-      
-      if (telefono) {
-        query = query.eq('telefono_custodio', telefono);
-      } else if (nombre) {
-        query = query.ilike('nombre_custodio', `%${nombre}%`);
-      }
-      
-      const { data, error } = await query;
+        .select('id, estado, costo_custodio, km_recorridos, km_teorico, fecha_hora_cita, created_at')
+        .ilike('nombre_custodio', `%${nombre}%`);
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!(nombre || telefono)
+    enabled: !!nombre
   });
 
   // Calculate metrics
@@ -67,8 +60,8 @@ export function useProfilePerformance(custodioId: string | undefined, nombre: st
   const ejecucion = ejecucionQuery.data || [];
 
   const totalAsignaciones = planificacion.length;
-  const asignacionesCompletadas = planificacion.filter(s => s.estado === 'completado').length;
-  const asignacionesCanceladas = planificacion.filter(s => s.estado === 'cancelado').length;
+  const asignacionesCompletadas = planificacion.filter(s => s.estado_planeacion === 'confirmado').length;
+  const asignacionesCanceladas = planificacion.filter(s => s.estado_planeacion === 'cancelado').length;
   const tasaAsignacion = totalAsignaciones > 0 
     ? Math.round((asignacionesCompletadas / totalAsignaciones) * 100) 
     : 0;
@@ -77,8 +70,8 @@ export function useProfilePerformance(custodioId: string | undefined, nombre: st
   const ejecucionesCompletadas = ejecucion.filter(s => 
     s.estado === 'completado' || s.estado === 'Completado'
   ).length;
-  const kmTotales = ejecucion.reduce((sum, s) => sum + (s.km_totales || 0), 0);
-  const ingresosTotales = ejecucion.reduce((sum, s) => sum + (s.total_servicio || 0), 0);
+  const kmTotales = ejecucion.reduce((sum, s) => sum + (s.km_recorridos || s.km_teorico || 0), 0);
+  const ingresosTotales = ejecucion.reduce((sum, s) => sum + (s.costo_custodio || 0), 0);
 
   // Calculate scores (0-100 scale)
   const scorePuntualidad = tasaAsignacion;
