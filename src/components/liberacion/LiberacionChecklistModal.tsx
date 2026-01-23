@@ -167,19 +167,26 @@ const LiberacionChecklistModal = ({
     };
   }, [evaluacionPsicometrica]);
 
-  // Reset del draft cuando cambia el candidato
+  // Bug #5 Fix: Only reset when candidate changes AND there's no existing draft
+  // This prevents overwriting user's saved progress when modal re-opens
   useEffect(() => {
-    updateDraft({
-      liberacion: initialLiberacion,
-      datosContacto: {
-        nombre: initialLiberacion.candidato?.nombre || '',
-        telefono: initialLiberacion.candidato?.telefono || '',
-        email: initialLiberacion.candidato?.email || ''
-      },
-      tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
-    });
+    if (!hasDraft) {
+      // No existing draft - initialize from server data
+      console.log('📋 [LiberacionChecklist] No draft found, initializing from server');
+      updateDraft({
+        liberacion: initialLiberacion,
+        datosContacto: {
+          nombre: initialLiberacion.candidato?.nombre || '',
+          telefono: initialLiberacion.candidato?.telefono || '',
+          email: initialLiberacion.candidato?.email || ''
+        },
+        tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
+      });
+    } else {
+      console.log('📋 [LiberacionChecklist] Existing draft found, preserving user data');
+    }
     setPrefillApplied({ docs: false, psico: false });
-  }, [initialLiberacion.id]);
+  }, [initialLiberacion.id, hasDraft]);
 
   // Prellenar documentación si hay datos del workflow
   useEffect(() => {

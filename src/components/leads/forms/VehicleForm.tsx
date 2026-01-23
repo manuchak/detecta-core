@@ -25,6 +25,9 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
   const [modelos, setModelos] = useState<any[]>([]);
   const [loadingModelos, setLoadingModelos] = useState(false);
   const [errorModelos, setErrorModelos] = useState<string | null>(null);
+  
+  // Bug #3 Fix: Track hydration state to load models even if tipo_custodio arrives late
+  const [isHydrationComplete, setIsHydrationComplete] = useState(false);
 
   const handleMarcaChange = async (marcaNombre: string) => {
     console.log("🔄 Marca ANTES:", formData.marca_vehiculo);
@@ -54,13 +57,26 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
     }
   };
 
+  // Bug #3 Fix: Detect when draft hydration is complete
+  useEffect(() => {
+    if (formData.marca_vehiculo || formData.tipo_custodio) {
+      setIsHydrationComplete(true);
+    }
+  }, [formData.marca_vehiculo, formData.tipo_custodio]);
+
   // Cargar modelos si ya hay una marca seleccionada (al restaurar draft o navegar entre pasos)
+  // Bug #3 Fix: Allow loading models during hydration even if tipo_custodio isn't set yet
   useEffect(() => {
     const requiereVehiculoActual = formData.tipo_custodio === 'custodio_vehiculo' || 
                                    formData.tipo_custodio === 'armado_vehiculo';
     
-    // Solo cargar modelos si hay marca, requiere vehículo, y no hay modelos cargados
-    if (formData.marca_vehiculo && requiereVehiculoActual && modelos.length === 0 && !loadingModelos) {
+    // Load models if: requires vehicle OR if we're hydrating with a saved marca
+    const shouldLoadModelos = formData.marca_vehiculo && 
+                               (requiereVehiculoActual || isHydrationComplete) && 
+                               modelos.length === 0 && 
+                               !loadingModelos;
+    
+    if (shouldLoadModelos) {
       console.log('🔄 Cargando modelos para marca existente:', formData.marca_vehiculo);
       setLoadingModelos(true);
       fetchModelosPorMarca(formData.marca_vehiculo)
@@ -76,7 +92,7 @@ export const VehicleForm = ({ formData, onInputChange }: VehicleFormProps) => {
           setLoadingModelos(false);
         });
     }
-  }, [formData.marca_vehiculo, formData.tipo_custodio]);
+  }, [formData.marca_vehiculo, formData.tipo_custodio, isHydrationComplete]);
 
   // Limpiar campos de vehículo cuando cambia a tipos sin vehículo
   useEffect(() => {

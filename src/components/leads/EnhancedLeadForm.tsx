@@ -156,51 +156,28 @@ export const EnhancedLeadForm = ({ editingLead, onSuccess, onCancel }: EnhancedL
     return () => clearInterval(interval);
   }, [getTimeSinceSave]);
 
+  // Bug #4 Fix: Only update fields that have actual values in editingLead
+  // This prevents overwriting draft data with empty strings
   useEffect(() => {
     if (editingLead) {
-      updateFormData({
-        // Información personal
-        nombre: editingLead.nombre || "",
-        email: editingLead.email || "",
-        telefono: editingLead.telefono || "",
-        edad: "",
-        nivel_escolaridad: "",
-        fuente: editingLead.fuente || "",
-        
-        // Ubicación
-        direccion: "",
-        estado_id: "",
-        ciudad_id: "",
-        zona_trabajo_id: "",
-        
-        // Vehículo
-        vehiculo_propio: "",
-        marca_vehiculo: "",
-        modelo_vehiculo: "",
-        año_vehiculo: "",
-        
-        // Experiencia
-        experiencia_custodia: "",
-        años_experiencia: "",
-        empresas_anteriores: "",
-        licencia_conducir: "",
-        tipo_licencia: "",
-        antecedentes_penales: "",
-        institucion_publica: "",
-        baja_institucion: "",
-        referencias: "",
-        mensaje: editingLead.mensaje || "",
-        
-        // Referidos
-        custodio_referente_id: "",
-        custodio_referente_nombre: "",
-        
-        // Estado del lead
-        estado_lead: editingLead.estado || "nuevo",
-        notas: editingLead.notas || "",
-      });
+      const updates: Partial<FormData> = {};
+      
+      // Only include fields that have real values
+      if (editingLead.nombre) updates.nombre = editingLead.nombre;
+      if (editingLead.email) updates.email = editingLead.email;
+      if (editingLead.telefono) updates.telefono = editingLead.telefono;
+      if (editingLead.fuente) updates.fuente = editingLead.fuente;
+      if (editingLead.mensaje) updates.mensaje = editingLead.mensaje;
+      if (editingLead.notas) updates.notas = editingLead.notas;
+      if (editingLead.estado) updates.estado_lead = editingLead.estado;
+      
+      // Only update if there are real values to apply
+      if (Object.keys(updates).length > 0) {
+        console.log('📋 [EnhancedLeadForm] Populating from editingLead:', Object.keys(updates));
+        updateFormData(updates);
+      }
     }
-  }, [editingLead]);
+  }, [editingLead, updateFormData]);
 
   const handleInputChange = (field: string, value: string) => {
     updateFormData({ [field]: value });

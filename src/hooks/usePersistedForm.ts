@@ -480,9 +480,17 @@ export function usePersistedForm<T>({
   }, [saveToStorage]);
 
   // Update form data and mark as changed - keeping ref in sync
-  const updateFormData = useCallback((data: T | ((prev: T) => T)) => {
+  // Bug #2 Fix: Proper merge for partial objects instead of full replacement
+  const updateFormData = useCallback((data: Partial<T> | ((prev: T) => T)) => {
     setFormData(prev => {
-      const newData = typeof data === 'function' ? (data as (prev: T) => T)(prev) : data;
+      let newData: T;
+      if (typeof data === 'function') {
+        // Function updater - execute as-is
+        newData = (data as (prev: T) => T)(prev);
+      } else {
+        // Partial object - merge with existing state
+        newData = { ...prev, ...data } as T;
+      }
       formDataRef.current = newData;
       hasChangesRef.current = true;
       return newData;
