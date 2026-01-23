@@ -1,9 +1,10 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstados, useCiudades, useZonasTrabajo } from "@/hooks/useGeograficos";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
 interface LocationFormProps {
   formData: {
@@ -19,8 +20,8 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
   console.log("🏠 LocationForm - Rendering with data:", formData);
   
   const { estados, loading: loadingEstados, error: errorEstados, ready: estadosReady } = useEstados();
-  const { ciudades, loading: loadingCiudades, error: errorCiudades, ready: ciudadesReady } = useCiudades(formData.estado_id || null);
-  const { zonas, loading: loadingZonas, error: errorZonas, ready: zonasReady } = useZonasTrabajo(formData.ciudad_id || null);
+  const { ciudades, loading: loadingCiudades, error: errorCiudades, ready: ciudadesReady, refetch: refetchCiudades } = useCiudades(formData.estado_id || null);
+  const { zonas, loading: loadingZonas, error: errorZonas, ready: zonasReady, refetch: refetchZonas } = useZonasTrabajo(formData.ciudad_id || null);
 
   // Debug log para diagnosticar problemas de carga
   console.log("📍 LocationForm state:", {
@@ -103,22 +104,22 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
             onValueChange={handleCiudadChange}
             disabled={!isCiudadEnabled}
           >
-            <SelectTrigger>
-              {loadingCiudades ? (
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cargando ciudades...
-                </span>
-              ) : (
-                <SelectValue placeholder={
-                  !formData.estado_id 
-                    ? "Primero selecciona un estado" 
-                    : errorCiudades
-                    ? "Error al cargar ciudades"
-                    : ciudades.length === 0 && ciudadesReady
-                    ? "No hay ciudades disponibles"
-                    : "Seleccionar ciudad"
-                } />
+            <SelectTrigger className={!formData.estado_id ? 'text-muted-foreground' : ''}>
+              {/* ✅ Placeholder inteligente que considera todos los estados */}
+              <SelectValue placeholder={
+                !formData.estado_id 
+                  ? "Primero selecciona un estado" 
+                  : loadingCiudades || !ciudadesReady
+                  ? "Cargando ciudades..."
+                  : errorCiudades
+                  ? "Error al cargar ciudades"
+                  : ciudades.length === 0
+                  ? "No hay ciudades disponibles"
+                  : "Seleccionar ciudad"
+              } />
+              {/* ✅ Loader inline cuando está cargando */}
+              {(loadingCiudades || (!ciudadesReady && formData.estado_id)) && (
+                <Loader2 className="h-4 w-4 animate-spin ml-auto" />
               )}
             </SelectTrigger>
             <SelectContent>
@@ -129,11 +130,24 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               ))}
             </SelectContent>
           </Select>
+          {/* ✅ Error con botón de reintento */}
           {errorCiudades && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Error al cargar ciudades
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Error al cargar ciudades
+              </p>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm"
+                onClick={() => refetchCiudades?.()}
+                className="h-6 px-2 text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Reintentar
+              </Button>
+            </div>
           )}
           {formData.estado_id && !loadingCiudades && ciudadesReady && ciudades.length === 0 && !errorCiudades && (
             <p className="text-sm text-amber-600 flex items-center gap-1">
@@ -189,11 +203,24 @@ export const LocationForm = ({ formData, onInputChange }: LocationFormProps) => 
               )}
             </SelectContent>
           </Select>
+          {/* ✅ Error con botón de reintento para zonas */}
           {errorZonas && (
-            <p className="text-sm text-destructive flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Error al cargar zonas
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Error al cargar zonas
+              </p>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm"
+                onClick={() => refetchZonas?.()}
+                className="h-6 px-2 text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Reintentar
+              </Button>
+            </div>
           )}
         </div>
       </div>
