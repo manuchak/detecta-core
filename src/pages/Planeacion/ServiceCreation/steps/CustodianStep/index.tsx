@@ -48,13 +48,17 @@ export default function CustodianStep() {
   // Unavailability hook
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   
-  // Only query custodians AFTER form data is hydrated from draft
-  const queryableServicio = isHydrated && servicioNuevo ? servicioNuevo : undefined;
+  // ✅ Double-check: hydrated AND critical service data exists
+  const isReadyToQuery = isHydrated && servicioNuevo && 
+    Boolean(servicioNuevo.fecha_programada) && 
+    Boolean(servicioNuevo.hora_ventana_inicio);
   
-  // Fetch custodians with proximity scoring (blocked until hydrated)
+  const queryableServicio = isReadyToQuery ? servicioNuevo : undefined;
+  
+  // Fetch custodians with proximity scoring (blocked until ready)
   const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(
     queryableServicio,
-    { enabled: isHydrated }
+    { enabled: isReadyToQuery }
   );
   
   // Filter custodians locally (instant)
