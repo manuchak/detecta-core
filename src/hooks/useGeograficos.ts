@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isValidUUID } from '@/lib/validators';
 
@@ -68,7 +68,8 @@ export const useEstados = () => {
 
 export const useCiudades = (estadoId: string | null) => {
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
-  const [loading, setLoading] = useState(false);
+  // ✅ FIX: Loading debe iniciar como true si hay estadoId válido
+  const [loading, setLoading] = useState(!!estadoId && isValidUUID(estadoId));
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   
@@ -76,11 +77,30 @@ export const useCiudades = (estadoId: string | null) => {
   const prevEstadoIdRef = useRef<string | null>(undefined as any); // Start as undefined, not null
   const fetchInProgressRef = useRef(false);
 
+  // ✅ Función refetch expuesta para reintentos manuales
+  const refetch = useCallback(() => {
+    if (estadoId && isValidUUID(estadoId)) {
+      console.log('🔄 useCiudades: Manual refetch triggered for estadoId:', estadoId);
+      prevEstadoIdRef.current = null; // Force refetch
+      fetchInProgressRef.current = false;
+      setReady(false);
+      setLoading(true);
+      setError(null);
+    }
+  }, [estadoId]);
+
   useEffect(() => {
-    // ✅ FIX: Solo saltar si es exactamente el mismo valor Y ya tenemos ciudades
-    // Esto permite el fetch inicial cuando estadoId viene prellenado de un draft
     const isSameAsPrevious = estadoId === prevEstadoIdRef.current;
     const hasDataAlready = ciudades.length > 0 && ready;
+    
+    console.log('🏙️ useCiudades triggered:', {
+      estadoId,
+      prevEstadoId: prevEstadoIdRef.current,
+      isSameAsPrevious,
+      hasDataAlready,
+      fetchInProgress: fetchInProgressRef.current,
+      isValidUUID: estadoId ? isValidUUID(estadoId) : false
+    });
     
     if (isSameAsPrevious && hasDataAlready) {
       console.log('⏭️ useCiudades: Skipping fetch - same estadoId and data already loaded');
@@ -90,8 +110,9 @@ export const useCiudades = (estadoId: string | null) => {
     // Update ref AFTER the check
     prevEstadoIdRef.current = estadoId;
 
-    // Reset ready when estadoId changes or on initial load
+    // ✅ FIX: Setear loading=true ANTES de cualquier return early
     setReady(false);
+    setLoading(true);
 
     if (!estadoId) {
       setCiudades([]);
@@ -150,22 +171,34 @@ export const useCiudades = (estadoId: string | null) => {
     };
 
     fetchCiudades();
-  }, [estadoId]); // Removed ciudades.length and ready from deps to avoid loops
+  }, [estadoId, loading]); // Added loading to deps to handle refetch trigger
 
-  return { ciudades, loading, error, ready };
+  return { ciudades, loading, error, ready, refetch };
 };
 
 export const useZonasTrabajo = (ciudadId: string | null) => {
   const [zonas, setZonas] = useState<ZonaTrabajo[]>([]);
-  const [loading, setLoading] = useState(false);
+  // ✅ FIX: Loading debe iniciar como true si hay ciudadId válido
+  const [loading, setLoading] = useState(!!ciudadId && isValidUUID(ciudadId));
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   
-  const prevCiudadIdRef = useRef<string | null>(undefined as any); // Start as undefined, not null
+  const prevCiudadIdRef = useRef<string | null>(undefined as any);
   const fetchInProgressRef = useRef(false);
 
+  // ✅ Función refetch expuesta para reintentos manuales
+  const refetch = useCallback(() => {
+    if (ciudadId && isValidUUID(ciudadId)) {
+      console.log('🔄 useZonasTrabajo: Manual refetch triggered for ciudadId:', ciudadId);
+      prevCiudadIdRef.current = null;
+      fetchInProgressRef.current = false;
+      setReady(false);
+      setLoading(true);
+      setError(null);
+    }
+  }, [ciudadId]);
+
   useEffect(() => {
-    // ✅ FIX: Solo saltar si es exactamente el mismo valor Y ya tenemos zonas
     const isSameAsPrevious = ciudadId === prevCiudadIdRef.current;
     const hasDataAlready = zonas.length > 0 && ready;
     
@@ -174,11 +207,11 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
       return;
     }
     
-    // Update ref AFTER the check
     prevCiudadIdRef.current = ciudadId;
 
-    // Reset ready when ciudadId changes
+    // ✅ FIX: Setear loading=true ANTES de cualquier return early
     setReady(false);
+    setLoading(true);
 
     if (!ciudadId) {
       setZonas([]);
@@ -187,7 +220,6 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
       return;
     }
 
-    // Validar que el ciudadId sea un UUID válido
     if (!isValidUUID(ciudadId)) {
       console.warn('⚠️ useZonasTrabajo: ciudadId inválido (no es UUID):', ciudadId);
       setZonas([]);
@@ -237,7 +269,7 @@ export const useZonasTrabajo = (ciudadId: string | null) => {
     };
 
     fetchZonas();
-  }, [ciudadId]); // Removed zonas.length and ready from deps to avoid loops
+  }, [ciudadId, loading]); // Added loading to deps to handle refetch trigger
 
-  return { zonas, loading, error, ready };
+  return { zonas, loading, error, ready, refetch };
 };
