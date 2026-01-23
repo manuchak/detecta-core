@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useInstaladorData } from '@/hooks/useInstaladorData';
 import { useEstadosYCiudades } from '@/hooks/useEstadosYCiudades';
+// Hook now exports ciudadesReady and loadingCiudades for proper race condition handling
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftIndicator, DraftRestoreBanner } from '@/components/ui/DraftIndicator';
 import { 
@@ -151,7 +152,7 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   onOpenChange
 }) => {
   const { createInstalador } = useInstaladorData();
-  const { estados, ciudadesFiltradas, loading: loadingEstados, getCiudadesByEstado, getEstadoById, getCiudadById } = useEstadosYCiudades();
+  const { estados, ciudadesFiltradas, loading: loadingEstados, loadingCiudades, ciudadesReady, getCiudadesByEstado, getEstadoById, getCiudadById } = useEstadosYCiudades();
   const [nuevaZona, setNuevaZona] = useState('');
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
 
@@ -244,14 +245,15 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
   const herramientasSeleccionadas = watch('herramientas_disponibles') || [];
   const vehiculosSeleccionados = watch('capacidad_vehiculos') || [];
 
-  // Efecto para cargar ciudades cuando cambia el estado
+  // Efecto para cargar ciudades cuando cambia el estado Y ciudades están listas
   useEffect(() => {
-    if (estadoSeleccionado) {
+    if (estadoSeleccionado && ciudadesReady) {
+      console.log('🔄 Cargando ciudades para estado:', estadoSeleccionado);
       getCiudadesByEstado(estadoSeleccionado);
       // Limpiar ciudad seleccionada cuando cambia el estado
       setValue('ciudad_trabajo', '');
     }
-  }, [estadoSeleccionado, getCiudadesByEstado, setValue]);
+  }, [estadoSeleccionado, ciudadesReady, getCiudadesByEstado, setValue]);
 
   const agregarZona = () => {
     if (nuevaZona.trim() && !zonasSeleccionadas.includes(nuevaZona.trim())) {
@@ -484,12 +486,14 @@ export const RegistroInstaladorFormularioRobusto: React.FC<RegistroInstaladorFor
                       <Select 
                         onValueChange={field.onChange} 
                         value={field.value} 
-                        disabled={!estadoSeleccionado || loadingEstados}
+                        disabled={!estadoSeleccionado || loadingCiudades}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
                             !estadoSeleccionado 
                               ? "Primero selecciona un estado" 
+                              : loadingCiudades
+                              ? "Cargando ciudades..."
                               : "Selecciona la ciudad"
                           } />
                         </SelectTrigger>
