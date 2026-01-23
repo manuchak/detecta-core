@@ -4,7 +4,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { REPORTES_FULL_ACCESS_ROLES } from '@/constants/accessControl';
 import { 
   TrendingUp, Users, BarChart3, CalendarCheck, Target, Building2, 
-  Scale, MapPin, LineChart, XCircle, Shield, User 
+  Scale, MapPin, LineChart, XCircle, Shield, User, Route 
 } from 'lucide-react';
 import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,6 +20,7 @@ import FairnessAuditDashboard from './components/FairnessAuditDashboard';
 import ArmadosFairnessAuditDashboard from './components/ArmadosFairnessAuditDashboard';
 import RejectionsDashboard from './components/RejectionsDashboard';
 import MyPerformanceDashboard from './components/MyPerformanceDashboard';
+import AuditoriaKmDashboard from './components/AuditoriaKmDashboard';
 
 interface TabConfig {
   id: string;
@@ -44,6 +45,7 @@ export default function ReportesHub() {
     { id: 'proveedores-externos', label: 'Prov. Ext.', icon: Building2, roles: 'full', component: ProveedoresExternosDashboard },
     { id: 'proveedores-bi', label: 'BI Prov.', icon: LineChart, roles: 'full', component: ProveedoresExternosBIDashboard },
     { id: 'armados-internos', label: 'Armados', icon: MapPin, roles: 'all', component: ArmadosInternosDashboard },
+    { id: 'auditoria-km', label: 'Auditoría KM', icon: Route, roles: 'full', component: AuditoriaKmDashboard },
     { id: 'auditoria-equidad', label: 'Equidad', icon: Scale, roles: 'all', component: FairnessAuditDashboard },
     { id: 'equidad-armados', label: 'Eq. Armados', icon: Shield, roles: 'all', component: ArmadosFairnessAuditDashboard },
   ], []);

@@ -1308,6 +1308,62 @@ export type Database = {
           },
         ]
       }
+      auditoria_km_correcciones: {
+        Row: {
+          auditado_por: string | null
+          created_at: string | null
+          destino_normalizado: string | null
+          distancia_mapbox: number | null
+          id: string
+          id_servicio: string | null
+          km_corregido: number | null
+          km_original: number | null
+          margen_error_pct: number | null
+          metodo_correccion: string | null
+          origen_normalizado: string | null
+          razon: string | null
+          servicio_id: number | null
+        }
+        Insert: {
+          auditado_por?: string | null
+          created_at?: string | null
+          destino_normalizado?: string | null
+          distancia_mapbox?: number | null
+          id?: string
+          id_servicio?: string | null
+          km_corregido?: number | null
+          km_original?: number | null
+          margen_error_pct?: number | null
+          metodo_correccion?: string | null
+          origen_normalizado?: string | null
+          razon?: string | null
+          servicio_id?: number | null
+        }
+        Update: {
+          auditado_por?: string | null
+          created_at?: string | null
+          destino_normalizado?: string | null
+          distancia_mapbox?: number | null
+          id?: string
+          id_servicio?: string | null
+          km_corregido?: number | null
+          km_original?: number | null
+          margen_error_pct?: number | null
+          metodo_correccion?: string | null
+          origen_normalizado?: string | null
+          razon?: string | null
+          servicio_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditoria_km_correcciones_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bases_proveedores_armados: {
         Row: {
           activa: boolean | null
@@ -11695,11 +11751,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -11716,7 +11775,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -11727,6 +11788,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -11765,11 +11828,14 @@ export type Database = {
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
           duracion_estimada?: unknown
           duracion_servicio?: unknown
           es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
+          fecha_auditoria?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
           fecha_hora_cita?: string | null
@@ -11786,7 +11852,9 @@ export type Database = {
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
+          km_auditado?: boolean | null
           km_extras?: string | null
+          km_original_backup?: number | null
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
@@ -11797,6 +11865,8 @@ export type Database = {
           nombre_operador_adicional?: string | null
           nombre_operador_transporte?: string | null
           origen?: string | null
+          origen_lat?: number | null
+          origen_lng?: number | null
           placa?: string | null
           placa_carga?: string | null
           placa_carga_adicional?: string | null
@@ -11835,11 +11905,14 @@ export type Database = {
           creado_via?: string | null
           created_at?: string | null
           destino?: string | null
+          destino_lat?: number | null
+          destino_lng?: number | null
           duracion_estimada?: unknown
           duracion_servicio?: unknown
           es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
+          fecha_auditoria?: string | null
           fecha_contratacion?: string | null
           fecha_hora_asignacion?: string | null
           fecha_hora_cita?: string | null
@@ -11856,7 +11929,9 @@ export type Database = {
           id_cotizacion?: string | null
           id_custodio?: string | null
           id_servicio?: string | null
+          km_auditado?: boolean | null
           km_extras?: string | null
+          km_original_backup?: number | null
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
@@ -11867,6 +11942,8 @@ export type Database = {
           nombre_operador_adicional?: string | null
           nombre_operador_transporte?: string | null
           origen?: string | null
+          origen_lat?: number | null
+          origen_lng?: number | null
           placa?: string | null
           placa_carga?: string | null
           placa_carga_adicional?: string | null
@@ -14005,11 +14082,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -14026,7 +14106,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -14037,6 +14119,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -14084,11 +14168,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -14105,7 +14192,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -14116,6 +14205,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -14562,11 +14653,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -14583,7 +14677,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -14594,6 +14690,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -15036,11 +15134,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -15057,7 +15158,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -15068,6 +15171,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -15457,11 +15562,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -15478,7 +15586,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -15489,6 +15599,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
@@ -15708,11 +15820,14 @@ export type Database = {
           creado_via: string | null
           created_at: string | null
           destino: string | null
+          destino_lat: number | null
+          destino_lng: number | null
           duracion_estimada: unknown
           duracion_servicio: unknown
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
+          fecha_auditoria: string | null
           fecha_contratacion: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
@@ -15729,7 +15844,9 @@ export type Database = {
           id_cotizacion: string | null
           id_custodio: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
           km_extras: string | null
+          km_original_backup: number | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -15740,6 +15857,8 @@ export type Database = {
           nombre_operador_adicional: string | null
           nombre_operador_transporte: string | null
           origen: string | null
+          origen_lat: number | null
+          origen_lng: number | null
           placa: string | null
           placa_carga: string | null
           placa_carga_adicional: string | null
