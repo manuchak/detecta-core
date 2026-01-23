@@ -124,7 +124,6 @@ export default function PerfilForense() {
           <PerformanceServiciosTab 
             custodioId={id!} 
             nombre={profile.nombre} 
-            telefono={profile.telefono}
             profile={custodioProfile || undefined}
           />
         </TabsContent>
