@@ -266,6 +266,7 @@ export function PendingAssignmentModal({
         .from('servicios_planificados')
         .update({
           id_servicio: data.id_servicio,
+          id_interno_cliente: data.id_interno_cliente,
           nombre_cliente: data.nombre_cliente,
           origen: data.origen,
           destino: data.destino,
