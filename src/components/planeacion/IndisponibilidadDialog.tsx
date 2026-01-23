@@ -6,9 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { CalendarIcon, Clock } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { Clock } from 'lucide-react';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { useCustodioIndisponibilidades, type CrearIndisponibilidadData } from '@/hooks/useCustodioIndisponibilidades';
 
 interface IndisponibilidadDialogProps {
@@ -139,27 +138,22 @@ export function IndisponibilidadDialog({ open, onOpenChange, custodio }: Indispo
             />
           </div>
 
-          {/* Fechas */}
+          {/* Fechas con DateTimePicker mejorado */}
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="fecha_inicio">Fecha/Hora Inicio</Label>
-              <Input
-                id="fecha_inicio"
-                type="datetime-local"
-                value={formData.fecha_inicio}
-                onChange={(e) => setFormData(prev => ({ ...prev, fecha_inicio: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="fecha_fin">Fecha/Hora Fin Estimada</Label>
-              <Input
-                id="fecha_fin"
-                type="datetime-local"
-                value={formData.fecha_fin_estimada}
-                onChange={(e) => setFormData(prev => ({ ...prev, fecha_fin_estimada: e.target.value }))}
-                placeholder="Opcional"
-              />
-            </div>
+            <DateTimePicker
+              value={formData.fecha_inicio}
+              onChange={(value) => setFormData(prev => ({ ...prev, fecha_inicio: value }))}
+              label="Fecha/Hora Inicio"
+              placeholder="Seleccionar inicio"
+              required
+            />
+            <DateTimePicker
+              value={formData.fecha_fin_estimada}
+              onChange={(value) => setFormData(prev => ({ ...prev, fecha_fin_estimada: value }))}
+              label="Fecha/Hora Fin Estimada"
+              placeholder="Opcional"
+              minDate={formData.fecha_inicio ? new Date(formData.fecha_inicio) : undefined}
+            />
           </div>
 
           {/* Severidad */}
