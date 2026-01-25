@@ -171,9 +171,10 @@ export function EditServiceForm({
       
       try {
         const { data, error } = await supabase
-          .from('pc_servicios')
+          .from('servicios_planificados')
           .select('id')
-          .eq('folio', debouncedServiceId)
+          .eq('id_servicio', debouncedServiceId)
+          .neq('id', service?.id || '')
           .maybeSingle();
         
         if (error) throw error;
@@ -241,9 +242,10 @@ export function EditServiceForm({
     
     try {
       const { data, error } = await supabase
-        .from('pc_servicios')
+        .from('servicios_planificados')
         .select('id')
-        .eq('folio', newId)
+        .eq('id_servicio', newId)
+        .neq('id', service?.id || '')
         .maybeSingle();
       
       if (error) throw error;
