@@ -9,17 +9,36 @@ function getMatchStatus(confidence: number | null): ClientMatchResult['matchStat
   return 'pending';
 }
 
-export function useCrmClientMatches() {
+export interface CrmClientMatchFilter {
+  months?: number | null; // null = all time
+}
+
+export function useCrmClientMatches(filter?: CrmClientMatchFilter) {
+  const months = filter?.months ?? 6; // Default: 6 months
+  
   return useQuery({
-    queryKey: ['crm-client-matches'],
+    queryKey: ['crm-client-matches', months],
     queryFn: async (): Promise<ClientMatchResult[]> => {
-      // Get all open and won deals
-      const { data: deals, error: dealsError } = await supabase
+      // Calculate cutoff date if filtering by months
+      let cutoffDate: string | null = null;
+      if (months !== null) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - months);
+        cutoffDate = date.toISOString();
+      }
+
+      // Get open and won deals with optional date filter
+      let query = supabase
         .from('crm_deals')
         .select('id, title, organization_name, matched_client_name, match_confidence, value')
         .eq('is_deleted', false)
-        .in('status', ['open', 'won'])
-        .order('value', { ascending: false });
+        .in('status', ['open', 'won']);
+
+      if (cutoffDate) {
+        query = query.gte('created_at', cutoffDate);
+      }
+
+      const { data: deals, error: dealsError } = await query.order('value', { ascending: false });
 
       if (dealsError) {
         console.error('Error fetching deals for matching:', dealsError);

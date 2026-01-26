@@ -20,14 +20,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useCrmClientMatches, useSearchClients, useLinkDealToClient, useUnlinkDealFromClient } from '@/hooks/useCrmClientMatcher';
 import { CRMHeroCard, type HealthStatus } from './CRMHeroCard';
-import { Check, X, AlertCircle, Link2, Unlink, Search, Users } from 'lucide-react';
+import { Check, X, AlertCircle, Link2, Unlink, Search, Users, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ClientMatchResult } from '@/types/crm';
 import { cn } from '@/lib/utils';
+
+const DATE_RANGE_OPTIONS = [
+  { value: '3', label: 'Últimos 3 meses' },
+  { value: '6', label: 'Últimos 6 meses' },
+  { value: '12', label: 'Último año' },
+  { value: 'all', label: 'Todos los deals' },
+] as const;
 
 function formatCurrency(value: number | null): string {
   if (value === null) return '—';
@@ -149,11 +163,16 @@ function LinkDialog({ match, open, onOpenChange }: LinkDialogProps) {
 }
 
 export default function ClientServicesLink() {
-  const { data: matches, isLoading } = useCrmClientMatches();
+  const [dateRange, setDateRange] = useState<string>('6');
+  const monthsFilter = dateRange === 'all' ? null : parseInt(dateRange, 10);
+  const { data: matches, isLoading } = useCrmClientMatches({ months: monthsFilter });
   const unlinkMutation = useUnlinkDealFromClient();
   const [showOnlyPending, setShowOnlyPending] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<ClientMatchResult | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+
+  // Get label for current range
+  const rangeLabel = DATE_RANGE_OPTIONS.find(o => o.value === dateRange)?.label || '';
 
   const filteredMatches = showOnlyPending
     ? (matches || []).filter(m => m.matchStatus === 'pending' || m.matchStatus === 'no-match')
@@ -204,7 +223,7 @@ export default function ClientServicesLink() {
       <CRMHeroCard
         title="¿Tenemos los deals vinculados a clientes?"
         value={`${matchRate.toFixed(0)}% vinculados`}
-        subtitle={`${stats.verified + stats.autoMatch} de ${stats.total} deals tienen cliente asignado`}
+        subtitle={`${stats.verified + stats.autoMatch} de ${stats.total} deals (${rangeLabel.toLowerCase()}) tienen cliente asignado`}
         health={health}
         progress={{
           value: matchRate,
@@ -218,16 +237,33 @@ export default function ClientServicesLink() {
         icon={<Users className="h-8 w-8 text-muted-foreground/20" />}
       />
 
-      {/* Filter Toggle */}
-      <div className="flex items-center gap-2">
-        <Switch
-          id="pending-only"
-          checked={showOnlyPending}
-          onCheckedChange={setShowOnlyPending}
-        />
-        <Label htmlFor="pending-only" className="text-sm">
-          Mostrar solo pendientes ({stats.pending})
-        </Label>
+      {/* Filters */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_RANGE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="pending-only"
+            checked={showOnlyPending}
+            onCheckedChange={setShowOnlyPending}
+          />
+          <Label htmlFor="pending-only" className="text-sm">
+            Solo pendientes ({stats.pending})
+          </Label>
+        </div>
       </div>
 
       {/* Table */}
