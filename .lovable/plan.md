@@ -1,258 +1,431 @@
 
-# Plan: Sincronización Inicial de Pipedrive
+# Plan: Mejora UX/UI del CRM Hub - Vision Cross-Functional
 
-## Resumen
+## Resumen Ejecutivo
 
-Crear una Edge Function para hacer una **importación masiva inicial** de todos los deals, pipelines y stages desde Pipedrive hacia la base de datos de Core. Esto llenará el CRM Hub con datos reales del estado comercial actual.
-
----
-
-## Datos Comerciales a Importar
-
-| Entidad | Campos Relevantes |
-|---------|-------------------|
-| **Pipelines** | Nombre del pipeline |
-| **Stages** | Nombre, orden, probabilidad |
-| **Deals** | Título, valor, moneda, etapa, estado, fecha esperada de cierre, fecha ganado/perdido |
-| **Organizaciones** | Nombre de empresa |
-| **Personas** | Nombre, email, teléfono |
-| **Owners** | Nombre del ejecutivo comercial |
-
-### Métricas que Podremos Ver
-
-- **Valor total del pipeline** por etapa
-- **Forecast ponderado** (valor × probabilidad de etapa)
-- **Win rate** (ganados vs cerrados)
-- **Ticket promedio** de deals ganados
-- **Tamaño de clientes** según valor del deal
-- **Distribución por ejecutivo** comercial
-- **Tiempo promedio** en cada etapa
+Transformar el CRM Hub de una herramienta operacional de seguimiento a un **centro de inteligencia comercial** que conecte el embudo de ventas con la capacidad operativa (Supply) y la distribución geográfica de demanda. El objetivo es que cualquier stakeholder (CEO, Head of Sales, Head of Operations, Head of Product) pueda tomar decisiones informadas sin necesidad de cruzar datos manualmente.
 
 ---
 
-## Arquitectura de Sincronización
+## Diagnostico Actual
+
+### Fortalezas
+- Integración funcional con Pipedrive (webhook + sync)
+- Kanban de pipeline operativo
+- Lógica de client-matching con servicios_custodia
+
+### Debilidades Criticas
+
+| Problema | Impacto |
+|----------|---------|
+| Planitud Visual | Todos los deals lucen iguales; un deal de $500K no se distingue de uno de $0 |
+| Sin Contexto Temporal | No hay indicadores de deals "estancados" que superen el tiempo promedio en etapa |
+| Desconexion Geografica | No se puede ver donde se concentra la demanda comercial vs. donde hay supply |
+| Metricas sin Benchmark | Pipeline total sin comparacion vs. mes anterior o metas |
+| Sin Flujo Visual | No se entiende como fluyen los leads desde origen hasta cierre |
+
+---
+
+## Arquitectura de Mejoras
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    PIPEDRIVE SYNC FLOW                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   1. GET /api/v2/pipelines                                      │
-│      └─► Obtener todos los pipelines                            │
-│                                                                 │
-│   2. GET /api/v2/stages                                         │
-│      └─► Obtener etapas con nombre, orden y probabilidad        │
-│      └─► UPSERT en crm_pipeline_stages (por pipedrive_id)       │
-│                                                                 │
-│   3. GET /api/v2/deals (paginado, limit=500)                    │
-│      └─► Filtrar por status: open, won, lost                    │
-│      └─► Incluir org, person, owner_name                        │
-│      └─► UPSERT en crm_deals (por pipedrive_id)                 │
-│      └─► Auto-match con servicios_custodia                      │
-│                                                                 │
-│   4. Responder con estadísticas de sincronización               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
++------------------------------------------------------------------+
+|                        CRM HUB MEJORADO                          |
++------------------------------------------------------------------+
+|                                                                  |
+|  CAPA 1: PIPELINE INTELIGENTE (Kanban Mejorado)                  |
+|  ├─ Jerarquia visual por valor del deal                          |
+|  ├─ Badges de "Stalled" para deals estancados                    |
+|  ├─ Indicador de match confidence prominente                     |
+|  └─ Quick actions (ver detalle, editar, cambiar etapa)           |
+|                                                                  |
+|  CAPA 2: METRICAS CON CONTEXTO                                   |
+|  ├─ Tendencias vs. mes anterior (flechas verde/rojo)             |
+|  ├─ Progreso vs. meta mensual (barra de progreso)                |
+|  ├─ Sales Velocity Score                                         |
+|  └─ Conversion Rate por etapa                                    |
+|                                                                  |
+|  CAPA 3: SANKEY CHART - FLUJO DE CONVERSION                      |
+|  ├─ Lead Source → Zona Geografica → Stage → Outcome              |
+|  ├─ Identificar donde se pierden deals                           |
+|  └─ Detectar zonas con alta/baja conversion                      |
+|                                                                  |
+|  CAPA 4: PIPELINE MAP (Vista Geografica)                         |
+|  ├─ Deals en negociacion por zona                                |
+|  ├─ Supply disponible por zona (custodios activos)               |
+|  └─ Gap Analysis: Demanda comercial vs. Capacidad operativa      |
+|                                                                  |
++------------------------------------------------------------------+
 ```
 
 ---
 
-## Fase 1: Secret Requerido
+## Fase 1: Quick Wins - Pipeline Kanban Mejorado
 
-Para acceder a la API de Pipedrive, necesitamos el **API Token**:
+### 1.1 Jerarquia Visual por Valor
 
-| Secret | Descripción |
-|--------|-------------|
-| `PIPEDRIVE_API_TOKEN` | Token de API de Pipedrive (Settings > Personal Preferences > API) |
+**Problema**: Un deal de $500K luce igual que uno de $5K.
 
-El usuario debe proporcionar este token para habilitar la sincronización.
-
----
-
-## Fase 2: Edge Function - Pipedrive Sync
-
-### Archivo: `supabase/functions/pipedrive-sync/index.ts`
-
-### Funcionalidad
+**Solucion**: Aplicar estilos diferenciados segun rangos de valor.
 
 ```text
-1. Autenticación por API Token de Pipedrive
-2. Sincronizar pipelines y stages
-   - GET /api/v2/pipelines → Obtener pipelines
-   - GET /api/v2/stages → Obtener todas las etapas
-   - UPSERT en crm_pipeline_stages con nombres y probabilidades reales
-3. Sincronizar deals (paginado)
-   - GET /api/v2/deals con cursor pagination
-   - Incluir open, won, lost
-   - UPSERT en crm_deals
-   - Ejecutar auto-match con servicios_custodia
-4. Retornar estadísticas:
-   - Stages sincronizados
-   - Deals importados/actualizados
-   - Matches encontrados
+Rango de Valor          │ Estilo Visual
+────────────────────────┼───────────────────────────────────────
+$0 - $50K               │ Borde izquierdo gris, texto normal
+$50K - $200K            │ Borde izquierdo azul, titulo semibold
+$200K - $500K           │ Borde izquierdo primary, fondo sutil
+$500K+                  │ Borde dorado, badge "High Value"
 ```
 
-### Endpoints Pipedrive API v2
+### 1.2 Indicador de Deals Estancados
 
-```typescript
-// Base URL
-const PIPEDRIVE_API = 'https://api.pipedrive.com/api/v2';
-
-// Endpoints a usar
-GET /pipelines                    // Listar pipelines
-GET /stages?pipeline_id={id}      // Listar etapas de un pipeline
-GET /deals?limit=500&cursor={c}   // Listar deals con paginación
-```
-
-### Lógica de Sincronización
-
-```typescript
-// Sincronizar stages
-async function syncStages(apiToken: string) {
-  // 1. Obtener todos los pipelines
-  const pipelines = await fetch(`${PIPEDRIVE_API}/pipelines?api_token=${apiToken}`);
-  
-  // 2. Para cada pipeline, obtener sus stages
-  for (const pipeline of pipelines.data) {
-    const stages = await fetch(`${PIPEDRIVE_API}/stages?pipeline_id=${pipeline.id}&api_token=${apiToken}`);
-    
-    // 3. UPSERT cada stage
-    for (const stage of stages.data) {
-      await supabase.from('crm_pipeline_stages')
-        .upsert({
-          pipedrive_id: stage.id,
-          name: stage.name,
-          pipeline_name: pipeline.name,
-          order_nr: stage.order_nr,
-          deal_probability: stage.deal_probability || 50,
-        }, { onConflict: 'pipedrive_id' });
-    }
-  }
-}
-
-// Sincronizar deals con paginación
-async function syncDeals(apiToken: string) {
-  let cursor = null;
-  let totalDeals = 0;
-  
-  do {
-    const url = new URL(`${PIPEDRIVE_API}/deals`);
-    url.searchParams.set('api_token', apiToken);
-    url.searchParams.set('limit', '500');
-    if (cursor) url.searchParams.set('cursor', cursor);
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    for (const deal of data.data || []) {
-      // UPSERT deal
-      const stageId = await getOrCreateStage(supabase, deal.stage_id);
-      const match = await findClientMatch(supabase, deal.org_name);
-      
-      await supabase.from('crm_deals').upsert({
-        pipedrive_id: deal.id,
-        title: deal.title,
-        organization_name: deal.org_name,
-        person_name: deal.person_name,
-        value: deal.value,
-        currency: deal.currency,
-        stage_id: stageId,
-        status: deal.status,
-        expected_close_date: deal.expected_close_date,
-        won_time: deal.won_time,
-        lost_time: deal.lost_time,
-        lost_reason: deal.lost_reason,
-        owner_name: deal.owner_name,
-        matched_client_name: match.name,
-        match_confidence: match.confidence,
-      }, { onConflict: 'pipedrive_id' });
-      
-      totalDeals++;
-    }
-    
-    cursor = data.additional_data?.next_cursor;
-  } while (cursor);
-  
-  return totalDeals;
-}
-```
-
----
-
-## Fase 3: Configuración
-
-### Modificar: `supabase/config.toml`
-
-```toml
-[functions.pipedrive-sync]
-verify_jwt = true  # Solo usuarios autenticados pueden sincronizar
-```
-
----
-
-## Fase 4: UI - Botón de Sincronización
-
-### Modificar: `src/pages/CRMHub/CRMHub.tsx`
-
-Agregar un botón "Sincronizar con Pipedrive" en el header que:
-- Llame a la Edge Function `pipedrive-sync`
-- Muestre un spinner mientras sincroniza
-- Muestre un toast con resultados (X stages, Y deals sincronizados)
-- Refresque los datos del CRM
+**Logica**: Calcular tiempo promedio en cada etapa. Si un deal supera 1.5x el promedio, mostrar badge "Stalled".
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  CRM Hub                                                        │
-│  Pipeline de ventas, forecast e integración con Pipedrive       │
-│                                                                 │
-│  [🔄 Sincronizar con Pipedrive]                    [↻ Actualizar]│
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  Contrato de Servicio ABC           │
+│  ⚠️ Stalled (15 dias en etapa)      │  ← Badge rojo
+│  Organizacion XYZ                   │
+│  $150,000                    open   │
+│  hace 15 dias          @vendedor    │
+│  ● Match verificado                 │
+└─────────────────────────────────────┘
 ```
 
----
+### 1.3 Summary Cards con Contexto
 
-## Fase 5: Limpieza de Etapas Dummy
+**Antes**:
+```text
+Total Deals Abiertos: 47
+Valor Total Pipeline: $2,340,000
+```
 
-Eliminar las etapas genéricas que insertamos inicialmente y usar las reales de Pipedrive.
+**Despues**:
+```text
+Total Deals Abiertos: 47         ↑ +8 vs mes anterior
+Valor Total Pipeline: $2.34M     ↓ -12% vs mes anterior
+                                 72% de meta mensual ($3.2M)
+```
 
----
-
-## Archivos a Crear
-
-| Archivo | Descripción |
-|---------|-------------|
-| `supabase/functions/pipedrive-sync/index.ts` | Edge Function de sincronización masiva |
-
-## Archivos a Modificar
+### Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/config.toml` | Agregar config de pipedrive-sync |
-| `src/pages/CRMHub/CRMHub.tsx` | Agregar botón de sincronización |
+| `src/pages/CRMHub/components/PipelineKanban.tsx` | Agregar jerarquia visual, badges stalled, metricas contextuales |
+| `src/hooks/useCrmDeals.ts` | Agregar calculo de tiempo promedio por etapa |
+| `src/types/crm.ts` | Agregar campos para stalled detection |
 
 ---
 
-## Próximo Paso Inmediato
+## Fase 2: Metricas Ejecutivas Mejoradas
 
-Antes de implementar, necesito que me proporciones el **API Token de Pipedrive**:
+### 2.1 Nuevas Metric Cards
 
-1. Ve a **Pipedrive** > **Settings** (⚙️ arriba a la derecha)
-2. **Personal preferences** > **API**
-3. Copia el **API token**
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  METRICAS CLAVE                                                         │
+├────────────────┬────────────────┬────────────────┬─────────────────────┤
+│  Pipeline      │  Forecast      │  Win Rate      │  Sales Velocity     │
+│  $2.34M        │  $1.12M        │  34.2%         │  $45K/dia           │
+│  ↑ +8% vs LM   │  ↓ -5% vs LM   │  ↑ +2.1pp      │  ≈ promedio         │
+│  72% de meta   │  Prob. 48%     │  12/35 cerrados│  Avg 18 dias ciclo  │
+└────────────────┴────────────────┴────────────────┴─────────────────────┘
+```
 
-Con este token podré:
-- Configurar el secret `PIPEDRIVE_API_TOKEN`
-- Crear la Edge Function de sincronización
-- Importar todos tus deals y stages reales
+### 2.2 Sales Velocity Formula
+
+```text
+Sales Velocity = (Deals Abiertos × Ticket Promedio × Win Rate) / Ciclo Promedio
+
+Ejemplo:
+(47 deals × $49.8K × 34.2%) / 18 dias = $44.5K/dia de capacidad de cierre
+```
+
+### Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/CRMHub/components/RevenueForecast.tsx` | Agregar tendencias, velocity, progreso vs meta |
+| `src/hooks/useCrmForecast.ts` | Calcular metricas comparativas y velocity |
 
 ---
 
-## Resultado Esperado
+## Fase 3: Sankey Chart - Flujo de Conversion
 
-Después de ejecutar la sincronización, el CRM Hub mostrará:
+### 3.1 Justificacion del Sankey
 
-- **Pipeline Kanban** con todas las etapas reales de Pipedrive
-- **Deals distribuidos** en sus etapas correspondientes
-- **Forecast calculado** con valores reales
-- **Métricas** de win rate, ticket promedio, etc.
-- **Vinculación automática** con clientes de servicios_custodia
+El Sankey es ideal para este caso porque:
+1. Muestra flujos **no lineales** (un lead puede saltar etapas o perderse en cualquier punto)
+2. Revela **cuellos de botella** visualmente (lineas que se adelgazan = perdida)
+3. Conecta **multiples dimensiones** (origen → zona → etapa → resultado)
+
+### 3.2 Estructura de Datos
+
+```text
+Nodos:
+├─ FUENTES (izquierda)
+│   ├─ Pipedrive (inbound)
+│   ├─ Referido
+│   └─ Outbound
+├─ ZONAS (centro-izquierda)
+│   ├─ Centro
+│   ├─ Bajio
+│   ├─ Norte
+│   ├─ Occidente
+│   └─ Otras
+├─ ETAPAS (centro-derecha)
+│   ├─ Contacto Inicial
+│   ├─ Propuesta
+│   ├─ Negociacion
+│   └─ Cierre
+└─ RESULTADO (derecha)
+    ├─ Won
+    └─ Lost
+
+Links:
+[Fuente] ──valor──► [Zona] ──valor──► [Etapa] ──valor──► [Resultado]
+```
+
+### 3.3 Visualizacion Esperada
+
+```text
+           ┌──────────────────────────────────────────────────────────┐
+           │              FLUJO DE CONVERSION POR ZONA                │
+           │                                                          │
+           │   Pipedrive ═══════╗        Contacto ═══════╗           │
+           │                    ╠═══ Centro ═══╣         ╠══ Won ════│
+           │   Referido ════════╣              ╠═══ Propuesta ═╗     │
+           │                    ╠═══ Bajio ════╣         ╠═════╬═════│
+           │   Outbound ════════╝              ╠═══ Negociacion ╣    │
+           │                    ╔═══ Norte ════╝         ╠══ Lost ═══│
+           │                    ╚═══ Occidente ══════════╝           │
+           └──────────────────────────────────────────────────────────┘
+```
+
+### 3.4 Insights que Revela
+
+- **Zona con mejor conversion**: "Bajio convierte 45% vs 28% nacional"
+- **Fuente mas efectiva**: "Referidos tienen 2x conversion vs Pipedrive"
+- **Etapa critica**: "60% de perdidas ocurren entre Propuesta y Negociacion"
+
+### Archivos a Crear
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/pages/CRMHub/components/ConversionSankeyChart.tsx` | Componente Sankey usando Recharts |
+| `src/hooks/useCrmConversionFlow.ts` | Hook para calcular nodos y links del Sankey |
+
+### Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/CRMHub/CRMHub.tsx` | Agregar nueva tab "Flujo" |
+| `src/types/crm.ts` | Agregar tipos para SankeyNode y SankeyLink |
+
+---
+
+## Fase 4: Pipeline Map - Vision Geografica
+
+### 4.1 Reutilizacion de Componentes Existentes
+
+El proyecto ya tiene:
+- `DemandBubbleMap.tsx` - Burbujas de demanda operativa
+- `FlowMap.tsx` - Flujos origen-destino
+- `geografico.ts` - Diccionario de ciudades con coordenadas
+
+### 4.2 Nueva Vista: Pipeline por Zona
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  PIPELINE MAP                                          [Toggle: Supply] │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│                        ┌──────┐                                         │
+│                        │ MTY  │ $450K (5 deals)                         │
+│                        │ ●●●  │ Supply: 12 custodios                    │
+│                        └──────┘ Gap: OK                                 │
+│                                                                         │
+│   ┌──────┐                                    ┌──────┐                  │
+│   │ GDL  │ $280K                              │ CDMX │ $1.2M (18 deals) │
+│   │ ●●   │ 3 deals                            │ ●●●● │ Supply: 45       │
+│   └──────┘                                    └──────┘ Gap: -8 units    │
+│                                                                         │
+│                        ┌──────┐                                         │
+│                        │ QRO  │ $180K                                   │
+│                        │ ●    │ 2 deals                                 │
+│                        └──────┘                                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Leyenda:
+● = $100K en pipeline
+Color Verde = Supply suficiente
+Color Rojo = Gap de capacidad
+```
+
+### 4.3 Logica de Geocodificacion de Deals
+
+```text
+1. Obtener organization_name de cada deal
+2. Normalizar texto (quitar acentos, lowercase)
+3. Buscar coincidencias en CIUDADES_PRINCIPALES
+4. Si no hay match, usar ubicacion de matched_client (servicios_custodia)
+5. Agrupar deals por zona (ZONAS_A_CIUDADES)
+```
+
+### 4.4 Calculo de Gap Supply vs Demanda
+
+```text
+Para cada zona:
+  demanda_proyectada = sum(deal.value × stage.probability) / ticket_promedio_servicio
+  supply_actual = count(instaladores WHERE zona_preferida = zona AND estatus = 'activo')
+  gap = supply_actual - demanda_proyectada
+
+Si gap < 0:
+  Mostrar alerta: "Se necesitan {abs(gap)} custodios adicionales en {zona}"
+```
+
+### Archivos a Crear
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/pages/CRMHub/components/PipelineMap.tsx` | Mapa de deals por zona con Mapbox |
+| `src/hooks/useCrmGeoDistribution.ts` | Hook para geocodificar y agrupar deals |
+| `src/hooks/useCrmSupplyGap.ts` | Hook para calcular gap supply vs demanda |
+
+### Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/CRMHub/CRMHub.tsx` | Agregar tab "Mapa" |
+| `src/utils/geografico.ts` | Agregar funcion extraerZonaDeDeal |
+
+---
+
+## Fase 5: Mejoras de Activity Feed
+
+### 5.1 Agrupacion por Tipo de Evento
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ACTIVIDAD RECIENTE                                     [Filtrar ▼]    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  CERRADOS ESTA SEMANA                                                   │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │ 🏆 Contrato ABC Logistica       $320,000    Won    hace 2 dias    │ │
+│  │ ❌ Propuesta XYZ Corp           $85,000     Lost   hace 3 dias    │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│  NUEVOS ESTA SEMANA                                                     │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │ ➕ Lead Empresa DEF             $150,000    Open   hace 1 dia     │ │
+│  │ ➕ Oportunidad GHI              $200,000    Open   hace 4 dias    │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│  STALLED (requieren atencion)                                           │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │ ⚠️ Propuesta JKL Industries     $420,000    25 dias sin cambio    │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/CRMHub/components/ActivityFeed.tsx` | Agregar agrupacion semantica y filtros |
+
+---
+
+## Resumen Tecnico de Implementacion
+
+### Nuevos Archivos a Crear (6)
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/pages/CRMHub/components/ConversionSankeyChart.tsx` | Diagrama Sankey de flujo de conversion |
+| `src/pages/CRMHub/components/PipelineMap.tsx` | Mapa geografico de deals |
+| `src/hooks/useCrmConversionFlow.ts` | Logica para calcular nodos/links del Sankey |
+| `src/hooks/useCrmGeoDistribution.ts` | Geocodificacion y agrupacion de deals |
+| `src/hooks/useCrmSupplyGap.ts` | Calculo de gap supply vs demanda |
+| `src/hooks/useCrmTrends.ts` | Comparativas vs mes anterior |
+
+### Archivos a Modificar (7)
+
+| Archivo | Cambios Principales |
+|---------|---------------------|
+| `src/pages/CRMHub/CRMHub.tsx` | Agregar tabs "Flujo" y "Mapa" |
+| `src/pages/CRMHub/components/PipelineKanban.tsx` | Jerarquia visual, badges stalled |
+| `src/pages/CRMHub/components/RevenueForecast.tsx` | Tendencias y velocity |
+| `src/pages/CRMHub/components/ActivityFeed.tsx` | Agrupacion semantica |
+| `src/hooks/useCrmForecast.ts` | Metricas comparativas |
+| `src/types/crm.ts` | Nuevos tipos para Sankey y Geo |
+| `src/utils/geografico.ts` | Funcion extraerZonaDeDeal |
+
+---
+
+## Consideraciones de Diseño
+
+### Consistencia con el Design System Existente
+
+El proyecto utiliza un sistema de diseno minimalista en escala de grises con acentos sutiles:
+
+- **Tipografia**: Apple-style (SF Pro / -apple-system)
+- **Colores**: Grayscale base con chart-colors vibrantes para datos
+- **Cards**: `apple-card` con bordes sutiles y sombras suaves
+- **Animaciones**: Transiciones de 200-300ms con easing cubico
+
+### Paleta de Colores para Nuevos Elementos
+
+| Uso | Color | Clase Tailwind |
+|-----|-------|----------------|
+| High Value Deal | Dorado sutil | `border-l-amber-500` |
+| Stalled Badge | Rojo suave | `bg-destructive/10 text-destructive` |
+| Win Trend Up | Verde | `text-green-600` |
+| Loss Trend Down | Rojo | `text-red-600` |
+| Sankey Links | Chart colors | `hsl(var(--chart-1..5))` |
+
+---
+
+## Orden de Implementacion Recomendado
+
+```text
+Semana 1: Fase 1 (Quick Wins)
+├─ Jerarquia visual en DealCard
+├─ Badges de Stalled
+└─ Metricas con contexto
+
+Semana 2: Fase 2 (Metricas Ejecutivas)
+├─ useCrmTrends hook
+├─ Sales Velocity calculation
+└─ Progress bars vs meta
+
+Semana 3: Fase 3 (Sankey Chart)
+├─ useCrmConversionFlow hook
+├─ ConversionSankeyChart component
+└─ Nueva tab "Flujo"
+
+Semana 4: Fase 4 (Pipeline Map)
+├─ useCrmGeoDistribution hook
+├─ PipelineMap component (reutilizar DemandBubbleMap)
+├─ useCrmSupplyGap hook
+└─ Nueva tab "Mapa"
+
+Semana 5: Fase 5 (Activity Feed)
+└─ Agrupacion semantica y filtros
+```
+
+---
+
+## Resultado Final Esperado
+
+Un CRM Hub que responda las siguientes preguntas para cada stakeholder:
+
+| Stakeholder | Pregunta | Donde Encuentra la Respuesta |
+|-------------|----------|------------------------------|
+| CEO | ¿Vamos a cumplir la meta mensual? | Metric Card: Progress vs Meta |
+| Head of Sales | ¿Que deals estan estancados? | Kanban: Badges Stalled |
+| Head of Ops | ¿Donde necesito contratar mas? | Pipeline Map: Gap Analysis |
+| Head of Product | ¿Que fuente de leads convierte mejor? | Sankey: Flujo por Fuente |
