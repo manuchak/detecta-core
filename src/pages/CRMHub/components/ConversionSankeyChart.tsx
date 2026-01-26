@@ -113,7 +113,8 @@ function CustomLink(props: CustomLinkProps) {
   );
 }
 
-function formatValue(value: number): string {
+function formatValue(value: number | undefined | null): string {
+  if (value === undefined || value === null) return '$0';
   if (value >= 1000000) {
     return `$${(value / 1000000).toFixed(1)}M`;
   }
