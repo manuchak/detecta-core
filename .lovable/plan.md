@@ -1,316 +1,336 @@
 
-# Plan de Mejora: Perfiles Operativos - Filtro por Defecto y Evaluación/Economics Armados
+# Plan de Integración: Direcciones de Casa Supply → Perfiles de Custodios
+
+## Resumen Ejecutivo
+
+Este plan integra la información de residencia capturada por Supply (durante el proceso de entrevista) al flujo de liberación y perfiles de custodios, asegurando que la **zona base** se determine correctamente por su **ubicación real de residencia** en lugar de asignar "Ciudad de México" por defecto.
+
+---
 
 ## Diagnóstico del Estado Actual
 
-### 1. Problema del Filtro por Defecto
-En la imagen se observa que se muestran **445 custodios** pero solo **90 activos en 30 días** e **342 inactivos +60 días**. Esto significa que el 76% de los perfiles visibles son inactivos, lo cual dificulta la operación diaria.
+### Datos Disponibles
+| Fuente | Campo | Datos Disponibles |
+|--------|-------|-------------------|
+| `leads.last_interview_data` | `ubicacion.direccion` | 73 leads con dirección capturada |
+| `leads.last_interview_data` | `ubicacion.estado_id` | 79 leads con estado capturado |
+| `leads.last_interview_data` | `ubicacion.ciudad_id` | UUIDs de ciudades |
+| `estados` | Catálogo | 32 estados mexicanos con UUIDs |
 
-**Estado actual:**
-- El hook `useOperativeProfiles.ts` filtra `.neq('estado', 'archivado')` pero **no filtra por actividad**
-- Los DataTables tienen filtro de actividad pero **defaulta a "Toda actividad"**
-- Resultado: Los usuarios ven primero los 342 custodios inactivos mezclados con los 90 activos
+### Problema Actual
+- **85% de custodios operativos** tienen `zona_base = "Ciudad de México"` por defecto
+- **21 custodios** tienen zona incorrecta (residen en Querétaro, Estado de México, Colima, etc. pero figuran como CDMX)
+- La información de ubicación **existe en leads** pero **no se propaga** a:
+  - `custodio_liberacion` (registro de liberación)
+  - `candidatos_custodios` (candidato)
+  - `custodios_operativos` (perfil operativo final)
 
-### 2. Sistema de Evaluaciones para Armados
-**Estado actual:**
-- `EvaluacionesTab.tsx` depende de `candidatoId` que viene de `pc_custodio_id`
-- Los armados internos **no tienen vinculación a la tabla de candidatos/leads**
-- Resultado: Siempre muestra "Este perfil no tiene un candidato asociado"
-
-### 3. Sistema de Economics para Armados
-**Estado actual:**
-- `EconomicsTab.tsx` línea 24-30: Muestra placeholder "en desarrollo"
-- Ya existe `useArmadosInternosMetrics.ts` con las tarifas escalonadas por km ($6/km hasta 100km, $5.5/km 101-250km, etc.)
-- La lógica de cálculo existe pero **no está integrada** al perfil individual
-
----
-
-## Plan de Implementación
-
-### Corrección 1: Filtro por Defecto = "Activo" en DataTables
-
-**Archivos a modificar:**
-- `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx`
-- `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx`
-
-**Cambios:**
-
-```typescript
-// CustodiosDataTable.tsx - Línea 36
-// CAMBIAR DE:
-const [activityFilter, setActivityFilter] = useState<string>('all');
-
-// A:
-const [activityFilter, setActivityFilter] = useState<string>('activo');
+### Ejemplo de Datos Existentes
 ```
-
-```typescript
-// ArmadosDataTable.tsx - Agregar filtro de actividad (actualmente no existe)
-// Línea 36: Agregar nuevo estado
-const [activityFilter, setActivityFilter] = useState<string>('activo');
-
-// Agregar cálculo de nivel_actividad para armados (similar a custodios)
-// Agregar columna de Actividad en la tabla
-// Agregar Select de filtro de actividad
-```
-
-**Impacto:**
-- Vista inicial: Solo 90 custodios activos (vs 445)
-- Vista armados: Solo armados con actividad reciente
-- Usuario puede cambiar a "Toda actividad" si lo necesita
-
----
-
-### Corrección 2: Nivel de Actividad para Armados
-
-**Archivo a modificar:** `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts`
-
-**Cambios:**
-El hook de custodios ya calcula `nivel_actividad` pero armados no lo tiene. Se debe agregar:
-
-```typescript
-// Líneas 128-162 - Agregar cálculo de actividad a armados
-const armadosQuery = useQuery({
-  queryKey: ['operative-profiles', 'armados'],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('armados_operativos')
-      .select(`...`)
-      .neq('estado', 'archivado')
-      .order('nombre');
-    
-    if (error) throw error;
-    
-    // AGREGAR: Calcular nivel de actividad igual que custodios
-    return (data || []).map(a => {
-      const { diasSinActividad, nivel } = calculateActivityLevel(a.fecha_ultimo_servicio);
-      return {
-        ...a,
-        dias_sin_actividad: diasSinActividad,
-        nivel_actividad: nivel
-      } as ArmadoProfile;
-    });
-  },
-  staleTime: 5 * 60 * 1000
-});
-```
-
-**Interfaz ArmadoProfile:** Agregar los campos calculados:
-```typescript
-export interface ArmadoProfile {
-  // ... campos existentes
-  dias_sin_actividad: number;
-  nivel_actividad: 'activo' | 'moderado' | 'inactivo' | 'sin_actividad';
-}
+Candidato: OSCAR LEONARDO PATIÑO TERRAZAS
+→ Dirección en leads: "ARQUITECTOS 710 EL MARQUÉS 76047 QUERÉTARO, QRO."
+→ Estado real: Querétaro
+→ Zona operativa asignada: "Ciudad de México" ❌
 ```
 
 ---
 
-### Corrección 3: Columna y Filtro de Actividad en ArmadosDataTable
-
-**Archivo:** `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx`
-
-**Cambios:**
-1. Importar configuración de badges de actividad
-2. Agregar estado para filtro de actividad
-3. Agregar columna "Actividad" entre "Tipo" y "Zona"
-4. Agregar Select de filtro
-5. Actualizar lógica de filtrado
-
-```typescript
-// Agregar columna después de tipo_armado
-{
-  accessorKey: 'nivel_actividad',
-  header: 'Actividad',
-  cell: ({ row }) => {
-    const nivel = row.original.nivel_actividad;
-    const config = activityBadgeConfig[nivel];
-    return (
-      <Badge className={cn('text-xs font-normal', config.className)}>
-        {config.label}
-      </Badge>
-    );
-  },
-}
-```
-
----
-
-### Corrección 4: Sistema de Economics para Armados
-
-**Archivo a modificar:** `src/pages/PerfilesOperativos/components/tabs/EconomicsTab.tsx`
-
-**Nuevo hook a crear:** `src/pages/PerfilesOperativos/hooks/useArmadoEconomics.ts`
-
-Este hook reutilizará la lógica de tarifas de `useArmadosInternosMetrics.ts`:
-
-```typescript
-// Tarifas escalonadas por km (reutilizar de useArmadosInternosMetrics)
-const TARIFAS_KM = [
-  { kmMin: 0, kmMax: 100, tarifaPorKm: 6.0, rango: '0-100 km' },
-  { kmMin: 100, kmMax: 250, tarifaPorKm: 5.5, rango: '101-250 km' },
-  { kmMin: 250, kmMax: 400, tarifaPorKm: 5.0, rango: '251-400 km' },
-  { kmMin: 400, kmMax: Infinity, tarifaPorKm: 4.6, rango: '400+ km' },
-];
-
-export function useArmadoEconomics(nombre: string | undefined) {
-  return useQuery({
-    queryKey: ['armado-economics', nombre],
-    queryFn: async (): Promise<ArmadoEconomics> => {
-      // 1. Buscar en asignacion_armados por armado_nombre_verificado o armado_id
-      // 2. JOIN con servicios_custodia para obtener km_recorridos
-      // 3. Calcular costos usando tarifas escalonadas
-      // 4. Calcular tendencias mensuales
-      // 5. Retornar estructura similar a CustodioEconomics
-    },
-    enabled: !!nombre
-  });
-}
-```
-
-**Modificar EconomicsTab.tsx:**
-- Importar `useArmadoEconomics`
-- Renderizar UI de economics cuando tipo === 'armado'
-- Mostrar: Ingresos por servicio, KM totales, tarifa promedio aplicada, tendencia mensual
-
----
-
-### Corrección 5: Sistema de Evaluaciones para Armados
-
-**Problema identificado:** Los armados internos no pasan por el flujo de leads/candidatos, por lo que no tienen `candidatoId`.
-
-**Solución:** Crear un flujo alternativo para armados basado en su ID de `armados_operativos`.
-
-**Archivo a modificar:** `src/pages/PerfilesOperativos/PerfilForense.tsx`
-
-```typescript
-// Líneas 136-141 - Ajustar la lógica para armados
-<TabsContent value="evaluaciones">
-  {tipo === 'custodio' ? (
-    <EvaluacionesTab 
-      candidatoId={candidatoId} 
-      candidatoNombre={profile.nombre} 
-    />
-  ) : (
-    <ArmadoEvaluacionesTab 
-      armadoId={id} 
-      armadoNombre={profile.nombre}
-    />
-  )}
-</TabsContent>
-```
-
-**Nuevo componente:** `src/pages/PerfilesOperativos/components/tabs/ArmadoEvaluacionesTab.tsx`
-
-Contenido inicial (placeholder con capacidad de expansión):
-- Estado de licencia de portación (vigente/por vencer/vencida)
-- Años de experiencia
-- Equipamiento disponible
-- Score de confiabilidad histórico
-- Tasas de confirmación/respuesta
-
----
-
-## Flujo de Datos Corregido
+## Arquitectura de la Solución
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                    PERFILES OPERATIVOS                      │
-├─────────────────────────────────────────────────────────────┤
-│  useOperativeProfiles()                                     │
-│    ├── custodiosQuery → calculateActivityLevel() ✓          │
-│    └── armadosQuery   → calculateActivityLevel() ← AGREGAR  │
-├─────────────────────────────────────────────────────────────┤
-│  DataTable (Custodios)                                      │
-│    └── activityFilter: 'activo' ← CAMBIAR DEFAULT           │
-├─────────────────────────────────────────────────────────────┤
-│  DataTable (Armados)                                        │
-│    ├── Agregar columna Actividad                            │
-│    ├── Agregar filtro de actividad                          │
-│    └── activityFilter: 'activo' ← AGREGAR                   │
-├─────────────────────────────────────────────────────────────┤
-│  PERFIL FORENSE                                             │
-│    ├── EconomicsTab                                         │
-│    │     ├── tipo='custodio' → useProfileEconomics() ✓      │
-│    │     └── tipo='armado'   → useArmadoEconomics() ← CREAR │
-│    └── EvaluacionesTab                                      │
-│          ├── tipo='custodio' → Psicométrica/Toxicológica ✓  │
-│          └── tipo='armado'   → ArmadoEvaluacionesTab ← CREAR│
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FLUJO DE DATOS DE UBICACIÓN                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. CAPTURA (Supply - Entrevista)                                       │
+│     └── leads.last_interview_data.ubicacion                            │
+│           ├── direccion: "Calle X #123, Col. Y, CP 12345"              │
+│           ├── estado_id: UUID → estados.nombre                          │
+│           └── ciudad_id: UUID → ciudades.nombre                         │
+│                                                                         │
+│  2. PREFILL (Liberación)                   ← NUEVO                      │
+│     └── Hook: useCandidatoUbicacion                                    │
+│           │                                                             │
+│           ├── Consulta leads por candidato_custodio_id                 │
+│           ├── JOIN con estados para obtener nombre                      │
+│           └── Retorna: { direccion, estado, ciudad, estadoId }         │
+│                                                                         │
+│  3. FORMULARIO (Modal Liberación)          ← NUEVO                      │
+│     └── Sección "Ubicación de Residencia"                              │
+│           ├── Dirección (texto, prellenado)                            │
+│           ├── Estado (select, prellenado)                              │
+│           ├── Ciudad (texto)                                           │
+│           └── Zona Base (calculada automáticamente)                    │
+│                                                                         │
+│  4. PERSISTENCIA (DB)                      ← MODIFICAR                  │
+│     ├── custodio_liberacion:                                           │
+│     │     ├── direccion_residencia: TEXT      ← NUEVO CAMPO            │
+│     │     └── estado_residencia_id: UUID      ← NUEVO CAMPO            │
+│     │                                                                   │
+│     └── RPC liberar_custodio_a_planeacion_v2:                          │
+│           ├── Leer estado_residencia_id de liberación                  │
+│           ├── Resolver nombre del estado                                │
+│           └── Escribir a custodios_operativos.zona_base                │
+│                                                                         │
+│  5. PERFIL FORENSE                         ← NUEVO                      │
+│     └── InformacionPersonalTab:                                        │
+│           ├── Mostrar dirección de residencia                          │
+│           ├── Mostrar estado/ciudad                                    │
+│           └── Badge visual de zona base                                │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Archivos a Modificar/Crear
+## Plan de Implementación Detallado
 
-| Archivo | Acción | Prioridad |
-|---------|--------|-----------|
-| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Cambiar default a 'activo' | ALTA |
-| `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx` | Agregar columna + filtro actividad | ALTA |
-| `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts` | Agregar nivel_actividad a armados | ALTA |
-| `src/pages/PerfilesOperativos/hooks/useArmadoEconomics.ts` | CREAR - Economics para armados | MEDIA |
-| `src/pages/PerfilesOperativos/components/tabs/EconomicsTab.tsx` | Integrar useArmadoEconomics | MEDIA |
-| `src/pages/PerfilesOperativos/components/tabs/ArmadoEvaluacionesTab.tsx` | CREAR - Evaluaciones armados | MEDIA |
-| `src/pages/PerfilesOperativos/PerfilForense.tsx` | Renderizar tab correcto por tipo | MEDIA |
+### Fase 1: Esquema de Base de Datos
+
+**Nuevos campos en `custodio_liberacion`:**
+
+```sql
+-- Migración SQL (ejecutar en Supabase SQL Editor)
+ALTER TABLE custodio_liberacion
+ADD COLUMN IF NOT EXISTS direccion_residencia TEXT,
+ADD COLUMN IF NOT EXISTS estado_residencia_id UUID REFERENCES estados(id),
+ADD COLUMN IF NOT EXISTS ciudad_residencia TEXT;
+
+COMMENT ON COLUMN custodio_liberacion.direccion_residencia IS 'Dirección completa de residencia del custodio';
+COMMENT ON COLUMN custodio_liberacion.estado_residencia_id IS 'FK al catálogo de estados';
+COMMENT ON COLUMN custodio_liberacion.ciudad_residencia IS 'Nombre de la ciudad de residencia';
+```
+
+**Impacto:** Solo agrega columnas opcionales, no rompe flujos existentes.
 
 ---
 
-## Modelo de Datos Economics Armados
+### Fase 2: Hook de Datos de Ubicación
+
+**Nuevo archivo:** `src/hooks/useCandidatoUbicacion.ts`
+
+Este hook:
+1. Recibe `candidatoId` del candidato en liberación
+2. Busca el lead vinculado vía `candidato_custodio_id`
+3. Extrae datos de `last_interview_data.ubicacion`
+4. JOIN con tabla `estados` para resolver nombre
+5. Retorna datos estructurados para prefill
 
 ```typescript
-interface ArmadoEconomics {
-  // Totales históricos
-  serviciosTotales: number;
-  kmTotales: number;
-  costoTotalEstimado: number; // Usando tarifas escalonadas
-  
-  // Unit Economics
-  tarifaPromedioKm: number;
-  costoPromedioServicio: number;
-  
-  // Por rango de km
-  distribucionPorRango: {
-    rango: string;
-    servicios: number;
-    kmTotales: number;
-    costoTotal: number;
-    tarifaAplicada: number;
-  }[];
-  
-  // Tendencia mensual (últimos 6 meses)
-  tendenciaMensual: {
-    mes: string;
-    mesLabel: string;
-    servicios: number;
-    kmTotales: number;
-    costoEstimado: number;
-  }[];
-  
-  // Primer y último servicio
-  primerServicio: string | null;
-  ultimoServicio: string | null;
-  diasActivo: number;
+interface UbicacionCandidato {
+  direccion: string | null;
+  estadoId: string | null;
+  estadoNombre: string | null;
+  ciudadId: string | null;
+  ciudadNombre: string | null;
+  zonaBaseCalculada: string; // "Ciudad de México" | "Querétaro" | etc.
 }
 ```
 
 ---
 
-## Compatibilidad con Otros Workflows
+### Fase 3: Sección de Ubicación en Modal de Liberación
 
-| Workflow | Impacto |
-|----------|---------|
-| Asignación de armados en Planeación | ✅ Sin cambios - usa armados_disponibles_extendido |
-| Reportes de Equidad Armados | ✅ Sin cambios - usa datos directos de DB |
-| Registro de pagos armados | ✅ Sin cambios - usa useProveedoresPagos |
-| Sincronización leads → armados | ✅ Sin cambios - flujo independiente |
-| Filtro 90 días en Planeación | ✅ Sin cambios - lógica separada |
+**Archivo:** `src/components/liberacion/LiberacionChecklistModal.tsx`
+
+**Cambios:**
+
+1. **Agregar sección de ubicación** en el Accordion (después de Información de Contacto):
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ 📍 Ubicación de Residencia                          │
+├─────────────────────────────────────────────────────┤
+│ ℹ️ Esta información determina la zona base del     │
+│    custodio en Planeación.                          │
+│                                                     │
+│ Dirección: [Campo prellenado desde entrevista]     │
+│ Estado:    [Select con estados mexicanos]          │
+│ Ciudad:    [Campo de texto]                        │
+│                                                     │
+│ Zona Base Calculada: [Badge: "Querétaro"]          │
+└─────────────────────────────────────────────────────┘
+```
+
+2. **Prellenar automáticamente** con datos del hook `useCandidatoUbicacion`
+3. **Permitir edición** si Supply necesita corregir
+4. **Calcular zona base** automáticamente basado en estado seleccionado
+
+---
+
+### Fase 4: Actualizar Tipos TypeScript
+
+**Archivo:** `src/types/liberacion.ts`
+
+```typescript
+export interface CustodioLiberacion {
+  // ... campos existentes
+  
+  // Ubicación - NUEVOS
+  direccion_residencia?: string;
+  estado_residencia_id?: string;
+  ciudad_residencia?: string;
+  
+  // Relación expandida
+  estado_residencia?: {
+    id: string;
+    nombre: string;
+  };
+}
+```
+
+---
+
+### Fase 5: Propagar Ubicación en Liberación
+
+**Archivo:** `src/hooks/useCustodioLiberacion.ts`
+
+Modificar `updateChecklist` para incluir campos de ubicación:
+
+```typescript
+candidatoUpdates: {
+  nombre: updates.nombre,
+  telefono: updates.telefono,
+  // NUEVO: Propagar ubicación
+  direccion_residencia: updates.direccion_residencia,
+  estado_residencia_id: updates.estado_residencia_id,
+}
+```
+
+---
+
+### Fase 6: Actualizar RPC de Liberación
+
+**Función:** `liberar_custodio_a_planeacion_v2`
+
+Modificar para:
+1. Leer `estado_residencia_id` del registro de liberación
+2. Si existe, resolver el nombre del estado
+3. Escribir a `custodios_operativos.zona_base` con el nombre real
+
+```sql
+-- Pseudocódigo de la modificación
+v_zona_base := COALESCE(
+  (SELECT nombre FROM estados WHERE id = v_estado_residencia_id),
+  'Por asignar'
+);
+
+UPDATE custodios_operativos
+SET zona_base = v_zona_base
+WHERE id = v_custodio_operativo_id;
+```
+
+---
+
+### Fase 7: Mostrar Ubicación en Perfil Forense
+
+**Archivo:** `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx`
+
+Agregar card de ubicación:
+
+```text
+┌─────────────────────────────────────────┐
+│ 📍 Ubicación de Residencia              │
+├─────────────────────────────────────────┤
+│ 🏠 Dirección                            │
+│    Arquitectos 710, El Marqués, CP76047 │
+│                                         │
+│ 📍 Ciudad                               │
+│    Querétaro                            │
+│                                         │
+│ 🗺️ Estado                               │
+│    Querétaro                            │
+│                                         │
+│ 🎯 Zona Base Operativa                  │
+│    [Badge] Querétaro                    │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### Fase 8: Migración de Datos Existentes (Opcional)
+
+Script para actualizar custodios ya liberados con datos de ubicación disponibles:
+
+```sql
+-- Script de migración (ejecutar manualmente)
+UPDATE custodios_operativos co
+SET zona_base = e.nombre
+FROM custodio_liberacion cl
+JOIN candidatos_custodios cc ON cl.candidato_id = cc.id
+JOIN leads l ON l.candidato_custodio_id = cc.id
+JOIN estados e ON e.id::text = l.last_interview_data->'ubicacion'->>'estado_id'
+WHERE co.pc_custodio_id = cl.pc_custodio_id
+  AND l.last_interview_data->'ubicacion'->>'estado_id' IS NOT NULL
+  AND l.last_interview_data->'ubicacion'->>'estado_id' != '';
+```
+
+**Impacto estimado:** Corrige ~21 custodios con zona incorrecta.
+
+---
+
+## Archivos a Crear/Modificar
+
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/hooks/useCandidatoUbicacion.ts` | CREAR | Hook para obtener ubicación desde leads |
+| `src/types/liberacion.ts` | MODIFICAR | Agregar campos de ubicación |
+| `src/components/liberacion/LiberacionChecklistModal.tsx` | MODIFICAR | Agregar sección de ubicación con prefill |
+| `src/hooks/useCustodioLiberacion.ts` | MODIFICAR | Incluir ubicación en updateChecklist |
+| `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx` | MODIFICAR | Mostrar ubicación en perfil |
+| `src/pages/PerfilesOperativos/hooks/useProfileUbicacion.ts` | CREAR | Hook para obtener ubicación del perfil |
+
+---
+
+## Dependencias de Base de Datos
+
+Antes de implementar el código, ejecutar en **Supabase SQL Editor**:
+
+```sql
+-- 1. Agregar columnas a custodio_liberacion
+ALTER TABLE custodio_liberacion
+ADD COLUMN IF NOT EXISTS direccion_residencia TEXT,
+ADD COLUMN IF NOT EXISTS estado_residencia_id UUID REFERENCES estados(id),
+ADD COLUMN IF NOT EXISTS ciudad_residencia TEXT;
+
+-- 2. Actualizar RPC (requiere acceso a funciones SQL)
+-- Se proporcionará script separado para el RPC
+```
+
+---
+
+## Validaciones de No Regresión
+
+| Flujo | Validación |
+|-------|------------|
+| Crear liberación | ✅ Sin cambios - campos nuevos son opcionales |
+| Actualizar checklist | ✅ Retrocompatible - campos nuevos son opcionales |
+| Liberar custodio | ✅ Si no hay ubicación, usa valor por defecto |
+| Perfil forense | ✅ Muestra "No especificado" si no hay datos |
+| Filtro por zona | ✅ Sin cambios - usa `zona_base` existente |
+
+---
+
+## Flujo de Usuario Final
+
+```text
+1. Supply completa entrevista → Captura dirección y estado
+2. Candidato aprobado → Inicia proceso de liberación
+3. Supply abre modal de liberación
+   └── Sección "Ubicación" prellenada con datos de entrevista
+   └── Supply verifica/corrige si es necesario
+4. Supply hace clic en "Liberar"
+   └── RPC propaga estado_residencia → zona_base
+5. Planeación ve custodio con zona_base correcta
+6. Perfil Forense muestra ubicación completa
+```
 
 ---
 
 ## Tests de Verificación
 
-1. **Filtro por defecto Custodios**: Abrir /perfiles-operativos → Debe mostrar ~90 custodios (activos 30d) no 445
-2. **Filtro por defecto Armados**: Tab Armados → Debe mostrar solo armados con actividad reciente
-3. **Cambiar filtro**: Seleccionar "Toda actividad" → Debe mostrar todos los registros
-4. **Economics Armado**: Abrir perfil armado → Tab Economics → Debe mostrar métricas con tarifas escalonadas
-5. **Evaluaciones Armado**: Abrir perfil armado → Tab Evaluaciones → Debe mostrar estado licencia y métricas
+1. **Nuevo custodio con ubicación:** Liberarlo → zona_base = estado de residencia ✅
+2. **Nuevo custodio sin ubicación:** Liberarlo → zona_base = "Por asignar" ✅
+3. **Editar ubicación en liberación:** Cambiar estado → zona_base actualizada ✅
+4. **Perfil forense:** Mostrar dirección y estado correctamente ✅
+5. **Filtro por zona:** Incluye custodios de estados correctos ✅
