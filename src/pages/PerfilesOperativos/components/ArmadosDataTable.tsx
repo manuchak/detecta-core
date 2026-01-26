@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { 
-  Search, Eye, Phone, MapPin, Star, Shield, Building2, AlertTriangle, X, Filter 
+  Search, Eye, Phone, MapPin, Star, Shield, Building2, AlertTriangle, X, Filter, Clock 
 } from 'lucide-react';
 import { ArmadoProfile } from '../hooks/useOperativeProfiles';
 import { cn } from '@/lib/utils';
@@ -29,11 +29,19 @@ const tipoArmadoConfig: Record<string, { label: string; className: string }> = {
   proveedor: { label: 'Proveedor', className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' }
 };
 
+const activityBadgeConfig: Record<string, { label: string; className: string }> = {
+  activo: { label: 'Activo', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  moderado: { label: 'Moderado', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  inactivo: { label: 'Inactivo', className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' },
+  sin_actividad: { label: 'Sin actividad', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }
+};
+
 export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
+  const [activityFilter, setActivityFilter] = useState<string>('activo');
   
   // Get unique zones for filter
   const zones = useMemo(() => {
@@ -56,16 +64,20 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       // Type filter
       const matchesTipo = tipoFilter === 'all' || armado.tipo_armado === tipoFilter;
       
-      return matchesSearch && matchesZona && matchesTipo;
+      // Activity filter
+      const matchesActivity = activityFilter === 'all' || armado.nivel_actividad === activityFilter;
+      
+      return matchesSearch && matchesZona && matchesTipo && matchesActivity;
     });
-  }, [data, searchTerm, zonaFilter, tipoFilter]);
+  }, [data, searchTerm, zonaFilter, tipoFilter, activityFilter]);
   
-  const hasFilters = searchTerm || zonaFilter !== 'all' || tipoFilter !== 'all';
+  const hasFilters = searchTerm || zonaFilter !== 'all' || tipoFilter !== 'all' || activityFilter !== 'activo';
   
   const clearFilters = () => {
     setSearchTerm('');
     setZonaFilter('all');
     setTipoFilter('all');
+    setActivityFilter('activo');
   };
   
   // Check if license is expiring soon
@@ -104,6 +116,19 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
         return (
           <Badge className={cn('text-xs font-normal', config.className)}>
             {row.original.origen === 'proveedor' && <Building2 className="h-3 w-3 mr-1" />}
+            {config.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'nivel_actividad',
+      header: 'Actividad',
+      cell: ({ row }) => {
+        const nivel = row.original.nivel_actividad;
+        const config = activityBadgeConfig[nivel] || activityBadgeConfig.sin_actividad;
+        return (
+          <Badge className={cn('text-xs font-normal', config.className)}>
             {config.label}
           </Badge>
         );
@@ -156,6 +181,20 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       ),
     },
     {
+      accessorKey: 'fecha_ultimo_servicio',
+      header: 'Último Servicio',
+      cell: ({ row }) => {
+        const dias = row.original.dias_sin_actividad;
+        if (dias === 999) return <span className="text-muted-foreground">Nunca</span>;
+        return (
+          <div className="flex items-center gap-1 text-sm">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span>{dias === 0 ? 'Hoy' : dias === 1 ? 'Ayer' : `hace ${dias}d`}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'score_total',
       header: 'Score',
       cell: ({ row }) => {
@@ -204,8 +243,8 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-1 gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-1 gap-2 w-full sm:w-auto flex-wrap">
+          <div className="relative flex-1 max-w-sm min-w-[200px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nombre, teléfono o email..."
@@ -214,6 +253,20 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
               className="pl-8"
             />
           </div>
+          
+          <Select value={activityFilter} onValueChange={setActivityFilter}>
+            <SelectTrigger className="w-[160px]">
+              <Clock className="h-4 w-4 mr-1" />
+              <SelectValue placeholder="Actividad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toda actividad</SelectItem>
+              <SelectItem value="activo">Activo (30d)</SelectItem>
+              <SelectItem value="moderado">Moderado (31-60d)</SelectItem>
+              <SelectItem value="inactivo">Inactivo (61-90d)</SelectItem>
+              <SelectItem value="sin_actividad">Sin actividad (+90d)</SelectItem>
+            </SelectContent>
+          </Select>
           
           <Select value={zonaFilter} onValueChange={setZonaFilter}>
             <SelectTrigger className="w-[160px]">
