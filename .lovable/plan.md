@@ -1,260 +1,219 @@
 
-# Plan de Implementación: Edge Function Pipedrive + CRM Hub
+# Plan: Sincronización Inicial de Pipedrive
 
 ## Resumen
 
-Crear la Edge Function para recibir webhooks de Pipedrive y el módulo completo CRM Hub con UI, tipos, y hooks de datos. La función se implementará **sin autenticación HTTP inicial** para resolver los errores 404 actuales y comenzar a recibir datos de Pipedrive inmediatamente.
+Crear una Edge Function para hacer una **importación masiva inicial** de todos los deals, pipelines y stages desde Pipedrive hacia la base de datos de Core. Esto llenará el CRM Hub con datos reales del estado comercial actual.
 
 ---
 
-## Fase 1: Edge Function - Pipedrive Webhook
+## Datos Comerciales a Importar
 
-### Archivo: `supabase/functions/pipedrive-webhook/index.ts`
+| Entidad | Campos Relevantes |
+|---------|-------------------|
+| **Pipelines** | Nombre del pipeline |
+| **Stages** | Nombre, orden, probabilidad |
+| **Deals** | Título, valor, moneda, etapa, estado, fecha esperada de cierre, fecha ganado/perdido |
+| **Organizaciones** | Nombre de empresa |
+| **Personas** | Nombre, email, teléfono |
+| **Owners** | Nombre del ejecutivo comercial |
 
-| Aspecto | Detalle |
-|---------|---------|
-| **Endpoint** | `https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/pipedrive-webhook` |
-| **Método** | POST |
-| **Auth** | `verify_jwt = false` (webhook público) |
-| **Eventos** | `added.deal`, `updated.deal`, `deleted.deal` |
+### Métricas que Podremos Ver
+
+- **Valor total del pipeline** por etapa
+- **Forecast ponderado** (valor × probabilidad de etapa)
+- **Win rate** (ganados vs cerrados)
+- **Ticket promedio** de deals ganados
+- **Tamaño de clientes** según valor del deal
+- **Distribución por ejecutivo** comercial
+- **Tiempo promedio** en cada etapa
+
+---
+
+## Arquitectura de Sincronización
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    PIPEDRIVE SYNC FLOW                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   1. GET /api/v2/pipelines                                      │
+│      └─► Obtener todos los pipelines                            │
+│                                                                 │
+│   2. GET /api/v2/stages                                         │
+│      └─► Obtener etapas con nombre, orden y probabilidad        │
+│      └─► UPSERT en crm_pipeline_stages (por pipedrive_id)       │
+│                                                                 │
+│   3. GET /api/v2/deals (paginado, limit=500)                    │
+│      └─► Filtrar por status: open, won, lost                    │
+│      └─► Incluir org, person, owner_name                        │
+│      └─► UPSERT en crm_deals (por pipedrive_id)                 │
+│      └─► Auto-match con servicios_custodia                      │
+│                                                                 │
+│   4. Responder con estadísticas de sincronización               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Fase 1: Secret Requerido
+
+Para acceder a la API de Pipedrive, necesitamos el **API Token**:
+
+| Secret | Descripción |
+|--------|-------------|
+| `PIPEDRIVE_API_TOKEN` | Token de API de Pipedrive (Settings > Personal Preferences > API) |
+
+El usuario debe proporcionar este token para habilitar la sincronización.
+
+---
+
+## Fase 2: Edge Function - Pipedrive Sync
+
+### Archivo: `supabase/functions/pipedrive-sync/index.ts`
 
 ### Funcionalidad
 
 ```text
-1. Recibir payload de Pipedrive
-2. Logear en crm_webhook_logs para debugging
-3. Parsear evento (meta.action + meta.object)
-4. Según el tipo de evento:
-   - added.deal    → INSERT en crm_deals
-   - updated.deal  → UPDATE + historial de etapa si cambió
-   - deleted.deal  → Soft delete (is_deleted = true)
-5. Auto-match con servicios_custodia.nombre_cliente
-6. Responder 200 OK inmediatamente
+1. Autenticación por API Token de Pipedrive
+2. Sincronizar pipelines y stages
+   - GET /api/v2/pipelines → Obtener pipelines
+   - GET /api/v2/stages → Obtener todas las etapas
+   - UPSERT en crm_pipeline_stages con nombres y probabilidades reales
+3. Sincronizar deals (paginado)
+   - GET /api/v2/deals con cursor pagination
+   - Incluir open, won, lost
+   - UPSERT en crm_deals
+   - Ejecutar auto-match con servicios_custodia
+4. Retornar estadísticas:
+   - Stages sincronizados
+   - Deals importados/actualizados
+   - Matches encontrados
 ```
 
-### Estructura del Payload de Pipedrive
+### Endpoints Pipedrive API v2
 
 ```typescript
-interface PipedriveWebhookPayload {
-  v: number;                    // Version
-  matches_filters: object;      // Filtros aplicados
-  meta: {
-    action: 'added' | 'updated' | 'deleted' | 'merged';
-    object: 'deal' | 'person' | 'activity';
-    id: number;                 // ID del objeto
-    company_id: number;
-    user_id: number;
-    timestamp: number;
-  };
-  current: DealData | null;     // Estado actual (null si deleted)
-  previous: DealData | null;    // Estado anterior (null si added)
+// Base URL
+const PIPEDRIVE_API = 'https://api.pipedrive.com/api/v2';
+
+// Endpoints a usar
+GET /pipelines                    // Listar pipelines
+GET /stages?pipeline_id={id}      // Listar etapas de un pipeline
+GET /deals?limit=500&cursor={c}   // Listar deals con paginación
+```
+
+### Lógica de Sincronización
+
+```typescript
+// Sincronizar stages
+async function syncStages(apiToken: string) {
+  // 1. Obtener todos los pipelines
+  const pipelines = await fetch(`${PIPEDRIVE_API}/pipelines?api_token=${apiToken}`);
+  
+  // 2. Para cada pipeline, obtener sus stages
+  for (const pipeline of pipelines.data) {
+    const stages = await fetch(`${PIPEDRIVE_API}/stages?pipeline_id=${pipeline.id}&api_token=${apiToken}`);
+    
+    // 3. UPSERT cada stage
+    for (const stage of stages.data) {
+      await supabase.from('crm_pipeline_stages')
+        .upsert({
+          pipedrive_id: stage.id,
+          name: stage.name,
+          pipeline_name: pipeline.name,
+          order_nr: stage.order_nr,
+          deal_probability: stage.deal_probability || 50,
+        }, { onConflict: 'pipedrive_id' });
+    }
+  }
+}
+
+// Sincronizar deals con paginación
+async function syncDeals(apiToken: string) {
+  let cursor = null;
+  let totalDeals = 0;
+  
+  do {
+    const url = new URL(`${PIPEDRIVE_API}/deals`);
+    url.searchParams.set('api_token', apiToken);
+    url.searchParams.set('limit', '500');
+    if (cursor) url.searchParams.set('cursor', cursor);
+    
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    for (const deal of data.data || []) {
+      // UPSERT deal
+      const stageId = await getOrCreateStage(supabase, deal.stage_id);
+      const match = await findClientMatch(supabase, deal.org_name);
+      
+      await supabase.from('crm_deals').upsert({
+        pipedrive_id: deal.id,
+        title: deal.title,
+        organization_name: deal.org_name,
+        person_name: deal.person_name,
+        value: deal.value,
+        currency: deal.currency,
+        stage_id: stageId,
+        status: deal.status,
+        expected_close_date: deal.expected_close_date,
+        won_time: deal.won_time,
+        lost_time: deal.lost_time,
+        lost_reason: deal.lost_reason,
+        owner_name: deal.owner_name,
+        matched_client_name: match.name,
+        match_confidence: match.confidence,
+      }, { onConflict: 'pipedrive_id' });
+      
+      totalDeals++;
+    }
+    
+    cursor = data.additional_data?.next_cursor;
+  } while (cursor);
+  
+  return totalDeals;
 }
 ```
 
 ---
 
-## Fase 2: Configuración de Edge Function
+## Fase 3: Configuración
 
 ### Modificar: `supabase/config.toml`
 
-Agregar al final:
-
 ```toml
-[functions.pipedrive-webhook]
-verify_jwt = false
+[functions.pipedrive-sync]
+verify_jwt = true  # Solo usuarios autenticados pueden sincronizar
 ```
 
 ---
 
-## Fase 3: Tipos TypeScript
+## Fase 4: UI - Botón de Sincronización
 
-### Crear: `src/types/crm.ts`
+### Modificar: `src/pages/CRMHub/CRMHub.tsx`
 
-```typescript
-// Tipos para el CRM Hub
-export interface CrmPipelineStage {
-  id: string;
-  pipedrive_id: number;
-  name: string;
-  pipeline_name: string;
-  order_nr: number;
-  deal_probability: number;
-  is_active: boolean;
-}
-
-export interface CrmDeal {
-  id: string;
-  pipedrive_id: number;
-  title: string;
-  organization_name: string | null;
-  person_name: string | null;
-  value: number;
-  currency: string;
-  stage_id: string | null;
-  stage?: CrmPipelineStage;
-  status: 'open' | 'won' | 'lost';
-  probability: number;
-  expected_close_date: string | null;
-  won_time: string | null;
-  lost_reason: string | null;
-  owner_name: string | null;
-  matched_client_name: string | null;
-  match_confidence: number | null;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CrmForecast {
-  stage_id: string;
-  stage_name: string;
-  order_nr: number;
-  deal_probability: number;
-  deals_count: number;
-  total_value: number;
-  weighted_value: number;
-}
-
-export interface CrmActivity {
-  id: string;
-  deal_id: string | null;
-  type: string;
-  subject: string | null;
-  done: boolean;
-  owner_name: string | null;
-  created_at: string;
-}
-```
-
----
-
-## Fase 4: Hooks de Datos
-
-### Crear: `src/hooks/useCrmPipeline.ts`
-- Obtiene stages del pipeline desde `crm_pipeline_stages`
-- Ordena por `order_nr`
-
-### Crear: `src/hooks/useCrmDeals.ts`
-- Lista deals con filtros por status, stage, owner
-- Incluye join con `crm_pipeline_stages`
-- Soporte para paginación
-
-### Crear: `src/hooks/useCrmForecast.ts`
-- Lee datos de `crm_forecast_view`
-- Calcula métricas agregadas (pipeline total, weighted forecast)
-- Win rate y avg deal size
-
-### Crear: `src/hooks/useCrmClientMatcher.ts`
-- Busca matches en `servicios_custodia`
-- Calcula GMV real por cliente
-- Permite vinculación manual
-
----
-
-## Fase 5: UI del CRM Hub
-
-### Estructura de Archivos
+Agregar un botón "Sincronizar con Pipedrive" en el header que:
+- Llame a la Edge Function `pipedrive-sync`
+- Muestre un spinner mientras sincroniza
+- Muestre un toast con resultados (X stages, Y deals sincronizados)
+- Refresque los datos del CRM
 
 ```text
-src/pages/CRMHub/
-├── CRMHub.tsx                    # Página principal con 4 tabs
-└── components/
-    ├── PipelineKanban.tsx        # Kanban visual de deals
-    ├── RevenueForecast.tsx       # Dashboard de forecast
-    ├── ClientServicesLink.tsx    # Vinculación deal → servicios
-    └── ActivityFeed.tsx          # Timeline de actividad
-```
-
-### Tab 1: Pipeline (Kanban)
-
-Vista Kanban con columnas por etapa del pipeline:
-- Cada columna muestra: nombre de etapa, probabilidad, valor total
-- Cards de deals con: título, valor, días en etapa, owner
-- Código de colores por status (open/won/lost)
-
-### Tab 2: Forecast
-
-Métricas principales:
-- Pipeline Value Total
-- Weighted Forecast (valor × probabilidad)
-- Win Rate
-- Average Deal Size
-
-Gráfico de barras por etapa con valor ponderado.
-
-### Tab 3: Clientes → Servicios
-
-Tabla de vinculación:
-- Deal/Cliente
-- Status de Match (Verificado, Auto-match, Pendiente, Sin match)
-- Deal Value
-- GMV Real (de servicios_custodia)
-- Acciones (Ver servicios, Vincular)
-
-### Tab 4: Actividad
-
-Timeline de eventos recientes:
-- Deal Won (verde)
-- Stage Change (azul)
-- New Deal (amarillo)
-- Deal Lost (rojo)
-
----
-
-## Fase 6: Navegación
-
-### Modificar: `src/config/navigationConfig.ts`
-
-Agregar módulo CRM en grupo `dashboard`:
-
-```typescript
-{
-  id: 'crm',
-  label: 'CRM Hub',
-  icon: Briefcase,
-  path: '/crm',
-  group: 'dashboard',
-  roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi'],
-  children: [
-    { id: 'crm_pipeline', label: 'Pipeline', path: '/crm', icon: LayoutDashboard },
-    { id: 'crm_forecast', label: 'Forecast', path: '/crm?tab=forecast', icon: TrendingUp },
-    { id: 'crm_clients', label: 'Clientes', path: '/crm?tab=clients', icon: Users }
-  ]
-}
-```
-
-### Modificar: `src/App.tsx`
-
-Agregar lazy import y ruta:
-
-```typescript
-const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
-
-// En Routes:
-<Route path="/crm" element={
-  <ProtectedRoute>
-    <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi']}>
-      <UnifiedLayout>
-        <CRMHub />
-      </UnifiedLayout>
-    </RoleProtectedRoute>
-  </ProtectedRoute>
-} />
+┌─────────────────────────────────────────────────────────────────┐
+│  CRM Hub                                                        │
+│  Pipeline de ventas, forecast e integración con Pipedrive       │
+│                                                                 │
+│  [🔄 Sincronizar con Pipedrive]                    [↻ Actualizar]│
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Fase 7: Migración SQL
+## Fase 5: Limpieza de Etapas Dummy
 
-Las siguientes tablas serán creadas automáticamente por Lovable Cloud:
-
-| Tabla | Descripción |
-|-------|-------------|
-| `crm_pipeline_stages` | Etapas del pipeline sincronizadas de Pipedrive |
-| `crm_deals` | Deals/Oportunidades con vinculación a clientes |
-| `crm_deal_stage_history` | Historial de cambios de etapa |
-| `crm_activities` | Actividades comerciales (futuro) |
-| `crm_webhook_logs` | Log de webhooks para debugging |
+Eliminar las etapas genéricas que insertamos inicialmente y usar las reales de Pipedrive.
 
 ---
 
@@ -262,43 +221,38 @@ Las siguientes tablas serán creadas automáticamente por Lovable Cloud:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `supabase/functions/pipedrive-webhook/index.ts` | Edge Function para webhooks |
-| `src/types/crm.ts` | Tipos TypeScript para CRM |
-| `src/hooks/useCrmPipeline.ts` | Hook para pipeline stages |
-| `src/hooks/useCrmDeals.ts` | Hook para deals |
-| `src/hooks/useCrmForecast.ts` | Hook para forecast |
-| `src/hooks/useCrmClientMatcher.ts` | Hook para matching de clientes |
-| `src/pages/CRMHub/CRMHub.tsx` | Página principal |
-| `src/pages/CRMHub/components/PipelineKanban.tsx` | Kanban de deals |
-| `src/pages/CRMHub/components/RevenueForecast.tsx` | Dashboard forecast |
-| `src/pages/CRMHub/components/ClientServicesLink.tsx` | Vinculación clientes |
-| `src/pages/CRMHub/components/ActivityFeed.tsx` | Timeline actividad |
+| `supabase/functions/pipedrive-sync/index.ts` | Edge Function de sincronización masiva |
 
 ## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/config.toml` | Agregar `[functions.pipedrive-webhook]` |
-| `src/config/navigationConfig.ts` | Agregar módulo CRM |
-| `src/App.tsx` | Agregar ruta `/crm` |
+| `supabase/config.toml` | Agregar config de pipedrive-sync |
+| `src/pages/CRMHub/CRMHub.tsx` | Agregar botón de sincronización |
 
 ---
 
-## Orden de Implementación
+## Próximo Paso Inmediato
 
-1. **Edge Function** → Resolver los 404 de webhooks de Pipedrive
-2. **Config.toml** → Registrar la función
-3. **Tipos TypeScript** → Base para todo el módulo
-4. **Hooks de datos** → Lógica de acceso a datos
-5. **UI Components** → Visualización del CRM Hub
-6. **Navegación** → Agregar acceso al módulo
+Antes de implementar, necesito que me proporciones el **API Token de Pipedrive**:
+
+1. Ve a **Pipedrive** > **Settings** (⚙️ arriba a la derecha)
+2. **Personal preferences** > **API**
+3. Copia el **API token**
+
+Con este token podré:
+- Configurar el secret `PIPEDRIVE_API_TOKEN`
+- Crear la Edge Function de sincronización
+- Importar todos tus deals y stages reales
 
 ---
 
-## Próximos Pasos Post-Implementación
+## Resultado Esperado
 
-1. Verificar que los webhooks de Pipedrive dejen de dar 404
-2. Crear un deal de prueba en Pipedrive para validar la recepción
-3. Revisar `crm_webhook_logs` para confirmar que los datos lleguen
-4. Sincronizar las etapas reales del pipeline de Pipedrive
-5. (Opcional) Agregar autenticación HTTP Basic si se desea mayor seguridad
+Después de ejecutar la sincronización, el CRM Hub mostrará:
+
+- **Pipeline Kanban** con todas las etapas reales de Pipedrive
+- **Deals distribuidos** en sus etapas correspondientes
+- **Forecast calculado** con valores reales
+- **Métricas** de win rate, ticket promedio, etc.
+- **Vinculación automática** con clientes de servicios_custodia
