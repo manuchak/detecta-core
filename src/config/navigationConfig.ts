@@ -25,7 +25,8 @@ import {
   LucideIcon,
   Radio,
   Headphones,
-  GraduationCap
+  GraduationCap,
+  Briefcase
 } from 'lucide-react';
 
 // Navigation Groups for visual separation
@@ -90,6 +91,41 @@ export const navigationModules: NavigationModule[] = [
         path: '/dashboard/reports',
         icon: FileText,
         roles: ['admin', 'owner', 'bi']
+      }
+    ]
+  },
+  {
+    id: 'crm',
+    label: 'CRM Hub',
+    icon: Briefcase,
+    path: '/crm',
+    group: 'dashboard',
+    roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi'],
+    matchPaths: ['/crm'],
+    children: [
+      {
+        id: 'crm_pipeline',
+        label: 'Pipeline',
+        path: '/crm',
+        icon: LayoutDashboard
+      },
+      {
+        id: 'crm_forecast',
+        label: 'Forecast',
+        path: '/crm?tab=forecast',
+        icon: TrendingUp
+      },
+      {
+        id: 'crm_clients',
+        label: 'Clientes',
+        path: '/crm?tab=clients',
+        icon: Users
+      },
+      {
+        id: 'crm_activity',
+        label: 'Actividad',
+        path: '/crm?tab=activity',
+        icon: Activity
       }
     ]
   },
