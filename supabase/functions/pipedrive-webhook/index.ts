@@ -5,21 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface PipedriveWebhookPayload {
-  v: number;
-  matches_filters: Record<string, unknown>;
-  meta: {
-    action: 'added' | 'updated' | 'deleted' | 'merged';
-    object: 'deal' | 'person' | 'activity';
-    id: number;
-    company_id: number;
-    user_id: number;
-    timestamp: number;
-  };
-  current: Record<string, unknown> | null;
-  previous: Record<string, unknown> | null;
-}
-
 interface DealData {
   id: number;
   title: string;
@@ -36,12 +21,12 @@ interface DealData {
   lost_time?: string;
   lost_reason?: string;
   probability?: number;
-  person_id?: {
+  person_id?: number | {
     name?: string;
     email?: { value?: string }[];
     phone?: { value?: string }[];
   };
-  org_id?: {
+  org_id?: number | {
     name?: string;
   };
 }
@@ -105,6 +90,8 @@ async function getOrCreateStage(
   supabase: ReturnType<typeof createClient>,
   pipedriveStageId: number
 ): Promise<string | null> {
+  if (!pipedriveStageId) return null;
+  
   try {
     // Check if stage exists
     const { data: existing } = await supabase
@@ -147,12 +134,25 @@ async function handleDealAdded(
   console.log('Processing added deal:', dealData.id, dealData.title);
 
   const stageId = await getOrCreateStage(supabase, dealData.stage_id);
-  const orgName = dealData.org_name || dealData.org_id?.name || '';
+  
+  // Handle org_id being either a number or object
+  let orgName = dealData.org_name || '';
+  if (typeof dealData.org_id === 'object' && dealData.org_id?.name) {
+    orgName = dealData.org_id.name;
+  }
+  
   const match = await findClientMatch(supabase, orgName);
 
-  const personEmail = dealData.person_id?.email?.[0]?.value || null;
-  const personPhone = dealData.person_id?.phone?.[0]?.value || null;
-  const personName = dealData.person_name || dealData.person_id?.name || null;
+  // Handle person_id being either a number or object
+  let personEmail: string | null = null;
+  let personPhone: string | null = null;
+  let personName = dealData.person_name || null;
+  
+  if (typeof dealData.person_id === 'object' && dealData.person_id) {
+    personEmail = dealData.person_id.email?.[0]?.value || null;
+    personPhone = dealData.person_id.phone?.[0]?.value || null;
+    personName = dealData.person_id.name || personName;
+  }
 
   const { error } = await supabase.from('crm_deals').insert({
     pipedrive_id: dealData.id,
@@ -189,7 +189,7 @@ async function handleDealAdded(
 async function handleDealUpdated(
   supabase: ReturnType<typeof createClient>,
   current: DealData,
-  previous: DealData | null
+  previous: Record<string, unknown> | null
 ): Promise<void> {
   console.log('Processing updated deal:', current.id, current.title);
 
@@ -207,16 +207,30 @@ async function handleDealUpdated(
   }
 
   const newStageId = await getOrCreateStage(supabase, current.stage_id);
-  const orgName = current.org_name || current.org_id?.name || '';
+  
+  // Handle org_id being either a number or object
+  let orgName = current.org_name || '';
+  if (typeof current.org_id === 'object' && current.org_id?.name) {
+    orgName = current.org_id.name;
+  }
+  
   const match = await findClientMatch(supabase, orgName);
 
-  const personEmail = current.person_id?.email?.[0]?.value || null;
-  const personPhone = current.person_id?.phone?.[0]?.value || null;
-  const personName = current.person_name || current.person_id?.name || null;
+  // Handle person_id being either a number or object
+  let personEmail: string | null = null;
+  let personPhone: string | null = null;
+  let personName = current.person_name || null;
+  
+  if (typeof current.person_id === 'object' && current.person_id) {
+    personEmail = current.person_id.email?.[0]?.value || null;
+    personPhone = current.person_id.phone?.[0]?.value || null;
+    personName = current.person_id.name || personName;
+  }
 
-  // Check if stage changed
-  if (existingDeal.stage_id !== newStageId && previous) {
-    const oldStageId = await getOrCreateStage(supabase, previous.stage_id);
+  // Check if stage changed (only if previous has stage_id)
+  const previousStageId = previous?.stage_id as number | undefined;
+  if (existingDeal.stage_id !== newStageId && previousStageId) {
+    const oldStageId = await getOrCreateStage(supabase, previousStageId);
     
     // Record stage history
     await supabase.from('crm_deal_stage_history').insert({
@@ -286,6 +300,90 @@ async function handleDealDeleted(
   console.log('Deal soft-deleted successfully:', dealId);
 }
 
+// Parse webhook and extract normalized data
+// Pipedrive v2.0 has: meta.action, meta.entity, meta.entity_id, data (deal object), previous
+// Pipedrive v1.0 has: meta.action, meta.object, meta.id, current, previous
+function parseWebhook(payload: Record<string, unknown>): {
+  action: string;
+  entity: string;
+  entityId: number;
+  data: Record<string, unknown> | null;
+  previous: Record<string, unknown> | null;
+} {
+  // Check for v2.0 format: meta object with entity, action, entity_id + data field
+  const meta = payload.meta as Record<string, unknown> | undefined;
+  
+  if (meta && meta.entity && meta.action) {
+    // v2.0 format
+    console.log('Detected Pipedrive webhook v2.0 format');
+    
+    // Map v2 actions to normalized format
+    const actionMap: Record<string, string> = {
+      'create': 'added',
+      'change': 'updated', 
+      'delete': 'deleted',
+      'merge': 'merged',
+    };
+    
+    const action = String(meta.action);
+    const entity = String(meta.entity);
+    const entityId = typeof meta.entity_id === 'string' 
+      ? parseInt(meta.entity_id, 10) 
+      : (meta.entity_id as number || 0);
+    
+    return {
+      action: actionMap[action] || action,
+      entity,
+      entityId,
+      data: payload.data as Record<string, unknown> | null,
+      previous: payload.previous as Record<string, unknown> | null,
+    };
+  }
+  
+  // Check for v1.0 format: meta.object, meta.action, meta.id + current
+  if (meta && meta.object && meta.action && meta.id !== undefined) {
+    console.log('Detected Pipedrive webhook v1.0 format');
+    
+    return {
+      action: String(meta.action),
+      entity: String(meta.object),
+      entityId: meta.id as number,
+      data: payload.current as Record<string, unknown> | null,
+      previous: payload.previous as Record<string, unknown> | null,
+    };
+  }
+  
+  // Fallback: check if action/entity at root level (simple test payload)
+  if (payload.action && payload.entity) {
+    console.log('Detected simple/test webhook format');
+    
+    const actionMap: Record<string, string> = {
+      'create': 'added',
+      'change': 'updated', 
+      'delete': 'deleted',
+      'merge': 'merged',
+    };
+    
+    const action = String(payload.action);
+    return {
+      action: actionMap[action] || action,
+      entity: String(payload.entity),
+      entityId: parseInt(String(payload.entity_id || 0), 10),
+      data: payload.data as Record<string, unknown> | null,
+      previous: payload.previous as Record<string, unknown> | null,
+    };
+  }
+  
+  console.log('Unknown webhook format:', JSON.stringify(payload).slice(0, 200));
+  return {
+    action: 'unknown',
+    entity: 'unknown',
+    entityId: 0,
+    data: null,
+    previous: null,
+  };
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -305,11 +403,11 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  let payload: PipedriveWebhookPayload;
+  let rawPayload: Record<string, unknown>;
 
   try {
-    payload = await req.json();
-    console.log('Received webhook:', JSON.stringify(payload.meta));
+    rawPayload = await req.json();
+    console.log('Received webhook, keys:', Object.keys(rawPayload).join(', '));
   } catch (error) {
     console.error('Error parsing JSON:', error);
     return new Response(
@@ -318,12 +416,21 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Parse and normalize webhook format
+  const webhook = parseWebhook(rawPayload);
+  const eventType = `${webhook.action}.${webhook.entity}`;
+  
+  console.log('Parsed webhook:', eventType, 'entity_id:', webhook.entityId);
+
   // Log webhook for debugging
-  const eventType = `${payload.meta?.action}.${payload.meta?.object}`;
   try {
     await supabase.from('crm_webhook_logs').insert({
       event_type: eventType,
-      payload: payload,
+      payload: { 
+        data: webhook.data, 
+        previous: webhook.previous,
+        meta: rawPayload 
+      },
       processed: false,
     });
   } catch (logError) {
@@ -331,8 +438,8 @@ Deno.serve(async (req) => {
   }
 
   // Process only deal events
-  if (payload.meta?.object !== 'deal') {
-    console.log('Ignoring non-deal event:', payload.meta?.object);
+  if (webhook.entity !== 'deal') {
+    console.log('Ignoring non-deal event:', webhook.entity);
     
     await supabase
       .from('crm_webhook_logs')
@@ -348,23 +455,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const action = payload.meta.action;
-    const dealId = payload.meta.id;
+    const dealId = webhook.entityId;
+    const dealData = webhook.data as unknown as DealData;
+    const previousData = webhook.previous;
 
-    switch (action) {
+    console.log('Processing deal event:', webhook.action, 'dealId:', dealId, 'hasData:', !!dealData);
+
+    switch (webhook.action) {
       case 'added':
-        if (payload.current) {
-          await handleDealAdded(supabase, payload.current as unknown as DealData);
+        if (dealData) {
+          await handleDealAdded(supabase, dealData);
+        } else {
+          console.log('No deal data for added event');
         }
         break;
 
       case 'updated':
-        if (payload.current) {
-          await handleDealUpdated(
-            supabase,
-            payload.current as unknown as DealData,
-            payload.previous as unknown as DealData | null
-          );
+        if (dealData) {
+          await handleDealUpdated(supabase, dealData, previousData);
+        } else {
+          console.log('No deal data for updated event');
         }
         break;
 
@@ -374,17 +484,13 @@ Deno.serve(async (req) => {
 
       case 'merged':
         // Handle merge as update of the surviving deal
-        if (payload.current) {
-          await handleDealUpdated(
-            supabase,
-            payload.current as unknown as DealData,
-            null
-          );
+        if (dealData) {
+          await handleDealUpdated(supabase, dealData, null);
         }
         break;
 
       default:
-        console.log('Unknown action:', action);
+        console.log('Unknown action:', webhook.action);
     }
 
     // Mark as processed
@@ -396,7 +502,7 @@ Deno.serve(async (req) => {
       .limit(1);
 
     return new Response(
-      JSON.stringify({ success: true, action, dealId }),
+      JSON.stringify({ success: true, action: webhook.action, dealId }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
