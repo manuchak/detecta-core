@@ -1,37 +1,33 @@
 
-# Plan de Integración: Direcciones de Casa Supply → Perfiles de Custodios
+
+# Plan: Módulo Master de Clientes CRM con Integración Pipedrive
 
 ## Resumen Ejecutivo
 
-Este plan integra la información de residencia capturada por Supply (durante el proceso de entrevista) al flujo de liberación y perfiles de custodios, asegurando que la **zona base** se determine correctamente por su **ubicación real de residencia** en lugar de asignar "Ciudad de México" por defecto.
+Crear un nuevo módulo centralizado "CRM Hub" que unifique la visibilidad del ciclo de vida comercial completo: desde prospectos en Pipedrive hasta servicios ejecutados en Detecta, proporcionando dashboards de pipeline de ventas, forecast de ingresos y trazabilidad cliente → servicios.
 
 ---
 
 ## Diagnóstico del Estado Actual
 
-### Datos Disponibles
-| Fuente | Campo | Datos Disponibles |
-|--------|-------|-------------------|
-| `leads.last_interview_data` | `ubicacion.direccion` | 73 leads con dirección capturada |
-| `leads.last_interview_data` | `ubicacion.estado_id` | 79 leads con estado capturado |
-| `leads.last_interview_data` | `ubicacion.ciudad_id` | UUIDs de ciudades |
-| `estados` | Catálogo | 32 estados mexicanos con UUIDs |
+### Datos Existentes
 
-### Problema Actual
-- **85% de custodios operativos** tienen `zona_base = "Ciudad de México"` por defecto
-- **21 custodios** tienen zona incorrecta (residen en Querétaro, Estado de México, Colima, etc. pero figuran como CDMX)
-- La información de ubicación **existe en leads** pero **no se propaga** a:
-  - `custodio_liberacion` (registro de liberación)
-  - `candidatos_custodios` (candidato)
-  - `custodios_operativos` (perfil operativo final)
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     BRECHA DE DATOS                            │
+├─────────────────────────────────────────────────────────────────┤
+│  servicios_custodia.nombre_cliente: 399 clientes               │
+│  pc_clientes (registro formal):      60 clientes               │
+│                                                                 │
+│  Gap: 339 clientes con servicios no registrados formalmente    │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Ejemplo de Datos Existentes
-```
-Candidato: OSCAR LEONARDO PATIÑO TERRAZAS
-→ Dirección en leads: "ARQUITECTOS 710 EL MARQUÉS 76047 QUERÉTARO, QRO."
-→ Estado real: Querétaro
-→ Zona operativa asignada: "Ciudad de México" ❌
-```
+### Componentes Existentes Reutilizables
+- `ClientAnalytics`: Dashboard de performance por cliente (GMV, AOV, servicios)
+- `useClientAnalytics`: Hook completo con métricas por cliente
+- `AcquisitionOverview`: Métricas de adquisición y CPA
+- Webhook infrastructure: VAPI, WhatsApp, Dialfire (patrón establecido)
 
 ---
 
@@ -39,233 +35,265 @@ Candidato: OSCAR LEONARDO PATIÑO TERRAZAS
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    FLUJO DE DATOS DE UBICACIÓN                         │
+│                    CRM HUB - FLUJO DE DATOS                             │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  1. CAPTURA (Supply - Entrevista)                                       │
-│     └── leads.last_interview_data.ubicacion                            │
-│           ├── direccion: "Calle X #123, Col. Y, CP 12345"              │
-│           ├── estado_id: UUID → estados.nombre                          │
-│           └── ciudad_id: UUID → ciudades.nombre                         │
+│  ┌──────────────┐                                                       │
+│  │   PIPEDRIVE  │                                                       │
+│  │              │                                                       │
+│  │  ┌────────┐  │    Webhook (create/update/delete)                     │
+│  │  │ Deals  │──┼────────────────────────┐                              │
+│  │  └────────┘  │                        │                              │
+│  │  ┌────────┐  │                        ▼                              │
+│  │  │ Leads  │──┼───────► pipedrive-webhook (Edge Function)             │
+│  │  └────────┘  │                        │                              │
+│  │  ┌────────┐  │                        ▼                              │
+│  │  │Pipeline│──┼─────────────┐    ┌─────────────────────────┐          │
+│  │  │ Stages │  │             │    │     SUPABASE            │          │
+│  └──────────────┘             │    │                         │          │
+│                               │    │  crm_deals              │          │
+│                               └────►  crm_leads              │          │
+│                                    │  crm_pipeline_stages    │          │
+│                                    │  crm_activities         │          │
+│                                    └──────────┬──────────────┘          │
+│                                               │                          │
+│                                               ▼                          │
+│  ┌─────────────────────────────────────────────────────────────┐        │
+│  │                      CRM HUB UI                              │        │
+│  │  ┌─────────────┬─────────────┬───────────────┬────────────┐ │        │
+│  │  │  Pipeline   │  Forecast   │   Clientes    │ Actividad  │ │        │
+│  │  │  de Ventas  │  Revenue    │   → Servicios │   Feed     │ │        │
+│  │  └─────────────┴─────────────┴───────────────┴────────────┘ │        │
+│  └─────────────────────────────────────────────────────────────┘        │
 │                                                                         │
-│  2. PREFILL (Liberación)                   ← NUEVO                      │
-│     └── Hook: useCandidatoUbicacion                                    │
-│           │                                                             │
-│           ├── Consulta leads por candidato_custodio_id                 │
-│           ├── JOIN con estados para obtener nombre                      │
-│           └── Retorna: { direccion, estado, ciudad, estadoId }         │
-│                                                                         │
-│  3. FORMULARIO (Modal Liberación)          ← NUEVO                      │
-│     └── Sección "Ubicación de Residencia"                              │
-│           ├── Dirección (texto, prellenado)                            │
-│           ├── Estado (select, prellenado)                              │
-│           ├── Ciudad (texto)                                           │
-│           └── Zona Base (calculada automáticamente)                    │
-│                                                                         │
-│  4. PERSISTENCIA (DB)                      ← MODIFICAR                  │
-│     ├── custodio_liberacion:                                           │
-│     │     ├── direccion_residencia: TEXT      ← NUEVO CAMPO            │
-│     │     └── estado_residencia_id: UUID      ← NUEVO CAMPO            │
-│     │                                                                   │
-│     └── RPC liberar_custodio_a_planeacion_v2:                          │
-│           ├── Leer estado_residencia_id de liberación                  │
-│           ├── Resolver nombre del estado                                │
-│           └── Escribir a custodios_operativos.zona_base                │
-│                                                                         │
-│  5. PERFIL FORENSE                         ← NUEVO                      │
-│     └── InformacionPersonalTab:                                        │
-│           ├── Mostrar dirección de residencia                          │
-│           ├── Mostrar estado/ciudad                                    │
-│           └── Badge visual de zona base                                │
+│  ┌─────────────────────────────────────────────────────────────┐        │
+│  │                   MATCH ENGINE                               │        │
+│  │  crm_deals.organization_name ←→ servicios_custodia.nombre   │        │
+│  │  Fuzzy matching + manual override                            │        │
+│  └─────────────────────────────────────────────────────────────┘        │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Plan de Implementación Detallado
+## Plan de Implementación
 
 ### Fase 1: Esquema de Base de Datos
 
-**Nuevos campos en `custodio_liberacion`:**
+**Nuevas tablas para datos CRM:**
 
 ```sql
--- Migración SQL (ejecutar en Supabase SQL Editor)
-ALTER TABLE custodio_liberacion
-ADD COLUMN IF NOT EXISTS direccion_residencia TEXT,
-ADD COLUMN IF NOT EXISTS estado_residencia_id UUID REFERENCES estados(id),
-ADD COLUMN IF NOT EXISTS ciudad_residencia TEXT;
-
-COMMENT ON COLUMN custodio_liberacion.direccion_residencia IS 'Dirección completa de residencia del custodio';
-COMMENT ON COLUMN custodio_liberacion.estado_residencia_id IS 'FK al catálogo de estados';
-COMMENT ON COLUMN custodio_liberacion.ciudad_residencia IS 'Nombre de la ciudad de residencia';
-```
-
-**Impacto:** Solo agrega columnas opcionales, no rompe flujos existentes.
-
----
-
-### Fase 2: Hook de Datos de Ubicación
-
-**Nuevo archivo:** `src/hooks/useCandidatoUbicacion.ts`
-
-Este hook:
-1. Recibe `candidatoId` del candidato en liberación
-2. Busca el lead vinculado vía `candidato_custodio_id`
-3. Extrae datos de `last_interview_data.ubicacion`
-4. JOIN con tabla `estados` para resolver nombre
-5. Retorna datos estructurados para prefill
-
-```typescript
-interface UbicacionCandidato {
-  direccion: string | null;
-  estadoId: string | null;
-  estadoNombre: string | null;
-  ciudadId: string | null;
-  ciudadNombre: string | null;
-  zonaBaseCalculada: string; // "Ciudad de México" | "Querétaro" | etc.
-}
-```
-
----
-
-### Fase 3: Sección de Ubicación en Modal de Liberación
-
-**Archivo:** `src/components/liberacion/LiberacionChecklistModal.tsx`
-
-**Cambios:**
-
-1. **Agregar sección de ubicación** en el Accordion (después de Información de Contacto):
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ 📍 Ubicación de Residencia                          │
-├─────────────────────────────────────────────────────┤
-│ ℹ️ Esta información determina la zona base del     │
-│    custodio en Planeación.                          │
-│                                                     │
-│ Dirección: [Campo prellenado desde entrevista]     │
-│ Estado:    [Select con estados mexicanos]          │
-│ Ciudad:    [Campo de texto]                        │
-│                                                     │
-│ Zona Base Calculada: [Badge: "Querétaro"]          │
-└─────────────────────────────────────────────────────┘
-```
-
-2. **Prellenar automáticamente** con datos del hook `useCandidatoUbicacion`
-3. **Permitir edición** si Supply necesita corregir
-4. **Calcular zona base** automáticamente basado en estado seleccionado
-
----
-
-### Fase 4: Actualizar Tipos TypeScript
-
-**Archivo:** `src/types/liberacion.ts`
-
-```typescript
-export interface CustodioLiberacion {
-  // ... campos existentes
-  
-  // Ubicación - NUEVOS
-  direccion_residencia?: string;
-  estado_residencia_id?: string;
-  ciudad_residencia?: string;
-  
-  // Relación expandida
-  estado_residencia?: {
-    id: string;
-    nombre: string;
-  };
-}
-```
-
----
-
-### Fase 5: Propagar Ubicación en Liberación
-
-**Archivo:** `src/hooks/useCustodioLiberacion.ts`
-
-Modificar `updateChecklist` para incluir campos de ubicación:
-
-```typescript
-candidatoUpdates: {
-  nombre: updates.nombre,
-  telefono: updates.telefono,
-  // NUEVO: Propagar ubicación
-  direccion_residencia: updates.direccion_residencia,
-  estado_residencia_id: updates.estado_residencia_id,
-}
-```
-
----
-
-### Fase 6: Actualizar RPC de Liberación
-
-**Función:** `liberar_custodio_a_planeacion_v2`
-
-Modificar para:
-1. Leer `estado_residencia_id` del registro de liberación
-2. Si existe, resolver el nombre del estado
-3. Escribir a `custodios_operativos.zona_base` con el nombre real
-
-```sql
--- Pseudocódigo de la modificación
-v_zona_base := COALESCE(
-  (SELECT nombre FROM estados WHERE id = v_estado_residencia_id),
-  'Por asignar'
+-- Pipeline stages (sincronizado de Pipedrive)
+CREATE TABLE crm_pipeline_stages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pipedrive_id INTEGER UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  pipeline_name TEXT DEFAULT 'Default',
+  order_nr INTEGER DEFAULT 0,
+  deal_probability INTEGER DEFAULT 0, -- Para forecast
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
-UPDATE custodios_operativos
-SET zona_base = v_zona_base
-WHERE id = v_custodio_operativo_id;
+-- Leads comerciales
+CREATE TABLE crm_leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pipedrive_id INTEGER UNIQUE,
+  title TEXT NOT NULL,
+  person_name TEXT,
+  organization_name TEXT,
+  email TEXT,
+  phone TEXT,
+  value NUMERIC(15,2) DEFAULT 0,
+  currency TEXT DEFAULT 'MXN',
+  source TEXT, -- Facebook, Website, Referral, etc.
+  status TEXT DEFAULT 'open', -- open, converted, lost
+  owner_name TEXT,
+  notes TEXT,
+  pipedrive_data JSONB, -- Raw Pipedrive payload
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Deals/Oportunidades
+CREATE TABLE crm_deals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pipedrive_id INTEGER UNIQUE,
+  title TEXT NOT NULL,
+  organization_name TEXT,
+  person_name TEXT,
+  value NUMERIC(15,2) DEFAULT 0,
+  currency TEXT DEFAULT 'MXN',
+  stage_id UUID REFERENCES crm_pipeline_stages(id),
+  status TEXT DEFAULT 'open', -- open, won, lost
+  probability INTEGER DEFAULT 0,
+  expected_close_date DATE,
+  won_time TIMESTAMPTZ,
+  lost_reason TEXT,
+  owner_name TEXT,
+  pipedrive_data JSONB,
+  
+  -- Vinculacion con Detecta
+  pc_cliente_id UUID REFERENCES pc_clientes(id),
+  matched_client_name TEXT, -- nombre_cliente de servicios_custodia
+  match_confidence NUMERIC(3,2), -- 0.0 a 1.0
+  
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Actividades comerciales
+CREATE TABLE crm_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pipedrive_id INTEGER UNIQUE,
+  deal_id UUID REFERENCES crm_deals(id),
+  lead_id UUID REFERENCES crm_leads(id),
+  type TEXT NOT NULL, -- call, meeting, email, task
+  subject TEXT,
+  done BOOLEAN DEFAULT false,
+  due_date TIMESTAMPTZ,
+  duration_minutes INTEGER,
+  note TEXT,
+  owner_name TEXT,
+  pipedrive_data JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Historial de cambios de etapa
+CREATE TABLE crm_deal_stage_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  deal_id UUID REFERENCES crm_deals(id) NOT NULL,
+  from_stage_id UUID REFERENCES crm_pipeline_stages(id),
+  to_stage_id UUID REFERENCES crm_pipeline_stages(id),
+  changed_at TIMESTAMPTZ DEFAULT now(),
+  time_in_previous_stage INTERVAL
+);
+
+-- Vista para forecast
+CREATE VIEW crm_forecast_view AS
+SELECT 
+  s.name as stage_name,
+  s.deal_probability,
+  COUNT(d.id) as deals_count,
+  SUM(d.value) as total_value,
+  SUM(d.value * s.deal_probability / 100) as weighted_value
+FROM crm_deals d
+JOIN crm_pipeline_stages s ON d.stage_id = s.id
+WHERE d.status = 'open'
+GROUP BY s.id, s.name, s.deal_probability, s.order_nr
+ORDER BY s.order_nr;
 ```
 
 ---
 
-### Fase 7: Mostrar Ubicación en Perfil Forense
+### Fase 2: Webhook Receiver (Edge Function)
 
-**Archivo:** `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx`
-
-Agregar card de ubicación:
+**Nuevo archivo:** `supabase/functions/pipedrive-webhook/index.ts`
 
 ```text
-┌─────────────────────────────────────────┐
-│ 📍 Ubicación de Residencia              │
-├─────────────────────────────────────────┤
-│ 🏠 Dirección                            │
-│    Arquitectos 710, El Marqués, CP76047 │
-│                                         │
-│ 📍 Ciudad                               │
-│    Querétaro                            │
-│                                         │
-│ 🗺️ Estado                               │
-│    Querétaro                            │
-│                                         │
-│ 🎯 Zona Base Operativa                  │
-│    [Badge] Querétaro                    │
-└─────────────────────────────────────────┘
+Funcionalidad:
+1. Autenticación vía secret token de Pipedrive
+2. Manejo de eventos:
+   - deal.created / deal.updated / deal.deleted
+   - person.created / person.updated
+   - activity.created / activity.updated
+3. Upsert en tablas CRM
+4. Auto-match con clientes existentes (fuzzy search)
+5. Logging detallado para debugging
+```
+
+**Webhook Events de Pipedrive a manejar:**
+- `deal.added` → INSERT en crm_deals
+- `deal.updated` → UPDATE en crm_deals + historial de etapas
+- `deal.deleted` → SOFT DELETE
+- `deal.won` → UPDATE status + won_time
+- `deal.lost` → UPDATE status + lost_reason
+
+---
+
+### Fase 3: Motor de Matching Cliente
+
+**Nuevo hook:** `src/hooks/useCrmClientMatcher.ts`
+
+```text
+Lógica de matching:
+1. Normalizar nombres (mayúsculas, eliminar S.A. DE C.V., etc.)
+2. Buscar match exacto en servicios_custodia.nombre_cliente
+3. Si no hay exacto, fuzzy match con Levenshtein distance
+4. Calcular confidence score (0.0 - 1.0)
+5. Permitir override manual por usuario
 ```
 
 ---
 
-### Fase 8: Migración de Datos Existentes (Opcional)
+### Fase 4: UI del CRM Hub
 
-Script para actualizar custodios ya liberados con datos de ubicación disponibles:
+**Nueva página:** `src/pages/CRMHub/CRMHub.tsx`
 
-```sql
--- Script de migración (ejecutar manualmente)
-UPDATE custodios_operativos co
-SET zona_base = e.nombre
-FROM custodio_liberacion cl
-JOIN candidatos_custodios cc ON cl.candidato_id = cc.id
-JOIN leads l ON l.candidato_custodio_id = cc.id
-JOIN estados e ON e.id::text = l.last_interview_data->'ubicacion'->>'estado_id'
-WHERE co.pc_custodio_id = cl.pc_custodio_id
-  AND l.last_interview_data->'ubicacion'->>'estado_id' IS NOT NULL
-  AND l.last_interview_data->'ubicacion'->>'estado_id' != '';
+**Estructura de tabs:**
+
+| Tab | Contenido |
+|-----|-----------|
+| **Pipeline** | Kanban visual de deals por etapa, con valores y días en etapa |
+| **Forecast** | Proyección de ingresos con probabilidades ponderadas |
+| **Clientes** | Tabla de deals → servicios, matching status, GMV real vs. deal value |
+| **Actividad** | Timeline de eventos recientes: nuevos deals, cambios de etapa, cierres |
+
+---
+
+### Fase 5: Dashboard de Pipeline de Ventas
+
+**Componente:** `src/components/crm/PipelineKanban.tsx`
+
+```text
+Visualización:
+┌──────────────┬──────────────┬──────────────┬──────────────┐
+│   Lead       │  Propuesta   │ Negociación  │    Cierre    │
+│   In ($200K) │  Sent ($150K)│   ($80K)     │    ($50K)    │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│  [Deal A]    │  [Deal C]    │  [Deal E]    │  [Deal G]    │
+│  $45,000     │  $65,000     │  $30,000     │  $25,000     │
+│  3 días      │  5 días      │  12 días     │  2 días      │
+├──────────────┼──────────────┼──────────────┼──────────────┤
+│  [Deal B]    │  [Deal D]    │  [Deal F]    │  [Deal H]    │
+│  ...         │  ...         │  ...         │  ...         │
+└──────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-**Impacto estimado:** Corrige ~21 custodios con zona incorrecta.
+---
+
+### Fase 6: Forecast de Ingresos
+
+**Componente:** `src/components/crm/RevenueForecast.tsx`
+
+```text
+Métricas:
+- Pipeline Value Total: Suma de todos los deals abiertos
+- Weighted Forecast: Suma ponderada por probabilidad de etapa
+- Expected Closes (MTD): Deals con expected_close_date en mes actual
+- Win Rate: Won / (Won + Lost) del período
+- Average Deal Size: Promedio de deals cerrados
+- Sales Cycle Length: Días promedio desde lead hasta won
+```
+
+---
+
+### Fase 7: Vinculación Cliente → Servicios
+
+**Componente:** `src/components/crm/ClientServicesLink.tsx`
+
+```text
+Vista de tabla:
+┌─────────────────┬───────────────┬────────────┬──────────────┬───────────────┐
+│ Deal/Cliente    │ Status Match  │ Deal Value │ GMV Real     │ Conversion %  │
+├─────────────────┼───────────────┼────────────┼──────────────┼───────────────┤
+│ ASTRA ZENECA    │ ✓ Verified    │ $500K      │ $23M         │ 4,600%        │
+│ COMARKET        │ ✓ Auto-match  │ $300K      │ $29M         │ 9,667%        │
+│ TYASA           │ ⚠ Pending     │ $200K      │ $7M          │ --            │
+│ FERRER          │ ✗ New Client  │ $80K       │ $62K         │ 77% (growing) │
+└─────────────────┴───────────────┴────────────┴──────────────┴───────────────┘
+```
 
 ---
 
@@ -273,64 +301,189 @@ WHERE co.pc_custodio_id = cl.pc_custodio_id
 
 | Archivo | Acción | Descripción |
 |---------|--------|-------------|
-| `src/hooks/useCandidatoUbicacion.ts` | CREAR | Hook para obtener ubicación desde leads |
-| `src/types/liberacion.ts` | MODIFICAR | Agregar campos de ubicación |
-| `src/components/liberacion/LiberacionChecklistModal.tsx` | MODIFICAR | Agregar sección de ubicación con prefill |
-| `src/hooks/useCustodioLiberacion.ts` | MODIFICAR | Incluir ubicación en updateChecklist |
-| `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx` | MODIFICAR | Mostrar ubicación en perfil |
-| `src/pages/PerfilesOperativos/hooks/useProfileUbicacion.ts` | CREAR | Hook para obtener ubicación del perfil |
+| `supabase/functions/pipedrive-webhook/index.ts` | CREAR | Edge function para recibir webhooks de Pipedrive |
+| `src/pages/CRMHub/CRMHub.tsx` | CREAR | Página principal del módulo CRM |
+| `src/pages/CRMHub/components/PipelineKanban.tsx` | CREAR | Visualización kanban del pipeline |
+| `src/pages/CRMHub/components/RevenueForecast.tsx` | CREAR | Dashboard de forecast |
+| `src/pages/CRMHub/components/ClientServicesLink.tsx` | CREAR | Tabla de vinculación deals → servicios |
+| `src/pages/CRMHub/components/ActivityFeed.tsx` | CREAR | Timeline de actividades |
+| `src/hooks/useCrmDeals.ts` | CREAR | Hook para datos de deals |
+| `src/hooks/useCrmPipeline.ts` | CREAR | Hook para pipeline y stages |
+| `src/hooks/useCrmForecast.ts` | CREAR | Hook para cálculos de forecast |
+| `src/hooks/useCrmClientMatcher.ts` | CREAR | Hook para matching de clientes |
+| `src/types/crm.ts` | CREAR | Tipos TypeScript para CRM |
+| `src/config/navigationConfig.ts` | MODIFICAR | Agregar módulo CRM al menú |
 
 ---
 
-## Dependencias de Base de Datos
+## Configuración de Pipedrive
 
-Antes de implementar el código, ejecutar en **Supabase SQL Editor**:
+### Webhook Setup (en Pipedrive)
 
-```sql
--- 1. Agregar columnas a custodio_liberacion
-ALTER TABLE custodio_liberacion
-ADD COLUMN IF NOT EXISTS direccion_residencia TEXT,
-ADD COLUMN IF NOT EXISTS estado_residencia_id UUID REFERENCES estados(id),
-ADD COLUMN IF NOT EXISTS ciudad_residencia TEXT;
+1. Ir a Settings → Webhooks
+2. Crear nuevo webhook con URL: `https://yydzzeljaewsfhmilnhm.functions.supabase.co/pipedrive-webhook`
+3. Eventos a suscribir:
+   - `deal.*` (added, updated, merged, deleted)
+   - `activity.*` (added, updated, deleted)
+   - `person.*` (added, updated)
+4. Copiar el **Webhook Secret** para autenticación
 
--- 2. Actualizar RPC (requiere acceso a funciones SQL)
--- Se proporcionará script separado para el RPC
-```
+### Secrets Requeridos
 
----
-
-## Validaciones de No Regresión
-
-| Flujo | Validación |
-|-------|------------|
-| Crear liberación | ✅ Sin cambios - campos nuevos son opcionales |
-| Actualizar checklist | ✅ Retrocompatible - campos nuevos son opcionales |
-| Liberar custodio | ✅ Si no hay ubicación, usa valor por defecto |
-| Perfil forense | ✅ Muestra "No especificado" si no hay datos |
-| Filtro por zona | ✅ Sin cambios - usa `zona_base` existente |
+| Secret | Descripción |
+|--------|-------------|
+| `PIPEDRIVE_WEBHOOK_SECRET` | Token para validar webhooks entrantes |
+| `PIPEDRIVE_API_TOKEN` | (Opcional) Para sincronización inicial |
 
 ---
 
-## Flujo de Usuario Final
+## Roles y Acceso
 
 ```text
-1. Supply completa entrevista → Captura dirección y estado
-2. Candidato aprobado → Inicia proceso de liberación
-3. Supply abre modal de liberación
-   └── Sección "Ubicación" prellenada con datos de entrevista
-   └── Supply verifica/corrige si es necesario
-4. Supply hace clic en "Liberar"
-   └── RPC propaga estado_residencia → zona_base
-5. Planeación ve custodio con zona_base correcta
-6. Perfil Forense muestra ubicación completa
+ROLES CON ACCESO AL CRM HUB:
+├── admin / owner:          Acceso completo + configuración
+├── ejecutivo_ventas:       Pipeline + Forecast + Actividades
+├── coordinador_operaciones: Solo lectura Clientes → Servicios
+└── supply_admin:           Solo lectura
 ```
 
 ---
 
-## Tests de Verificación
+## Métricas del Dashboard
 
-1. **Nuevo custodio con ubicación:** Liberarlo → zona_base = estado de residencia ✅
-2. **Nuevo custodio sin ubicación:** Liberarlo → zona_base = "Por asignar" ✅
-3. **Editar ubicación en liberación:** Cambiar estado → zona_base actualizada ✅
-4. **Perfil forense:** Mostrar dirección y estado correctamente ✅
-5. **Filtro por zona:** Incluye custodios de estados correctos ✅
+### KPIs Principales
+
+| Métrica | Fórmula | Objetivo |
+|---------|---------|----------|
+| Pipeline Value | SUM(deals.value WHERE status='open') | Visibilidad |
+| Weighted Forecast | SUM(value * probability) | Proyección |
+| Win Rate | Won / (Won + Lost) * 100 | > 30% |
+| Avg Deal Size | SUM(won.value) / COUNT(won) | Crecimiento |
+| Sales Velocity | (Deals * Win% * Avg$) / Cycle Days | Eficiencia |
+| Deal → Service Conversion | GMV Real / Deal Value * 100 | > 100% |
+
+---
+
+## Flujo de Usuario
+
+```text
+1. Ventas crea deal en Pipedrive
+   └── Webhook → crm_deals (nuevo registro)
+
+2. Deal avanza de etapa en Pipedrive
+   └── Webhook → crm_deal_stage_history (registro de cambio)
+   └── UI actualiza kanban en tiempo real
+
+3. Deal se cierra como "Won"
+   └── Webhook → crm_deals.status = 'won'
+   └── Auto-match busca cliente en servicios_custodia
+   └── Si match: vincula pc_cliente_id
+   └── Si no: crea registro en pc_clientes
+
+4. Usuario revisa CRM Hub
+   └── Ve pipeline, forecast, y GMV real vs. proyectado
+   └── Puede corregir matching manual si es necesario
+
+5. Reportes ejecutivos
+   └── Comparación Deal Value vs. GMV generado
+   └── Identificación de clientes high-value
+   └── Análisis de ciclo de ventas
+```
+
+---
+
+## Dependencias
+
+### Pre-requisitos
+1. Secret `PIPEDRIVE_WEBHOOK_SECRET` configurado en Supabase
+2. Webhook configurado en Pipedrive apuntando a la Edge Function
+3. Sincronización inicial de pipeline stages (one-time)
+
+### Datos Iniciales
+- Pipeline stages de Pipedrive (manual o via API)
+- Mapeo inicial de clientes existentes (339 sin vincular)
+
+---
+
+## Consideraciones de Seguridad
+
+- Webhook valida signature de Pipedrive antes de procesar
+- RLS policies en tablas CRM para roles autorizados
+- Logs de auditoría en todas las operaciones de sync
+- No se almacenan datos sensibles de clientes (solo operativos)
+
+---
+
+## Sección Técnica
+
+### Edge Function: Pipedrive Webhook Handler
+
+```typescript
+// Pseudocódigo de validación
+const signature = req.headers.get('x-pipedrive-signature');
+const isValid = await validatePipedriveSignature(signature, body);
+if (!isValid) return new Response('Unauthorized', { status: 401 });
+
+// Routing por evento
+switch (payload.event) {
+  case 'added.deal':
+    await handleDealCreated(payload.current);
+    break;
+  case 'updated.deal':
+    await handleDealUpdated(payload.current, payload.previous);
+    break;
+  case 'deleted.deal':
+    await handleDealDeleted(payload.previous);
+    break;
+}
+```
+
+### Algoritmo de Matching
+
+```typescript
+function matchClient(dealOrgName: string): MatchResult {
+  // 1. Normalizar nombre
+  const normalized = normalizeCompanyName(dealOrgName);
+  
+  // 2. Buscar exacto
+  const exact = await findExactMatch(normalized);
+  if (exact) return { match: exact, confidence: 1.0 };
+  
+  // 3. Fuzzy match
+  const fuzzy = await findFuzzyMatch(normalized);
+  if (fuzzy && fuzzy.score > 0.85) {
+    return { match: fuzzy.client, confidence: fuzzy.score };
+  }
+  
+  // 4. Sin match - pendiente revisión manual
+  return { match: null, confidence: 0 };
+}
+```
+
+### Estructura de Tipos
+
+```typescript
+interface CrmDeal {
+  id: string;
+  pipedrive_id: number;
+  title: string;
+  organization_name: string;
+  value: number;
+  stage_id: string;
+  status: 'open' | 'won' | 'lost';
+  probability: number;
+  expected_close_date?: Date;
+  pc_cliente_id?: string;
+  matched_client_name?: string;
+  match_confidence?: number;
+}
+
+interface PipelineForecast {
+  stage_name: string;
+  deal_probability: number;
+  deals_count: number;
+  total_value: number;
+  weighted_value: number;
+}
+```
+
