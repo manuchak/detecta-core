@@ -67,6 +67,11 @@ export interface CustodioLiberacion {
   fecha_liberacion?: string;
   notas_liberacion?: string;
   
+  // Ubicación de Residencia
+  direccion_residencia?: string;
+  estado_residencia_id?: string;
+  ciudad_residencia?: string;
+  
   // Metadata
   created_at: string;
   updated_at: string;
@@ -79,6 +84,12 @@ export interface CustodioLiberacion {
     email?: string;
     zona_preferida_id?: string;
     vehiculo_propio?: boolean;
+  };
+  
+  // Relación expandida para estado
+  estado_residencia?: {
+    id: string;
+    nombre: string;
   };
 }
 

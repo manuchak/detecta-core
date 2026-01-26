@@ -121,7 +121,7 @@ export const useCustodioLiberacion = () => {
     }
   });
 
-  // Actualizar checklist (incluye datos de contacto del candidato)
+  // Actualizar checklist (incluye datos de contacto del candidato y ubicación)
   const updateChecklist = useMutation({
     mutationFn: async ({ 
       id, 
@@ -130,12 +130,31 @@ export const useCustodioLiberacion = () => {
     }: { 
       id: string; 
       updates: Partial<CustodioLiberacion>;
-      candidatoUpdates?: { nombre?: string; telefono?: string; email?: string; vehiculo_propio?: boolean };
+      candidatoUpdates?: { 
+        nombre?: string; 
+        telefono?: string; 
+        email?: string; 
+        vehiculo_propio?: boolean;
+      };
     }) => {
-      // Actualizar liberación
+      // Preparar updates de liberación incluyendo campos de ubicación
+      const liberacionUpdates: Record<string, unknown> = { ...updates };
+      
+      // Asegurar que los campos de ubicación se incluyan si existen en updates
+      if ('direccion_residencia' in updates) {
+        liberacionUpdates.direccion_residencia = updates.direccion_residencia;
+      }
+      if ('estado_residencia_id' in updates) {
+        liberacionUpdates.estado_residencia_id = updates.estado_residencia_id;
+      }
+      if ('ciudad_residencia' in updates) {
+        liberacionUpdates.ciudad_residencia = updates.ciudad_residencia;
+      }
+      
+      // Actualizar liberación con campos de ubicación
       const { data, error } = await supabase
         .from('custodio_liberacion')
-        .update(updates)
+        .update(liberacionUpdates)
         .eq('id', id)
         .select('candidato_id')
         .single();
