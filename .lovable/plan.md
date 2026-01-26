@@ -1,16 +1,19 @@
 
-# Plan: Filtro de Fecha para Tab de Clientes (CRM Hub)
+
+# Plan: Corregir Filtro de Fecha en Tab Clientes
 
 ## Problema Identificado
 
-La tab "Clientes" actualmente muestra **todos los deals** (open y won) sin límite temporal. Esto resulta en:
-- 178 deals totales con solo 15% vinculados
-- Deals antiguos (como 23/12/24) mezclados con recientes
-- Métricas infladas que no reflejan la realidad operativa actual
+El filtro de fecha usa `created_at` (fecha de sincronización a Supabase: 26 enero 2026) en lugar de la fecha real de creación del deal en Pipedrive (`add_time`).
 
-## Solución Propuesta
+**Datos actuales:**
+- 178 deals tienen `created_at = 2026-01-26` (hoy, fecha de sync)
+- El `pipedrive_data.add_time` contiene la fecha real (ej: "2022-10-17")
+- Por eso el filtro "últimos 6 meses" muestra los 178 deals
 
-Implementar un filtro de fecha de **6 meses** por defecto, con opción de ver más si es necesario.
+## Solución
+
+Cambiar la lógica de filtrado para usar `pipedrive_data->>'add_time'` o `expected_close_date` como fecha de referencia.
 
 ---
 
@@ -18,57 +21,81 @@ Implementar un filtro de fecha de **6 meses** por defecto, con opción de ver m�
 
 ### Archivo: `src/hooks/useCrmClientMatcher.ts`
 
-**Modificar la query en `useCrmClientMatches`:**
-
-```text
-ANTES:
-.eq('is_deleted', false)
-.in('status', ['open', 'won'])
-
-DESPUES:
-.eq('is_deleted', false)
-.in('status', ['open', 'won'])
-.gte('created_at', sixMonthsAgo)  // Nuevo filtro
+**Problema actual (línea 38):**
+```typescript
+query = query.gte('created_at', cutoffDate);
 ```
 
-Agregar parámetro opcional para override del rango:
+**Opción A - Usar campo JSONB de Pipedrive:**
+
+Supabase permite filtrar por campos JSONB. Podemos filtrar por `pipedrive_data->>'add_time'`:
 
 ```typescript
-export function useCrmClientMatches(dateFilter?: { months: number }) {
-  const months = dateFilter?.months ?? 6;
-  const cutoffDate = new Date();
-  cutoffDate.setMonth(cutoffDate.getMonth() - months);
-  const sixMonthsAgo = cutoffDate.toISOString();
-  
-  // ... query con filtro .gte('created_at', sixMonthsAgo)
-}
+// En lugar de filtrar en Supabase (más complejo con JSONB),
+// traer todos y filtrar en JavaScript
+const { data: deals } = await query.order('value', { ascending: false });
+
+// Filtrar por add_time de Pipedrive
+const filteredDeals = deals?.filter(deal => {
+  if (!cutoffDate) return true;
+  const addTime = deal.pipedrive_data?.add_time;
+  if (!addTime) return true; // Incluir deals sin fecha
+  return new Date(addTime) >= new Date(cutoffDate);
+});
 ```
 
-### Archivo: `src/pages/CRMHub/components/ClientServicesLink.tsx`
+**Opción B - Agregar columna `pipedrive_add_time` (mejor long-term):**
 
-**Agregar selector de rango temporal:**
+Modificar la sincronización de Pipedrive para extraer `add_time` a una columna real, luego filtrar normalmente.
+
+---
+
+## Implementación Recomendada (Opción A - rápida)
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  [Últimos 6 meses ▼]  [Toggle: Solo pendientes]                        │
-│                                                                         │
-│  Opciones del dropdown:                                                 │
-│  - Últimos 3 meses                                                      │
-│  - Últimos 6 meses (default)                                           │
-│  - Último año                                                           │
-│  - Todos los deals                                                      │
-└─────────────────────────────────────────────────────────────────────────┘
+Archivo: src/hooks/useCrmClientMatcher.ts
+
+1. Agregar pipedrive_data al SELECT
+2. Filtrar en JavaScript por pipedrive_data.add_time
+3. Mantener el cutoffDate calculado igual
 ```
 
-**Actualizar el Hero Card para mostrar el contexto temporal:**
+### Cambios específicos:
 
-```text
-ANTES:
-"26 de 178 deals tienen cliente asignado"
+```typescript
+// Línea 32-33: Agregar pipedrive_data al SELECT
+.select('id, title, organization_name, matched_client_name, match_confidence, value, pipedrive_data')
 
-DESPUES:
-"26 de 52 deals (últimos 6 meses) tienen cliente asignado"
+// Líneas 37-39: Remover filtro .gte en Supabase
+// if (cutoffDate) {
+//   query = query.gte('created_at', cutoffDate);
+// }
+
+// Después de línea 46: Filtrar en JavaScript
+const filteredDeals = (deals || []).filter(deal => {
+  if (!cutoffDate) return true;
+  const pipedriveData = deal.pipedrive_data as { add_time?: string } | null;
+  const addTime = pipedriveData?.add_time;
+  if (!addTime) return true; // Incluir deals sin fecha de Pipedrive
+  return new Date(addTime) >= new Date(cutoffDate);
+});
+
+// Usar filteredDeals en el map final
+return filteredDeals.map(deal => { ... });
 ```
+
+---
+
+## Resultado Esperado
+
+| Filtro | Antes | Después |
+|--------|-------|---------|
+| Últimos 3 meses | 178 deals | ~20-30 deals (estimado) |
+| Últimos 6 meses | 178 deals | ~40-60 deals (estimado) |
+| Último año | 178 deals | ~80-100 deals (estimado) |
+| Todos | 178 deals | 178 deals |
+
+La tarjeta mostrará estadísticas correctas basadas en cuándo se creó realmente el deal en Pipedrive, no cuándo se sincronizó.
 
 ---
 
@@ -76,28 +103,5 @@ DESPUES:
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/hooks/useCrmClientMatcher.ts` | Agregar filtro de fecha a la query, aceptar parámetro de meses |
-| `src/pages/CRMHub/components/ClientServicesLink.tsx` | Agregar dropdown de rango temporal, pasar parámetro al hook |
+| `src/hooks/useCrmClientMatcher.ts` | Agregar `pipedrive_data` al SELECT, filtrar por `add_time` en JavaScript |
 
----
-
-## Beneficios Esperados
-
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| Total deals mostrados | 178 | ~50-60 (estimado) |
-| % Vinculados | 15% | ~40-50% (más realista) |
-| Deals pendientes | 152 | ~30-40 (accionables) |
-| Enfoque del equipo | Disperso | En deals recientes |
-
----
-
-## Comportamiento por Defecto
-
-- **Default**: Últimos 6 meses
-- **Razón**: Balance entre suficiente historial para análisis y relevancia operativa
-- **Override**: Usuario puede cambiar a 3 meses, 12 meses, o "Todos" si lo necesita
-
-## Consistencia con Otras Tabs
-
-Otras tabs del CRM (Pipeline, Forecast) pueden beneficiarse del mismo filtro en el futuro, pero por ahora nos enfocamos en la tab de Clientes donde el problema es más evidente.
