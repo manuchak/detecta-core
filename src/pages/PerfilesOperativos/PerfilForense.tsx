@@ -19,6 +19,7 @@ import { InformacionPersonalTab } from './components/tabs/InformacionPersonalTab
 import { PerformanceServiciosTab } from './components/tabs/PerformanceServiciosTab';
 import { EconomicsTab } from './components/tabs/EconomicsTab';
 import { EvaluacionesTab } from './components/tabs/EvaluacionesTab';
+import { ArmadoEvaluacionesTab } from './components/tabs/ArmadoEvaluacionesTab';
 import { DocumentacionTab } from './components/tabs/DocumentacionTab';
 import { CapacitacionTab } from './components/tabs/CapacitacionTab';
 import { HistoricoTab } from './components/tabs/HistoricoTab';
@@ -134,10 +135,17 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="evaluaciones">
-          <EvaluacionesTab 
-            candidatoId={candidatoId} 
-            candidatoNombre={profile.nombre} 
-          />
+          {tipo === 'custodio' ? (
+            <EvaluacionesTab 
+              candidatoId={candidatoId} 
+              candidatoNombre={profile.nombre} 
+            />
+          ) : (
+            <ArmadoEvaluacionesTab 
+              armadoId={id!} 
+              armadoNombre={profile.nombre}
+            />
+          )}
         </TabsContent>
         
         <TabsContent value="documentacion">

@@ -33,7 +33,7 @@ export function CustodiosDataTable({ data }: CustodiosDataTableProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
-  const [activityFilter, setActivityFilter] = useState<string>('all');
+  const [activityFilter, setActivityFilter] = useState<string>('activo');
   
   // Get unique zones for filter
   const zones = useMemo(() => {

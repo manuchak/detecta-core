@@ -42,6 +42,9 @@ export interface ArmadoProfile {
   fecha_ultimo_servicio: string | null;
   score_total: number | null;
   created_at: string;
+  // Calculated fields
+  dias_sin_actividad: number;
+  nivel_actividad: 'activo' | 'moderado' | 'inactivo' | 'sin_actividad';
 }
 
 export interface ArchivedProfile {
@@ -156,7 +159,14 @@ export function useOperativeProfiles() {
       
       if (error) throw error;
       
-      return (data || []) as ArmadoProfile[];
+      return (data || []).map(a => {
+        const { diasSinActividad, nivel } = calculateActivityLevel(a.fecha_ultimo_servicio);
+        return {
+          ...a,
+          dias_sin_actividad: diasSinActividad,
+          nivel_actividad: nivel
+        } as ArmadoProfile;
+      });
     },
     staleTime: 5 * 60 * 1000
   });
