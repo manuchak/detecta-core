@@ -98,6 +98,7 @@ const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado
 const LMSReportes = lazy(() => import('@/pages/LMS/LMSReportes'));
 const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazy(() => import('@/pages/LMS/LMSAdminCursoEditar'));
+const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 
 // Components
@@ -279,6 +280,20 @@ function App() {
                           <ReportsPage />
                         </UnifiedLayout>
                       </PermissionProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* CRM Hub */}
+                <Route
+                  path="/crm"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi']}>
+                        <UnifiedLayout>
+                          <CRMHub />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />

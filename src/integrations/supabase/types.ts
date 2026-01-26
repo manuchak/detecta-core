@@ -2614,6 +2614,278 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_activities: {
+        Row: {
+          created_at: string | null
+          deal_id: string | null
+          done: boolean | null
+          due_date: string | null
+          duration_minutes: number | null
+          id: string
+          note: string | null
+          owner_name: string | null
+          pipedrive_data: Json | null
+          pipedrive_id: number | null
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          deal_id?: string | null
+          done?: boolean | null
+          due_date?: string | null
+          duration_minutes?: number | null
+          id?: string
+          note?: string | null
+          owner_name?: string | null
+          pipedrive_data?: Json | null
+          pipedrive_id?: number | null
+          subject?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          deal_id?: string | null
+          done?: boolean | null
+          due_date?: string | null
+          duration_minutes?: number | null
+          id?: string
+          note?: string | null
+          owner_name?: string | null
+          pipedrive_data?: Json | null
+          pipedrive_id?: number | null
+          subject?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_stage_history: {
+        Row: {
+          changed_at: string | null
+          deal_id: string
+          from_stage_id: string | null
+          id: string
+          time_in_previous_stage: unknown
+          to_stage_id: string | null
+        }
+        Insert: {
+          changed_at?: string | null
+          deal_id: string
+          from_stage_id?: string | null
+          id?: string
+          time_in_previous_stage?: unknown
+          to_stage_id?: string | null
+        }
+        Update: {
+          changed_at?: string | null
+          deal_id?: string
+          from_stage_id?: string | null
+          id?: string
+          time_in_previous_stage?: unknown
+          to_stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_stage_history_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_stage_history_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_forecast_view"
+            referencedColumns: ["stage_id"]
+          },
+          {
+            foreignKeyName: "crm_deal_stage_history_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_stage_history_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_forecast_view"
+            referencedColumns: ["stage_id"]
+          },
+          {
+            foreignKeyName: "crm_deal_stage_history_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          expected_close_date: string | null
+          id: string
+          is_deleted: boolean | null
+          lost_reason: string | null
+          lost_time: string | null
+          match_confidence: number | null
+          matched_client_name: string | null
+          organization_name: string | null
+          owner_id: number | null
+          owner_name: string | null
+          person_email: string | null
+          person_name: string | null
+          person_phone: string | null
+          pipedrive_data: Json | null
+          pipedrive_id: number | null
+          probability: number | null
+          stage_id: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          value: number | null
+          won_time: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          expected_close_date?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          lost_reason?: string | null
+          lost_time?: string | null
+          match_confidence?: number | null
+          matched_client_name?: string | null
+          organization_name?: string | null
+          owner_id?: number | null
+          owner_name?: string | null
+          person_email?: string | null
+          person_name?: string | null
+          person_phone?: string | null
+          pipedrive_data?: Json | null
+          pipedrive_id?: number | null
+          probability?: number | null
+          stage_id?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          value?: number | null
+          won_time?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          expected_close_date?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          lost_reason?: string | null
+          lost_time?: string | null
+          match_confidence?: number | null
+          matched_client_name?: string | null
+          organization_name?: string | null
+          owner_id?: number | null
+          owner_name?: string | null
+          person_email?: string | null
+          person_name?: string | null
+          person_phone?: string | null
+          pipedrive_data?: Json | null
+          pipedrive_id?: number | null
+          probability?: number | null
+          stage_id?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          value?: number | null
+          won_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_forecast_view"
+            referencedColumns: ["stage_id"]
+          },
+          {
+            foreignKeyName: "crm_deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipeline_stages: {
+        Row: {
+          created_at: string | null
+          deal_probability: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          order_nr: number | null
+          pipedrive_id: number
+          pipeline_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deal_probability?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          order_nr?: number | null
+          pipedrive_id: number
+          pipeline_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deal_probability?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          order_nr?: number | null
+          pipedrive_id?: number
+          pipeline_name?: string | null
+        }
+        Relationships: []
+      }
+      crm_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          processed?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean | null
+        }
+        Relationships: []
+      }
       custodian_invitations: {
         Row: {
           batch_id: string | null
@@ -13847,6 +14119,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crm_forecast_view: {
+        Row: {
+          deal_probability: number | null
+          deals_count: number | null
+          order_nr: number | null
+          stage_id: string | null
+          stage_name: string | null
+          total_value: number | null
+          weighted_value: number | null
+        }
+        Relationships: []
       }
       custodios_operativos_activos: {
         Row: {
