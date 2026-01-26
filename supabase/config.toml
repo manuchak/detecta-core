@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.pipedrive-webhook]
 verify_jwt = false
+
+[functions.pipedrive-sync]
+verify_jwt = true
