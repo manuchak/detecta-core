@@ -27,23 +27,27 @@ export function useCrmClientMatches(filter?: CrmClientMatchFilter) {
         cutoffDate = date.toISOString();
       }
 
-      // Get open and won deals with optional date filter
-      let query = supabase
+      // Get open and won deals - we'll filter by pipedrive add_time in JS
+      const { data: deals, error: dealsError } = await supabase
         .from('crm_deals')
-        .select('id, title, organization_name, matched_client_name, match_confidence, value')
+        .select('id, title, organization_name, matched_client_name, match_confidence, value, pipedrive_data')
         .eq('is_deleted', false)
-        .in('status', ['open', 'won']);
-
-      if (cutoffDate) {
-        query = query.gte('created_at', cutoffDate);
-      }
-
-      const { data: deals, error: dealsError } = await query.order('value', { ascending: false });
+        .in('status', ['open', 'won'])
+        .order('value', { ascending: false });
 
       if (dealsError) {
         console.error('Error fetching deals for matching:', dealsError);
         throw dealsError;
       }
+
+      // Filter by pipedrive add_time (real deal creation date) instead of created_at (sync date)
+      const filteredDeals = (deals || []).filter(deal => {
+        if (!cutoffDate) return true;
+        const pipedriveData = deal.pipedrive_data as { add_time?: string } | null;
+        const addTime = pipedriveData?.add_time;
+        if (!addTime) return true; // Include deals without pipedrive date
+        return new Date(addTime) >= new Date(cutoffDate);
+      });
 
       // Get GMV by client from servicios_custodia
       const { data: gmvData, error: gmvError } = await supabase
@@ -64,7 +68,7 @@ export function useCrmClientMatches(filter?: CrmClientMatchFilter) {
         }
       });
 
-      return (deals || []).map(deal => {
+      return filteredDeals.map(deal => {
         const matchedName = deal.matched_client_name?.toUpperCase().trim() || '';
         const gmvReal = matchedName ? gmvByClient[matchedName] || null : null;
 
