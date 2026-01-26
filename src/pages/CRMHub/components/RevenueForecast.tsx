@@ -2,8 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { useCrmForecast, useCrmMetrics } from '@/hooks/useCrmForecast';
-import { TrendingUp, TrendingDown, DollarSign, Target, Percent, BarChart3 } from 'lucide-react';
+import { useCrmTrends } from '@/hooks/useCrmTrends';
+import { TrendingUp, TrendingDown, DollarSign, Target, Percent, BarChart3, Zap, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number): string {
   if (value >= 1000000) {
@@ -34,27 +36,38 @@ interface MetricCardProps {
   icon: React.ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
+  progressValue?: number;
+  progressLabel?: string;
 }
 
-function MetricCard({ title, value, subtitle, icon, trend, trendValue }: MetricCardProps) {
+function MetricCard({ title, value, subtitle, icon, trend, trendValue, progressValue, progressLabel }: MetricCardProps) {
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1">
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-2xl font-bold">{value}</p>
             {subtitle && (
               <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
             {trendValue && (
-              <div className={`flex items-center gap-1 text-xs ${
+              <div className={cn(
+                'flex items-center gap-1 text-xs',
                 trend === 'up' ? 'text-green-600' :
                 trend === 'down' ? 'text-red-600' : 'text-muted-foreground'
-              }`}>
+              )}>
                 {trend === 'up' && <TrendingUp className="h-3 w-3" />}
                 {trend === 'down' && <TrendingDown className="h-3 w-3" />}
                 <span>{trendValue}</span>
+              </div>
+            )}
+            {progressValue !== undefined && (
+              <div className="mt-2 space-y-1">
+                <Progress value={Math.min(100, progressValue)} className="h-1.5" />
+                {progressLabel && (
+                  <p className="text-xs text-muted-foreground">{progressLabel}</p>
+                )}
               </div>
             )}
           </div>
@@ -78,8 +91,9 @@ const STAGE_COLORS = [
 export default function RevenueForecast() {
   const { data: forecast, isLoading: forecastLoading } = useCrmForecast();
   const { data: metrics, isLoading: metricsLoading } = useCrmMetrics();
+  const { data: trends, isLoading: trendsLoading } = useCrmTrends();
 
-  const isLoading = forecastLoading || metricsLoading;
+  const isLoading = forecastLoading || metricsLoading || trendsLoading;
 
   if (isLoading) {
     return (
@@ -104,21 +118,37 @@ export default function RevenueForecast() {
 
   const maxWeighted = Math.max(...chartData.map(d => d.weighted), 1);
 
+  // Calculate trend indicators
+  const pipelineTrend: 'up' | 'down' | 'neutral' = trends?.pipelineValueChange 
+    ? trends.pipelineValueChange > 0 ? 'up' : 'down'
+    : 'neutral';
+
+  const pipelineTrendValue = trends?.pipelineValueChange 
+    ? `${trends.pipelineValueChange > 0 ? '+' : ''}${trends.pipelineValueChange.toFixed(1)}% vs mes ant.`
+    : undefined;
+
   return (
     <div className="space-y-6">
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Metric Cards - Enhanced */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <MetricCard
           title="Pipeline Total"
           value={formatCurrency(metrics?.totalPipelineValue || 0)}
           subtitle={`${metrics?.openDeals || 0} deals abiertos`}
           icon={<DollarSign className="h-5 w-5 text-primary" />}
+          trend={pipelineTrend}
+          trendValue={pipelineTrendValue}
         />
         <MetricCard
           title="Forecast Ponderado"
           value={formatCurrency(metrics?.weightedForecast || 0)}
           subtitle="Valor × probabilidad"
           icon={<Target className="h-5 w-5 text-primary" />}
+          progressValue={trends?.progressVsTarget || undefined}
+          progressLabel={trends?.monthlyTarget 
+            ? `${(trends.progressVsTarget || 0).toFixed(0)}% de meta`
+            : undefined
+          }
         />
         <MetricCard
           title="Win Rate"
@@ -131,6 +161,18 @@ export default function RevenueForecast() {
           value={formatCurrency(metrics?.avgDealSize || 0)}
           subtitle="Deals ganados"
           icon={<BarChart3 className="h-5 w-5 text-primary" />}
+        />
+        <MetricCard
+          title="Sales Velocity"
+          value={formatCurrency(metrics?.salesVelocity || 0)}
+          subtitle="Por día de cierre"
+          icon={<Zap className="h-5 w-5 text-amber-500" />}
+        />
+        <MetricCard
+          title="Ciclo Promedio"
+          value={`${metrics?.avgCycleTime || 0} días`}
+          subtitle="Lead → Won"
+          icon={<Clock className="h-5 w-5 text-primary" />}
         />
       </div>
 

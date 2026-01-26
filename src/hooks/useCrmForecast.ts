@@ -2,6 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CrmForecast, CrmMetrics } from '@/types/crm';
 
+export interface EnhancedCrmMetrics extends CrmMetrics {
+  // Sales velocity
+  salesVelocity: number; // $ per day
+  avgCycleTime: number; // days
+  
+  // Comparisons
+  pipelineChangePercent: number;
+  winRateChange: number; // percentage points
+}
+
 export function useCrmForecast() {
   return useQuery({
     queryKey: ['crm-forecast'],
@@ -33,11 +43,11 @@ export function useCrmForecast() {
 export function useCrmMetrics() {
   return useQuery({
     queryKey: ['crm-metrics'],
-    queryFn: async (): Promise<CrmMetrics> => {
+    queryFn: async (): Promise<EnhancedCrmMetrics> => {
       // Get all deals for metrics calculation
       const { data: deals, error } = await supabase
         .from('crm_deals')
-        .select('id, value, status, stage_id')
+        .select('id, value, status, stage_id, created_at, won_time')
         .eq('is_deleted', false);
 
       if (error) {
@@ -74,6 +84,24 @@ export function useCrmMetrics() {
         ? wonDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0) / wonDeals.length
         : 0;
 
+      // Calculate average cycle time for won deals
+      const cycleTimes = wonDeals
+        .filter(d => d.created_at && d.won_time)
+        .map(d => {
+          const created = new Date(d.created_at);
+          const won = new Date(d.won_time!);
+          return Math.floor((won.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+        });
+
+      const avgCycleTime = cycleTimes.length > 0
+        ? cycleTimes.reduce((sum, t) => sum + t, 0) / cycleTimes.length
+        : 30; // Default 30 days
+
+      // Sales Velocity = (Open Deals × Avg Deal Size × Win Rate) / Avg Cycle Time
+      const salesVelocity = avgCycleTime > 0
+        ? (openDeals.length * avgDealSize * (winRate / 100)) / avgCycleTime
+        : 0;
+
       return {
         totalPipelineValue,
         weightedForecast,
@@ -83,6 +111,10 @@ export function useCrmMetrics() {
         lostDeals: lostDeals.length,
         winRate,
         avgDealSize,
+        salesVelocity,
+        avgCycleTime: Math.round(avgCycleTime),
+        pipelineChangePercent: 0, // Will be calculated in useCrmTrends
+        winRateChange: 0, // Will be calculated in useCrmTrends
       };
     },
     staleTime: 60 * 1000, // 1 minute

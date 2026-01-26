@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, LayoutDashboard, TrendingUp, Users, Activity, Download } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, TrendingUp, Users, Activity, Download, GitBranch, Map } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -10,10 +10,14 @@ import PipelineKanban from './components/PipelineKanban';
 import RevenueForecast from './components/RevenueForecast';
 import ClientServicesLink from './components/ClientServicesLink';
 import ActivityFeed from './components/ActivityFeed';
+import ConversionSankeyChart from './components/ConversionSankeyChart';
+import PipelineMap from './components/PipelineMap';
 
 const TAB_MAP: Record<string, string> = {
   pipeline: 'pipeline',
   forecast: 'forecast',
+  flow: 'flow',
+  map: 'map',
   clients: 'clients',
   activity: 'activity',
 };
@@ -106,7 +110,7 @@ export default function CRMHub() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="pipeline" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Pipeline</span>
@@ -114,6 +118,14 @@ export default function CRMHub() {
           <TabsTrigger value="forecast" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Forecast</span>
+          </TabsTrigger>
+          <TabsTrigger value="flow" className="gap-2">
+            <GitBranch className="h-4 w-4" />
+            <span className="hidden sm:inline">Flujo</span>
+          </TabsTrigger>
+          <TabsTrigger value="map" className="gap-2">
+            <Map className="h-4 w-4" />
+            <span className="hidden sm:inline">Mapa</span>
           </TabsTrigger>
           <TabsTrigger value="clients" className="gap-2">
             <Users className="h-4 w-4" />
@@ -131,6 +143,14 @@ export default function CRMHub() {
 
         <TabsContent value="forecast" className="space-y-4">
           <RevenueForecast />
+        </TabsContent>
+
+        <TabsContent value="flow" className="space-y-4">
+          <ConversionSankeyChart />
+        </TabsContent>
+
+        <TabsContent value="map" className="space-y-4">
+          <PipelineMap />
         </TabsContent>
 
         <TabsContent value="clients" className="space-y-4">

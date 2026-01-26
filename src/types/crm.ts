@@ -121,3 +121,65 @@ export interface DealFilters {
   ownerName?: string;
   search?: string;
 }
+
+// Value tier for visual hierarchy
+export type DealValueTier = 'low' | 'medium' | 'high' | 'premium';
+
+export function getDealValueTier(value: number): DealValueTier {
+  if (value >= 500000) return 'premium';
+  if (value >= 200000) return 'high';
+  if (value >= 50000) return 'medium';
+  return 'low';
+}
+
+// Stalled detection
+export interface DealStalledStatus {
+  isStalled: boolean;
+  daysInStage: number;
+  avgDaysForStage: number;
+  severity: 'warning' | 'critical' | null;
+}
+
+// Sankey chart types
+export interface SankeyNode {
+  id: string;
+  name: string;
+  category: 'source' | 'zone' | 'stage' | 'outcome';
+}
+
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface SankeyData {
+  nodes: SankeyNode[];
+  links: SankeyLink[];
+}
+
+// Geographic distribution types
+export interface DealGeoDistribution {
+  zone: string;
+  zoneName: string;
+  lat: number;
+  lng: number;
+  dealsCount: number;
+  totalValue: number;
+  weightedValue: number;
+  deals: Array<{
+    id: string;
+    title: string;
+    value: number;
+    stage: string;
+  }>;
+}
+
+export interface SupplyGapAnalysis {
+  zone: string;
+  zoneName: string;
+  demandProjected: number; // weighted deals / avg ticket
+  supplyActual: number; // active custodians in zone
+  gap: number; // supply - demand (negative = deficit)
+  gapStatus: 'surplus' | 'balanced' | 'deficit' | 'critical';
+}
