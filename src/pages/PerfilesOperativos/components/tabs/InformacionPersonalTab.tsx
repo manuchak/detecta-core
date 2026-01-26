@@ -9,13 +9,15 @@ import {
   Calendar, 
   Shield,
   Award,
-  Clock
+  Clock,
+  Home
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { OperativeProfileFull, ArmadoProfileFull } from '../../hooks/useOperativeProfile';
 import { useProfileVehicle } from '../../hooks/useProfileVehicle';
 import { useProfileEconomics } from '../../hooks/useProfileEconomics';
+import { useProfileUbicacion } from '../../hooks/useProfileUbicacion';
 import { VehiculoCard } from './VehiculoCard';
 import { PermanenciaCard } from './PermanenciaCard';
 
@@ -34,6 +36,11 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
 
   // Obtener datos de economics para fecha de primer servicio (solo custodios)
   const { data: economics } = useProfileEconomics(isCustodio ? profile?.nombre : undefined);
+  
+  // Obtener datos de ubicación desde liberación (solo custodios)
+  const { data: ubicacionData } = useProfileUbicacion(
+    isCustodio ? custodioProfile?.pc_custodio_id || undefined : undefined
+  );
 
   // Calcular fecha de inicio REAL: la más antigua entre created_at y primer servicio
   const fechaInicioReal = useMemo(() => {
@@ -132,6 +139,56 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
         fechaUltimoServicio={isCustodio ? custodioProfile?.fecha_ultimo_servicio || null : null}
         numeroServicios={profile.numero_servicios}
       />
+
+      {/* Ubicación de Residencia (solo custodios) */}
+      {isCustodio && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Ubicación de Residencia
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {ubicacionData ? (
+              <>
+                {ubicacionData.direccion && (
+                  <InfoRow 
+                    icon={MapPin} 
+                    label="Dirección" 
+                    value={ubicacionData.direccion} 
+                  />
+                )}
+                {ubicacionData.ciudad && (
+                  <InfoRow 
+                    icon={MapPin} 
+                    label="Ciudad" 
+                    value={ubicacionData.ciudad} 
+                  />
+                )}
+                <InfoRow 
+                  icon={MapPin} 
+                  label="Estado / Zona Base" 
+                  value={
+                    ubicacionData.estadoNombre ? (
+                      <Badge className="bg-emerald-600 hover:bg-emerald-700">
+                        {ubicacionData.estadoNombre}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">{profile.zona_base || 'No especificado'}</span>
+                    )
+                  } 
+                />
+              </>
+            ) : (
+              <div className="py-3 text-center text-muted-foreground text-sm">
+                <p>Zona base actual: <Badge variant="outline">{profile.zona_base || 'No especificada'}</Badge></p>
+                <p className="mt-1 text-xs">Ubicación detallada no disponible</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Vehículo (solo si tiene vehículo propio) */}
       {isCustodio && custodioProfile && (

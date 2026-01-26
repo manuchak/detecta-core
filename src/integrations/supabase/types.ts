@@ -2869,8 +2869,10 @@ export type Database = {
         Row: {
           aprobado_por_supply: string | null
           candidato_id: string
+          ciudad_residencia: string | null
           created_at: string | null
           created_by: string | null
+          direccion_residencia: string | null
           documentacion_antecedentes: boolean | null
           documentacion_completa: boolean | null
           documentacion_curp: boolean | null
@@ -2879,6 +2881,7 @@ export type Database = {
           documentacion_licencia: boolean | null
           documentacion_rfc: boolean | null
           estado_liberacion: string
+          estado_residencia_id: string | null
           fecha_aprobacion_supply: string | null
           fecha_documentacion_completa: string | null
           fecha_instalacion_gps: string | null
@@ -2919,8 +2922,10 @@ export type Database = {
         Insert: {
           aprobado_por_supply?: string | null
           candidato_id: string
+          ciudad_residencia?: string | null
           created_at?: string | null
           created_by?: string | null
+          direccion_residencia?: string | null
           documentacion_antecedentes?: boolean | null
           documentacion_completa?: boolean | null
           documentacion_curp?: boolean | null
@@ -2929,6 +2934,7 @@ export type Database = {
           documentacion_licencia?: boolean | null
           documentacion_rfc?: boolean | null
           estado_liberacion?: string
+          estado_residencia_id?: string | null
           fecha_aprobacion_supply?: string | null
           fecha_documentacion_completa?: string | null
           fecha_instalacion_gps?: string | null
@@ -2969,8 +2975,10 @@ export type Database = {
         Update: {
           aprobado_por_supply?: string | null
           candidato_id?: string
+          ciudad_residencia?: string | null
           created_at?: string | null
           created_by?: string | null
+          direccion_residencia?: string | null
           documentacion_antecedentes?: boolean | null
           documentacion_completa?: boolean | null
           documentacion_curp?: boolean | null
@@ -2979,6 +2987,7 @@ export type Database = {
           documentacion_licencia?: boolean | null
           documentacion_rfc?: boolean | null
           estado_liberacion?: string
+          estado_residencia_id?: string | null
           fecha_aprobacion_supply?: string | null
           fecha_documentacion_completa?: string | null
           fecha_instalacion_gps?: string | null
@@ -3037,6 +3046,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_capacitacion_progreso_candidato"
             referencedColumns: ["candidato_id"]
+          },
+          {
+            foreignKeyName: "custodio_liberacion_estado_residencia_id_fkey"
+            columns: ["estado_residencia_id"]
+            isOneToOne: false
+            referencedRelation: "estados"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "custodio_liberacion_pc_custodio_id_fkey"

@@ -36,6 +36,9 @@ import { LiberacionSuccessModal } from './LiberacionSuccessModal';
 import { useDocumentosCandidato, TipoDocumento } from '@/hooks/useDocumentosCandidato';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 import { usePersistedForm } from '@/hooks/usePersistedForm';
+import { useCandidatoUbicacion } from '@/hooks/useCandidatoUbicacion';
+import { useEstadosYCiudades } from '@/hooks/useEstadosYCiudades';
+import { MapPin, Home, AlertCircle } from 'lucide-react';
 
 interface LiberacionChecklistModalProps {
   liberacion: CustodioLiberacion;
@@ -51,6 +54,11 @@ interface LiberacionDraftData {
     nombre: string;
     telefono: string;
     email: string;
+  };
+  ubicacion: {
+    direccion: string;
+    estadoId: string;
+    ciudad: string;
   };
   tieneVehiculoPropio: boolean;
 }
@@ -78,6 +86,10 @@ const LiberacionChecklistModal = ({
   // Hooks para obtener datos del workflow anterior
   const { data: documentosExistentes } = useDocumentosCandidato(initialLiberacion.candidato_id);
   const { data: evaluacionPsicometrica } = useLatestEvaluacionPsicometrica(initialLiberacion.candidato_id);
+  
+  // Hook para obtener ubicación desde leads (entrevista)
+  const { data: ubicacionCandidato, isLoading: loadingUbicacion } = useCandidatoUbicacion(initialLiberacion.candidato_id);
+  const { estados, loadingEstados } = useEstadosYCiudades();
 
   // ✅ FIX: Guard para evitar reset durante hidratación del hook
   const hydrationCompleteRef = useRef(false);
@@ -108,6 +120,11 @@ const LiberacionChecklistModal = ({
         telefono: initialLiberacion.candidato?.telefono || '',
         email: initialLiberacion.candidato?.email || '',
       },
+      ubicacion: {
+        direccion: initialLiberacion.direccion_residencia || '',
+        estadoId: initialLiberacion.estado_residencia_id || '',
+        ciudad: initialLiberacion.ciudad_residencia || '',
+      },
       tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false,
     },
     hydrateOnMount: true,
@@ -135,6 +152,7 @@ const LiberacionChecklistModal = ({
   // Extraer datos del draft para uso local
   const liberacion = draftData.liberacion as CustodioLiberacion;
   const datosContacto = draftData.datosContacto;
+  const ubicacion = draftData.ubicacion;
   const tieneVehiculoPropio = draftData.tieneVehiculoPropio;
 
   // Mapeo de documentos validados a checkboxes
@@ -195,6 +213,11 @@ const LiberacionChecklistModal = ({
             nombre: initialLiberacion.candidato?.nombre || '',
             telefono: initialLiberacion.candidato?.telefono || '',
             email: initialLiberacion.candidato?.email || ''
+          },
+          ubicacion: {
+            direccion: initialLiberacion.direccion_residencia || '',
+            estadoId: initialLiberacion.estado_residencia_id || '',
+            ciudad: initialLiberacion.ciudad_residencia || '',
           },
           tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
         });
@@ -258,6 +281,38 @@ const LiberacionChecklistModal = ({
     setPrefillApplied(prev => ({ ...prev, psico: true }));
   }, [psicoPrefillData, prefillApplied.psico, updateDraft]);
 
+  // Prellenar ubicación desde datos de entrevista (leads)
+  const lastUbicacionPrefillHashRef = useRef<string>('');
+  const [ubicacionPrefillApplied, setUbicacionPrefillApplied] = useState(false);
+  
+  useEffect(() => {
+    if (!ubicacionCandidato || ubicacionPrefillApplied) return;
+    if (!hydrationCompleteRef.current) return;
+    
+    // Solo prefill si hay datos y el draft no tiene ubicación
+    const hasExistingUbicacion = ubicacion.direccion || ubicacion.estadoId;
+    if (hasExistingUbicacion) {
+      setUbicacionPrefillApplied(true);
+      return;
+    }
+    
+    const currentHash = JSON.stringify(ubicacionCandidato);
+    if (currentHash === lastUbicacionPrefillHashRef.current) return;
+    
+    lastUbicacionPrefillHashRef.current = currentHash;
+    console.log('📋 [LiberacionChecklist] Applying ubicacion prefill:', ubicacionCandidato.estadoNombre);
+    
+    updateDraft(prev => ({
+      ...prev,
+      ubicacion: {
+        direccion: ubicacionCandidato.direccion || prev.ubicacion.direccion,
+        estadoId: ubicacionCandidato.estadoId || prev.ubicacion.estadoId,
+        ciudad: ubicacionCandidato.ciudadNombre || prev.ubicacion.ciudad,
+      }
+    }));
+    setUbicacionPrefillApplied(true);
+  }, [ubicacionCandidato, ubicacionPrefillApplied, ubicacion, updateDraft]);
+
   const progress = calculateProgress(liberacion);
 
   const handleCheckboxChange = (field: keyof CustodioLiberacion, value: boolean) => {
@@ -288,12 +343,33 @@ const LiberacionChecklistModal = ({
     }));
   };
 
+  const handleUbicacionChange = (field: 'direccion' | 'estadoId' | 'ciudad', value: string) => {
+    updateDraft(prev => ({
+      ...prev,
+      ubicacion: { ...prev.ubicacion, [field]: value }
+    }));
+  };
+
+  // Obtener nombre del estado seleccionado para mostrar zona base
+  const estadoSeleccionado = useMemo(() => {
+    if (!ubicacion.estadoId || !estados.length) return null;
+    return estados.find(e => e.id === ubicacion.estadoId);
+  }, [ubicacion.estadoId, estados]);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // Incluir campos de ubicación en el update de liberación
+      const liberacionConUbicacion = {
+        ...liberacion,
+        direccion_residencia: ubicacion.direccion || undefined,
+        estado_residencia_id: ubicacion.estadoId || undefined,
+        ciudad_residencia: ubicacion.ciudad || undefined,
+      };
+      
       await updateChecklist.mutateAsync({
         id: liberacion.id,
-        updates: liberacion,
+        updates: liberacionConUbicacion,
         candidatoUpdates: {
           nombre: datosContacto.nombre,
           telefono: datosContacto.telefono,
@@ -394,7 +470,7 @@ const LiberacionChecklistModal = ({
           <LiberacionProgressBar progress={progress} />
 
           {/* Checklist Accordion */}
-          <Accordion type="multiple" defaultValue={['contacto', 'docs', 'psico', 'toxico', 'vehiculo', 'gps']}>
+          <Accordion type="multiple" defaultValue={['contacto', 'ubicacion', 'docs', 'psico', 'toxico', 'vehiculo', 'gps']}>
             {/* 0. Información de Contacto - EDITABLE */}
             <AccordionItem value="contacto">
               <AccordionTrigger>
@@ -441,6 +517,95 @@ const LiberacionChecklistModal = ({
                     />
                   </div>
                 </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* 0.5. Ubicación de Residencia */}
+            <AccordionItem value="ubicacion">
+              <AccordionTrigger>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  <span>0.5. Ubicación de Residencia</span>
+                  {ubicacionCandidato?.estadoNombre && (
+                    <Badge variant="outline" className="ml-2 text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200">
+                      <Database className="h-3 w-3 mr-1" />
+                      Prellenado
+                    </Badge>
+                  )}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-md border border-emerald-200 dark:border-emerald-800">
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Esta información determina la <strong>zona base operativa</strong> del custodio en Planeación.
+                  </p>
+                </div>
+                
+                {loadingUbicacion || loadingEstados ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label htmlFor="ubicacion_direccion">Dirección completa</Label>
+                        <Textarea
+                          id="ubicacion_direccion"
+                          value={ubicacion.direccion}
+                          onChange={(e) => handleUbicacionChange('direccion', e.target.value)}
+                          placeholder="Calle, número, colonia, código postal..."
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="ubicacion_estado">Estado</Label>
+                        <Select
+                          value={ubicacion.estadoId}
+                          onValueChange={(value) => handleUbicacionChange('estadoId', value)}
+                        >
+                          <SelectTrigger id="ubicacion_estado">
+                            <SelectValue placeholder="Seleccionar estado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {estados.map((estado) => (
+                              <SelectItem key={estado.id} value={estado.id}>
+                                {estado.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="ubicacion_ciudad">Ciudad</Label>
+                        <Input
+                          id="ubicacion_ciudad"
+                          value={ubicacion.ciudad}
+                          onChange={(e) => handleUbicacionChange('ciudad', e.target.value)}
+                          placeholder="Ciudad o municipio"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Zona Base Calculada */}
+                    <div className="mt-4 p-3 bg-muted/50 rounded-md border">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Zona Base Operativa:</span>
+                        {estadoSeleccionado ? (
+                          <Badge className="bg-emerald-600 hover:bg-emerald-700">
+                            {estadoSeleccionado.nombre}
+                          </Badge>
+                        ) : (
+                          <div className="flex items-center gap-2 text-amber-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-sm">Seleccione un estado</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </AccordionContent>
             </AccordionItem>
 
