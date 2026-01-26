@@ -1,15 +1,18 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useCrmForecast, useCrmMetrics } from '@/hooks/useCrmForecast';
 import { useCrmTrends } from '@/hooks/useCrmTrends';
-import { TrendingUp, TrendingDown, DollarSign, Target, Percent, BarChart3, Zap, Clock } from 'lucide-react';
+import { CRMHeroCard, CRMMetricCard, type HealthStatus } from './CRMHeroCard';
+import { Percent, Zap, Clock, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 function formatCurrency(value: number): string {
   if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
+    return `$${(value / 1000000).toFixed(2)}M`;
   }
   if (value >= 1000) {
     return `$${(value / 1000).toFixed(0)}K`;
@@ -29,57 +32,6 @@ function formatFullCurrency(value: number): string {
   }).format(value);
 }
 
-interface MetricCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  trend?: 'up' | 'down' | 'neutral';
-  trendValue?: string;
-  progressValue?: number;
-  progressLabel?: string;
-}
-
-function MetricCard({ title, value, subtitle, icon, trend, trendValue, progressValue, progressLabel }: MetricCardProps) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            )}
-            {trendValue && (
-              <div className={cn(
-                'flex items-center gap-1 text-xs',
-                trend === 'up' ? 'text-green-600' :
-                trend === 'down' ? 'text-red-600' : 'text-muted-foreground'
-              )}>
-                {trend === 'up' && <TrendingUp className="h-3 w-3" />}
-                {trend === 'down' && <TrendingDown className="h-3 w-3" />}
-                <span>{trendValue}</span>
-              </div>
-            )}
-            {progressValue !== undefined && (
-              <div className="mt-2 space-y-1">
-                <Progress value={Math.min(100, progressValue)} className="h-1.5" />
-                {progressLabel && (
-                  <p className="text-xs text-muted-foreground">{progressLabel}</p>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="p-2 bg-primary/10 rounded-lg">
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 const STAGE_COLORS = [
   'hsl(var(--chart-1))',
   'hsl(var(--chart-2))',
@@ -92,21 +44,41 @@ export default function RevenueForecast() {
   const { data: forecast, isLoading: forecastLoading } = useCrmForecast();
   const { data: metrics, isLoading: metricsLoading } = useCrmMetrics();
   const { data: trends, isLoading: trendsLoading } = useCrmTrends();
+  const [showDetails, setShowDetails] = useState(false);
 
   const isLoading = forecastLoading || metricsLoading || trendsLoading;
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-32" />
+        <Skeleton className="h-40 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-28" />
           ))}
         </div>
-        <Skeleton className="h-80" />
       </div>
     );
   }
+
+  // Determine health status based on progress
+  const progressPercent = trends?.progressVsTarget || 0;
+  const health: HealthStatus = progressPercent >= 80 ? 'healthy' 
+    : progressPercent >= 50 ? 'warning' 
+    : progressPercent > 0 ? 'critical' 
+    : 'neutral';
+
+  // Calculate required daily pace
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const dayOfMonth = today.getDate();
+  const daysRemaining = daysInMonth - dayOfMonth;
+  
+  const currentValue = metrics?.weightedForecast || 0;
+  const targetValue = trends?.monthlyTarget || 0;
+  const remaining = Math.max(0, targetValue - currentValue);
+  const requiredDailyPace = daysRemaining > 0 ? remaining / daysRemaining : 0;
+  const currentDailyPace = dayOfMonth > 0 ? currentValue / dayOfMonth : 0;
 
   const chartData = (forecast || []).map(stage => ({
     name: stage.stage_name,
@@ -118,151 +90,165 @@ export default function RevenueForecast() {
 
   const maxWeighted = Math.max(...chartData.map(d => d.weighted), 1);
 
-  // Calculate trend indicators
-  const pipelineTrend: 'up' | 'down' | 'neutral' = trends?.pipelineValueChange 
-    ? trends.pipelineValueChange > 0 ? 'up' : 'down'
-    : 'neutral';
-
-  const pipelineTrendValue = trends?.pipelineValueChange 
-    ? `${trends.pipelineValueChange > 0 ? '+' : ''}${trends.pipelineValueChange.toFixed(1)}% vs mes ant.`
-    : undefined;
-
   return (
     <div className="space-y-6">
-      {/* Metric Cards - Enhanced */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <MetricCard
-          title="Pipeline Total"
-          value={formatCurrency(metrics?.totalPipelineValue || 0)}
-          subtitle={`${metrics?.openDeals || 0} deals abiertos`}
-          icon={<DollarSign className="h-5 w-5 text-primary" />}
-          trend={pipelineTrend}
-          trendValue={pipelineTrendValue}
-        />
-        <MetricCard
-          title="Forecast Ponderado"
-          value={formatCurrency(metrics?.weightedForecast || 0)}
-          subtitle="Valor × probabilidad"
-          icon={<Target className="h-5 w-5 text-primary" />}
-          progressValue={trends?.progressVsTarget || undefined}
-          progressLabel={trends?.monthlyTarget 
-            ? `${(trends.progressVsTarget || 0).toFixed(0)}% de meta`
-            : undefined
-          }
-        />
-        <MetricCard
+      {/* Hero Card - Main Question: ¿Vamos a cumplir la meta? */}
+      <CRMHeroCard
+        title="¿Vamos a cumplir la meta?"
+        value={formatCurrency(metrics?.weightedForecast || 0)}
+        subtitle="Forecast ponderado (valor × probabilidad)"
+        health={health}
+        progress={targetValue > 0 ? {
+          value: progressPercent,
+          label: `${progressPercent.toFixed(0)}% de meta mensual`,
+          target: formatCurrency(targetValue),
+        } : undefined}
+        trend={trends?.pipelineValueChange ? {
+          value: trends.pipelineValueChange,
+          label: 'vs mes anterior',
+        } : undefined}
+        secondaryMetrics={[
+          { 
+            label: 'Ritmo actual', 
+            value: `${formatCurrency(currentDailyPace)}/día` 
+          },
+          { 
+            label: 'Ritmo necesario', 
+            value: `${formatCurrency(requiredDailyPace)}/día`,
+            highlight: requiredDailyPace > currentDailyPace * 1.2
+          },
+          { 
+            label: 'Días restantes', 
+            value: `${daysRemaining}` 
+          },
+        ]}
+      />
+
+      {/* Secondary Metric Cards - 3 columns */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CRMMetricCard
           title="Win Rate"
           value={`${(metrics?.winRate || 0).toFixed(1)}%`}
           subtitle={`${metrics?.wonDeals || 0} ganados / ${(metrics?.wonDeals || 0) + (metrics?.lostDeals || 0)} cerrados`}
           icon={<Percent className="h-5 w-5 text-primary" />}
         />
-        <MetricCard
-          title="Ticket Promedio"
-          value={formatCurrency(metrics?.avgDealSize || 0)}
-          subtitle="Deals ganados"
-          icon={<BarChart3 className="h-5 w-5 text-primary" />}
-        />
-        <MetricCard
-          title="Sales Velocity"
-          value={formatCurrency(metrics?.salesVelocity || 0)}
-          subtitle="Por día de cierre"
-          icon={<Zap className="h-5 w-5 text-amber-500" />}
-        />
-        <MetricCard
+        <CRMMetricCard
           title="Ciclo Promedio"
           value={`${metrics?.avgCycleTime || 0} días`}
           subtitle="Lead → Won"
           icon={<Clock className="h-5 w-5 text-primary" />}
         />
+        <CRMMetricCard
+          title="Sales Velocity"
+          value={formatCurrency(metrics?.salesVelocity || 0)}
+          subtitle="Capacidad de cierre por día"
+          icon={<Zap className="h-5 w-5 text-amber-500" />}
+        />
       </div>
 
-      {/* Forecast Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Desglose por Etapa</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} />
-                <XAxis 
-                  type="number" 
-                  tickFormatter={formatCurrency}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  width={120}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12 }}
-                />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    formatFullCurrency(value),
-                    name === 'weighted' ? 'Valor Ponderado' : 'Valor Total'
-                  ]}
-                  labelFormatter={(label) => `Etapa: ${label}`}
-                />
-                <Bar 
-                  dataKey="weighted" 
-                  name="Valor Ponderado" 
-                  radius={[0, 4, 4, 0]}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={STAGE_COLORS[index % STAGE_COLORS.length]}
+      {/* Collapsible Details */}
+      <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Desglose por Etapa
+            </span>
+            {showDetails ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent className="space-y-4 mt-4">
+          {/* Forecast Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Valor Ponderado por Etapa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} />
+                    <XAxis 
+                      type="number" 
+                      tickFormatter={formatCurrency}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stage Details Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Detalle por Etapa</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {(forecast || []).map((stage, index) => (
-              <div key={stage.stage_id} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: STAGE_COLORS[index % STAGE_COLORS.length] }}
+                    <YAxis 
+                      type="category" 
+                      dataKey="name" 
+                      width={100}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11 }}
                     />
-                    <span className="font-medium">{stage.stage_name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      ({stage.deal_probability}% prob.)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-6 text-sm">
-                    <span className="text-muted-foreground">
-                      {stage.deals_count} deals
-                    </span>
-                    <span className="font-medium">
-                      {formatCurrency(stage.weighted_value)}
-                    </span>
-                  </div>
-                </div>
-                <Progress 
-                  value={(stage.weighted_value / maxWeighted) * 100} 
-                  className="h-2"
-                />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        formatFullCurrency(value),
+                        name === 'weighted' ? 'Valor Ponderado' : 'Valor Total'
+                      ]}
+                      labelFormatter={(label) => `Etapa: ${label}`}
+                    />
+                    <Bar 
+                      dataKey="weighted" 
+                      name="Valor Ponderado" 
+                      radius={[0, 4, 4, 0]}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={STAGE_COLORS[index % STAGE_COLORS.length]}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Stage Details */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {(forecast || []).map((stage, index) => (
+                  <div key={stage.stage_id} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: STAGE_COLORS[index % STAGE_COLORS.length] }}
+                        />
+                        <span className="font-medium">{stage.stage_name}</span>
+                        <span className="text-muted-foreground">
+                          ({stage.deal_probability}%)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-muted-foreground text-xs">
+                          {stage.deals_count} deals
+                        </span>
+                        <span className="font-semibold">
+                          {formatCurrency(stage.weighted_value)}
+                        </span>
+                      </div>
+                    </div>
+                    <Progress 
+                      value={(stage.weighted_value / maxWeighted) * 100} 
+                      className="h-1.5"
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

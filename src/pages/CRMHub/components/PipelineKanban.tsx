@@ -4,13 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useCrmPipeline } from '@/hooks/useCrmPipeline';
-import { useCrmDealsByStage } from '@/hooks/useCrmDeals';
+import { useCrmDealsByStage, useCrmDeals } from '@/hooks/useCrmDeals';
 import { useCrmTrends, useStageAverageTimes, calculateDealStalledInfo } from '@/hooks/useCrmTrends';
+import { CRMHeroCard, type HealthStatus } from './CRMHeroCard';
+import { CRMAlertBanner, type AlertItem } from './CRMAlertBanner';
 import type { CrmDealWithStage, CrmPipelineStage } from '@/types/crm';
 import { getDealValueTier } from '@/types/crm';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AlertTriangle, TrendingUp, TrendingDown, Gem } from 'lucide-react';
+import { AlertTriangle, Gem, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number): string {
@@ -24,7 +26,7 @@ function formatCurrency(value: number): string {
 
 function formatCompactCurrency(value: number): string {
   if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
+    return `$${(value / 1000000).toFixed(2)}M`;
   }
   if (value >= 1000) {
     return `$${(value / 1000).toFixed(0)}K`;
@@ -38,13 +40,12 @@ interface DealCardProps {
 }
 
 function DealCard({ deal, stageAverages }: DealCardProps) {
-  const daysInStage = deal.updated_at
+  const daysAgo = deal.updated_at
     ? formatDistanceToNow(new Date(deal.updated_at), { locale: es, addSuffix: false })
     : 'N/A';
 
   const valueTier = getDealValueTier(deal.value);
   
-  // Calculate stalled status
   const stalledInfo = calculateDealStalledInfo(
     deal.updated_at,
     deal.stage_id,
@@ -57,7 +58,6 @@ function DealCard({ deal, stageAverages }: DealCardProps) {
     lost: 'bg-red-500/10 text-red-600 border-red-200',
   }[deal.status] || 'bg-muted text-muted-foreground';
 
-  // Value tier styling
   const tierStyles = {
     low: 'border-l-muted-foreground/30',
     medium: 'border-l-blue-500',
@@ -79,7 +79,6 @@ function DealCard({ deal, stageAverages }: DealCardProps) {
       stalledInfo.isStalled && 'ring-1 ring-destructive/20'
     )}>
       <CardContent className="p-3 space-y-2">
-        {/* Title and Premium Badge */}
         <div className="flex items-start gap-2">
           <div className={cn('text-sm line-clamp-2 flex-1', titleStyles[valueTier])}>
             {deal.title}
@@ -89,7 +88,6 @@ function DealCard({ deal, stageAverages }: DealCardProps) {
           )}
         </div>
 
-        {/* Stalled Warning */}
         {stalledInfo.isStalled && (
           <div className={cn(
             'flex items-center gap-1.5 text-xs rounded-md px-2 py-1',
@@ -123,7 +121,7 @@ function DealCard({ deal, stageAverages }: DealCardProps) {
         </div>
         
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{daysInStage}</span>
+          <span>{daysAgo}</span>
           {deal.owner_name && (
             <span className="truncate max-w-[100px]">{deal.owner_name}</span>
           )}
@@ -164,7 +162,6 @@ function StageColumn({ stage, deals, stageAverages }: StageColumnProps) {
 
   return (
     <div className="flex-shrink-0 w-72 bg-secondary/30 rounded-lg p-3 space-y-3">
-      {/* Column Header */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">{stage.name}</h3>
@@ -185,8 +182,7 @@ function StageColumn({ stage, deals, stageAverages }: StageColumnProps) {
         </div>
       </div>
 
-      {/* Deals */}
-      <div className="space-y-2 max-h-[calc(100vh-350px)] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto pr-1">
         {deals.length === 0 ? (
           <div className="text-xs text-muted-foreground text-center py-4">
             Sin deals en esta etapa
@@ -204,23 +200,69 @@ function StageColumn({ stage, deals, stageAverages }: StageColumnProps) {
 export default function PipelineKanban() {
   const { data: stages, isLoading: stagesLoading } = useCrmPipeline();
   const { dealsByStage, isLoading: dealsLoading } = useCrmDealsByStage();
+  const { data: allDeals } = useCrmDeals();
   const { data: trends, isLoading: trendsLoading } = useCrmTrends();
   const { data: stageAverages = {}, isLoading: averagesLoading } = useStageAverageTimes();
 
   const isLoading = stagesLoading || dealsLoading || trendsLoading || averagesLoading;
 
-  // Calculate total metrics
-  const totalMetrics = useMemo(() => {
-    const allDeals = Object.values(dealsByStage).flat();
+  // Calculate total metrics and alerts
+  const { totalMetrics, alerts } = useMemo(() => {
+    const deals = Object.values(dealsByStage).flat();
+    const alertItems: AlertItem[] = [];
+    let stalledCount = 0;
+    let stalledValue = 0;
+    let premiumStalledCount = 0;
+    let premiumStalledValue = 0;
+
+    deals.forEach(deal => {
+      const stalledInfo = calculateDealStalledInfo(
+        deal.updated_at,
+        deal.stage_id,
+        stageAverages as Record<string, { stageId: string; stageName: string; avgDaysInStage: number }>
+      );
+      
+      if (stalledInfo.isStalled) {
+        const valueTier = getDealValueTier(deal.value);
+        if (valueTier === 'premium') {
+          premiumStalledCount++;
+          premiumStalledValue += deal.value;
+          alertItems.push({
+            id: `premium-${deal.id}`,
+            type: 'premium',
+            title: deal.title,
+            description: `${stalledInfo.daysInStage} días sin movimiento`,
+            value: formatCompactCurrency(deal.value),
+          });
+        } else {
+          stalledCount++;
+          stalledValue += deal.value;
+          alertItems.push({
+            id: `stalled-${deal.id}`,
+            type: 'stalled',
+            title: deal.title,
+            description: `${stalledInfo.daysInStage} días en etapa`,
+            value: formatCompactCurrency(deal.value),
+          });
+        }
+      }
+    });
+
     return {
-      totalDeals: allDeals.length,
-      totalValue: allDeals.reduce((sum, d) => sum + d.value, 0),
+      totalMetrics: {
+        totalDeals: deals.length,
+        totalValue: deals.reduce((sum, d) => sum + d.value, 0),
+        stalledCount: stalledCount + premiumStalledCount,
+        stalledValue: stalledValue + premiumStalledValue,
+      },
+      alerts: alertItems,
     };
-  }, [dealsByStage]);
+  }, [dealsByStage, stageAverages]);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-40 w-full" />
         <div className="flex gap-4">
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="w-72 space-y-3">
@@ -234,87 +276,39 @@ export default function PipelineKanban() {
     );
   }
 
+  // Determine health based on stalled deals
+  const stalledPercent = totalMetrics.totalDeals > 0 
+    ? (totalMetrics.stalledCount / totalMetrics.totalDeals) * 100 
+    : 0;
+  const health: HealthStatus = stalledPercent > 20 ? 'critical' 
+    : stalledPercent > 10 ? 'warning' 
+    : stalledPercent > 0 ? 'neutral'
+    : 'healthy';
+
   return (
     <div className="space-y-4">
-      {/* Summary with Trends */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-8">
-            {/* Total Deals */}
-            <div>
-              <div className="text-sm text-muted-foreground">Total Deals Abiertos</div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">{totalMetrics.totalDeals}</span>
-                {trends && trends.openDealsChange !== 0 && (
-                  <div className={cn(
-                    'flex items-center gap-0.5 text-xs',
-                    trends.openDealsChange > 0 ? 'text-green-600' : 'text-red-600'
-                  )}>
-                    {trends.openDealsChange > 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    <span>{trends.openDealsChange > 0 ? '+' : ''}{trends.openDealsChange} vs mes ant.</span>
-                  </div>
-                )}
-              </div>
-            </div>
+      {/* Hero Card */}
+      <CRMHeroCard
+        title="Pipeline Activo"
+        value={formatCompactCurrency(totalMetrics.totalValue)}
+        subtitle={`${totalMetrics.totalDeals} deals abiertos en negociación`}
+        health={health}
+        trend={trends?.pipelineValueChange ? {
+          value: trends.pipelineValueChange,
+          label: 'vs mes anterior',
+        } : undefined}
+        secondaryMetrics={[
+          { label: 'Deals', value: String(totalMetrics.totalDeals) },
+          { label: 'Stalled', value: String(totalMetrics.stalledCount), highlight: totalMetrics.stalledCount > 0 },
+          ...(trends?.currentWonValue ? [{ label: 'Ganado este mes', value: formatCompactCurrency(trends.currentWonValue) }] : []),
+        ]}
+        icon={<TrendingUp className="h-8 w-8 text-muted-foreground/20" />}
+      />
 
-            {/* Pipeline Value */}
-            <div>
-              <div className="text-sm text-muted-foreground">Valor Total Pipeline</div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-primary">
-                  {formatCompactCurrency(totalMetrics.totalValue)}
-                </span>
-                {trends && trends.pipelineValueChange !== 0 && (
-                  <div className={cn(
-                    'flex items-center gap-0.5 text-xs',
-                    trends.pipelineValueChange > 0 ? 'text-green-600' : 'text-red-600'
-                  )}>
-                    {trends.pipelineValueChange > 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    <span>{trends.pipelineValueChange > 0 ? '+' : ''}{trends.pipelineValueChange.toFixed(1)}%</span>
-                  </div>
-                )}
-              </div>
-              {/* Progress vs Target */}
-              {trends?.progressVsTarget !== null && trends?.monthlyTarget && (
-                <div className="mt-1 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 max-w-32 bg-secondary rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${Math.min(100, trends.progressVsTarget || 0)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {(trends.progressVsTarget || 0).toFixed(0)}% de meta ({formatCompactCurrency(trends.monthlyTarget)})
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Won This Month */}
-            {trends && trends.currentWonValue > 0 && (
-              <div>
-                <div className="text-sm text-muted-foreground">Ganados Este Mes</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-green-600">
-                    {formatCompactCurrency(trends.currentWonValue)}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    ({trends.currentWonDeals} deals)
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Alert Banner */}
+      {alerts.length > 0 && (
+        <CRMAlertBanner alerts={alerts} />
+      )}
 
       {/* Kanban Board */}
       <ScrollArea className="w-full">

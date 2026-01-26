@@ -2,20 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { useCrmGeoDistribution } from '@/hooks/useCrmGeoDistribution';
 import { useCrmSupplyGap } from '@/hooks/useCrmSupplyGap';
-import { Map as MapIcon, Users, AlertTriangle, CheckCircle } from 'lucide-react';
+import { CRMHeroCard, type HealthStatus } from './CRMHeroCard';
+import { Map as MapIcon, AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-// Mapbox token
 mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1sb3ZhYmxlIiwiYSI6ImNtNDBhMWk1eTBiNW0yaXB4OHpsZGFzdWMifQ.y3HWUPkQu7gJk5rN0Q6M5Q';
 
 function formatCurrency(value: number): string {
   if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
+    return `$${(value / 1000000).toFixed(2)}M`;
   }
   if (value >= 1000) {
     return `$${(value / 1000).toFixed(0)}K`;
@@ -24,10 +22,10 @@ function formatCurrency(value: number): string {
 }
 
 const GAP_STATUS_CONFIG = {
-  surplus: { color: 'bg-green-500', label: 'Surplus', textColor: 'text-green-600' },
-  balanced: { color: 'bg-blue-500', label: 'Balanceado', textColor: 'text-blue-600' },
-  deficit: { color: 'bg-amber-500', label: 'Déficit', textColor: 'text-amber-600' },
-  critical: { color: 'bg-red-500', label: 'Crítico', textColor: 'text-red-600' },
+  surplus: { color: 'bg-green-500', label: 'OK', textColor: 'text-green-600', borderColor: 'border-green-200' },
+  balanced: { color: 'bg-blue-500', label: 'OK', textColor: 'text-blue-600', borderColor: 'border-blue-200' },
+  deficit: { color: 'bg-amber-500', label: 'Déficit', textColor: 'text-amber-600', borderColor: 'border-amber-200' },
+  critical: { color: 'bg-red-500', label: 'Crítico', textColor: 'text-red-600', borderColor: 'border-red-200' },
 };
 
 export default function PipelineMap() {
@@ -35,12 +33,22 @@ export default function PipelineMap() {
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   
-  const [showSupplyGap, setShowSupplyGap] = useState(false);
-  
   const { data: geoData, isLoading: geoLoading } = useCrmGeoDistribution();
   const { data: supplyGap, isLoading: supplyLoading } = useCrmSupplyGap();
 
-  const isLoading = geoLoading || (showSupplyGap && supplyLoading);
+  const isLoading = geoLoading || supplyLoading;
+
+  // Calculate key metrics
+  const metrics = {
+    totalZones: geoData?.length || 0,
+    zonesWithDeficit: supplyGap?.filter(g => g.gapStatus === 'deficit' || g.gapStatus === 'critical').length || 0,
+    totalPipeline: geoData?.reduce((sum, z) => sum + z.totalValue, 0) || 0,
+    totalDeficitValue: supplyGap?.filter(g => g.gapStatus === 'deficit' || g.gapStatus === 'critical')
+      .reduce((sum, g) => {
+        const zone = geoData?.find(z => z.zone === g.zone);
+        return sum + (zone?.totalValue || 0);
+      }, 0) || 0,
+  };
 
   // Initialize map
   useEffect(() => {
@@ -49,7 +57,7 @@ export default function PipelineMap() {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: [-102.5528, 23.6345], // Center of Mexico
+      center: [-102.5528, 23.6345],
       zoom: 4.5,
     });
 
@@ -61,84 +69,103 @@ export default function PipelineMap() {
     };
   }, []);
 
-  // Update markers when data changes
+  // Update markers - supply gap enabled by default
   useEffect(() => {
     if (!map.current || !geoData) return;
 
-    // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
-    // Find max value for scaling
     const maxValue = Math.max(...geoData.map(d => d.totalValue), 1);
 
-    // Create markers for each zone
     geoData.forEach(zone => {
       const gapInfo = supplyGap?.find(g => g.zone === zone.zone);
       const gapStatus = gapInfo?.gapStatus || 'balanced';
       const config = GAP_STATUS_CONFIG[gapStatus];
 
-      // Calculate bubble size based on value (min 30, max 80)
-      const size = Math.max(30, Math.min(80, 30 + (zone.totalValue / maxValue) * 50));
+      const size = Math.max(40, Math.min(80, 40 + (zone.totalValue / maxValue) * 40));
 
-      // Create marker element
+      // Marker element with zone label
       const el = document.createElement('div');
       el.className = 'pipeline-marker';
       el.style.cssText = `
+        position: relative;
         width: ${size}px;
         height: ${size}px;
+      `;
+
+      // Bubble
+      const bubble = document.createElement('div');
+      bubble.style.cssText = `
+        width: 100%;
+        height: 100%;
         border-radius: 50%;
-        background: ${showSupplyGap && gapStatus === 'critical' ? 'rgba(239, 68, 68, 0.8)' : 
-                      showSupplyGap && gapStatus === 'deficit' ? 'rgba(245, 158, 11, 0.8)' :
-                      'rgba(59, 130, 246, 0.8)'};
-        border: 3px solid ${showSupplyGap && gapStatus === 'critical' ? '#dc2626' : 
-                           showSupplyGap && gapStatus === 'deficit' ? '#d97706' :
+        background: ${gapStatus === 'critical' ? 'rgba(239, 68, 68, 0.85)' : 
+                      gapStatus === 'deficit' ? 'rgba(245, 158, 11, 0.85)' :
+                      'rgba(59, 130, 246, 0.85)'};
+        border: 3px solid ${gapStatus === 'critical' ? '#dc2626' : 
+                           gapStatus === 'deficit' ? '#d97706' :
                            '#2563eb'};
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: transform 0.2s;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       `;
-      el.innerHTML = `<span style="color: white; font-size: 12px; font-weight: 600;">${zone.dealsCount}</span>`;
+      bubble.innerHTML = `<span style="color: white; font-size: 11px; font-weight: 700;">${zone.dealsCount}</span>`;
 
-      el.addEventListener('mouseenter', () => {
-        el.style.transform = 'scale(1.1)';
+      // Zone label below bubble
+      const label = document.createElement('div');
+      label.style.cssText = `
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        font-size: 10px;
+        font-weight: 600;
+        color: #374151;
+        text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+      `;
+      label.textContent = zone.zoneName;
+
+      el.appendChild(bubble);
+      el.appendChild(label);
+
+      bubble.addEventListener('mouseenter', () => {
+        bubble.style.transform = 'scale(1.15)';
       });
-      el.addEventListener('mouseleave', () => {
-        el.style.transform = 'scale(1)';
+      bubble.addEventListener('mouseleave', () => {
+        bubble.style.transform = 'scale(1)';
       });
 
-      // Create popup content
       const popupContent = `
-        <div style="padding: 8px; min-width: 180px;">
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${zone.zoneName}</div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+        <div style="padding: 12px; min-width: 200px;">
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #111827;">${zone.zoneName}</div>
+          
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: #6b7280; font-size: 12px;">Pipeline:</span>
+            <span style="font-weight: 600; font-size: 13px; color: #2563eb;">${formatCurrency(zone.totalValue)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
             <span style="color: #6b7280; font-size: 12px;">Deals:</span>
             <span style="font-weight: 500; font-size: 12px;">${zone.dealsCount}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span style="color: #6b7280; font-size: 12px;">Valor Total:</span>
-            <span style="font-weight: 500; font-size: 12px;">${formatCurrency(zone.totalValue)}</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span style="color: #6b7280; font-size: 12px;">Ponderado:</span>
-            <span style="font-weight: 500; font-size: 12px;">${formatCurrency(zone.weightedValue)}</span>
-          </div>
-          ${showSupplyGap && gapInfo ? `
-            <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 8px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          
+          ${gapInfo ? `
+            <div style="border-top: 1px solid #e5e7eb; margin-top: 10px; padding-top: 10px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
                 <span style="color: #6b7280; font-size: 12px;">Demanda Est.:</span>
                 <span style="font-weight: 500; font-size: 12px;">${gapInfo.demandProjected} servicios</span>
               </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="color: #6b7280; font-size: 12px;">Supply Actual:</span>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span style="color: #6b7280; font-size: 12px;">Supply:</span>
                 <span style="font-weight: 500; font-size: 12px;">${gapInfo.supplyActual} custodios</span>
               </div>
-              <div style="display: flex; justify-content: space-between;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #6b7280; font-size: 12px;">Gap:</span>
-                <span style="font-weight: 600; font-size: 12px; color: ${gapInfo.gap >= 0 ? '#16a34a' : '#dc2626'};">
+                <span style="font-weight: 700; font-size: 13px; color: ${gapInfo.gap >= 0 ? '#16a34a' : '#dc2626'}; padding: 2px 8px; border-radius: 4px; background: ${gapInfo.gap >= 0 ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)'};">
                   ${gapInfo.gap >= 0 ? '+' : ''}${gapInfo.gap}
                 </span>
               </div>
@@ -147,7 +174,7 @@ export default function PipelineMap() {
         </div>
       `;
 
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(popupContent);
+      const popup = new mapboxgl.Popup({ offset: [0, -size/2 - 5] }).setHTML(popupContent);
 
       const marker = new mapboxgl.Marker(el)
         .setLngLat([zone.lng, zone.lat])
@@ -156,133 +183,157 @@ export default function PipelineMap() {
 
       markersRef.current.push(marker);
     });
-  }, [geoData, supplyGap, showSupplyGap]);
+  }, [geoData, supplyGap]);
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-[500px] w-full rounded-lg" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-[400px] w-full rounded-lg" />
       </div>
     );
   }
 
+  // Health status based on zones with deficit
+  const health: HealthStatus = metrics.zonesWithDeficit === 0 ? 'healthy'
+    : metrics.zonesWithDeficit <= 2 ? 'warning'
+    : 'critical';
+
+  // Priority zones (sorted by gap severity)
+  const priorityZones = (supplyGap || [])
+    .filter(g => g.gapStatus === 'critical' || g.gapStatus === 'deficit')
+    .sort((a, b) => a.gap - b.gap)
+    .slice(0, 4);
+
   return (
     <div className="space-y-4">
-      {/* Map Card */}
+      {/* Hero Card */}
+      <CRMHeroCard
+        title="¿Dónde necesitamos crecer capacidad?"
+        value={`${metrics.zonesWithDeficit} zona${metrics.zonesWithDeficit !== 1 ? 's' : ''} con déficit`}
+        subtitle={`${formatCurrency(metrics.totalDeficitValue)} en pipeline sin cobertura suficiente`}
+        health={health}
+        secondaryMetrics={[
+          { label: 'Total pipeline', value: formatCurrency(metrics.totalPipeline) },
+          { label: 'Zonas activas', value: String(metrics.totalZones) },
+        ]}
+        icon={<MapIcon className="h-8 w-8 text-muted-foreground/20" />}
+      />
+
+      {/* Priority Zones Alert */}
+      {priorityZones.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-500/10 rounded-lg shrink-0">
+                <TrendingDown className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900 mb-2">
+                  Zonas que requieren expansión (ordenadas por urgencia)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {priorityZones.map((zone, index) => {
+                    const zoneData = geoData?.find(z => z.zone === zone.zone);
+                    return (
+                      <div 
+                        key={zone.zone}
+                        className="flex items-center justify-between p-2 bg-background rounded-md border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-amber-600 bg-amber-100 w-5 h-5 rounded-full flex items-center justify-center">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-sm">{zone.zoneName}</span>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="outline" className="text-xs text-red-600 border-red-200">
+                            {Math.abs(zone.gap)} custodios
+                          </Badge>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatCurrency(zoneData?.totalValue || 0)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Map */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MapIcon className="h-5 w-5" />
-              Pipeline por Zona Geográfica
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="supply-gap"
-                checked={showSupplyGap}
-                onCheckedChange={setShowSupplyGap}
-              />
-              <Label htmlFor="supply-gap" className="text-sm text-muted-foreground">
-                Mostrar Gap de Supply
-              </Label>
-            </div>
-          </div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapIcon className="h-4 w-4" />
+            Pipeline por Zona Geográfica
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div 
             ref={mapContainer} 
-            className="w-full h-[500px] rounded-lg overflow-hidden"
+            className="w-full h-[400px] rounded-lg overflow-hidden"
           />
           
           {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-4 justify-center">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs">
+            <div className="flex items-center gap-1.5">
               <div className="w-4 h-4 rounded-full bg-blue-500" />
-              <span className="text-xs text-muted-foreground">Pipeline (tamaño = valor)</span>
+              <span className="text-muted-foreground">Supply OK</span>
             </div>
-            {showSupplyGap && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-amber-500" />
-                  <span className="text-xs text-muted-foreground">Déficit de Supply</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-red-500" />
-                  <span className="text-xs text-muted-foreground">Crítico</span>
-                </div>
-              </>
-            )}
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-amber-500" />
+              <span className="text-muted-foreground">Déficit</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">Crítico</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Tamaño = valor pipeline</span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Zone Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {(geoData || []).slice(0, 4).map(zone => {
           const gapInfo = supplyGap?.find(g => g.zone === zone.zone);
           const gapStatus = gapInfo?.gapStatus || 'balanced';
           const config = GAP_STATUS_CONFIG[gapStatus];
 
           return (
-            <Card key={zone.zone}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium">{zone.zoneName}</p>
-                    <p className="text-xs text-muted-foreground">{zone.dealsCount} deals</p>
-                  </div>
-                  {showSupplyGap && gapInfo && (
-                    <Badge variant="outline" className={config.textColor}>
-                      {config.label}
-                    </Badge>
+            <Card key={zone.zone} className={`border-l-4 ${config.borderColor}`}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-semibold text-sm">{zone.zoneName}</p>
+                  {gapInfo && (gapStatus === 'deficit' || gapStatus === 'critical') && (
+                    <AlertTriangle className={`h-4 w-4 ${config.textColor}`} />
+                  )}
+                  {gapInfo && gapStatus === 'surplus' && (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
                   )}
                 </div>
-                <div className="text-2xl font-bold text-primary mb-2">
+                <p className="text-xl font-bold text-primary">
                   {formatCurrency(zone.totalValue)}
-                </div>
-                {showSupplyGap && gapInfo && (
-                  <div className="flex items-center gap-2 text-sm">
-                    {gapInfo.gap >= 0 ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    )}
-                    <span className="text-muted-foreground">
-                      {gapInfo.supplyActual} supply / {gapInfo.demandProjected} demanda
-                    </span>
-                  </div>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {zone.dealsCount} deals
+                </p>
+                {gapInfo && (
+                  <p className={`text-xs font-medium mt-1 ${config.textColor}`}>
+                    {gapInfo.supplyActual} supply / {gapInfo.demandProjected} demanda
+                  </p>
                 )}
               </CardContent>
             </Card>
           );
         })}
       </div>
-
-      {/* Supply Gap Alert */}
-      {showSupplyGap && supplyGap && supplyGap.some(g => g.gapStatus === 'critical' || g.gapStatus === 'deficit') && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-amber-900">Alerta de Capacidad</p>
-                <p className="text-sm text-amber-700 mt-1">
-                  Las siguientes zonas requieren expansión de supply:{' '}
-                  {supplyGap
-                    .filter(g => g.gapStatus === 'critical' || g.gapStatus === 'deficit')
-                    .map(g => `${g.zoneName} (${Math.abs(g.gap)} custodios)`)
-                    .join(', ')}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

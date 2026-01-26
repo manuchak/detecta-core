@@ -23,9 +23,11 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useCrmClientMatches, useSearchClients, useLinkDealToClient, useUnlinkDealFromClient } from '@/hooks/useCrmClientMatcher';
-import { Check, X, AlertCircle, Link2, Unlink, Search, ExternalLink } from 'lucide-react';
+import { CRMHeroCard, type HealthStatus } from './CRMHeroCard';
+import { Check, X, AlertCircle, Link2, Unlink, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ClientMatchResult } from '@/types/crm';
+import { cn } from '@/lib/utils';
 
 function formatCurrency(value: number | null): string {
   if (value === null) return '—';
@@ -40,14 +42,14 @@ function MatchStatusBadge({ status }: { status: ClientMatchResult['matchStatus']
   const config = {
     verified: { label: 'Verificado', icon: Check, className: 'bg-green-500/10 text-green-600 border-green-200' },
     'auto-match': { label: 'Auto-match', icon: Check, className: 'bg-blue-500/10 text-blue-600 border-blue-200' },
-    pending: { label: 'Pendiente', icon: AlertCircle, className: 'bg-yellow-500/10 text-yellow-600 border-yellow-200' },
+    pending: { label: 'Pendiente', icon: AlertCircle, className: 'bg-amber-500/10 text-amber-600 border-amber-200' },
     'no-match': { label: 'Sin match', icon: X, className: 'bg-red-500/10 text-red-600 border-red-200' },
   };
 
   const { label, icon: Icon, className } = config[status];
 
   return (
-    <Badge variant="outline" className={`gap-1 ${className}`}>
+    <Badge variant="outline" className={cn('gap-1', className)}>
       <Icon className="h-3 w-3" />
       {label}
     </Badge>
@@ -174,7 +176,7 @@ export default function ClientServicesLink() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-40 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
     );
@@ -188,35 +190,33 @@ export default function ClientServicesLink() {
     pending: matches?.filter(m => m.matchStatus === 'pending' || m.matchStatus === 'no-match').length || 0,
   };
 
+  // Calculate match rate
+  const matchRate = stats.total > 0 ? ((stats.verified + stats.autoMatch) / stats.total) * 100 : 0;
+
+  // Health based on pending items
+  const health: HealthStatus = stats.pending === 0 ? 'healthy'
+    : stats.pending <= 5 ? 'warning'
+    : 'critical';
+
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Total Deals</div>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Verificados</div>
-            <div className="text-2xl font-bold text-green-600">{stats.verified}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Auto-match</div>
-            <div className="text-2xl font-bold text-blue-600">{stats.autoMatch}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-sm text-muted-foreground">Pendientes</div>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Hero Card */}
+      <CRMHeroCard
+        title="¿Tenemos los deals vinculados a clientes?"
+        value={`${matchRate.toFixed(0)}% vinculados`}
+        subtitle={`${stats.verified + stats.autoMatch} de ${stats.total} deals tienen cliente asignado`}
+        health={health}
+        progress={{
+          value: matchRate,
+          label: `${stats.pending} pendientes de vincular`,
+        }}
+        secondaryMetrics={[
+          { label: 'Verificados', value: String(stats.verified) },
+          { label: 'Auto-match', value: String(stats.autoMatch) },
+          { label: 'Pendientes', value: String(stats.pending), highlight: stats.pending > 0 },
+        ]}
+        icon={<Users className="h-8 w-8 text-muted-foreground/20" />}
+      />
 
       {/* Filter Toggle */}
       <div className="flex items-center gap-2">
@@ -226,21 +226,21 @@ export default function ClientServicesLink() {
           onCheckedChange={setShowOnlyPending}
         />
         <Label htmlFor="pending-only" className="text-sm">
-          Mostrar solo pendientes
+          Mostrar solo pendientes ({stats.pending})
         </Label>
       </div>
 
       {/* Table */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Vinculación Cliente → Servicios</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Vinculación Cliente → Servicios</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Deal / Cliente</TableHead>
-                <TableHead>Status Match</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Deal Value</TableHead>
                 <TableHead className="text-right">GMV Real</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -250,20 +250,26 @@ export default function ClientServicesLink() {
               {filteredMatches.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    {showOnlyPending ? 'No hay deals pendientes de vincular' : 'No hay deals disponibles'}
+                    {showOnlyPending ? 'No hay deals pendientes de vincular 🎉' : 'No hay deals disponibles'}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredMatches.map((match) => (
-                  <TableRow key={match.dealId}>
+                  <TableRow 
+                    key={match.dealId}
+                    className={cn(
+                      (match.matchStatus === 'pending' || match.matchStatus === 'no-match') && 
+                      'bg-amber-50/50'
+                    )}
+                  >
                     <TableCell>
                       <div className="space-y-1">
-                        <div className="font-medium">{match.dealTitle}</div>
+                        <div className="font-medium text-sm">{match.dealTitle}</div>
                         <div className="text-xs text-muted-foreground">
                           {match.organizationName || 'Sin organización'}
                         </div>
                         {match.matchedClientName && (
-                          <div className="text-xs text-primary">
+                          <div className="text-xs text-primary font-medium">
                             → {match.matchedClientName}
                           </div>
                         )}
@@ -272,20 +278,20 @@ export default function ClientServicesLink() {
                     <TableCell>
                       <MatchStatusBadge status={match.matchStatus} />
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right font-medium text-sm">
                       {formatCurrency(match.dealValue)}
                     </TableCell>
                     <TableCell className="text-right">
                       {match.gmvReal !== null ? (
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-green-600 text-sm">
                           {formatCurrency(match.gmvReal)}
                         </span>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1">
                         {match.matchStatus !== 'no-match' && match.matchedClientName && (
                           <Button
                             variant="ghost"
@@ -297,7 +303,7 @@ export default function ClientServicesLink() {
                           </Button>
                         )}
                         <Button
-                          variant="outline"
+                          variant={match.matchStatus === 'pending' || match.matchStatus === 'no-match' ? 'default' : 'outline'}
                           size="sm"
                           onClick={() => openLinkDialog(match)}
                         >
