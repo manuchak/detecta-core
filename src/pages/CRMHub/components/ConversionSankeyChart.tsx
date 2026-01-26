@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCrmConversionFlow, useConversionInsights } from '@/hooks/useCrmConversionFlow';
-import { Sankey, Tooltip, ResponsiveContainer, Layer, Rectangle } from 'recharts';
-import { TrendingUp, AlertTriangle, Lightbulb } from 'lucide-react';
+import { CRMHeroCard } from './CRMHeroCard';
+import { Sankey, Tooltip, ResponsiveContainer, Rectangle } from 'recharts';
+import { AlertTriangle, Lightbulb, ArrowRight } from 'lucide-react';
 
-// Custom node component for Sankey
 interface CustomNodeProps {
   x: number;
   y: number;
@@ -27,9 +27,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const OUTCOME_COLORS: Record<string, string> = {
-  'Ganados': 'hsl(142, 76%, 36%)', // green
-  'Perdidos': 'hsl(0, 84%, 60%)', // red
-  'En Proceso': 'hsl(221, 83%, 53%)', // blue
+  'Ganados': 'hsl(142, 76%, 36%)',
+  'Perdidos': 'hsl(0, 84%, 60%)',
+  'En Proceso': 'hsl(221, 83%, 53%)',
 };
 
 function CustomNode({ x, y, width, height, payload }: CustomNodeProps) {
@@ -47,14 +47,16 @@ function CustomNode({ x, y, width, height, payload }: CustomNodeProps) {
         rx={4}
         ry={4}
       />
+      {/* External label */}
       <text
-        x={x + width / 2}
+        x={x + width + 8}
         y={y + height / 2}
-        textAnchor="middle"
+        textAnchor="start"
         dominantBaseline="middle"
-        fill="white"
-        fontSize={10}
+        fill="currentColor"
+        fontSize={11}
         fontWeight={500}
+        className="fill-foreground"
       >
         {payload.name}
       </text>
@@ -62,7 +64,6 @@ function CustomNode({ x, y, width, height, payload }: CustomNodeProps) {
   );
 }
 
-// Custom link component
 interface CustomLinkProps {
   sourceX: number;
   targetX: number;
@@ -84,7 +85,6 @@ function CustomLink(props: CustomLinkProps) {
   const gradientId = `gradient-${Math.random().toString(36).substr(2, 9)}`;
   const sourceColor = CATEGORY_COLORS[payload.source.category] || 'hsl(var(--muted))';
   
-  // Safely access target name
   const targetPayload = payload.target as { category: string; name?: string };
   const targetName = targetPayload.name || '';
   const targetColor = targetPayload.category === 'outcome'
@@ -95,8 +95,8 @@ function CustomLink(props: CustomLinkProps) {
     <g>
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={sourceColor} stopOpacity={0.5} />
-          <stop offset="100%" stopColor={targetColor} stopOpacity={0.5} />
+          <stop offset="0%" stopColor={sourceColor} stopOpacity={0.4} />
+          <stop offset="100%" stopColor={targetColor} stopOpacity={0.4} />
         </linearGradient>
       </defs>
       <path
@@ -107,7 +107,7 @@ function CustomLink(props: CustomLinkProps) {
         stroke={`url(#${gradientId})`}
         strokeWidth={linkWidth}
         fill="none"
-        strokeOpacity={0.6}
+        strokeOpacity={0.7}
       />
     </g>
   );
@@ -129,17 +129,41 @@ export default function ConversionSankeyChart() {
 
   const isLoading = flowLoading || insightsLoading;
 
-  // Transform data for Recharts Sankey
+  // Calculate key metrics
+  const keyMetrics = useMemo(() => {
+    if (!flowData) return null;
+
+    const wonLink = flowData.links.find(l => l.target === 'outcome_won');
+    const lostLink = flowData.links.find(l => l.target === 'outcome_lost');
+    const totalOutcome = (wonLink?.value || 0) + (lostLink?.value || 0);
+    const conversionRate = totalOutcome > 0 ? ((wonLink?.value || 0) / totalOutcome) * 100 : 0;
+
+    // Find zone with most losses
+    const zoneLosses = flowData.links
+      .filter(l => l.target === 'outcome_lost')
+      .map(l => ({
+        zone: flowData.nodes.find(n => n.id === l.source)?.name || 'Desconocido',
+        value: l.value,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      conversionRate,
+      wonValue: wonLink?.value || 0,
+      lostValue: lostLink?.value || 0,
+      worstZone: zoneLosses[0]?.zone || null,
+      worstZoneValue: zoneLosses[0]?.value || 0,
+    };
+  }, [flowData]);
+
   const sankeyData = useMemo(() => {
     if (!flowData) return { nodes: [], links: [] };
 
-    // Create node index map
     const nodeIndexMap = new Map<string, number>();
     flowData.nodes.forEach((node, index) => {
       nodeIndexMap.set(node.id, index);
     });
 
-    // Transform links to use indices
     const transformedLinks = flowData.links
       .map(link => ({
         source: nodeIndexMap.get(link.source),
@@ -148,7 +172,6 @@ export default function ConversionSankeyChart() {
       }))
       .filter(link => link.source !== undefined && link.target !== undefined);
 
-    // Add category to nodes for coloring
     const nodesWithData = flowData.nodes.map(node => ({
       name: node.name,
       category: node.category,
@@ -163,12 +186,8 @@ export default function ConversionSankeyChart() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-[400px] w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-[350px] w-full" />
       </div>
     );
   }
@@ -186,18 +205,39 @@ export default function ConversionSankeyChart() {
     );
   }
 
+  const health = keyMetrics && keyMetrics.conversionRate >= 30 ? 'healthy' 
+    : keyMetrics && keyMetrics.conversionRate >= 15 ? 'warning' 
+    : 'critical';
+
   return (
     <div className="space-y-6">
+      {/* Hero - Key Finding */}
+      <CRMHeroCard
+        title="¿Dónde se pierden los deals?"
+        value={`${(keyMetrics?.conversionRate || 0).toFixed(0)}% conversión`}
+        subtitle="Tasa de deals cerrados como ganados"
+        health={health}
+        secondaryMetrics={[
+          { label: 'Ganados', value: formatValue(keyMetrics?.wonValue || 0) },
+          { label: 'Perdidos', value: formatValue(keyMetrics?.lostValue || 0), highlight: true },
+          ...(keyMetrics?.worstZone ? [{ 
+            label: 'Mayor pérdida', 
+            value: keyMetrics.worstZone,
+            highlight: true 
+          }] : []),
+        ]}
+      />
+
       {/* Sankey Chart */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Flujo de Conversión por Zona
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ArrowRight className="h-4 w-4" />
+            Flujo: Fuente → Zona → Etapa → Resultado
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
+          <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <Sankey
                 data={sankeyData}
@@ -212,9 +252,9 @@ export default function ConversionSankeyChart() {
                   linkWidth={0}
                   payload={{ source: { category: '' }, target: { category: '' }, value: 0 }}
                 />}
-                nodePadding={30}
-                nodeWidth={80}
-                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                nodePadding={24}
+                nodeWidth={12}
+                margin={{ top: 20, right: 120, bottom: 20, left: 20 }}
               >
                 <Tooltip
                   content={({ payload }) => {
@@ -240,27 +280,27 @@ export default function ConversionSankeyChart() {
             </ResponsiveContainer>
           </div>
           
-          {/* Legend */}
-          <div className="flex flex-wrap gap-4 mt-4 justify-center">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.source }} />
-              <span className="text-xs text-muted-foreground">Fuente</span>
+          {/* Compact Legend */}
+          <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: CATEGORY_COLORS.source }} />
+              <span className="text-muted-foreground">Fuente</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.zone }} />
-              <span className="text-xs text-muted-foreground">Zona</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: CATEGORY_COLORS.zone }} />
+              <span className="text-muted-foreground">Zona</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.stage }} />
-              <span className="text-xs text-muted-foreground">Etapa</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: CATEGORY_COLORS.stage }} />
+              <span className="text-muted-foreground">Etapa</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: OUTCOME_COLORS['Ganados'] }} />
-              <span className="text-xs text-muted-foreground">Ganados</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: OUTCOME_COLORS['Ganados'] }} />
+              <span className="text-muted-foreground">Ganados</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: OUTCOME_COLORS['Perdidos'] }} />
-              <span className="text-xs text-muted-foreground">Perdidos</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: OUTCOME_COLORS['Perdidos'] }} />
+              <span className="text-muted-foreground">Perdidos</span>
             </div>
           </div>
         </CardContent>
@@ -273,14 +313,14 @@ export default function ConversionSankeyChart() {
             <Card key={index}>
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <div className="p-2 bg-amber-500/10 rounded-lg shrink-0">
                     <Lightbulb className="h-4 w-4 text-amber-500" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm">{insight.title}</p>
                     <p className="text-xs text-muted-foreground mt-1">{insight.description}</p>
                     {insight.value && (
-                      <Badge variant="outline" className="mt-2">{insight.value}</Badge>
+                      <Badge variant="outline" className="mt-2 text-xs">{insight.value}</Badge>
                     )}
                   </div>
                 </div>
