@@ -1,243 +1,77 @@
 
-# Plan de Implementación: CRM Hub con Pipedrive
+# Plan de Implementación: Edge Function Pipedrive + CRM Hub
 
 ## Resumen
 
-Implementar el módulo CRM Hub completo con integración a Pipedrive mediante webhooks, incluyendo base de datos, Edge Function, y UI con 4 tabs principales.
+Crear la Edge Function para recibir webhooks de Pipedrive y el módulo completo CRM Hub con UI, tipos, y hooks de datos. La función se implementará **sin autenticación HTTP inicial** para resolver los errores 404 actuales y comenzar a recibir datos de Pipedrive inmediatamente.
 
 ---
 
-## Pre-requisitos
-
-### Secret Requerido
-Se necesita configurar el secret para autenticación HTTP Basic de Pipedrive:
-
-| Secret | Valor |
-|--------|-------|
-| `PIPEDRIVE_WEBHOOK_SECRET` | Base64 de `usuario:contraseña` configurado en webhooks de Pipedrive |
-
-El usuario debe proporcionar las credenciales HTTP Basic que configuró en los 3 webhooks de Pipedrive.
-
----
-
-## Fase 1: Esquema de Base de Datos
-
-### Migración SQL
-
-```sql
--- 1. Etapas del pipeline
-CREATE TABLE crm_pipeline_stages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  pipedrive_id INTEGER UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  pipeline_name TEXT DEFAULT 'Default',
-  order_nr INTEGER DEFAULT 0,
-  deal_probability INTEGER DEFAULT 0,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 2. Deals/Oportunidades
-CREATE TABLE crm_deals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  pipedrive_id INTEGER UNIQUE,
-  title TEXT NOT NULL,
-  organization_name TEXT,
-  person_name TEXT,
-  person_email TEXT,
-  person_phone TEXT,
-  value NUMERIC(15,2) DEFAULT 0,
-  currency TEXT DEFAULT 'MXN',
-  stage_id UUID REFERENCES crm_pipeline_stages(id),
-  status TEXT DEFAULT 'open',
-  probability INTEGER DEFAULT 0,
-  expected_close_date DATE,
-  won_time TIMESTAMPTZ,
-  lost_time TIMESTAMPTZ,
-  lost_reason TEXT,
-  owner_name TEXT,
-  owner_id INTEGER,
-  pipedrive_data JSONB,
-  pc_cliente_id UUID REFERENCES pc_clientes(id),
-  matched_client_name TEXT,
-  match_confidence NUMERIC(3,2),
-  is_deleted BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 3. Historial de cambios de etapa
-CREATE TABLE crm_deal_stage_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  deal_id UUID REFERENCES crm_deals(id) NOT NULL,
-  from_stage_id UUID REFERENCES crm_pipeline_stages(id),
-  to_stage_id UUID REFERENCES crm_pipeline_stages(id),
-  changed_at TIMESTAMPTZ DEFAULT now(),
-  time_in_previous_stage INTERVAL
-);
-
--- 4. Actividades comerciales
-CREATE TABLE crm_activities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  pipedrive_id INTEGER UNIQUE,
-  deal_id UUID REFERENCES crm_deals(id),
-  type TEXT NOT NULL,
-  subject TEXT,
-  done BOOLEAN DEFAULT false,
-  due_date TIMESTAMPTZ,
-  duration_minutes INTEGER,
-  note TEXT,
-  owner_name TEXT,
-  pipedrive_data JSONB,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 5. Log de webhooks para debugging
-CREATE TABLE crm_webhook_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_type TEXT NOT NULL,
-  payload JSONB NOT NULL,
-  processed BOOLEAN DEFAULT false,
-  error_message TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 6. Vista para forecast
-CREATE VIEW crm_forecast_view AS
-SELECT 
-  s.id as stage_id,
-  s.name as stage_name,
-  s.order_nr,
-  s.deal_probability,
-  COUNT(d.id) as deals_count,
-  COALESCE(SUM(d.value), 0) as total_value,
-  COALESCE(SUM(d.value * s.deal_probability / 100), 0) as weighted_value
-FROM crm_pipeline_stages s
-LEFT JOIN crm_deals d ON d.stage_id = s.id AND d.status = 'open' AND d.is_deleted = false
-WHERE s.is_active = true
-GROUP BY s.id, s.name, s.order_nr, s.deal_probability
-ORDER BY s.order_nr;
-
--- Índices para performance
-CREATE INDEX idx_crm_deals_status ON crm_deals(status);
-CREATE INDEX idx_crm_deals_stage ON crm_deals(stage_id);
-CREATE INDEX idx_crm_deals_org_name ON crm_deals(organization_name);
-CREATE INDEX idx_crm_deals_pipedrive_id ON crm_deals(pipedrive_id);
-
--- RLS Policies
-ALTER TABLE crm_pipeline_stages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE crm_deals ENABLE ROW LEVEL SECURITY;
-ALTER TABLE crm_deal_stage_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE crm_activities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE crm_webhook_logs ENABLE ROW LEVEL SECURITY;
-
--- Políticas de lectura para roles comerciales
-CREATE POLICY "CRM data visible to authorized roles" ON crm_deals
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-      AND ur.role IN ('admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi')
-    )
-  );
-
-CREATE POLICY "Pipeline stages visible to all authenticated" ON crm_pipeline_stages
-  FOR SELECT USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Stage history visible to authorized roles" ON crm_deal_stage_history
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-      AND ur.role IN ('admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi')
-    )
-  );
-
-CREATE POLICY "Activities visible to authorized roles" ON crm_activities
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-      AND ur.role IN ('admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi')
-    )
-  );
-
-CREATE POLICY "Webhook logs visible to admins" ON crm_webhook_logs
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM user_roles ur
-      WHERE ur.user_id = auth.uid()
-      AND ur.role IN ('admin', 'owner')
-    )
-  );
-
--- Insert de etapas iniciales de pipeline (ajustar según tu Pipedrive)
-INSERT INTO crm_pipeline_stages (pipedrive_id, name, order_nr, deal_probability) VALUES
-(1, 'Lead In', 1, 10),
-(2, 'Contactado', 2, 20),
-(3, 'Propuesta Enviada', 3, 40),
-(4, 'Negociación', 4, 60),
-(5, 'Cierre', 5, 80);
-```
-
----
-
-## Fase 2: Edge Function - Pipedrive Webhook
+## Fase 1: Edge Function - Pipedrive Webhook
 
 ### Archivo: `supabase/functions/pipedrive-webhook/index.ts`
 
+| Aspecto | Detalle |
+|---------|---------|
+| **Endpoint** | `https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/pipedrive-webhook` |
+| **Método** | POST |
+| **Auth** | `verify_jwt = false` (webhook público) |
+| **Eventos** | `added.deal`, `updated.deal`, `deleted.deal` |
+
+### Funcionalidad
+
 ```text
-Funcionalidad:
-1. Validación HTTP Basic Auth
-2. Logging de todos los webhooks para debugging
-3. Manejo de eventos:
-   - added.deal → INSERT en crm_deals
-   - updated.deal → UPDATE + historial de etapa si cambió
-   - deleted.deal → Soft delete (is_deleted = true)
-   - merged.deal → Actualizar referencia
-4. Auto-match con servicios_custodia.nombre_cliente
-5. Respuesta 200 OK rápida para evitar reintentos
+1. Recibir payload de Pipedrive
+2. Logear en crm_webhook_logs para debugging
+3. Parsear evento (meta.action + meta.object)
+4. Según el tipo de evento:
+   - added.deal    → INSERT en crm_deals
+   - updated.deal  → UPDATE + historial de etapa si cambió
+   - deleted.deal  → Soft delete (is_deleted = true)
+5. Auto-match con servicios_custodia.nombre_cliente
+6. Responder 200 OK inmediatamente
 ```
 
-### Lógica de Matching de Clientes
+### Estructura del Payload de Pipedrive
 
 ```typescript
-// Normalización de nombres
-function normalizeCompanyName(name: string): string {
-  return name
-    .toUpperCase()
-    .replace(/\s*(S\.?A\.?\s*DE\s*C\.?V\.?|S\.?A\.?|S\.C\.?|S\.?DE R\.?L\.?).*$/i, '')
-    .replace(/[^A-Z0-9\s]/g, '')
-    .trim();
+interface PipedriveWebhookPayload {
+  v: number;                    // Version
+  matches_filters: object;      // Filtros aplicados
+  meta: {
+    action: 'added' | 'updated' | 'deleted' | 'merged';
+    object: 'deal' | 'person' | 'activity';
+    id: number;                 // ID del objeto
+    company_id: number;
+    user_id: number;
+    timestamp: number;
+  };
+  current: DealData | null;     // Estado actual (null si deleted)
+  previous: DealData | null;    // Estado anterior (null si added)
 }
+```
 
-// Búsqueda en servicios_custodia
-async function findClientMatch(orgName: string) {
-  const normalized = normalizeCompanyName(orgName);
-  
-  // 1. Match exacto
-  const { data: exact } = await supabase
-    .from('servicios_custodia')
-    .select('nombre_cliente')
-    .ilike('nombre_cliente', `%${normalized}%`)
-    .limit(1);
-  
-  if (exact?.length) {
-    return { name: exact[0].nombre_cliente, confidence: 1.0 };
-  }
-  
-  // 2. Sin match → pendiente de vinculación manual
-  return { name: null, confidence: 0 };
-}
+---
+
+## Fase 2: Configuración de Edge Function
+
+### Modificar: `supabase/config.toml`
+
+Agregar al final:
+
+```toml
+[functions.pipedrive-webhook]
+verify_jwt = false
 ```
 
 ---
 
 ## Fase 3: Tipos TypeScript
 
-### Archivo: `src/types/crm.ts`
+### Crear: `src/types/crm.ts`
 
 ```typescript
+// Tipos para el CRM Hub
 export interface CrmPipelineStage {
   id: string;
   pipedrive_id: number;
@@ -246,7 +80,6 @@ export interface CrmPipelineStage {
   order_nr: number;
   deal_probability: number;
   is_active: boolean;
-  created_at: string;
 }
 
 export interface CrmDeal {
@@ -255,8 +88,6 @@ export interface CrmDeal {
   title: string;
   organization_name: string | null;
   person_name: string | null;
-  person_email: string | null;
-  person_phone: string | null;
   value: number;
   currency: string;
   stage_id: string | null;
@@ -265,11 +96,8 @@ export interface CrmDeal {
   probability: number;
   expected_close_date: string | null;
   won_time: string | null;
-  lost_time: string | null;
   lost_reason: string | null;
   owner_name: string | null;
-  pipedrive_data: Record<string, any>;
-  pc_cliente_id: string | null;
   matched_client_name: string | null;
   match_confidence: number | null;
   is_deleted: boolean;
@@ -289,14 +117,10 @@ export interface CrmForecast {
 
 export interface CrmActivity {
   id: string;
-  pipedrive_id: number;
   deal_id: string | null;
   type: string;
   subject: string | null;
   done: boolean;
-  due_date: string | null;
-  duration_minutes: number | null;
-  note: string | null;
   owner_name: string | null;
   created_at: string;
 }
@@ -306,182 +130,131 @@ export interface CrmActivity {
 
 ## Fase 4: Hooks de Datos
 
-### Archivos a crear:
+### Crear: `src/hooks/useCrmPipeline.ts`
+- Obtiene stages del pipeline desde `crm_pipeline_stages`
+- Ordena por `order_nr`
 
-| Hook | Propósito |
-|------|-----------|
-| `useCrmPipeline.ts` | Obtiene stages y estructura del pipeline |
-| `useCrmDeals.ts` | Lista de deals con filtros y paginación |
-| `useCrmForecast.ts` | Métricas de forecast desde la vista |
-| `useCrmClientMatcher.ts` | Lógica de matching y vinculación manual |
+### Crear: `src/hooks/useCrmDeals.ts`
+- Lista deals con filtros por status, stage, owner
+- Incluye join con `crm_pipeline_stages`
+- Soporte para paginación
+
+### Crear: `src/hooks/useCrmForecast.ts`
+- Lee datos de `crm_forecast_view`
+- Calcula métricas agregadas (pipeline total, weighted forecast)
+- Win rate y avg deal size
+
+### Crear: `src/hooks/useCrmClientMatcher.ts`
+- Busca matches en `servicios_custodia`
+- Calcula GMV real por cliente
+- Permite vinculación manual
 
 ---
 
 ## Fase 5: UI del CRM Hub
 
-### Estructura de archivos:
+### Estructura de Archivos
 
 ```text
 src/pages/CRMHub/
-├── CRMHub.tsx                    # Página principal con tabs
+├── CRMHub.tsx                    # Página principal con 4 tabs
 └── components/
-    ├── PipelineKanban.tsx        # Vista Kanban de deals
+    ├── PipelineKanban.tsx        # Kanban visual de deals
     ├── RevenueForecast.tsx       # Dashboard de forecast
     ├── ClientServicesLink.tsx    # Vinculación deal → servicios
-    └── ActivityFeed.tsx          # Timeline de actividades
+    └── ActivityFeed.tsx          # Timeline de actividad
 ```
 
 ### Tab 1: Pipeline (Kanban)
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PIPELINE DE VENTAS                                    [Filtros] [↻]   │
-├──────────────┬──────────────┬──────────────┬──────────────┬────────────┤
-│   Lead In    │  Contactado  │  Propuesta   │ Negociación  │   Cierre   │
-│   10% prob   │   20% prob   │   40% prob   │   60% prob   │  80% prob  │
-│   $1.2M      │   $800K      │   $500K      │   $300K      │  $150K     │
-├──────────────┼──────────────┼──────────────┼──────────────┼────────────┤
-│ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │ ┌──────────┐ │┌──────────┐│
-│ │ EMPRESA A│ │ │ EMPRESA C│ │ │ EMPRESA E│ │ │ EMPRESA G│ ││ EMPRESA I││
-│ │ $200,000 │ │ │ $150,000 │ │ │ $100,000 │ │ │ $120,000 │ ││ $80,000  ││
-│ │ 5 días   │ │ │ 3 días   │ │ │ 8 días   │ │ │ 2 días   │ ││ 1 día    ││
-│ │ Juan P.  │ │ │ María S. │ │ │ Carlos R.│ │ │ Ana L.   │ ││ Pedro M. ││
-│ └──────────┘ │ └──────────┘ │ └──────────┘ │ └──────────┘ │└──────────┘│
-│ ┌──────────┐ │ ┌──────────┐ │              │              │            │
-│ │ EMPRESA B│ │ │ EMPRESA D│ │              │              │            │
-│ │ $180,000 │ │ │ $95,000  │ │              │              │            │
-│ └──────────┘ │ └──────────┘ │              │              │            │
-└──────────────┴──────────────┴──────────────┴──────────────┴────────────┘
-```
+Vista Kanban con columnas por etapa del pipeline:
+- Cada columna muestra: nombre de etapa, probabilidad, valor total
+- Cards de deals con: título, valor, días en etapa, owner
+- Código de colores por status (open/won/lost)
 
 ### Tab 2: Forecast
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  FORECAST DE INGRESOS                                                   │
-├────────────────────┬────────────────────┬────────────────────┬─────────┤
-│  Pipeline Total    │  Forecast Ponderado│   Win Rate         │ Avg Deal│
-│    $2.95M          │      $892K         │     34%            │  $125K  │
-│    ▲ 12% vs mes    │      ▲ 8%          │     ▼ 2%           │  ▲ 5%   │
-└────────────────────┴────────────────────┴────────────────────┴─────────┘
+Métricas principales:
+- Pipeline Value Total
+- Weighted Forecast (valor × probabilidad)
+- Win Rate
+- Average Deal Size
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│  DESGLOSE POR ETAPA                                                     │
-├───────────────────────────────────────────┬──────────┬──────────────────┤
-│ Etapa                                     │ Deals    │ Valor Ponderado  │
-├───────────────────────────────────────────┼──────────┼──────────────────┤
-│ Lead In (10%)           ████████████      │    12    │      $120,000    │
-│ Contactado (20%)        █████████         │     8    │      $160,000    │
-│ Propuesta (40%)         ██████            │     5    │      $200,000    │
-│ Negociación (60%)       ████              │     4    │      $180,000    │
-│ Cierre (80%)            ██                │     2    │      $232,000    │
-└───────────────────────────────────────────┴──────────┴──────────────────┘
-```
+Gráfico de barras por etapa con valor ponderado.
 
 ### Tab 3: Clientes → Servicios
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  VINCULACIÓN CLIENTE → SERVICIOS                    [Solo pendientes ◉]│
-├─────────────────┬───────────────┬──────────┬───────────┬────────────────┤
-│ Deal/Cliente    │ Status Match  │ Deal $   │ GMV Real  │ Acciones       │
-├─────────────────┼───────────────┼──────────┼───────────┼────────────────┤
-│ ASTRA ZENECA    │ ✓ Verificado  │ $500K    │ $23.4M    │ [Ver servicios]│
-│ COMARKET        │ ✓ Auto-match  │ $300K    │ $29.1M    │ [Ver servicios]│
-│ TYASA           │ ⚠ Pendiente   │ $200K    │    --     │ [Vincular]     │
-│ NUEVA EMPRESA   │ ✗ Sin match   │ $150K    │    --     │ [Vincular]     │
-└─────────────────┴───────────────┴──────────┴───────────┴────────────────┘
-```
+Tabla de vinculación:
+- Deal/Cliente
+- Status de Match (Verificado, Auto-match, Pendiente, Sin match)
+- Deal Value
+- GMV Real (de servicios_custodia)
+- Acciones (Ver servicios, Vincular)
 
 ### Tab 4: Actividad
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ACTIVIDAD RECIENTE                                     [Últimos 7 días]│
-├─────────────────────────────────────────────────────────────────────────┤
-│  🟢 Hace 2 min    DEAL WON: ASTRA ZENECA - $500,000                     │
-│                   Cerrado por Juan Pérez                                 │
-├─────────────────────────────────────────────────────────────────────────┤
-│  🔵 Hace 1 hora   STAGE CHANGE: COMARKET                                │
-│                   Propuesta → Negociación                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  🟡 Hace 3 horas  NEW DEAL: TYASA - $200,000                            │
-│                   Creado por María Sánchez                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  🔴 Ayer          DEAL LOST: EMPRESA X - $80,000                        │
-│                   Razón: Precio fuera de presupuesto                    │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+Timeline de eventos recientes:
+- Deal Won (verde)
+- Stage Change (azul)
+- New Deal (amarillo)
+- Deal Lost (rojo)
 
 ---
 
 ## Fase 6: Navegación
 
-### Modificación: `src/config/navigationConfig.ts`
+### Modificar: `src/config/navigationConfig.ts`
 
-Agregar nuevo módulo en grupo "dashboard":
+Agregar módulo CRM en grupo `dashboard`:
 
 ```typescript
 {
   id: 'crm',
   label: 'CRM Hub',
-  icon: TrendingUp, // o Briefcase
+  icon: Briefcase,
   path: '/crm',
   group: 'dashboard',
   roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi'],
   children: [
-    {
-      id: 'crm_pipeline',
-      label: 'Pipeline',
-      path: '/crm',
-      icon: LayoutDashboard
-    },
-    {
-      id: 'crm_forecast',
-      label: 'Forecast',
-      path: '/crm?tab=forecast',
-      icon: TrendingUp
-    },
-    {
-      id: 'crm_clients',
-      label: 'Clientes',
-      path: '/crm?tab=clients',
-      icon: Users
-    }
+    { id: 'crm_pipeline', label: 'Pipeline', path: '/crm', icon: LayoutDashboard },
+    { id: 'crm_forecast', label: 'Forecast', path: '/crm?tab=forecast', icon: TrendingUp },
+    { id: 'crm_clients', label: 'Clientes', path: '/crm?tab=clients', icon: Users }
   ]
 }
 ```
 
-### Modificación: `src/App.tsx`
+### Modificar: `src/App.tsx`
 
-Agregar ruta:
+Agregar lazy import y ruta:
 
 ```typescript
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 
 // En Routes:
-<Route path="/crm" element={<CRMHub />} />
+<Route path="/crm" element={
+  <ProtectedRoute>
+    <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi']}>
+      <UnifiedLayout>
+        <CRMHub />
+      </UnifiedLayout>
+    </RoleProtectedRoute>
+  </ProtectedRoute>
+} />
 ```
 
 ---
 
-## Fase 7: Configuración de Webhooks
+## Fase 7: Migración SQL
 
-### En Pipedrive (ya creados por el usuario):
+Las siguientes tablas serán creadas automáticamente por Lovable Cloud:
 
-| Webhook | Event Action | URL |
-|---------|--------------|-----|
-| Deal Added | added | `https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/pipedrive-webhook` |
-| Deal Changed | change | `https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/pipedrive-webhook` |
-| Deal Deleted | delete | `https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/pipedrive-webhook` |
-
-### Credenciales HTTP Basic
-
-El usuario debe proporcionar:
-- **Usuario**: Ej. `detecta`
-- **Contraseña**: Ej. `[contraseña segura]`
-
-El secret `PIPEDRIVE_WEBHOOK_SECRET` será: `base64(usuario:contraseña)`
+| Tabla | Descripción |
+|-------|-------------|
+| `crm_pipeline_stages` | Etapas del pipeline sincronizadas de Pipedrive |
+| `crm_deals` | Deals/Oportunidades con vinculación a clientes |
+| `crm_deal_stage_history` | Historial de cambios de etapa |
+| `crm_activities` | Actividades comerciales (futuro) |
+| `crm_webhook_logs` | Log de webhooks para debugging |
 
 ---
 
@@ -489,7 +262,7 @@ El secret `PIPEDRIVE_WEBHOOK_SECRET` será: `base64(usuario:contraseña)`
 
 | Archivo | Descripción |
 |---------|-------------|
-| `supabase/functions/pipedrive-webhook/index.ts` | Edge Function para recibir webhooks |
+| `supabase/functions/pipedrive-webhook/index.ts` | Edge Function para webhooks |
 | `src/types/crm.ts` | Tipos TypeScript para CRM |
 | `src/hooks/useCrmPipeline.ts` | Hook para pipeline stages |
 | `src/hooks/useCrmDeals.ts` | Hook para deals |
@@ -505,17 +278,27 @@ El secret `PIPEDRIVE_WEBHOOK_SECRET` será: `base64(usuario:contraseña)`
 
 | Archivo | Cambio |
 |---------|--------|
+| `supabase/config.toml` | Agregar `[functions.pipedrive-webhook]` |
 | `src/config/navigationConfig.ts` | Agregar módulo CRM |
-| `src/App.tsx` | Agregar ruta /crm |
-| `supabase/config.toml` | Registrar edge function |
+| `src/App.tsx` | Agregar ruta `/crm` |
 
 ---
 
-## Próximo Paso Inmediato
+## Orden de Implementación
 
-Antes de implementar, necesito que me proporciones las **credenciales HTTP Basic** que configuraste en los webhooks de Pipedrive:
+1. **Edge Function** → Resolver los 404 de webhooks de Pipedrive
+2. **Config.toml** → Registrar la función
+3. **Tipos TypeScript** → Base para todo el módulo
+4. **Hooks de datos** → Lógica de acceso a datos
+5. **UI Components** → Visualización del CRM Hub
+6. **Navegación** → Agregar acceso al módulo
 
-1. **Usuario**: El nombre de usuario que pusiste
-2. **Contraseña**: La contraseña que configuraste
+---
 
-Con esto generaré el secret `PIPEDRIVE_WEBHOOK_SECRET` y procederé con la implementación completa.
+## Próximos Pasos Post-Implementación
+
+1. Verificar que los webhooks de Pipedrive dejen de dar 404
+2. Crear un deal de prueba en Pipedrive para validar la recepción
+3. Revisar `crm_webhook_logs` para confirmar que los datos lleguen
+4. Sincronizar las etapas reales del pipeline de Pipedrive
+5. (Opcional) Agregar autenticación HTTP Basic si se desea mayor seguridad
