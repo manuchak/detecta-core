@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, LayoutDashboard, TrendingUp, Users, Activity } from 'lucide-react';
+import { RefreshCw, LayoutDashboard, TrendingUp, Users, Activity, Download } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import PipelineKanban from './components/PipelineKanban';
 import RevenueForecast from './components/RevenueForecast';
 import ClientServicesLink from './components/ClientServicesLink';
@@ -21,6 +22,7 @@ export default function CRMHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const tabParam = searchParams.get('tab') || 'pipeline';
   const activeTab = TAB_MAP[tabParam] || 'pipeline';
@@ -39,6 +41,37 @@ export default function CRMHub() {
     setTimeout(() => setIsRefreshing(false), 500);
   };
 
+  const handleSyncPipedrive = async () => {
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('pipedrive-sync');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data?.success) {
+        toast({
+          title: "Sincronización completada",
+          description: data.message || `Deals y etapas sincronizados correctamente`,
+        });
+        // Refresh all CRM data
+        await handleRefresh();
+      } else {
+        throw new Error(data?.error || 'Error desconocido');
+      }
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      toast({
+        title: "Error de sincronización",
+        description: err.message || 'No se pudo sincronizar con Pipedrive',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -49,15 +82,26 @@ export default function CRMHub() {
             Pipeline de ventas, forecast e integración con Pipedrive
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSyncPipedrive}
+            disabled={isSyncing}
+          >
+            <Download className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
+            {isSyncing ? 'Sincronizando...' : 'Sincronizar Pipedrive'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
