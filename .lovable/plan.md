@@ -1,431 +1,323 @@
 
-# Plan: Mejora UX/UI del CRM Hub - Vision Cross-Functional
 
-## Resumen Ejecutivo
+# Rediseno UI/UX del CRM Hub - Auditoria Critica y Plan de Mejora
 
-Transformar el CRM Hub de una herramienta operacional de seguimiento a un **centro de inteligencia comercial** que conecte el embudo de ventas con la capacidad operativa (Supply) y la distribución geográfica de demanda. El objetivo es que cualquier stakeholder (CEO, Head of Sales, Head of Operations, Head of Product) pueda tomar decisiones informadas sin necesidad de cruzar datos manualmente.
+## Analisis Critico del Estado Actual
 
----
+### Diagnostico General: Calificacion 5/10
 
-## Diagnostico Actual
-
-### Fortalezas
-- Integración funcional con Pipedrive (webhook + sync)
-- Kanban de pipeline operativo
-- Lógica de client-matching con servicios_custodia
-
-### Debilidades Criticas
-
-| Problema | Impacto |
-|----------|---------|
-| Planitud Visual | Todos los deals lucen iguales; un deal de $500K no se distingue de uno de $0 |
-| Sin Contexto Temporal | No hay indicadores de deals "estancados" que superen el tiempo promedio en etapa |
-| Desconexion Geografica | No se puede ver donde se concentra la demanda comercial vs. donde hay supply |
-| Metricas sin Benchmark | Pipeline total sin comparacion vs. mes anterior o metas |
-| Sin Flujo Visual | No se entiende como fluyen los leads desde origen hasta cierre |
+El CRM Hub actual es **funcional pero no comunicativo**. Tiene los datos correctos pero falla en responder las preguntas clave que un stakeholder no tecnico necesita responder en 5 segundos.
 
 ---
 
-## Arquitectura de Mejoras
+## Auditoria Detallada por Pestana
 
+### Tab 1: Pipeline (Kanban)
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **6 metricas en una linea plana** sin jerarquia | Alta | El CEO no sabe que numero mirar primero |
+| **Cards demasiado densas** con 6-7 datos compitiendo | Alta | Fatiga cognitiva, nadie lee todo |
+| **"Stalled" en texto pequeno** enterrado en el card | Media | El alerta critica no llama la atencion |
+| **Sin resumen visual** de salud del pipeline | Alta | No hay "semaforo" que diga si vamos bien o mal |
+| **Scroll horizontal infinito** en columnas | Media | Se pierde contexto de etapas posteriores |
+
+**Screenshot Mental Actual:**
 ```text
-+------------------------------------------------------------------+
-|                        CRM HUB MEJORADO                          |
-+------------------------------------------------------------------+
-|                                                                  |
-|  CAPA 1: PIPELINE INTELIGENTE (Kanban Mejorado)                  |
-|  ├─ Jerarquia visual por valor del deal                          |
-|  ├─ Badges de "Stalled" para deals estancados                    |
-|  ├─ Indicador de match confidence prominente                     |
-|  └─ Quick actions (ver detalle, editar, cambiar etapa)           |
-|                                                                  |
-|  CAPA 2: METRICAS CON CONTEXTO                                   |
-|  ├─ Tendencias vs. mes anterior (flechas verde/rojo)             |
-|  ├─ Progreso vs. meta mensual (barra de progreso)                |
-|  ├─ Sales Velocity Score                                         |
-|  └─ Conversion Rate por etapa                                    |
-|                                                                  |
-|  CAPA 3: SANKEY CHART - FLUJO DE CONVERSION                      |
-|  ├─ Lead Source → Zona Geografica → Stage → Outcome              |
-|  ├─ Identificar donde se pierden deals                           |
-|  └─ Detectar zonas con alta/baja conversion                      |
-|                                                                  |
-|  CAPA 4: PIPELINE MAP (Vista Geografica)                         |
-|  ├─ Deals en negociacion por zona                                |
-|  ├─ Supply disponible por zona (custodios activos)               |
-|  └─ Gap Analysis: Demanda comercial vs. Capacidad operativa      |
-|                                                                  |
-+------------------------------------------------------------------+
+[Card plana] [Card plana] [Card plana] [Card plana] [Card plana]
+     ↓            ↓            ↓            ↓            ↓
+   Todo se ve igual, nada destaca, no hay historia
 ```
+
+### Tab 2: Forecast
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **6 MetricCards identicas** en grid 6 columnas | Critica | Todas lucen igual de importantes |
+| **Sin "North Star Metric"** destacada | Critica | No hay un numero que responda "vamos bien?" |
+| **Chart de barras horizontales** sin contexto | Alta | Muestra datos pero no cuenta una historia |
+| **Subtitulos genericos** ("Deals ganados", "Por dia de cierre") | Media | No explican POR QUE importa la metrica |
+| **Progress bar de meta** casi invisible (h-1.5) | Alta | El progreso vs objetivo deberia ser prominente |
+
+**Comparacion con Home.tsx:**
+El Home usa un patron de **Hero Card + Context Widgets** que funciona mucho mejor:
+- Un numero grande como protagonista
+- Contexto debajo en tamano menor
+- Widgets secundarios en grid de 3
+
+### Tab 3: Flujo (Sankey)
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **Sankey Chart sin labels visibles** en nodos | Alta | No se lee que dice cada nodo |
+| **Texto blanco de 10px** dentro de rectangulos | Critica | Ilegible, especialmente en nodos pequenos |
+| **Insights en cards separados** debajo del chart | Media | El insight deberia estar integrado en la visualizacion |
+| **Leyenda basica** sin explicacion de flujo | Media | No explica como leer el diagrama |
+| **Falta un "finding" destacado** | Alta | Deberia decir "60% se pierde en Propuesta" en grande |
+
+### Tab 4: Mapa
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **Toggle de Supply Gap escondido** como switch | Alta | La info mas valiosa esta oculta por defecto |
+| **Burbujas sin labels de zona** | Media | Hay que hacer hover para saber que zona es |
+| **Cards de zona** muestran solo valor, no insight | Alta | Deberian mostrar "CDMX: 45% del pipeline" |
+| **Alerta de capacidad** muy verbosa | Media | Lista zonas pero no prioriza cual atender primero |
+
+### Tab 5: Clientes
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **Tabla tradicional** sin jerarquia visual | Media | Todos los rows lucen iguales |
+| **4 summary cards identicas** | Media | No hay diferenciacion visual por prioridad |
+| **Boton "Vincular"** en cada row | Baja | OK, pero deberia destacar pendientes |
+
+### Tab 6: Actividad
+
+| Problema | Severidad | Impacto |
+|----------|-----------|---------|
+| **Lista cronologica plana** | Media | No agrupa por tipo de evento (won/lost/new) |
+| **Card de "Eventos recientes: X"** poco util | Alta | Deberia mostrar "3 deals ganados, 1 perdido esta semana" |
+| **Sin resumen ejecutivo** | Alta | No hay un "Estado del CRM esta semana" |
 
 ---
 
-## Fase 1: Quick Wins - Pipeline Kanban Mejorado
+## Principios de Diseno a Aplicar
 
-### 1.1 Jerarquia Visual por Valor
-
-**Problema**: Un deal de $500K luce igual que uno de $5K.
-
-**Solucion**: Aplicar estilos diferenciados segun rangos de valor.
+### 1. Piramide Invertida de Informacion
 
 ```text
-Rango de Valor          │ Estilo Visual
-────────────────────────┼───────────────────────────────────────
-$0 - $50K               │ Borde izquierdo gris, texto normal
-$50K - $200K            │ Borde izquierdo azul, titulo semibold
-$200K - $500K           │ Borde izquierdo primary, fondo sutil
-$500K+                  │ Borde dorado, badge "High Value"
+         ╔═══════════════════════════════════════╗
+NIVEL 1  ║  ESTADO: ¿Vamos a cumplir la meta?    ║  ← Hero (2 segundos)
+         ║       $1.2M / $2.5M (48%)             ║
+         ╚═══════════════════════════════════════╝
+                          ▼
+         ┌───────────────────────────────────────┐
+NIVEL 2  │  TENDENCIAS: ¿Mejor o peor que antes? │  ← KPIs (10 segundos)
+         │  Pipeline ↑8%  |  Win Rate ↓2pp       │
+         └───────────────────────────────────────┘
+                          ▼
+         ┌───────────────────────────────────────┐
+NIVEL 3  │  ACCIONES: ¿Que deals atender hoy?    │  ← Drill-down (30+ seg)
+         │  [Kanban] [Table] [Charts]            │
+         └───────────────────────────────────────┘
 ```
 
-### 1.2 Indicador de Deals Estancados
+### 2. Consistencia con Design System Existente
 
-**Logica**: Calcular tiempo promedio en cada etapa. Si un deal supera 1.5x el promedio, mostrar badge "Stalled".
+El proyecto ya tiene patrones probados en:
+- **Home.tsx**: Hero Card + Context Widgets
+- **AreaPerformanceDashboard.tsx**: MetricCard con trend arrows
+- **MetricCard.tsx** en Reportes: Patron icon + value + subtitle + trend
 
-```text
-┌─────────────────────────────────────┐
-│  Contrato de Servicio ABC           │
-│  ⚠️ Stalled (15 dias en etapa)      │  ← Badge rojo
-│  Organizacion XYZ                   │
-│  $150,000                    open   │
-│  hace 15 dias          @vendedor    │
-│  ● Match verificado                 │
-└─────────────────────────────────────┘
-```
+El CRM Hub debe usar los mismos componentes, no reinventar.
 
-### 1.3 Summary Cards con Contexto
+### 3. Regla del "5 Segundos"
 
-**Antes**:
-```text
-Total Deals Abiertos: 47
-Valor Total Pipeline: $2,340,000
-```
-
-**Despues**:
-```text
-Total Deals Abiertos: 47         ↑ +8 vs mes anterior
-Valor Total Pipeline: $2.34M     ↓ -12% vs mes anterior
-                                 72% de meta mensual ($3.2M)
-```
-
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CRMHub/components/PipelineKanban.tsx` | Agregar jerarquia visual, badges stalled, metricas contextuales |
-| `src/hooks/useCrmDeals.ts` | Agregar calculo de tiempo promedio por etapa |
-| `src/types/crm.ts` | Agregar campos para stalled detection |
+Un ejecutivo debe poder responder estas preguntas en 5 segundos:
+1. **Pipeline Tab**: "¿Cuanto tenemos en pipeline y cuantos deals estan estancados?"
+2. **Forecast Tab**: "¿Vamos a cumplir la meta del mes?"
+3. **Flujo Tab**: "¿Donde se pierden mas deals?"
+4. **Mapa Tab**: "¿Donde necesitamos crecer capacidad?"
 
 ---
 
-## Fase 2: Metricas Ejecutivas Mejoradas
+## Plan de Implementacion
 
-### 2.1 Nuevas Metric Cards
+### Fase 1: Hero Cards para Cada Tab (Alta Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/CRMHeroCard.tsx`** (Nuevo)
+
+Un componente hero reutilizable que muestre:
+- Numero grande (North Star)
+- Contexto (vs meta, vs mes anterior)
+- Indicador visual de salud (verde/amarillo/rojo)
+
+**Implementacion:**
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  METRICAS CLAVE                                                         │
-├────────────────┬────────────────┬────────────────┬─────────────────────┤
-│  Pipeline      │  Forecast      │  Win Rate      │  Sales Velocity     │
-│  $2.34M        │  $1.12M        │  34.2%         │  $45K/dia           │
-│  ↑ +8% vs LM   │  ↓ -5% vs LM   │  ↑ +2.1pp      │  ≈ promedio         │
-│  72% de meta   │  Prob. 48%     │  12/35 cerrados│  Avg 18 dias ciclo  │
-└────────────────┴────────────────┴────────────────┴─────────────────────┘
-```
-
-### 2.2 Sales Velocity Formula
-
-```text
-Sales Velocity = (Deals Abiertos × Ticket Promedio × Win Rate) / Ciclo Promedio
-
-Ejemplo:
-(47 deals × $49.8K × 34.2%) / 18 dias = $44.5K/dia de capacidad de cierre
-```
-
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CRMHub/components/RevenueForecast.tsx` | Agregar tendencias, velocity, progreso vs meta |
-| `src/hooks/useCrmForecast.ts` | Calcular metricas comparativas y velocity |
-
----
-
-## Fase 3: Sankey Chart - Flujo de Conversion
-
-### 3.1 Justificacion del Sankey
-
-El Sankey es ideal para este caso porque:
-1. Muestra flujos **no lineales** (un lead puede saltar etapas o perderse en cualquier punto)
-2. Revela **cuellos de botella** visualmente (lineas que se adelgazan = perdida)
-3. Conecta **multiples dimensiones** (origen → zona → etapa → resultado)
-
-### 3.2 Estructura de Datos
-
-```text
-Nodos:
-├─ FUENTES (izquierda)
-│   ├─ Pipedrive (inbound)
-│   ├─ Referido
-│   └─ Outbound
-├─ ZONAS (centro-izquierda)
-│   ├─ Centro
-│   ├─ Bajio
-│   ├─ Norte
-│   ├─ Occidente
-│   └─ Otras
-├─ ETAPAS (centro-derecha)
-│   ├─ Contacto Inicial
-│   ├─ Propuesta
-│   ├─ Negociacion
-│   └─ Cierre
-└─ RESULTADO (derecha)
-    ├─ Won
-    └─ Lost
-
-Links:
-[Fuente] ──valor──► [Zona] ──valor──► [Etapa] ──valor──► [Resultado]
-```
-
-### 3.3 Visualizacion Esperada
-
-```text
-           ┌──────────────────────────────────────────────────────────┐
-           │              FLUJO DE CONVERSION POR ZONA                │
-           │                                                          │
-           │   Pipedrive ═══════╗        Contacto ═══════╗           │
-           │                    ╠═══ Centro ═══╣         ╠══ Won ════│
-           │   Referido ════════╣              ╠═══ Propuesta ═╗     │
-           │                    ╠═══ Bajio ════╣         ╠═════╬═════│
-           │   Outbound ════════╝              ╠═══ Negociacion ╣    │
-           │                    ╔═══ Norte ════╝         ╠══ Lost ═══│
-           │                    ╚═══ Occidente ══════════╝           │
-           └──────────────────────────────────────────────────────────┘
-```
-
-### 3.4 Insights que Revela
-
-- **Zona con mejor conversion**: "Bajio convierte 45% vs 28% nacional"
-- **Fuente mas efectiva**: "Referidos tienen 2x conversion vs Pipedrive"
-- **Etapa critica**: "60% de perdidas ocurren entre Propuesta y Negociacion"
-
-### Archivos a Crear
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/pages/CRMHub/components/ConversionSankeyChart.tsx` | Componente Sankey usando Recharts |
-| `src/hooks/useCrmConversionFlow.ts` | Hook para calcular nodos y links del Sankey |
-
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CRMHub/CRMHub.tsx` | Agregar nueva tab "Flujo" |
-| `src/types/crm.ts` | Agregar tipos para SankeyNode y SankeyLink |
-
----
-
-## Fase 4: Pipeline Map - Vision Geografica
-
-### 4.1 Reutilizacion de Componentes Existentes
-
-El proyecto ya tiene:
-- `DemandBubbleMap.tsx` - Burbujas de demanda operativa
-- `FlowMap.tsx` - Flujos origen-destino
-- `geografico.ts` - Diccionario de ciudades con coordenadas
-
-### 4.2 Nueva Vista: Pipeline por Zona
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  PIPELINE MAP                                          [Toggle: Supply] │
-├─────────────────────────────────────────────────────────────────────────┤
+│  PIPELINE ACTIVO                                         Estado: ⚠️     │
 │                                                                         │
-│                        ┌──────┐                                         │
-│                        │ MTY  │ $450K (5 deals)                         │
-│                        │ ●●●  │ Supply: 12 custodios                    │
-│                        └──────┘ Gap: OK                                 │
+│  $3.15M                                                                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░ 56% de meta ($5.6M)         │
 │                                                                         │
-│   ┌──────┐                                    ┌──────┐                  │
-│   │ GDL  │ $280K                              │ CDMX │ $1.2M (18 deals) │
-│   │ ●●   │ 3 deals                            │ ●●●● │ Supply: 45       │
-│   └──────┘                                    └──────┘ Gap: -8 units    │
-│                                                                         │
-│                        ┌──────┐                                         │
-│                        │ QRO  │ $180K                                   │
-│                        │ ●    │ 2 deals                                 │
-│                        └──────┘                                         │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-
-Leyenda:
-● = $100K en pipeline
-Color Verde = Supply suficiente
-Color Rojo = Gap de capacidad
-```
-
-### 4.3 Logica de Geocodificacion de Deals
-
-```text
-1. Obtener organization_name de cada deal
-2. Normalizar texto (quitar acentos, lowercase)
-3. Buscar coincidencias en CIUDADES_PRINCIPALES
-4. Si no hay match, usar ubicacion de matched_client (servicios_custodia)
-5. Agrupar deals por zona (ZONAS_A_CIUDADES)
-```
-
-### 4.4 Calculo de Gap Supply vs Demanda
-
-```text
-Para cada zona:
-  demanda_proyectada = sum(deal.value × stage.probability) / ticket_promedio_servicio
-  supply_actual = count(instaladores WHERE zona_preferida = zona AND estatus = 'activo')
-  gap = supply_actual - demanda_proyectada
-
-Si gap < 0:
-  Mostrar alerta: "Se necesitan {abs(gap)} custodios adicionales en {zona}"
-```
-
-### Archivos a Crear
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/pages/CRMHub/components/PipelineMap.tsx` | Mapa de deals por zona con Mapbox |
-| `src/hooks/useCrmGeoDistribution.ts` | Hook para geocodificar y agrupar deals |
-| `src/hooks/useCrmSupplyGap.ts` | Hook para calcular gap supply vs demanda |
-
-### Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CRMHub/CRMHub.tsx` | Agregar tab "Mapa" |
-| `src/utils/geografico.ts` | Agregar funcion extraerZonaDeDeal |
-
----
-
-## Fase 5: Mejoras de Activity Feed
-
-### 5.1 Agrupacion por Tipo de Evento
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ACTIVIDAD RECIENTE                                     [Filtrar ▼]    │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  CERRADOS ESTA SEMANA                                                   │
-│  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │ 🏆 Contrato ABC Logistica       $320,000    Won    hace 2 dias    │ │
-│  │ ❌ Propuesta XYZ Corp           $85,000     Lost   hace 3 dias    │ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-│                                                                         │
-│  NUEVOS ESTA SEMANA                                                     │
-│  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │ ➕ Lead Empresa DEF             $150,000    Open   hace 1 dia     │ │
-│  │ ➕ Oportunidad GHI              $200,000    Open   hace 4 dias    │ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-│                                                                         │
-│  STALLED (requieren atencion)                                           │
-│  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │ ⚠️ Propuesta JKL Industries     $420,000    25 dias sin cambio    │ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-│                                                                         │
+│  47 deals abiertos  •  5 stalled  •  ↑8% vs mes anterior               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Archivos a Modificar
+**Variantes por Tab:**
+- **Pipeline**: Pipeline Total + Deals Stalled
+- **Forecast**: Forecast Ponderado + % de Meta
+- **Flujo**: Conversion Rate + Zona con Mayor Perdida
+- **Mapa**: Zonas con Deficit + Total Pipeline Geografico
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CRMHub/components/ActivityFeed.tsx` | Agregar agrupacion semantica y filtros |
+### Fase 2: Simplificacion de MetricCards (Alta Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/RevenueForecast.tsx`**
+
+**De 6 cards identicas a 3 cards jerarquizadas:**
+
+```text
+ANTES (6 cards planas):
+[Pipeline] [Forecast] [Win Rate] [Ticket] [Velocity] [Ciclo]
+   ↓           ↓          ↓         ↓         ↓         ↓
+  Todo igual, nada destaca
+
+DESPUES (3 cards + detalle colapsable):
+┌──────────────────────────────────────────────────────────────────┐
+│  FORECAST PONDERADO                              ¿Vamos bien?    │
+│  $1.12M                                                          │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━ 48% de meta │ ↓5% vs mes anterior      │
+└──────────────────────────────────────────────────────────────────┘
+
+┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
+│ Win Rate    34.2%  │  │ Ciclo Prom  18d   │  │ Velocity   $45K/d  │
+│ 12/35 cerrados     │  │ Lead → Won        │  │ Capacidad cierre   │
+└────────────────────┘  └────────────────────┘  └────────────────────┘
+
+[▼ Ver metricas avanzadas]  ← Colapsable
+```
+
+### Fase 3: Alertas Visuales Prominentes (Alta Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/PipelineKanban.tsx`**
+
+**Agregar banner de alertas antes del Kanban:**
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ⚠️ 5 deals requieren atencion                                 [Ver →]  │
+│                                                                         │
+│ • 3 deals stalled por mas de 15 dias ($450K en riesgo)                 │
+│ • 2 deals premium sin actividad reciente ($800K)                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fase 4: Rediseno del Sankey Chart (Media Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/ConversionSankeyChart.tsx`**
+
+Cambios:
+1. **Labels externos** en lugar de texto dentro de nodos
+2. **Insight destacado** arriba del chart
+3. **Porcentajes de perdida** en cada transicion
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  HALLAZGO CLAVE                                                         │
+│  "42% de deals se pierden entre Propuesta y Negociacion"               │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+[Sankey con labels externos y lineas claras]
+```
+
+### Fase 5: Mapa con Supply Gap por Defecto (Media Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/PipelineMap.tsx`**
+
+Cambios:
+1. **Supply Gap activo por defecto** (es lo mas valioso)
+2. **Labels de zona** visibles sin hover
+3. **Prioridad clara** en alerta de capacidad
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ZONAS QUE REQUIEREN ATENCION (ordenadas por urgencia)                 │
+│                                                                         │
+│  1. CDMX     -8 custodios  ($1.2M en pipeline sin cobertura)          │
+│  2. MTY      -3 custodios  ($450K en pipeline sin cobertura)          │
+│  3. GDL      OK                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fase 6: Activity Feed con Resumen Semanal (Baja Prioridad)
+
+**Archivo: `src/pages/CRMHub/components/ActivityFeed.tsx`**
+
+**Agregar resumen ejecutivo antes de la lista:**
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  RESUMEN ESTA SEMANA                                                    │
+│                                                                         │
+│  ✓ 3 deals ganados     $520K                                           │
+│  ✗ 1 deal perdido      $85K (razon: precio)                            │
+│  + 5 nuevos deals      $680K potencial                                 │
+│  ⚠️ 2 deals stalled    $420K en riesgo                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Resumen Tecnico de Implementacion
+## Resumen de Archivos a Modificar
 
-### Nuevos Archivos a Crear (6)
+### Archivos Nuevos (2)
 
 | Archivo | Proposito |
 |---------|-----------|
-| `src/pages/CRMHub/components/ConversionSankeyChart.tsx` | Diagrama Sankey de flujo de conversion |
-| `src/pages/CRMHub/components/PipelineMap.tsx` | Mapa geografico de deals |
-| `src/hooks/useCrmConversionFlow.ts` | Logica para calcular nodos/links del Sankey |
-| `src/hooks/useCrmGeoDistribution.ts` | Geocodificacion y agrupacion de deals |
-| `src/hooks/useCrmSupplyGap.ts` | Calculo de gap supply vs demanda |
-| `src/hooks/useCrmTrends.ts` | Comparativas vs mes anterior |
+| `src/pages/CRMHub/components/CRMHeroCard.tsx` | Componente hero reutilizable para cada tab |
+| `src/pages/CRMHub/components/CRMAlertBanner.tsx` | Banner de alertas (stalled, critical) |
 
-### Archivos a Modificar (7)
+### Archivos a Modificar (6)
 
 | Archivo | Cambios Principales |
 |---------|---------------------|
-| `src/pages/CRMHub/CRMHub.tsx` | Agregar tabs "Flujo" y "Mapa" |
-| `src/pages/CRMHub/components/PipelineKanban.tsx` | Jerarquia visual, badges stalled |
-| `src/pages/CRMHub/components/RevenueForecast.tsx` | Tendencias y velocity |
-| `src/pages/CRMHub/components/ActivityFeed.tsx` | Agrupacion semantica |
-| `src/hooks/useCrmForecast.ts` | Metricas comparativas |
-| `src/types/crm.ts` | Nuevos tipos para Sankey y Geo |
-| `src/utils/geografico.ts` | Funcion extraerZonaDeDeal |
+| `PipelineKanban.tsx` | Agregar hero card + alert banner, simplificar summary |
+| `RevenueForecast.tsx` | Jerarquizar cards (hero + 3 secundarios + colapsable) |
+| `ConversionSankeyChart.tsx` | Labels externos, insight destacado |
+| `PipelineMap.tsx` | Supply gap por defecto, labels visibles |
+| `ActivityFeed.tsx` | Resumen semanal ejecutivo |
+| `ClientServicesLink.tsx` | Destacar pendientes visualmente |
 
 ---
 
-## Consideraciones de Diseño
+## Ejemplo Visual de Transformacion
 
-### Consistencia con el Design System Existente
-
-El proyecto utiliza un sistema de diseno minimalista en escala de grises con acentos sutiles:
-
-- **Tipografia**: Apple-style (SF Pro / -apple-system)
-- **Colores**: Grayscale base con chart-colors vibrantes para datos
-- **Cards**: `apple-card` con bordes sutiles y sombras suaves
-- **Animaciones**: Transiciones de 200-300ms con easing cubico
-
-### Paleta de Colores para Nuevos Elementos
-
-| Uso | Color | Clase Tailwind |
-|-----|-------|----------------|
-| High Value Deal | Dorado sutil | `border-l-amber-500` |
-| Stalled Badge | Rojo suave | `bg-destructive/10 text-destructive` |
-| Win Trend Up | Verde | `text-green-600` |
-| Loss Trend Down | Rojo | `text-red-600` |
-| Sankey Links | Chart colors | `hsl(var(--chart-1..5))` |
-
----
-
-## Orden de Implementacion Recomendado
+### Antes (RevenueForecast actual):
 
 ```text
-Semana 1: Fase 1 (Quick Wins)
-├─ Jerarquia visual en DealCard
-├─ Badges de Stalled
-└─ Metricas con contexto
+[Pipeline $2.3M] [Forecast $1.1M] [Win 34%] [Ticket $49K] [Velocity $45K] [Ciclo 18d]
+[                          Chart de barras                                          ]
+[                          Tabla de etapas                                          ]
+```
 
-Semana 2: Fase 2 (Metricas Ejecutivas)
-├─ useCrmTrends hook
-├─ Sales Velocity calculation
-└─ Progress bars vs meta
+### Despues (RevenueForecast rediseñado):
 
-Semana 3: Fase 3 (Sankey Chart)
-├─ useCrmConversionFlow hook
-├─ ConversionSankeyChart component
-└─ Nueva tab "Flujo"
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│  ¿VAMOS A CUMPLIR LA META?                                                      │
+│                                                                                 │
+│       $1.12M                                                                    │
+│   FORECAST PONDERADO                                                            │
+│                                                                                 │
+│   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━░░░░░░░░░░░░░░░░░░ 48% de $2.3M                 │
+│                                                                                 │
+│   ↓5% vs mes anterior  •  Ritmo actual: $38K/dia  •  Necesitas: $52K/dia       │
+└─────────────────────────────────────────────────────────────────────────────────┘
 
-Semana 4: Fase 4 (Pipeline Map)
-├─ useCrmGeoDistribution hook
-├─ PipelineMap component (reutilizar DemandBubbleMap)
-├─ useCrmSupplyGap hook
-└─ Nueva tab "Mapa"
+┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
+│  WIN RATE         │  │  CICLO PROMEDIO   │  │  TICKET PROMEDIO  │
+│      34.2%        │  │      18 dias      │  │      $49K         │
+│  12/35 cerrados   │  │  Lead → Won       │  │  Deals ganados    │
+│  ↑2.1pp vs LM     │  │  ↓3d vs LM        │  │  ↑$5K vs LM       │
+└───────────────────┘  └───────────────────┘  └───────────────────┘
 
-Semana 5: Fase 5 (Activity Feed)
-└─ Agrupacion semantica y filtros
+[▼ Desglose por Etapa]  ← Colapsable, no siempre visible
 ```
 
 ---
 
-## Resultado Final Esperado
+## Metricas de Exito
 
-Un CRM Hub que responda las siguientes preguntas para cada stakeholder:
+Despues de implementar estos cambios, un stakeholder deberia poder:
 
-| Stakeholder | Pregunta | Donde Encuentra la Respuesta |
-|-------------|----------|------------------------------|
-| CEO | ¿Vamos a cumplir la meta mensual? | Metric Card: Progress vs Meta |
-| Head of Sales | ¿Que deals estan estancados? | Kanban: Badges Stalled |
-| Head of Ops | ¿Donde necesito contratar mas? | Pipeline Map: Gap Analysis |
-| Head of Product | ¿Que fuente de leads convierte mejor? | Sankey: Flujo por Fuente |
+| Pregunta | Tiempo para Responder | Tab |
+|----------|----------------------|-----|
+| "¿Vamos a cumplir la meta?" | < 3 segundos | Forecast |
+| "¿Que deals estan en riesgo?" | < 5 segundos | Pipeline |
+| "¿Donde perdemos mas deals?" | < 5 segundos | Flujo |
+| "¿Donde necesitamos contratar?" | < 5 segundos | Mapa |
+| "¿Como fue esta semana?" | < 5 segundos | Actividad |
+
