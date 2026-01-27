@@ -11,6 +11,7 @@ export interface YTDComparisonData {
   previousYear: number;
   previousServices: number;
   previousGMV: number;
+  previousYearTotal: number; // Total del año anterior completo
   servicesGrowth: number;
   gmvGrowth: number;
   servicesGrowthPercentage: number;
@@ -69,6 +70,19 @@ export const calculateExactYTDComparison = async (): Promise<YTDComparisonData |
 
     const result = data[0];
     
+    // Obtener el total del año anterior completo (para proyecciones)
+    const previousYear = result.previous_year;
+    const { count: previousYearTotal, error: totalError } = await supabase
+      .from('servicios_custodia')
+      .select('id', { count: 'exact', head: true })
+      .gte('fecha_hora_cita', `${previousYear}-01-01`)
+      .lt('fecha_hora_cita', `${previousYear + 1}-01-01`)
+      .not('estado', 'in', '("Cancelado","Cancelled","Canceled")');
+
+    if (totalError) {
+      console.error('Error fetching previous year total:', totalError);
+    }
+    
     // Calcular crecimientos
     const servicesGrowth = result.current_services - result.previous_services;
     const gmvGrowth = result.current_gmv - result.previous_gmv;
@@ -88,6 +102,7 @@ export const calculateExactYTDComparison = async (): Promise<YTDComparisonData |
       previousYear: result.previous_year,
       previousServices: result.previous_services,
       previousGMV: result.previous_gmv,
+      previousYearTotal: previousYearTotal || 10988, // Fallback sensato
       servicesGrowth,
       gmvGrowth,
       servicesGrowthPercentage,

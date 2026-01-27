@@ -2,14 +2,17 @@ import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { calculateExactYTDComparison, getYTDPeriodLabel } from '@/utils/exactDateYTDCalculations';
 
 interface YearOverYearData {
-  current2025: {
-    ytdServices: number;
-    ytdGmv: number;
+  currentYear: number;
+  previousYear: number;
+  currentYTD: {
+    services: number;
+    gmv: number;
   };
-  same2024: {
-    ytdServices: number;
-    ytdGmv: number;
+  previousYTD: {
+    services: number;
+    gmv: number;
   };
+  previousYearTotal: number;
   growth: {
     servicesPercent: number;
     gmvPercent: number;
@@ -17,8 +20,8 @@ interface YearOverYearData {
     gmvGap: number;
   };
   annualProjection: {
-    projected2025: number;
-    vs2024Percent: number;
+    projected: number;
+    vsPreviousPercent: number;
   };
   periodLabel: {
     current: string;
@@ -39,21 +42,20 @@ export const useYearOverYearComparison = () => {
         throw new Error('No se pudo obtener datos YTD exactos');
       }
       
-      // Use exact YTD data from calculations
-      const ytdServices2025 = exactYTDData.currentServices;
-      const ytdGMV2025 = Math.round((exactYTDData.currentGMV / 1000000) * 100) / 100; // Convert to millions
+      // Años dinámicos desde los datos
+      const currentYear = exactYTDData.currentYear;
+      const previousYear = exactYTDData.previousYear;
+      const previousYearTotal = exactYTDData.previousYearTotal;
       
-      const ytdServices2024 = exactYTDData.previousServices;
-      const ytdGMV2024 = Math.round((exactYTDData.previousGMV / 1000000) * 100) / 100; // Convert to millions
-
-      const current2025 = {
-        ytdServices: ytdServices2025,
-        ytdGmv: ytdGMV2025
+      // Use exact YTD data from calculations
+      const currentYTD = {
+        services: exactYTDData.currentServices,
+        gmv: Math.round((exactYTDData.currentGMV / 1000000) * 100) / 100 // Convert to millions
       };
 
-      const same2024 = {
-        ytdServices: ytdServices2024,
-        ytdGmv: ytdGMV2024
+      const previousYTD = {
+        services: exactYTDData.previousServices,
+        gmv: Math.round((exactYTDData.previousGMV / 1000000) * 100) / 100 // Convert to millions
       };
 
       // Use exact growth calculations
@@ -62,21 +64,25 @@ export const useYearOverYearComparison = () => {
       const servicesGrowth = exactYTDData.servicesGrowth;
       const gmvGrowth = Math.round((exactYTDData.gmvGrowth / 1000000) * 100) / 100; // Convert to millions
 
-      // Calculate annual projection based on exact YTD progress
+      // Calculate annual projection based on exact YTD progress (dynamic year)
       const currentDate = new Date();
       const adjustedDate = new Date(currentDate);
       adjustedDate.setDate(adjustedDate.getDate() - 1); // Account for data lag
       
-      const daysElapsed = Math.floor((adjustedDate.getTime() - new Date(2025, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const daysElapsed = Math.floor((adjustedDate.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
       const daysInYear = 365;
-      const projected2025 = Math.round((current2025.ytdServices / daysElapsed) * daysInYear);
+      const projected = Math.round((currentYTD.services / Math.max(daysElapsed, 1)) * daysInYear);
       
-      const full2024Services = 10714; // Total services in 2024
-      const vs2024Percent = ((projected2025 - full2024Services) / full2024Services) * 100;
+      const vsPreviousPercent = previousYearTotal > 0 
+        ? ((projected - previousYearTotal) / previousYearTotal) * 100 
+        : 0;
 
       return {
-        current2025,
-        same2024,
+        currentYear,
+        previousYear,
+        currentYTD,
+        previousYTD,
+        previousYearTotal,
         growth: {
           servicesPercent: servicesGrowthPercentage,
           gmvPercent: gmvGrowthPercentage,
@@ -84,8 +90,8 @@ export const useYearOverYearComparison = () => {
           gmvGap: gmvGrowth
         },
         annualProjection: {
-          projected2025,
-          vs2024Percent: Math.round(vs2024Percent * 100) / 100
+          projected,
+          vsPreviousPercent: Math.round(vsPreviousPercent * 100) / 100
         },
         periodLabel
       };
