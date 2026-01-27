@@ -1,6 +1,7 @@
 /**
  * AnnualComparisonCard - Fusiona YearOverYearCard + PaceAnalysisCard
- * Muestra comparativa YTD 2025 vs 2024 y ritmo anual requerido
+ * Muestra comparativa YTD año actual vs año anterior y ritmo anual requerido
+ * Completamente dinámico: sin años hardcoded
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useYearOverYearComparison } from '@/hooks/useYearOverYearComparison';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 import { Loader2, Calendar, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
-import { getPaceStatus, getStatusTextColor } from '@/utils/paceStatus';
+import { getPaceStatus } from '@/utils/paceStatus';
 import { useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
 
@@ -19,25 +20,32 @@ export const AnnualComparisonCard = () => {
   const calculations = useMemo(() => {
     if (!dynamicData || !yearData) return null;
     
+    const currentYear = yearData.currentYear;
+    const previousYear = yearData.previousYear;
+    const previousYearTotal = yearData.previousYearTotal;
+    
     const currentDate = new Date();
     const daysInYear = 365;
-    const daysElapsed = Math.floor((currentDate.getTime() - new Date(2025, 0, 1).getTime()) / (1000 * 60 * 60 * 24));
-    const daysRemaining = daysInYear - daysElapsed;
+    const daysElapsed = Math.floor((currentDate.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(daysInYear - daysElapsed, 1); // Defensive: evitar división por 0
     
-    const currentAnnualPace = yearData.current2025.ytdServices / daysElapsed;
-    const requiredPaceFor2024 = (10714 - yearData.current2025.ytdServices) / daysRemaining;
-    const annualPaceStatus = getPaceStatus(currentAnnualPace, requiredPaceFor2024);
+    const currentAnnualPace = yearData.currentYTD.services / Math.max(daysElapsed, 1);
+    const requiredPaceForPrevious = (previousYearTotal - yearData.currentYTD.services) / daysRemaining;
+    const annualPaceStatus = getPaceStatus(currentAnnualPace, requiredPaceForPrevious);
 
-    const servicesNeeded = 10714 - yearData.current2025.ytdServices;
+    const servicesNeeded = previousYearTotal - yearData.currentYTD.services;
     const gmvNeeded = (servicesNeeded * dynamicData.currentMonth.aov) / 1000000;
     
-    const progressPercent = (yearData.current2025.ytdServices / 10714) * 100;
+    const progressPercent = (yearData.currentYTD.services / previousYearTotal) * 100;
 
     return {
+      currentYear,
+      previousYear,
+      previousYearTotal,
       daysElapsed,
       daysRemaining,
       currentAnnualPace,
-      requiredPaceFor2024,
+      requiredPaceForPrevious,
       annualPaceStatus,
       servicesNeeded,
       gmvNeeded,
@@ -85,10 +93,10 @@ export const AnnualComparisonCard = () => {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Progress hacia 2024 */}
+        {/* Progress hacia año anterior */}
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Progreso vs 2024 total (10,714)</span>
+            <span>Progreso vs {calculations.previousYear} total ({calculations.previousYearTotal.toLocaleString()})</span>
             <span>{calculations.progressPercent.toFixed(1)}%</span>
           </div>
           <Progress value={calculations.progressPercent} className="h-2" />
@@ -97,14 +105,14 @@ export const AnnualComparisonCard = () => {
         {/* Comparativa YTD Grid */}
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="p-2 bg-primary/5 rounded-lg">
-            <div className="text-lg font-bold">{yearData.current2025.ytdServices.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">YTD 2025</div>
-            <div className="text-xs text-muted-foreground">${yearData.current2025.ytdGmv.toFixed(1)}M</div>
+            <div className="text-lg font-bold">{yearData.currentYTD.services.toLocaleString()}</div>
+            <div className="text-xs text-muted-foreground">YTD {calculations.currentYear}</div>
+            <div className="text-xs text-muted-foreground">${yearData.currentYTD.gmv.toFixed(1)}M</div>
           </div>
           <div className="p-2 bg-muted/50 rounded-lg">
-            <div className="text-lg font-bold text-muted-foreground">{yearData.same2024.ytdServices.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">YTD 2024</div>
-            <div className="text-xs text-muted-foreground">${yearData.same2024.ytdGmv.toFixed(1)}M</div>
+            <div className="text-lg font-bold text-muted-foreground">{yearData.previousYTD.services.toLocaleString()}</div>
+            <div className="text-xs text-muted-foreground">YTD {calculations.previousYear}</div>
+            <div className="text-xs text-muted-foreground">${yearData.previousYTD.gmv.toFixed(1)}M</div>
           </div>
           <div className={`p-2 rounded-lg ${isNegativeGrowth ? 'bg-destructive/10' : 'bg-success/10'}`}>
             <div className={`text-lg font-bold flex items-center justify-center gap-1 ${isNegativeGrowth ? 'text-destructive' : 'text-success'}`}>
@@ -122,7 +130,7 @@ export const AnnualComparisonCard = () => {
         <div className="border-t pt-3">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">Ritmo para igualar 2024</span>
+            <span className="text-sm font-medium">Ritmo para igualar {calculations.previousYear}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="text-center">
@@ -131,7 +139,7 @@ export const AnnualComparisonCard = () => {
             </div>
             <div className="text-center">
               <div className={`text-xl font-bold flex items-center justify-center gap-1 ${isOnTrack ? 'text-success' : 'text-warning'}`}>
-                {calculations.requiredPaceFor2024.toFixed(1)}
+                {calculations.requiredPaceForPrevious.toFixed(1)}
                 {isOnTrack ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
               </div>
               <div className="text-xs text-muted-foreground">srv/día necesario</div>
@@ -139,7 +147,7 @@ export const AnnualComparisonCard = () => {
           </div>
           <div className="text-center mt-2">
             <span className={`text-xs font-medium ${isOnTrack ? 'text-success' : 'text-warning'}`}>
-              {isOnTrack ? '✓ En buen camino' : `+${Math.round(((calculations.requiredPaceFor2024 / calculations.currentAnnualPace) - 1) * 100)}% más rápido requerido`}
+              {isOnTrack ? '✓ En buen camino' : `+${Math.round(((calculations.requiredPaceForPrevious / calculations.currentAnnualPace) - 1) * 100)}% más rápido requerido`}
             </span>
           </div>
         </div>
@@ -153,24 +161,24 @@ export const AnnualComparisonCard = () => {
             </div>
             <div className="text-sm text-muted-foreground">
               Faltan <span className="font-medium text-foreground">+{Math.round(calculations.servicesNeeded).toLocaleString()}</span> servicios 
-              (≈${calculations.gmvNeeded.toFixed(1)}M) para igualar 2024
+              (≈${calculations.gmvNeeded.toFixed(1)}M) para igualar {calculations.previousYear}
             </div>
           </div>
         ) : (
           <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
             <div className="flex items-center gap-2 text-success">
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">En camino de {calculations.annualPaceStatus.status === 'exceeding' ? 'superar' : 'igualar'} 2024</span>
+              <span className="text-sm font-medium">En camino de {calculations.annualPaceStatus.status === 'exceeding' ? 'superar' : 'igualar'} {calculations.previousYear}</span>
             </div>
           </div>
         )}
 
         {/* Proyección anual */}
         <div className="text-center p-2 bg-muted/30 rounded-lg">
-          <div className="text-xs text-muted-foreground">Proyección anual 2025</div>
-          <div className="text-lg font-bold">{yearData.annualProjection.projected2025.toLocaleString()} srv</div>
-          <div className={`text-xs ${yearData.annualProjection.vs2024Percent < 0 ? 'text-destructive' : 'text-success'}`}>
-            {yearData.annualProjection.vs2024Percent >= 0 ? '+' : ''}{yearData.annualProjection.vs2024Percent}% vs 2024 total
+          <div className="text-xs text-muted-foreground">Proyección anual {calculations.currentYear}</div>
+          <div className="text-lg font-bold">{yearData.annualProjection.projected.toLocaleString()} srv</div>
+          <div className={`text-xs ${yearData.annualProjection.vsPreviousPercent < 0 ? 'text-destructive' : 'text-success'}`}>
+            {yearData.annualProjection.vsPreviousPercent >= 0 ? '+' : ''}{yearData.annualProjection.vsPreviousPercent}% vs {calculations.previousYear} total
           </div>
         </div>
       </CardContent>
