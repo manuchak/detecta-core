@@ -50,17 +50,14 @@ export const toDateStringFromUTC = (isoString: string): string => {
   return format(parseISO(isoString), 'yyyy-MM-dd');
 };
 
-// ============= EXTRACCIÓN UTC SEGURA DESDE STRINGS DE DB =============
+// ============= EXTRACCIÓN UTC - DEPRECADO =============
+// ⚠️ ADVERTENCIA: Estas funciones causan errores off-by-one para servicios
+// después de las 18:00 CDMX. Usar getCDMX* de cdmxDateUtils.ts en su lugar.
 
 /**
+ * @deprecated Use getCDMXDayOfWeek from cdmxDateUtils for CDMX-aware extraction
  * Obtiene día de la semana (0-6, 0=Domingo) de un string ISO de DB
- * Usa getUTCDay() para evitar shift de timezone
- * 
- * @param isoString - String ISO de la DB
- * @returns Número 0-6 (0=Domingo, 1=Lunes, ..., 6=Sábado)
- * 
- * @example
- * getUTCDayOfWeek("2025-12-08T10:00:00.000Z") // 1 (Lunes)
+ * ⚠️ Causa off-by-one para servicios nocturnos en CDMX
  */
 export const getUTCDayOfWeek = (isoString: string): number => {
   if (!isoString) return 0;
@@ -68,14 +65,9 @@ export const getUTCDayOfWeek = (isoString: string): number => {
 };
 
 /**
+ * @deprecated Use getCDMXDayOfMonth from cdmxDateUtils for CDMX-aware extraction
  * Obtiene día del mes (1-31) de un string ISO de DB
- * Usa getUTCDate() para evitar shift de timezone
- * 
- * @param isoString - String ISO de la DB
- * @returns Número 1-31
- * 
- * @example
- * getUTCDayOfMonth("2025-12-08T23:00:00.000Z") // 8 (no 9)
+ * ⚠️ Causa off-by-one para servicios nocturnos en CDMX
  */
 export const getUTCDayOfMonth = (isoString: string): number => {
   if (!isoString) return 1;
@@ -83,14 +75,9 @@ export const getUTCDayOfMonth = (isoString: string): number => {
 };
 
 /**
+ * @deprecated Use getCDMXMonth from cdmxDateUtils for CDMX-aware extraction
  * Obtiene mes (0-11) de un string ISO de DB
- * Usa getUTCMonth() para evitar shift de timezone
- * 
- * @param isoString - String ISO de la DB
- * @returns Número 0-11 (0=Enero, 11=Diciembre)
- * 
- * @example
- * getUTCMonth("2025-12-31T23:00:00.000Z") // 11 (Diciembre, no Enero)
+ * ⚠️ Causa off-by-one para servicios nocturnos en CDMX
  */
 export const getUTCMonth = (isoString: string): number => {
   if (!isoString) return 0;
@@ -98,14 +85,9 @@ export const getUTCMonth = (isoString: string): number => {
 };
 
 /**
+ * @deprecated Use getCDMXYear from cdmxDateUtils for CDMX-aware extraction
  * Obtiene año de un string ISO de DB
- * Usa getUTCFullYear() para evitar shift de timezone
- * 
- * @param isoString - String ISO de la DB
- * @returns Año completo (ej: 2025)
- * 
- * @example
- * getUTCYear("2025-01-01T00:00:00.000Z") // 2025 (no 2024)
+ * ⚠️ Causa off-by-one para servicios nocturnos en CDMX
  */
 export const getUTCYear = (isoString: string): number => {
   if (!isoString) return new Date().getFullYear();

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getQuarter, getYear, startOfYear, endOfYear, format } from 'date-fns';
+import { getCDMXYear, getCDMXMonth } from '@/utils/cdmxDateUtils';
 
 export interface QuarterData {
   quarter: string;
@@ -35,11 +36,13 @@ export function useQuarterlyComparison() {
       // Aggregate by quarter and year
       const quarterlyData: Record<string, { servicios: number; gmv: number }> = {};
       
+      // Aggregate by quarter and year - usando CDMX timezone
       (services || []).forEach(s => {
         if (!s.fecha_hora_cita) return;
-        const date = new Date(s.fecha_hora_cita);
-        const year = getYear(date);
-        const quarter = getQuarter(date);
+        // Usar CDMX timezone para correcta atribución de trimestre
+        const year = getCDMXYear(s.fecha_hora_cita);
+        const month = getCDMXMonth(s.fecha_hora_cita); // 0-11
+        const quarter = Math.floor(month / 3) + 1;
         const key = `Q${quarter}-${year}`;
         
         if (!quarterlyData[key]) {
