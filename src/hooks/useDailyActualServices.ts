@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
 
 export interface DailyActualData {
   date: string;
@@ -38,11 +39,11 @@ export const useDailyActualServices = (year: number = 2025, month: number = 12) 
         dailyMap.set(day, { services: 0, gmv: 0 });
       }
 
-      // Aggregate actual data
+      // Aggregate actual data - using CDMX timezone to avoid off-by-one errors
       data?.forEach(service => {
-        const serviceDate = new Date(service.fecha_hora_cita);
-        // Use UTC date to avoid timezone shifting services to wrong day
-        const day = serviceDate.getUTCDate();
+        // Use CDMX timezone extraction to correctly attribute services
+        // Services after 18:00 CDMX were incorrectly counted as next day with getUTCDate()
+        const day = getCDMXDayOfMonth(service.fecha_hora_cita);
         const existing = dailyMap.get(day) || { services: 0, gmv: 0 };
         dailyMap.set(day, {
           services: existing.services + 1,

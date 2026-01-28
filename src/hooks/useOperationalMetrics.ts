@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getUTCMonth, getUTCYear, getUTCDayOfMonth } from '@/utils/timezoneUtils';
+import { getCDMXMonth, getCDMXYear, getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
 
 // Daily trend data for DoD chart
 export interface DailyTrendData {
@@ -280,9 +280,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       // CORREGIDO: Usar reportYear en lugar de currentYear
       const currentMonthServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        return getUTCMonth(s.fecha_hora_cita) + 1 === currentMonth && 
-               getUTCYear(s.fecha_hora_cita) === reportYear &&
-               getUTCDayOfMonth(s.fecha_hora_cita) <= currentDay;
+        return getCDMXMonth(s.fecha_hora_cita) + 1 === currentMonth && 
+               getCDMXYear(s.fecha_hora_cita) === reportYear &&
+               getCDMXDayOfMonth(s.fecha_hora_cita) <= currentDay;
       }) || [];
 
       const currentMonthCompletedServices = currentMonthServices.filter(s => 
@@ -305,9 +305,9 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       // CORREGIDO: Validar AÑO explícitamente para MTD del mes anterior
       const previousMonthMTDServices = prevMonthDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceYear = getUTCYear(s.fecha_hora_cita);
-        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
-        const serviceDay = getUTCDayOfMonth(s.fecha_hora_cita);
+        const serviceYear = getCDMXYear(s.fecha_hora_cita);
+        const serviceMonth = getCDMXMonth(s.fecha_hora_cita) + 1;
+        const serviceDay = getCDMXDayOfMonth(s.fecha_hora_cita);
         
         return serviceYear === prevMonthYear && 
                serviceMonth === prevMonth && 
@@ -321,7 +321,7 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       // YTD vs same period previous year - CORREGIDO: Usar reportYear
       const ytdServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        return getUTCYear(s.fecha_hora_cita) === reportYear;
+        return getCDMXYear(s.fecha_hora_cita) === reportYear;
       }) || [];
 
       const ytdCompletedServices = ytdServices.filter(s => 
@@ -332,7 +332,7 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const samePeriodPrevYear = prevYearServices?.filter(s => {
         if (!s.fecha_hora_cita) return false;
         // Mismo período: hasta el mes actual
-        return getUTCMonth(s.fecha_hora_cita) < currentMonth;
+        return getCDMXMonth(s.fecha_hora_cita) < currentMonth;
       }) || [];
 
       const samePeriodPrevYearCompleted = samePeriodPrevYear.filter(s => 
@@ -355,8 +355,8 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       // CORREGIDO: Usar reportYear en lugar de currentYear
       const currentQuarterServices = services?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
-        return getUTCYear(s.fecha_hora_cita) === reportYear &&
+        const serviceMonth = getCDMXMonth(s.fecha_hora_cita) + 1;
+        return getCDMXYear(s.fecha_hora_cita) === reportYear &&
                serviceMonth >= quarterStart && serviceMonth <= quarterEnd;
       }) || [];
 
@@ -370,7 +370,7 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const previousQuarterDataSource = prevQuarterYear === reportYear ? services : prevYearServices;
       const previousQuarterServices = previousQuarterDataSource?.filter(s => {
         if (!s.fecha_hora_cita) return false;
-        const serviceMonth = getUTCMonth(s.fecha_hora_cita) + 1;
+        const serviceMonth = getCDMXMonth(s.fecha_hora_cita) + 1;
         return serviceMonth >= prevQuarterStart && serviceMonth <= prevQuarterEnd;
       }) || [];
 
@@ -561,8 +561,8 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       for (let month = 1; month <= 12; month++) {
         const monthServices = services?.filter(s => {
           if (!s.fecha_hora_cita) return false;
-          return getUTCMonth(s.fecha_hora_cita) + 1 === month && 
-                 getUTCYear(s.fecha_hora_cita) === yearToAnalyze;
+          return getCDMXMonth(s.fecha_hora_cita) + 1 === month && 
+                 getCDMXYear(s.fecha_hora_cita) === yearToAnalyze;
         }) || [];
 
         const monthCompletedServices = monthServices.filter(s => 

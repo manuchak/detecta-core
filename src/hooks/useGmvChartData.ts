@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MonthlyGmvData } from './useDashboardData';
+import { getCDMXYear, getCDMXMonth } from '@/utils/cdmxDateUtils';
 
 export const useGmvChartData = () => {
   const { data: gmvData = [], isLoading, error } = useQuery({
@@ -27,12 +28,12 @@ export const useGmvChartData = () => {
           return [];
         }
 
-        // Filtrar datos de 2025 con validación robusta
+        // Filtrar datos de 2025 con validación robusta - usando CDMX timezone
         const data2025 = rawData.filter(item => {
           if (!item.fecha_hora_cita) return false;
           try {
-            const fecha = new Date(item.fecha_hora_cita);
-            const year = fecha.getFullYear();
+            // Usar CDMX timezone para evitar off-by-one en servicios nocturnos
+            const year = getCDMXYear(item.fecha_hora_cita);
             return year === 2025;
           } catch (error) {
             console.warn(`⚠️ Fecha inválida en gráfico: ${item.fecha_hora_cita}`);
@@ -90,11 +91,11 @@ export const useGmvChartData = () => {
           dataPorMes[month] = 0;
         }
         
-        // Agregar datos por mes
+        // Agregar datos por mes - usando CDMX timezone
         serviciosUnicosArray.forEach(item => {
           try {
-            const fecha = new Date(item.fecha_hora_cita);
-            const month = fecha.getMonth(); // 0-11
+            // Usar CDMX timezone para correcta atribución mensual
+            const month = getCDMXMonth(item.fecha_hora_cita); // 0-11
             const cobro = parseFloat(String(item.cobro_cliente)) || 0;
             dataPorMes[month] += cobro;
           } catch (error) {
@@ -156,8 +157,8 @@ export const useGmvChartData = () => {
         const serviciosValidos = data?.filter(item => {
           if (!item.fecha_hora_cita || !item.id_servicio || item.id_servicio.trim() === '') return false;
           
-          const fecha = new Date(item.fecha_hora_cita);
-          if (fecha.getFullYear() !== 2025) return false;
+          // Usar CDMX timezone para correcta atribución de año
+          if (getCDMXYear(item.fecha_hora_cita) !== 2025) return false;
           
           // Excluir solo estados cancelados
           const estado = (item.estado || '').trim().toLowerCase();

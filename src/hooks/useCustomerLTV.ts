@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDynamicRetention } from '@/utils/dynamicRetentionCalculator';
-import { getUTCMonth, getUTCYear } from '@/utils/timezoneUtils';
+import { getCDMXMonth, getCDMXYear } from '@/utils/cdmxDateUtils';
 
 export interface LTVMetrics {
   overallLTV: number;
@@ -156,9 +156,9 @@ export const useCustomerLTV = () => {
         const monthName = monthDate.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
         
         const monthServices = validServices.filter(service => {
-          // Usar getUTC* para evitar bugs de timezone con datos de DB
-          return getUTCMonth(service.fecha_hora_cita) === monthDate.getMonth() && 
-                 getUTCYear(service.fecha_hora_cita) === monthDate.getFullYear();
+          // Usar CDMX timezone para evitar bugs de off-by-one con datos de DB
+          return getCDMXMonth(service.fecha_hora_cita) === monthDate.getMonth() && 
+                 getCDMXYear(service.fecha_hora_cita) === monthDate.getFullYear();
         });
 
         const monthRevenue = monthServices.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);

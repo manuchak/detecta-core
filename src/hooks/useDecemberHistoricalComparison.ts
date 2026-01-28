@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO, getDaysInMonth } from 'date-fns';
+import { getCDMXYear, getCDMXMonth, getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
 
 export interface DecemberDayData {
   day: number;
@@ -136,12 +137,12 @@ function processDailyData(services: any[]): DecemberDayData[] {
     dailyMap['2025'][day] = { services: 0, gmv: 0 };
   }
 
-  // Agrupar servicios por día
+  // Agrupar servicios por día - usando CDMX timezone
   services.forEach(service => {
-    const date = parseISO(service.fecha_hora_cita);
-    const year = date.getFullYear().toString();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    // Usar CDMX timezone para correcta atribución de día
+    const year = getCDMXYear(service.fecha_hora_cita).toString();
+    const month = getCDMXMonth(service.fecha_hora_cita) + 1;
+    const day = getCDMXDayOfMonth(service.fecha_hora_cita);
 
     if (month === 12 && dailyMap[year]) {
       dailyMap[year][day].services++;
@@ -197,10 +198,11 @@ function processNovemberData(services: any[]): Record<number, { services: number
     2025: { services: 0, gmv: 0 }
   };
 
+  // Procesar noviembre - usando CDMX timezone
   services.forEach(service => {
-    const date = parseISO(service.fecha_hora_cita);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+    // Usar CDMX timezone para correcta atribución
+    const year = getCDMXYear(service.fecha_hora_cita);
+    const month = getCDMXMonth(service.fecha_hora_cita) + 1;
 
     if (month === 11) {
       novData[year].services++;
@@ -304,10 +306,10 @@ function calculateHolidayImpacts(
     
     const holidayName = HOLIDAY_DATES[day.toString()] || `Día ${day}`;
     
-    // Buscar factor configurado
+    // Buscar factor configurado - usando CDMX timezone
     const configured = configuredHolidays.find(h => {
-      const holidayDate = parseISO(h.fecha);
-      return holidayDate.getDate() === day;
+      const holidayDay = getCDMXDayOfMonth(h.fecha);
+      return holidayDay === day;
     });
     
     const configuredFactor = configured?.factor_ajuste || 0.5;
