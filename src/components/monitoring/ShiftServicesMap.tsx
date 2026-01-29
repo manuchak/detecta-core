@@ -35,14 +35,26 @@ const ShiftServicesMap = ({
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
 
-  // Create marker element
+  // Create marker element with nested structure to prevent CSS transform conflicts
+  // Outer element: receives Mapbox's translate transform for positioning
+  // Inner element: handles scale/hover animations without overwriting position
   const createMarkerElement = useCallback((servicio: ServicioTurno, isSelected: boolean) => {
     const config = COLORES_ESTADO[servicio.estadoVisual];
     const isFiltered = filterEstado && filterEstado !== servicio.estadoVisual;
     
-    const el = document.createElement('div');
-    el.className = 'shift-marker';
-    el.style.cssText = `
+    // Outer container - Mapbox will apply translate() here
+    const markerRoot = document.createElement('div');
+    markerRoot.className = 'shift-marker-root';
+    markerRoot.style.cssText = `
+      width: 36px;
+      height: 36px;
+      position: relative;
+    `;
+    
+    // Inner bubble - handles scale animations without conflicting with Mapbox transforms
+    const bubble = document.createElement('div');
+    bubble.className = 'shift-marker-bubble';
+    bubble.style.cssText = `
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -52,29 +64,33 @@ const ShiftServicesMap = ({
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transform-origin: center center;
       ${isFiltered ? 'opacity: 0.3;' : ''}
       ${isSelected ? 'transform: scale(1.3); z-index: 100;' : ''}
       ${servicio.estadoVisual === 'en_sitio' ? 'animation: pulse-ring 2s infinite;' : ''}
     `;
     
     const iconWrapper = document.createElement('div');
-    iconWrapper.style.cssText = `color: ${config.primary};`;
+    iconWrapper.style.cssText = `color: ${config.primary}; display: flex; align-items: center; justify-content: center;`;
     iconWrapper.innerHTML = MARKER_ICONS[servicio.estadoVisual];
-    el.appendChild(iconWrapper);
+    bubble.appendChild(iconWrapper);
+    markerRoot.appendChild(bubble);
     
-    // Hover effects
-    el.addEventListener('mouseenter', () => {
+    // Hover effects - only modify the inner bubble, not the root
+    markerRoot.addEventListener('mouseenter', () => {
       if (!isFiltered) {
-        el.style.transform = isSelected ? 'scale(1.4)' : 'scale(1.15)';
+        bubble.style.transform = isSelected ? 'scale(1.4)' : 'scale(1.15)';
+        bubble.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
       }
     });
-    el.addEventListener('mouseleave', () => {
-      el.style.transform = isSelected ? 'scale(1.3)' : 'scale(1)';
+    markerRoot.addEventListener('mouseleave', () => {
+      bubble.style.transform = isSelected ? 'scale(1.3)' : 'scale(1)';
+      bubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
     });
     
-    return el;
+    return markerRoot;
   }, [filterEstado]);
 
   // Create popup content
