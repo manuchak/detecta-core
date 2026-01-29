@@ -5,16 +5,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Clock, Edit, Calculator, ArrowRight } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { AlertTriangle, Clock, Edit, Calculator, ArrowRight, Trash2, MoreHorizontal } from 'lucide-react';
 import { useRoutesWithPendingPrices, PendingPriceRoute } from '@/hooks/useRoutesWithPendingPrices';
 import { QuickPriceEditModal } from './QuickPriceEditModal';
 import { BulkPriceAdjustModal } from './BulkPriceAdjustModal';
+import { DeleteRouteDialog } from './DeleteRouteDialog';
 
 export function PendingRoutesTable() {
   const { data: routes = [], isPending, error } = useRoutesWithPendingPrices();
   const [selectedRoutes, setSelectedRoutes] = useState<Set<string>>(new Set());
   const [editingRoute, setEditingRoute] = useState<PendingPriceRoute | null>(null);
   const [showBulkAdjust, setShowBulkAdjust] = useState(false);
+  const [routesToDelete, setRoutesToDelete] = useState<PendingPriceRoute[]>([]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -84,13 +92,23 @@ export function PendingRoutesTable() {
               </CardDescription>
             </div>
             {selectedRoutes.size > 0 && (
-              <Button 
-                onClick={() => setShowBulkAdjust(true)}
-                className="gap-2"
-              >
-                <Calculator className="h-4 w-4" />
-                Ajuste Masivo ({selectedRoutes.size})
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setRoutesToDelete(selectedRoutesData)}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar ({selectedRoutes.size})
+                </Button>
+                <Button 
+                  onClick={() => setShowBulkAdjust(true)}
+                  className="gap-2"
+                >
+                  <Calculator className="h-4 w-4" />
+                  Ajuste Masivo ({selectedRoutes.size})
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -164,15 +182,33 @@ export function PendingRoutesTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingRoute(route)}
-                        className="gap-1"
-                      >
-                        <Edit className="h-3 w-3" />
-                        Editar
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingRoute(route)}
+                          className="gap-1"
+                        >
+                          <Edit className="h-3 w-3" />
+                          Editar
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => setRoutesToDelete([route])}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar ruta
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -193,6 +229,13 @@ export function PendingRoutesTable() {
         open={showBulkAdjust}
         onOpenChange={setShowBulkAdjust}
         selectedRoutes={selectedRoutesData}
+        onSuccess={() => setSelectedRoutes(new Set())}
+      />
+
+      <DeleteRouteDialog
+        open={routesToDelete.length > 0}
+        onOpenChange={(open) => !open && setRoutesToDelete([])}
+        routes={routesToDelete}
         onSuccess={() => setSelectedRoutes(new Set())}
       />
     </>
