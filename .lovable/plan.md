@@ -1,175 +1,202 @@
 
-# Plan: Corrección Integral de AnnualComparisonCard para YoY Dinámico
+# Plan: Corrección del Bug de Ruta Duplicada en Flujo de Nuevo Servicio
 
-## Resumen Ejecutivo
+## Diagnóstico del Problema
 
-La tarjeta "Comparativa Anual" tiene valores hardcoded de 2025 que causan errores graves en 2026. Este plan implementa cálculos completamente dinámicos usando datos del año actual vs año anterior.
+Daniela Castañeda (coordinadora de operaciones) intentó crear un servicio para **ASTRA ZENECA** con la ruta:
+- **Origen**: CIUDAD OBREGON, SON
+- **Destino**: CUAUTITLAN IZCALLI, EDOMEX
+
+### Datos en la Base de Datos
+
+| Dato | Valor |
+|------|-------|
+| **Ruta existente** | `CUAUTITLAN IZCALLI, EDOMEX → CIUDAD OBREGON, SONORA` (ID: dbb93344) |
+| **Ruta que Daniela intentó crear** | `CIUDAD OBREGON, SON → CUAUTITLAN IZCALLI, EDOMEX` |
+| **CIUDAD OBREGON como origen** | NO existe para ASTRA ZENECA |
+| **CIUDAD OBREGON como destino** | SÍ existe (dbb93344) |
+
+### Causas Raíz Identificadas
+
+**1. El RPC `get_origenes_con_frecuencia` usa igualdad exacta en cliente_nombre**
+```sql
+-- Línea 18 del RPC
+WHERE mpr.cliente_nombre = cliente_nombre_param  -- ⚠️ Case-sensitive
+```
+Esto excluye variantes como "ASTRA ZENECA ( ESPECIAL)" y es sensible a mayúsculas.
+
+**2. El índice único de `matriz_precios_rutas` NO incluye `origen_texto`**
+```sql
+matriz_precios_rutas_cliente_destino_unique  -- (cliente_nombre, destino_texto)
+```
+Cuando Daniela intentó crear `CIUDAD OBREGON → CUAUTITLAN IZCALLI`:
+- El sistema validó contra `(ASTRA ZENECA, CUAUTITLAN IZCALLI)`
+- Ya existe otra ruta con ese destino: `COYOACAN → CUAUTITLAN IZCALLI` (ID: 388ca610)
+- Error 23505: "Ya existe una ruta para este cliente y destino"
+
+**3. El mensaje de error no distingue entre origen/destino duplicado vs ruta inversa**
+```typescript
+// useRouteCreation.ts línea 107
+setCreationError('Ya existe una ruta para este cliente y destino. Modifica el destino o usa la ruta existente.');
+```
+Este mensaje confunde al usuario porque la ruta inversa (con origen/destino intercambiados) no es lo mismo.
 
 ---
 
-## Datos Correctos Verificados
+## Plan de Corrección
 
-| Métrica | Valor |
-|---------|-------|
-| **Total 2025** | 10,988 servicios / $75.1M |
-| **Total 2024** | 10,714 servicios / $63.6M |
-| **YTD 2026 (1-26 ene)** | 544 servicios / $5.0M |
-| **YTD 2025 (1-26 ene)** | 809 servicios / $5.5M |
-| **Día actual 2026** | 26 de 365 |
+### Fase 1: Mejorar Carga de Orígenes (RPC)
 
----
+**Archivo**: Nueva migración SQL
 
-## Cambios por Archivo
+**Cambio**: Modificar el RPC para usar `ILIKE` en lugar de `=` para cliente_nombre:
 
-### 1. `src/hooks/useYearOverYearComparison.ts`
+```sql
+-- ANTES
+WHERE mpr.cliente_nombre = cliente_nombre_param
 
-**Problema**: Líneas 66-76 usan `2025` y `10714` hardcoded
-
-```text
-ANTES (líneas 66-75):
-const daysElapsed = Math.floor((adjustedDate.getTime() - new Date(2025, 0, 1).getTime()) / ...);
-const full2024Services = 10714;
-
-DESPUÉS:
-const currentYear = adjustedDate.getFullYear(); // 2026
-const daysElapsed = Math.floor((adjustedDate.getTime() - new Date(currentYear, 0, 1).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-const previousYearTotal = exactYTDData.previousYearTotal || 10988; // Desde DB
+-- DESPUÉS  
+WHERE LOWER(mpr.cliente_nombre) = LOWER(cliente_nombre_param)
 ```
 
-**Agregar al retorno**:
-- `previousYearTotal`: Total del año anterior completo (para proyecciones)
-- Renombrar `current2025` → `currentYTD` y `same2024` → `previousYTD`
+Esto asegura que todos los orígenes de "ASTRA ZENECA" aparezcan aunque haya variaciones menores.
 
 ---
 
-### 2. `src/utils/exactDateYTDCalculations.ts`
+### Fase 2: Actualizar el Índice Único para Incluir Origen
 
-**Agregar query** para obtener total del año anterior completo:
+**Archivo**: Nueva migración SQL
+
+**Cambio**: Modificar el constraint único para incluir las 3 columnas:
+
+```sql
+-- Eliminar índice antiguo
+DROP INDEX IF EXISTS matriz_precios_rutas_cliente_destino_unique;
+
+-- Crear nuevo índice que incluye origen
+CREATE UNIQUE INDEX matriz_precios_rutas_cliente_origen_destino_unique 
+ON matriz_precios_rutas (cliente_nombre, origen_texto, destino_texto) 
+WHERE activo = true;
+```
+
+Esto permite que existan:
+- `CUAUTITLAN IZCALLI → CIUDAD OBREGON` (ida)
+- `CIUDAD OBREGON → CUAUTITLAN IZCALLI` (regreso)
+
+---
+
+### Fase 3: Detección Inteligente de Ruta Inversa
+
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/RouteStep/hooks/useRouteCreation.ts`
+
+**Cambio**: Antes de crear la ruta, verificar si existe la ruta inversa y ofrecer opciones:
 
 ```typescript
-// Agregar a YTDComparisonData interface:
-previousYearTotal: number;
-
-// En calculateExactYTDComparison, después de la query principal:
-const previousYear = adjustedDate.getFullYear() - 1;
-const { count: previousYearTotal } = await supabase
-  .from('servicios_custodia')
-  .select('id', { count: 'exact', head: true })
-  .gte('fecha_hora_cita', `${previousYear}-01-01`)
-  .lt('fecha_hora_cita', `${previousYear + 1}-01-01`)
-  .neq('estado', 'Cancelado');
+// Nuevo método: checkForInverseRoute
+const checkForInverseRoute = async (
+  cliente: string, 
+  origen: string, 
+  destino: string
+): Promise<{exists: boolean; inverseRoute?: any}> => {
+  const { data } = await supabase
+    .from('matriz_precios_rutas')
+    .select('id, origen_texto, destino_texto, valor_bruto, precio_custodio')
+    .ilike('cliente_nombre', cliente)
+    .ilike('origen_texto', destino)  // Invertido
+    .ilike('destino_texto', origen)  // Invertido
+    .eq('activo', true)
+    .maybeSingle();
+    
+  return { exists: !!data, inverseRoute: data };
+};
 ```
 
 ---
 
-### 3. `src/components/executive/AnnualComparisonCard.tsx`
+### Fase 4: Mejorar Mensaje de Error con Contexto
 
-**Cambios de cálculo (useMemo líneas 19-46)**:
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/RouteStep/hooks/useRouteCreation.ts`
 
-| Línea | Antes | Después |
-|-------|-------|---------|
-| 24 | `new Date(2025, 0, 1)` | `new Date(currentYear, 0, 1)` donde `currentYear = new Date().getFullYear()` |
-| 25 | `daysInYear - daysElapsed` | `Math.max(daysInYear - daysElapsed, 1)` para evitar división negativa |
-| 28 | `10714` | `yearData.previousYearTotal` |
-| 31 | `10714` | `yearData.previousYearTotal` |
-| 34 | `10714` | `yearData.previousYearTotal` |
-
-**Cambios de UI**:
-
-| Línea | Antes | Después |
-|-------|-------|---------|
-| 78 | `Día {daysElapsed}/365` | Sin cambio, pero ahora calcula correctamente (26/365) |
-| 91 | `"vs 2024 total (10,714)"` | `"vs ${previousYear} total (${previousYearTotal.toLocaleString()})"` |
-| 101-102 | `"YTD 2025"` | `"YTD {currentYear}"` dinámico |
-| 105-106 | `"YTD 2024"` | `"YTD {previousYear}"` dinámico |
-| 125 | `"Ritmo para igualar 2024"` | `"Ritmo para igualar {previousYear}"` |
-| 156 | `"para igualar 2024"` | `"para igualar {previousYear}"` |
-| 163 | `"superar' : 'igualar'} 2024"` | `"superar' : 'igualar'} {previousYear}"` |
-| 170 | `"Proyección anual 2025"` | `"Proyección anual {currentYear}"` |
-| 173 | `"vs 2024 total"` | `"vs {previousYear} total"` |
-
----
-
-## Estructura de Datos Actualizada
+**Cambio**: Mensajes de error más específicos:
 
 ```typescript
-// useYearOverYearComparison retorno actualizado
-{
-  currentYear: 2026,
-  previousYear: 2025,
-  currentYTD: {
-    services: 544,
-    gmv: 5.05 // millones
-  },
-  previousYTD: {
-    services: 809,
-    gmv: 5.54
-  },
-  previousYearTotal: 10988, // NUEVO: para proyecciones
-  growth: {
-    servicesPercent: -32.8,
-    gmvPercent: -8.9,
-    servicesGap: -265,
-    gmvGap: -0.49
-  },
-  annualProjection: {
-    projected: 7644, // (544/26)*365
-    vsPreviousPercent: -30.4
-  },
-  periodLabel: {
-    current: "YTD al 26 ene, 2026",
-    previous: "YTD al 26 ene, 2025",
-    comparison: "YTD 2026 vs YTD 2025 (períodos exactos)"
+if (error.code === '23505') {
+  // Verificar si es por origen+destino exacto o solo destino
+  const { data: existingRoute } = await supabase
+    .from('matriz_precios_rutas')
+    .select('id, origen_texto, destino_texto')
+    .ilike('cliente_nombre', data.cliente_nombre)
+    .ilike('destino_texto', data.destino_texto)
+    .eq('activo', true)
+    .maybeSingle();
+    
+  if (existingRoute) {
+    if (normalizeText(existingRoute.origen_texto) === normalizeText(data.origen_texto)) {
+      setCreationError('Esta ruta exacta ya existe. Usa la existente o modifica los datos.');
+    } else {
+      setCreationError(
+        `Ya existe una ruta "${existingRoute.origen_texto} → ${existingRoute.destino_texto}". ` +
+        `Para crear una ruta desde un origen diferente, primero actualiza el índice de rutas.`
+      );
+    }
   }
 }
 ```
 
 ---
 
-## Resultado Visual Esperado
+### Fase 5: UI para Sugerir Ruta Inversa
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ 📅 Comparativa Anual              Declive  Día 26/365 │
-│ YTD 2026 vs YTD 2025 (períodos exactos)              │
-├─────────────────────────────────────────────────────┤
-│ Progreso vs 2025 total (10,988)              5.0%   │
-│ ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
-├─────────────────────────────────────────────────────┤
-│   [544]         [809]           [-32.8%]            │
-│  YTD 2026      YTD 2025          Brecha             │
-│  $5.0M         $5.5M            -265 srv            │
-├─────────────────────────────────────────────────────┤
-│ ⚡ Ritmo para igualar 2025                          │
-│   20.9           30.8 ⚠️                             │
-│  srv/día        srv/día                             │
-│  actual        necesario                            │
-│         +47% más rápido requerido                   │
-├─────────────────────────────────────────────────────┤
-│ ⚠️ Acción Requerida                                 │
-│ Faltan +10,444 servicios (≈$96M) para igualar 2025 │
-├─────────────────────────────────────────────────────┤
-│        Proyección anual 2026                        │
-│             7,644 srv                               │
-│         -30.4% vs 2025 total                        │
-└─────────────────────────────────────────────────────┘
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/RouteStep/components/InlineRouteCreationForm.tsx`
+
+**Cambio**: Mostrar sugerencia cuando se detecta ruta inversa:
+
+```tsx
+{inverseRouteExists && (
+  <Alert className="bg-blue-50 border-blue-200">
+    <ArrowLeftRight className="h-4 w-4" />
+    <AlertDescription>
+      Existe la ruta inversa: <strong>{destino} → {origen}</strong> 
+      <Button 
+        variant="link" 
+        onClick={() => onUseInverseAsTemplate()}
+        className="px-2"
+      >
+        Usar como referencia
+      </Button>
+    </AlertDescription>
+  </Alert>
+)}
 ```
 
 ---
 
 ## Archivos a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `src/utils/exactDateYTDCalculations.ts` | Agregar `previousYearTotal` a interface y query |
-| `src/hooks/useYearOverYearComparison.ts` | Usar años dinámicos, agregar `previousYearTotal` al retorno |
-| `src/components/executive/AnnualComparisonCard.tsx` | Reemplazar todos los hardcodes con valores dinámicos |
+| Archivo | Cambio |
+|---------|--------|
+| Nueva migración SQL | Actualizar RPC `get_origenes_con_frecuencia` con ILIKE |
+| Nueva migración SQL | Modificar índice único a `(cliente, origen, destino)` |
+| `src/pages/Planeacion/ServiceCreation/steps/RouteStep/hooks/useRouteCreation.ts` | Añadir `checkForInverseRoute`, mejorar mensajes de error |
+| `src/pages/Planeacion/ServiceCreation/steps/RouteStep/components/InlineRouteCreationForm.tsx` | Mostrar sugerencia de ruta inversa |
+| `src/hooks/useOrigenesConFrecuencia.ts` | Actualizar fallback para usar ILIKE consistente |
 
 ---
 
-## Principios Aplicados
+## Resultado Esperado
 
-1. **Zero Hardcoding**: Todos los años y metas vienen de cálculos dinámicos
-2. **Defensive Math**: `Math.max(daysRemaining, 1)` evita divisiones negativas/cero
-3. **Single Source of Truth**: Total año anterior viene de la base de datos
-4. **Backward Compatibility**: Si falla la query, usa fallback sensato (10988)
+1. **Daniela verá "CIUDAD OBREGON"** en el dropdown de orígenes si existe alguna ruta con ese origen para el cliente
+2. **Podrá crear rutas inversas** sin error de duplicado
+3. **El sistema sugerirá usar precios de referencia** de la ruta inversa cuando exista
+4. **Mensajes de error más claros** que indican exactamente qué ruta causa el conflicto
+
+---
+
+## Impacto y Riesgo
+
+| Factor | Evaluación |
+|--------|------------|
+| **Riesgo de datos** | Bajo - Solo se modifica un índice, los datos existentes no cambian |
+| **Compatibilidad** | Alta - El nuevo índice es más permisivo |
+| **Rollback** | Fácil - Se puede revertir el índice si hay problemas |
+| **Usuarios afectados** | Todos los que crean servicios con rutas nuevas |
