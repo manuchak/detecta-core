@@ -41,8 +41,6 @@ const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
 const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
 const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvitationsPage'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
-
-const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
 const TicketDetailPage = lazy(() => import('@/pages/Tickets/TicketDetailPage'));
@@ -478,19 +476,6 @@ function App() {
                       <UnifiedLayout>
                         <MonitoringPage />
                       </UnifiedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/monitoring/forensic-audit"
-                  element={
-                    <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad']}>
-                        <UnifiedLayout>
-                          <ForensicAuditPage />
-                        </UnifiedLayout>
-                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />
