@@ -8050,6 +8050,47 @@ export type Database = {
         }
         Relationships: []
       }
+      matriz_precios_historial: {
+        Row: {
+          campo_modificado: string
+          created_at: string | null
+          id: string
+          motivo: string | null
+          ruta_id: string | null
+          usuario_id: string | null
+          valor_anterior: number | null
+          valor_nuevo: number | null
+        }
+        Insert: {
+          campo_modificado: string
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          ruta_id?: string | null
+          usuario_id?: string | null
+          valor_anterior?: number | null
+          valor_nuevo?: number | null
+        }
+        Update: {
+          campo_modificado?: string
+          created_at?: string | null
+          id?: string
+          motivo?: string | null
+          ruta_id?: string | null
+          usuario_id?: string | null
+          valor_anterior?: number | null
+          valor_nuevo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matriz_precios_historial_ruta_id_fkey"
+            columns: ["ruta_id"]
+            isOneToOne: false
+            referencedRelation: "matriz_precios_rutas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matriz_precios_rutas: {
         Row: {
           activo: boolean

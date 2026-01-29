@@ -14,6 +14,8 @@ import { PlanningConfigurationTab } from './components/PlanningConfigurationTab'
 import { ScheduledServicesTab } from './components/ScheduledServicesTabSimple';
 import { ServiceQueryTab } from './components/ServiceQueryTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
+import { RoutesManagementTab } from './components/RoutesManagementTab';
+import { useRoutesStats } from '@/hooks/useRoutesWithPendingPrices';
 import { SmartEditModal } from '@/components/planeacion/SmartEditModal';
 import { ArmedGuardComplianceDashboard } from '@/components/planeacion/ArmedGuardComplianceDashboard';
 import { useEditWorkflow } from '@/contexts/EditWorkflowContext';
@@ -54,6 +56,7 @@ export default function PlanningHub() {
   const { isEditMode } = useEditWorkflow();
   const { logSecurityEvent } = useSecurityAudit();
   const { duplicates, checkingDuplicates } = useDuplicateCleanup();
+  const { data: routesStats } = useRoutesStats();
 
   const totalDuplicates = duplicates?.reduce((sum, dup) => sum + dup.duplicate_count - 1, 0) || 0;
 
@@ -377,6 +380,14 @@ export default function PlanningHub() {
             )}
           </TabsTrigger>
           <TabsTrigger value="query" className="apple-tab">Consultas</TabsTrigger>
+          <TabsTrigger value="routes" className="apple-tab relative">
+            Rutas
+            {(routesStats?.pendingPrices || 0) > 0 && (
+              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 min-w-4 p-0 text-[10px] flex items-center justify-center">
+                {routesStats?.pendingPrices}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="gps" className="apple-tab">GPS</TabsTrigger>
           <TabsTrigger value="config" className="apple-tab">Configuración</TabsTrigger>
         </TabsList>
@@ -391,6 +402,10 @@ export default function PlanningHub() {
 
         <TabsContent value="query" className="apple-content-spacing">
           <ServiceQueryTab />
+        </TabsContent>
+
+        <TabsContent value="routes" className="apple-content-spacing">
+          <RoutesManagementTab />
         </TabsContent>
 
         <TabsContent value="gps" className="apple-content-spacing">
