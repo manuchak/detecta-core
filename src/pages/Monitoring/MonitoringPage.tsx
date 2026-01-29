@@ -69,8 +69,8 @@ const MonitoringPage = () => {
 
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map - takes 2/3 on large screens */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Map column - takes 2/3 on large screens */}
+        <div className="lg:col-span-2 space-y-4">
           <ShiftServicesMap 
             servicios={servicios}
             className="h-[450px] lg:h-[500px]"
@@ -78,6 +78,8 @@ const MonitoringPage = () => {
             selectedServiceId={selectedService}
             filterEstado={filterEstado}
           />
+          {/* Weather Widget - Debajo del mapa para mayor visibilidad */}
+          <WeatherWidget />
         </div>
 
         {/* Side panel - services list */}
@@ -92,11 +94,8 @@ const MonitoringPage = () => {
         </div>
       </div>
 
-      {/* Additional widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <WeatherWidget />
-        <TwitterFeed />
-      </div>
+      {/* Alertas de Ruta - Full width */}
+      <TwitterFeed />
     </div>
   );
 };
