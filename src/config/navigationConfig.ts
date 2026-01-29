@@ -323,13 +323,6 @@ export const navigationModules: NavigationModule[] = [
         icon: Activity
       },
       {
-        id: 'monitoring_forensic',
-        label: 'Auditoría Forense',
-        path: '/monitoring/forensic-audit',
-        roles: ['admin', 'owner', 'bi'],
-        icon: Shield
-      },
-      {
         id: 'incidentes_rrss',
         label: 'Incidentes RRSS',
         path: '/incidentes-rrss',
