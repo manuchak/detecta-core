@@ -294,7 +294,6 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       path: "/monitoring",
       subItems: [
         { title: "Panel de Monitoreo", path: "/monitoring" },
-        { title: "Supply Chain", path: "/monitoring/supply-chain" },
         { title: "Auditoría Forense", path: "/monitoring/forensic-audit" },
       ]
     }] : []),
