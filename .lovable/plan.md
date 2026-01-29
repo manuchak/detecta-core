@@ -1,308 +1,256 @@
 
-# Análisis Detallado: Bugs en ShiftServicesMap
+# Plan: Widgets de Clima y Alertas con Datos Reales
 
-## Problema 1: Marcadores Desplazados Erróneamente
+## Objetivo
+Conectar los widgets de clima y alertas de ruta a fuentes de datos reales, eliminando los datos mock actuales.
 
-### Diagnóstico del Origen
+---
 
-El bug ocurre porque hay un **conflicto de CSS transforms** entre Mapbox y los efectos de hover, a pesar del intento de corrección previo con estructura anidada.
+## Situacion Actual
 
-#### Análisis del Código Actual (líneas 46-93)
+### Widget de Clima (`WeatherWidget.tsx`)
+- Usa datos mock hardcodeados
+- No hay API de clima configurada (no existe `WEATHER_API_KEY` en secrets)
+- Las ciudades son relevantes: CDMX, Puebla, Queretaro
+
+### Widget de Alertas (`TwitterFeed.tsx`)
+- Usa tweets mock hardcodeados
+- YA EXISTE infraestructura de incidentes RRSS:
+  - Tabla `incidentes_rrss` (actualmente vacia pero funcional)
+  - Edge function `apify-data-fetcher` para obtener tweets
+  - Edge function `procesar-incidente-rrss` para clasificar con AI
+  - Hook `useIncidentesRRSS` listo para consumir datos
+- Tiene clasificacion AI: tipo_incidente, severidad, resumen
+
+---
+
+## Parte 1: Alertas de Ruta (Implementacion Rapida)
+
+Ya existe toda la infraestructura. Solo hay que conectar los datos.
+
+### Cambios en TwitterFeed.tsx
 
 ```typescript
-// Estructura actual - PROBLEMÁTICA
-const markerRoot = document.createElement('div');
-markerRoot.style.cssText = `
-  width: 36px;
-  height: 36px;
-  position: relative;  // ← Problema: position: relative puede interferir
-`;
+// Antes: datos mock
+const [tweets, setTweets] = useState(mockTweets);
 
-const bubble = document.createElement('div');
-bubble.style.cssText = `
-  ...
-  ${isSelected ? 'transform: scale(1.3); z-index: 100;' : ''}  // ← Problema: z-index inline
-  ${servicio.estadoVisual === 'en_sitio' ? 'animation: pulse-ring 2s infinite;' : ''}  // ← Problema: animation en mismo elemento
-`;
+// Despues: datos reales desde Supabase
+import { useIncidentesRRSS } from '@/hooks/useIncidentesRRSS';
+
+const { data: incidentes, isLoading } = useIncidentesRRSS({
+  dias_atras: 1, // Ultimas 24 horas
+});
+
+// Mapear incidentes a formato del widget
+const alertas = incidentes?.map(inc => ({
+  id: inc.id,
+  username: inc.autor || 'AlertaMX',
+  content: inc.resumen_ai || inc.texto_original.substring(0, 200),
+  time: formatRelativeTime(inc.fecha_publicacion),
+  type: mapTipoToType(inc.tipo_incidente), // bloqueo, accidente, clima, etc.
+  carretera: inc.carretera,
+  severidad: inc.severidad
+}));
 ```
 
-#### Causas Raíz Identificadas
-
-1. **El `markerRoot` tiene `position: relative`**: Esto puede interferir con el posicionamiento de Mapbox que usa `position: absolute` con `translate3d`.
-
-2. **`z-index` aplicado en el elemento incorrecto**: El `z-index: 100` está en el `bubble` pero debería estar en el `markerRoot` para que Mapbox lo respete correctamente.
-
-3. **Animación CSS en el mismo elemento que hace hover**: La animación `pulse-ring` modifica `box-shadow`, y al combinarse con los cambios de hover, puede crear comportamientos inesperados en algunos navegadores.
-
-4. **Falta `will-change: transform`**: Sin esta declaración, el navegador puede no optimizar correctamente las capas de renderizado.
-
-#### Patrón Correcto (Referencia: NationalMap.tsx línea 203-206)
-
+### Mapeo de Tipos de Incidente
 ```typescript
-// NationalMap - NO tiene efectos hover que muevan markers
-// Comentario explícito: "Sin efectos hover que puedan mover los markers"
-el.style.cssText = `
-  ...
-  transition: transform 0.2s ease;  // Solo define transition, pero no la aplica
-`;
+function mapTipoToType(tipo: string): string {
+  const mapping = {
+    'bloqueo_carretera': 'blockade',
+    'accidente_trailer': 'accident',
+    'robo_carga': 'robbery',
+    'robo_unidad': 'robbery',
+    'asalto_transporte': 'assault',
+    'otro': 'weather' // Clima u otros
+  };
+  return mapping[tipo] || 'alert';
+}
 ```
 
-### Solución Propuesta
-
+### Agregar Badge de Severidad
 ```typescript
-// markerRoot - Controlado por Mapbox, SIN transforms propios
-const markerRoot = document.createElement('div');
-markerRoot.className = 'shift-marker-root';
-markerRoot.style.cssText = `
-  width: 36px;
-  height: 36px;
-  /* SIN position: relative - Mapbox maneja el posicionamiento */
-`;
-
-// bubble - Elemento visual aislado
-const bubble = document.createElement('div');
-bubble.className = 'shift-marker-bubble';
-bubble.style.cssText = `
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  ...
-  transform-origin: center center;
-  will-change: transform;  /* Optimización de renderizado */
-  backface-visibility: hidden;  /* Evita glitches de rendering */
-`;
-
-// Animación pulse en elemento separado o usar pseudo-elementos via CSS class
+// Indicador visual segun severidad
+{incidente.severidad === 'critica' && (
+  <Badge variant="destructive">Critico</Badge>
+)}
 ```
 
 ---
 
-## Problema 2: Leyenda Superpuesta al Menú Lateral
+## Parte 2: Widget de Clima (Requiere API Externa)
 
-### Diagnóstico del Origen
+### Opcion A: OpenWeatherMap (Recomendada)
+- Gratis: 1000 llamadas/dia
+- Cubre Mexico con precision
+- API simple y documentada
 
-La leyenda está posicionada con `absolute` relativo al Card, pero el Card **NO tiene `position: relative`**, lo que causa que la leyenda se posicione relativa al ancestro posicionado más cercano (potencialmente el layout principal).
+### Opcion B: WeatherAPI.com
+- Gratis: 1M llamadas/mes
+- Alertas de clima incluidas
+- Forecast 3 dias
 
-#### Código Problemático (líneas 268-285)
+### Implementacion Propuesta
 
-```tsx
-return (
-  <Card className={`overflow-hidden ${className || 'h-[400px]'}`}>
-    {/* Legend - usando position: absolute */}
-    <div className="absolute bottom-4 left-4 z-10 ...">
-      ...
+#### 1. Crear Edge Function `weather-data`
+```typescript
+// supabase/functions/weather-data/index.ts
+serve(async (req) => {
+  const WEATHER_API_KEY = Deno.env.get('OPENWEATHER_API_KEY');
+  
+  const ciudades = [
+    { name: 'Ciudad de México', lat: 19.4326, lon: -99.1332 },
+    { name: 'Puebla', lat: 19.0414, lon: -98.2063 },
+    { name: 'Querétaro', lat: 20.5888, lon: -100.3899 },
+    { name: 'Guadalajara', lat: 20.6597, lon: -103.3496 }
+  ];
+  
+  const weatherData = await Promise.all(
+    ciudades.map(async (ciudad) => {
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${ciudad.lat}&lon=${ciudad.lon}&appid=${WEATHER_API_KEY}&units=metric&lang=es`
+      );
+      const data = await response.json();
+      
+      return {
+        location: ciudad.name,
+        temperature: Math.round(data.main.temp),
+        condition: mapCondition(data.weather[0].main),
+        precipitation: data.rain?.['1h'] ? 100 : 0,
+        windSpeed: Math.round(data.wind.speed * 3.6), // m/s a km/h
+        humidity: data.main.humidity,
+        description: data.weather[0].description
+      };
+    })
+  );
+  
+  return new Response(JSON.stringify(weatherData), { ... });
+});
+```
+
+#### 2. Crear Hook `useWeatherData`
+```typescript
+// src/hooks/useWeatherData.ts
+export const useWeatherData = () => {
+  return useQuery({
+    queryKey: ['weather-data'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('weather-data');
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // Cache 10 minutos
+    refetchInterval: 30 * 60 * 1000 // Refetch cada 30 min
+  });
+};
+```
+
+#### 3. Actualizar WeatherWidget
+```typescript
+import { useWeatherData } from '@/hooks/useWeatherData';
+
+export const WeatherWidget = () => {
+  const { data: weather, isLoading, error } = useWeatherData();
+  
+  if (isLoading) return <Skeleton />;
+  if (error) return <FallbackMockData />;
+  
+  return (
+    <div className="flex gap-3 overflow-x-auto">
+      {weather.map((item) => (
+        <WeatherCard key={item.location} {...item} />
+      ))}
     </div>
-    
-    <div ref={mapContainer} className="w-full h-full" />
-  </Card>
-);
-```
-
-#### Análisis del Componente Card (card.tsx)
-
-```tsx
-// Card NO tiene position: relative por defecto
-const Card = (...) => (
-  <div
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-  />
-)
-```
-
-**El problema**: Cuando un elemento hijo tiene `position: absolute`, busca el ancestro posicionado más cercano. Como `Card` no tiene `position: relative`, la leyenda puede posicionarse respecto al viewport o al layout padre (`main` en UnifiedLayout), causando que aparezca sobre el sidebar.
-
-#### Contexto del Layout (UnifiedLayout.tsx líneas 70-84)
-
-```tsx
-<div className="flex w-full min-h-[calc(100vh-3rem)]">
-  <UnifiedSidebar stats={sidebarStats} />  {/* Sidebar a la izquierda */}
-  
-  <main className="flex-1 overflow-auto">  {/* Contenido principal */}
-    {children}
-  </main>
-</div>
-```
-
-El `z-10` de la leyenda puede no ser suficiente si el sidebar tiene un `z-index` más bajo o si la leyenda está escapando del contexto del Card.
-
-### Solución Propuesta
-
-```tsx
-// Agregar position: relative al Card para crear contexto de posicionamiento
-<Card className={`overflow-hidden relative ${className || 'h-[400px]'}`}>
-  {/* Legend - ahora será relativa al Card */}
-  <div className="absolute bottom-4 left-4 z-10 ...">
-    ...
-  </div>
-  
-  <div ref={mapContainer} className="w-full h-full" />
-</Card>
+  );
+};
 ```
 
 ---
 
-## Resumen de Cambios
-
-| Archivo | Cambio | Impacto |
-|---------|--------|---------|
-| `ShiftServicesMap.tsx` | Agregar `relative` al className del Card | Contiene la leyenda dentro del mapa |
-| `ShiftServicesMap.tsx` | Remover `position: relative` del markerRoot | Evita interferencia con Mapbox |
-| `ShiftServicesMap.tsx` | Agregar `position: absolute; top: 0; left: 0` al bubble | Posiciona correctamente dentro del root |
-| `ShiftServicesMap.tsx` | Agregar `will-change: transform; backface-visibility: hidden` | Optimiza renderizado de animaciones |
-| `ShiftServicesMap.tsx` | Separar animación pulse a un pseudo-elemento o elemento adicional | Evita conflicto entre animation y transform |
-
----
-
-## Implementación Detallada
-
-### Cambio 1: Card con position relative
-
-```tsx
-// Línea 268 - Antes
-<Card className={`overflow-hidden ${className || 'h-[400px]'}`}>
-
-// Después
-<Card className={`overflow-hidden relative ${className || 'h-[400px]'}`}>
-```
-
-### Cambio 2: Estructura de Marcadores Optimizada
-
-```typescript
-// createMarkerElement - Nueva implementación
-
-// Root: Solo dimensiones, Mapbox controla posición
-const markerRoot = document.createElement('div');
-markerRoot.className = 'shift-marker-root';
-markerRoot.style.cssText = `
-  width: 36px;
-  height: 36px;
-`;
-
-// Bubble: Posicionamiento absoluto dentro del root
-const bubble = document.createElement('div');
-bubble.className = 'shift-marker-bubble';
-bubble.style.cssText = `
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: white;
-  border: 3px solid ${config.border};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  transform-origin: center center;
-  will-change: transform;
-  backface-visibility: hidden;
-  ${isFiltered ? 'opacity: 0.3;' : ''}
-  ${isSelected ? 'transform: scale(1.3);' : ''}
-`;
-
-// Pulse ring: Elemento separado para la animación (si es en_sitio)
-if (servicio.estadoVisual === 'en_sitio') {
-  const pulseRing = document.createElement('div');
-  pulseRing.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    animation: pulse-ring 2s infinite;
-    pointer-events: none;
-  `;
-  markerRoot.appendChild(pulseRing);
-}
-
-// Z-index en el root, no en el bubble
-if (isSelected) {
-  markerRoot.style.zIndex = '100';
-}
-
-bubble.appendChild(iconWrapper);
-markerRoot.appendChild(bubble);
-```
-
-### Cambio 3: Hover Effects Seguros
-
-```typescript
-// Los eventos modifican solo bubble.style.transform
-// El root permanece intacto
-markerRoot.addEventListener('mouseenter', () => {
-  if (!isFiltered) {
-    bubble.style.transform = isSelected ? 'scale(1.4)' : 'scale(1.15)';
-    bubble.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-  }
-});
-
-markerRoot.addEventListener('mouseleave', () => {
-  bubble.style.transform = isSelected ? 'scale(1.3)' : 'scale(1)';
-  bubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-});
-```
-
----
-
-## Diagrama de Arquitectura de Marcadores
+## Arquitectura de Datos
 
 ```text
-                    Mapbox Controls Position
-                           ↓
-┌──────────────────────────────────────────────────┐
-│  markerRoot (shift-marker-root)                  │
-│  ├── width: 36px, height: 36px                   │
-│  ├── NO position, NO transform                   │
-│  └── Mapbox applies: transform: translate3d()    │
-│                                                  │
-│  ┌────────────────────────────────────────────┐  │
-│  │  pulseRing (solo si en_sitio)              │  │
-│  │  ├── position: absolute, top: 0, left: 0   │  │
-│  │  ├── animation: pulse-ring                 │  │
-│  │  └── pointer-events: none                  │  │
-│  └────────────────────────────────────────────┘  │
-│                                                  │
-│  ┌────────────────────────────────────────────┐  │
-│  │  bubble (shift-marker-bubble)              │  │
-│  │  ├── position: absolute, top: 0, left: 0   │  │
-│  │  ├── transform: scale() ← Solo esto cambia │  │
-│  │  ├── will-change: transform                │  │
-│  │  └── backface-visibility: hidden           │  │
-│  │                                            │  │
-│  │  ┌────────────────────────────────────┐    │  │
-│  │  │  iconWrapper                       │    │  │
-│  │  │  └── SVG icon                      │    │  │
-│  │  └────────────────────────────────────┘    │  │
-│  └────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         MonitoringPage                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌───────────────────────────┐    ┌────────────────────────────┐   │
+│  │     WeatherWidget         │    │      TwitterFeed            │   │
+│  │                           │    │      (Alertas de Ruta)      │   │
+│  │  useWeatherData() ───────►│    │  useIncidentesRRSS() ─────►│   │
+│  │         │                 │    │         │                   │   │
+│  └─────────┼─────────────────┘    └─────────┼───────────────────┘   │
+│            │                                │                       │
+│            ▼                                ▼                       │
+│   ┌──────────────────┐             ┌──────────────────────────┐    │
+│   │  Edge Function   │             │    incidentes_rrss       │    │
+│   │  weather-data    │             │    (Supabase table)       │    │
+│   └────────┬─────────┘             └────────────────────────────┘    │
+│            │                                     ▲                  │
+│            ▼                                     │                  │
+│   ┌──────────────────┐             ┌─────────────┴──────────────┐   │
+│   │  OpenWeatherMap  │             │  apify-data-fetcher        │   │
+│   │  API             │             │  procesar-incidente-rrss   │   │
+│   └──────────────────┘             └────────────────────────────┘   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Riesgos y Mitigación
+## Archivos a Crear/Modificar
 
-| Riesgo | Mitigación |
-|--------|------------|
-| La animación pulse puede seguir causando parpadeos | Elemento separado con `pointer-events: none` |
-| El z-index podría no funcionar en todos los navegadores | Aplicar al root que tiene stacking context |
-| Performance con muchos marcadores | `will-change` pre-optimiza, limitar a 50 marcadores visibles |
+| Archivo | Accion | Descripcion |
+|---------|--------|-------------|
+| `src/components/monitoring/TwitterFeed.tsx` | Modificar | Conectar a `useIncidentesRRSS` |
+| `supabase/functions/weather-data/index.ts` | Crear | Edge function para clima |
+| `src/hooks/useWeatherData.ts` | Crear | Hook para consumir datos de clima |
+| `src/components/monitoring/WeatherWidget.tsx` | Modificar | Usar hook en vez de mock |
 
 ---
 
-## Pruebas Recomendadas Post-Implementación
+## Dependencias y Secretos
 
-1. Hover sobre marcadores - verificar que no se desplacen
-2. Click en marcador seleccionado - verificar que el flyTo funcione
-3. Verificar que la leyenda esté contenida dentro del mapa
-4. Probar en móvil - la leyenda no debe tapar contenido
-5. Verificar animación pulse en marcadores "Posicionado"
+### Para Alertas de Ruta
+- YA CONFIGURADO: Solo conectar componente a hook existente
+
+### Para Clima
+- REQUIERE: Configurar `OPENWEATHER_API_KEY` en secrets
+  - Registro gratis en openweathermap.org
+  - Plan gratuito: 1000 llamadas/dia (suficiente para cache de 30 min)
+
+---
+
+## Fallback y Manejo de Errores
+
+1. **Sin datos de incidentes**: Mostrar mensaje "No hay alertas recientes"
+2. **Error en API de clima**: Usar datos mock como fallback
+3. **Loading states**: Skeleton loaders para ambos widgets
+4. **Sin API key de clima**: Widget muestra datos mock con indicador
+
+---
+
+## Prioridad de Implementacion
+
+**Fase 1 (Inmediata - Solo Frontend)**
+- Conectar `TwitterFeed` a `useIncidentesRRSS`
+- Agregar estado vacio y loading
+- Tiempo estimado: 30 minutos
+
+**Fase 2 (Requiere API Key)**
+- Crear edge function `weather-data`
+- Crear hook `useWeatherData`
+- Actualizar `WeatherWidget`
+- Tiempo estimado: 1 hora
+
+---
+
+## Beneficios
+
+| Beneficio | Impacto |
+|-----------|---------|
+| **Datos reales de incidentes** | Alertas actuales del feed de Twitter/X |
+| **Clasificacion AI** | Tipo, severidad y resumen automatico |
+| **Clima actualizado** | Condiciones reales cada 30 minutos |
+| **Sin costo adicional** | APIs gratuitas para el volumen esperado |
+| **Fallback robusto** | Datos mock si falla la API |
