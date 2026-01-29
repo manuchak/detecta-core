@@ -21,14 +21,28 @@ interface WeatherResponse {
   fallback?: boolean;
 }
 
-// Datos mock como fallback
+// 6 ciudades estratégicas ordenadas por volumen logístico
 const mockWeatherData: WeatherData[] = [
   {
-    location: "Ciudad de México",
+    location: "CDMX",
     temperature: 22,
     condition: "partly-cloudy",
     precipitation: 0,
     windSpeed: 12
+  },
+  {
+    location: "Guadalajara",
+    temperature: 26,
+    condition: "sunny",
+    precipitation: 0,
+    windSpeed: 10
+  },
+  {
+    location: "Monterrey",
+    temperature: 28,
+    condition: "sunny",
+    precipitation: 0,
+    windSpeed: 8
   },
   {
     location: "Puebla",
@@ -45,11 +59,11 @@ const mockWeatherData: WeatherData[] = [
     windSpeed: 5
   },
   {
-    location: "Guadalajara",
-    temperature: 26,
-    condition: "sunny",
-    precipitation: 0,
-    windSpeed: 10
+    location: "León",
+    temperature: 23,
+    condition: "partly-cloudy",
+    precipitation: 10,
+    windSpeed: 7
   },
 ];
 
@@ -65,7 +79,6 @@ export const useWeatherData = () => {
           return { data: mockWeatherData, isFallback: true };
         }
         
-        // Si la API indica fallback o no hay datos, usar mock
         if (data?.fallback || !data?.data || data.data.length === 0) {
           console.warn('Weather API returned fallback flag or no data');
           return { data: mockWeatherData, isFallback: true };
@@ -81,8 +94,8 @@ export const useWeatherData = () => {
         return { data: mockWeatherData, isFallback: true };
       }
     },
-    staleTime: 60 * 60 * 1000, // Cache 1 hora
-    refetchInterval: 2 * 60 * 60 * 1000, // Refetch cada 2 horas
+    staleTime: 60 * 60 * 1000,
+    refetchInterval: 2 * 60 * 60 * 1000,
     retry: 2,
     retryDelay: 1000,
   });
