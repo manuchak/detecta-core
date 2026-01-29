@@ -97,14 +97,22 @@ export function useRoutesStats() {
       
       const routes = data || [];
       const total = routes.length;
-      const pendingPrices = routes.filter(r => r.valor_bruto <= 10).length;
-      const negativeMargin = routes.filter(r => r.valor_bruto < r.precio_custodio).length;
+      // pendingPrices: same logic as useRoutesWithPendingPrices filter
+      // valor_bruto <= 10 (placeholder) OR valor_bruto < precio_custodio (negative margin)
+      const pendingPrices = routes.filter(r => 
+        r.valor_bruto <= 10 || r.valor_bruto < r.precio_custodio
+      ).length;
+      const negativeMargin = routes.filter(r => 
+        r.valor_bruto > 10 && r.valor_bruto < r.precio_custodio
+      ).length;
+      const placeholderPrices = routes.filter(r => r.valor_bruto <= 10).length;
       
       return {
         total,
         pendingPrices,
         negativeMargin,
-        validRoutes: total - pendingPrices - negativeMargin
+        placeholderPrices,
+        validRoutes: total - pendingPrices
       };
     },
     { config: 'standard' }
