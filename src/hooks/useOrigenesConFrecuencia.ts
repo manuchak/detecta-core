@@ -47,19 +47,21 @@ export const useOrigenesConFrecuencia = (clienteNombre?: string) => {
 
       try {
         // Usar la función RPC optimizada para obtener orígenes con frecuencia en una sola query
+        // El RPC ahora usa LOWER() para comparación case-insensitive
         const { data, error } = await supabase.rpc('get_origenes_con_frecuencia', {
-          cliente_nombre_param: clienteNombre
+          cliente_nombre_param: clienteNombre.trim()
         });
 
         if (error) {
           console.error('Error fetching origins with frequency:', error);
           
           // Fallback: obtener orígenes directamente sin frecuencia usando ILIKE
+          // Usamos % wildcards para mayor flexibilidad en la búsqueda
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('matriz_precios_rutas')
             .select('origen_texto')
             .eq('activo', true)
-            .ilike('cliente_nombre', clienteNombre); // Case-insensitive
+            .ilike('cliente_nombre', `%${clienteNombre.trim()}%`); // Case-insensitive con wildcards
             
           if (fallbackError) throw fallbackError;
           
