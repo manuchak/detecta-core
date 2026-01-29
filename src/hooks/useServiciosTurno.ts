@@ -41,28 +41,28 @@ export const COLORES_ESTADO: Record<EstadoVisual, {
     bg: 'hsl(142, 76%, 94%)',         // green-100
     border: 'hsl(142, 71%, 45%)',     // green-500
     icon: 'CheckCircle',
-    label: 'En Sitio'
+    label: 'Posicionado'
   },
   proximo: {
     primary: 'hsl(38, 92%, 50%)',     // amber-500
     bg: 'hsl(48, 96%, 89%)',          // amber-100
     border: 'hsl(32, 95%, 44%)',      // amber-600
     icon: 'Clock',
-    label: 'Próximo'
+    label: 'En Camino'
   },
   asignado: {
     primary: 'hsl(217, 91%, 60%)',    // blue-500
     bg: 'hsl(214, 95%, 93%)',         // blue-100
     border: 'hsl(221, 83%, 53%)',     // blue-600
     icon: 'User',
-    label: 'Asignado'
+    label: 'Por Salir'
   },
   sin_asignar: {
     primary: 'hsl(220, 9%, 46%)',     // gray-500
     bg: 'hsl(220, 14%, 96%)',         // gray-100
     border: 'hsl(215, 14%, 34%)',     // gray-600
     icon: 'AlertCircle',
-    label: 'Sin Asignar'
+    label: 'Pendiente Custodio'
   }
 };
 

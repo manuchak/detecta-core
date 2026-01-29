@@ -7,6 +7,7 @@ import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
 import WeatherWidget from "@/components/monitoring/WeatherWidget";
 import TwitterFeed from "@/components/monitoring/TwitterFeed";
 import { useServiciosTurno, ServicioTurno, EstadoVisual } from "@/hooks/useServiciosTurno";
+import { useServiciosTurnoRealtime } from "@/hooks/useServiciosTurnoRealtime";
 
 const MonitoringPage = () => {
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -23,6 +24,9 @@ const MonitoringPage = () => {
     total: 0
   };
 
+  // Hook de alertas en tiempo real
+  useServiciosTurnoRealtime(servicios);
+
   const handleServiceClick = (servicio: ServicioTurno) => {
     setSelectedService(servicio.id === selectedService ? null : servicio.id);
   };
@@ -37,10 +41,10 @@ const MonitoringPage = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-            Monitoreo de Servicios
+            Control de Posicionamiento
           </h1>
           <p className="text-muted-foreground">
-            Visualiza servicios en tiempo real del turno actual
+            Seguimiento de custodios en ruta hacia sus puntos de origen
           </p>
         </div>
         <Button 

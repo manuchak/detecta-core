@@ -36,7 +36,7 @@ const ShiftSummaryCards = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Turno Actual (±8 hrs)</h2>
+        <h2 className="text-lg font-semibold">Posicionamiento del Turno (±8 hrs)</h2>
         {lastUpdated && (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
@@ -99,7 +99,7 @@ const ShiftSummaryCards = ({
       
       {/* Total */}
       <div className="text-center text-sm text-muted-foreground">
-        Total de servicios en turno: <span className="font-semibold">{resumen.total}</span>
+        Total de posicionamientos programados: <span className="font-semibold">{resumen.total}</span>
       </div>
     </div>
   );
