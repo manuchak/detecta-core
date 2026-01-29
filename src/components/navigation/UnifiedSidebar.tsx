@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { ChevronLeft, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   navigationModules, 
@@ -23,6 +23,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { useRoutesStats } from '@/hooks/useRoutesWithPendingPrices';
 
 interface UnifiedSidebarProps {
   stats?: {
@@ -41,11 +43,31 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   
   const isCollapsed = state === 'collapsed';
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  
+  // State for collapsed navigation groups (not module submenus)
+  const [collapsedNavGroups, setCollapsedNavGroups] = useState<string[]>(() => {
+    return navigationGroups
+      .filter(g => g.defaultCollapsed)
+      .map(g => g.id);
+  });
+
+  // Fetch routes stats for badge
+  const { data: routesStats } = useRoutesStats();
 
   const getActiveModule = () => {
     const path = location.pathname;
+    const search = location.search;
+    const fullPath = path + search;
+    
+    // Check for exact match with query params first (for routes like /planeacion?tab=routes)
+    const exactMatch = navigationModules.find(m => {
+      if (fullPath === m.path || fullPath.startsWith(m.path + '&')) return true;
+      return false;
+    });
+    if (exactMatch) return exactMatch.id;
+    
     return navigationModules.find(m => {
-      if (path.startsWith(m.path)) return true;
+      if (path.startsWith(m.path.split('?')[0])) return true;
       if (m.matchPaths?.some(p => path.startsWith(p))) return true;
       return false;
     })?.id || 'dashboard';
@@ -79,6 +101,15 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   const visibleGroups = navigationGroups.filter(group => 
     getModulesByGroup(group.id).length > 0
   );
+
+  // Toggle navigation group collapse
+  const toggleNavGroup = (groupId: string) => {
+    setCollapsedNavGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
 
   // Auto-expand groups based on current route
   useEffect(() => {
@@ -120,6 +151,9 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
     const visibleChildren = hasChildren ? filterChildren(module.children) : [];
     const isExpanded = expandedGroups.includes(module.id);
     
+    // Check if this is the routes module and should show badge
+    const showRoutesBadge = module.id === 'routes' && (routesStats?.pendingPrices || 0) > 0;
+    
     if (!hasChildren) {
       return (
         <SidebarMenuItem key={module.id}>
@@ -134,7 +168,14 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           >
             <Icon className="h-4 w-4 shrink-0" />
             {!isCollapsed && (
-              <span className="text-sm flex-1">{module.label}</span>
+              <>
+                <span className="text-sm flex-1">{module.label}</span>
+                {showRoutesBadge && (
+                  <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-semibold">
+                    {routesStats?.pendingPrices}
+                  </Badge>
+                )}
+              </>
             )}
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -226,6 +267,8 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           const groupModules = getModulesByGroup(group.id);
           if (groupModules.length === 0) return null;
 
+          const isNavGroupCollapsed = collapsedNavGroups.includes(group.id);
+
           return (
             <React.Fragment key={group.id}>
               {groupIndex > 0 && !isCollapsed && (
@@ -234,16 +277,33 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
               
               <SidebarGroup className="py-1">
                 {!isCollapsed && (
-                  <SidebarGroupLabel className="px-3 py-1.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-                    {group.label}
+                  <SidebarGroupLabel 
+                    className="px-3 py-1.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider cursor-pointer flex items-center justify-between hover:text-sidebar-foreground/70 transition-colors"
+                    onClick={() => toggleNavGroup(group.id)}
+                  >
+                    <span>{group.label}</span>
+                    <div className="flex items-center gap-1">
+                      {isNavGroupCollapsed && (
+                        <span className="text-[9px] text-sidebar-foreground/40">
+                          ({groupModules.length})
+                        </span>
+                      )}
+                      {isNavGroupCollapsed ? (
+                        <ChevronRight className="h-3 w-3" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
                   </SidebarGroupLabel>
                 )}
                 
-                <SidebarGroupContent>
-                  <SidebarMenu className="space-y-0.5 px-2">
-                    {groupModules.map(renderModule)}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                {!isNavGroupCollapsed && (
+                  <SidebarGroupContent>
+                    <SidebarMenu className="space-y-0.5 px-2">
+                      {groupModules.map(renderModule)}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                )}
               </SidebarGroup>
             </React.Fragment>
           );

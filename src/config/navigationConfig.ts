@@ -26,7 +26,8 @@ import {
   Radio,
   Headphones,
   GraduationCap,
-  Briefcase
+  Briefcase,
+  ArrowLeftRight
 } from 'lucide-react';
 
 // Navigation Groups for visual separation
@@ -34,6 +35,7 @@ export interface NavigationGroup {
   id: string;
   label: string;
   icon: LucideIcon;
+  defaultCollapsed?: boolean;
 }
 
 export const navigationGroups: NavigationGroup[] = [
@@ -41,7 +43,7 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'supply', label: 'Supply & Talento', icon: Users },
   { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
   { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
-  { id: 'system', label: 'Sistema', icon: Settings },
+  { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
 ];
 
 export interface NavigationChild {
@@ -288,6 +290,14 @@ export const navigationModules: NavigationModule[] = [
         icon: ClipboardList
       }
     ]
+  },
+  {
+    id: 'routes',
+    label: 'Rutas',
+    icon: ArrowLeftRight,
+    path: '/planeacion?tab=routes',
+    group: 'operations',
+    roles: ['admin', 'owner', 'coordinador_operaciones', 'planificador']
   },
   {
     id: 'wms',
