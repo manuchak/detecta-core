@@ -15,12 +15,33 @@ export interface RouteCreationData {
   justificacion: string;
 }
 
+export interface InverseRouteInfo {
+  exists: boolean;
+  route?: {
+    id: string;
+    origen_texto: string;
+    destino_texto: string;
+    valor_bruto: number;
+    precio_custodio: number;
+  };
+}
+
 interface UseRouteCreationReturn {
   createRoute: (data: RouteCreationData) => Promise<PricingResult | null>;
+  checkForInverseRoute: (cliente: string, origen: string, destino: string) => Promise<InverseRouteInfo>;
   isCreating: boolean;
   creationError: string | null;
   clearError: () => void;
 }
+
+// Normaliza texto para comparaciones case-insensitive
+const normalizeText = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
 
 export function useRouteCreation(): UseRouteCreationReturn {
   const [isCreating, setIsCreating] = useState(false);
@@ -70,6 +91,42 @@ export function useRouteCreation(): UseRouteCreationReturn {
     }
   };
 
+  // Verifica si existe la ruta inversa (destino→origen en lugar de origen→destino)
+  const checkForInverseRoute = useCallback(async (
+    cliente: string,
+    origen: string,
+    destino: string
+  ): Promise<InverseRouteInfo> => {
+    try {
+      const { data } = await supabase
+        .from('matriz_precios_rutas')
+        .select('id, origen_texto, destino_texto, valor_bruto, precio_custodio')
+        .ilike('cliente_nombre', cliente.trim())
+        .ilike('origen_texto', destino.trim()) // Invertido: origen buscado = destino ingresado
+        .ilike('destino_texto', origen.trim()) // Invertido: destino buscado = origen ingresado
+        .eq('activo', true)
+        .maybeSingle();
+
+      if (data) {
+        return {
+          exists: true,
+          route: {
+            id: data.id,
+            origen_texto: data.origen_texto,
+            destino_texto: data.destino_texto,
+            valor_bruto: data.valor_bruto,
+            precio_custodio: data.precio_custodio,
+          }
+        };
+      }
+
+      return { exists: false };
+    } catch (err) {
+      console.error('Error checking for inverse route:', err);
+      return { exists: false };
+    }
+  }, []);
+
   const createRoute = useCallback(async (data: RouteCreationData): Promise<PricingResult | null> => {
     setIsCreating(true);
     setCreationError(null);
@@ -102,9 +159,41 @@ export function useRouteCreation(): UseRouteCreationReturn {
         .single();
 
       if (error) {
-        // Handle unique constraint violation
+        // Handle unique constraint violation with detailed context
         if (error.code === '23505') {
-          setCreationError('Ya existe una ruta para este cliente y destino. Modifica el destino o usa la ruta existente.');
+          // Buscar la ruta existente para dar contexto
+          const { data: existingRoute } = await supabase
+            .from('matriz_precios_rutas')
+            .select('id, origen_texto, destino_texto')
+            .ilike('cliente_nombre', data.cliente_nombre)
+            .ilike('origen_texto', data.origen_texto)
+            .ilike('destino_texto', data.destino_texto)
+            .eq('activo', true)
+            .maybeSingle();
+
+          if (existingRoute) {
+            // La ruta exacta ya existe
+            setCreationError(
+              `Esta ruta exacta ya existe: "${existingRoute.origen_texto} → ${existingRoute.destino_texto}". ` +
+              `Usa la ruta existente desde el buscador.`
+            );
+          } else {
+            // Verificar si es por ruta inversa
+            const inverseCheck = await checkForInverseRoute(
+              data.cliente_nombre,
+              data.origen_texto,
+              data.destino_texto
+            );
+
+            if (inverseCheck.exists && inverseCheck.route) {
+              setCreationError(
+                `Existe la ruta inversa: "${inverseCheck.route.origen_texto} → ${inverseCheck.route.destino_texto}". ` +
+                `Puedes crear esta nueva ruta, pero verifica que no hay conflictos de datos.`
+              );
+            } else {
+              setCreationError('Ya existe una ruta similar. Verifica los datos ingresados.');
+            }
+          }
         } else if (error.code === '42501') {
           setCreationError('No tienes permisos para crear rutas. Contacta al administrador.');
         } else {
@@ -140,7 +229,7 @@ export function useRouteCreation(): UseRouteCreationReturn {
       setIsCreating(false);
       return null;
     }
-  }, []);
+  }, [checkForInverseRoute]);
 
   const clearError = useCallback(() => {
     setCreationError(null);
@@ -148,6 +237,7 @@ export function useRouteCreation(): UseRouteCreationReturn {
 
   return {
     createRoute,
+    checkForInverseRoute,
     isCreating,
     creationError,
     clearError,

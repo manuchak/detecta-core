@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, MapPin, Building2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AdvancedFieldsCollapsible } from './AdvancedFieldsCollapsible';
-import { useRouteCreation, RouteCreationData } from '../hooks/useRouteCreation';
+import { InverseRouteAlert } from './InverseRouteAlert';
+import { useRouteCreation, RouteCreationData, InverseRouteInfo } from '../hooks/useRouteCreation';
 import { PricingResult } from '../hooks/useRouteSubSteps';
 
 interface InlineRouteCreationFormProps {
@@ -31,7 +32,7 @@ export function InlineRouteCreationForm({
   onSuccess,
   onCancel,
 }: InlineRouteCreationFormProps) {
-  const { createRoute, isCreating, creationError, clearError } = useRouteCreation();
+  const { createRoute, checkForInverseRoute, isCreating, creationError, clearError } = useRouteCreation();
 
   // Form state
   const [valorBruto, setValorBruto] = useState('');
@@ -42,8 +43,39 @@ export function InlineRouteCreationForm({
   const [costoOperativo, setCostoOperativo] = useState('');
   const [pagoCustodioSinArma, setPagoCustodioSinArma] = useState('');
 
+  // Inverse route state
+  const [inverseRoute, setInverseRoute] = useState<InverseRouteInfo>({ exists: false });
+  const [isCheckingInverse, setIsCheckingInverse] = useState(false);
+
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Check for inverse route when component mounts or when origen/destino change
+  useEffect(() => {
+    const checkInverse = async () => {
+      if (!cliente || !origen || !destino) return;
+
+      setIsCheckingInverse(true);
+      const result = await checkForInverseRoute(cliente, origen, destino);
+      setInverseRoute(result);
+      setIsCheckingInverse(false);
+    };
+
+    checkInverse();
+  }, [cliente, origen, destino, checkForInverseRoute]);
+
+  const handleUseInverseAsTemplate = (valorBrutoRef: number, precioCustodioRef: number) => {
+    setValorBruto(valorBrutoRef.toString());
+    setPrecioCustodio(precioCustodioRef.toString());
+    // Add note about using inverse route as reference
+    if (!justificacion.includes('ruta inversa')) {
+      setJustificacion(prev => 
+        prev 
+          ? `${prev}\nPrecios basados en ruta inversa existente.`
+          : 'Precios basados en ruta inversa existente.'
+      );
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -104,6 +136,16 @@ export function InlineRouteCreationForm({
           <span>{destino}</span>
         </div>
       </div>
+
+      {/* Inverse route suggestion */}
+      {!isCheckingInverse && inverseRoute.exists && (
+        <InverseRouteAlert
+          inverseRoute={inverseRoute}
+          origen={origen}
+          destino={destino}
+          onUseAsTemplate={handleUseInverseAsTemplate}
+        />
+      )}
 
       {/* Error alert */}
       {creationError && (
