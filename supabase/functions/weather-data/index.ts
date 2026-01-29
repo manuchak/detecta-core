@@ -5,12 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Ciudades principales para monitoreo de rutas
+// 6 ciudades estratégicas ordenadas por volumen logístico
 const ciudades = [
-  { name: 'Ciudad de México', lat: 19.4326, lon: -99.1332 },
+  { name: 'CDMX', lat: 19.4326, lon: -99.1332 },
+  { name: 'Guadalajara', lat: 20.6597, lon: -103.3496 },
+  { name: 'Monterrey', lat: 25.6866, lon: -100.3161 },
   { name: 'Puebla', lat: 19.0414, lon: -98.2063 },
   { name: 'Querétaro', lat: 20.5888, lon: -100.3899 },
-  { name: 'Guadalajara', lat: 20.6597, lon: -103.3496 },
+  { name: 'León', lat: 21.1250, lon: -101.6860 },
 ];
 
 // Mapear condición de OpenWeatherMap a nuestro formato
