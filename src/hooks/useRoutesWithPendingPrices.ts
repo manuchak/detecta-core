@@ -26,16 +26,24 @@ export function useRoutesWithPendingPrices() {
   return useAuthenticatedQuery<PendingPriceRoute[]>(
     ['routes-pending-prices'],
     async () => {
+      // First get all active routes, then filter in JS since Supabase 
+      // doesn't support column-to-column comparisons in .or()
       const { data, error } = await supabase
         .from('matriz_precios_rutas')
         .select('*')
         .eq('activo', true)
-        .or('valor_bruto.lte.10,valor_bruto.lt.precio_custodio')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      return (data || []).map(route => {
+      // Filter routes with pending prices:
+      // - valor_bruto <= 10 (placeholder price)
+      // - valor_bruto < precio_custodio (negative margin)
+      const pendingRoutes = (data || []).filter(route => 
+        route.valor_bruto <= 10 || route.valor_bruto < route.precio_custodio
+      );
+      
+      return pendingRoutes.map(route => {
         const createdAt = new Date(route.created_at);
         const updatedAt = route.updated_at ? new Date(route.updated_at) : createdAt;
         const now = new Date();
