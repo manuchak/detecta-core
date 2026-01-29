@@ -1,31 +1,92 @@
 
-# Plan: Actualizar Intervalo de Refresco del Clima a 2 Horas
+# Plan: Rediseño Minimalista del Widget de Clima
 
-## Estado Actual de la API
+## Objetivo
+Transformar el widget de clima a un diseño minimalista con 6 ciudades estratégicas en grid de 2 filas × 3 columnas, corrigiendo el overflow de iconos.
 
-Los logs muestran que OpenWeatherMap devuelve **401 Unauthorized** para todas las ciudades. Esto es normal para API keys nuevas - pueden tardar hasta 2 horas en activarse. Una vez activa, los datos reales se mostrarán automáticamente.
+## Ciudades Seleccionadas (basado en volumen de rutas)
+1. **Ciudad de México** - Hub principal
+2. **Guadalajara** - Zona Occidente
+3. **Monterrey** - Zona Norte
+4. **Puebla** - Zona Centro
+5. **Querétaro** - Bajío/Centro
+6. **León** - Corredor Bajío
 
-## Cambio Requerido
+## Diseño Propuesto
 
-**Archivo:** `src/hooks/useWeatherData.ts` (líneas 84-85)
-
-### Antes
-```typescript
-staleTime: 10 * 60 * 1000, // Cache 10 minutos
-refetchInterval: 30 * 60 * 1000, // Refetch cada 30 minutos
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ ☁️ Condiciones Climáticas                              [Demo]  │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ CDMX      ☀️ │  │ GDL       ⛅ │  │ MTY       ☁️ │          │
+│  │ 22°        │  │ 26°        │  │ 28°        │          │
+│  │ 💨 12 km/h  │  │ 💨 10 km/h  │  │ 💨 8 km/h   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ Puebla    🌧️ │  │ Querétaro ☀️ │  │ León      ☀️ │          │
+│  │ 19°        │  │ 24°        │  │ 23°        │          │
+│  │ 💨 8 km/h   │  │ 💨 5 km/h   │  │ 💨 7 km/h   │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Después
+## Cambios Técnicos
+
+### 1. WeatherWidget.tsx - Tarjeta Minimalista
+
+**Antes:**
+- Cards con `min-w-[200px]` en scroll horizontal
+- Layout complejo con múltiples secciones
+- Iconos que pueden desbordarse
+
+**Después:**
+- Grid fijo `grid-cols-3` con 2 filas
+- Tarjetas compactas con padding reducido
+- Layout vertical simple: Ciudad + Icono → Temperatura → Viento
+- Iconos contenidos con `shrink-0`
+
+### 2. useWeatherData.ts - 6 Ciudades Estratégicas
+
+**Antes:** 4 ciudades (CDMX, Puebla, Querétaro, Guadalajara)
+
+**Después:** 6 ciudades ordenadas por relevancia logística:
 ```typescript
-staleTime: 60 * 60 * 1000, // Cache 1 hora
-refetchInterval: 2 * 60 * 60 * 1000, // Refetch cada 2 horas
+const mockWeatherData: WeatherData[] = [
+  { location: "CDMX", ... },
+  { location: "Guadalajara", ... },
+  { location: "Monterrey", ... },
+  { location: "Puebla", ... },
+  { location: "Querétaro", ... },
+  { location: "León", ... },
+];
 ```
 
-## Resumen
+## Especificaciones de Diseño
 
-| Parámetro | Antes | Después |
-|-----------|-------|---------|
-| `staleTime` | 10 min | 1 hora |
-| `refetchInterval` | 30 min | 2 horas |
+| Elemento | Valor |
+|----------|-------|
+| Grid | `grid-cols-2 sm:grid-cols-3` |
+| Gap | `gap-3` |
+| Card padding | `p-3` |
+| Ciudad font | `text-xs font-medium truncate` |
+| Temperatura | `text-lg font-semibold` |
+| Iconos | `h-5 w-5 shrink-0` (evita overflow) |
+| Detalles | Solo viento, ocultar humedad |
 
-El `staleTime` de 1 hora evita llamadas innecesarias cuando el usuario navega, y el `refetchInterval` de 2 horas reduce el consumo de la API gratuita (máximo 1000 llamadas/día = ~41/hora, con 2h tendremos margen amplio).
+## Archivos a Modificar
+
+1. **`src/components/monitoring/WeatherWidget.tsx`**
+   - Rediseñar `WeatherCard` con layout minimalista
+   - Cambiar contenedor a grid de 2 filas
+   - Actualizar `LoadingSkeleton` para 6 cards
+
+2. **`src/hooks/useWeatherData.ts`**
+   - Agregar León y Monterrey al mock data
+   - Usar abreviaciones (CDMX vs "Ciudad de México")
+
+## Beneficios
+- **Sin scroll horizontal** - Todo visible de un vistazo
+- **Iconos contenidos** - `shrink-0` previene overflow
+- **6 ciudades clave** - Cobertura de principales corredores
+- **Responsive** - 2 cols en móvil, 3 en desktop
