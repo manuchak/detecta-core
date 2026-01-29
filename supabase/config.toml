@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.pipedrive-sync]
 verify_jwt = true
+
+[functions.weather-data]
+verify_jwt = false
