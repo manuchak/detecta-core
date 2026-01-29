@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useRoutesWithPendingPrices, PendingPriceRoute } from '@/hooks/useRoutes
 import { QuickPriceEditModal } from './QuickPriceEditModal';
 import { BulkPriceAdjustModal } from './BulkPriceAdjustModal';
 import { DeleteRouteDialog } from './DeleteRouteDialog';
+import { RoutesFilters, RoutesFiltersState, defaultFilters, applyRoutesFilters } from './RoutesFilters';
 
 export function PendingRoutesTable() {
   const { data: routes = [], isPending, error } = useRoutesWithPendingPrices();
@@ -23,10 +24,16 @@ export function PendingRoutesTable() {
   const [editingRoute, setEditingRoute] = useState<PendingPriceRoute | null>(null);
   const [showBulkAdjust, setShowBulkAdjust] = useState(false);
   const [routesToDelete, setRoutesToDelete] = useState<PendingPriceRoute[]>([]);
+  const [filters, setFilters] = useState<RoutesFiltersState>(defaultFilters);
+
+  // Apply filters to routes
+  const filteredRoutes = useMemo(() => {
+    return applyRoutesFilters(routes, filters);
+  }, [routes, filters]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRoutes(new Set(routes.map(r => r.id)));
+      setSelectedRoutes(new Set(filteredRoutes.map(r => r.id)));
     } else {
       setSelectedRoutes(new Set());
     }
@@ -42,7 +49,7 @@ export function PendingRoutesTable() {
     setSelectedRoutes(newSelected);
   };
 
-  const selectedRoutesData = routes.filter(r => selectedRoutes.has(r.id));
+  const selectedRoutesData = filteredRoutes.filter(r => selectedRoutes.has(r.id));
 
   if (isPending) {
     return (
@@ -112,12 +119,31 @@ export function PendingRoutesTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters */}
+          <RoutesFilters
+            routes={routes}
+            filters={filters}
+            onFiltersChange={setFilters}
+          />
+
+          {/* Results count */}
+          {filteredRoutes.length !== routes.length && (
+            <div className="text-sm text-muted-foreground">
+              Mostrando {filteredRoutes.length} de {routes.length} rutas
+            </div>
+          )}
+
           {routes.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <div className="text-4xl mb-4">🎉</div>
               <p className="font-medium">¡Excelente!</p>
               <p className="text-sm">No hay rutas con precios pendientes de actualización</p>
+            </div>
+          ) : filteredRoutes.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="font-medium">Sin resultados</p>
+              <p className="text-sm">No hay rutas que coincidan con los filtros seleccionados</p>
             </div>
           ) : (
             <Table>
@@ -125,7 +151,7 @@ export function PendingRoutesTable() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox 
-                      checked={selectedRoutes.size === routes.length}
+                      checked={selectedRoutes.size === filteredRoutes.length && filteredRoutes.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -139,7 +165,7 @@ export function PendingRoutesTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {routes.map((route) => (
+                {filteredRoutes.map((route) => (
                   <TableRow key={route.id} className={route.tiene_margen_negativo ? 'bg-destructive/5' : ''}>
                     <TableCell>
                       <Checkbox 
