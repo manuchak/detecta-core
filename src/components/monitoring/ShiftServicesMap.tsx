@@ -38,23 +38,50 @@ const ShiftServicesMap = ({
   // Create marker element with nested structure to prevent CSS transform conflicts
   // Outer element: receives Mapbox's translate transform for positioning
   // Inner element: handles scale/hover animations without overwriting position
+  // Create marker element with nested structure to prevent CSS transform conflicts
+  // Architecture: markerRoot (Mapbox position) → pulseRing (animation) → bubble (visual + hover)
   const createMarkerElement = useCallback((servicio: ServicioTurno, isSelected: boolean) => {
     const config = COLORES_ESTADO[servicio.estadoVisual];
     const isFiltered = filterEstado && filterEstado !== servicio.estadoVisual;
     
-    // Outer container - Mapbox will apply translate() here
+    // Root container - Mapbox controls position via translate3d()
+    // NO position/transform properties - let Mapbox handle it
     const markerRoot = document.createElement('div');
     markerRoot.className = 'shift-marker-root';
     markerRoot.style.cssText = `
       width: 36px;
       height: 36px;
-      position: relative;
     `;
     
-    // Inner bubble - handles scale animations without conflicting with Mapbox transforms
+    // Z-index on root for proper stacking context
+    if (isSelected) {
+      markerRoot.style.zIndex = '100';
+    }
+    
+    // Pulse ring - separate element for animation (only for en_sitio)
+    if (servicio.estadoVisual === 'en_sitio') {
+      const pulseRing = document.createElement('div');
+      pulseRing.className = 'shift-marker-pulse';
+      pulseRing.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        animation: pulse-ring 2s infinite;
+        pointer-events: none;
+      `;
+      markerRoot.appendChild(pulseRing);
+    }
+    
+    // Visual bubble - handles scale/hover without conflicting with Mapbox
     const bubble = document.createElement('div');
     bubble.className = 'shift-marker-bubble';
     bubble.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 36px;
       height: 36px;
       border-radius: 50%;
@@ -67,9 +94,10 @@ const ShiftServicesMap = ({
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       transform-origin: center center;
+      will-change: transform;
+      backface-visibility: hidden;
       ${isFiltered ? 'opacity: 0.3;' : ''}
-      ${isSelected ? 'transform: scale(1.3); z-index: 100;' : ''}
-      ${servicio.estadoVisual === 'en_sitio' ? 'animation: pulse-ring 2s infinite;' : ''}
+      ${isSelected ? 'transform: scale(1.3);' : ''}
     `;
     
     const iconWrapper = document.createElement('div');
@@ -78,7 +106,7 @@ const ShiftServicesMap = ({
     bubble.appendChild(iconWrapper);
     markerRoot.appendChild(bubble);
     
-    // Hover effects - only modify the inner bubble, not the root
+    // Hover effects - only modify bubble.style.transform, root stays untouched
     markerRoot.addEventListener('mouseenter', () => {
       if (!isFiltered) {
         bubble.style.transform = isSelected ? 'scale(1.4)' : 'scale(1.15)';
@@ -265,7 +293,7 @@ const ShiftServicesMap = ({
   }, [selectedServiceId, servicios]);
 
   return (
-    <Card className={`overflow-hidden ${className || 'h-[400px]'}`}>
+    <Card className={`overflow-hidden relative ${className || 'h-[400px]'}`}>
       {/* Legend */}
       <div className="absolute bottom-4 left-4 z-10 bg-background/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
         <div className="flex flex-wrap gap-3 text-xs">
