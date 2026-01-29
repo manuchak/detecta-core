@@ -81,8 +81,8 @@ export const useWeatherData = () => {
         return { data: mockWeatherData, isFallback: true };
       }
     },
-    staleTime: 10 * 60 * 1000, // Cache 10 minutos
-    refetchInterval: 30 * 60 * 1000, // Refetch cada 30 minutos
+    staleTime: 60 * 60 * 1000, // Cache 1 hora
+    refetchInterval: 2 * 60 * 60 * 1000, // Refetch cada 2 horas
     retry: 2,
     retryDelay: 1000,
   });
