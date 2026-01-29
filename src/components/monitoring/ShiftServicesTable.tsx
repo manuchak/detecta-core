@@ -60,7 +60,7 @@ const ShiftServicesTable = ({
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Servicios del Turno</CardTitle>
+          <CardTitle className="text-base">Custodios en Ruta</CardTitle>
           <Badge variant="secondary">
             {filteredServicios.length} de {servicios.length}
           </Badge>
