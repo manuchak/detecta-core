@@ -41,7 +41,7 @@ const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
 const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
 const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvitationsPage'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
-const SupplyChainMonitoring = lazy(() => import('@/pages/Monitoring/SupplyChainMonitoring'));
+
 const ForensicAuditPage = lazy(() => import('@/pages/Monitoring/ForensicAuditPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
@@ -478,19 +478,6 @@ function App() {
                       <UnifiedLayout>
                         <MonitoringPage />
                       </UnifiedLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/monitoring/supply-chain"
-                  element={
-                    <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
-                        <UnifiedLayout>
-                          <SupplyChainMonitoring />
-                        </UnifiedLayout>
-                      </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
                 />

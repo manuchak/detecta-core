@@ -323,12 +323,6 @@ export const navigationModules: NavigationModule[] = [
         icon: Activity
       },
       {
-        id: 'monitoring_supply',
-        label: 'Supply Chain',
-        path: '/monitoring/supply-chain',
-        icon: Package
-      },
-      {
         id: 'monitoring_forensic',
         label: 'Auditoría Forense',
         path: '/monitoring/forensic-audit',
