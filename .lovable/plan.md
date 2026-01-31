@@ -1,110 +1,85 @@
 
-# Plan: Contexto Operativo Real en Home
+# Plan: Filtro de Ventana Temporal Ajustable (±8h / ±12h / ±24h)
 
-## Diagnóstico del Problema
+## Análisis de Factibilidad
 
-**Situación actual del widget "Completitud Hoy":**
-- Consulta `servicios_custodia` (tabla legacy de ejecución) en lugar de `servicios_planificados` (tabla de planeación)
-- Solo muestra un porcentaje aislado (ej: "0%") sin contexto
-- No responde las preguntas operativas reales: ¿hay servicios planeados? ¿cuántos salieron? ¿hay retrasos?
+El diseño actual tiene un título estático: **"Posicionamiento del Turno (±8 hrs)"**. Podemos reemplazar el texto fijo con un **segmented control** compacto que permite cambiar la ventana temporal sin afectar el layout.
 
-**Lo que el ejecutivo necesita saber de un vistazo:**
-1. ¿Cuántos servicios tiene el turno actual?
-2. ¿Cuál es el estado operativo? (posicionados vs en camino vs pendientes)
-3. ¿Hay algo bloqueado? (servicios sin custodio)
-
----
-
-## Solución: Widget "Pulso del Turno"
-
-Reemplazar `completionRateToday` con un nuevo widget `shiftPulse` que consume la misma lógica del Centro de Control (`useServiciosTurno`).
-
-### Diseño Visual
+## Diseño Visual Propuesto
 
 ```text
-┌──────────────────────────────┐
-│  TURNO ACTUAL                │
-│  ───────────────────────────│
-│  14 servicios                │  ← Valor principal
-│  8 ✓ · 3 → · 2 📋 · 1 ⚠️    │  ← Subtext con semáforo
-└──────────────────────────────┘
-
-Leyenda subtext:
-✓ = Posicionados (en sitio)
-→ = En camino (próximos)
-📋 = Por salir (asignados)
-⚠️ = Sin custodio (crítico)
+┌─────────────────────────────────────────────────────────────────────┐
+│  Posicionamiento del Turno   [±8h] [±12h] [±24h]        ⟳ 12:27    │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐              │
+│  │POSICIONADO│ │EN CAMINO │ │ POR SALIR│ │PENDIENTE │              │
+│  │    6     │ │    0     │ │    0     │ │    0     │              │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Lógica de Urgencia Visual
-
-| Condición | Indicador |
-|-----------|-----------|
-| Sin servicios | Neutral, subtext "Sin servicios programados" |
-| 100% posicionados | Verde (tendencia up) |
-| Hay servicios sin custodio | Amarillo/Rojo según cantidad |
-| Normal operativo | Neutral |
+**Componente elegido**: `ToggleGroup` de Radix UI (ya instalado) - compacto, accesible, y consistente con el design system.
 
 ---
 
-## Implementación Técnica
+## Cambios Técnicos
 
-### 1. Nuevo Case en `useWidgetData.ts`
+### 1. Modificar Hook `useServiciosTurno.ts`
 
-Agregar `shiftPulse` que consume directamente los datos de `servicios_planificados` con la ventana de ±8 horas:
+Agregar parámetro `timeWindowHours` para hacer la ventana configurable:
 
 ```typescript
-case 'shiftPulse': {
-  // Ventana de ±8 horas (igual que Centro de Control)
-  const ahora = new Date();
-  const hace8h = new Date(ahora.getTime() - 8 * 60 * 60 * 1000);
-  const en8h = new Date(ahora.getTime() + 8 * 60 * 60 * 1000);
-  
-  const { data } = await supabase
-    .from('servicios_planificados')
-    .select('hora_inicio_real, custodio_asignado, fecha_hora_cita')
-    .gte('fecha_hora_cita', hace8h.toISOString())
-    .lte('fecha_hora_cita', en8h.toISOString())
-    .not('estado_planeacion', 'in', '(cancelado,completado)');
-  
-  // Calcular estados
-  const enSitio = data.filter(s => s.hora_inicio_real).length;
-  const sinCustodio = data.filter(s => !s.custodio_asignado).length;
-  const total = data.length;
-  // ... lógica de próximos vs asignados
-  
-  return {
-    value: total > 0 ? `${total} servicios` : 'Sin servicios',
-    subtext: total > 0 
-      ? `${enSitio} ✓ · ${proximos} → · ${asignados} 📋${sinCustodio > 0 ? ` · ${sinCustodio} ⚠️` : ''}`
-      : 'programados en turno',
-    trendDirection: sinCustodio > 0 ? 'down' : enSitio === total ? 'up' : 'neutral'
-  };
-}
+export const useServiciosTurno = (timeWindowHours: number = 8) => {
+  return useQuery({
+    queryKey: ['servicios-turno', timeWindowHours], // Invalidar cache al cambiar
+    queryFn: async () => {
+      const ahora = new Date();
+      const desde = new Date(ahora.getTime() - timeWindowHours * 60 * 60 * 1000);
+      const hasta = new Date(ahora.getTime() + timeWindowHours * 60 * 60 * 1000);
+      // ... resto igual
+    }
+  });
+};
 ```
 
-### 2. Registrar Nuevo Widget Type
+### 2. Actualizar `ShiftSummaryCards.tsx`
 
-En `roleHomeConfig.ts`, agregar `shiftPulse` a la lista de `WidgetType`.
-
-### 3. Actualizar Configuración de Admin
-
-Cambiar la configuración del rol `admin`:
+Agregar el selector de ventana temporal en el header:
 
 ```typescript
-// ANTES
-contextWidgets: [
-  { type: 'monthlyGMVWithContext', label: 'GMV del Mes' },
-  { type: 'activeCustodiansWithContext', label: 'Fuerza Activa' },
-  { type: 'completionRateToday', label: 'Completitud Hoy' }  // ❌ No aporta valor
-]
+interface ShiftSummaryCardsProps {
+  // ... props existentes
+  timeWindow: number;
+  onTimeWindowChange: (hours: number) => void;
+}
 
-// DESPUÉS
-contextWidgets: [
-  { type: 'monthlyGMVWithContext', label: 'GMV del Mes' },
-  { type: 'activeCustodiansWithContext', label: 'Fuerza Activa' },
-  { type: 'shiftPulse', label: 'Turno Actual' }  // ✅ Contexto operativo real
-]
+// En el header:
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-3">
+    <h2 className="text-lg font-semibold">Posicionamiento del Turno</h2>
+    <ToggleGroup type="single" value={String(timeWindow)} onValueChange={...}>
+      <ToggleGroupItem value="8">±8h</ToggleGroupItem>
+      <ToggleGroupItem value="12">±12h</ToggleGroupItem>
+      <ToggleGroupItem value="24">±24h</ToggleGroupItem>
+    </ToggleGroup>
+  </div>
+  {/* timestamp */}
+</div>
+```
+
+### 3. Actualizar `MonitoringPage.tsx`
+
+Agregar estado y propagarlo:
+
+```typescript
+const [timeWindow, setTimeWindow] = useState(8);
+const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
+
+<ShiftSummaryCards 
+  timeWindow={timeWindow}
+  onTimeWindowChange={setTimeWindow}
+  // ... resto
+/>
 ```
 
 ---
@@ -113,17 +88,15 @@ contextWidgets: [
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/home/useWidgetData.ts` | Agregar case `shiftPulse` con lógica de ventana ±8h |
-| `src/config/roleHomeConfig.ts` | Agregar `shiftPulse` a `WidgetType` y actualizar config de `admin` |
+| `src/hooks/useServiciosTurno.ts` | Agregar parámetro `timeWindowHours` |
+| `src/components/monitoring/ShiftSummaryCards.tsx` | Agregar ToggleGroup en header |
+| `src/pages/Monitoring/MonitoringPage.tsx` | Agregar estado `timeWindow` |
 
 ---
 
-## Resultado Esperado
+## Beneficios
 
-En lugar de ver "Completitud: 0%" sin contexto, verás:
-
-**Turno Actual**
-- **14 servicios**
-- `8 ✓ · 3 → · 2 📋 · 1 ⚠️`
-
-Esto te dice inmediatamente: hay 14 servicios en el turno, 8 ya posicionados, 3 en camino, 2 por salir, y 1 crítico sin custodio asignado.
+- **Sin ruptura de diseño**: El toggle se integra naturalmente en el espacio del título
+- **Performance**: Query key incluye la ventana, así que React Query cachea cada configuración independientemente
+- **UX consistente**: Usa ToggleGroup de Radix UI que ya existe en el proyecto
+- **Persistencia opcional**: Podría guardarse en localStorage para recordar preferencia del usuario
