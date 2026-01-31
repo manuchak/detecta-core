@@ -1,142 +1,129 @@
 
-# Plan: Modal de Detalles Completos del Servicio para Monitoristas
+# Plan: Contexto Operativo Real en Home
 
-## Problema Actual
-Cuando un monitorista hace clic en un servicio, actualmente solo se resalta visualmente en la tabla/mapa pero **no se muestra información detallada**. El componente `ServiceDetailsPanel` existente tiene un modelo de datos legacy incompatible.
+## Diagnóstico del Problema
 
-## Solución Propuesta: Dialog Modal con Información Completa
+**Situación actual del widget "Completitud Hoy":**
+- Consulta `servicios_custodia` (tabla legacy de ejecución) en lugar de `servicios_planificados` (tabla de planeación)
+- Solo muestra un porcentaje aislado (ej: "0%") sin contexto
+- No responde las preguntas operativas reales: ¿hay servicios planeados? ¿cuántos salieron? ¿hay retrasos?
 
-### Diseño UX
+**Lo que el ejecutivo necesita saber de un vistazo:**
+1. ¿Cuántos servicios tiene el turno actual?
+2. ¿Cuál es el estado operativo? (posicionados vs en camino vs pendientes)
+3. ¿Hay algo bloqueado? (servicios sin custodio)
+
+---
+
+## Solución: Widget "Pulso del Turno"
+
+Reemplazar `completionRateToday` con un nuevo widget `shiftPulse` que consume la misma lógica del Centro de Control (`useServiciosTurno`).
+
+### Diseño Visual
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│  ← Servicio GRSAGDE-71                            [Posicionado] ✕  │
-├────────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  ┌─────────────────────────┐ ┌─────────────────────────────────┐  │
-│  │ 👤 CLIENTE              │ │ 🛡️ PERSONAL ASIGNADO            │  │
-│  │ PEÑARANDA               │ │ Custodio: Juan Pérez López      │  │
-│  │ Ref: ABC123             │ │ Armado: Carlos García           │  │
-│  │ Tel: 55 1234 5678       │ │                                 │  │
-│  └─────────────────────────┘ └─────────────────────────────────┘  │
-│                                                                    │
-│  📍 RUTA                                                           │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  ● Origen:  CASETA APASEO EL GRANDE                         │  │
-│  │  ○ Destino: PÉNJAMO, GUANAJUATO                             │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                    │
-│  ⏰ FECHA Y HORA                                                   │
-│  Cita: 31/01/2026 01:00 a.m.   │   Tipo: Custodia                 │
-│  Inicio real: --               │   Requiere armado: ✓             │
-│                                                                    │
-│  📝 OBSERVACIONES                                                  │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Llevar chaleco, entregar documentación al guardia...        │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────┐
+│  TURNO ACTUAL                │
+│  ───────────────────────────│
+│  14 servicios                │  ← Valor principal
+│  8 ✓ · 3 → · 2 📋 · 1 ⚠️    │  ← Subtext con semáforo
+└──────────────────────────────┘
+
+Leyenda subtext:
+✓ = Posicionados (en sitio)
+→ = En camino (próximos)
+📋 = Por salir (asignados)
+⚠️ = Sin custodio (crítico)
 ```
 
-### Principios de Diseño
-1. **Jerarquía visual clara**: Información agrupada por contexto (Cliente, Personal, Ruta, Tiempo)
-2. **Read-only para monitoristas**: Solo visualización, sin capacidad de edición
-3. **Acceso rápido**: Click en tabla o mapa abre el modal instantáneamente
-4. **Datos completos**: Fetch del servicio con todos los campos disponibles
+### Lógica de Urgencia Visual
+
+| Condición | Indicador |
+|-----------|-----------|
+| Sin servicios | Neutral, subtext "Sin servicios programados" |
+| 100% posicionados | Verde (tendencia up) |
+| Hay servicios sin custodio | Amarillo/Rojo según cantidad |
+| Normal operativo | Neutral |
 
 ---
 
 ## Implementación Técnica
 
-### 1. Nuevo Componente: `ServiceDetailModal.tsx`
+### 1. Nuevo Case en `useWidgetData.ts`
 
-**Ubicación:** `src/components/monitoring/ServiceDetailModal.tsx`
+Agregar `shiftPulse` que consume directamente los datos de `servicios_planificados` con la ventana de ±8 horas:
 
-**Props:**
 ```typescript
-interface ServiceDetailModalProps {
-  serviceId: string | null;      // ID del servicio seleccionado
-  open: boolean;                 // Estado del modal
-  onOpenChange: (open: boolean) => void;
+case 'shiftPulse': {
+  // Ventana de ±8 horas (igual que Centro de Control)
+  const ahora = new Date();
+  const hace8h = new Date(ahora.getTime() - 8 * 60 * 60 * 1000);
+  const en8h = new Date(ahora.getTime() + 8 * 60 * 60 * 1000);
+  
+  const { data } = await supabase
+    .from('servicios_planificados')
+    .select('hora_inicio_real, custodio_asignado, fecha_hora_cita')
+    .gte('fecha_hora_cita', hace8h.toISOString())
+    .lte('fecha_hora_cita', en8h.toISOString())
+    .not('estado_planeacion', 'in', '(cancelado,completado)');
+  
+  // Calcular estados
+  const enSitio = data.filter(s => s.hora_inicio_real).length;
+  const sinCustodio = data.filter(s => !s.custodio_asignado).length;
+  const total = data.length;
+  // ... lógica de próximos vs asignados
+  
+  return {
+    value: total > 0 ? `${total} servicios` : 'Sin servicios',
+    subtext: total > 0 
+      ? `${enSitio} ✓ · ${proximos} → · ${asignados} 📋${sinCustodio > 0 ? ` · ${sinCustodio} ⚠️` : ''}`
+      : 'programados en turno',
+    trendDirection: sinCustodio > 0 ? 'down' : enSitio === total ? 'up' : 'neutral'
+  };
 }
 ```
 
-**Estructura:**
-- Utiliza `Dialog` de Radix UI (ya instalado)
-- Secciones colapsables opcionales para observaciones extensas
-- Badge de estado visual (colores del semáforo existente)
-- Layout responsive con grid de 2 columnas en desktop
+### 2. Registrar Nuevo Widget Type
 
-### 2. Nuevo Hook: `useServicioDetalle.ts`
+En `roleHomeConfig.ts`, agregar `shiftPulse` a la lista de `WidgetType`.
 
-**Ubicación:** `src/hooks/useServicioDetalle.ts`
+### 3. Actualizar Configuración de Admin
 
-Fetch del servicio completo cuando se selecciona:
-```typescript
-const { data, isLoading } = useQuery({
-  queryKey: ['servicio-detalle', serviceId],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('servicios_planificados')
-      .select(`
-        *,
-        custodios:custodio_asignado_id (nombre, telefono),
-        armados:armado_asignado_id (nombre)
-      `)
-      .eq('id', serviceId)
-      .single();
-    return data;
-  },
-  enabled: !!serviceId
-});
-```
-
-### 3. Integración en `MonitoringPage.tsx`
-
-**Cambios:**
-- Importar `ServiceDetailModal`
-- Agregar estado `isDetailOpen`
-- Modificar `handleServiceClick` para abrir el modal
-- Renderizar el modal al final del componente
+Cambiar la configuración del rol `admin`:
 
 ```typescript
-const [isDetailOpen, setIsDetailOpen] = useState(false);
+// ANTES
+contextWidgets: [
+  { type: 'monthlyGMVWithContext', label: 'GMV del Mes' },
+  { type: 'activeCustodiansWithContext', label: 'Fuerza Activa' },
+  { type: 'completionRateToday', label: 'Completitud Hoy' }  // ❌ No aporta valor
+]
 
-const handleServiceClick = (servicio: ServicioTurno) => {
-  setSelectedService(servicio.id);
-  setIsDetailOpen(true);  // Abrir modal automáticamente
-};
+// DESPUÉS
+contextWidgets: [
+  { type: 'monthlyGMVWithContext', label: 'GMV del Mes' },
+  { type: 'activeCustodiansWithContext', label: 'Fuerza Activa' },
+  { type: 'shiftPulse', label: 'Turno Actual' }  // ✅ Contexto operativo real
+]
 ```
 
 ---
 
-## Campos a Mostrar
+## Archivos a Modificar
 
-| Sección | Campo | Fuente |
-|---------|-------|--------|
-| Header | ID Servicio, Estado | `id_servicio`, `estado_planeacion` |
-| Cliente | Nombre, Referencia, Teléfono | `nombre_cliente`, `id_interno_cliente`, `telefono_cliente` |
-| Personal | Custodio, Armado | `custodio_asignado`, `armado_asignado` |
-| Ruta | Origen, Destino | `origen`, `destino` |
-| Tiempo | Fecha cita, Inicio real | `fecha_hora_cita`, `hora_inicio_real` |
-| Configuración | Tipo servicio, Requiere armado | `tipo_servicio`, `requiere_armado` |
-| Notas | Observaciones | `observaciones` |
-
----
-
-## Archivos a Crear/Modificar
-
-| Archivo | Acción |
+| Archivo | Cambio |
 |---------|--------|
-| `src/components/monitoring/ServiceDetailModal.tsx` | Crear |
-| `src/hooks/useServicioDetalle.ts` | Crear |
-| `src/pages/Monitoring/MonitoringPage.tsx` | Modificar |
+| `src/hooks/home/useWidgetData.ts` | Agregar case `shiftPulse` con lógica de ventana ±8h |
+| `src/config/roleHomeConfig.ts` | Agregar `shiftPulse` a `WidgetType` y actualizar config de `admin` |
 
 ---
 
-## Beneficios
+## Resultado Esperado
 
-1. **Para Monitoristas**: Acceso inmediato a toda la información sin salir del dashboard
-2. **UX Consistente**: Utiliza patrones de UI existentes (Dialog, Badge, Cards)
-3. **Performance**: Fetch bajo demanda solo cuando se abre el modal
-4. **Escalable**: Fácil agregar más campos o acciones futuras (ej: botón para llamar)
+En lugar de ver "Completitud: 0%" sin contexto, verás:
+
+**Turno Actual**
+- **14 servicios**
+- `8 ✓ · 3 → · 2 📋 · 1 ⚠️`
+
+Esto te dice inmediatamente: hay 14 servicios en el turno, 8 ya posicionados, 3 en camino, 2 por salir, y 1 crítico sin custodio asignado.
