@@ -480,6 +480,70 @@ const fetchWidgetData = async (type: WidgetType): Promise<WidgetData> => {
         };
       }
 
+      case 'shiftPulse': {
+        // Ventana de ±8 horas (igual que Centro de Control)
+        const ahora = new Date();
+        const hace8h = new Date(ahora.getTime() - 8 * 60 * 60 * 1000);
+        const en8h = new Date(ahora.getTime() + 8 * 60 * 60 * 1000);
+        
+        const { data } = await supabase
+          .from('servicios_planificados')
+          .select('hora_inicio_real, custodio_asignado, fecha_hora_cita')
+          .gte('fecha_hora_cita', hace8h.toISOString())
+          .lte('fecha_hora_cita', en8h.toISOString())
+          .not('estado_planeacion', 'in', '(cancelado,completado)');
+        
+        const servicios = data || [];
+        const total = servicios.length;
+        
+        if (total === 0) {
+          return {
+            value: 'Sin servicios',
+            subtext: 'programados en turno',
+            trendDirection: 'neutral' as const
+          };
+        }
+        
+        // Calcular estados usando la misma lógica que useServiciosTurno
+        const enSitio = servicios.filter(s => s.hora_inicio_real).length;
+        const sinCustodio = servicios.filter(s => !s.custodio_asignado).length;
+        
+        // Próximos: con custodio, sin iniciar, cita en <= 60 min
+        const proximos = servicios.filter(s => {
+          if (s.hora_inicio_real || !s.custodio_asignado || !s.fecha_hora_cita) return false;
+          const minutos = (new Date(s.fecha_hora_cita).getTime() - ahora.getTime()) / 60000;
+          return minutos <= 60 && minutos >= -30;
+        }).length;
+        
+        // Asignados: con custodio, sin iniciar, cita > 60 min
+        const asignados = servicios.filter(s => {
+          if (s.hora_inicio_real || !s.custodio_asignado || !s.fecha_hora_cita) return false;
+          const minutos = (new Date(s.fecha_hora_cita).getTime() - ahora.getTime()) / 60000;
+          return minutos > 60 || minutos < -30;
+        }).length;
+        
+        // Construir subtext con semáforo visual
+        const parts: string[] = [];
+        if (enSitio > 0) parts.push(`${enSitio} ✓`);
+        if (proximos > 0) parts.push(`${proximos} →`);
+        if (asignados > 0) parts.push(`${asignados} 📋`);
+        if (sinCustodio > 0) parts.push(`${sinCustodio} ⚠️`);
+        
+        // Determinar tendencia basada en urgencia
+        let trendDirection: 'up' | 'down' | 'neutral' = 'neutral';
+        if (sinCustodio > 0) {
+          trendDirection = 'down'; // Crítico: hay servicios sin custodio
+        } else if (enSitio === total) {
+          trendDirection = 'up'; // Perfecto: todos posicionados
+        }
+        
+        return {
+          value: `${total} servicios`,
+          subtext: parts.join(' · '),
+          trendDirection
+        };
+      }
+
       default:
         return { value: 0 };
     }
