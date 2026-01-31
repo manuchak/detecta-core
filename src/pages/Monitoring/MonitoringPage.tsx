@@ -14,8 +14,9 @@ const MonitoringPage = () => {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [timeWindow, setTimeWindow] = useState(8);
   
-  const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno();
+  const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
   
   const servicios = data?.servicios || [];
   const resumen = data?.resumen || {
@@ -68,6 +69,8 @@ const MonitoringPage = () => {
         lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : undefined}
         onFilterChange={setFilterEstado}
         activeFilter={filterEstado}
+        timeWindow={timeWindow}
+        onTimeWindowChange={setTimeWindow}
       />
 
       {/* Main content */}

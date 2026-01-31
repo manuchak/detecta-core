@@ -126,20 +126,20 @@ function geocodificarOrigen(origen: string | null): { lat: number | null; lng: n
   };
 }
 
-export const useServiciosTurno = () => {
+export const useServiciosTurno = (timeWindowHours: number = 8) => {
   return useQuery({
-    queryKey: ['servicios-turno'],
+    queryKey: ['servicios-turno', timeWindowHours],
     queryFn: async (): Promise<{ servicios: ServicioTurno[]; resumen: ResumenTurno }> => {
-      // Calcular ventana de ±8 horas
+      // Calcular ventana de ±N horas
       const ahora = new Date();
-      const hace8Horas = new Date(ahora.getTime() - 8 * 60 * 60 * 1000);
-      const en8Horas = new Date(ahora.getTime() + 8 * 60 * 60 * 1000);
+      const desde = new Date(ahora.getTime() - timeWindowHours * 60 * 60 * 1000);
+      const hasta = new Date(ahora.getTime() + timeWindowHours * 60 * 60 * 1000);
       
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('id, nombre_cliente, origen, destino, custodio_asignado, fecha_hora_cita, estado_planeacion, hora_inicio_real')
-        .gte('fecha_hora_cita', hace8Horas.toISOString())
-        .lte('fecha_hora_cita', en8Horas.toISOString())
+        .gte('fecha_hora_cita', desde.toISOString())
+        .lte('fecha_hora_cita', hasta.toISOString())
         .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('fecha_hora_cita', { ascending: true });
       
