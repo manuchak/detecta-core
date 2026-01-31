@@ -6,7 +6,8 @@ import {
   navigationModules, 
   navigationGroups, 
   NavigationModule, 
-  NavigationChild 
+  NavigationChild,
+  isGroupAllowedForRole
 } from '@/config/navigationConfig';
 import {
   Sidebar,
@@ -86,6 +87,9 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   };
 
   const filteredModules = navigationModules.filter(module => {
+    // First check if this module's group is allowed for the user's role
+    if (!isGroupAllowedForRole(module.group, userRole)) return false;
+    
     if (!hasRoleAccess(module.roles)) return false;
     if (module.children) {
       return filterChildren(module.children).length > 0;
@@ -97,9 +101,9 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
   const getModulesByGroup = (groupId: string) => 
     filteredModules.filter(m => m.group === groupId);
 
-  // Get visible groups (only those with accessible modules)
+  // Get visible groups (only those with accessible modules AND allowed for role)
   const visibleGroups = navigationGroups.filter(group => 
-    getModulesByGroup(group.id).length > 0
+    isGroupAllowedForRole(group.id, userRole) && getModulesByGroup(group.id).length > 0
   );
 
   // Toggle navigation group collapse
