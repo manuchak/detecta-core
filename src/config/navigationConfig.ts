@@ -30,6 +30,12 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 
+// Roles with restricted navigation access (only see specific groups)
+export const RESTRICTED_NAVIGATION_ROLES: Record<string, string[]> = {
+  'monitoring': ['monitoring'], // Solo ve Monitoreo & Soporte
+  'soporte': ['monitoring'],    // Solo ve Monitoreo & Soporte
+};
+
 // Navigation Groups for visual separation
 export interface NavigationGroup {
   id: string;
@@ -65,6 +71,14 @@ export interface NavigationModule {
   children?: NavigationChild[];
   group: string; // Reference to navigationGroups.id
 }
+
+// Helper: Check if a role is restricted and if a group is allowed for that role
+export const isGroupAllowedForRole = (groupId: string, userRole: string | null): boolean => {
+  if (!userRole) return false;
+  const allowedGroups = RESTRICTED_NAVIGATION_ROLES[userRole];
+  if (!allowedGroups) return true; // No restrictions for this role
+  return allowedGroups.includes(groupId);
+};
 
 export const navigationModules: NavigationModule[] = [
   // ===== DASHBOARD GROUP =====
