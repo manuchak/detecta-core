@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, Clock, User, AlertCircle, RefreshCw } from "lucide-react";
 import { ResumenTurno, COLORES_ESTADO, EstadoVisual } from "@/hooks/useServiciosTurno";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -10,6 +11,8 @@ interface ShiftSummaryCardsProps {
   lastUpdated?: Date;
   onFilterChange?: (estado: EstadoVisual | null) => void;
   activeFilter?: EstadoVisual | null;
+  timeWindow: number;
+  onTimeWindowChange: (hours: number) => void;
 }
 
 const iconMap = {
@@ -24,7 +27,9 @@ const ShiftSummaryCards = ({
   isLoading, 
   lastUpdated,
   onFilterChange,
-  activeFilter 
+  activeFilter,
+  timeWindow,
+  onTimeWindowChange
 }: ShiftSummaryCardsProps) => {
   const cards: { key: EstadoVisual; value: number }[] = [
     { key: 'en_sitio', value: resumen.enSitio },
@@ -35,8 +40,26 @@ const ShiftSummaryCards = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Posicionamiento del Turno (±8 hrs)</h2>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-lg font-semibold">Posicionamiento del Turno</h2>
+          <ToggleGroup 
+            type="single" 
+            value={String(timeWindow)} 
+            onValueChange={(val) => val && onTimeWindowChange(Number(val))}
+            className="bg-muted rounded-md p-0.5"
+          >
+            <ToggleGroupItem value="8" className="text-xs px-2 py-1 h-7 data-[state=on]:bg-background">
+              ±8h
+            </ToggleGroupItem>
+            <ToggleGroupItem value="12" className="text-xs px-2 py-1 h-7 data-[state=on]:bg-background">
+              ±12h
+            </ToggleGroupItem>
+            <ToggleGroupItem value="24" className="text-xs px-2 py-1 h-7 data-[state=on]:bg-background">
+              ±24h
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
         {lastUpdated && (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
