@@ -49,7 +49,8 @@ export type WidgetType =
   // New widgets with full context (subtext)
   | 'monthlyGMVWithContext'
   | 'activeCustodiansWithContext'
-  | 'completionRateToday';
+  | 'completionRateToday'
+  | 'shiftPulse';
 
 export type HeroType = WidgetType | 'businessHealth' | 'criticalAlerts' | 'monthlyTrend';
 
@@ -345,7 +346,7 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
     contextWidgets: [
       { type: 'monthlyGMVWithContext', label: 'GMV del Mes', isContext: true },
       { type: 'activeCustodiansWithContext', label: 'Fuerza Activa', isContext: true },
-      { type: 'completionRateToday', label: 'Completitud Hoy', isContext: true }
+      { type: 'shiftPulse', label: 'Turno Actual', isContext: true }
     ],
     modules: ['bi', 'leads', 'planeacion', 'monitoring', 'wms', 'settings']
   },
