@@ -6,12 +6,14 @@ import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
 import WeatherWidget from "@/components/monitoring/WeatherWidget";
 import TwitterFeed from "@/components/monitoring/TwitterFeed";
+import ServiceDetailModal from "@/components/monitoring/ServiceDetailModal";
 import { useServiciosTurno, ServicioTurno, EstadoVisual } from "@/hooks/useServiciosTurno";
 import { useServiciosTurnoRealtime } from "@/hooks/useServiciosTurnoRealtime";
 
 const MonitoringPage = () => {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno();
   
@@ -28,7 +30,8 @@ const MonitoringPage = () => {
   useServiciosTurnoRealtime(servicios);
 
   const handleServiceClick = (servicio: ServicioTurno) => {
-    setSelectedService(servicio.id === selectedService ? null : servicio.id);
+    setSelectedService(servicio.id);
+    setIsDetailOpen(true);
   };
 
   const handleRefresh = () => {
@@ -96,6 +99,13 @@ const MonitoringPage = () => {
 
       {/* Alertas de Ruta - Full width */}
       <TwitterFeed />
+
+      {/* Service Detail Modal */}
+      <ServiceDetailModal
+        serviceId={selectedService}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+      />
     </div>
   );
 };
