@@ -397,7 +397,36 @@ export function EditServiceForm({
         if (!isValid) return;
       }
       
-      await onSave(service.id, formData);
+      // ========================================================================
+      // FIX: Only send fields that actually changed to prevent timezone drift
+      // This prevents fecha_hora_cita from being modified when only editing
+      // other fields like id_interno_cliente (Referencia Cliente)
+      // ========================================================================
+      const changedFields: Partial<EditableService> = {};
+      
+      (Object.keys(formData) as Array<keyof EditableService>).forEach(key => {
+        const formValue = formData[key];
+        const serviceValue = service[key];
+        
+        // Compare values - handle empty strings vs undefined/null
+        const normalizedFormValue = formValue === '' ? null : formValue;
+        const normalizedServiceValue = serviceValue === '' ? null : serviceValue;
+        
+        if (normalizedFormValue !== normalizedServiceValue) {
+          // @ts-ignore - dynamic assignment
+          changedFields[key] = formValue;
+        }
+      });
+      
+      console.log('[EditServiceForm] Saving only changed fields:', Object.keys(changedFields));
+      
+      // Only save if there are actual changes
+      if (Object.keys(changedFields).length === 0) {
+        toast.info('No hay cambios que guardar');
+        return;
+      }
+      
+      await onSave(service.id, changedFields);
       
       // Clear draft on successful save
       persistence.clearDraft(true);
