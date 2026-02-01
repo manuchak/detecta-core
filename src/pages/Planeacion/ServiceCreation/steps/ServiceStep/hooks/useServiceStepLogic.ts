@@ -1,9 +1,12 @@
 /**
  * useServiceStepLogic - Central logic for the Service Step
  * Handles auto-fill, timezone-safe dates, validation, and synchronization
+ * 
+ * CRITICAL: This hook implements "Hydration-Safe State Initialization" to prevent
+ * race conditions where local state overwrites draft data during hydration.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,42 +38,23 @@ const SERVICE_TYPE_OPTIONS = [
 ] as const;
 
 export function useServiceStepLogic() {
-  const { formData, updateFormData } = useServiceCreation();
+  const { formData, updateFormData, isHydrated } = useServiceCreation();
   
-  // Initialize state from formData or defaults
-  const [servicioId, setServicioId] = useState(() => 
-    formData.servicioId || ''
-  );
-  const [idInterno, setIdInterno] = useState(() => 
-    formData.idInterno || ''
-  );
-  const [fechaRecepcion] = useState(() => 
-    formData.fechaRecepcion || format(new Date(), 'yyyy-MM-dd')
-  );
-  const [horaRecepcion] = useState(() => 
-    formData.horaRecepcion || format(new Date(), 'HH:mm')
-  );
-  const [fecha, setFecha] = useState(() => 
-    formData.fecha || format(new Date(), 'yyyy-MM-dd')
-  );
-  const [hora, setHora] = useState(() => 
-    formData.hora || ''
-  );
-  const [tipoServicio, setTipoServicio] = useState<ServiceStepState['tipoServicio']>(() => 
-    (formData.tipoServicio as ServiceStepState['tipoServicio']) || 'custodia_sin_arma'
-  );
-  const [requiereArmado, setRequiereArmado] = useState(() => 
-    formData.requiereArmado || false
-  );
-  const [esServicioRetorno, setEsServicioRetorno] = useState(() => 
-    formData.esServicioRetorno || false
-  );
-  const [gadgets, setGadgets] = useState<Record<string, number>>(() => 
-    formData.gadgets || {}
-  );
-  const [observaciones, setObservaciones] = useState(() => 
-    formData.observaciones || ''
-  );
+  // HYDRATION-SAFE: Track if we've synced from hydrated formData
+  const [hasInitializedFromHydration, setHasInitializedFromHydration] = useState(false);
+  
+  // Initialize with empty/default values - will be populated after hydration
+  const [servicioId, setServicioId] = useState('');
+  const [idInterno, setIdInterno] = useState('');
+  const [fechaRecepcion, setFechaRecepcion] = useState('');
+  const [horaRecepcion, setHoraRecepcion] = useState('');
+  const [fecha, setFecha] = useState('');
+  const [hora, setHora] = useState('');
+  const [tipoServicio, setTipoServicio] = useState<ServiceStepState['tipoServicio']>('custodia_sin_arma');
+  const [requiereArmado, setRequiereArmado] = useState(false);
+  const [esServicioRetorno, setEsServicioRetorno] = useState(false);
+  const [gadgets, setGadgets] = useState<Record<string, number>>({});
+  const [observaciones, setObservaciones] = useState('');
   
   // Validation state
   const [validation, setValidation] = useState<ValidationState>({
@@ -87,16 +71,47 @@ export function useServiceStepLogic() {
   const pricingResult = formData.pricingResult as PricingResultData | null;
   const distanciaKm = pricingResult?.distancia_km || 0;
 
-  // Auto-generate UUID if servicioId is empty (only once on mount)
+  // ============================================================================
+  // HYDRATION-SAFE INITIALIZATION
+  // Wait for isHydrated before syncing FROM formData to local state
+  // ============================================================================
   useEffect(() => {
-    if (!servicioId) {
+    if (isHydrated && !hasInitializedFromHydration) {
+      console.log('[ServiceStepLogic] Hydrating from formData:', {
+        formData_idInterno: formData.idInterno,
+        formData_fecha: formData.fecha,
+        formData_hora: formData.hora,
+      });
+      
+      // Now it's safe to read from hydrated formData
+      setServicioId(formData.servicioId || '');
+      setIdInterno(formData.idInterno || '');
+      setFechaRecepcion(formData.fechaRecepcion || format(new Date(), 'yyyy-MM-dd'));
+      setHoraRecepcion(formData.horaRecepcion || format(new Date(), 'HH:mm'));
+      setFecha(formData.fecha || format(new Date(), 'yyyy-MM-dd'));
+      setHora(formData.hora || '');
+      setTipoServicio((formData.tipoServicio as ServiceStepState['tipoServicio']) || 'custodia_sin_arma');
+      setRequiereArmado(formData.requiereArmado || false);
+      setEsServicioRetorno(formData.esServicioRetorno || false);
+      setGadgets(formData.gadgets || {});
+      setObservaciones(formData.observaciones || '');
+      
+      setHasInitializedFromHydration(true);
+    }
+  }, [isHydrated, hasInitializedFromHydration, formData]);
+
+  // Auto-generate UUID if servicioId is empty (only after hydration)
+  useEffect(() => {
+    if (hasInitializedFromHydration && !servicioId) {
       const newId = crypto.randomUUID();
       setServicioId(newId);
     }
-  }, []);
+  }, [hasInitializedFromHydration, servicioId]);
 
-  // Auto-fill from route data on first mount
+  // Auto-fill from route data (only after hydration)
   useEffect(() => {
+    if (!hasInitializedFromHydration) return;
+    
     if (pricingResult && !wasAutoFilled) {
       setWasAutoFilled(true);
       
@@ -115,16 +130,25 @@ export function useServiceStepLogic() {
         setRequiereArmado(true);
       }
       
-      // Optimize hora based on distance
-      if (distanciaKm > 100 && !formData.hora) {
+      // Optimize hora based on distance (only if not already set from draft)
+      if (distanciaKm > 100 && !hora) {
         setHora('07:00');
         setWasHoraOptimized(true);
       }
     }
-  }, [pricingResult, wasAutoFilled, distanciaKm, formData.hora]);
+  }, [hasInitializedFromHydration, pricingResult, wasAutoFilled, distanciaKm, hora]);
 
-  // Sync changes to form data (debounced in parent context)
+  // ============================================================================
+  // SYNC TO CONTEXT - ONLY AFTER HYDRATION INITIALIZATION
+  // This prevents overwriting hydrated draft data with empty defaults
+  // ============================================================================
   useEffect(() => {
+    // CRITICAL GUARD: Don't sync until we've initialized from hydration
+    if (!hasInitializedFromHydration) {
+      console.log('[ServiceStepLogic] Skipping sync - waiting for hydration');
+      return;
+    }
+    
     updateFormData({
       servicioId,
       idInterno,
@@ -138,7 +162,21 @@ export function useServiceStepLogic() {
       gadgets,
       observaciones,
     });
-  }, [servicioId, idInterno, fechaRecepcion, horaRecepcion, fecha, hora, tipoServicio, requiereArmado, esServicioRetorno, gadgets, observaciones, updateFormData]);
+  }, [
+    hasInitializedFromHydration,
+    servicioId, 
+    idInterno, 
+    fechaRecepcion, 
+    horaRecepcion, 
+    fecha, 
+    hora, 
+    tipoServicio, 
+    requiereArmado, 
+    esServicioRetorno, 
+    gadgets, 
+    observaciones, 
+    updateFormData
+  ]);
 
   // Bidirectional sync: tipoServicio <-> requiereArmado
   const handleTipoServicioChange = useCallback((value: ServiceStepState['tipoServicio']) => {
@@ -249,6 +287,7 @@ export function useServiceStepLogic() {
 
   // Format display for reception time
   const formattedRecepcion = useMemo(() => {
+    if (!fechaRecepcion || !horaRecepcion) return '';
     try {
       const date = new Date(`${fechaRecepcion}T${horaRecepcion}`);
       return format(date, "EEEE, d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es });
@@ -274,8 +313,10 @@ export function useServiceStepLogic() {
     [gadgets]
   );
 
-  // Validate servicioId against existing services (debounced)
+  // Validate servicioId against existing services (debounced, only after hydration)
   useEffect(() => {
+    if (!hasInitializedFromHydration) return;
+    
     if (!servicioId || servicioId.length < 10) {
       setValidation({ isValidating: false, isValid: true, errorMessage: null });
       return;
@@ -318,10 +359,12 @@ export function useServiceStepLogic() {
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [servicioId]);
+  }, [hasInitializedFromHydration, servicioId]);
 
-  // Can continue to next step?
+  // Can continue to next step? (only valid after hydration)
   const canContinue = useMemo(() => {
+    if (!hasInitializedFromHydration) return false;
+    
     return (
       servicioId.length > 0 &&
       validation.isValid &&
@@ -329,7 +372,7 @@ export function useServiceStepLogic() {
       isDateValid &&
       hora.length > 0
     );
-  }, [servicioId, validation.isValid, validation.isValidating, isDateValid, hora]);
+  }, [hasInitializedFromHydration, servicioId, validation.isValid, validation.isValidating, isDateValid, hora]);
 
   return {
     // State
@@ -364,6 +407,9 @@ export function useServiceStepLogic() {
     minDate,
     isToday,
     canContinue,
+    
+    // Hydration state (for debugging/UI feedback)
+    isHydrated: hasInitializedFromHydration,
     
     // Formatted displays
     formattedRecepcion,
