@@ -40,11 +40,21 @@ function calculateProductivityScore(guard: ArmedGuard): number {
  */
 export function useArmedGuardFilters(guards: ArmedGuard[]) {
   const [filterConfig, setFilterConfig] = useState<FilterConfig>(() => {
-    // Load from localStorage on init
+    // Load from localStorage on init with migration logic
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        return { ...DEFAULT_FILTER_CONFIG, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        
+        // MIGRATION: Force 90-day filter to OFF for existing users who had it enabled
+        // This prevents hiding available guards due to the old default behavior
+        if (parsed.soloConActividad90Dias === true) {
+          console.log('[useArmedGuardFilters] Migrating: forcing soloConActividad90Dias to false');
+          parsed.soloConActividad90Dias = false;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        }
+        
+        return { ...DEFAULT_FILTER_CONFIG, ...parsed };
       }
     } catch (error) {
       console.error('Error loading filter config:', error);

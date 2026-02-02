@@ -220,41 +220,57 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load draft if draftId exists in URL
+  // Load draft if draftId exists in URL - with cleanup to prevent race conditions
   useEffect(() => {
-    if (draftIdFromUrl && !isHydrated) {
-      const savedDraft = localStorage.getItem(`service-draft-${draftIdFromUrl}`);
-      if (savedDraft) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          const restoredFormData = parsed.formData || INITIAL_FORM_DATA;
-          
-          // Validate state consistency before restoring
-          const validatedFormData = validateFormDataConsistency(restoredFormData);
-          
-          setFormData(validatedFormData);
-          setCompletedSteps(parsed.completedSteps || []);
-          // ✅ Delay hydration flag to next tick to ensure formData has propagated
-          requestAnimationFrame(() => {
-            setIsHydrated(true);
-          });
-          toast.success('Borrador restaurado');
-        } catch (e) {
-          console.error('Error loading draft:', e);
-          requestAnimationFrame(() => {
-            setIsHydrated(true);
+    let cancelled = false;
+    let rafId: number | null = null;
+    
+    const hydrate = () => {
+      if (cancelled) return;
+      
+      if (draftIdFromUrl && !isHydrated) {
+        const savedDraft = localStorage.getItem(`service-draft-${draftIdFromUrl}`);
+        if (savedDraft) {
+          try {
+            const parsed = JSON.parse(savedDraft);
+            const restoredFormData = parsed.formData || INITIAL_FORM_DATA;
+            
+            // Validate state consistency before restoring
+            const validatedFormData = validateFormDataConsistency(restoredFormData);
+            
+            if (!cancelled) {
+              setFormData(validatedFormData);
+              setCompletedSteps(parsed.completedSteps || []);
+              // ✅ Delay hydration flag to next tick to ensure formData has propagated
+              rafId = requestAnimationFrame(() => {
+                if (!cancelled) setIsHydrated(true);
+              });
+            }
+            toast.success('Borrador restaurado');
+          } catch (e) {
+            console.error('Error loading draft:', e);
+            rafId = requestAnimationFrame(() => {
+              if (!cancelled) setIsHydrated(true);
+            });
+          }
+        } else {
+          rafId = requestAnimationFrame(() => {
+            if (!cancelled) setIsHydrated(true);
           });
         }
-      } else {
-        requestAnimationFrame(() => {
-          setIsHydrated(true);
+      } else if (!draftIdFromUrl && !cancelled) {
+        rafId = requestAnimationFrame(() => {
+          if (!cancelled) setIsHydrated(true);
         });
       }
-    } else if (!draftIdFromUrl) {
-      requestAnimationFrame(() => {
-        setIsHydrated(true);
-      });
-    }
+    };
+    
+    hydrate();
+    
+    return () => {
+      cancelled = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [draftIdFromUrl, isHydrated]);
 
   // Auto-create draftId on first meaningful change
