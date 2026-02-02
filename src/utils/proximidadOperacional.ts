@@ -67,6 +67,14 @@ export interface ServicioNuevo {
   tipo_servicio: string;
   incluye_armado: boolean;
   requiere_gadgets: boolean;
+  es_foraneo?: boolean; // Epic 6: Para rotación local/foráneo
+}
+
+// Epic 6: Datos de rotación del custodio
+export interface DatosRotacion {
+  tipo_ultimo_servicio: 'local' | 'foraneo' | null;
+  contador_locales_consecutivos: number;
+  contador_foraneos_consecutivos: number;
 }
 
 export interface ScoringProximidad {
@@ -76,6 +84,7 @@ export interface ScoringProximidad {
   score_operacional: number;
   score_equidad?: number;
   score_oportunidad?: number;
+  score_rotacion?: number; // Epic 6: Bonus por rotación local/foráneo
   categoria_disponibilidad?: 'libre' | 'parcialmente_ocupado' | 'ocupado_disponible' | 'no_disponible';
   detalles: {
     distancia_estimada?: number;
@@ -83,6 +92,7 @@ export interface ScoringProximidad {
     termina_servicio_cercano?: boolean;
     horas_diferencia?: number;
     zona_preferida_match?: boolean;
+    bonus_rotacion?: boolean; // Epic 6
     experiencia_tipo_servicio?: boolean;
     vehiculo_propio_ventaja?: boolean;
     servicios_hoy?: number;
@@ -105,9 +115,10 @@ export interface FactorEquidad {
 
 /**
  * Calcula el scoring de proximidad operacional para un custodio con algoritmo equitativo
+ * Epic 6: Incluye bonus por rotación local/foráneo
  */
 export function calcularProximidadOperacional(
-  custodio: CustodioConHistorial,
+  custodio: CustodioConHistorial & Partial<DatosRotacion>,
   servicioNuevo: ServicioNuevo,
   serviciosProximos: ServicioHistorico[] = [],
   factorEquidad?: FactorEquidad
@@ -152,21 +163,29 @@ export function calcularProximidadOperacional(
     scoring.detalles.balance_recommendation = factorEquidad.balance_recommendation;
   }
 
-  // ALGORITMO EQUITATIVO: Combinar scores con nuevos pesos
+  // 5. EPIC 6: BONUS POR ROTACIÓN LOCAL/FORÁNEO
+  scoring.score_rotacion = calcularBonusRotacion(custodio, servicioNuevo);
+  if (scoring.score_rotacion > 0) {
+    scoring.detalles.bonus_rotacion = true;
+  }
+
+  // ALGORITMO EQUITATIVO: Combinar scores con nuevos pesos (incluye rotación)
   if (factorEquidad) {
     scoring.score_total = Math.round(
-      (scoring.score_temporal * 0.30) +           // Proximidad temporal
-      (scoring.score_geografico * 0.30) +        // Proximidad geográfica  
-      (scoring.score_operacional * 0.25) +       // Performance operacional
+      (scoring.score_temporal * 0.28) +           // Proximidad temporal
+      (scoring.score_geografico * 0.28) +        // Proximidad geográfica  
+      (scoring.score_operacional * 0.24) +       // Performance operacional
       (scoring.score_equidad * 0.10) +           // Factor de equidad (workload)
-      (scoring.score_oportunidad * 0.05)         // Factor de oportunidad (rotación)
+      (scoring.score_oportunidad * 0.05) +       // Factor de oportunidad (rotación)
+      (scoring.score_rotacion * 0.05)            // Epic 6: Bonus rotación local/foráneo
     );
   } else {
     // Algoritmo original para custodios sin datos de equidad
     scoring.score_total = Math.round(
-      (scoring.score_temporal * 0.4) +
-      (scoring.score_geografico * 0.35) +
-      (scoring.score_operacional * 0.25)
+      (scoring.score_temporal * 0.38) +
+      (scoring.score_geografico * 0.33) +
+      (scoring.score_operacional * 0.24) +
+      (scoring.score_rotacion * 0.05)            // Epic 6: Siempre aplicar rotación
     );
   }
   
@@ -174,6 +193,47 @@ export function calcularProximidadOperacional(
   scoring.score_total = Math.max(0, Math.min(100, scoring.score_total));
   
   return scoring;
+}
+
+/**
+ * Epic 6: Calcula bonus por rotación local/foráneo
+ * Da prioridad a custodios que han tenido muchos servicios consecutivos del mismo tipo
+ */
+function calcularBonusRotacion(
+  custodio: Partial<DatosRotacion>,
+  servicioNuevo: ServicioNuevo
+): number {
+  // Si no hay datos de rotación o el servicio no tiene clasificación, no dar bonus
+  if (!custodio.tipo_ultimo_servicio || servicioNuevo.es_foraneo === undefined) {
+    return 50; // Score neutral
+  }
+  
+  const esServicioForaneo = servicioNuevo.es_foraneo;
+  const ultimoFueLocal = custodio.tipo_ultimo_servicio === 'local';
+  const ultimoFueForaneo = custodio.tipo_ultimo_servicio === 'foraneo';
+  
+  // Bonus por alternar tipo de servicio
+  if ((ultimoFueLocal && esServicioForaneo) || (ultimoFueForaneo && !esServicioForaneo)) {
+    // Custodia alterna entre local y foráneo - ideal para balance
+    const consecutivos = ultimoFueLocal 
+      ? (custodio.contador_locales_consecutivos || 0)
+      : (custodio.contador_foraneos_consecutivos || 0);
+    
+    // Mayor bonus si ha tenido muchos consecutivos del mismo tipo
+    if (consecutivos >= 5) return 100; // Urgente rotar
+    if (consecutivos >= 3) return 85;  // Recomendado rotar
+    if (consecutivos >= 2) return 70;  // Buen momento para rotar
+    return 60; // Bonus base por rotación
+  }
+  
+  // Penalización por continuar mismo tipo sin rotación
+  const mismosConsecutivos = ultimoFueLocal 
+    ? (custodio.contador_locales_consecutivos || 0)
+    : (custodio.contador_foraneos_consecutivos || 0);
+  
+  if (mismosConsecutivos >= 5) return 20; // Evitar más del mismo tipo
+  if (mismosConsecutivos >= 3) return 35;
+  return 50; // Neutral
 }
 
 /**

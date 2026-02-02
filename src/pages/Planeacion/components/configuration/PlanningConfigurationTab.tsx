@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Shield, Users, Database, DollarSign } from 'lucide-react';
+import { Settings, Shield, Users, Database, DollarSign, MapPin } from 'lucide-react';
 import ProveedoresArmadosTab from './ProveedoresArmadosTab';
 import ParametrosOperacionalesTab from './ParametrosOperacionalesTab';
 import EsquemasArmadosTab from './EsquemasArmadosTab';
+import CustodiosZonasTab from './CustodiosZonasTab';
 
 export function PlanningConfigurationTab() {
   const [activeTab, setActiveTab] = useState('proveedores-armados');
@@ -30,10 +31,10 @@ export function PlanningConfigurationTab() {
             <span className="hidden sm:inline">Esquemas</span>
             <span className="sm:hidden">$$</span>
           </TabsTrigger>
-          <TabsTrigger value="custodios" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Custodios</span>
-            <span className="sm:hidden">Cust</span>
+          <TabsTrigger value="zonas-custodios" className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            <span className="hidden sm:inline">Zonas Base</span>
+            <span className="sm:hidden">Zonas</span>
           </TabsTrigger>
           <TabsTrigger value="parametros" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -55,20 +56,8 @@ export function PlanningConfigurationTab() {
           <EsquemasArmadosTab />
         </TabsContent>
 
-        <TabsContent value="custodios">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configuración de Custodios</CardTitle>
-              <CardDescription>
-                Gestiona parámetros y configuración para custodios operativos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-32">
-                <p className="text-muted-foreground">Configuración de custodios - Próximamente</p>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="zonas-custodios">
+          <CustodiosZonasTab />
         </TabsContent>
 
         <TabsContent value="parametros">
