@@ -3518,6 +3518,61 @@ export type Database = {
         }
         Relationships: []
       }
+      custodio_rechazos: {
+        Row: {
+          created_at: string
+          custodio_id: string
+          fecha_rechazo: string
+          id: string
+          motivo: string | null
+          reportado_por: string | null
+          servicio_id: string | null
+          vigencia_hasta: string
+        }
+        Insert: {
+          created_at?: string
+          custodio_id: string
+          fecha_rechazo?: string
+          id?: string
+          motivo?: string | null
+          reportado_por?: string | null
+          servicio_id?: string | null
+          vigencia_hasta?: string
+        }
+        Update: {
+          created_at?: string
+          custodio_id?: string
+          fecha_rechazo?: string
+          id?: string
+          motivo?: string | null
+          reportado_por?: string | null
+          servicio_id?: string | null
+          vigencia_hasta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custodio_rechazos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_rechazos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodio_rechazos_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_planificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodio_responses: {
         Row: {
           communication_id: string
@@ -16379,6 +16434,7 @@ export type Database = {
         }
         Returns: Json
       }
+      limpiar_rechazos_expirados: { Args: never; Returns: number }
       link_user_to_custodio_services: {
         Args: { p_phone: string; p_user_id: string }
         Returns: {

@@ -5,6 +5,8 @@
  * 
  * CRITICAL FIX: Now handles the case where ALL custodians are in conflict,
  * showing them prominently instead of displaying "empty list" to the planner.
+ * 
+ * ENHANCED: Now filters out rejected custodians (persisted for 7 days)
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
@@ -16,6 +18,7 @@ import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useCustodiosConProximidad } from '@/hooks/useProximidadOperacional';
 import { useCustodianStepLogic } from './hooks/useCustodianStepLogic';
 import { useCustodioIndisponibilidades } from '@/hooks/useCustodioIndisponibilidades';
+import { useRechazosVigentes, useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays } from 'date-fns';
 
@@ -48,6 +51,10 @@ export default function CustodianStep() {
   // Unavailability hook
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   
+  // 🆕 Rejection hooks
+  const { data: rechazadosIds = [] } = useRechazosVigentes();
+  const { mutateAsync: registrarRechazo } = useRegistrarRechazo();
+  
   // ✅ Double-check: hydrated AND critical service data exists
   const isReadyToQuery = isHydrated && servicioNuevo && 
     Boolean(servicioNuevo.fecha_programada) && 
@@ -61,11 +68,12 @@ export default function CustodianStep() {
     { enabled: isReadyToQuery }
   );
   
-  // Filter custodians locally (instant)
-  const filteredCustodians = useMemo(() => 
-    actions.filterCustodians(categorized),
-    [categorized, actions]
-  );
+  // Filter custodians locally (instant) - also excludes rejected
+  const filteredCustodians = useMemo(() => {
+    const baseFiltered = actions.filterCustodians(categorized);
+    // 🆕 Exclude custodians with active rejections
+    return baseFiltered.filter(c => !rechazadosIds.includes(c.id));
+  }, [categorized, actions, rechazadosIds]);
   
   // Get selected custodian details
   const selectedCustodian = useMemo(() => {
@@ -267,6 +275,20 @@ export default function CustodianStep() {
     }
   };
   
+  // 🆕 Handle rejection (persists to DB for 7 days)
+  const handleReportRejection = async (custodio: CustodioConProximidad) => {
+    try {
+      await registrarRechazo({
+        custodioId: custodio.id,
+        servicioId: draftId || undefined,
+        motivo: 'Rechazó durante asignación',
+      });
+      // List will auto-refresh due to query invalidation
+    } catch (error) {
+      console.error('Error registering rejection:', error);
+    }
+  };
+  
   // Continue to next step
   const handleContinue = () => {
     markStepCompleted('custodian');
@@ -433,6 +455,7 @@ export default function CustodianStep() {
         onSelect={actions.selectCustodian}
         onContact={handleContact}
         onReportUnavailability={handleReportUnavailability}
+        onReportRejection={handleReportRejection}
       />
 
       {/* Conflict Section - Force open when all custodians are in conflict */}

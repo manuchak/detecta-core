@@ -42,15 +42,16 @@ export function ArmedGuardFilters({
 
   const quickFilters = [
     {
+      label: '👁️ Mostrar Todos',
+      active: !filterConfig.soloConActividad90Dias,
+      onClick: () => onFilterChange({ soloConActividad90Dias: false }),
+      tooltip: 'Mostrar todos los armados sin filtro de actividad',
+    },
+    {
       label: 'Activos (90 días)',
       active: filterConfig.soloConActividad90Dias,
       onClick: () => onFilterChange({ soloConActividad90Dias: !filterConfig.soloConActividad90Dias }),
       tooltip: 'Mostrar solo armados con servicios en los últimos 90 días',
-    },
-    {
-      label: 'Todos',
-      active: !filterConfig.soloConActividad90Dias && !hasActiveFilters,
-      onClick: () => onFilterChange({ soloConActividad90Dias: false }),
     },
     {
       label: 'Disponibles',
