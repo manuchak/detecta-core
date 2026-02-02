@@ -215,14 +215,14 @@ if (custodio.tipo_ultimo_servicio === 'local' && servicioNuevo.es_foraneo) {
 
 ## Priorización Sugerida
 
-| Epic | Esfuerzo | Impacto | Prioridad |
-|------|----------|---------|-----------|
-| Epic 4: Fix Bug Armados | Bajo | Alto | 🔴 P0 - Inmediato |
-| Epic 2: Persistencia Rechazos | Medio | Alto | 🔴 P1 - Esta semana |
-| Epic 1: Historial en Card | Medio | Alto | 🟡 P2 - Próxima semana |
-| Epic 3: Badges Gini | Bajo | Medio | 🟡 P2 - Próxima semana |
-| Epic 5: Corrección Zonas | Bajo | Medio | 🟢 P3 - Siguiente sprint |
-| Epic 6: Local/Foráneo | Alto | Medio | 🟢 P4 - Backlog |
+| Epic | Esfuerzo | Impacto | Prioridad | Estado |
+|------|----------|---------|-----------|--------|
+| Epic 4: Fix Bug Armados | Bajo | Alto | 🔴 P0 - Inmediato | ✅ Completado |
+| Epic 2: Persistencia Rechazos | Medio | Alto | 🔴 P1 - Esta semana | ✅ Completado |
+| Epic 1: Historial en Card | Medio | Alto | 🟡 P2 - Próxima semana | ✅ Completado |
+| Epic 3: Badges Gini | Bajo | Medio | 🟡 P2 - Próxima semana | ✅ Completado |
+| Epic 5: Corrección Zonas | Bajo | Medio | 🟢 P3 - Siguiente sprint | ✅ Completado |
+| Epic 6: Local/Foráneo | Alto | Medio | 🟢 P4 - Backlog | ✅ Completado |
 
 ---
 

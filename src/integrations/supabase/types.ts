@@ -3687,6 +3687,8 @@ export type Database = {
       custodios_operativos: {
         Row: {
           certificaciones: string[] | null
+          contador_foraneos_consecutivos: number | null
+          contador_locales_consecutivos: number | null
           created_at: string | null
           disponibilidad: string | null
           email: string | null
@@ -3709,12 +3711,15 @@ export type Database = {
           tasa_confiabilidad: number | null
           tasa_respuesta: number | null
           telefono: string | null
+          tipo_ultimo_servicio: string | null
           updated_at: string | null
           vehiculo_propio: boolean | null
           zona_base: string | null
         }
         Insert: {
           certificaciones?: string[] | null
+          contador_foraneos_consecutivos?: number | null
+          contador_locales_consecutivos?: number | null
           created_at?: string | null
           disponibilidad?: string | null
           email?: string | null
@@ -3737,12 +3742,15 @@ export type Database = {
           tasa_confiabilidad?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
+          tipo_ultimo_servicio?: string | null
           updated_at?: string | null
           vehiculo_propio?: boolean | null
           zona_base?: string | null
         }
         Update: {
           certificaciones?: string[] | null
+          contador_foraneos_consecutivos?: number | null
+          contador_locales_consecutivos?: number | null
           created_at?: string | null
           disponibilidad?: string | null
           email?: string | null
@@ -3765,6 +3773,7 @@ export type Database = {
           tasa_confiabilidad?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
+          tipo_ultimo_servicio?: string | null
           updated_at?: string | null
           vehiculo_propio?: boolean | null
           zona_base?: string | null
@@ -14368,6 +14377,10 @@ export type Database = {
     }
     Functions: {
       actualizar_roi_custodios: { Args: never; Returns: undefined }
+      actualizar_rotacion_custodio: {
+        Args: { p_custodio_id: string; p_tipo_servicio: string }
+        Returns: undefined
+      }
       actualizar_tracking_rotacion: { Args: never; Returns: undefined }
       add_admin_role: { Args: { user_id: string }; Returns: undefined }
       archivar_producto: {
