@@ -1,83 +1,37 @@
 
 
-# Plan: Corregir BUG-002 - RPC check_duplicate_service_ids
+# Plan: Conectar Pestaña "Zonas Base" en Configuración de Planeación
 
-## Diagnóstico
+## Problema Identificado
 
-**Error encontrado:**
-```json
-{
-  "code": "42804",
-  "details": "Returned type text does not match expected type timestamp with time zone in column 4.",
-  "message": "structure of query does not match function result type"
-}
-```
+El componente `CustodiosZonasTab` (con los apple-metrics y la edición de zonas base) ya está implementado pero **no está conectado** al flujo principal.
 
-**Causa raíz:**
-- La columna `servicios_custodia.created_at` es de tipo **TEXT**, no `TIMESTAMP WITH TIME ZONE`
-- La función `check_duplicate_service_ids()` está declarada para retornar `latest_date TIMESTAMP WITH TIME ZONE`
-- Cuando ejecuta `MAX(sc.created_at)`, PostgreSQL retorna TEXT porque esa es la columna origen
-- PostgREST detecta el mismatch de tipos y devuelve error 400
+Existen **dos archivos** con el mismo nombre:
+- ❌ `components/PlanningConfigurationTab.tsx` → Versión antigua sin "Zonas Base" (actualmente en uso)
+- ✅ `components/configuration/PlanningConfigurationTab.tsx` → Versión nueva con "Zonas Base"
 
 ## Solución
 
-Modificar la función RPC para castear explícitamente el campo `created_at` a `TIMESTAMP WITH TIME ZONE`:
+Actualizar el import en `PlanningHub.tsx` para usar la versión correcta del componente.
 
-```sql
-MAX(sc.created_at::TIMESTAMP WITH TIME ZONE) as latest_date
-```
+## Cambio Técnico
 
-## Cambios Técnicos
+**Archivo:** `src/pages/Planeacion/PlanningHub.tsx`
 
-### Archivo: Nueva migración SQL
+| Línea | Antes | Después |
+|-------|-------|---------|
+| 13 | `import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';` | `import { PlanningConfigurationTab } from './components/configuration/PlanningConfigurationTab';` |
 
-```sql
--- Corregir RPC check_duplicate_service_ids: cast TEXT → TIMESTAMPTZ
-CREATE OR REPLACE FUNCTION check_duplicate_service_ids()
-RETURNS TABLE(
-  id_servicio TEXT,
-  duplicate_count BIGINT,
-  service_ids BIGINT[],
-  latest_date TIMESTAMP WITH TIME ZONE
-) 
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    sc.id_servicio::TEXT,
-    COUNT(*)::BIGINT as duplicate_count,
-    array_agg(sc.id ORDER BY sc.created_at DESC)::BIGINT[] as service_ids,
-    MAX(sc.created_at::TIMESTAMP WITH TIME ZONE) as latest_date  -- FIX: cast explícito
-  FROM public.servicios_custodia sc
-  WHERE sc.id_servicio IS NOT NULL
-  GROUP BY sc.id_servicio
-  HAVING COUNT(*) > 1
-  ORDER BY COUNT(*) DESC, MAX(sc.created_at::TIMESTAMP WITH TIME ZONE) DESC;
-END;
-$$;
+## Resultado Esperado
 
--- Refrescar caché de PostgREST
-NOTIFY pgrst, 'reload schema';
-```
-
-## Impacto
-
-| Aspecto | Antes | Después |
-|---------|-------|---------|
-| Estado RPC | Error 400 | Funcional |
-| Dashboard Planeación | Crashea al cargar | Carga correctamente |
-| Detección duplicados | Inoperativa | Operativa |
-
-## Archivos a Modificar
-
-| Archivo | Acción |
-|---------|--------|
-| Nueva migración SQL | Recrear función con cast correcto |
+Después del cambio, la pestaña "Configuración" mostrará:
+1. **Proveedores** - Gestión de proveedores armados
+2. **Esquemas** - Esquemas de precios
+3. **Zonas Base** - ✅ La pestaña que necesitas con los apple-metrics
+4. **Parámetros** - Configuración operacional
+5. **Datos** - Gestión de datos (próximamente)
 
 ## Riesgo
 
-**Bajo** - Solo modifica el tipo de conversión en la función, no afecta datos existentes ni otras tablas.
+**Bajo** - Es solo un cambio de import. Las funcionalidades existentes (Clientes, Custodios, Ubicaciones) seguirán disponibles en otras secciones del sistema.
 
