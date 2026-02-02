@@ -106,25 +106,25 @@ export function CustodiosZonasTab() {
     return Math.floor(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // Filtrar custodios
-  const filteredCustodios = useMemo(() => {
-    let result = custodios;
+  // Custodios filtrados solo por actividad (para las métricas)
+  const custodiosPorActividad = useMemo(() => {
+    if (activityFilter === 'all') return custodios;
     
-    // Activity filter
-    if (activityFilter !== 'all') {
-      result = result.filter(c => {
-        const days = getDaysSinceLastService(c.fecha_ultimo_servicio);
-        
-        if (activityFilter === '120+') {
-          // Sin actividad en más de 120 días o nunca han tenido servicio
-          return days === null || days > 120;
-        }
-        
-        const maxDays = parseInt(activityFilter);
-        // Con actividad en los últimos X días
-        return days !== null && days <= maxDays;
-      });
-    }
+    return custodios.filter(c => {
+      const days = getDaysSinceLastService(c.fecha_ultimo_servicio);
+      
+      if (activityFilter === '120+') {
+        return days === null || days > 120;
+      }
+      
+      const maxDays = parseInt(activityFilter);
+      return days !== null && days <= maxDays;
+    });
+  }, [custodios, activityFilter]);
+
+  // Filtrar custodios (para la tabla - incluye búsqueda y filtro sin zona)
+  const filteredCustodios = useMemo(() => {
+    let result = custodiosPorActividad;
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -144,23 +144,23 @@ export function CustodiosZonasTab() {
     }
     
     return result;
-  }, [custodios, searchTerm, filterSinZona, activityFilter]);
+  }, [custodiosPorActividad, searchTerm, filterSinZona]);
 
-  // Contar custodios sin zona definida
+  // Contar custodios sin zona definida (basado en filtro de actividad)
   const custodiosSinZona = useMemo(() => {
-    return custodios.filter(c => 
+    return custodiosPorActividad.filter(c => 
       !c.zona_base || 
       c.zona_base === 'Por asignar' || 
       c.zona_base === 'Sin asignar' ||
       c.zona_base.trim() === ''
     );
-  }, [custodios]);
+  }, [custodiosPorActividad]);
 
-  // Calcular completitud
+  // Calcular completitud (basado en filtro de actividad)
   const completitudPorcentaje = useMemo(() => {
-    if (custodios.length === 0) return 0;
-    return Math.round(((custodios.length - custodiosSinZona.length) / custodios.length) * 100);
-  }, [custodios.length, custodiosSinZona.length]);
+    if (custodiosPorActividad.length === 0) return 0;
+    return Math.round(((custodiosPorActividad.length - custodiosSinZona.length) / custodiosPorActividad.length) * 100);
+  }, [custodiosPorActividad.length, custodiosSinZona.length]);
 
   // Actualizar zona de un custodio
   const handleZonaChange = async (custodioId: string, nuevaZona: string) => {
@@ -188,19 +188,19 @@ export function CustodiosZonasTab() {
     }
   };
 
-  // Estadísticas por zona
+  // Estadísticas por zona (basado en filtro de actividad)
   const estadisticasZona = useMemo(() => {
     const porZona: Record<string, number> = {};
-    custodios.forEach(c => {
+    custodiosPorActividad.forEach(c => {
       const zona = c.zona_base || 'Sin asignar';
       porZona[zona] = (porZona[zona] || 0) + 1;
     });
     return Object.entries(porZona)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8);
-  }, [custodios]);
+  }, [custodiosPorActividad]);
 
-  const zonasConCustodios = new Set(custodios.filter(c => c.zona_base).map(c => c.zona_base)).size;
+  const zonasConCustodios = new Set(custodiosPorActividad.filter(c => c.zona_base).map(c => c.zona_base)).size;
 
   // Helper to check if zona is missing
   const isMissingZona = (zona: string | null) => 
@@ -232,14 +232,16 @@ export function CustodiosZonasTab() {
 
       {/* Apple Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-4">
-        {/* Total Activos */}
+        {/* Total en Filtro */}
         <div className="apple-metric apple-metric-neutral">
           <div className="apple-metric-icon">
             <Users className="h-5 w-5" />
           </div>
           <div className="apple-metric-content">
-            <div className="apple-metric-value">{custodios.length}</div>
-            <div className="apple-metric-label">Total Activos</div>
+            <div className="apple-metric-value">{custodiosPorActividad.length}</div>
+            <div className="apple-metric-label">
+              {activityFilter === 'all' ? 'Total Activos' : `Activos (${activityFilter === '120+' ? '+120d' : activityFilter + 'd'})`}
+            </div>
           </div>
         </div>
 
