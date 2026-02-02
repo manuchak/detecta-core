@@ -17,7 +17,7 @@ const DEFAULT_FILTER_CONFIG: FilterConfig = {
   experienciaMinima: 0,
   zonasGeograficas: [],
   ordenarPor: 'productividad',
-  soloConActividad90Dias: true, // Por defecto activado para reducir saturación
+  soloConActividad90Dias: false, // 🔧 FIX: Por defecto DESACTIVADO para mostrar todos los armados
 };
 
 const STORAGE_KEY = 'detecta-armados-filter-config';
@@ -75,6 +75,19 @@ export function useArmedGuardFilters(guards: ArmedGuard[]) {
   // Apply filters and sorting
   const filteredAndSortedGuards = useMemo(() => {
     let filtered = [...guards];
+
+    // 🔧 FIX: Apply 90-day activity filter
+    if (filterConfig.soloConActividad90Dias) {
+      const hace90Dias = new Date();
+      hace90Dias.setDate(hace90Dias.getDate() - 90);
+      
+      filtered = filtered.filter((g) => {
+        // Si no tiene fecha de último servicio, incluirlo (puede ser nuevo)
+        if (!g.fecha_ultimo_servicio) return true;
+        const fechaUltimo = new Date(g.fecha_ultimo_servicio);
+        return fechaUltimo >= hace90Dias;
+      });
+    }
 
     // Filter by availability
     if (filterConfig.disponibilidad !== 'todos') {

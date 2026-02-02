@@ -1,11 +1,13 @@
 /**
  * CustodianCard - Memoized card for performance
  * OPTIMIZED: Removed per-card vehicle fetch, uses pre-fetched data
+ * ENHANCED: Added rejection persistence and service history display
  */
 
 import { memo } from 'react';
-import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle, CalendarX2 } from 'lucide-react';
+import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle, CalendarX2, XCircle, Calendar, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodianCommunicationState } from '../types';
@@ -18,6 +20,7 @@ interface CustodianCardProps {
   onSelect: () => void;
   onContact: (method: 'whatsapp' | 'llamada') => void;
   onReportUnavailability?: () => void;
+  onReportRejection?: () => void; // 🆕 Persistir rechazo
   disabled?: boolean;
   style?: React.CSSProperties; // For react-window virtualization
 }
@@ -30,6 +33,7 @@ function CustodianCardComponent({
   onSelect,
   onContact,
   onReportUnavailability,
+  onReportRejection,
   disabled = false,
   style,
 }: CustodianCardProps) {
@@ -53,6 +57,35 @@ function CustodianCardComponent({
   };
 
   const scorePercentage = Math.round(custodio.score_total || 0);
+
+  // 🆕 Equity/workload badge based on balance_recommendation
+  const getEquidadBadge = () => {
+    const balance = custodio.datos_equidad?.balance_recommendation;
+    if (!balance) return null;
+    
+    if (balance === 'ideal') {
+      return (
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
+          🎯 Priorizar
+        </Badge>
+      );
+    }
+    if (balance === 'evitar') {
+      return (
+        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 text-xs dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700">
+          ⚠️ Alta carga
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  // 🆕 Service history metrics
+  const serviciosHoy = custodio.datos_equidad?.servicios_hoy || 0;
+  const diasSinAsignar = custodio.datos_equidad?.dias_sin_asignar;
+  const fechaUltimo = custodio.ultima_actividad 
+    ? new Date(custodio.ultima_actividad).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    : null;
 
   return (
     <div style={style}>
@@ -82,12 +115,15 @@ function CustodianCardComponent({
 
         {/* ===== INFO ZONE ===== */}
         <div className="p-4">
-          {/* Header: Name + Score */}
+          {/* Header: Name + Score + Equity Badge */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <h4 className="apple-text-headline truncate text-foreground font-medium">
-                {custodio.nombre}
-              </h4>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="apple-text-headline truncate text-foreground font-medium">
+                  {custodio.nombre}
+                </h4>
+                {getEquidadBadge()}
+              </div>
             </div>
             <div className="flex items-center gap-1.5 ml-3">
               <span className="text-sm">{getAvailabilityIcon()}</span>
@@ -109,6 +145,25 @@ function CustodianCardComponent({
                 <Car className="h-3.5 w-3.5" />
                 <span>{vehicleInfo}</span>
               </div>
+            )}
+          </div>
+
+          {/* 🆕 Service History Row */}
+          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+            {serviciosHoy > 0 && (
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                <span><strong className="text-foreground">{serviciosHoy}</strong> hoy</span>
+              </div>
+            )}
+            {fechaUltimo && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                <span>Último: <strong className="text-foreground">{fechaUltimo}</strong></span>
+              </div>
+            )}
+            {diasSinAsignar !== undefined && diasSinAsignar > 3 && (
+              <span className="text-amber-600">⏰ {diasSinAsignar}d sin asignar</span>
             )}
           </div>
 
@@ -190,6 +245,34 @@ function CustodianCardComponent({
                   <p className="font-medium">Reportar indisponibilidad</p>
                   <p className="text-xs text-muted-foreground">
                     Si el custodio indica que no estará disponible
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* 🆕 Rejection button - persists to DB */}
+          {onReportRejection && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReportRejection();
+                    }}
+                    disabled={disabled || hasRejected}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium">Registrar rechazo</p>
+                  <p className="text-xs text-muted-foreground">
+                    No mostrará este custodio por 7 días
                   </p>
                 </TooltipContent>
               </Tooltip>

@@ -20,6 +20,7 @@ interface CustodianListProps {
   onSelect: (custodio: CustodioConProximidad) => void;
   onContact: (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => void;
   onReportUnavailability?: (custodio: CustodioConProximidad) => void;
+  onReportRejection?: (custodio: CustodioConProximidad) => void;
 }
 
 // Configuration for windowing
@@ -36,6 +37,7 @@ export function CustodianList({
   onSelect,
   onContact,
   onReportUnavailability,
+  onReportRejection,
 }: CustodianListProps) {
   // Auto-collapse when a custodian is selected
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -85,6 +87,10 @@ export function CustodianList({
   const handleReportUnavailability = useCallback((custodio: CustodioConProximidad) => {
     onReportUnavailability?.(custodio);
   }, [onReportUnavailability]);
+
+  const handleReportRejection = useCallback((custodio: CustodioConProximidad) => {
+    onReportRejection?.(custodio);
+  }, [onReportRejection]);
 
   // Memoized visible slice
   const visibleCustodians = useMemo(() => 
@@ -154,6 +160,7 @@ export function CustodianList({
             onSelect={() => handleSelect(custodio)}
             onContact={(method) => handleContact(custodio, method)}
             onReportUnavailability={onReportUnavailability ? () => handleReportUnavailability(custodio) : undefined}
+            onReportRejection={onReportRejection ? () => handleReportRejection(custodio) : undefined}
           />
         ))}
         
