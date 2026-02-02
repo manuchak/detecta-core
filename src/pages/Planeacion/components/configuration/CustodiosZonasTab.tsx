@@ -38,7 +38,18 @@ interface CustodioOperativo {
   tipo_ultimo_servicio: string | null;
   contador_locales_consecutivos: number;
   contador_foraneos_consecutivos: number;
+  fecha_ultimo_servicio: string | null;
 }
+
+type ActivityFilter = 'all' | '60' | '90' | '120' | '120+';
+
+const ACTIVITY_FILTER_OPTIONS: { value: ActivityFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: '60', label: 'Últimos 60 días' },
+  { value: '90', label: 'Últimos 90 días' },
+  { value: '120', label: 'Últimos 120 días' },
+  { value: '120+', label: 'Sin actividad +120 días' },
+];
 
 // Lista de zonas/estados disponibles
 const ZONAS_DISPONIBLES = [
@@ -67,6 +78,7 @@ const ZONAS_DISPONIBLES = [
 export function CustodiosZonasTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSinZona, setFilterSinZona] = useState(false);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('90');
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
@@ -76,7 +88,7 @@ export function CustodiosZonasTab() {
     async () => {
       const { data, error } = await supabase
         .from('custodios_operativos')
-        .select('id, nombre, zona_base, estado, disponibilidad, telefono, tipo_ultimo_servicio, contador_locales_consecutivos, contador_foraneos_consecutivos')
+        .select('id, nombre, zona_base, estado, disponibilidad, telefono, tipo_ultimo_servicio, contador_locales_consecutivos, contador_foraneos_consecutivos, fecha_ultimo_servicio')
         .eq('estado', 'activo')
         .order('nombre');
       
@@ -85,9 +97,34 @@ export function CustodiosZonasTab() {
     }
   );
 
+  // Helper to calculate days since last service
+  const getDaysSinceLastService = (fecha: string | null): number | null => {
+    if (!fecha) return null;
+    const lastDate = new Date(fecha);
+    const today = new Date();
+    const diffTime = today.getTime() - lastDate.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   // Filtrar custodios
   const filteredCustodios = useMemo(() => {
     let result = custodios;
+    
+    // Activity filter
+    if (activityFilter !== 'all') {
+      result = result.filter(c => {
+        const days = getDaysSinceLastService(c.fecha_ultimo_servicio);
+        
+        if (activityFilter === '120+') {
+          // Sin actividad en más de 120 días o nunca han tenido servicio
+          return days === null || days > 120;
+        }
+        
+        const maxDays = parseInt(activityFilter);
+        // Con actividad en los últimos X días
+        return days !== null && days <= maxDays;
+      });
+    }
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -107,7 +144,7 @@ export function CustodiosZonasTab() {
     }
     
     return result;
-  }, [custodios, searchTerm, filterSinZona]);
+  }, [custodios, searchTerm, filterSinZona, activityFilter]);
 
   // Contar custodios sin zona definida
   const custodiosSinZona = useMemo(() => {
@@ -286,8 +323,8 @@ export function CustodiosZonasTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="flex-1 max-w-sm relative">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex-1 min-w-[200px] max-w-sm relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre o zona..."
@@ -296,6 +333,21 @@ export function CustodiosZonasTab() {
                 className="pl-8"
               />
             </div>
+            
+            {/* Activity Filter */}
+            <Select value={activityFilter} onValueChange={(v) => setActivityFilter(v as ActivityFilter)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por actividad" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACTIVITY_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
             <Button
               variant={filterSinZona ? 'default' : 'outline'}
               size="sm"
