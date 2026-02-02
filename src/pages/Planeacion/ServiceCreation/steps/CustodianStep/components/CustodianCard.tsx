@@ -1,11 +1,24 @@
 /**
  * CustodianCard - Memoized card for performance
  * OPTIMIZED: Removed per-card vehicle fetch, uses pre-fetched data
- * ENHANCED: Added rejection persistence and service history display
+ * ENHANCED: Added rejection persistence, service history display, and Lucide icons
  */
 
-import { memo } from 'react';
-import { Phone, MessageCircle, ArrowRight, Check, Car, AlertTriangle, CalendarX2, XCircle, Calendar, TrendingUp } from 'lucide-react';
+import { memo, useRef } from 'react';
+import { 
+  Phone, 
+  MessageCircle, 
+  ArrowRight, 
+  Check, 
+  Car, 
+  AlertTriangle, 
+  CalendarX2, 
+  XCircle, 
+  Calendar, 
+  TrendingUp,
+  Circle,
+  Target
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -20,9 +33,9 @@ interface CustodianCardProps {
   onSelect: () => void;
   onContact: (method: 'whatsapp' | 'llamada') => void;
   onReportUnavailability?: () => void;
-  onReportRejection?: () => void; // 🆕 Persistir rechazo
+  onReportRejection?: () => void;
   disabled?: boolean;
-  style?: React.CSSProperties; // For react-window virtualization
+  style?: React.CSSProperties;
 }
 
 function CustodianCardComponent({
@@ -37,6 +50,7 @@ function CustodianCardComponent({
   disabled = false,
   style,
 }: CustodianCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const hasAccepted = comunicacion?.status === 'acepta';
   const hasRejected = comunicacion?.status === 'rechaza';
   const isContacted = comunicacion && comunicacion.status !== 'pending';
@@ -44,52 +58,69 @@ function CustodianCardComponent({
   // Vehicle data - use pre-fetched from RPC instead of individual hook
   const vehicleInfo = custodio.vehiculo_info || null;
 
-  // Availability status
+  // Availability status with Lucide icons
   const availabilityStatus = custodio.categoria_disponibilidad || 'disponible';
   const getAvailabilityIcon = () => {
     switch (availabilityStatus) {
-      case 'disponible': return '🟢';
-      case 'parcialmente_ocupado': return '🟡';
-      case 'ocupado': return '🟠';
-      case 'no_disponible': return '🔴';
-      default: return '⚪';
+      case 'disponible': 
+        return <Circle className="h-3.5 w-3.5 fill-success text-success" />;
+      case 'parcialmente_ocupado': 
+        return <Circle className="h-3.5 w-3.5 fill-warning text-warning" />;
+      case 'ocupado': 
+        return <Circle className="h-3.5 w-3.5 fill-chart-4 text-chart-4" />;
+      case 'no_disponible': 
+        return <Circle className="h-3.5 w-3.5 fill-destructive text-destructive" />;
+      default: 
+        return <Circle className="h-3.5 w-3.5 fill-muted text-muted-foreground" />;
     }
   };
 
   const scorePercentage = Math.round(custodio.score_total || 0);
 
-  // 🆕 Equity/workload badge based on balance_recommendation
+  // Equity/workload badge with Lucide icons
   const getEquidadBadge = () => {
     const balance = custodio.datos_equidad?.balance_recommendation;
     if (!balance) return null;
     
     if (balance === 'ideal') {
       return (
-        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 text-xs dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
-          🎯 Priorizar
+        <Badge variant="outline" className="equity-badge-priorizar text-xs gap-1">
+          <Target className="h-3 w-3" />
+          Priorizar
         </Badge>
       );
     }
     if (balance === 'evitar') {
       return (
-        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 text-xs dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700">
-          ⚠️ Alta carga
+        <Badge variant="outline" className="equity-badge-alta-carga text-xs gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Alta carga
         </Badge>
       );
     }
     return null;
   };
 
-  // 🆕 Service history metrics
+  // Service history metrics
   const serviciosHoy = custodio.datos_equidad?.servicios_hoy || 0;
   const diasSinAsignar = custodio.datos_equidad?.dias_sin_asignar;
   const fechaUltimo = custodio.ultima_actividad 
     ? new Date(custodio.ultima_actividad).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
     : null;
 
+  // Animated rejection handler
+  const handleRejectWithAnimation = async () => {
+    if (cardRef.current) {
+      cardRef.current.classList.add('animate-fade-out-left');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    onReportRejection?.();
+  };
+
   return (
     <div style={style}>
       <div
+        ref={cardRef}
         className={`
           apple-card overflow-hidden transition-all duration-200 mx-1
           ${highlighted ? 'ring-2 ring-primary ring-offset-2' : ''}
@@ -102,12 +133,12 @@ function CustodianCardComponent({
         {isContacted && (
           <div className={`
             absolute -top-2 -right-2 z-10 px-2 py-0.5 rounded-full text-xs font-medium
-            ${hasAccepted ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' : ''}
-            ${hasRejected ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' : ''}
-            ${!hasAccepted && !hasRejected ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300' : ''}
+            ${hasAccepted ? 'bg-success/10 text-success' : ''}
+            ${hasRejected ? 'bg-destructive/10 text-destructive' : ''}
+            ${!hasAccepted && !hasRejected ? 'bg-warning/10 text-warning' : ''}
           `}>
-            {hasAccepted && '✓ Aceptó'}
-            {hasRejected && '✗ Rechazó'}
+            {hasAccepted && <span className="flex items-center gap-1"><Check className="h-3 w-3" /> Aceptó</span>}
+            {hasRejected && <span className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Rechazó</span>}
             {comunicacion?.status === 'contactar_despues' && '⏰ Llamar después'}
             {comunicacion?.status === 'sin_respuesta' && '📵 Sin respuesta'}
           </div>
@@ -126,7 +157,7 @@ function CustodianCardComponent({
               </div>
             </div>
             <div className="flex items-center gap-1.5 ml-3">
-              <span className="text-sm">{getAvailabilityIcon()}</span>
+              {getAvailabilityIcon()}
               <span className="apple-text-footnote font-medium text-muted-foreground">
                 {scorePercentage}% compat.
               </span>
@@ -148,7 +179,7 @@ function CustodianCardComponent({
             )}
           </div>
 
-          {/* 🆕 Service History Row */}
+          {/* Service History Row */}
           <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
             {serviciosHoy > 0 && (
               <div className="flex items-center gap-1">
@@ -162,16 +193,19 @@ function CustodianCardComponent({
                 <span>Último: <strong className="text-foreground">{fechaUltimo}</strong></span>
               </div>
             )}
-            {diasSinAsignar !== undefined && diasSinAsignar > 3 && (
-              <span className="text-amber-600">⏰ {diasSinAsignar}d sin asignar</span>
+          {diasSinAsignar !== undefined && diasSinAsignar > 3 && (
+              <span className="text-warning flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {diasSinAsignar}d sin asignar
+              </span>
             )}
           </div>
 
           {/* Availability status */}
           {!disabled && !hasRejected && (
             <div className="mt-2 flex items-center gap-1.5">
-              <span className="apple-text-caption text-success">
-                ✅ Sin conflictos
+              <span className="apple-text-caption text-success flex items-center gap-1">
+                <Check className="h-3 w-3" /> Sin conflictos
               </span>
             </div>
           )}
@@ -231,7 +265,7 @@ function CustodianCardComponent({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-orange-600 hover:bg-orange-100 dark:hover:text-orange-400 dark:hover:bg-orange-900/50"
+                    className="h-8 w-8 text-muted-foreground hover:text-warning hover:bg-warning/10"
                     onClick={(e) => {
                       e.stopPropagation();
                       onReportUnavailability();
@@ -251,7 +285,7 @@ function CustodianCardComponent({
             </TooltipProvider>
           )}
 
-          {/* 🆕 Rejection button - persists to DB */}
+          {/* Rejection button with animation */}
           {onReportRejection && (
             <TooltipProvider>
               <Tooltip>
@@ -259,10 +293,10 @@ function CustodianCardComponent({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/50"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onReportRejection();
+                      handleRejectWithAnimation();
                     }}
                     disabled={disabled || hasRejected}
                   >

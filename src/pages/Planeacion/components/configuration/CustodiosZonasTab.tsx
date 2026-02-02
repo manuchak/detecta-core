@@ -1,3 +1,8 @@
+/**
+ * CustodiosZonasTab - Apple Design System Refactored
+ * Uses semantic tokens, CoverageRing, and apple-list pattern
+ */
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,15 +14,19 @@ import {
   MapPin, 
   Search, 
   AlertTriangle,
-  Check,
   RefreshCw,
-  Users
+  Users,
+  Phone,
+  Home,
+  Plane,
+  Circle
 } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { STATE_CODES } from '@/lib/locationUtils';
+import { CoverageRing } from '@/components/planeacion/CoverageRing';
+import { ZoneStatusIndicator } from '@/components/planeacion/ZoneStatusIndicator';
 
 interface CustodioOperativo {
   id: string;
@@ -110,6 +119,12 @@ export function CustodiosZonasTab() {
     );
   }, [custodios]);
 
+  // Calcular completitud
+  const completitudPorcentaje = useMemo(() => {
+    if (custodios.length === 0) return 0;
+    return Math.round(((custodios.length - custodiosSinZona.length) / custodios.length) * 100);
+  }, [custodios.length, custodiosSinZona.length]);
+
   // Actualizar zona de un custodio
   const handleZonaChange = async (custodioId: string, nuevaZona: string) => {
     setUpdatingIds(prev => new Set([...prev, custodioId]));
@@ -148,22 +163,29 @@ export function CustodiosZonasTab() {
       .slice(0, 8);
   }, [custodios]);
 
+  const zonasConCustodios = new Set(custodios.filter(c => c.zona_base).map(c => c.zona_base)).size;
+
+  // Helper to check if zona is missing
+  const isMissingZona = (zona: string | null) => 
+    !zona || zona === 'Por asignar' || zona === 'Sin asignar' || zona.trim() === '';
+
   return (
     <div className="space-y-6">
-      {/* Alerta de datos faltantes */}
+      {/* Alerta de datos faltantes - Semantic tokens */}
       {custodiosSinZona.length > 0 && (
-        <Alert variant="destructive" className="border-orange-500 bg-orange-50 dark:bg-orange-950/20">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Datos incompletos detectados</AlertTitle>
+        <Alert className="border-warning/50 bg-warning/5">
+          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTitle className="text-warning">Datos incompletos detectados</AlertTitle>
           <AlertDescription className="flex items-center justify-between">
-            <span>
-              <strong>{custodiosSinZona.length}</strong> custodios activos sin zona base definida. 
+            <span className="text-muted-foreground">
+              <strong className="text-foreground">{custodiosSinZona.length}</strong> custodios activos sin zona base definida. 
               Esto puede afectar la asignación de servicios.
             </span>
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => setFilterSinZona(true)}
+              className="border-warning/50 hover:bg-warning/10"
             >
               Ver afectados
             </Button>
@@ -171,70 +193,72 @@ export function CustodiosZonasTab() {
         </Alert>
       )}
 
-      {/* KPIs */}
+      {/* Apple Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Activos</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{custodios.length}</div>
-          </CardContent>
-        </Card>
+        {/* Total Activos */}
+        <div className="apple-metric apple-metric-neutral">
+          <div className="apple-metric-icon">
+            <Users className="h-5 w-5" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">{custodios.length}</div>
+            <div className="apple-metric-label">Total Activos</div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sin Zona</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{custodiosSinZona.length}</div>
-          </CardContent>
-        </Card>
+        {/* Sin Zona */}
+        <div className="apple-metric apple-metric-warning">
+          <div className="apple-metric-icon">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">{custodiosSinZona.length}</div>
+            <div className="apple-metric-label">Sin Zona</div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Zonas Cubiertas</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(custodios.filter(c => c.zona_base).map(c => c.zona_base)).size}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Zonas Cubiertas */}
+        <div className="apple-metric apple-metric-info">
+          <div className="apple-metric-icon">
+            <MapPin className="h-5 w-5" />
+          </div>
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">{zonasConCustodios}</div>
+            <div className="apple-metric-label">Zonas Cubiertas</div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">% Completitud</CardTitle>
-            <Check className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {custodios.length > 0 
-                ? Math.round(((custodios.length - custodiosSinZona.length) / custodios.length) * 100)
-                : 0}%
-            </div>
-          </CardContent>
-        </Card>
+        {/* Completitud con CoverageRing */}
+        <div className="apple-metric apple-metric-success">
+          <CoverageRing 
+            percentage={completitudPorcentaje} 
+            size={48}
+            strokeWidth={5}
+            showLabel={false}
+          />
+          <div className="apple-metric-content">
+            <div className="apple-metric-value">{completitudPorcentaje}%</div>
+            <div className="apple-metric-label">Completitud</div>
+          </div>
+        </div>
       </div>
 
       {/* Distribución por zona */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base">Distribución por Zona</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {estadisticasZona.map(([zona, count]) => (
-              <Badge 
-                key={zona} 
-                variant={zona === 'Sin asignar' ? 'destructive' : 'secondary'}
-                className="text-sm"
-              >
-                {zona}: {count}
-              </Badge>
+              <ZoneStatusIndicator
+                key={zona}
+                status={zona === 'Sin asignar' ? 'missing' : 'assigned'}
+                label={zona}
+                count={count}
+                size="md"
+                showIcon={zona === 'Sin asignar'}
+              />
             ))}
           </div>
         </CardContent>
@@ -285,89 +309,92 @@ export function CustodiosZonasTab() {
             </Badge>
           </div>
 
-          {/* Tabla de custodios */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="max-h-[500px] overflow-y-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 sticky top-0">
-                  <tr>
-                    <th className="text-left p-3 text-sm font-medium">Custodio</th>
-                    <th className="text-left p-3 text-sm font-medium">Teléfono</th>
-                    <th className="text-left p-3 text-sm font-medium">Zona Base Actual</th>
-                    <th className="text-left p-3 text-sm font-medium">Editar Zona</th>
-                    <th className="text-center p-3 text-sm font-medium">Rotación</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustodios.map((custodio) => (
-                    <tr key={custodio.id} className="border-t hover:bg-muted/50">
-                      <td className="p-3">
-                        <div className="font-medium">{custodio.nombre}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {custodio.disponibilidad}
-                        </div>
-                      </td>
-                      <td className="p-3 text-sm text-muted-foreground">
+          {/* Apple List Pattern */}
+          <div className="apple-list max-h-[500px] overflow-y-auto pr-1">
+            {filteredCustodios.map((custodio) => (
+              <div 
+                key={custodio.id} 
+                className={`
+                  apple-list-item flex items-center justify-between gap-4
+                  ${isMissingZona(custodio.zona_base) ? 'border-warning/30 bg-warning/5' : ''}
+                `}
+              >
+                {/* Left: Status + Name + Phone */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Circle 
+                    className={`h-3 w-3 flex-shrink-0 ${
+                      isMissingZona(custodio.zona_base) 
+                        ? 'fill-destructive text-destructive' 
+                        : 'fill-success text-success'
+                    }`} 
+                  />
+                  <div className="min-w-0">
+                    <div className="font-medium truncate text-foreground">{custodio.nombre}</div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
                         {custodio.telefono || '-'}
-                      </td>
-                      <td className="p-3">
-                        {!custodio.zona_base || custodio.zona_base === 'Por asignar' ? (
-                          <Badge variant="destructive" className="text-xs">
-                            Sin asignar
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">
-                            {custodio.zona_base}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <Select
-                          value={custodio.zona_base || ''}
-                          onValueChange={(value) => handleZonaChange(custodio.id, value)}
-                          disabled={updatingIds.has(custodio.id)}
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Seleccionar zona" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ZONAS_DISPONIBLES.map((zona) => (
-                              <SelectItem key={zona.value} value={zona.value}>
-                                {zona.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                      <td className="p-3 text-center">
-                        {custodio.tipo_ultimo_servicio ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Badge 
-                              variant={custodio.tipo_ultimo_servicio === 'local' ? 'secondary' : 'default'}
-                              className="text-xs"
-                            >
-                              {custodio.tipo_ultimo_servicio === 'local' ? '🏠' : '✈️'}
-                              {custodio.tipo_ultimo_servicio === 'local' 
-                                ? `L×${custodio.contador_locales_consecutivos}` 
-                                : `F×${custodio.contador_foraneos_consecutivos}`}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredCustodios.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                        No se encontraron custodios
-                      </td>
-                    </tr>
+                      </span>
+                      <span className="capitalize">{custodio.disponibilidad}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Center: Current Zone */}
+                <div className="flex-shrink-0 w-28">
+                  {isMissingZona(custodio.zona_base) ? (
+                    <ZoneStatusIndicator status="missing" label="Sin asignar" />
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      {custodio.zona_base}
+                    </Badge>
                   )}
-                </tbody>
-              </table>
-            </div>
+                </div>
+
+                {/* Right: Zone Selector + Rotation */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <Select
+                    value={custodio.zona_base || ''}
+                    onValueChange={(value) => handleZonaChange(custodio.id, value)}
+                    disabled={updatingIds.has(custodio.id)}
+                  >
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="Seleccionar zona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ZONAS_DISPONIBLES.map((zona) => (
+                        <SelectItem key={zona.value} value={zona.value}>
+                          {zona.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Rotation Badge */}
+                  <div className="w-16 text-center">
+                    {custodio.tipo_ultimo_servicio ? (
+                      <Badge 
+                        variant={custodio.tipo_ultimo_servicio === 'local' ? 'secondary' : 'default'}
+                        className="text-xs gap-1"
+                      >
+                        {custodio.tipo_ultimo_servicio === 'local' 
+                          ? <><Home className="h-3 w-3" /> L×{custodio.contador_locales_consecutivos}</>
+                          : <><Plane className="h-3 w-3" /> F×{custodio.contador_foraneos_consecutivos}</>
+                        }
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {filteredCustodios.length === 0 && (
+              <div className="apple-empty-state">
+                <p className="text-muted-foreground">No se encontraron custodios</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
