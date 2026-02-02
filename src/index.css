@@ -1078,3 +1078,59 @@
     font-size: 9pt !important;
   }
 }
+
+/* ===== Dashboard Operacional - Fase 1 & 2 Mejoras ===== */
+
+/* Grid mejorado para hero metrics con jerarquía visual */
+.apple-metrics-hero {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .apple-metrics-hero {
+    grid-template-columns: 2fr repeat(4, 1fr);
+    grid-template-rows: auto auto;
+  }
+  
+  .apple-metrics-hero > :first-child {
+    grid-row: span 2;
+  }
+}
+
+/* Card destacada - Sin Asignar (crítico) */
+.apple-metric-featured {
+  @apply rounded-xl p-6;
+  background: hsl(var(--destructive) / 0.05);
+  border: 2px solid hsl(var(--destructive) / 0.2);
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+.dark .apple-metric-featured {
+  background: hsl(var(--destructive) / 0.1);
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
+/* Card éxito - Todo asignado */
+.apple-metric-success-hero {
+  @apply rounded-xl p-6;
+  background: hsl(var(--success) / 0.05);
+  border: 2px solid hsl(var(--success) / 0.2);
+}
+
+.dark .apple-metric-success-hero {
+  background: hsl(var(--success) / 0.1);
+  border-color: hsl(var(--success) / 0.3);
+}
+
+/* Animación de pulso sutil */
+@keyframes pulse-subtle {
+  0%, 100% { 
+    opacity: 1;
+    border-color: hsl(var(--destructive) / 0.2);
+  }
+  50% { 
+    opacity: 0.95;
+    border-color: hsl(var(--destructive) / 0.35);
+  }
+}
