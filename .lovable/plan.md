@@ -1,115 +1,159 @@
 
-# Plan: Corrección de Políticas RLS para Creación de Clientes
+# Plan: Contador de Servicios Pendientes de Folio en Acciones Prioritarias
 
-## Diagnóstico
+## Contexto del Problema
 
-### Causa Raíz Identificada
-La función `es_planificador()` tiene una lista de roles **inconsistente** con el resto del sistema:
+El equipo de planeación necesita visibilidad de cuántos servicios tienen **folio temporal** (generado por el sistema) vs **folio de Saphiro** (sistema de facturación externo). Esto les permite identificar rápidamente qué servicios necesitan sincronizarse con Saphiro.
 
-| Tabla | Política INSERT | Roles Permitidos |
-|-------|-----------------|------------------|
-| `pc_clientes` | `es_planificador()` | admin, owner, **planificador** |
-| `matriz_precios_rutas` | Inline check | admin, owner, supply_admin, **coordinador_operaciones**, **planificador** |
+### Lógica de Identificación
 
-**Resultado**: Coordinadores operativos pueden crear rutas pero NO clientes.
+| Tipo de Folio | Característica | Ejemplo |
+|---------------|----------------|---------|
+| **Temporal (Sistema)** | UUID de 36 caracteres | `d95a5571-3be0-42d8-9e93-6a14e74e8d73` |
+| **Saphiro (Facturación)** | Formato corto, alfanumérico | `257819890`, `LOERLLO-212` |
 
-### Error en Logs de Postgres
+### Datos Actuales (Consulta Real)
+- Servicios con folio temporal: **1,126**
+- Servicios con folio Saphiro: **789**
+
+---
+
+## Diseño Visual Propuesto
+
+Agregar una nueva tarjeta de métrica en la sección "Hero Metrics" del Dashboard Operacional:
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  DASHBOARD OPERACIONAL                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐         │
+│  │ Servicios│ │Custodios │ │Sin       │ │Por Vencer│ │Pendientes│ ← NUEVA │
+│  │   Hoy    │ │Disponibles││ Asignar  │ │  (4h)    │ │de Folio  │         │
+│  │    12    │ │    8     │ │    3     │ │    2     │ │   1126   │         │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘         │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
-"new row violates row-level security policy for table 'pc_clientes'"
+
+**Color de la tarjeta**: Azul (`apple-metric-info`) para indicar tarea administrativa pendiente, no crítica.
+
+---
+
+## Cambios Técnicos
+
+### 1. Crear Hook `usePendingFolioCount.ts`
+
+```typescript
+// src/hooks/usePendingFolioCount.ts
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface PendingFolioStats {
+  pendientes: number;
+  total: number;
+  porcentajePendiente: number;
+}
+
+export const usePendingFolioCount = () => {
+  return useQuery({
+    queryKey: ['pending-folio-count'],
+    queryFn: async (): Promise<PendingFolioStats> => {
+      // Contar servicios con folio temporal (UUID = 36 caracteres)
+      // vs folio de Saphiro (cualquier otro formato)
+      const { data, error } = await supabase
+        .from('servicios_planificados')
+        .select('id_servicio')
+        .not('estado_planeacion', 'in', '(cancelado,completado)');
+      
+      if (error) throw error;
+      
+      const servicios = data || [];
+      const pendientes = servicios.filter(s => 
+        s.id_servicio && s.id_servicio.length === 36
+      ).length;
+      
+      return {
+        pendientes,
+        total: servicios.length,
+        porcentajePendiente: servicios.length > 0 
+          ? Math.round((pendientes / servicios.length) * 100) 
+          : 0
+      };
+    },
+    staleTime: 60000, // 1 minuto de cache
+    refetchInterval: 60000, // Actualizar cada minuto
+  });
+};
+```
+
+### 2. Modificar `OperationalDashboard.tsx`
+
+Agregar el import del nuevo hook y la tarjeta en el grid de métricas:
+
+```typescript
+// Import
+import { usePendingFolioCount } from '@/hooks/usePendingFolioCount';
+import { FileText } from 'lucide-react';
+
+// En el componente
+const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
+
+// Nueva tarjeta después de "Por Vencer"
+<div className="apple-metric apple-metric-info">
+  <div className="apple-metric-icon">
+    <FileText className="h-6 w-6" />
+  </div>
+  <div className="apple-metric-content">
+    <div className="apple-metric-value">
+      {loadingFolio ? '...' : folioStats?.pendientes || 0}
+    </div>
+    <div className="apple-metric-label">Pendientes de Folio</div>
+  </div>
+</div>
+```
+
+### 3. (Opcional) Agregar Tooltip con Detalle
+
+```typescript
+<Tooltip>
+  <TooltipTrigger>
+    {/* ... tarjeta ... */}
+  </TooltipTrigger>
+  <TooltipContent>
+    <p>Servicios con folio temporal del sistema</p>
+    <p className="text-xs text-muted-foreground">
+      {folioStats?.porcentajePendiente}% del total requiere folio de Saphiro
+    </p>
+  </TooltipContent>
+</Tooltip>
 ```
 
 ---
 
-## Solución
+## Archivos a Crear/Modificar
 
-### Opción A: Actualizar la función `es_planificador()` (Recomendada)
-
-Agregar `coordinador_operaciones` y `supply_admin` a la función para mantener consistencia:
-
-```sql
-CREATE OR REPLACE FUNCTION es_planificador()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid() 
-    AND role IN (
-      'admin', 
-      'owner', 
-      'planificador',
-      'coordinador_operaciones',  -- NUEVO
-      'supply_admin'              -- NUEVO
-    )
-    AND (is_active IS NULL OR is_active = true)  -- Agregar check de activo
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-### Opción B: Actualizar la política RLS directamente
-
-Reemplazar la política de INSERT de `pc_clientes` con una inline check consistente:
-
-```sql
-DROP POLICY IF EXISTS pc_clientes_insert ON pc_clientes;
-
-CREATE POLICY pc_clientes_insert ON pc_clientes
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_roles.user_id = auth.uid()
-    AND user_roles.role IN ('admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'planificador')
-    AND (user_roles.is_active IS NULL OR user_roles.is_active = true)
-  )
-);
-```
+| Archivo | Acción |
+|---------|--------|
+| `src/hooks/usePendingFolioCount.ts` | **Crear** - Hook para obtener estadísticas |
+| `src/pages/Planeacion/components/OperationalDashboard.tsx` | **Modificar** - Agregar nueva métrica |
 
 ---
 
-## Implementación
+## Consideraciones Adicionales
 
-Se creará una migración SQL que:
+### Filtros Opcionales (Futuro)
+- Filtrar solo servicios de los últimos 30 días
+- Filtrar por estado específico (solo `asignado` o `confirmado`)
+- Agregar click en la tarjeta para navegar a lista filtrada
 
-1. **Actualiza la función `es_planificador()`** para incluir los roles faltantes
-2. **Agrega validación de `is_active`** para mayor seguridad
-3. Las políticas que usan esta función (`pc_clientes_insert`, `pc_clientes_update`) heredarán automáticamente los nuevos permisos
-
-### Archivo a Crear
-
-`supabase/migrations/add_coordinador_to_es_planificador.sql`
-
-```sql
--- Actualizar función es_planificador para incluir coordinador_operaciones
-CREATE OR REPLACE FUNCTION public.es_planificador()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = auth.uid() 
-    AND role IN ('admin', 'owner', 'planificador', 'coordinador_operaciones', 'supply_admin')
-    AND (is_active IS NULL OR is_active = true)
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-```
+### Performance
+- Query ligera: solo selecciona `id_servicio`
+- Cache de 1 minuto para evitar consultas excesivas
+- No bloquea el render inicial del dashboard
 
 ---
 
-## Impacto
+## Beneficios
 
-| Aspecto | Evaluación |
-|---------|------------|
-| **Riesgo** | Bajo - Solo expande permisos a roles que ya tienen acceso a rutas |
-| **Rollback** | Fácil - Revertir la función a su estado anterior |
-| **Dependencias** | La función es usada por 2 políticas de `pc_clientes` (INSERT y UPDATE) |
-
----
-
-## Resultado Esperado
-
-Después de la migración:
-- ✅ Coordinadores operativos podrán crear clientes nuevos
-- ✅ Planificadores mantendrán sus permisos actuales
-- ✅ El flujo de creación de servicio con cliente nuevo funcionará correctamente
+- **Visibilidad inmediata**: El equipo ve de un vistazo cuántos servicios necesitan sincronización
+- **No invasivo**: Nueva métrica se integra con el diseño existente
+- **Actionable**: Permite priorizar la captura de folios de Saphiro
