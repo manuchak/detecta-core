@@ -2,9 +2,10 @@
  * CustodianCard - Memoized card for performance
  * OPTIMIZED: Removed per-card vehicle fetch, uses pre-fetched data
  * ENHANCED: Added rejection persistence, service history display, and Lucide icons
+ * FIX: Added isMounted guard for animation to prevent memory leak
  */
 
-import { memo, useRef } from 'react';
+import { memo, useRef, useEffect, useCallback } from 'react';
 import { 
   Phone, 
   MessageCircle, 
@@ -51,6 +52,14 @@ function CustodianCardComponent({
   style,
 }: CustodianCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
+  
+  // Track mount state to prevent memory leak
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+  
   const hasAccepted = comunicacion?.status === 'acepta';
   const hasRejected = comunicacion?.status === 'rechaza';
   const isContacted = comunicacion && comunicacion.status !== 'pending';
@@ -108,15 +117,17 @@ function CustodianCardComponent({
     ? new Date(custodio.ultima_actividad).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
     : null;
 
-  // Animated rejection handler
-  const handleRejectWithAnimation = async () => {
+  // Animated rejection handler with mount guard to prevent memory leak
+  const handleRejectWithAnimation = useCallback(async () => {
     if (cardRef.current) {
       cardRef.current.classList.add('animate-fade-out-left');
       await new Promise(resolve => setTimeout(resolve, 300));
     }
-    onReportRejection?.();
-  };
-
+    // Only call callback if still mounted
+    if (isMountedRef.current) {
+      onReportRejection?.();
+    }
+  }, [onReportRejection]);
   return (
     <div style={style}>
       <div
