@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { RequestCreationWorkflow } from './components/RequestCreationWorkflow';
 import { OperationalDashboard } from './components/OperationalDashboard';
 import { ComodatosGPSTab } from './components/ComodatosGPSTab';
-import { PlanningConfigurationTab } from './components/PlanningConfigurationTab';
+import { PlanningConfigurationTab } from './components/configuration/PlanningConfigurationTab';
 import { ScheduledServicesTab } from './components/ScheduledServicesTabSimple';
 import { ServiceQueryTab } from './components/ServiceQueryTab';
 import { AdminPerformanceTab } from './components/AdminPerformanceTab';
