@@ -15,6 +15,7 @@ import { es } from 'date-fns/locale';
 import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
 import { useServiciosAyer } from '@/hooks/useServiciosAyer';
 import { usePendingFolioCount } from '@/hooks/usePendingFolioCount';
+import { useCustodiosActivos30d } from '@/hooks/useCustodiosActivos30d';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { TrendBadge } from '@/components/planeacion/TrendBadge';
@@ -30,6 +31,7 @@ export function OperationalDashboard() {
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
   const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
   const { data: datosAyer } = useServiciosAyer();
+  const { data: custodiosActivos, isLoading: loadingActivos } = useCustodiosActivos30d();
 
   // Update time every second - with dialog protection
   useEffect(() => {
@@ -66,10 +68,6 @@ export function OperationalDashboard() {
   // Métricas derivadas - Fase 1 & 2
   const porcentajeAsignacion = serviciosHoy.length > 0
     ? Math.round((serviciosAsignados.length / serviciosHoy.length) * 100)
-    : 100;
-
-  const ratioCobertura = serviciosHoy.length > 0 
-    ? Math.round((custodiosDisponibles.length / serviciosHoy.length) * 100)
     : 100;
 
   // Ordenar por urgencia (tiempo restante) - Fase 1
@@ -203,20 +201,30 @@ export function OperationalDashboard() {
           </div>
         </div>
 
-        <div className="apple-metric apple-metric-success">
-          <div className="apple-metric-icon">
-            <Users className="h-6 w-6" />
-          </div>
-          <div className="apple-metric-content">
-            <div className="apple-metric-value">
-              {isLoading ? '...' : ratioCobertura}%
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="apple-metric apple-metric-success cursor-help">
+              <div className="apple-metric-icon">
+                <Users className="h-6 w-6" />
+              </div>
+              <div className="apple-metric-content">
+                <div className="apple-metric-value">
+                  {loadingActivos ? '...' : custodiosActivos?.activos || 0}
+                </div>
+                <div className="apple-metric-label">Custodios Activos</div>
+                <span className="text-xs text-muted-foreground">
+                  últimos 30 días
+                </span>
+              </div>
             </div>
-            <div className="apple-metric-label">Ratio Cobertura</div>
-            <span className="text-xs text-muted-foreground">
-              {custodiosDisponibles.length} / {serviciosHoy.length || 1}
-            </span>
-          </div>
-        </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Custodios distintos con servicios asignados</p>
+            <p className="text-xs text-muted-foreground">
+              {custodiosActivos?.activos || 0} de {custodiosActivos?.totalPool || 0} del pool total
+            </p>
+          </TooltipContent>
+        </Tooltip>
 
         <div className="apple-metric apple-metric-warning">
           <div className="apple-metric-icon">
