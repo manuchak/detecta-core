@@ -1,348 +1,248 @@
 
-# Plan: Mejoras de Fase 1 y 2 - Dashboard Operacional
+# Plan de Mejoras UX - Dashboard de Planeación
+## Análisis de User Persona: Planificador/Coordinador
 
-## Resumen de Cambios
+### Resumen de Hallazgos del Feedback
 
-### Fase 1: Jerarquía Visual y Quick Wins
-1. **Prominencia de "Sin Asignar"** - Card más grande con animación de pulso si > 0
-2. **Ratio de Cobertura** - Nueva métrica: "Custodios / Servicios = X%"
-3. **Ordenamiento por Urgencia** - Acciones prioritarias ordenadas por tiempo restante
-4. **Eliminar Redundancia** - Unificar alerta crítica con card de "Sin Asignar"
-
-### Fase 2: Contexto y Progreso
-1. **Anillo de Progreso** - Visualizar % de asignaciones completadas
-2. **Comparativa Temporal** - "+2 vs ayer" en métricas clave
-3. **Indicador de Tendencia** - Flecha ↑↓ en métricas
+| Problema Reportado | Causa Raíz Identificada | Impacto |
+|---|---|---|
+| "Me tardé bastante en asignar" | Flujo de asignación con muchos pasos, sin atajos | 🔴 Alto |
+| "No hay control por fechas/servicios por mes" | CustodianCard no muestra historial | 🔴 Alto |
+| "No hay control local vs foráneo" | Sin campo/rotación de tipo de servicio | 🟡 Medio |
+| "Rechazos siguen apareciendo" | Estado de rechazo solo en sesión, no persiste | 🔴 Alto |
+| "Listado aparece los mismos" | Factor Gini existe pero no es visible | 🟡 Medio |
+| "Indicador Gini no claro" | Sin badges de sub/sobre-favorecido | 🟡 Medio |
+| "Armados no se visualizan" | Bug: filtro 90 días no actualiza lista | 🔴 Alto |
+| "Zonas base incorrectas (GDL→CDMX)" | Problema de calidad de datos | 🟡 Medio |
 
 ---
 
-## Cambios Técnicos Detallados
+## Epic 1: Visibilidad del Historial de Servicios
+**User Story**: Como planificador, quiero ver cuántos servicios ha hecho un custodio recientemente para tomar decisiones informadas.
 
-### 1. Nuevo Hook: `useServiciosAyer.ts`
-Para comparativas temporales, necesitamos datos del día anterior:
+### Tareas Técnicas
 
+#### 1.1 Agregar métricas a CustodianCard
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianCard.tsx`
+
+Agregar sección de métricas visibles:
+```text
+┌─────────────────────────────────────────────┐
+│  Juan Pérez                    🟢 85% comp. │
+│  📞 55-1234-5678              🚗 Sedán      │
+├─────────────────────────────────────────────┤
+│  📊 Últimos 30d:  12 servicios             │
+│  📅 Último: 28 Ene   🏷️ Sub-favorecido    │
+└─────────────────────────────────────────────┘
+```
+
+#### 1.2 Modificar RPC `get_custodios_activos_disponibles`
+Agregar campos:
+- `servicios_30d` (COUNT de últimos 30 días)
+- `servicios_mes_actual` (COUNT mes en curso)
+- `fecha_ultimo_servicio` (ya existe en tabla)
+- `categoria_workload` ('sub_favorecido' | 'normal' | 'sobre_favorecido')
+
+---
+
+## Epic 2: Persistencia de Rechazos
+**User Story**: Como planificador, cuando un custodio rechaza un servicio, no quiero verlo en la lista por un período configurable.
+
+### Tareas Técnicas
+
+#### 2.1 Crear tabla `custodio_rechazos`
+```sql
+CREATE TABLE custodio_rechazos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  custodio_id UUID REFERENCES custodios_operativos(id),
+  servicio_id UUID REFERENCES servicios_planificados(id),
+  fecha_rechazo TIMESTAMPTZ DEFAULT NOW(),
+  motivo TEXT,
+  reportado_por UUID REFERENCES auth.users(id),
+  vigencia_hasta TIMESTAMPTZ DEFAULT NOW() + INTERVAL '7 days'
+);
+```
+
+#### 2.2 Modificar lógica de filtrado
+**Archivo**: `src/hooks/useProximidadOperacional.ts`
+
+En el RPC o query, excluir custodios con rechazos vigentes:
+```sql
+WHERE c.id NOT IN (
+  SELECT custodio_id FROM custodio_rechazos 
+  WHERE vigencia_hasta > NOW()
+)
+```
+
+#### 2.3 UI: Botón "Reportar Rechazo"
+En `CustodianCard.tsx`, cuando el estado es `rechaza`, guardar en BD:
 ```typescript
-// src/hooks/useServiciosAyer.ts
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { format, subDays } from 'date-fns';
-
-export const useServiciosAyer = () => {
-  return useQuery({
-    queryKey: ['servicios-ayer'],
-    queryFn: async () => {
-      const ayer = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-      
-      const { data, error } = await supabase
-        .from('servicios_planificados')
-        .select('id, custodio_asignado')
-        .gte('fecha_hora_cita', `${ayer}T00:00:00`)
-        .lt('fecha_hora_cita', `${ayer}T23:59:59`)
-        .not('estado_planeacion', 'in', '(cancelado,completado)');
-      
-      if (error) throw error;
-      
-      const total = data?.length || 0;
-      const sinAsignar = data?.filter(s => !s.custodio_asignado).length || 0;
-      
-      return { total, sinAsignar };
-    },
-    staleTime: 300000, // 5 min cache - datos históricos
+const handleRejection = async () => {
+  await supabase.from('custodio_rechazos').insert({
+    custodio_id: custodio.id,
+    servicio_id: servicioActual?.id,
+    motivo: 'Rechazó durante asignación'
   });
+  // Refetch para remover de lista
 };
 ```
 
-### 2. Componente: `CoverageRing.tsx`
-Anillo de progreso SVG para visualizar cobertura:
+---
+
+## Epic 3: Visualización del Factor Gini
+**User Story**: Como planificador, quiero ver claramente quién está sub-favorecido para equilibrar las asignaciones.
+
+### Tareas Técnicas
+
+#### 3.1 Badge de Equidad en CustodianCard
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianCard.tsx`
 
 ```typescript
-// src/components/planeacion/CoverageRing.tsx
-interface CoverageRingProps {
-  percentage: number;
-  size?: number;
-  strokeWidth?: number;
-}
-
-export function CoverageRing({ percentage, size = 80, strokeWidth = 8 }: CoverageRingProps) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
-  
-  const getColor = () => {
-    if (percentage >= 100) return 'text-green-500';
-    if (percentage >= 80) return 'text-blue-500';
-    if (percentage >= 50) return 'text-yellow-500';
-    return 'text-red-500';
-  };
-  
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <svg className="transform -rotate-90" width={size} height={size}>
-        {/* Background circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          className="stroke-muted"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {/* Progress circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          className={`${getColor()} transition-all duration-500`}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          stroke="currentColor"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold">{percentage}%</span>
-      </div>
-    </div>
-  );
-}
-```
-
-### 3. Componente: `TrendBadge.tsx`
-Badge de comparativa temporal:
-
-```typescript
-// src/components/planeacion/TrendBadge.tsx
-import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
-
-interface TrendBadgeProps {
-  current: number;
-  previous: number;
-  invertColors?: boolean; // true para métricas donde menos es mejor
-}
-
-export function TrendBadge({ current, previous, invertColors = false }: TrendBadgeProps) {
-  const diff = current - previous;
-  
-  if (diff === 0) {
-    return (
-      <span className="inline-flex items-center text-xs text-muted-foreground">
-        <Minus className="h-3 w-3 mr-0.5" />
-        vs ayer
-      </span>
-    );
+// Usar datos_equidad del custodio
+const getEquidadBadge = () => {
+  if (custodio.datos_equidad?.workload_index < 0.7) {
+    return <Badge variant="success">🎯 Priorizar</Badge>;
   }
-  
-  const isPositive = diff > 0;
-  // Invertir colores para métricas donde menos es mejor (ej: sin asignar)
-  const isGood = invertColors ? !isPositive : isPositive;
-  
-  return (
-    <span className={`inline-flex items-center text-xs font-medium ${
-      isGood ? 'text-green-600' : 'text-red-600'
-    }`}>
-      {isPositive ? (
-        <ArrowUp className="h-3 w-3 mr-0.5" />
-      ) : (
-        <ArrowDown className="h-3 w-3 mr-0.5" />
-      )}
-      {Math.abs(diff)} vs ayer
-    </span>
-  );
-}
+  if (custodio.datos_equidad?.workload_index > 1.3) {
+    return <Badge variant="warning">⚠️ Alta carga</Badge>;
+  }
+  return null;
+};
 ```
 
-### 4. Modificar `OperationalDashboard.tsx`
+#### 3.2 Filtro rápido "Ver Sub-favorecidos"
+**Archivo**: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx`
 
-#### A) Imports y Hooks
+Agregar toggle:
 ```typescript
-import { useServiciosAyer } from '@/hooks/useServiciosAyer';
-import { CoverageRing } from '@/components/planeacion/CoverageRing';
-import { TrendBadge } from '@/components/planeacion/TrendBadge';
-
-// En el componente
-const { data: datosAyer } = useServiciosAyer();
+<Button 
+  variant={showSubFavorecidos ? 'default' : 'outline'}
+  onClick={() => setShowSubFavorecidos(!showSubFavorecidos)}
+>
+  🎯 Mostrar sub-favorecidos primero
+</Button>
 ```
 
-#### B) Calcular métricas derivadas
+---
+
+## Epic 4: Fix Bug de Armados
+**User Story**: Como planificador, quiero ver todos los armados disponibles sin importar el filtro de 90 días.
+
+### Tareas Técnicas
+
+#### 4.1 Corregir desconexión de filtros
+**Archivo**: `src/components/planeacion/SimplifiedArmedAssignment.tsx`
+
+Problema: `soloConActividad90Dias` en `serviceContext` (línea 86) es estático y no responde al toggle de UI.
+
+Solución:
 ```typescript
-// Ratio de cobertura
-const ratioCobertura = serviciosHoy.length > 0 
-  ? Math.round((custodiosDisponibles.length / serviciosHoy.length) * 100)
-  : 100;
+// Conectar el estado del filtro con el fetch
+const { filterConfig, updateFilter } = useArmedGuardFilters();
 
-// Porcentaje de asignación
-const serviciosAsignados = serviciosHoy.filter(s => s.custodio_asignado).length;
-const porcentajeAsignacion = serviciosHoy.length > 0
-  ? Math.round((serviciosAsignados / serviciosHoy.length) * 100)
-  : 0;
-
-// Ordenar por urgencia (tiempo restante)
-const accionesPrioritarias = [...serviciosSinCustodio].sort((a, b) => {
-  if (!a.fecha_hora_cita) return 1;
-  if (!b.fecha_hora_cita) return -1;
-  return new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime();
-});
+const serviceContext = useMemo(() => ({
+  ...contextBase,
+  soloConActividad90Dias: filterConfig.soloConActividad90Dias
+}), [contextBase, filterConfig.soloConActividad90Dias]);
 ```
 
-#### C) Nuevo Layout de Métricas
-Eliminar alerta redundante y reorganizar cards:
-
-```text
-┌────────────────────────────────────────────────────────────────────────────────────┐
-│  HERO METRICS (Nueva estructura)                                                   │
-├────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                    │
-│  ┌──────────────────────────┐  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐       │
-│  │  🔴 SIN ASIGNAR          │  │Servicios│ │Cobertura│ │Por     │ │Pend.   │       │
-│  │      3                   │  │  Hoy    │ │  67%    │ │Vencer  │ │Folio   │       │
-│  │  ↑2 vs ayer              │  │   12    │ │ [Ring]  │ │   2    │ │   5    │       │
-│  │  [Asignar Todos]         │  │ +2 ayer │ │ 8/12    │ │        │ │        │       │
-│  └──────────────────────────┘  └────────┘ └────────┘ └────────┘ └────────┘       │
-│         DESTACADO                        MÉTRICAS SECUNDARIAS                     │
-└────────────────────────────────────────────────────────────────────────────────────┘
+#### 4.2 Agregar botón "Mostrar Todos"
+```typescript
+<Button 
+  variant="ghost" 
+  onClick={() => updateFilter({ soloConActividad90Dias: false })}
+>
+  👁️ Mostrar todos los armados
+</Button>
 ```
 
-#### D) Card "Sin Asignar" Destacada
-```jsx
-{/* Card Principal - Sin Asignar (con jerarquía visual) */}
-{serviciosSinCustodio.length > 0 && (
-  <div className="apple-metric-featured animate-pulse-subtle">
-    <div className="flex items-start justify-between">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <AlertCircle className="h-6 w-6 text-red-500" />
-          <span className="text-sm font-medium text-red-600">Requiere Acción</span>
-        </div>
-        <div className="text-5xl font-bold text-red-600 mb-2">
-          {serviciosSinCustodio.length}
-        </div>
-        <div className="text-sm text-muted-foreground mb-3">
-          Servicios Sin Asignar
-        </div>
-        {datosAyer && (
-          <TrendBadge 
-            current={serviciosSinCustodio.length} 
-            previous={datosAyer.sinAsignar}
-            invertColors={true}
-          />
-        )}
-      </div>
-      <CoverageRing percentage={porcentajeAsignacion} />
-    </div>
-    <Button className="w-full mt-4" variant="destructive">
-      Asignar Todos
-    </Button>
-  </div>
+---
+
+## Epic 5: Corrección de Zonas Base
+**User Story**: Como admin, quiero poder corregir zonas base incorrectas de forma masiva o individual.
+
+### Tareas Técnicas
+
+#### 5.1 Agregar columna editable en CustodiosTab
+**Archivo**: `src/pages/Planeacion/components/CustodiosTab.tsx`
+
+Agregar selector inline de zona_base:
+```typescript
+<Select 
+  value={custodio.zona_base}
+  onValueChange={(zona) => handleZonaChange(custodio.id, zona)}
+>
+  <SelectItem value="Ciudad de México">CDMX</SelectItem>
+  <SelectItem value="Jalisco">Guadalajara</SelectItem>
+  <SelectItem value="Nuevo León">Monterrey</SelectItem>
+  ...
+</Select>
+```
+
+#### 5.2 Alerta de calidad de datos
+Mostrar banner cuando hay custodios sin zona o con "Por asignar":
+```typescript
+{custodiosSinZona.length > 0 && (
+  <Alert variant="warning">
+    ⚠️ {custodiosSinZona.length} custodios sin zona base definida.
+    <Button onClick={openBulkEditor}>Corregir ahora</Button>
+  </Alert>
 )}
 ```
 
-#### E) Métricas Secundarias con Trends
-```jsx
-<div className="apple-metric apple-metric-primary">
-  <div className="apple-metric-icon">
-    <Clock className="h-6 w-6" />
-  </div>
-  <div className="apple-metric-content">
-    <div className="apple-metric-value">{serviciosHoy.length}</div>
-    <div className="apple-metric-label">Servicios Hoy</div>
-    {datosAyer && (
-      <TrendBadge current={serviciosHoy.length} previous={datosAyer.total} />
-    )}
-  </div>
-</div>
+---
 
-<div className="apple-metric apple-metric-success">
-  <div className="apple-metric-icon">
-    <Users className="h-6 w-6" />
-  </div>
-  <div className="apple-metric-content">
-    <div className="apple-metric-value">{ratioCobertura}%</div>
-    <div className="apple-metric-label">Ratio Cobertura</div>
-    <span className="text-xs text-muted-foreground">
-      {custodiosDisponibles.length} / {serviciosHoy.length}
-    </span>
-  </div>
-</div>
-```
+## Epic 6: Control Local vs Foráneo (Fase 2)
+**User Story**: Como planificador, quiero rotar custodios entre servicios locales y foráneos para balance.
 
-### 5. Nuevos Estilos CSS
-```css
-/* Card destacada con animación sutil */
-.apple-metric-featured {
-  @apply bg-red-50 border-2 border-red-200 rounded-xl p-6 col-span-1 md:col-span-2 
-         dark:bg-red-950/30 dark:border-red-800/50;
-}
+### Tareas Técnicas
 
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
-}
+#### 6.1 Agregar campo `tipo_ultimo_servicio`
+En `custodios_operativos`:
+- `tipo_ultimo_servicio`: 'local' | 'foraneo' | null
+- `contador_locales_consecutivos`: INTEGER
+- `contador_foraneos_consecutivos`: INTEGER
 
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s ease-in-out infinite;
-}
-
-/* Grid mejorado para hero metrics */
-.apple-metrics-hero {
-  @apply grid grid-cols-1 md:grid-cols-6 gap-4;
-}
-
-.apple-metrics-hero > :first-child {
-  @apply md:col-span-2 md:row-span-2;
+#### 6.2 Lógica de rotación en scoring
+```typescript
+// En calcularProximidadOperacional
+if (custodio.tipo_ultimo_servicio === 'local' && servicioNuevo.es_foraneo) {
+  score += 10; // Bonus por rotación
 }
 ```
 
 ---
 
-## Archivos a Crear/Modificar
+## Priorización Sugerida
 
-| Archivo | Acción |
-|---------|--------|
-| `src/hooks/useServiciosAyer.ts` | **Crear** - Datos comparativos |
-| `src/components/planeacion/CoverageRing.tsx` | **Crear** - Anillo de progreso |
-| `src/components/planeacion/TrendBadge.tsx` | **Crear** - Badge de tendencia |
-| `src/pages/Planeacion/components/OperationalDashboard.tsx` | **Modificar** - Integrar mejoras |
-| `src/index.css` | **Modificar** - Nuevos estilos |
-
----
-
-## Beneficios Esperados
-
-| Mejora | Impacto |
-|--------|---------|
-| Card "Sin Asignar" destacada | Atención inmediata a lo crítico |
-| Anillo de Progreso | Gamificación de asignaciones |
-| Comparativa vs Ayer | Contexto para decisiones |
-| Ratio de Cobertura | Visibilidad de capacidad |
-| Ordenamiento por urgencia | Priorización clara |
+| Epic | Esfuerzo | Impacto | Prioridad |
+|------|----------|---------|-----------|
+| Epic 4: Fix Bug Armados | Bajo | Alto | 🔴 P0 - Inmediato |
+| Epic 2: Persistencia Rechazos | Medio | Alto | 🔴 P1 - Esta semana |
+| Epic 1: Historial en Card | Medio | Alto | 🟡 P2 - Próxima semana |
+| Epic 3: Badges Gini | Bajo | Medio | 🟡 P2 - Próxima semana |
+| Epic 5: Corrección Zonas | Bajo | Medio | 🟢 P3 - Siguiente sprint |
+| Epic 6: Local/Foráneo | Alto | Medio | 🟢 P4 - Backlog |
 
 ---
 
-## Vista Previa del Resultado
+## Métricas de Éxito
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Dashboard Operacional                          Lunes, 03 Feb 2025 • 10:45  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌────────────────────────────┐  ┌───────────┐ ┌───────────┐ ┌───────────┐ │
-│  │ ⚠️ REQUIERE ACCIÓN         │  │ Servicios │ │  Ratio    │ │ Por Vencer│ │
-│  │                            │  │   Hoy     │ │ Cobertura │ │   (4h)    │ │
-│  │     3           [75%]     │  │    12     │ │   67%     │ │     2     │ │
-│  │  Sin Asignar    ◐         │  │  ↑2 ayer  │ │   8/12    │ │           │ │
-│  │  ↑2 vs ayer               │  └───────────┘ └───────────┘ └───────────┘ │
-│  │                            │  ┌───────────┐                             │
-│  │  [  Asignar Todos  ]      │  │ Pend.     │                             │
-│  └────────────────────────────┘  │ Folio: 5  │                             │
-│                                  └───────────┘                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Acciones Prioritarias (ordenadas por urgencia)                            │
-│  ┌─────────────────────────────────────────────────────────────────────────┤
-│  │ 🔴 Cliente ABC • CDMX→GDL • 11:00 (25 min)        [Asignar]            │
-│  │ 🟡 Cliente XYZ • MTY→QRO • 13:30 (2h 45min)       [Asignar]            │
-│  │ 🟢 Cliente 123 • PUE→LEO • 16:00 (5h 15min)       [Asignar]            │
-│  └─────────────────────────────────────────────────────────────────────────┤
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+1. **Tiempo de asignación**: Reducir de ~5 min a ~2 min por servicio
+2. **Rechazos duplicados**: Eliminar aparición de custodios que rechazaron en últimos 7 días
+3. **Visibilidad de armados**: 100% de armados activos visibles sin bugs de filtro
+4. **Índice Gini**: Mejorar distribución de servicios (target: Gini < 0.3)
+
+---
+
+## Archivos a Modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianCard.tsx` | Agregar métricas, badges de equidad |
+| `src/hooks/useProximidadOperacional.ts` | Filtrar rechazos, agregar datos de historial |
+| `src/components/planeacion/SimplifiedArmedAssignment.tsx` | Fix conexión de filtros |
+| `src/components/planeacion/ArmedGuardFilters.tsx` | Agregar "Mostrar todos" |
+| `src/pages/Planeacion/components/CustodiosTab.tsx` | Editor de zonas inline |
+| **Nueva migración SQL** | Tabla `custodio_rechazos` |
+| **Modificar RPC** | `get_custodios_activos_disponibles` con métricas |
