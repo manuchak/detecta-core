@@ -8,12 +8,15 @@ import {
   MapPin,
   TrendingUp,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
+import { usePendingFolioCount } from '@/hooks/usePendingFolioCount';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function OperationalDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
@@ -23,6 +26,7 @@ export function OperationalDashboard() {
   const { data: serviciosHoy = [], isLoading: loadingServicios } = useServiciosHoy();
   const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
+  const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
 
   // Update time every second - with dialog protection
   useEffect(() => {
@@ -133,6 +137,28 @@ export function OperationalDashboard() {
             <div className="apple-metric-label">Por Vencer (4h)</div>
           </div>
         </div>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="apple-metric apple-metric-info cursor-help">
+              <div className="apple-metric-icon">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div className="apple-metric-content">
+                <div className="apple-metric-value">
+                  {loadingFolio ? '...' : folioStats?.pendientes || 0}
+                </div>
+                <div className="apple-metric-label">Pendientes de Folio</div>
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Servicios con folio temporal del sistema</p>
+            <p className="text-xs text-muted-foreground">
+              {folioStats?.porcentajePendiente || 0}% del total requiere folio de Saphiro
+            </p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Priority Actions */}
