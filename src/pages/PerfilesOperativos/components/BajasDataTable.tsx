@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -18,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, UserX, Eye, Shield, User } from 'lucide-react';
+import { Search, UserX, Eye, Shield, User, RefreshCw } from 'lucide-react';
 import { BajaDetailsDialog } from './BajaDetailsDialog';
+import { ReactivacionMasivaModal } from './ReactivacionMasivaModal';
 import type { BajaProfile } from '../hooks/useOperativeProfiles';
 
 interface BajasDataTableProps {
@@ -38,12 +41,14 @@ const MOTIVO_LABELS: Record<string, string> = {
   'Dado de baja por inactividad': 'Inactividad',
 };
 
-export function BajasDataTable({ data }: BajasDataTableProps) {
+export function BajasDataTable({ data, onRefresh }: BajasDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [motivoFilter, setMotivoFilter] = useState<string>('todos');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
   const [selectedCustodio, setSelectedCustodio] = useState<BajaProfile | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [reactivacionModalOpen, setReactivacionModalOpen] = useState(false);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -71,10 +76,43 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
     return MOTIVO_LABELS[motivo] || motivo;
   };
 
+  const getUniqueKey = (profile: BajaProfile) => `${profile.tipo_personal}-${profile.id}`;
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredData.map(getUniqueKey)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (profile: BajaProfile, checked: boolean) => {
+    const key = getUniqueKey(profile);
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(key);
+    } else {
+      newSet.delete(key);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const selectedOperativos = useMemo(() => {
+    return filteredData.filter(p => selectedIds.has(getUniqueKey(p)));
+  }, [filteredData, selectedIds]);
+
+  const handleReactivacionSuccess = () => {
+    setSelectedIds(new Set());
+    onRefresh?.();
+  };
+
+  const allSelected = filteredData.length > 0 && filteredData.every(p => selectedIds.has(getUniqueKey(p)));
+  const someSelected = filteredData.some(p => selectedIds.has(getUniqueKey(p)));
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      {/* Filters and Actions */}
+      <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -113,6 +151,18 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
         <div className="text-sm text-muted-foreground flex items-center">
           {filteredData.length} de {data.length}
         </div>
+
+        {selectedIds.size > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setReactivacionModalOpen(true)}
+            className="gap-2 ml-auto"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reactivar ({selectedIds.size})
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -120,6 +170,14 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Seleccionar todos"
+                  className={someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                />
+              </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Zona</TableHead>
@@ -133,7 +191,7 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <UserX className="h-8 w-8" />
                     <span>No hay bajas registradas</span>
@@ -143,14 +201,22 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
             ) : (
               filteredData.map((profile) => (
                 <TableRow 
-                  key={`${profile.tipo_personal}-${profile.id}`}
+                  key={getUniqueKey(profile)}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => {
-                    setSelectedCustodio(profile);
-                    setDetailsOpen(true);
-                  }}
                 >
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedIds.has(getUniqueKey(profile))}
+                      onCheckedChange={(checked) => handleSelectOne(profile, checked as boolean)}
+                      aria-label={`Seleccionar ${profile.nombre}`}
+                    />
+                  </TableCell>
+                  <TableCell 
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <div>
                       <p className="font-medium">{profile.nombre}</p>
                       {profile.telefono && (
@@ -158,7 +224,12 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     {profile.tipo_personal === 'armado' ? (
                       <Badge variant="secondary" className="gap-1">
                         <Shield className="h-3 w-3" />
@@ -171,18 +242,38 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <span className="text-sm">{profile.zona_base || '-'}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <Badge variant="destructive">
                       Baja Definitiva
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <span className="text-sm">{formatMotivoLabel(profile.motivo_inactivacion)}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     {profile.fecha_inactivacion ? (
                       <span className="text-sm">
                         {format(new Date(profile.fecha_inactivacion), 'd MMM yyyy', { locale: es })}
@@ -191,10 +282,20 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <span className="text-sm font-medium">{profile.numero_servicios || 0}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    onClick={() => {
+                      setSelectedCustodio(profile);
+                      setDetailsOpen(true);
+                    }}
+                  >
                     <Eye className="h-4 w-4 text-muted-foreground" />
                   </TableCell>
                 </TableRow>
@@ -209,6 +310,15 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         custodio={selectedCustodio}
+        onReactivated={handleReactivacionSuccess}
+      />
+
+      {/* Mass Reactivation Modal */}
+      <ReactivacionMasivaModal
+        open={reactivacionModalOpen}
+        onOpenChange={setReactivacionModalOpen}
+        operativos={selectedOperativos}
+        onSuccess={handleReactivacionSuccess}
       />
     </div>
   );

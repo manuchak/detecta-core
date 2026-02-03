@@ -110,6 +110,7 @@ export function useCambioEstatusOperativo() {
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
       queryClient.invalidateQueries({ queryKey: ['armados'] });
       queryClient.invalidateQueries({ queryKey: ['operative-profile'] });
+      queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
       queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
 
       toast.success(
