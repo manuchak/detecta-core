@@ -63,10 +63,14 @@ export default function CustodianStep() {
   const queryableServicio = isReadyToQuery ? servicioNuevo : undefined;
   
   // Fetch custodians with proximity scoring (blocked until ready)
-  const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(
+  const { data: categorized, isLoading, isPending, error, refetch: refetchCustodians } = useCustodiosConProximidad(
     queryableServicio,
     { enabled: isReadyToQuery }
   );
+  
+  // Estado de carga real: loading o pending (sin datos aun)
+  // isPending es true cuando enabled=false o cuando no hay data todavia
+  const isLoadingOrPending = isLoading || isPending;
   
   // Filter custodians locally (instant) - also excludes rejected
   const filteredCustodians = useMemo(() => {
@@ -404,7 +408,7 @@ export default function CustodianStep() {
       )}
 
       {/* Quick Stats */}
-      <QuickStats categorized={categorized} isLoading={isLoading} />
+      <QuickStats categorized={categorized} isLoading={isLoadingOrPending} />
 
       {/* Search & Filters - Hide when custodian is selected */}
       {!state.selectedCustodianId && (
@@ -433,7 +437,7 @@ export default function CustodianStep() {
       )}
 
       {/* Diagnostic Alert - Shows when no custodians visible */}
-      {!state.selectedCustodianId && !isLoading && filteredCustodians.length === 0 && (
+      {!state.selectedCustodianId && !isLoadingOrPending && filteredCustodians.length === 0 && (
         <NoCustodiansAlert
           counts={custodianCounts}
           hasActiveFilters={hasActiveFilters}
@@ -441,14 +445,14 @@ export default function CustodianStep() {
           onResetFilters={resetFilters}
           onScrollToConflicts={scrollToConflicts}
           onRefetch={() => refetchCustodians()}
-          isLoading={isLoading}
+          isLoading={isLoadingOrPending}
         />
       )}
 
       {/* Custodian List - Auto-collapses when selection is made */}
       <CustodianList
         custodians={filteredCustodians}
-        isLoading={isLoading}
+        isLoading={isLoadingOrPending}
         selectedId={state.selectedCustodianId}
         highlightedIndex={state.highlightedIndex}
         comunicaciones={state.comunicaciones}
