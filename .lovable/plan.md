@@ -1,111 +1,134 @@
 
-# Plan: Mostrar Armados en Pestaña Bajas
+# Plan: Sistema de Reactivación y Rollback de Bajas
 
-## Diagnóstico
+## Problema Identificado
 
-**Problema:** La consulta `bajasQuery` en `useOperativeProfiles.ts` solo busca en `custodios_operativos`:
-```typescript
-.from('custodios_operativos')
-.eq('estado', 'inactivo')
-```
-
-**Datos en BD:**
-- Armados activos: 16
-- Armados inactivos: **69** (no se muestran)
+1. **Sin rollback**: No existe manera de reactivar operativos dados de baja por error
+2. **Caché**: Query con staleTime de 5 min puede mostrar datos desactualizados
+3. **Datos en BD**: 69 armados + 347 custodios = 416 bajas totales (pero UI puede estar cacheada)
 
 ## Solución
 
-Modificar el sistema para consultar bajas de ambas tablas y mostrarlas unificadas con un indicador de tipo.
+Agregar capacidad de reactivación individual y masiva desde la pestaña Bajas.
 
 ## Cambios Técnicos
 
-### 1. Actualizar Interface `BajaProfile`
+### 1. Modificar `BajaDetailsDialog.tsx`
 
-**Archivo:** `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts`
+Agregar botón "Reactivar" con confirmación:
 
-Agregar campo `tipo_personal` para distinguir custodios de armados:
+```text
+┌─────────────────────────────────────────┐
+│ Detalle de Baja: Juan Pérez             │
+├─────────────────────────────────────────┤
+│ Zona: CDMX Norte    Servicios: 45       │
+│ Fecha baja: 15 Ene 2026                 │
+│                                         │
+│ [Sanciones Aplicadas]                   │
+│ [Historial de Estatus]                  │
+│                                         │
+├─────────────────────────────────────────┤
+│ [Cancelar]          [🔄 Reactivar]      │
+└─────────────────────────────────────────┘
+```
+
+- Importar `useCambioEstatusOperativo`
+- Agregar estado para modal de confirmación
+- Formulario simple con motivo de reactivación
+- Llamar al hook con `tipoCambio: 'reactivacion'`
+
+### 2. Crear `ReactivacionMasivaModal.tsx`
+
+Para rollback de errores en bajas masivas:
+
+```text
+┌─────────────────────────────────────────┐
+│ ⚠️ Reactivar Operativos                 │
+├─────────────────────────────────────────┤
+│ Seleccionados: 5 operativos             │
+│                                         │
+│ ┌─────────────────────────────────────┐ │
+│ │ ☑ Juan Pérez (Custodio) - CDMX     │ │
+│ │ ☑ María López (Armado) - GDL       │ │
+│ │ ☑ ...                               │ │
+│ └─────────────────────────────────────┘ │
+│                                         │
+│ Motivo: [Rollback de baja por error]    │
+│                                         │
+├─────────────────────────────────────────┤
+│ [Cancelar]    [✓ Confirmar Reactivación]│
+└─────────────────────────────────────────┘
+```
+
+### 3. Crear `useReactivacionMasiva.ts`
+
+Hook para reactivar múltiples operativos:
 
 ```typescript
-export interface BajaProfile {
-  id: string;
-  nombre: string;
-  telefono: string | null;
-  zona_base: string | null;
-  estado: 'inactivo' | 'suspendido';
-  motivo_inactivacion: string | null;
-  tipo_inactivacion: 'temporal' | 'permanente' | null;
-  fecha_inactivacion: string | null;
-  fecha_reactivacion_programada: string | null;
-  numero_servicios: number | null;
-  rating_promedio: number | null;
-  tipo_personal: 'custodio' | 'armado';  // NUEVO
+interface ReactivacionMasivaParams {
+  operativos: Array<{
+    id: string;
+    tipo_personal: 'custodio' | 'armado';
+    nombre: string;
+  }>;
+  motivo: string;
+  notas?: string;
 }
 ```
 
-### 2. Modificar `bajasQuery` para incluir armados
+- Iterar sobre operativos y actualizar estado a 'activo'
+- Limpiar campos de inactivación
+- Registrar en historial con `tipo_cambio: 'reactivacion'`
+- Invalidar queries de ambas pestañas
 
-**Archivo:** `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts`
+### 4. Actualizar `BajasDataTable.tsx`
 
-Consultar ambas tablas y combinar resultados:
+Agregar selección múltiple y botón de reactivación masiva:
 
+- Agregar columna de checkbox
+- Estado para operativos seleccionados
+- Botón "Reactivar seleccionados" en header de filtros
+- Integrar con nuevo modal de reactivación masiva
+
+### 5. Corregir invalidación de queries
+
+En `useCambioEstatusOperativo.ts` agregar:
 ```typescript
-const bajasQuery = useQuery({
-  queryKey: ['operative-profiles', 'bajas'],
-  queryFn: async () => {
-    // Fetch custodios inactivos
-    const { data: custodios, error: errorCustodios } = await supabase
-      .from('custodios_operativos')
-      .select(`id, nombre, telefono, zona_base, estado, motivo_inactivacion, 
-               tipo_inactivacion, fecha_inactivacion, fecha_reactivacion_programada, 
-               numero_servicios, rating_promedio`)
-      .eq('estado', 'inactivo');
-    
-    // Fetch armados inactivos
-    const { data: armados, error: errorArmados } = await supabase
-      .from('armados_operativos')
-      .select(`id, nombre, telefono, zona_base, estado, motivo_inactivacion,
-               tipo_inactivacion, fecha_inactivacion, fecha_reactivacion_programada,
-               numero_servicios, rating_promedio`)
-      .eq('estado', 'inactivo');
-    
-    // Combinar con tipo
-    const bajasCustodios = (custodios || []).map(c => ({ ...c, tipo_personal: 'custodio' }));
-    const bajasArmados = (armados || []).map(a => ({ ...a, tipo_personal: 'armado' }));
-    
-    // Ordenar por fecha de inactivación
-    return [...bajasCustodios, ...bajasArmados]
-      .sort((a, b) => /* fecha desc */);
-  }
-});
+queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
 ```
 
-### 3. Actualizar `BajasDataTable`
+En `useBajaMasiva.ts` agregar lo mismo para que actualice todas las vistas.
 
-**Archivo:** `src/pages/PerfilesOperativos/components/BajasDataTable.tsx`
+## Archivos a Modificar/Crear
 
-- Agregar columna "Tipo" con badge (Custodio/Armado)
-- Agregar filtro por tipo de personal
-- Actualizar mensaje vacío para ser genérico
+| Archivo | Acción |
+|---------|--------|
+| `BajaDetailsDialog.tsx` | Agregar botón y lógica de reactivación individual |
+| `ReactivacionMasivaModal.tsx` | **Crear** nuevo modal |
+| `useReactivacionMasiva.ts` | **Crear** nuevo hook |
+| `BajasDataTable.tsx` | Agregar checkboxes y botón de reactivación masiva |
+| `useCambioEstatusOperativo.ts` | Agregar invalidación de query `operative-profiles` |
+| `useBajaMasiva.ts` | Agregar invalidación de query `operative-profiles` |
 
-| Columna Actual | Columna Nueva |
-|----------------|---------------|
-| Nombre | Nombre |
-| - | **Tipo** (badge: Custodio/Armado) |
-| Zona | Zona |
-| Estado | Estado |
-| Motivo | Motivo |
-| Fecha Baja | Fecha Baja |
-| Servicios | Servicios |
+## Flujo de Rollback
 
-### 4. Actualizar Estadísticas
-
-Actualizar `totalBajas` en stats para contar ambos tipos.
+```text
+Usuario detecta error en baja masiva
+        ↓
+Pestaña Bajas → Selecciona operativos afectados
+        ↓
+Click "Reactivar seleccionados"
+        ↓
+Modal confirmación con lista + motivo
+        ↓
+Confirmar → Hook actualiza BD + registra historial
+        ↓
+Queries invalidadas → UI actualizada automáticamente
+```
 
 ## Resultado Esperado
 
-| Antes | Después |
-|-------|---------|
-| Solo custodios inactivos | Custodios + Armados inactivos |
-| Sin distinción de tipo | Badge visual por tipo |
-| 0 armados visibles | 69 armados visibles |
-| Filtro solo por motivo | Filtro por tipo + motivo |
+- Reactivación individual desde detalle de baja
+- Reactivación masiva para rollback de errores
+- Historial completo de cambios de estatus
+- UI sincronizada con BD sin recargar página
