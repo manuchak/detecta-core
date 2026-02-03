@@ -16,7 +16,8 @@ import {
   Settings,
   Plane,
   ArrowRightLeft,
-  Lock
+  Lock,
+  Pencil
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,6 +31,7 @@ import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
 import { PreferenciaServicioSelector, PreferenciaTipoServicio } from '@/components/operatives/PreferenciaServicioSelector';
 import { useUpdateOperativoPreferencia } from '@/hooks/useUpdateOperativoPreferencia';
 import { ConvertirTipoModal } from '../ConvertirTipoModal';
+import { EditOperativeProfileSheet } from '../EditOperativeProfileSheet';
 import { useUserRole } from '@/hooks/useUserRole';
 import { DATA_CORRECTION_ROLES } from '@/constants/accessControl';
 
@@ -44,6 +46,7 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
   
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [showConvertirModal, setShowConvertirModal] = useState(false);
+  const [showEditSheet, setShowEditSheet] = useState(false);
   const preferenciaMutation = useUpdateOperativoPreferencia();
   const { hasAnyRole } = useUserRole();
   
@@ -117,9 +120,22 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
       {/* Datos de Contacto */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Datos de Contacto
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Datos de Contacto
+            </span>
+            {canCorrectData && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowEditSheet(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Editar datos
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -383,6 +399,16 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
             nombre: profile.nombre,
             tipoActual: 'custodio'
           }}
+        />
+      )}
+
+      {/* Edit Profile Sheet - For authorized roles */}
+      {canCorrectData && (
+        <EditOperativeProfileSheet
+          open={showEditSheet}
+          onOpenChange={setShowEditSheet}
+          profile={profile}
+          tipo={tipo}
         />
       )}
     </div>
