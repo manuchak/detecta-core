@@ -7,12 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff } from 'lucide-react';
+import { Shield, Clock, MapPin, AlertTriangle, CheckCircle2, Search, Eye, EyeOff, Home, Plane } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { toast } from 'sonner';
 import { UniversalSearchBar } from '@/components/planeacion/search/UniversalSearchBar';
 import { SearchResultsInfo, ARMED_GUARD_CATEGORIES } from '@/components/planeacion/search/SearchResultsInfo';
+import { ServiceHistoryBadges } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ServiceHistoryBadges';
+import { differenceInDays } from 'date-fns';
 
 interface ArmedGuardData {
   armado_id: string;
@@ -386,7 +388,7 @@ export function ArmedGuardAssignmentStep({
                     onClick={() => setSelectedGuard(guard.id)}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-medium">{guard.nombre}</div>
                         <div className="text-sm text-muted-foreground">
                           {guard.zona_base && (
@@ -401,9 +403,22 @@ export function ArmedGuardAssignmentStep({
                             </span>
                           )}
                         </div>
+                        {/* Service History Badges - Phase 2 */}
+                        <ServiceHistoryBadges
+                          diasSinServicio={guard.fecha_ultimo_servicio 
+                            ? differenceInDays(new Date(), new Date(guard.fecha_ultimo_servicio))
+                            : null
+                          }
+                          tipoUltimoServicio={(guard as any).tipo_ultimo_servicio || null}
+                          fechaUltimoServicio={guard.fecha_ultimo_servicio || null}
+                          serviciosLocales15d={(guard as any).servicios_locales_15d || 0}
+                          serviciosForaneos15d={(guard as any).servicios_foraneos_15d || 0}
+                          preferenciaTipoServicio={(guard as any).preferencia_tipo_servicio}
+                          compact={true}
+                        />
                         {guard.experiencia_anos && (
-                          <div className="text-sm text-muted-foreground">
-                            {guard.experiencia_anos} años de experiencia
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {guard.experiencia_anos} años exp.
                           </div>
                         )}
                       </div>

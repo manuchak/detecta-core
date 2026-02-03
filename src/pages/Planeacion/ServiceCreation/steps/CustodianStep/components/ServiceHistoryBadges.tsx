@@ -17,6 +17,7 @@ export interface ServiceHistoryBadgesProps {
   serviciosForaneos15d: number;
   preferenciaTipoServicio?: 'local' | 'foraneo' | 'indistinto';
   tipoServicioActual?: 'local' | 'foraneo';
+  compact?: boolean; // For compact rendering in armed guards
 }
 
 /**
@@ -49,7 +50,8 @@ function ServiceHistoryBadgesComponent({
   serviciosLocales15d,
   serviciosForaneos15d,
   preferenciaTipoServicio = 'indistinto',
-  tipoServicioActual
+  tipoServicioActual,
+  compact = false
 }: ServiceHistoryBadgesProps) {
   // Calculate days since last service if not provided
   const calculatedDays = diasSinServicio ?? (
@@ -69,6 +71,34 @@ function ServiceHistoryBadgesComponent({
                       preferenciaTipoServicio !== tipoServicioActual;
 
   const totalServicios15d = serviciosLocales15d + serviciosForaneos15d;
+
+  // Compact rendering for armed guards
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 text-xs mt-1">
+        {calculatedDays !== null && (
+          <span className={`font-medium ${getDaysColorClass(calculatedDays)}`}>
+            {calculatedDays}d
+          </span>
+        )}
+        <span className="text-muted-foreground">
+          15d: {serviciosLocales15d}L/{serviciosForaneos15d}F
+        </span>
+        {preferenciaTipoServicio !== 'indistinto' && (
+          <Badge 
+            variant="outline" 
+            className={`text-[10px] px-1 py-0 ${
+              preferenciaTipoServicio === 'local' 
+                ? 'border-blue-500 text-blue-600' 
+                : 'border-emerald-500 text-emerald-600'
+            }`}
+          >
+            {preferenciaTipoServicio === 'local' ? 'Local' : 'Foráneo'}
+          </Badge>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
