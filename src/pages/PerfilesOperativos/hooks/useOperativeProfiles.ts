@@ -129,7 +129,7 @@ export function useOperativeProfiles() {
           created_at,
           preferencia_tipo_servicio
         `)
-        .eq('estado', 'activo')
+        .in('estado', ['activo', 'suspendido'])
         .order('nombre');
       
       if (error) throw error;
@@ -220,7 +220,7 @@ export function useOperativeProfiles() {
           numero_servicios,
           rating_promedio
         `)
-        .in('estado', ['inactivo', 'suspendido'])
+        .eq('estado', 'inactivo')
         .order('fecha_inactivacion', { ascending: false });
       
       if (error) throw error;
