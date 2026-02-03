@@ -134,3 +134,9 @@ verify_jwt = true
 
 [functions.weather-data]
 verify_jwt = false
+
+[functions.auto-reactivar-operativos]
+verify_jwt = false
+
+[functions.auto-detectar-incumplimientos]
+verify_jwt = false
