@@ -1,111 +1,317 @@
 
-# Plan: Alinear Fuentes de Datos con Perfiles Operativos
+# Plan: Sistema de Asignacion Flexible para Edicion de Servicios
 
-## Objetivo
+## Problema Identificado
 
-Garantizar que los datos mostrados en las pestañas de configuración de Planeación (Custodios y Armados) coincidan con la fuente de verdad establecida en **Perfiles Operativos**, que representa el punto de convergencia entre Supply y Planeación.
+El sistema actual impone un flujo secuencial rigido: **Custodio -> Armado**. Esto no refleja la realidad operativa donde un armado puede confirmar antes que un custodio.
 
-## Discrepancias Actuales
+### Puntos de Bloqueo Actuales
 
-| Aspecto | Perfiles Operativos | Config Custodios | Config Armados |
-|---------|---------------------|------------------|----------------|
-| Estados incluidos | `activo` + `suspendido` | Solo `activo` | Solo `activo` |
-| Filtro actividad | Sin filtro (todos) | Forzado 90d | Selector (default 90d) |
-| Consistencia | Fuente de verdad | Subconjunto | Subconjunto |
+| Archivo | Linea | Logica Restrictiva |
+|---------|-------|-------------------|
+| `useSmartEditSuggestions.ts` | 66-77 | Fuerza "Asignar Custodio Primero" cuando hay armado pendiente |
+| `PendingAssignmentModal.tsx` | 66-84 | `currentStep` solo inicia en 'armed' si `hasCustodio=true` |
+| `PendingAssignmentModal.tsx` | 689 | Renderiza `SimplifiedArmedAssignment` solo si `custodianAssigned || service?.custodio_asignado` |
 
-## Cambios Propuestos
+## Solucion Propuesta: Asignacion Flexible con Tabs
 
-### 1. CustodiosZonasTab.tsx
+### Concepto UI/UX
 
-**A. Expandir query de estados**
-```tsx
-// ANTES
-.eq('estado', 'activo')
+Transformar el modal de asignacion de un flujo lineal a una **vista de pestanas** que permita asignar cualquier recurso en cualquier orden:
 
-// DESPUÉS  
-.in('estado', ['activo', 'suspendido'])
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│  Asignar Personal - SRV-2024-1234                                   │
+│  Cliente: Empresa ABC | Ruta: CDMX -> Toluca | 14:00                │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐  ┌──────────────────┐                        │
+│  │   👤 Custodio    │  │   🛡️ Armado      │                        │
+│  │   ○ Pendiente    │  │   ○ Pendiente    │                        │
+│  └──────────────────┘  └──────────────────┘                        │
+│                           ↑ Tab activa                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  [Contenido de asignacion de armado]                                │
+│                                                                     │
+│  - Lista de armados disponibles                                     │
+│  - Punto de encuentro                                               │
+│  - Hora de encuentro                                                │
+└─────────────────────────────────────────────────────────────────────┘
+│  [Completar Asignacion]          [Guardar y Continuar Despues]      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**B. Agregar selector de filtro de actividad** (igual que Armados)
-```tsx
-// Nuevo estado y constantes
-const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+### Indicadores de Estado Visual
 
-const ACTIVITY_FILTER_OPTIONS = [
-  { value: 'all', label: 'Todos' },
-  { value: '60', label: 'Últimos 60 días' },
-  { value: '90', label: 'Últimos 90 días' },
-  { value: '120', label: 'Últimos 120 días' },
-  { value: '120+', label: 'Sin actividad +120 días' },
-];
+```tsx
+// Tab indicators (semanticos)
+<TabsTrigger value="custodian">
+  <User className="h-4 w-4" />
+  Custodio
+  {hasCustodio 
+    ? <CheckCircle className="h-3 w-3 text-success" />
+    : <Circle className="h-3 w-3 text-muted-foreground" />
+  }
+</TabsTrigger>
+
+<TabsTrigger value="armed">
+  <Shield className="h-4 w-4" />
+  Armado
+  {hasArmado 
+    ? <CheckCircle className="h-3 w-3 text-success" />
+    : service.requiere_armado 
+      ? <AlertCircle className="h-3 w-3 text-warning" />
+      : null
+  }
+</TabsTrigger>
 ```
 
-**C. Implementar lógica de filtrado por actividad**
+## Cambios Tecnicos
+
+### 1. useSmartEditSuggestions.ts - Eliminar Restriccion de Orden
+
+**Antes (lineas 66-77):**
 ```tsx
-const custodiosPorActividad = useMemo(() => {
-  if (activityFilter === 'all') return custodios;
-  
-  return custodios.filter(c => {
-    const days = getDaysSinceLastService(c.fecha_ultimo_servicio);
-    if (activityFilter === '120+') {
-      return days === null || days > 120;
+// CASO ESPECIAL: Requiere armado pero no hay custodio
+else if (needsArmedAssignment && !hasCustodio) {
+  heroSuggestion = {
+    mode: 'custodian_only',
+    title: 'Asignar Custodio Primero',
+    description: 'Debes asignar un custodio antes de asignar el armado',
+    ...
+  };
+}
+```
+
+**Despues:**
+```tsx
+// CASO: Ambos pendientes - mostrar como acciones paralelas
+if (needsArmedAssignment && !hasCustodio) {
+  // Hero suggestion: la mas critica segun contexto
+  heroSuggestion = {
+    mode: 'flexible_assign',
+    title: 'Asignar Personal',
+    description: 'Asigna custodio y/o armado en cualquier orden',
+    priority: 'high',
+    icon: 'Users',
+    color: 'blue',
+    estimatedTime: '3 min',
+    consequences: [
+      'Puedes asignar el armado primero si ya confirmo disponibilidad',
+      'El custodio puede asignarse despues'
+    ]
+  };
+}
+```
+
+### 2. PendingAssignmentModal.tsx - Flujo Flexible con Tabs
+
+**Nuevo estado:**
+```tsx
+// Reemplazar currentStep por activeTab (semanticamente mas claro)
+const [activeTab, setActiveTab] = useState<'custodian' | 'armed'>(() => {
+  // Determinar tab inicial segun modo o contexto
+  if (mode === 'direct_armed') return 'armed';
+  if (mode === 'direct_custodian') return 'custodian';
+  // Auto: priorizar el que falta
+  return hasCustodio ? 'armed' : 'custodian';
+});
+```
+
+**Nuevo render con Tabs:**
+```tsx
+<Tabs value={activeTab} onValueChange={setActiveTab}>
+  <TabsList className="grid w-full grid-cols-2">
+    <TabsTrigger value="custodian" className="relative">
+      <User className="h-4 w-4 mr-2" />
+      Custodio
+      <AssignmentIndicator assigned={!!service?.custodio_asignado} />
+    </TabsTrigger>
+    <TabsTrigger value="armed" disabled={!service?.requiere_armado}>
+      <Shield className="h-4 w-4 mr-2" />
+      Armado
+      <AssignmentIndicator 
+        assigned={!!service?.armado_asignado} 
+        required={service?.requiere_armado}
+      />
+    </TabsTrigger>
+  </TabsList>
+
+  <TabsContent value="custodian">
+    {/* Lista de custodios - SIN CAMBIOS */}
+  </TabsContent>
+
+  <TabsContent value="armed">
+    {/* SimplifiedArmedAssignment - AHORA SIN RESTRICCION */}
+    <SimplifiedArmedAssignment
+      serviceData={serviceData}
+      onComplete={handleArmedGuardAssignmentComplete}
+      // NUEVO: No requiere custodio previo
+      allowWithoutCustodian={true}
+    />
+  </TabsContent>
+</Tabs>
+```
+
+### 3. SimplifiedArmedAssignment.tsx - Permitir Asignacion Sin Custodio
+
+**Agregar prop:**
+```tsx
+interface SimplifiedArmedAssignmentProps {
+  // ... existentes
+  allowWithoutCustodian?: boolean;
+}
+```
+
+**Modificar warning de custodio hibrido:**
+```tsx
+{/* Solo mostrar warning si HAY custodio y es hibrido */}
+{serviceData.custodio_asignado && custodioIsHybrid && (
+  <Alert className="border-warning bg-warning/5">...</Alert>
+)}
+
+{/* Nuevo: Info cuando no hay custodio asignado */}
+{!serviceData.custodio_asignado && (
+  <Alert className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20">
+    <Info className="h-4 w-4 text-blue-600" />
+    <AlertTitle>Custodio pendiente</AlertTitle>
+    <AlertDescription>
+      Puedes asignar el armado primero. El custodio se asignara posteriormente.
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+### 4. Nuevo Componente: AssignmentStatusBadges
+
+```tsx
+// src/components/planeacion/AssignmentStatusBadges.tsx
+export function AssignmentStatusBadges({ service }: { service: EditableService }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Badge 
+        variant={service.custodio_asignado ? 'success' : 'outline'}
+        className="gap-1"
+      >
+        <User className="h-3 w-3" />
+        {service.custodio_asignado || 'Pendiente'}
+      </Badge>
+      
+      {service.requiere_armado && (
+        <Badge 
+          variant={service.armado_asignado ? 'success' : 'warning'}
+          className="gap-1"
+        >
+          <Shield className="h-3 w-3" />
+          {service.armado_asignado || 'Pendiente'}
+        </Badge>
+      )}
+    </div>
+  );
+}
+```
+
+### 5. EditWorkflowContext - Nuevo Modo Flexible
+
+```tsx
+// Agregar nuevo EditMode
+export type EditMode = 
+  | 'basic_info'
+  | 'custodian_only'
+  | 'armed_only'
+  | 'flexible_assign'  // NUEVO
+  | 'add_armed'
+  | 'remove_armed';
+```
+
+### 6. SmartEditModal.tsx - Actualizar Logica de Acciones
+
+**Modificar getQuickActions():**
+```tsx
+// Cuando ambos faltan (o solo armado falta sin custodio)
+if (needsArmedAssignment || needsCustodianAssignment) {
+  actions.push({
+    id: 'flexible_assign',
+    title: needsCustodianAssignment && needsArmedAssignment 
+      ? 'Asignar Personal' 
+      : needsArmedAssignment 
+        ? 'Asignar Armado' 
+        : 'Asignar Custodio',
+    description: 'Asigna recursos en cualquier orden',
+    icon: Users,
+    color: 'info',
+    priority: 'high',
+    action: () => {
+      // Ir directamente al tab correcto
+      setAssignmentMode(needsArmedAssignment && !needsCustodianAssignment 
+        ? 'direct_armed' 
+        : 'auto');
+      setCurrentView('direct_assign');
     }
-    const maxDays = parseInt(activityFilter);
-    return days !== null && days <= maxDays;
   });
-}, [custodios, activityFilter]);
+}
 ```
 
-**D. Actualizar etiquetas de métricas**
-```tsx
-// Métrica dinámica según filtro
-<div className="apple-metric-label">
-  {activityFilter === 'all' 
-    ? 'Total Activos' 
-    : `Activos (${activityFilter === '120+' ? '+120d' : activityFilter + 'd'})`}
-</div>
+## Diagrama de Flujo Nuevo vs Anterior
+
+```text
+FLUJO ANTERIOR (Secuencial Rigido)
+──────────────────────────────────
+Servicio sin asignar
+       │
+       ▼
+┌──────────────┐
+│ Paso 1:      │    ← OBLIGATORIO PRIMERO
+│ Custodio     │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────┐
+│ Paso 2:      │    ← Solo si requiere armado
+│ Armado       │
+└──────────────┘
+
+
+FLUJO NUEVO (Flexible con Tabs)
+───────────────────────────────
+Servicio sin asignar
+       │
+       ▼
+┌───────────────────────────────┐
+│  ┌─────────┐   ┌─────────┐   │
+│  │Custodio │   │ Armado  │   │  ← Usuario elige orden
+│  │  ○      │   │   ○     │   │
+│  └────┬────┘   └────┬────┘   │
+│       │             │        │
+│       ▼             ▼        │
+│   Asignar       Asignar      │
+│   cuando        cuando       │
+│   confirme      confirme     │
+└───────────────────────────────┘
 ```
-
-### 2. ArmadosZonasTab.tsx
-
-**A. Cambiar default de filtro**
-```tsx
-// ANTES
-const [activityFilter, setActivityFilter] = useState<ActivityFilter>('90');
-
-// DESPUÉS
-const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
-```
-
-**B. Incluir estado suspendido**
-```tsx
-// ANTES
-.eq('estado', 'activo')
-
-// DESPUÉS
-.in('estado', ['activo', 'suspendido'])
-```
-
-## Resultado Esperado
-
-Después de los cambios, las tres vistas mostrarán datos consistentes:
-
-| Vista | Estados | Default Actividad | Selector |
-|-------|---------|-------------------|----------|
-| Perfiles Operativos | `activo`, `suspendido` | Todos | No aplica |
-| Config Custodios | `activo`, `suspendido` | Todos | Si (nuevo) |
-| Config Armados | `activo`, `suspendido` | Todos | Si |
 
 ## Archivos a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `CustodiosZonasTab.tsx` | Expandir query, agregar selector actividad, actualizar métricas |
-| `ArmadosZonasTab.tsx` | Cambiar default a 'all', expandir query a incluir suspendidos |
+| Archivo | Cambio |
+|---------|--------|
+| `useSmartEditSuggestions.ts` | Eliminar restriccion, agregar modo `flexible_assign` |
+| `PendingAssignmentModal.tsx` | Convertir a sistema de Tabs, eliminar guard en linea 689 |
+| `SimplifiedArmedAssignment.tsx` | Agregar prop `allowWithoutCustodian`, UI info |
+| `EditWorkflowContext.tsx` | Agregar modo `flexible_assign` |
+| `SmartEditModal.tsx` | Actualizar logica de acciones |
+| `AssignmentStatusBadges.tsx` | **NUEVO** - Componente de indicadores |
 
-## Notas Técnicas
+## Beneficios
 
-- El filtro de actividad será visual/UI, no afecta las queries a DB
-- Las métricas se recalculan dinámicamente según el filtro seleccionado
-- Se mantiene consistencia con el diseño existente de ArmadosZonasTab
-- Los custodios/armados suspendidos se mostrarán pero podrán identificarse visualmente si se requiere
+1. **Flexibilidad Operativa**: Asignar en el orden que la realidad dicte
+2. **UX Mejorada**: Indicadores claros de estado de cada asignacion
+3. **Consistencia**: Mismo patron visual que el flujo de creacion base
+4. **Auditabilidad**: Sigue registrando quien asigno y cuando
+5. **Retrocompatibilidad**: El flujo secuencial sigue funcionando si el usuario lo prefiere
+
+## Riesgos y Mitigaciones
+
+| Riesgo | Mitigacion |
+|--------|------------|
+| Usuario deja armado sin custodio | Alert visual + estado `parcialmente_asignado` |
+| Armado asignado a servicio sin custodio en produccion | Logica de backend acepta este estado, UI lo muestra claramente |
+| Confusion sobre orden | Onboarding tooltip en primera vez |
