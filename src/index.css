@@ -372,6 +372,40 @@
   @apply bg-primary/5 border-primary/20 hover:bg-primary/10;
 }
 
+/* Animación de entrada para items de lista - Fase 2 */
+@keyframes fade-in-item {
+  from { 
+    opacity: 0; 
+    transform: translateX(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+.animate-fade-in-item {
+  animation: fade-in-item 0.25s ease-out forwards;
+}
+
+/* Aplicar animación a items de lista Apple con stagger */
+.apple-list .apple-list-item {
+  animation: fade-in-item 0.25s ease-out both;
+}
+
+.apple-list .apple-list-item:nth-child(1) { animation-delay: 0ms; }
+.apple-list .apple-list-item:nth-child(2) { animation-delay: 50ms; }
+.apple-list .apple-list-item:nth-child(3) { animation-delay: 100ms; }
+.apple-list .apple-list-item:nth-child(4) { animation-delay: 150ms; }
+.apple-list .apple-list-item:nth-child(5) { animation-delay: 200ms; }
+
+/* Respeta preferencia de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .apple-list .apple-list-item {
+    animation: none;
+  }
+}
+
 /* Apple Metrics Cards */
 .apple-metrics-grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
@@ -1175,7 +1209,7 @@
 
 /* ===== Dashboard Operacional - Fase 1 & 2 Mejoras ===== */
 
-/* Grid mejorado para hero metrics con jerarquía visual */
+/* Grid mejorado para hero metrics con jerarquía visual - Fase 2: auto-fill responsivo */
 .apple-metrics-hero {
   @apply grid gap-4;
   grid-template-columns: 1fr;
@@ -1183,12 +1217,19 @@
 
 @media (min-width: 768px) {
   .apple-metrics-hero {
-    grid-template-columns: 2fr repeat(4, 1fr);
+    grid-template-columns: minmax(260px, 2fr) repeat(auto-fill, minmax(140px, 1fr));
     grid-template-rows: auto auto;
   }
   
   .apple-metrics-hero > :first-child {
     grid-row: span 2;
+  }
+}
+
+/* Breakpoint para pantallas grandes - Fase 2 */
+@media (min-width: 1280px) {
+  .apple-metrics-hero {
+    grid-template-columns: minmax(280px, 2fr) repeat(4, minmax(160px, 1fr));
   }
 }
 
