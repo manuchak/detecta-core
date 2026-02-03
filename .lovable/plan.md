@@ -1,76 +1,155 @@
 
-# Plan: Corregir Sidebar Cortado que Obliga a Scroll
 
-## Diagnóstico
+# Plan: Eliminar Scroll Innecesario en Sidebar
 
-El sidebar se corta porque:
+## Diagnóstico Refinado
 
-1. **TopBar está fuera del SidebarProvider**: En `UnifiedLayout.tsx`, el `SimplifiedTopBar` (altura `h-14` = 3.5rem) está renderizado antes del `SidebarProvider`
-2. **Sidebar usa posicionamiento fixed desde top:0**: El componente `Sidebar` de shadcn tiene hardcodeado `fixed inset-y-0 h-svh`, lo que significa:
-   - `inset-y-0` = `top: 0; bottom: 0`
-   - `h-svh` = `height: 100svh`
-3. **Resultado**: El sidebar tiene 100% del viewport de altura pero empieza desde y=0, mientras que el contenido visible empieza después del TopBar (y=3.5rem). Esto causa que los últimos 3.5rem del sidebar queden fuera del viewport, obligando al scroll interno.
+El sidebar muestra scroll incluso con espacio disponible porque:
 
-## Solución
+1. **`SidebarContent`** tiene `overflow-auto` siempre activo
+2. **Header del sidebar** (botón de colapso) ocupa ~48px adicionales
+3. **Footer condicional** (Vista Rápida) añade ~80px cuando hay stats
+4. **Distribución flexbox** no está optimizada para el contenido real
 
-Modificar el componente `Sidebar` base para respetar la altura del TopBar.
+### Cálculo del Espacio
 
-### Archivo: `src/components/ui/sidebar.tsx`
+```text
+Altura total disponible: calc(100svh - 3.5rem)  ≈ ~564px (viewport 900px)
 
-**Cambios en líneas 223-244** (el div contenedor del sidebar desktop):
-
-Cambiar:
-```tsx
-<div
-  className={cn(
-    "duration-200 relative h-svh w-[--sidebar-width] bg-transparent...",
-  )}
-/>
-<div
-  className={cn(
-    "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width]...",
-  )}
->
+Actualmente usado:
+- Header (toggle):     ~48px
+- Content (grupos):    variable
+- Footer (stats):      ~80px (cuando existe)
+─────────────────────────────────
+Espacio efectivo para navegación: ~436px
 ```
 
-A:
-```tsx
-<div
-  className={cn(
-    "duration-200 relative h-[calc(100svh-3.5rem)] w-[--sidebar-width] bg-transparent...",
-  )}
-/>
-<div
-  className={cn(
-    "duration-200 fixed top-14 bottom-0 z-10 hidden h-[calc(100svh-3.5rem)] w-[--sidebar-width]...",
-  )}
->
+## Solución Propuesta
+
+### 1. Reestructurar Layout del Sidebar
+
+**Archivo**: `src/components/navigation/UnifiedSidebar.tsx`
+
+Cambiar la estructura para usar mejor el espacio vertical:
+
+```text
+ANTES                          DESPUÉS
+┌─────────────────┐            ┌─────────────────┐
+│ [◀] toggle      │ 48px       │ Grupos de       │
+│─────────────────│            │ navegación      │
+│ Grupos (scroll) │ flex-1     │ (sin scroll     │
+│                 │            │  si caben)      │
+│─────────────────│            │                 │
+│ Vista Rápida    │ ~80px      │─────────────────│
+└─────────────────┘            │ [◀] [⚙]        │ 48px
+                               └─────────────────┘
 ```
 
 **Cambios específicos**:
+- Mover toggle de colapso al footer (junto con stats condensados)
+- Eliminar header del sidebar, ganando 48px
+- Footer compacto: toggle + stats en una línea
 
-| Original | Nuevo | Razón |
-|----------|-------|-------|
-| `h-svh` | `h-[calc(100svh-3.5rem)]` | Restar altura del TopBar |
-| `inset-y-0` | `top-14 bottom-0` | Iniciar desde debajo del TopBar |
+### 2. Optimizar SidebarContent
 
-### Impacto
+**Archivo**: `src/components/ui/sidebar.tsx` (línea 405)
 
-- El sidebar ahora iniciará visualmente debajo del TopBar
-- El contenido del sidebar cabrá exactamente en el espacio disponible
-- No más scroll interno innecesario
-- El footer del sidebar (Quick Stats) será visible sin scroll
+Cambiar comportamiento de overflow:
 
-## Verificación Post-Implementación
+```tsx
+// ANTES
+"overflow-auto group-data-[collapsible=icon]:overflow-hidden"
 
-1. El sidebar debe mostrar todos los grupos de navegación sin scroll (a menos que haya muchos módulos expandidos)
-2. El footer "Vista Rápida" debe ser visible al fondo
-3. El colapsar/expandir sidebar debe seguir funcionando correctamente
-4. En móvil (Sheet), el comportamiento no debe cambiar (usa `h-full`)
+// DESPUÉS  
+"overflow-y-auto overflow-x-hidden scrollbar-thin group-data-[collapsible=icon]:overflow-hidden"
+```
 
-## Alternativa Considerada (No Elegida)
+Y agregar clases CSS para ocultar scrollbar cuando no es necesaria.
 
-Mover `SimplifiedTopBar` dentro del `SidebarProvider` - rechazado porque:
-- Requeriría reestructurar múltiples layouts
-- El TopBar conceptualmente es global, no parte del sidebar
-- Mayor riesgo de regresiones
+### 3. Footer Rediseñado
+
+**Archivo**: `src/components/navigation/UnifiedSidebar.tsx`
+
+Nuevo footer compacto que combina toggle + stats:
+
+```tsx
+<SidebarFooter className="border-t border-sidebar-border p-2 mt-auto">
+  <div className="flex items-center justify-between">
+    {/* Stats condensados en chips */}
+    {!isCollapsed && stats && (
+      <div className="flex gap-1.5 flex-wrap">
+        {stats.criticalAlerts > 0 && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+            {stats.criticalAlerts} alertas
+          </span>
+        )}
+        {/* ... más stats como chips */}
+      </div>
+    )}
+    
+    {/* Toggle siempre visible */}
+    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+      <ChevronLeft className={cn("h-4 w-4", isCollapsed && "rotate-180")} />
+    </Button>
+  </div>
+</SidebarFooter>
+```
+
+### 4. Grupos Más Compactos
+
+Reducir espaciado vertical entre elementos:
+
+| Elemento | Actual | Propuesto |
+|----------|--------|-----------|
+| `SidebarGroupLabel` padding | `py-1.5` | `py-1` |
+| `SidebarMenuItem` gap | `space-y-0.5` | `space-y-px` |
+| Separadores entre grupos | `my-2` | `my-1` |
+| `SidebarMenuButton` padding | `py-2.5` | `py-2` |
+
+### 5. CSS para Scrollbar Inteligente
+
+**Archivo**: `src/index.css`
+
+```css
+/* Ocultar scrollbar cuando no es necesaria */
+[data-sidebar="content"] {
+  scrollbar-gutter: stable;
+}
+
+[data-sidebar="content"]::-webkit-scrollbar {
+  width: 4px;
+}
+
+[data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+
+[data-sidebar="content"]:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-border));
+}
+```
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/navigation/UnifiedSidebar.tsx` | Reestructurar: eliminar header, footer compacto, reducir espaciado |
+| `src/components/ui/sidebar.tsx` | Optimizar overflow en SidebarContent |
+| `src/index.css` | Estilos de scrollbar condicional |
+
+## Resultado Esperado
+
+- **Sin scroll** cuando todos los grupos caben en el viewport
+- **Scroll suave** solo cuando el contenido excede el espacio
+- **Scrollbar invisible** hasta hacer hover
+- **~50px más** de espacio vertical para navegación
+- Footer siempre visible con toggle accesible
+
+## Verificación
+
+1. Con todos los grupos colapsados: sin scroll
+2. Con 1-2 grupos expandidos: sin scroll (si caben)
+3. Con muchos grupos expandidos: scroll visible solo al hacer hover
+4. Toggle de colapso siempre accesible en footer
+
