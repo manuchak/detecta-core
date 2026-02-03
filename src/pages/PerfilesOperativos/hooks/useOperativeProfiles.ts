@@ -43,6 +43,7 @@ export interface ArmadoProfile {
   fecha_ultimo_servicio: string | null;
   score_total: number | null;
   created_at: string;
+  preferencia_tipo_servicio: 'local' | 'foraneo' | 'indistinto' | null;
   // Calculated fields
   dias_sin_actividad: number;
   nivel_actividad: 'activo' | 'moderado' | 'inactivo' | 'sin_actividad';
@@ -154,7 +155,8 @@ export function useOperativeProfiles() {
           numero_servicios,
           fecha_ultimo_servicio,
           score_total,
-          created_at
+          created_at,
+          preferencia_tipo_servicio
         `)
         .neq('estado', 'archivado')
         .order('nombre');
