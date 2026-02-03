@@ -164,7 +164,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           <SidebarMenuButton
             onClick={() => handleNavigate(module.path)}
             className={cn(
-              "w-full justify-start gap-3 py-2.5 transition-all duration-200",
+              "w-full justify-start gap-3 py-2 transition-all duration-200",
               "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
             )}
@@ -197,7 +197,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
             }
           }}
           className={cn(
-            "w-full justify-start gap-3 py-2.5 transition-all duration-200",
+            "w-full justify-start gap-3 py-2 transition-all duration-200",
             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
           )}
@@ -251,22 +251,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
         isCollapsed ? "w-14" : "w-60"
       )}
     >
-      {/* Collapse Toggle */}
-      <div className="flex items-center justify-end p-2 border-b border-sidebar-border">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-          className="h-7 w-7 hover:bg-sidebar-accent"
-        >
-          <ChevronLeft className={cn(
-            "h-4 w-4 transition-transform duration-200",
-            isCollapsed && "rotate-180"
-          )} />
-        </Button>
-      </div>
-
-      <SidebarContent className="py-2">
+      <SidebarContent className="py-1">
         {visibleGroups.map((group, groupIndex) => {
           const groupModules = getModulesByGroup(group.id);
           if (groupModules.length === 0) return null;
@@ -276,13 +261,13 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           return (
             <React.Fragment key={group.id}>
               {groupIndex > 0 && !isCollapsed && (
-                <Separator className="my-2 bg-sidebar-border/50" />
+                <Separator className="my-1 bg-sidebar-border/50" />
               )}
               
-              <SidebarGroup className="py-1">
+              <SidebarGroup className="py-0.5">
                 {!isCollapsed && (
                   <SidebarGroupLabel 
-                    className="px-3 py-1.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider cursor-pointer flex items-center justify-between hover:text-sidebar-foreground/70 transition-colors"
+                    className="px-3 py-1 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider cursor-pointer flex items-center justify-between hover:text-sidebar-foreground/70 transition-colors"
                     onClick={() => toggleNavGroup(group.id)}
                   >
                     <span>{group.label}</span>
@@ -303,7 +288,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
                 
                 {!isNavGroupCollapsed && (
                   <SidebarGroupContent>
-                    <SidebarMenu className="space-y-0.5 px-2">
+                    <SidebarMenu className="space-y-px px-2">
                       {groupModules.map(renderModule)}
                     </SidebarMenu>
                   </SidebarGroupContent>
@@ -314,42 +299,47 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
         })}
       </SidebarContent>
 
-      {/* Quick Stats Footer */}
-      {stats && !isCollapsed && (
-        <SidebarFooter className="border-t border-sidebar-border p-3">
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-              Vista Rápida
-            </p>
-            <div className="space-y-1">
+      {/* Compact Footer with Toggle + Stats */}
+      <SidebarFooter className="border-t border-sidebar-border p-2 mt-auto">
+        <div className="flex items-center justify-between gap-2">
+          {/* Condensed stats as chips */}
+          {!isCollapsed && stats && (
+            <div className="flex gap-1.5 flex-wrap flex-1 min-w-0">
               {stats.criticalAlerts !== undefined && stats.criticalAlerts > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-sidebar-foreground/70">Alertas</span>
-                  <span className="font-semibold text-destructive">{stats.criticalAlerts}</span>
-                </div>
-              )}
-              {stats.urgentClusters !== undefined && stats.urgentClusters > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-sidebar-foreground/70">Clusters</span>
-                  <span className="font-semibold text-warning">{stats.urgentClusters}</span>
-                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">
+                  {stats.criticalAlerts} alertas
+                </span>
               )}
               {stats.totalDeficit !== undefined && stats.totalDeficit > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-sidebar-foreground/70">Déficit</span>
-                  <span className="font-semibold text-info">{stats.totalDeficit}</span>
-                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info font-medium">
+                  {stats.totalDeficit} déficit
+                </span>
               )}
-              {stats.activeCandidates !== undefined && stats.activeCandidates > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-sidebar-foreground/70">Candidatos</span>
-                  <span className="font-semibold text-success">{stats.activeCandidates}</span>
-                </div>
+              {stats.urgentClusters !== undefined && stats.urgentClusters > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning font-medium">
+                  {stats.urgentClusters} clusters
+                </span>
               )}
             </div>
-          </div>
-        </SidebarFooter>
-      )}
+          )}
+          
+          {/* Toggle always visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className={cn(
+              "h-7 w-7 shrink-0 hover:bg-sidebar-accent",
+              isCollapsed && "mx-auto"
+            )}
+          >
+            <ChevronLeft className={cn(
+              "h-4 w-4 transition-transform duration-200",
+              isCollapsed && "rotate-180"
+            )} />
+          </Button>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
