@@ -1,232 +1,112 @@
 
-# Plan: Mejorar UX/UI de Edición de Custodio en ReassignmentModal
+# Análisis: Unificación de Flujos de Asignación de Custodios
 
-## Problema Identificado
+## Estado Actual ✅
 
-El modal "Agregar Custodio" (`ReassignmentModal.tsx`) usa un sistema legacy de dropdown que:
+**Los 3 flujos principales YA están unificados** con los mismos componentes modulares:
 
-1. **No funciona correctamente** - Posibles problemas de z-index o eventos en el Select
-2. **No aplica las mejoras del módulo de selección** - Falta:
-   - Cards con score de compatibilidad (%)
-   - Equity badges (Priorizar / Alta carga)
-   - Historial de 15 días (Local/Foráneo)
-   - Búsqueda con debounce y filtros rápidos
-   - Stats de disponibilidad (QuickStats)
-   - Botones WhatsApp/Llamar integrados
+| Flujo | Archivo | Componentes Modulares |
+|-------|---------|----------------------|
+| Crear Servicio | `CustodianStep/index.tsx` | QuickStats, CustodianSearch, CustodianList, ConflictSection |
+| Asignación Pendiente | `PendingAssignmentModal.tsx` | QuickStats, CustodianSearch, CustodianList, ConflictSection |
+| Reasignar/Agregar | `ReassignmentModal.tsx` | QuickStats, CustodianSearch, CustodianList, ConflictSection |
 
-## Solución Propuesta
+**Características compartidas:**
+- Cards con score de compatibilidad (%)
+- Equity badges (Priorizar / Alta carga)  
+- Historial de 15 días (Local/Foráneo)
+- Búsqueda debounced con filtros rápidos
+- Virtualización con IntersectionObserver
+- Sección de conflictos colapsible
 
-Reemplazar el dropdown de custodios en `ReassignmentModal.tsx` con los componentes modulares del `CustodianStep`, manteniendo la lógica de armados/proveedores intacta.
+## Diferencias Menores Detectadas
 
-```text
-Antes (Legacy):
-┌─────────────────────────────────┐
-│ Select dropdown con 124 items  │
-│ ▼ Seleccionar custodio         │
-└─────────────────────────────────┘
+| Aspecto | ServiceCreation | PendingAssignment | Reassignment |
+|---------|-----------------|-------------------|--------------|
+| Ancho modal | N/A (page) | `max-w-4xl` | `max-w-2xl` |
+| Altura lista | `max-h-[400px]` | `max-h-[400px]` | `max-h-[300px]` |
+| Reporte indisponibilidad | ✅ | ❌ | ❌ |
+| Reporte rechazo | ✅ | ❌ | ❌ |
 
-Después (Unificado):
-┌─────────────────────────────────┐
-│ QuickStats: 🟢80 🟡20 🟠15 ⚠️9 │
-├─────────────────────────────────┤
-│ 🔍 Buscar...  [Disponibles ✓]  │
-├─────────────────────────────────┤
-│ ┌─────────────────────────────┐ │
-│ │ Juan Pérez         92% compat│
-│ │ 📞 5512345678   🚗 Nissan   │
-│ │ 🏠3L/2F 15d   🎯 Priorizar  │
-│ │ [WhatsApp] [Llamar] [Asignar]│
-│ └─────────────────────────────┘ │
-│ ┌─────────────────────────────┐ │
-│ │ María García       87% compat│
-│ │ ...                          │
-│ └─────────────────────────────┘ │
-└─────────────────────────────────┘
+## Mejoras Propuestas (Opcional)
+
+Para máxima consistencia, se pueden agregar las funcionalidades faltantes:
+
+### 1. Homologar dimensiones de ReassignmentModal
+
+```typescript
+// ReassignmentModal.tsx línea 305
+<DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col z-[60]">
 ```
 
-## Detalles Técnicos
+### 2. Agregar callbacks de Indisponibilidad/Rechazo a PendingAssignmentModal
 
-### Archivos a Modificar
+```typescript
+// PendingAssignmentModal.tsx - Agregar handlers
+const handleReportUnavailability = (custodio: CustodioConProximidad) => {
+  // Abrir modal de indisponibilidad
+  setTargetCustodio(custodio);
+  setShowUnavailabilityDialog(true);
+};
+
+const handleReportRejection = (custodio: CustodioConProximidad) => {
+  // Abrir modal de rechazo tipificado
+  setTargetCustodio(custodio);
+  setShowRejectionDialog(true);
+};
+
+// Pasar a CustodianList
+<CustodianList
+  ...
+  onReportUnavailability={handleReportUnavailability}
+  onReportRejection={handleReportRejection}
+/>
+```
+
+### 3. Agregar callbacks a ReassignmentModal
+
+Misma lógica que punto 2 para `ReassignmentModal.tsx`.
+
+## Archivos a Modificar (Si se aprueban mejoras)
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/planeacion/ReassignmentModal.tsx` | Refactorizar sección de custodios |
-
-### Cambios Específicos
-
-**1. Agregar imports de componentes modulares:**
-```typescript
-import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/QuickStats';
-import { CustodianSearch } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianSearch';
-import { CustodianList } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianList';
-import { ConflictSection } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ConflictSection';
-import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
-import { 
-  type CustodianCommunicationState, 
-  type CustodianStepFilters, 
-  DEFAULT_FILTERS 
-} from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/types';
-```
-
-**2. Agregar estado local para componentes modulares:**
-```typescript
-const [searchTerm, setSearchTerm] = useState('');
-const [filters, setFilters] = useState<CustodianStepFilters>(DEFAULT_FILTERS);
-const [comunicaciones, setComunicaciones] = useState<Record<string, CustodianCommunicationState>>({});
-const [highlightedIndex, setHighlightedIndex] = useState(-1);
-```
-
-**3. Crear objeto servicioNuevo para el hook de proximidad:**
-```typescript
-const servicioNuevo = useMemo(() => {
-  if (!service) return undefined;
-  return {
-    fecha_programada: service.fecha_hora_cita?.split('T')[0] || new Date().toISOString().split('T')[0],
-    hora_ventana_inicio: service.fecha_hora_cita?.split('T')[1]?.substring(0, 5) || '09:00',
-    origen_texto: service.origen,
-    destino_texto: service.destino,
-    tipo_servicio: 'custodia',
-    incluye_armado: service.requiere_armado,
-    requiere_gadgets: false
-  };
-}, [service]);
-```
-
-**4. Usar hook de proximidad en lugar de query básica:**
-```typescript
-const { data: categorized, isLoading: isLoadingCustodians } = useCustodiosConProximidad(
-  servicioNuevo,
-  { enabled: open && assignmentType === 'custodian' }
-);
-```
-
-**5. Implementar filtrado local:**
-```typescript
-const filteredCustodians = useMemo(() => {
-  if (!categorized) return [];
-  let result: CustodioConProximidad[] = [];
-  
-  if (filters.disponibles) result = [...result, ...categorized.disponibles];
-  if (filters.parcialmenteOcupados) result = [...result, ...categorized.parcialmenteOcupados];
-  if (filters.ocupados) result = [...result, ...categorized.ocupados];
-  
-  if (searchTerm.trim()) {
-    const term = searchTerm.toLowerCase();
-    result = result.filter(c => 
-      c.nombre?.toLowerCase().includes(term) ||
-      c.telefono?.toLowerCase().includes(term) ||
-      c.zona_base?.toLowerCase().includes(term)
-    );
-  }
-  
-  return result;
-}, [categorized, searchTerm, filters]);
-```
-
-**6. Reemplazar Select con componentes modulares (líneas ~257-302):**
-```tsx
-{assignmentType === 'custodian' ? (
-  <div className="space-y-4">
-    {/* Stats rápidos */}
-    <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
-    
-    {/* Búsqueda y filtros */}
-    <CustodianSearch
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      filters={filters}
-      onFilterToggle={(key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }))}
-      resultsCount={filteredCustodians.length}
-      totalCount={totalCount}
-    />
-    
-    {/* Lista de custodios con cards */}
-    <CustodianList
-      custodians={filteredCustodians}
-      isLoading={isLoadingCustodians}
-      selectedId={selectedId}
-      highlightedIndex={highlightedIndex}
-      comunicaciones={comunicaciones}
-      onSelect={handleSelectCustodian}
-      onContact={handleContact}
-    />
-    
-    {/* Sección de conflictos colapsible */}
-    {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
-      <ConflictSection
-        custodians={categorized.noDisponibles}
-        onOverrideSelect={handleOverrideSelect}
-      />
-    )}
-  </div>
-) : (
-  // Mantener lógica existente de armados/proveedores
-  ...
-)}
-```
-
-**7. Implementar handlers para selección y contacto:**
-```typescript
-const handleSelectCustodian = (custodio: CustodioConProximidad) => {
-  setSelectedId(custodio.id);
-  setSelectedName(custodio.nombre);
-  
-  setComunicaciones(prev => ({
-    ...prev,
-    [custodio.id]: { status: 'acepta' as const, method: 'whatsapp' }
-  }));
-};
-
-const handleContact = (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => {
-  setComunicaciones(prev => ({
-    ...prev,
-    [custodio.id]: { status: 'contacted' as const, method }
-  }));
-  
-  if (method === 'whatsapp') {
-    window.open(`https://wa.me/${custodio.telefono?.replace(/\D/g, '')}`, '_blank');
-  } else {
-    window.open(`tel:${custodio.telefono}`, '_self');
-  }
-};
-
-const handleOverrideSelect = (custodio: CustodioConProximidad) => {
-  setSelectedId(custodio.id);
-  setSelectedName(custodio.nombre);
-  toast.info('Custodio con conflicto seleccionado - se requiere justificación');
-};
-```
-
-**8. Ajustar altura del modal para lista:**
-```tsx
-<DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden z-[60]">
-  ...
-  {/* Lista con scroll interno */}
-  <div className="max-h-[400px] overflow-y-auto">
-    <CustodianList ... />
-  </div>
-```
-
-### Lógica Preservada
-
-- La sección de **armados/proveedores** (`assignmentType === 'armed_guard'`) se mantiene intacta
-- Los campos de **razón**, **remover asignación**, y **proveedor externo** no cambian
-- El callback `onReassign` mantiene la misma firma
+| `src/components/planeacion/PendingAssignmentModal.tsx` | Agregar handlers de indisponibilidad/rechazo |
+| `src/components/planeacion/ReassignmentModal.tsx` | Homologar dimensiones + agregar handlers |
 
 ## Resultado Esperado
 
-| Antes | Después |
-|-------|---------|
-| Dropdown básico con 124+ opciones | Lista scrollable con cards enriquecidos |
-| Sin métricas de compatibilidad | Score % + equity badges visibles |
-| Sin filtros | Filtros por disponibilidad + búsqueda |
-| Sin historial | Badges de historial 15d (Local/Foráneo) |
-| Sin contacto directo | Botones WhatsApp/Llamar integrados |
-| z-index/positioning issues | Componentes probados y estables |
+| Feature | Crear | Pendiente | Reasignar |
+|---------|-------|-----------|-----------|
+| QuickStats | ✅ | ✅ | ✅ |
+| Search + Filtros | ✅ | ✅ | ✅ |
+| CustodianCards | ✅ | ✅ | ✅ |
+| Virtualización | ✅ | ✅ | ✅ |
+| ConflictSection | ✅ | ✅ | ✅ |
+| Reportar Indisponibilidad | ✅ | ✅ (nuevo) | ✅ (nuevo) |
+| Reportar Rechazo | ✅ | ✅ (nuevo) | ✅ (nuevo) |
 
-## Beneficios
+## Detalles Técnicos
 
-1. **Consistencia** - Misma UI en creación y edición
-2. **Información** - Planners ven scores y equidad antes de asignar
-3. **Rendimiento** - Virtualización para listas largas
-4. **Usabilidad** - Contacto directo sin salir del modal
+Los callbacks de indisponibilidad/rechazo requieren:
+
+1. **Estado adicional**:
+```typescript
+const [targetCustodio, setTargetCustodio] = useState<CustodioConProximidad | null>(null);
+const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
+const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+```
+
+2. **Integración con componentes existentes**:
+   - `ReportUnavailabilityCard` para indisponibilidad
+   - `RejectionTypificationDialog` para rechazos
+
+3. **Hook de mutación** para persistir cambios en BD:
+   - `custodio_indisponibilidades` para indisponibilidad
+   - `custodio_rechazos` para rechazos (7 días exclusión)
+
+## Resumen
+
+Los 3 flujos ya comparten la misma **UI base** (componentes modulares). Las mejoras propuestas agregarían las **funcionalidades operacionales** (reportar indisponibilidad/rechazo) que actualmente solo tiene el flujo de ServiceCreation.
+
+Si deseas implementar estas mejoras, confirma y procederé con los cambios.
