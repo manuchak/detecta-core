@@ -1,317 +1,184 @@
 
-# Plan: Sistema de Asignacion Flexible para Edicion de Servicios
+# Plan: Corregir Bug de Custodios No Cargando en Creacion de Servicios
 
 ## Problema Identificado
 
-El sistema actual impone un flujo secuencial rigido: **Custodio -> Armado**. Esto no refleja la realidad operativa donde un armado puede confirmar antes que un custodio.
+Los usuarios de planeacion ven "Sin datos de custodios" con 0 resultados cuando intentan asignar un custodio durante la creacion de servicios.
 
-### Puntos de Bloqueo Actuales
+## Causas Raiz Identificadas
 
-| Archivo | Linea | Logica Restrictiva |
-|---------|-------|-------------------|
-| `useSmartEditSuggestions.ts` | 66-77 | Fuerza "Asignar Custodio Primero" cuando hay armado pendiente |
-| `PendingAssignmentModal.tsx` | 66-84 | `currentStep` solo inicia en 'armed' si `hasCustodio=true` |
-| `PendingAssignmentModal.tsx` | 689 | Renderiza `SimplifiedArmedAssignment` solo si `custodianAssigned || service?.custodio_asignado` |
+### Bug 1: Race Condition en Sincronizacion de Estado (PRINCIPAL)
 
-## Solucion Propuesta: Asignacion Flexible con Tabs
-
-### Concepto UI/UX
-
-Transformar el modal de asignacion de un flujo lineal a una **vista de pestanas** que permita asignar cualquier recurso en cualquier orden:
+El `useServiceStepLogic` sincroniza el estado local (`hora`, `fecha`, etc.) al contexto `formData` via `useEffect`, que es **asincrono**. Cuando el usuario hace clic en "Continuar":
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  Asignar Personal - SRV-2024-1234                                   │
-│  Cliente: Empresa ABC | Ruta: CDMX -> Toluca | 14:00                │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌──────────────────┐                        │
-│  │   👤 Custodio    │  │   🛡️ Armado      │                        │
-│  │   ○ Pendiente    │  │   ○ Pendiente    │                        │
-│  └──────────────────┘  └──────────────────┘                        │
-│                           ↑ Tab activa                              │
-├─────────────────────────────────────────────────────────────────────┤
-│  [Contenido de asignacion de armado]                                │
-│                                                                     │
-│  - Lista de armados disponibles                                     │
-│  - Punto de encuentro                                               │
-│  - Hora de encuentro                                                │
-└─────────────────────────────────────────────────────────────────────┘
-│  [Completar Asignacion]          [Guardar y Continuar Despues]      │
-└─────────────────────────────────────────────────────────────────────┘
+1. Usuario establece hora = "08:00"
+2. canContinue se evalua como TRUE (usa estado local)
+3. Usuario hace clic en "Continuar"
+4. nextStep() navega a CustodianStep INMEDIATAMENTE
+5. PERO el useEffect que sincroniza hora a formData NO ha ejecutado aun
+6. CustodianStep lee formData.hora = "" (valor viejo)
+7. servicioNuevo = undefined (requiere hora)
+8. isReadyToQuery = false
+9. La query NUNCA se ejecuta
+10. Resultado: 0 custodios mostrados
 ```
 
-### Indicadores de Estado Visual
+**Archivo afectado**: `useServiceStepLogic.ts` lineas 145-179
 
-```tsx
-// Tab indicators (semanticos)
-<TabsTrigger value="custodian">
-  <User className="h-4 w-4" />
-  Custodio
-  {hasCustodio 
-    ? <CheckCircle className="h-3 w-3 text-success" />
-    : <Circle className="h-3 w-3 text-muted-foreground" />
-  }
-</TabsTrigger>
+### Bug 2: Funcion RPC No Filtra Roles Inactivos (SECUNDARIO)
 
-<TabsTrigger value="armed">
-  <Shield className="h-4 w-4" />
-  Armado
-  {hasArmado 
-    ? <CheckCircle className="h-3 w-3 text-success" />
-    : service.requiere_armado 
-      ? <AlertCircle className="h-3 w-3 text-warning" />
-      : null
-  }
-</TabsTrigger>
+La funcion `get_current_user_role_secure` no filtra por `is_active = true`:
+
+```sql
+-- ACTUAL (BUGGY)
+SELECT role INTO found_role 
+FROM public.user_roles 
+WHERE user_id = auth.uid()
+ORDER BY priority...
+LIMIT 1;
+
+-- DEBERIA SER
+SELECT role INTO found_role 
+FROM public.user_roles 
+WHERE user_id = auth.uid()
+  AND is_active = true  -- FALTA ESTE FILTRO
+ORDER BY priority...
+LIMIT 1;
 ```
 
-## Cambios Tecnicos
+**Usuarios afectados**:
+- `vanessa.monsalvo@detectasecurity.io` - planificador inactivo
+- `karla@detectasecurity.io` - admin inactivo
 
-### 1. useSmartEditSuggestions.ts - Eliminar Restriccion de Orden
+## Solucion Propuesta
 
-**Antes (lineas 66-77):**
-```tsx
-// CASO ESPECIAL: Requiere armado pero no hay custodio
-else if (needsArmedAssignment && !hasCustodio) {
-  heroSuggestion = {
-    mode: 'custodian_only',
-    title: 'Asignar Custodio Primero',
-    description: 'Debes asignar un custodio antes de asignar el armado',
-    ...
-  };
-}
+### Fix 1: Sincronizacion Sincrona Antes de Navegacion
+
+**Archivo**: `useServiceStepLogic.ts`
+
+Agregar funcion `syncToContext()` que actualiza formData de forma sincrona y llamarla desde ServiceStep antes de `nextStep()`:
+
+```typescript
+// useServiceStepLogic.ts
+const syncToContext = useCallback(() => {
+  updateFormData({
+    servicioId,
+    idInterno,
+    fechaRecepcion,
+    horaRecepcion,
+    fecha,
+    hora,
+    tipoServicio,
+    requiereArmado,
+    esServicioRetorno,
+    gadgets,
+    observaciones,
+  });
+}, [updateFormData, servicioId, idInterno, ...]);
+
+return {
+  // ... existing returns
+  syncToContext, // NUEVO
+};
 ```
 
-**Despues:**
-```tsx
-// CASO: Ambos pendientes - mostrar como acciones paralelas
-if (needsArmedAssignment && !hasCustodio) {
-  // Hero suggestion: la mas critica segun contexto
-  heroSuggestion = {
-    mode: 'flexible_assign',
-    title: 'Asignar Personal',
-    description: 'Asigna custodio y/o armado en cualquier orden',
-    priority: 'high',
-    icon: 'Users',
-    color: 'blue',
-    estimatedTime: '3 min',
-    consequences: [
-      'Puedes asignar el armado primero si ya confirmo disponibilidad',
-      'El custodio puede asignarse despues'
-    ]
-  };
-}
+```typescript
+// ServiceStep/index.tsx
+const handleContinue = () => {
+  syncToContext(); // Forzar sync ANTES de navegar
+  markStepCompleted('service');
+  nextStep();
+};
 ```
 
-### 2. PendingAssignmentModal.tsx - Flujo Flexible con Tabs
+### Fix 2: Guard de Disponibilidad en CustodianStep
 
-**Nuevo estado:**
-```tsx
-// Reemplazar currentStep por activeTab (semanticamente mas claro)
-const [activeTab, setActiveTab] = useState<'custodian' | 'armed'>(() => {
-  // Determinar tab inicial segun modo o contexto
-  if (mode === 'direct_armed') return 'armed';
-  if (mode === 'direct_custodian') return 'custodian';
-  // Auto: priorizar el que falta
-  return hasCustodio ? 'armed' : 'custodian';
-});
-```
+**Archivo**: `CustodianStep/index.tsx`
 
-**Nuevo render con Tabs:**
-```tsx
-<Tabs value={activeTab} onValueChange={setActiveTab}>
-  <TabsList className="grid w-full grid-cols-2">
-    <TabsTrigger value="custodian" className="relative">
-      <User className="h-4 w-4 mr-2" />
-      Custodio
-      <AssignmentIndicator assigned={!!service?.custodio_asignado} />
-    </TabsTrigger>
-    <TabsTrigger value="armed" disabled={!service?.requiere_armado}>
-      <Shield className="h-4 w-4 mr-2" />
-      Armado
-      <AssignmentIndicator 
-        assigned={!!service?.armado_asignado} 
-        required={service?.requiere_armado}
-      />
-    </TabsTrigger>
-  </TabsList>
+Agregar estado de espera si `formData.hora` no esta disponible:
 
-  <TabsContent value="custodian">
-    {/* Lista de custodios - SIN CAMBIOS */}
-  </TabsContent>
-
-  <TabsContent value="armed">
-    {/* SimplifiedArmedAssignment - AHORA SIN RESTRICCION */}
-    <SimplifiedArmedAssignment
-      serviceData={serviceData}
-      onComplete={handleArmedGuardAssignmentComplete}
-      // NUEVO: No requiere custodio previo
-      allowWithoutCustodian={true}
-    />
-  </TabsContent>
-</Tabs>
-```
-
-### 3. SimplifiedArmedAssignment.tsx - Permitir Asignacion Sin Custodio
-
-**Agregar prop:**
-```tsx
-interface SimplifiedArmedAssignmentProps {
-  // ... existentes
-  allowWithoutCustodian?: boolean;
-}
-```
-
-**Modificar warning de custodio hibrido:**
-```tsx
-{/* Solo mostrar warning si HAY custodio y es hibrido */}
-{serviceData.custodio_asignado && custodioIsHybrid && (
-  <Alert className="border-warning bg-warning/5">...</Alert>
-)}
-
-{/* Nuevo: Info cuando no hay custodio asignado */}
-{!serviceData.custodio_asignado && (
-  <Alert className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20">
-    <Info className="h-4 w-4 text-blue-600" />
-    <AlertTitle>Custodio pendiente</AlertTitle>
-    <AlertDescription>
-      Puedes asignar el armado primero. El custodio se asignara posteriormente.
-    </AlertDescription>
-  </Alert>
-)}
-```
-
-### 4. Nuevo Componente: AssignmentStatusBadges
-
-```tsx
-// src/components/planeacion/AssignmentStatusBadges.tsx
-export function AssignmentStatusBadges({ service }: { service: EditableService }) {
+```typescript
+// Si no tenemos los datos necesarios, mostrar estado de espera
+if (isHydrated && (!formData.fecha || !formData.hora)) {
   return (
-    <div className="flex items-center gap-2">
-      <Badge 
-        variant={service.custodio_asignado ? 'success' : 'outline'}
-        className="gap-1"
-      >
-        <User className="h-3 w-3" />
-        {service.custodio_asignado || 'Pendiente'}
-      </Badge>
-      
-      {service.requiere_armado && (
-        <Badge 
-          variant={service.armado_asignado ? 'success' : 'warning'}
-          className="gap-1"
-        >
-          <Shield className="h-3 w-3" />
-          {service.armado_asignado || 'Pendiente'}
-        </Badge>
-      )}
-    </div>
+    <Alert>
+      <AlertTitle>Esperando datos del servicio...</AlertTitle>
+      <AlertDescription>
+        Cargando informacion de fecha y hora del servicio.
+        <Button onClick={previousStep}>Volver a Detalles</Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 ```
 
-### 5. EditWorkflowContext - Nuevo Modo Flexible
+### Fix 3: Corregir Filtro de Roles Activos
 
-```tsx
-// Agregar nuevo EditMode
-export type EditMode = 
-  | 'basic_info'
-  | 'custodian_only'
-  | 'armed_only'
-  | 'flexible_assign'  // NUEVO
-  | 'add_armed'
-  | 'remove_armed';
-```
+**Migracion SQL**:
 
-### 6. SmartEditModal.tsx - Actualizar Logica de Acciones
-
-**Modificar getQuickActions():**
-```tsx
-// Cuando ambos faltan (o solo armado falta sin custodio)
-if (needsArmedAssignment || needsCustodianAssignment) {
-  actions.push({
-    id: 'flexible_assign',
-    title: needsCustodianAssignment && needsArmedAssignment 
-      ? 'Asignar Personal' 
-      : needsArmedAssignment 
-        ? 'Asignar Armado' 
-        : 'Asignar Custodio',
-    description: 'Asigna recursos en cualquier orden',
-    icon: Users,
-    color: 'info',
-    priority: 'high',
-    action: () => {
-      // Ir directamente al tab correcto
-      setAssignmentMode(needsArmedAssignment && !needsCustodianAssignment 
-        ? 'direct_armed' 
-        : 'auto');
-      setCurrentView('direct_assign');
-    }
-  });
-}
-```
-
-## Diagrama de Flujo Nuevo vs Anterior
-
-```text
-FLUJO ANTERIOR (Secuencial Rigido)
-──────────────────────────────────
-Servicio sin asignar
-       │
-       ▼
-┌──────────────┐
-│ Paso 1:      │    ← OBLIGATORIO PRIMERO
-│ Custodio     │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ Paso 2:      │    ← Solo si requiere armado
-│ Armado       │
-└──────────────┘
-
-
-FLUJO NUEVO (Flexible con Tabs)
-───────────────────────────────
-Servicio sin asignar
-       │
-       ▼
-┌───────────────────────────────┐
-│  ┌─────────┐   ┌─────────┐   │
-│  │Custodio │   │ Armado  │   │  ← Usuario elige orden
-│  │  ○      │   │   ○     │   │
-│  └────┬────┘   └────┬────┘   │
-│       │             │        │
-│       ▼             ▼        │
-│   Asignar       Asignar      │
-│   cuando        cuando       │
-│   confirme      confirme     │
-└───────────────────────────────┘
+```sql
+CREATE OR REPLACE FUNCTION public.get_current_user_role_secure()
+RETURNS text
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  found_role TEXT;
+BEGIN
+  SELECT role INTO found_role 
+  FROM public.user_roles 
+  WHERE user_id = auth.uid()
+    AND is_active = true  -- NUEVO FILTRO
+  ORDER BY
+    CASE role
+      WHEN 'owner' THEN 1
+      WHEN 'admin' THEN 2
+      WHEN 'supply_admin' THEN 3
+      WHEN 'planificador' THEN 4  -- Agregar planificador
+      WHEN 'coordinador_operaciones' THEN 5
+      ELSE 10
+    END
+  LIMIT 1;
+  
+  RETURN COALESCE(found_role, 'unverified');
+END;
+$$;
 ```
 
 ## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `useSmartEditSuggestions.ts` | Eliminar restriccion, agregar modo `flexible_assign` |
-| `PendingAssignmentModal.tsx` | Convertir a sistema de Tabs, eliminar guard en linea 689 |
-| `SimplifiedArmedAssignment.tsx` | Agregar prop `allowWithoutCustodian`, UI info |
-| `EditWorkflowContext.tsx` | Agregar modo `flexible_assign` |
-| `SmartEditModal.tsx` | Actualizar logica de acciones |
-| `AssignmentStatusBadges.tsx` | **NUEVO** - Componente de indicadores |
+| `useServiceStepLogic.ts` | Agregar `syncToContext()` para sincronizacion sincrona |
+| `ServiceStep/index.tsx` | Llamar `syncToContext()` antes de `nextStep()` |
+| `CustodianStep/index.tsx` | Agregar guard para datos faltantes |
+| Nueva migracion SQL | Corregir `get_current_user_role_secure` con filtro `is_active` |
 
-## Beneficios
+## Flujo Corregido
 
-1. **Flexibilidad Operativa**: Asignar en el orden que la realidad dicte
-2. **UX Mejorada**: Indicadores claros de estado de cada asignacion
-3. **Consistencia**: Mismo patron visual que el flujo de creacion base
-4. **Auditabilidad**: Sigue registrando quien asigno y cuando
-5. **Retrocompatibilidad**: El flujo secuencial sigue funcionando si el usuario lo prefiere
+```text
+1. Usuario establece hora = "08:00"
+2. Usuario hace clic en "Continuar"
+3. syncToContext() actualiza formData SINCRONICAMENTE
+4. markStepCompleted('service')
+5. nextStep() navega a CustodianStep
+6. CustodianStep lee formData.hora = "08:00" (correcto)
+7. servicioNuevo se crea correctamente
+8. isReadyToQuery = true
+9. Query se ejecuta y retorna custodios
+10. UI muestra lista de custodios
+```
 
-## Riesgos y Mitigaciones
+## Impacto
 
-| Riesgo | Mitigacion |
-|--------|------------|
-| Usuario deja armado sin custodio | Alert visual + estado `parcialmente_asignado` |
-| Armado asignado a servicio sin custodio en produccion | Logica de backend acepta este estado, UI lo muestra claramente |
-| Confusion sobre orden | Onboarding tooltip en primera vez |
+- **Usuarios afectados**: Todos los planificadores que crean servicios
+- **Severidad**: Alta - bloquea flujo critico de negocio
+- **Riesgo de regresion**: Bajo - cambios aislados a sincronizacion de estado
+
+## Notas Tecnicas
+
+- El bug de race condition es un patron comun en React cuando se usa useEffect para sincronizar estado entre componentes
+- La solucion preferida es sincronizacion explicita antes de navegacion en lugar de depender de efectos asincronos
+- El guard en CustodianStep actua como red de seguridad adicional
