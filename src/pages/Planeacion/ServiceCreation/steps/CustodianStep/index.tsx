@@ -506,25 +506,6 @@ export default function CustodianStep() {
       {/* Quick Stats */}
       <QuickStats categorized={categorized} isLoading={isLoadingOrPending} />
 
-      {/* Debug panel - Only in development */}
-      {import.meta.env.DEV && (
-        <div className="text-xs bg-muted p-2 rounded space-y-1 opacity-60 font-mono">
-          <p className="font-semibold text-muted-foreground mb-1">🔧 Debug State</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-            <p>isHydrated: <span className={isHydrated ? 'text-green-600' : 'text-red-500'}>{String(isHydrated)}</span></p>
-            <p>formData.fecha: {formData.fecha || <span className="text-red-500">(vacío)</span>}</p>
-            <p>formData.hora: {formData.hora || <span className="text-red-500">(vacío)</span>}</p>
-            <p>servicioNuevo: <span className={servicioNuevo ? 'text-green-600' : 'text-red-500'}>{servicioNuevo ? 'OK' : 'undefined'}</span></p>
-            <p>stableRef: <span className={stableServicioRef.current ? 'text-green-600' : 'text-amber-500'}>{stableServicioRef.current ? 'LOCKED' : 'pending'}</span></p>
-            <p>isReadyToQuery: <span className={isReadyToQuery ? 'text-green-600' : 'text-red-500'}>{String(isReadyToQuery)}</span></p>
-            <p>isLoading: {String(isLoading)}</p>
-            <p>isPending: {String(isPending)}</p>
-            <p>queryAttempts: {queryAttempts}/{maxRetries}</p>
-            <p>categorized: <span className={categorized ? 'text-green-600' : 'text-red-500'}>{categorized ? `${custodianCounts.disponibles + custodianCounts.parcialmenteOcupados} disponibles` : 'undefined'}</span></p>
-          </div>
-        </div>
-      )}
-
       {/* Search & Filters - Hide when custodian is selected */}
       {!state.selectedCustodianId && (
         <CustodianSearch
