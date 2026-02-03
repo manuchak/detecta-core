@@ -1,47 +1,63 @@
 
-# Plan: Cambiar Filtro de Actividad por Defecto
+# Plan: Mejorar Navegación al Perfil Forense
 
-## Problema Identificado
+## Problema
+- El nombre del custodio en la tabla no es clicable
+- El usuario espera navegar al perfil al hacer clic en el nombre
+- Actualmente solo el ícono de ojo (Eye) navega al perfil
 
-El filtro de actividad en `CustodiosDataTable.tsx` tiene como valor por defecto `'activo'` (línea 90):
+## Solución
 
-```typescript
-const [activityFilter, setActivityFilter] = useState<string>('activo');
-```
+### 1. Hacer el nombre clicable en CustodiosDataTable.tsx
 
-Esto significa que por defecto solo muestra custodios con servicios en los últimos 30 días, no todos los custodios con estado "activo" en el sistema.
-
-## Confusión de Términos
-
-| Concepto | Significado Actual |
-|----------|-------------------|
-| `estado: activo` | El custodio está empleado/disponible |
-| `nivel_actividad: activo` | Tuvo servicios en últimos 30 días |
-
-Santos Galeana tiene `estado: activo` pero probablemente `nivel_actividad: sin_actividad` porque no ha tenido servicios recientes.
-
-## Solución Propuesta
-
-Cambiar el valor por defecto del filtro de actividad a `'all'` para mostrar todos los custodios activos por defecto.
-
-### Cambios
-
-**Archivo: `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx`**
+Modificar la columna `nombre` para incluir un onClick que navegue al perfil:
 
 ```typescript
-// ANTES (línea 90)
-const [activityFilter, setActivityFilter] = useState<string>('activo');
-
-// DESPUÉS
-const [activityFilter, setActivityFilter] = useState<string>('all');
+// Columna nombre (líneas 237-258)
+{
+  accessorKey: 'nombre',
+  header: 'Custodio',
+  cell: ({ row }) => (
+    <div className="flex flex-col min-w-[180px]">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => navigate(`/perfiles-operativos/custodio/${row.original.id}`)}
+          className="font-medium text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+        >
+          {row.getValue('nombre')}
+        </button>
+        {row.original.estado === 'suspendido' && (
+          <Badge>Suspendido</Badge>
+        )}
+      </div>
+      {row.original.telefono && (
+        <span className="text-xs text-muted-foreground">...</span>
+      )}
+    </div>
+  ),
+},
 ```
 
-**Archivo: `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx`**
+### 2. Hacer el nombre clicable en ArmadosDataTable.tsx
 
-Aplicar el mismo cambio para consistencia.
+Aplicar el mismo patrón para consistencia.
+
+### 3. Hacer el nombre clicable en BajasDataTable.tsx
+
+Aplicar el mismo patrón para la pestaña de bajas.
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Agregar onClick al nombre |
+| `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx` | Agregar onClick al nombre |
+| `src/pages/PerfilesOperativos/components/BajasDataTable.tsx` | Agregar onClick al nombre |
 
 ## Resultado Esperado
 
-- Al entrar a la pestaña Custodios, se muestran los 106 custodios activos
-- Santos Galeana (y otros sin actividad reciente) aparecen en el listado
-- El usuario puede filtrar por actividad si lo desea, pero no es el default
+- Al hacer clic en cualquier nombre de la tabla, se navega al perfil forense completo
+- En el perfil forense ya están disponibles:
+  - Botón "Editar datos" en la tarjeta de contacto
+  - Sección "Convertir a Armado" (solo para custodios)
+- El ícono de ojo (Eye) permanece como alternativa visual
