@@ -22,7 +22,8 @@ export default function PerfilesOperativos() {
     armados,
     archivados,
     stats,
-    loading 
+    loading,
+    refetch
   } = useOperativeProfiles();
   
   const canManageArchive = hasAnyRole(['admin', 'owner', 'supply_admin', 'supply_lead']);
@@ -185,7 +186,7 @@ export default function PerfilesOperativos() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <CustodiosDataTable data={custodios} />
+              <CustodiosDataTable data={custodios} onRefresh={refetch} />
             </CardContent>
           </Card>
         </TabsContent>
