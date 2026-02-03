@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { Building2, Shield, Search, MapPin, Phone, Users, AlertTriangle, Clock, Zap } from 'lucide-react';
+import { Building2, Shield, Search, MapPin, Phone, Users, AlertTriangle, Clock, Zap, Info } from 'lucide-react';
 import { useArmedGuardsWithTracking } from '@/hooks/useArmedGuardsWithTracking';
 import { useCustodioVehicleData } from '@/hooks/useCustodioVehicleData';
 import { ExternalArmedVerificationModal } from './ExternalArmedVerificationModal';
@@ -48,6 +48,8 @@ interface SimplifiedArmedAssignmentProps {
   backLabel?: string;
   /** Whether to show the back button at all */
   showBackButton?: boolean;
+  /** Allow assigning armed guard without custodian (flexible flow) */
+  allowWithoutCustodian?: boolean;
 }
 
 export function SimplifiedArmedAssignment({
@@ -56,7 +58,8 @@ export function SimplifiedArmedAssignment({
   onSkip,
   onBack,
   backLabel = 'Volver',
-  showBackButton = true
+  showBackButton = true,
+  allowWithoutCustodian = false
 }: SimplifiedArmedAssignmentProps) {
   const [activeTab, setActiveTab] = useState<'externos' | 'internos'>('externos');
   const [globalSearch, setGlobalSearch] = useState('');
@@ -184,8 +187,19 @@ export function SimplifiedArmedAssignment({
 
   return (
     <div className="space-y-4">
+      {/* Info: No custodian assigned yet (flexible flow) */}
+      {!serviceData.custodio_asignado && allowWithoutCustodian && (
+        <Alert className="border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-800 dark:text-blue-300">Custodio pendiente</AlertTitle>
+          <AlertDescription className="text-blue-700 dark:text-blue-400">
+            Puedes asignar el armado primero. El custodio se asignará posteriormente.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Hybrid custodian warning */}
-      {custodioIsHybrid && (
+      {serviceData.custodio_asignado && custodioIsHybrid && (
         <Alert className="border-warning bg-warning/5">
           <AlertTriangle className="h-4 w-4 text-warning" />
           <AlertTitle className="text-warning">Custodio híbrido detectado</AlertTitle>
