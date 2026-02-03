@@ -295,6 +295,14 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: Custo
     );
   }
   
+  // Helper function to get color based on ranking
+  const getColorForIndex = (index: number) => {
+    if (index < 2) return ZONE_COLORS.high;
+    if (index < 4) return ZONE_COLORS.medium;
+    if (index < 6) return ZONE_COLORS.low;
+    return ZONE_COLORS.veryLow;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -328,53 +336,108 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: Custo
             <p className="text-sm">{mapError}</p>
           </div>
         ) : (
-          <div className="relative">
-            <div 
-              ref={mapContainer} 
-              className="w-full rounded-lg overflow-hidden"
-              style={{ height }}
-            />
+          <div className="flex gap-4">
+            {/* Mapa */}
+            <div className="relative flex-1">
+              <div 
+                ref={mapContainer} 
+                className="w-full rounded-lg overflow-hidden"
+                style={{ height }}
+              />
+              
+              {!mapLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted/50 rounded-lg">
+                  <Skeleton className="w-full h-full rounded-lg" />
+                </div>
+              )}
+            </div>
             
-            {!mapLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted/50 rounded-lg">
-                <Skeleton className="w-full h-full rounded-lg" />
+            {/* Leyenda lateral */}
+            <div 
+              className="w-56 flex-shrink-0 rounded-lg border bg-card p-4 overflow-y-auto"
+              style={{ height }}
+            >
+              <div className="space-y-1 mb-4">
+                <h4 className="text-sm font-semibold text-foreground">Zonas</h4>
+                <p className="text-xs text-muted-foreground">Custodios por ubicación</p>
               </div>
-            )}
+              
+              <div className="space-y-2">
+                {zonasConGeo.map((zona, index) => {
+                  const porcentaje = Math.round((zona.cantidad / totalCustodios) * 100);
+                  const color = getColorForIndex(index);
+                  
+                  return (
+                    <div 
+                      key={zona.zona}
+                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        map.current?.flyTo({
+                          center: [zona.lng, zona.lat],
+                          zoom: 7,
+                          duration: 800
+                        });
+                      }}
+                    >
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        {zona.cantidad}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate text-foreground">
+                          {zona.zona}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {porcentaje}% del total
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {sinZona > 0 && (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-warning/5 border border-warning/20">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-warning/20 text-warning text-xs font-semibold flex-shrink-0">
+                      {sinZona}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-warning">Sin asignar</div>
+                      <div className="text-xs text-muted-foreground">
+                        {Math.round((sinZona / totalCustodios) * 100)}% del total
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Mini leyenda de colores */}
+              <div className="mt-4 pt-3 border-t">
+                <div className="text-xs text-muted-foreground mb-2">Ranking cobertura</div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.high }} />
+                    <span className="text-[10px] text-muted-foreground">Alta</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.medium }} />
+                    <span className="text-[10px] text-muted-foreground">Media</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.low }} />
+                    <span className="text-[10px] text-muted-foreground">Baja</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         
-        {/* Leyenda */}
-        <div className="flex items-center justify-between pt-2 border-t text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Info className="h-3.5 w-3.5" />
-            <span>Tamaño = cantidad de custodios</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <span>Cobertura:</span>
-            <div className="flex items-center gap-1">
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: ZONE_COLORS.veryLow }} 
-                title="Baja"
-              />
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: ZONE_COLORS.low }} 
-                title="Media"
-              />
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: ZONE_COLORS.medium }} 
-                title="Alta"
-              />
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: ZONE_COLORS.high }} 
-                title="Muy Alta"
-              />
-            </div>
-          </div>
+        {/* Footer info */}
+        <div className="flex items-center gap-1.5 pt-2 border-t text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5" />
+          <span>Haz clic en una zona de la leyenda para centrar el mapa</span>
         </div>
       </CardContent>
     </Card>
