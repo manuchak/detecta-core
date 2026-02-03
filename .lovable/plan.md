@@ -1,45 +1,78 @@
 
-# Project Implementation Plan
+# Plan: Optimizar Vista de Custodios en Configuración
 
-## Recently Completed
+## Cambios Solicitados
 
-### UX Optimization: Modal de Asignación de Custodios ✅
-**Status**: COMPLETED
+| Elemento | Acción |
+|----------|--------|
+| Mapa "Distribución por Zona" | Aumentar tamaño |
+| Sección "Gestión de Zonas Base" | Eliminar de esta vista |
 
-**Changes Implemented**:
-1. **Two-Column Layout**: ReassignmentModal now uses a side-by-side layout:
-   - Left column (260px): Service context + reason textarea + remove action
-   - Right column (flex): Custodian selection with search/filters/list
+## Ubicación del Código
 
-2. **QuickStats Compact Variant**: Added `variant="compact"` prop that renders inline badges instead of grid cards (~32px vs ~80px height)
+**Archivo:** `src/pages/Planeacion/components/configuration/CustodiosZonasTab.tsx`
 
-3. **CustodianCard Compact Variant**: Added `variant="compact"` prop for horizontal layout (~60px vs ~180px per card), showing:
-   - Name + score + equity badge inline
-   - Phone + vehicle + service history on second row
-   - Action buttons (WhatsApp, Call, Reject, Assign) aligned right
+```text
+Línea 338:  <CustodianZoneBubbleMap estadisticasZona={estadisticasZona} />
+Líneas 341-547: <Card> Gestión de Zonas Base... </Card>
+```
 
-4. **CustodianList**: Updated to pass `variant` prop to child cards
+## Implementación
 
-**Files Modified**:
-- `src/components/planeacion/ReassignmentModal.tsx` - Two-column layout
-- `src/pages/.../CustodianStep/components/QuickStats.tsx` - Compact variant
-- `src/pages/.../CustodianStep/components/CustodianCard.tsx` - Compact variant
-- `src/pages/.../CustodianStep/components/CustodianList.tsx` - Variant prop pass-through
+### 1. Eliminar "Gestión de Zonas Base"
 
-**Metrics Achieved**:
-| Metric | Before | After |
-|--------|--------|-------|
-| Modal width | 896px | 1024px |
-| Cards visible | ~1.5 | ~4-5 |
-| QuickStats height | ~80px | ~32px |
-| Card height | ~180px | ~60px |
+Remover completamente el Card que contiene:
+- CardHeader con título y botón Actualizar
+- Filtros de búsqueda y actividad
+- Lista de custodios con selectores de zona/preferencia
 
----
+### 2. Agrandar el Mapa
 
-### Previous: Unification of Assignment Flows ✅
-All 3 custodian assignment flows now share modular components with identical functionality:
-- ServiceCreation step
-- PendingAssignmentModal
-- ReassignmentModal
+Modificar `CustodianZoneBubbleMap.tsx` para aumentar la altura del contenedor del mapa:
 
-Features unified: QuickStats, CustodianSearch, CustodianList, ConflictSection, reporting unavailability/rejection.
+```tsx
+// Antes
+<div className="h-[300px] ...">
+
+// Después  
+<div className="h-[500px] ...">
+```
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `CustodiosZonasTab.tsx` | Eliminar Card de Gestión de Zonas Base (líneas 341-547) |
+| `CustodianZoneBubbleMap.tsx` | Aumentar altura del mapa de 300px a 500px |
+
+## Resultado Visual Esperado
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Configuración de Planeación                                     │
+├─────────────────────────────────────────────────────────────────┤
+│ [Custodios] [Armados] [Proveedores] [Esquemas] [Sanciones] ...  │
+├─────────────────────────────────────────────────────────────────┤
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│ │ 100      │ │ 0        │ │ 9        │ │ 100%     │            │
+│ │ Activos  │ │ Sin Zona │ │ Zonas    │ │ Completit│            │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
+├─────────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │                                                             │ │
+│ │                    MAPA DE DISTRIBUCIÓN                     │ │
+│ │                       (más grande)                          │ │
+│ │                        ~500px altura                        │ │
+│ │                                                             │ │
+│ │      ● CDMX (45)    ● MTY (12)    ● GDL (18)              │ │
+│ │                                                             │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│        (Sin sección de Gestión de Zonas Base)                  │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Nota
+
+La funcionalidad de gestionar zonas base seguirá disponible en el módulo de **Perfiles Operativos** (`/perfiles-operativos`), donde existe una interfaz similar para editar custodios individualmente.
