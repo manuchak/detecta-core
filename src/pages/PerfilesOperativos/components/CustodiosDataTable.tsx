@@ -14,19 +14,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -40,23 +27,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { 
-  Search, Eye, Phone, MapPin, Star, TrendingUp, Clock, Filter, X,
-  MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2, MessageCircle,
-  Check, ChevronsUpDown
+  Search, Eye, Phone, MapPin, Star, Filter, X,
+  MoreHorizontal, UserX, Home, Plane, CircleDot, MessageCircle,
+  Edit
 } from 'lucide-react';
 import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
+import { QuickEditSheet, PreferenciaTipoServicio } from './QuickEditSheet';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -73,36 +51,34 @@ const activityBadgeConfig: Record<CustodioProfile['nivel_actividad'], { label: s
   sin_actividad: { label: 'Sin actividad', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }
 };
 
-const ZONAS_DISPONIBLES = [
-  { value: 'Ciudad de México', label: 'CDMX' },
-  { value: 'Estado de México', label: 'EDOMEX' },
-  { value: 'Jalisco', label: 'Jalisco' },
-  { value: 'Nuevo León', label: 'Nuevo León' },
-  { value: 'Puebla', label: 'Puebla' },
-  { value: 'Querétaro', label: 'Querétaro' },
-  { value: 'Guanajuato', label: 'Guanajuato' },
-  { value: 'Michoacán', label: 'Michoacán' },
-  { value: 'Veracruz', label: 'Veracruz' },
-  { value: 'Chihuahua', label: 'Chihuahua' },
-  { value: 'Sonora', label: 'Sonora' },
-  { value: 'Sinaloa', label: 'Sinaloa' },
-  { value: 'Tamaulipas', label: 'Tamaulipas' },
-  { value: 'Coahuila', label: 'Coahuila' },
-  { value: 'Baja California', label: 'Baja California' },
-  { value: 'Aguascalientes', label: 'Aguascalientes' },
-  { value: 'Hidalgo', label: 'Hidalgo' },
-  { value: 'Morelos', label: 'Morelos' },
-  { value: 'Tlaxcala', label: 'Tlaxcala' },
-  { value: 'San Luis Potosí', label: 'San Luis Potosí' },
-];
+const ZONAS_ABREVIADAS: Record<string, string> = {
+  'Ciudad de México': 'CDMX',
+  'Estado de México': 'EDOMEX',
+  'Jalisco': 'Jalisco',
+  'Nuevo León': 'NL',
+  'Puebla': 'Puebla',
+  'Querétaro': 'Qro',
+  'Guanajuato': 'Gto',
+  'Michoacán': 'Mich',
+  'Veracruz': 'Veracruz',
+  'Chihuahua': 'Chih',
+  'Sonora': 'Sonora',
+  'Sinaloa': 'Sinaloa',
+  'Tamaulipas': 'Tamps',
+  'Coahuila': 'Coah',
+  'Baja California': 'BC',
+  'Aguascalientes': 'Ags',
+  'Hidalgo': 'Hgo',
+  'Morelos': 'Mor',
+  'Tlaxcala': 'Tlax',
+  'San Luis Potosí': 'SLP',
+};
 
-type PreferenciaTipoServicio = 'local' | 'foraneo' | 'indistinto';
-
-const PREFERENCIA_OPTIONS: { value: PreferenciaTipoServicio; label: string; icon: typeof Home }[] = [
-  { value: 'local', label: 'Local', icon: Home },
-  { value: 'foraneo', label: 'Foráneo', icon: Plane },
-  { value: 'indistinto', label: 'Indistinto', icon: CircleDot },
-];
+const PREFERENCIA_ICONS: Record<PreferenciaTipoServicio, { icon: typeof Home; label: string }> = {
+  local: { icon: Home, label: 'Local' },
+  foraneo: { icon: Plane, label: 'Foráneo' },
+  indistinto: { icon: CircleDot, label: 'Indistinto' },
+};
 
 export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps) {
   const navigate = useNavigate();
@@ -110,20 +86,13 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [activityFilter, setActivityFilter] = useState<string>('activo');
-  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
-  const [openZonaId, setOpenZonaId] = useState<string | null>(null);
   
-  // Estado para confirmación de cambios
-  const [pendingChange, setPendingChange] = useState<{
-    type: 'zona' | 'preferencia';
-    custodioId: string;
-    custodioNombre: string;
-    valorActual: string;
-    valorNuevo: string;
-    labelNuevo: string;
-  } | null>(null);
+  // Quick Edit Sheet state
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editingCustodio, setEditingCustodio] = useState<CustodioProfile | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Get unique zones for filter
   const zones = useMemo(() => {
@@ -154,55 +123,35 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
     setActivityFilter('all');
   };
 
-  const handleZonaChange = async (custodioId: string, nuevaZona: string) => {
-    setUpdatingIds(prev => new Set([...prev, custodioId]));
-    try {
-      const { error } = await supabase
-        .from('custodios_operativos')
-        .update({ zona_base: nuevaZona, updated_at: new Date().toISOString() })
-        .eq('id', custodioId);
-
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
-      toast.success('Zona actualizada');
-      onRefresh?.();
-    } catch (error) {
-      console.error('Error updating zona:', error);
-      toast.error('Error al actualizar zona');
-    } finally {
-      setUpdatingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(custodioId);
-        return newSet;
-      });
-    }
+  const handleOpenEditSheet = (custodio: CustodioProfile) => {
+    setEditingCustodio(custodio);
+    setEditSheetOpen(true);
   };
 
-  const handlePreferenciaChange = async (custodioId: string, preferencia: PreferenciaTipoServicio) => {
-    setUpdatingIds(prev => new Set([...prev, custodioId]));
+  const handleSaveEdit = async (id: string, zona: string, preferencia: PreferenciaTipoServicio) => {
+    setIsSaving(true);
     try {
       const { error } = await supabase
         .from('custodios_operativos')
-        .update({ preferencia_tipo_servicio: preferencia, updated_at: new Date().toISOString() })
-        .eq('id', custodioId);
+        .update({ 
+          zona_base: zona || null, 
+          preferencia_tipo_servicio: preferencia,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id);
 
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
       queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
-      toast.success('Preferencia actualizada');
+      toast.success('Datos actualizados correctamente');
       onRefresh?.();
     } catch (error) {
-      console.error('Error updating preferencia:', error);
-      toast.error('Error al actualizar preferencia');
+      console.error('Error updating custodio:', error);
+      toast.error('Error al actualizar datos');
+      throw error;
     } finally {
-      setUpdatingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(custodioId);
-        return newSet;
-      });
+      setIsSaving(false);
     }
   };
 
@@ -217,50 +166,6 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
     queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
     queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
     onRefresh?.();
-  };
-
-  // Capturar cambio de zona pendiente
-  const requestZonaChange = (custodio: CustodioProfile, nuevaZona: string) => {
-    const zonaLabel = ZONAS_DISPONIBLES.find(z => z.value === nuevaZona)?.label || nuevaZona;
-    setPendingChange({
-      type: 'zona',
-      custodioId: custodio.id,
-      custodioNombre: custodio.nombre,
-      valorActual: custodio.zona_base || 'Sin zona',
-      valorNuevo: nuevaZona,
-      labelNuevo: zonaLabel,
-    });
-    setOpenZonaId(null);
-  };
-
-  // Capturar cambio de preferencia pendiente
-  const requestPreferenciaChange = (custodio: CustodioProfile, preferencia: PreferenciaTipoServicio) => {
-    const prefLabel = PREFERENCIA_OPTIONS.find(o => o.value === preferencia)?.label || preferencia;
-    setPendingChange({
-      type: 'preferencia',
-      custodioId: custodio.id,
-      custodioNombre: custodio.nombre,
-      valorActual: custodio.preferencia_tipo_servicio || 'indistinto',
-      valorNuevo: preferencia,
-      labelNuevo: prefLabel,
-    });
-  };
-
-  // Confirmar cambio
-  const confirmChange = async () => {
-    if (!pendingChange) return;
-    
-    if (pendingChange.type === 'zona') {
-      await handleZonaChange(pendingChange.custodioId, pendingChange.valorNuevo);
-    } else {
-      await handlePreferenciaChange(pendingChange.custodioId, pendingChange.valorNuevo as PreferenciaTipoServicio);
-    }
-    setPendingChange(null);
-  };
-
-  // Cancelar cambio
-  const cancelChange = () => {
-    setPendingChange(null);
   };
   
   const columns: ColumnDef<CustodioProfile>[] = [
@@ -283,65 +188,13 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       accessorKey: 'zona_base',
       header: 'Zona',
       cell: ({ row }) => {
-        const custodio = row.original;
-        const isUpdating = updatingIds.has(custodio.id);
-        const currentZona = custodio.zona_base || '';
-        const zonaLabel = ZONAS_DISPONIBLES.find(z => z.value === currentZona)?.label || 'Sin zona';
+        const zona = row.original.zona_base;
+        const zonaLabel = zona ? (ZONAS_ABREVIADAS[zona] || zona) : '—';
         
         return (
-          <div className="min-w-[140px]">
-            <Popover
-              open={openZonaId === custodio.id}
-              onOpenChange={(open) => setOpenZonaId(open ? custodio.id : null)}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-[140px] justify-between text-xs"
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <>
-                      <span className="flex items-center truncate">
-                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                        {zonaLabel}
-                      </span>
-                      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                    </>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Buscar zona..." className="h-9" />
-                  <CommandList>
-                    <CommandEmpty>No encontrada</CommandEmpty>
-                    <CommandGroup>
-                      {ZONAS_DISPONIBLES.map((zona) => (
-                        <CommandItem
-                          key={zona.value}
-                          value={zona.label}
-                          onSelect={() => {
-                            requestZonaChange(custodio, zona.value);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              currentZona === zona.value ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {zona.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+          <div className="flex items-center gap-1.5 text-sm">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className={cn(!zona && 'text-muted-foreground')}>{zonaLabel}</span>
           </div>
         );
       },
@@ -372,43 +225,14 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       accessorKey: 'preferencia_tipo_servicio',
       header: 'Preferencia',
       cell: ({ row }) => {
-        const custodio = row.original;
-        const isUpdating = updatingIds.has(custodio.id);
-        const currentPref = custodio.preferencia_tipo_servicio || 'indistinto';
-        const currentOption = PREFERENCIA_OPTIONS.find(o => o.value === currentPref);
-        const Icon = currentOption?.icon || CircleDot;
+        const pref = row.original.preferencia_tipo_servicio || 'indistinto';
+        const config = PREFERENCIA_ICONS[pref];
+        const Icon = config.icon;
         
         return (
-          <div className="min-w-[130px]">
-            <Select
-              value={currentPref}
-              onValueChange={(value) => requestPreferenciaChange(custodio, value as PreferenciaTipoServicio)}
-              disabled={isUpdating}
-            >
-              <SelectTrigger className="h-8 w-[130px] text-xs">
-                {isUpdating ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <>
-                    <Icon className="h-3 w-3 mr-1 shrink-0" />
-                    <SelectValue />
-                  </>
-                )}
-              </SelectTrigger>
-              <SelectContent position="popper" align="start" sideOffset={4}>
-                {PREFERENCIA_OPTIONS.map(option => {
-                  const OptionIcon = option.icon;
-                  return (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex items-center gap-2">
-                        <OptionIcon className="h-3 w-3" />
-                        {option.label}
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-1.5 text-sm">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>{config.label}</span>
           </div>
         );
       },
@@ -436,7 +260,26 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
         
         return (
           <div className="flex items-center gap-1">
-            {/* Acción primaria - siempre visible */}
+            {/* Edit button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleOpenEditSheet(custodio)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Editar zona/preferencia</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* View profile */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -455,7 +298,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
               </Tooltip>
             </TooltipProvider>
             
-            {/* Menú secundario - acciones adicionales */}
+            {/* Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -565,6 +408,15 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       
       <DataTable columns={columns} data={filteredData} />
 
+      {/* Quick Edit Sheet */}
+      <QuickEditSheet
+        open={editSheetOpen}
+        onOpenChange={setEditSheetOpen}
+        operative={editingCustodio}
+        onSave={handleSaveEdit}
+        isLoading={isSaving}
+      />
+
       {/* Status Change Modal */}
       {selectedCustodio && (
         <CambioEstatusModal
@@ -579,32 +431,6 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
           onSuccess={handleEstatusSuccess}
         />
       )}
-
-      {/* Confirmation Dialog for Zone/Preference Changes */}
-      <AlertDialog open={!!pendingChange} onOpenChange={(open) => !open && cancelChange()}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar cambio</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div>
-                {pendingChange?.type === 'zona' ? (
-                  <span>
-                    ¿Cambiar la zona base de <strong>{pendingChange.custodioNombre}</strong> a <strong>{pendingChange.labelNuevo}</strong>?
-                  </span>
-                ) : (
-                  <span>
-                    ¿Cambiar la preferencia de servicio de <strong>{pendingChange?.custodioNombre}</strong> a <strong>{pendingChange?.labelNuevo}</strong>?
-                  </span>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelChange}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmChange}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
