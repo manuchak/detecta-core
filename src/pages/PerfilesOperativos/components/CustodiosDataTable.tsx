@@ -87,7 +87,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
-  const [activityFilter, setActivityFilter] = useState<string>('activo');
+  const [activityFilter, setActivityFilter] = useState<string>('all');
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
   
