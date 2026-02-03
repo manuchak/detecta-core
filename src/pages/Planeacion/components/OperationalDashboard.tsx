@@ -26,6 +26,7 @@ import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { TrendBadge } from '@/components/planeacion/TrendBadge';
 import { DataFreshnessIndicator } from '@/components/planeacion/DataFreshnessIndicator';
 import { ZoneProgressBar } from '@/components/planeacion/ZoneProgressBar';
+import { StatusIndicator } from '@/components/planeacion/StatusIndicator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -317,11 +318,12 @@ export function OperationalDashboard() {
                   <div key={servicio.id} className="apple-list-item">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {/* Indicador de urgencia */}
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          tiempoRestante?.urgency === 'critical' ? 'bg-destructive animate-pulse' :
-                          tiempoRestante?.urgency === 'warning' ? 'bg-warning' : 'bg-success'
-                        }`} />
+                        {/* Indicador de urgencia - StatusIndicator Fase 2 */}
+                        <StatusIndicator 
+                          status={tiempoRestante?.urgency === 'critical' ? 'critical' : 
+                                  tiempoRestante?.urgency === 'warning' ? 'warning' : 'success'}
+                          pulse={tiempoRestante?.urgency === 'critical'}
+                        />
                         <div className="flex-1 min-w-0">
                           <p className="apple-list-title truncate">
                             {servicio.nombre_cliente || servicio.id_servicio || 'Sin identificar'}
@@ -419,8 +421,8 @@ export function OperationalDashboard() {
                   <div key={servicio.id} className="apple-list-item">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        {/* Indicador de advertencia */}
-                        <div className="w-2 h-2 rounded-full flex-shrink-0 bg-warning" />
+                        {/* Indicador de advertencia - StatusIndicator Fase 2 */}
+                        <StatusIndicator status="warning" />
                         <div className="flex-1 min-w-0">
                           <p className="apple-list-title truncate">
                             {servicio.nombre_cliente || 'Sin cliente'}
@@ -501,10 +503,10 @@ export function OperationalDashboard() {
                 <div key={zona.zona} className="apple-zone-card">
                   <div className="apple-zone-header">
                     <span className="apple-zone-title">{zona.zona}</span>
-                    <div className={`w-2 h-2 rounded-full ${
-                      zona.porcentaje > 70 ? 'bg-success' : 
-                      zona.porcentaje > 30 ? 'bg-warning' : 'bg-destructive'
-                    }`} />
+                    <StatusIndicator 
+                      status={zona.porcentaje > 70 ? 'success' : 
+                              zona.porcentaje > 30 ? 'warning' : 'critical'}
+                    />
                   </div>
                   <div className="apple-zone-percentage">
                     {zona.porcentaje}%
