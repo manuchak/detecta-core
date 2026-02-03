@@ -14,7 +14,9 @@ import {
   Home,
   Power,
   Settings,
-  Plane
+  Plane,
+  ArrowRightLeft,
+  Lock
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -27,6 +29,9 @@ import { PermanenciaCard } from './PermanenciaCard';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
 import { PreferenciaServicioSelector, PreferenciaTipoServicio } from '@/components/operatives/PreferenciaServicioSelector';
 import { useUpdateOperativoPreferencia } from '@/hooks/useUpdateOperativoPreferencia';
+import { ConvertirTipoModal } from '../ConvertirTipoModal';
+import { useUserRole } from '@/hooks/useUserRole';
+import { DATA_CORRECTION_ROLES } from '@/constants/accessControl';
 
 interface InformacionPersonalTabProps {
   profile: OperativeProfileFull | ArmadoProfileFull | null | undefined;
@@ -38,7 +43,12 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
   const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
   
   const [showEstatusModal, setShowEstatusModal] = useState(false);
+  const [showConvertirModal, setShowConvertirModal] = useState(false);
   const preferenciaMutation = useUpdateOperativoPreferencia();
+  const { hasAnyRole } = useUserRole();
+  
+  // Check if user has data correction permissions
+  const canCorrectData = hasAnyRole(DATA_CORRECTION_ROLES as unknown as Parameters<typeof hasAnyRole>[0]);
   
   const { data: vehicleData, isLoading: loadingVehicle } = useProfileVehicle(
     isCustodio && custodioProfile?.vehiculo_propio ? profile?.id : undefined
@@ -185,6 +195,31 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
               {profile.estado === 'activo' ? 'Dar de baja' : 'Reactivar'}
             </Button>
           </div>
+
+          {/* Data Correction Section - Only for custodios and authorized roles */}
+          {isCustodio && canCorrectData && (
+            <div className="pt-4 mt-2 border-t-2 border-dashed border-amber-500/50">
+              <div className="flex items-center gap-2 text-amber-600 mb-3">
+                <Lock className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  Corrección de Datos (Admin)
+                </span>
+              </div>
+              <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Este custodio fue registrado incorrectamente y debería ser armado.
+                </p>
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowConvertirModal(true)}
+                  className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                >
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Convertir a Armado
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -337,6 +372,19 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
           estado: profile.estado
         }}
       />
+
+      {/* Convert Type Modal - Only for custodios */}
+      {isCustodio && (
+        <ConvertirTipoModal
+          open={showConvertirModal}
+          onOpenChange={setShowConvertirModal}
+          operativo={{
+            id: profile.id,
+            nombre: profile.nombre,
+            tipoActual: 'custodio'
+          }}
+        />
+      )}
     </div>
   );
 }
