@@ -1,9 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Database, GitBranch, Target } from "lucide-react";
+import { Shield, Database, GitBranch, Target, UserX } from "lucide-react";
 import DuplicateCleanupManager from "@/components/maintenance/DuplicateCleanupManager";
 import { VersionControlManager } from "@/components/version-control/VersionControlManager";
 import BusinessTargetsManager from "@/components/administration/BusinessTargetsManager";
+import InactivityCleanupManager from "@/components/administration/InactivityCleanupManager";
 
 const AdministrationHub = () => {
   return (
@@ -19,10 +20,14 @@ const AdministrationHub = () => {
       </div>
 
       <Tabs defaultValue="targets" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="targets" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
             Metas de Negocio
+          </TabsTrigger>
+          <TabsTrigger value="inactivity" className="flex items-center gap-2">
+            <UserX className="h-4 w-4" />
+            Custodios Inactivos
           </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -44,6 +49,20 @@ const AdministrationHub = () => {
             </CardHeader>
             <CardContent>
               <BusinessTargetsManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="inactivity" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Limpieza de Custodios por Inactividad</CardTitle>
+              <CardDescription>
+                Identifica y da de baja custodios sin actividad reciente
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InactivityCleanupManager />
             </CardContent>
           </Card>
         </TabsContent>
