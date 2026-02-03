@@ -389,7 +389,7 @@ export function ReassignmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col z-[60]">
+      <DialogContent className="max-w-5xl max-h-[85vh] overflow-hidden flex flex-col z-[60]">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
@@ -397,120 +397,173 @@ export function ReassignmentModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-          {/* Current Service Info */}
-          <Card className="border-border/60 bg-muted/30">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-muted-foreground text-xs">Cliente</div>
-                  <div className="font-medium">{service.nombre_cliente}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">Ruta</div>
-                  <div className="font-medium">{service.origen} → {service.destino}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">{typeLabel} Actual</div>
-                  <div className="font-medium flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    {currentAssignment || <span className="text-muted-foreground">Sin asignar</span>}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs">Estado</div>
-                  <Badge variant="outline" className="text-xs">
-                    {service.estado_planeacion}
-                  </Badge>
-                </div>
+        {/* Two-column layout */}
+        <div className="flex-1 overflow-hidden flex gap-6">
+          {/* Left Column - Service Context */}
+          <div className="w-[260px] flex-shrink-0 space-y-4 overflow-y-auto">
+            {/* Compact Service Info */}
+            <div className="p-3 rounded-lg bg-muted/30 border text-sm space-y-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5" />
+                <span className="text-xs">Cliente</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="font-medium truncate">{service.nombre_cliente}</div>
+              
+              <div className="flex items-center gap-2 text-muted-foreground pt-2">
+                <MapPin className="h-3.5 w-3.5" />
+                <span className="text-xs">Ruta</span>
+              </div>
+              <div className="font-medium text-sm">{service.origen} → {service.destino}</div>
+              
+              <div className="flex items-center gap-2 text-muted-foreground pt-2">
+                <Icon className="h-3.5 w-3.5" />
+                <span className="text-xs">{typeLabel} Actual</span>
+              </div>
+              <div className="font-medium">
+                {currentAssignment || <span className="text-muted-foreground">Sin asignar</span>}
+              </div>
+              
+              <div className="pt-2 border-t border-border/50">
+                <Badge variant="outline" className="text-xs">
+                  {service.estado_planeacion}
+                </Badge>
+              </div>
+            </div>
 
-          {!showRemoveConfirm ? (
-            <div className="space-y-4">
-              {/* New Assignment Selection */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {currentAssignment ? `Nuevo ${typeLabel}` : typeLabel}
-                </h3>
+            {/* Reason textarea */}
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="text-sm">
+                {currentAssignment ? 'Razón del cambio' : 'Razón de asignación'} *
+              </Label>
+              <Textarea
+                id="reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Describa la razón..."
+                rows={3}
+                className="resize-none text-sm"
+              />
+            </div>
+
+            {/* Remove button (if applicable) */}
+            {currentAssignment && onRemove && !showRemoveConfirm && (
+              <Button 
+                variant="ghost" 
+                className="w-full text-destructive hover:bg-destructive/10 text-sm"
+                onClick={() => setShowRemoveConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Remover asignación
+              </Button>
+            )}
+            
+            {/* Remove Confirmation */}
+            {showRemoveConfirm && (
+              <Card className="border-destructive/50 bg-destructive/5">
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                    <p className="text-sm text-destructive">
+                      ¿Remover a "{currentAssignment}"?
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowRemoveConfirm(false)}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleRemove}
+                      disabled={!reason.trim() || isLoading}
+                      className="flex-1"
+                    >
+                      {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : 'Remover'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column - Selection */}
+          <div className="flex-1 overflow-hidden flex flex-col space-y-3 min-w-0">
+            {assignmentType === 'custodian' ? (
+              /* CUSTODIAN SELECTION - MODULAR COMPONENTS */
+              <>
+                {/* Compact Stats inline */}
+                <QuickStats categorized={categorized} isLoading={isLoadingCustodians} variant="compact" />
                 
-                {/* CUSTODIAN SELECTION - MODULAR COMPONENTS */}
-                {assignmentType === 'custodian' ? (
-                  <div className="space-y-4">
-                    {/* Quick Stats */}
-                    <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
-                    
-                    {/* Search and Filters */}
-                    <CustodianSearch
-                      searchTerm={searchTerm}
-                      onSearchChange={setSearchTerm}
-                      filters={filters}
-                      onFilterToggle={handleFilterToggle}
-                      resultsCount={filteredCustodians.length}
-                      totalCount={totalCount}
-                    />
-                    
-                    {/* Custodian List with Cards */}
-                    <div className="max-h-[400px] overflow-y-auto">
-                      <CustodianList
-                        custodians={filteredCustodians}
-                        isLoading={isLoadingCustodians}
-                        selectedId={selectedId}
-                        highlightedIndex={highlightedIndex}
-                        comunicaciones={comunicaciones}
-                        onSelect={handleSelectCustodian}
-                        onContact={handleContact}
-                        onReportUnavailability={handleReportUnavailability}
-                        onReportRejection={handleReportRejection}
-                      />
-                    </div>
-                    
-                    {/* Conflict Section */}
-                    {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
-                      <ConflictSection
-                        custodians={categorized.noDisponibles}
-                        onOverrideSelect={handleOverrideSelect}
-                        forceOpen={filteredCustodians.length === 0}
-                      />
-                    )}
-                    
-                    {/* Empty State */}
-                    {!isLoadingCustodians && filteredCustodians.length === 0 && (!categorized?.noDisponibles || categorized.noDisponibles.length === 0) && (
-                      <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
-                          <div>
-                            <div className="font-medium text-warning">
-                              No hay custodios disponibles
-                            </div>
-                            <div className="text-warning/80 text-sm">
-                              Todos los custodios están ocupados o inactivos. Intente ajustar los filtros.
-                            </div>
-                          </div>
-                        </div>
+                {/* Search and Filters */}
+                <CustodianSearch
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  filters={filters}
+                  onFilterToggle={handleFilterToggle}
+                  resultsCount={filteredCustodians.length}
+                  totalCount={totalCount}
+                />
+                
+                {/* Custodian List with compact cards */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  <CustodianList
+                    custodians={filteredCustodians}
+                    isLoading={isLoadingCustodians}
+                    selectedId={selectedId}
+                    highlightedIndex={highlightedIndex}
+                    comunicaciones={comunicaciones}
+                    onSelect={handleSelectCustodian}
+                    onContact={handleContact}
+                    onReportUnavailability={handleReportUnavailability}
+                    onReportRejection={handleReportRejection}
+                    variant="compact"
+                  />
+                </div>
+                
+                {/* Conflict Section */}
+                {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
+                  <ConflictSection
+                    custodians={categorized.noDisponibles}
+                    onOverrideSelect={handleOverrideSelect}
+                    forceOpen={filteredCustodians.length === 0}
+                  />
+                )}
+                
+                {/* Empty State */}
+                {!isLoadingCustodians && filteredCustodians.length === 0 && (!categorized?.noDisponibles || categorized.noDisponibles.length === 0) && (
+                  <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-warning mt-0.5" />
+                      <div>
+                        <div className="font-medium text-warning">No hay custodios disponibles</div>
+                        <div className="text-warning/80 text-sm">Intente ajustar los filtros.</div>
                       </div>
-                    )}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* ARMED GUARDS / PROVIDERS - LEGACY SELECT */
+              <div className="space-y-4 overflow-y-auto flex-1">
+                {loadingArmados || loadingProveedores ? (
+                  <div className="flex items-center gap-2 py-4">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span className="text-muted-foreground">Cargando opciones disponibles...</span>
                   </div>
                 ) : (
-                  /* ARMED GUARDS / PROVIDERS - LEGACY SELECT (unchanged) */
-                  loadingArmados || loadingProveedores ? (
-                    <div className="flex items-center gap-2 py-4">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span className="text-muted-foreground">Cargando opciones disponibles...</span>
-                    </div>
-                  ) : (
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="assignment-select">Seleccionar Armado o Proveedor *</Label>
                       <Select
                         value={selectedId}
                         onValueChange={(value) => {
                           setSelectedId(value);
-                          
                           const isProvider = value.startsWith('provider-');
-                          
                           if (isProvider) {
                             const providerId = value.replace('provider-', '');
                             const provider = availableProviders.find(p => p.id === providerId);
@@ -539,7 +592,6 @@ export function ReassignmentModal({
                           <SelectValue placeholder="Seleccionar armado o proveedor" />
                         </SelectTrigger>
                         <SelectContent className="bg-background z-[70]" style={{ zoom: 1.428571 }}>
-                          {/* Armados Internos */}
                           {availableArmados && availableArmados.length > 0 && (
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-2">
@@ -559,8 +611,6 @@ export function ReassignmentModal({
                               ))}
                             </SelectGroup>
                           )}
-                          
-                          {/* Proveedores Externos */}
                           {availableProviders.length > 0 && (
                             <SelectGroup>
                               <SelectLabel className="flex items-center gap-2">
@@ -585,7 +635,6 @@ export function ReassignmentModal({
                               ))}
                             </SelectGroup>
                           )}
-                          
                           {(!availableArmados || availableArmados.length === 0) && availableProviders.length === 0 && (
                             <SelectItem value="empty" disabled>
                               No hay armados ni proveedores disponibles
@@ -593,45 +642,43 @@ export function ReassignmentModal({
                           )}
                         </SelectContent>
                       </Select>
-                      
-                      {/* Campos condicionales para proveedores */}
-                      {selectedType === 'proveedor' && (
-                        <div className="mt-4 space-y-4 p-4 bg-muted/50 rounded-lg border">
-                          <div className="flex items-center gap-2 text-sm font-medium">
-                            <Building2 className="h-4 w-4" />
-                            <span>Información del Proveedor Externo</span>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="punto-encuentro" className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" />
-                              Punto de Encuentro *
+                    </div>
+                    
+                    {/* Provider fields */}
+                    {selectedType === 'proveedor' && (
+                      <div className="space-y-3 p-3 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Building2 className="h-4 w-4" />
+                          <span>Info Proveedor Externo</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="punto-encuentro" className="text-xs flex items-center gap-1">
+                              <MapPin className="h-3 w-3" /> Punto de Encuentro *
                             </Label>
                             <Input
                               id="punto-encuentro"
                               value={puntoEncuentro}
                               onChange={(e) => setPuntoEncuentro(e.target.value)}
-                              placeholder="Ej: Oficina Central, Gasolinera X..."
+                              placeholder="Ej: Oficina Central"
+                              className="h-8 text-sm"
                             />
                           </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="hora-encuentro" className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5" />
-                              Hora de Encuentro *
+                          <div className="space-y-1">
+                            <Label htmlFor="hora-encuentro" className="text-xs flex items-center gap-1">
+                              <Clock className="h-3 w-3" /> Hora *
                             </Label>
                             <Input
                               id="hora-encuentro"
                               type="time"
                               value={horaEncuentro}
                               onChange={(e) => setHoraEncuentro(e.target.value)}
+                              className="h-8 text-sm"
                             />
                           </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="tarifa-acordada" className="flex items-center gap-1">
-                              <DollarSign className="h-3.5 w-3.5" />
-                              Tarifa Acordada (MXN)
+                          <div className="space-y-1">
+                            <Label htmlFor="tarifa-acordada" className="text-xs flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" /> Tarifa (MXN)
                             </Label>
                             <Input
                               id="tarifa-acordada"
@@ -640,153 +687,66 @@ export function ReassignmentModal({
                               value={tarifaAcordada}
                               onChange={(e) => setTarifaAcordada(e.target.value)}
                               placeholder="Opcional"
+                              className="h-8 text-sm"
                             />
                           </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="nombre-personal">
-                              Nombre del Armado del Proveedor
-                            </Label>
+                          <div className="space-y-1">
+                            <Label htmlFor="nombre-personal" className="text-xs">Nombre Armado</Label>
                             <Input
                               id="nombre-personal"
                               value={nombrePersonal}
                               onChange={(e) => setNombrePersonal(e.target.value)}
                               placeholder="Opcional"
+                              className="h-8 text-sm"
                             />
-                            <p className="text-xs text-muted-foreground">
-                              Se puede especificar después si aún no se conoce
-                            </p>
                           </div>
-                          
-                          <Alert>
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription className="text-xs">
-                              Recuerde confirmar punto y hora de encuentro con el custodio
-                            </AlertDescription>
-                          </Alert>
                         </div>
-                      )}
-                    </div>
-                  )
-                )}
+                      </div>
+                    )}
 
-                {/* Manual Entry Option - Only for armed guards */}
-                {assignmentType === 'armed_guard' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="manual-name">O ingrese nombre manualmente</Label>
-                    <Input
-                      id="manual-name"
-                      value={selectedName}
-                      onChange={(e) => {
-                        setSelectedName(e.target.value);
-                        setSelectedId(''); // Clear selection when typing manually
-                      }}
-                      placeholder={`Nombre del ${typeLabel.toLowerCase()}`}
-                    />
+                    {/* Manual Entry Option */}
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-name" className="text-sm">O ingrese nombre manualmente</Label>
+                      <Input
+                        id="manual-name"
+                        value={selectedName}
+                        onChange={(e) => {
+                          setSelectedName(e.target.value);
+                          setSelectedId('');
+                        }}
+                        placeholder={`Nombre del ${typeLabel.toLowerCase()}`}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* Reason */}
-              <div className="space-y-2">
-                <Label htmlFor="reason">{currentAssignment ? 'Razón del cambio' : 'Razón de la asignación'} *</Label>
-                <Textarea
-                  id="reason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={currentAssignment ? "Describa la razón para esta reasignación..." : "Describa la razón para esta asignación..."}
-                  rows={3}
-                />
-              </div>
-            </div>
-          ) : (
-            /* Remove Confirmation */
-            <div className="space-y-6">
-              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-                  <div>
-                    <div className="font-medium text-destructive">
-                      ¿Confirmar remoción de {typeLabel.toLowerCase()}?
-                    </div>
-                    <div className="text-destructive/80 text-sm">
-                      Se removerá a "{currentAssignment}" de este servicio. Esta acción no se puede deshacer.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="remove-reason">Razón de la remoción *</Label>
-                <Textarea
-                  id="remove-reason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Describa la razón para remover esta asignación..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <DialogFooter className="flex-shrink-0 pt-4 border-t">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex gap-2">
-              {!showRemoveConfirm && onRemove && currentAssignment && (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowRemoveConfirm(true)}
-                  className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Remover {typeLabel}
-                </Button>
-              )}
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (showRemoveConfirm) {
-                    setShowRemoveConfirm(false);
-                    setReason('');
-                  } else {
-                    onOpenChange(false);
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancelar
-              </Button>
-              
-              {!showRemoveConfirm ? (
-                <Button
-                  onClick={handleReassign}
-                  disabled={
-                    !selectedName.trim() || 
-                    !reason.trim() || 
-                    (selectedType === 'proveedor' && (!puntoEncuentro.trim() || !horaEncuentro)) ||
-                    isLoading
-                  }
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Procesando...' : selectedType === 'proveedor' ? 'Asignar Proveedor' : `${actionLabel} ${typeLabel}`}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleRemove}
-                  disabled={!reason.trim() || isLoading}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Removiendo...' : `Confirmar Remoción`}
-                </Button>
-              )}
-            </div>
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleReassign}
+              disabled={
+                !selectedName.trim() || 
+                !reason.trim() || 
+                (selectedType === 'proveedor' && (!puntoEncuentro.trim() || !horaEncuentro)) ||
+                isLoading
+              }
+              className="bg-primary hover:bg-primary/90"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {isLoading ? 'Procesando...' : selectedType === 'proveedor' ? 'Asignar Proveedor' : `${actionLabel} ${typeLabel}`}
+            </Button>
           </div>
         </DialogFooter>
       </DialogContent>

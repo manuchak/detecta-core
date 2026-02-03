@@ -21,6 +21,7 @@ interface CustodianListProps {
   onContact: (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => void;
   onReportUnavailability?: (custodio: CustodioConProximidad) => void;
   onReportRejection?: (custodio: CustodioConProximidad) => void;
+  variant?: 'default' | 'compact';
 }
 
 // Configuration for windowing
@@ -38,6 +39,7 @@ export function CustodianList({
   onContact,
   onReportUnavailability,
   onReportRejection,
+  variant = 'default',
 }: CustodianListProps) {
   // Auto-collapse when a custodian is selected
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -161,6 +163,7 @@ export function CustodianList({
             onContact={(method) => handleContact(custodio, method)}
             onReportUnavailability={onReportUnavailability ? () => handleReportUnavailability(custodio) : undefined}
             onReportRejection={onReportRejection ? () => handleReportRejection(custodio) : undefined}
+            variant={variant}
           />
         ))}
         

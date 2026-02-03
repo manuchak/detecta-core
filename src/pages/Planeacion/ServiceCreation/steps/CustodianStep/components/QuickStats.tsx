@@ -1,15 +1,53 @@
 /**
  * QuickStats - Display availability statistics for custodians
+ * Supports 'default' (grid) and 'compact' (inline) variants
  */
 
+import { Circle, AlertTriangle } from 'lucide-react';
 import type { CustodiosCategorizados } from '@/hooks/useProximidadOperacional';
 
 interface QuickStatsProps {
   categorized: CustodiosCategorizados | undefined;
   isLoading: boolean;
+  variant?: 'default' | 'compact';
 }
 
-export function QuickStats({ categorized, isLoading }: QuickStatsProps) {
+export function QuickStats({ categorized, isLoading, variant = 'default' }: QuickStatsProps) {
+  // Compact variant - single line inline badges
+  if (variant === 'compact') {
+    if (isLoading) {
+      return (
+        <div className="flex items-center gap-4 text-sm py-1">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-4 w-8 bg-muted rounded animate-pulse" />
+          ))}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center gap-4 text-sm py-1 px-1">
+        <span className="flex items-center gap-1.5 text-success font-medium">
+          <Circle className="h-2.5 w-2.5 fill-current" />
+          {categorized?.disponibles?.length ?? 0}
+        </span>
+        <span className="flex items-center gap-1.5 text-warning font-medium">
+          <Circle className="h-2.5 w-2.5 fill-current" />
+          {categorized?.parcialmenteOcupados?.length ?? 0}
+        </span>
+        <span className="flex items-center gap-1.5 text-orange-500 font-medium">
+          <Circle className="h-2.5 w-2.5 fill-current" />
+          {categorized?.ocupados?.length ?? 0}
+        </span>
+        <span className="flex items-center gap-1.5 text-destructive font-medium">
+          <AlertTriangle className="h-3 w-3" />
+          {categorized?.noDisponibles?.length ?? 0}
+        </span>
+      </div>
+    );
+  }
+
+  // Default variant - grid layout
   if (isLoading) {
     return (
       <div className="grid grid-cols-4 gap-2">

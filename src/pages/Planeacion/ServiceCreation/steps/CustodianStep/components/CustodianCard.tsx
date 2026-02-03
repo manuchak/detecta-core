@@ -38,6 +38,7 @@ interface CustodianCardProps {
   disabled?: boolean;
   style?: React.CSSProperties;
   tipoServicioActual?: 'local' | 'foraneo';
+  variant?: 'default' | 'compact';
 }
 
 function CustodianCardComponent({
@@ -52,6 +53,7 @@ function CustodianCardComponent({
   disabled = false,
   style,
   tipoServicioActual,
+  variant = 'default',
 }: CustodianCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
@@ -132,6 +134,124 @@ function CustodianCardComponent({
       onReportRejection?.();
     }
   }, [onReportRejection]);
+
+  // ========== COMPACT VARIANT ==========
+  if (variant === 'compact') {
+    return (
+      <div style={style}>
+        <div
+          ref={cardRef}
+          className={`
+            flex items-center gap-3 p-3 rounded-lg border bg-card transition-all duration-200
+            hover:bg-accent/50 hover:border-accent
+            ${highlighted ? 'ring-2 ring-primary ring-offset-1' : ''}
+            ${selected ? 'ring-2 ring-primary/50 border-primary/30 bg-primary/5' : ''}
+            ${hasRejected ? 'opacity-50' : ''}
+            ${disabled ? 'opacity-60' : ''}
+          `}
+        >
+          {/* Info Section - Left */}
+          <div className="flex-1 min-w-0">
+            {/* Row 1: Name + Score + Equity Badge */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {getAvailabilityIcon()}
+              <span className="font-medium truncate text-sm">{custodio.nombre}</span>
+              <span className="text-xs text-muted-foreground">{scorePercentage}%</span>
+              {getEquidadBadge()}
+              {hasAccepted && (
+                <Badge className="text-[10px] bg-success/10 text-success border-success/30">
+                  <Check className="h-2.5 w-2.5 mr-0.5" /> Asignado
+                </Badge>
+              )}
+            </div>
+            
+            {/* Row 2: Phone + Vehicle + Service History */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+              <span className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {custodio.telefono}
+              </span>
+              {vehicleInfo && (
+                <span className="flex items-center gap-1">
+                  <Car className="h-3 w-3" />
+                  {vehicleInfo}
+                </span>
+              )}
+              <ServiceHistoryBadges
+                diasSinServicio={diasSinAsignar}
+                tipoUltimoServicio={tipoUltimoServicio}
+                fechaUltimoServicio={fechaUltimoServicio}
+                serviciosLocales15d={serviciosLocales15d}
+                serviciosForaneos15d={serviciosForaneos15d}
+                preferenciaTipoServicio={preferenciaTipoServicio}
+                tipoServicioActual={tipoServicioActual}
+                compact
+              />
+            </div>
+          </div>
+          
+          {/* Actions Section - Right */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); onContact('whatsapp'); }}
+              disabled={disabled || hasRejected}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={(e) => { e.stopPropagation(); onContact('llamada'); }}
+              disabled={disabled || hasRejected}
+            >
+              <Phone className="h-3.5 w-3.5" />
+            </Button>
+            
+            {onReportUnavailability && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-warning hover:bg-warning/10"
+                onClick={(e) => { e.stopPropagation(); onReportUnavailability(); }}
+                disabled={disabled || hasRejected}
+              >
+                <CalendarX2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            
+            {onReportRejection && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => { e.stopPropagation(); handleRejectWithAnimation(); }}
+                disabled={disabled || hasRejected}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            
+            {!hasAccepted && (
+              <Button
+                size="sm"
+                className="h-7 text-xs ml-1"
+                onClick={(e) => { e.stopPropagation(); onSelect(); }}
+                disabled={disabled || hasRejected}
+              >
+                Asignar
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== DEFAULT VARIANT ==========
   return (
     <div style={style}>
       <div
