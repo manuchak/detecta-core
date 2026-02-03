@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -5,10 +6,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { 
   AlertTriangle, 
   Calendar, 
@@ -17,15 +22,19 @@ import {
   FileText,
   Clock,
   ArrowRight,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Shield,
 } from 'lucide-react';
 import { useBajaDetails, type SancionAplicada, type EstatusHistorial } from '../hooks/useBajaDetails';
+import { useCambioEstatusOperativo } from '@/hooks/useCambioEstatusOperativo';
 import type { BajaProfile } from '../hooks/useOperativeProfiles';
 
 interface BajaDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   custodio: BajaProfile | null;
+  onReactivated?: () => void;
 }
 
 const CATEGORIA_COLORS: Record<string, string> = {
@@ -146,20 +155,49 @@ function HistorialItem({ item }: { item: EstatusHistorial }) {
   );
 }
 
-export function BajaDetailsDialog({ open, onOpenChange, custodio }: BajaDetailsDialogProps) {
+export function BajaDetailsDialog({ open, onOpenChange, custodio, onReactivated }: BajaDetailsDialogProps) {
   const { data, isLoading } = useBajaDetails(custodio?.id || null);
+  const { cambiarEstatus, isLoading: isReactivating } = useCambioEstatusOperativo();
+  const [showReactivar, setShowReactivar] = useState(false);
+  const [motivoReactivacion, setMotivoReactivacion] = useState('');
+
+  const handleReactivar = async () => {
+    if (!custodio || !motivoReactivacion.trim()) return;
+
+    const success = await cambiarEstatus({
+      operativoId: custodio.id,
+      operativoTipo: custodio.tipo_personal,
+      operativoNombre: custodio.nombre,
+      estatusAnterior: 'inactivo',
+      estatusNuevo: 'activo',
+      tipoCambio: 'reactivacion',
+      motivo: motivoReactivacion.trim(),
+    });
+
+    if (success) {
+      setShowReactivar(false);
+      setMotivoReactivacion('');
+      onOpenChange(false);
+      onReactivated?.();
+    }
+  };
+
+  const TipoIcon = custodio?.tipo_personal === 'armado' ? Shield : User;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <TipoIcon className="h-5 w-5" />
             Detalle de Baja: {custodio?.nombre}
+            {custodio?.tipo_personal === 'armado' && (
+              <Badge variant="secondary" className="ml-2">Armado</Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(85vh-100px)]">
+        <ScrollArea className="max-h-[calc(85vh-180px)]">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -234,9 +272,69 @@ export function BajaDetailsDialog({ open, onOpenChange, custodio }: BajaDetailsD
                   </div>
                 )}
               </div>
+
+              {/* Reactivation Form */}
+              {showReactivar && (
+                <>
+                  <Separator />
+                  <div className="space-y-3 bg-muted/50 rounded-lg p-4">
+                    <h3 className="font-medium flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Reactivar Operativo
+                    </h3>
+                    <div className="space-y-2">
+                      <Label htmlFor="motivo-reactivacion">Motivo de reactivación *</Label>
+                      <Textarea
+                        id="motivo-reactivacion"
+                        value={motivoReactivacion}
+                        onChange={(e) => setMotivoReactivacion(e.target.value)}
+                        placeholder="Ej: Reactivación por error en baja masiva"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowReactivar(false);
+                          setMotivoReactivacion('');
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleReactivar}
+                        disabled={isReactivating || !motivoReactivacion.trim()}
+                      >
+                        {isReactivating ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Confirmar
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </ScrollArea>
+
+        <DialogFooter>
+          {!showReactivar && (
+            <Button
+              variant="outline"
+              onClick={() => setShowReactivar(true)}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reactivar
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
