@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Users, 
   AlertCircle, 
@@ -23,6 +24,8 @@ import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmen
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { TrendBadge } from '@/components/planeacion/TrendBadge';
+import { DataFreshnessIndicator } from '@/components/planeacion/DataFreshnessIndicator';
+import { ZoneProgressBar } from '@/components/planeacion/ZoneProgressBar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -35,7 +38,17 @@ export function OperationalDashboard() {
   const [editFolioModalOpen, setEditFolioModalOpen] = useState(false);
   const [selectedFolioService, setSelectedFolioService] = useState<any>(null);
   
-  const { data: serviciosHoy = [], isLoading: loadingServicios, refetch: refetchServicios } = useServiciosHoy();
+  // Track last data refresh time
+  const lastRefetchRef = useRef<Date>(new Date());
+  
+  const { data: serviciosHoy = [], isLoading: loadingServicios, refetch: refetchServicios, dataUpdatedAt } = useServiciosHoy();
+  
+  // Update last refetch time when data changes
+  useEffect(() => {
+    if (dataUpdatedAt) {
+      lastRefetchRef.current = new Date(dataUpdatedAt);
+    }
+  }, [dataUpdatedAt]);
   const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
   const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
@@ -117,9 +130,15 @@ export function OperationalDashboard() {
       <div className="apple-header">
         <div>
           <h1 className="apple-title">Dashboard Operacional</h1>
-          <p className="apple-subtitle">
-            {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: es })} • {currentTime}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="apple-subtitle">
+              {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: es })} • {currentTime}
+            </p>
+            <DataFreshnessIndicator 
+              isLoading={isLoading} 
+              lastRefetch={lastRefetchRef.current} 
+            />
+          </div>
         </div>
       </div>
 
@@ -209,7 +228,7 @@ export function OperationalDashboard() {
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {isLoading ? '...' : serviciosHoy.length}
+              {isLoading ? <Skeleton className="h-8 w-12" /> : serviciosHoy.length}
             </div>
             <div className="apple-metric-label">Servicios Hoy</div>
             {datosAyer && (
@@ -226,7 +245,7 @@ export function OperationalDashboard() {
               </div>
               <div className="apple-metric-content">
                 <div className="apple-metric-value">
-                  {loadingActivos ? '...' : custodiosActivos?.activos || 0}
+                  {loadingActivos ? <Skeleton className="h-8 w-12" /> : custodiosActivos?.activos || 0}
                 </div>
                 <div className="apple-metric-label">Custodios Activos</div>
                 <span className="text-xs text-muted-foreground">
@@ -249,7 +268,7 @@ export function OperationalDashboard() {
           </div>
           <div className="apple-metric-content">
             <div className="apple-metric-value">
-              {isLoading ? '...' : serviciosProximosVencer.length}
+              {isLoading ? <Skeleton className="h-8 w-12" /> : serviciosProximosVencer.length}
             </div>
             <div className="apple-metric-label">Por Vencer (4h)</div>
           </div>
@@ -263,7 +282,7 @@ export function OperationalDashboard() {
               </div>
               <div className="apple-metric-content">
                 <div className="apple-metric-value">
-                  {loadingFolio ? '...' : folioStats?.pendientes || 0}
+                  {loadingFolio ? <Skeleton className="h-8 w-12" /> : folioStats?.pendientes || 0}
                 </div>
                 <div className="apple-metric-label">Pend. Folio</div>
               </div>
@@ -490,6 +509,7 @@ export function OperationalDashboard() {
                   <div className="apple-zone-percentage">
                     {zona.porcentaje}%
                   </div>
+                  <ZoneProgressBar percentage={zona.porcentaje} className="my-2" />
                   <div className="apple-zone-availability">
                     {zona.disponibles} de {zona.total} disponibles
                   </div>
@@ -497,7 +517,12 @@ export function OperationalDashboard() {
               ))
             ) : (
               <div className="col-span-full text-center py-4 text-muted-foreground">
-                {isLoading ? 'Cargando zonas...' : 'Sin datos de zonas'}
+                {isLoading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                ) : 'Sin datos de zonas'}
               </div>
             )}
           </div>
