@@ -2,20 +2,18 @@ import { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { 
   MapPin, Home, Plane, CircleDot, Loader2, Phone, Star, Check,
-  User, Activity
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +58,7 @@ const ZONAS_DISPONIBLES = [
   { value: 'Hidalgo', label: 'Hidalgo' },
   { value: 'Morelos', label: 'Morelos' },
   { value: 'Tlaxcala', label: 'Tlaxcala' },
-  { value: 'San Luis Potosí', label: 'San Luis Potosí' },
+  { value: 'San Luis Potosí', label: 'SLP' },
 ];
 
 const PREFERENCIA_OPTIONS: { value: PreferenciaTipoServicio; label: string; icon: typeof Home; description: string }[] = [
@@ -102,24 +100,21 @@ export function QuickEditSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             Edición Rápida
           </SheetTitle>
-          <SheetDescription>
-            Modificar zona y preferencia del operativo
-          </SheetDescription>
         </SheetHeader>
 
         {/* Operative Info Header */}
-        <div className="mt-4 p-4 rounded-lg bg-muted/50">
+        <div className="p-3 rounded-lg bg-muted/50 mt-2">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-semibold">{operative.nombre}</h3>
+              <h3 className="font-semibold text-sm">{operative.nombre}</h3>
               {operative.telefono && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                   <Phone className="h-3 w-3" />
                   {operative.telefono}
                 </p>
@@ -127,25 +122,32 @@ export function QuickEditSheet({
             </div>
             <div className="flex items-center gap-2">
               {operative.rating_promedio !== null && operative.rating_promedio !== undefined && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                   <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                   {operative.rating_promedio.toFixed(1)}
                 </Badge>
               )}
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-xs">
                 {operative.numero_servicios || 0} servicios
               </Badge>
             </div>
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(100vh-320px)] mt-4 pr-4">
-          {/* Zona Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
+        {/* Tabs for Zona and Preferencia */}
+        <Tabs defaultValue="zona" className="flex-1 flex flex-col mt-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="zona" className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Zona Base
-            </Label>
+            </TabsTrigger>
+            <TabsTrigger value="preferencia" className="flex items-center gap-2">
+              <Plane className="h-4 w-4" />
+              Preferencia
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="zona" className="flex-1 mt-4">
             <RadioGroup 
               value={selectedZona} 
               onValueChange={setSelectedZona}
@@ -175,20 +177,13 @@ export function QuickEditSheet({
                 </div>
               ))}
             </RadioGroup>
-          </div>
+          </TabsContent>
 
-          <Separator className="my-6" />
-
-          {/* Preferencia Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Preferencia de Servicio
-            </Label>
+          <TabsContent value="preferencia" className="flex-1 mt-4">
             <RadioGroup 
               value={selectedPreferencia} 
               onValueChange={(v) => setSelectedPreferencia(v as PreferenciaTipoServicio)}
-              className="space-y-2"
+              className="space-y-3"
             >
               {PREFERENCIA_OPTIONS.map((option) => {
                 const Icon = option.icon;
@@ -221,10 +216,10 @@ export function QuickEditSheet({
                 );
               })}
             </RadioGroup>
-          </div>
-        </ScrollArea>
+          </TabsContent>
+        </Tabs>
 
-        <SheetFooter className="mt-4 gap-2">
+        <SheetFooter className="mt-4 gap-2 border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancelar
           </Button>
