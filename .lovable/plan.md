@@ -1,185 +1,67 @@
 
-# Plan: Formulario de Edición de Datos para Perfiles Operativos
+# Plan: Fix Bug de Sincronización en Reactivación de Bajas
 
-## Contexto del Problema
+## Problema
 
-Los listados legacy tienen errores de llenado que necesitan corregirse. Actualmente solo se puede editar zona y preferencia vía `QuickEditSheet`. Se requiere un formulario completo para roles autorizados (coordinador_operaciones, admin, owner).
+Cuando se reactiva un operativo desde la pestaña "Bajas", el cambio se refleja en las tarjetas de estadísticas pero NO en el listado de "Custodios/Armados" al cambiar de tab.
 
-## Propuesta UX
+## Causa Raíz
 
-**Patrón: Sheet lateral con formulario completo**
+1. **staleTime de 5 minutos**: Las queries de `useOperativeProfiles` tienen `staleTime: 5 * 60 * 1000`, lo que causa que TanStack Query no refetch inmediatamente después de `invalidateQueries`
+2. **invalidateQueries vs refetch**: `invalidateQueries` marca queries como "stale" pero no fuerza un refetch si la query no tiene observers activos o si el staleTime no ha expirado
+3. **Bug secundario**: La query de armados filtra solo por `estado = 'activo'` y no incluye `'suspendido'`
 
-Expandir la funcionalidad existente de edición con un nuevo botón "Editar datos" visible solo para roles autorizados, que abre un formulario completo.
+## Solución
 
-```
-┌────────────────────────────────────────────────┐
-│ ✏️ Editar Perfil Operativo                     │
-├────────────────────────────────────────────────┤
-│ 📋 Datos de Contacto                           │
-│ ┌──────────────────────────────────────────┐  │
-│ │ Nombre completo                           │  │
-│ │ [Juan Pérez González____________]        │  │
-│ └──────────────────────────────────────────┘  │
-│ ┌────────────────┐ ┌──────────────────────┐  │
-│ │ Teléfono       │ │ Email                │  │
-│ │ [5512345678___]│ │ [email@ejemplo.com]  │  │
-│ └────────────────┘ └──────────────────────┘  │
-│                                                │
-│ 📍 Ubicación                                   │
-│ ┌──────────────────────────────────────────┐  │
-│ │ Zona base: [CDMX ▼]                      │  │
-│ └──────────────────────────────────────────┘  │
-│                                                │
-│ ⚙️ Configuración (solo custodios)              │
-│ ┌──────────────────────────────────────────┐  │
-│ │ ☑ Experiencia en seguridad               │  │
-│ │ ☑ Vehículo propio                        │  │
-│ └──────────────────────────────────────────┘  │
-│                                                │
-│ ⚔️ Configuración Armado (solo armados)        │
-│ ┌──────────────────────────────────────────┐  │
-│ │ Tipo: [Interno ▼]                        │  │
-│ │ Licencia: [_______________]              │  │
-│ │ Vencimiento: [📅 Seleccionar]            │  │
-│ └──────────────────────────────────────────┘  │
-│                                                │
-├────────────────────────────────────────────────┤
-│ [Cancelar]              [💾 Guardar Cambios]  │
-└────────────────────────────────────────────────┘
-```
+### 1. Modificar `useCambioEstatusOperativo.ts`
 
-## Cambios Técnicos
-
-### 1. Crear Hook `useUpdateOperativeProfile.ts`
-
-Hook genérico para actualizar tanto custodios como armados:
+Cambiar de `invalidateQueries` a `refetchQueries` para forzar un refetch inmediato:
 
 ```typescript
-interface UpdateOperativeParams {
-  id: string;
-  tipo: 'custodio' | 'armado';
-  data: Partial<CustodioUpdateData | ArmadoUpdateData>;
-}
+// ANTES (líneas 110-114)
+queryClient.invalidateQueries({ queryKey: ['custodios'] });
+queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
 
-interface CustodioUpdateData {
-  nombre: string;
-  telefono: string | null;
-  email: string | null;
-  zona_base: string | null;
-  experiencia_seguridad: boolean | null;
-  vehiculo_propio: boolean | null;
-  certificaciones: string[] | null;
-}
-
-interface ArmadoUpdateData {
-  nombre: string;
-  telefono: string | null;
-  email: string | null;
-  zona_base: string | null;
-  tipo_armado: string;
-  licencia_portacion: string | null;
-  fecha_vencimiento_licencia: string | null;
-  experiencia_anos: number | null;
-}
+// DESPUÉS
+await queryClient.refetchQueries({ queryKey: ['operative-profiles'] });
+queryClient.invalidateQueries({ queryKey: ['custodios'] });
+queryClient.invalidateQueries({ queryKey: ['armados'] });
 ```
 
-- Determinar tabla según tipo (custodios_operativos / armados_operativos)
-- Ejecutar update con Supabase
-- Invalidar query `['operative-profile', tipo, id]`
-- Toast de confirmación
+### 2. Modificar `useReactivacionMasiva.ts`
 
-### 2. Crear `EditOperativeProfileSheet.tsx`
+Aplicar el mismo fix para reactivación masiva.
 
-Componente Sheet con formulario React Hook Form + Zod:
+### 3. Fix secundario en `useOperativeProfiles.ts`
 
-**Campos comunes (siempre visibles):**
-- Nombre (requerido, min 3 chars)
-- Teléfono (requerido, min 10 dígitos)
-- Email (opcional, validación formato)
-- Zona base (select con estados)
+Corregir la query de armados para incluir suspendidos:
 
-**Campos específicos custodio (condicional):**
-- Experiencia en seguridad (switch)
-- Vehículo propio (switch)
-- Certificaciones (tag input)
-
-**Campos específicos armado (condicional):**
-- Tipo de armado (select: Interno/Externo/Freelance)
-- Licencia de portación (text)
-- Fecha vencimiento licencia (date picker)
-- Años de experiencia (number input)
-
-### 3. Actualizar `InformacionPersonalTab.tsx`
-
-- Agregar estado `showEditSheet`
-- Agregar botón "Editar datos" junto a la tarjeta "Datos de Contacto"
-- Visible solo para roles `DATA_CORRECTION_ROLES`
-- Importar e integrar el nuevo Sheet
-
-### 4. Opcional: Actualizar constantes
-
-Reusar `DATA_CORRECTION_ROLES` ya definida en `accessControl.ts`:
 ```typescript
-// Ya existe
-export const DATA_CORRECTION_ROLES = [
-  'admin',
-  'owner',
-  'coordinador_operaciones'
-] as const;
+// ANTES (línea 179)
+.eq('estado', 'activo')
+
+// DESPUÉS
+.in('estado', ['activo', 'suspendido'])
 ```
 
-## Archivos a Crear/Modificar
+### 4. Reducir staleTime (opcional pero recomendado)
 
-| Archivo | Acción |
+Reducir el staleTime a 1 minuto para mejor UX:
+
+```typescript
+staleTime: 1 * 60 * 1000 // 1 minuto
+```
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useUpdateOperativeProfile.ts` | **Crear** - Hook de actualización genérico |
-| `src/pages/PerfilesOperativos/components/EditOperativeProfileSheet.tsx` | **Crear** - Formulario de edición |
-| `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx` | Modificar - Agregar botón y Sheet |
-
-## Validaciones con Zod
-
-```typescript
-const custodioSchema = z.object({
-  nombre: z.string().min(3, 'Nombre muy corto'),
-  telefono: z.string().min(10, 'Teléfono inválido'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  zona_base: z.string().optional(),
-  experiencia_seguridad: z.boolean().nullable(),
-  vehiculo_propio: z.boolean().nullable(),
-});
-
-const armadoSchema = z.object({
-  nombre: z.string().min(3, 'Nombre muy corto'),
-  telefono: z.string().min(10, 'Teléfono inválido'),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  zona_base: z.string().optional(),
-  tipo_armado: z.enum(['interno', 'externo', 'freelance']),
-  licencia_portacion: z.string().optional(),
-  fecha_vencimiento_licencia: z.string().optional(),
-  experiencia_anos: z.number().min(0).max(50).optional(),
-});
-```
-
-## Flujo de Usuario
-
-```
-Usuario con rol autorizado → Perfil Operativo → Tab Información
-        ↓
-Ve botón "✏️ Editar datos" en tarjeta Datos de Contacto
-        ↓
-Click → Abre Sheet lateral con formulario
-        ↓
-Modifica campos necesarios → Validación en tiempo real
-        ↓
-Click "Guardar" → Update en BD → Toast éxito → Sheet cierra
-        ↓
-Perfil se refresca automáticamente con datos actualizados
-```
+| `src/hooks/useCambioEstatusOperativo.ts` | Usar `refetchQueries` en lugar de solo `invalidateQueries` |
+| `src/hooks/useReactivacionMasiva.ts` | Mismo fix para reactivación masiva |
+| `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts` | Fix query armados + reducir staleTime |
 
 ## Resultado Esperado
 
-- Daniela Castañeda (coordinador_operaciones) puede corregir datos erróneos de carga
-- Admin y Owner también tienen acceso
-- Formulario diferenciado según tipo (custodio vs armado)
-- Validación robusta para mantener integridad de datos
-- UI consistente con el resto de la aplicación (Sheet pattern)
+- Al reactivar un operativo, el listado se actualiza inmediatamente
+- Las estadísticas y listas permanecen sincronizadas
+- Los armados suspendidos también aparecen en su listado correspondiente
