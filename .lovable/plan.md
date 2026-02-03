@@ -1,120 +1,126 @@
 
-# Plan: Convertir Custodio a Armado (Corrección de Datos)
+# Plan: Formulario de Edición de Datos para Perfiles Operativos
 
-## Problema
+## Contexto del Problema
 
-Debido a errores de carga, algunos registros fueron creados como "custodio" cuando en realidad son "armado". Se necesita una forma de corregir esta clasificación desde la interfaz.
+Los listados legacy tienen errores de llenado que necesitan corregirse. Actualmente solo se puede editar zona y preferencia vía `QuickEditSheet`. Se requiere un formulario completo para roles autorizados (coordinador_operaciones, admin, owner).
 
-## Consideraciones UX
+## Propuesta UX
 
-**Por qué NO en la pestaña de edición regular:**
-- Es una acción destructiva e irreversible desde UI
-- No es una edición rutinaria, es corrección de datos
-- Debe tener fricción intencional para evitar errores
+**Patrón: Sheet lateral con formulario completo**
 
-**Propuesta: Sección separada con protección**
-- Ubicar en la tarjeta "Configuración Operativa" del tab Información
-- Visible solo para roles autorizados (admin, owner, coordinador_operaciones)
-- Requiere confirmación explícita con motivo
-- Registra historial de cambio
+Expandir la funcionalidad existente de edición con un nuevo botón "Editar datos" visible solo para roles autorizados, que abre un formulario completo.
 
-## Diseño de UI
-
-```text
-┌────────────────────────────────────────────────┐
-│ ⚙️ Configuración Operativa                     │
-├────────────────────────────────────────────────┤
-│ Preferencia de servicio                        │
-│ ┌──────────┐ ┌──────────┐ ┌──────────────┐    │
-│ │ 🏠 Local │ │ ✈️ Foráneo│ │ ⚪ Indistinto │   │
-│ └──────────┘ └──────────┘ └──────────────┘    │
-│                                                │
-│ ──────────────────────────────────────────    │
-│ [🔴 Dar de baja]                              │
-│                                                │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│
-│ 🔒 Acciones de Corrección de Datos (Admin)    │
-│ ┌────────────────────────────────────────────┐│
-│ │ Este custodio fue registrado               ││
-│ │ incorrectamente y debería ser armado.      ││
-│ │                                            ││
-│ │ [🔄 Convertir a Armado]                    ││
-│ └────────────────────────────────────────────┘│
-└────────────────────────────────────────────────┘
 ```
-
-## Flujo de Conversión
-
-```text
-Click "Convertir a Armado"
-        ↓
-Modal de Confirmación
-┌─────────────────────────────────────────────────┐
-│ ⚠️ Convertir Custodio a Armado                  │
-├─────────────────────────────────────────────────┤
-│ ¿Estás seguro de convertir a:                   │
-│ Juan Pérez González                             │
-│                                                 │
-│ Esta acción:                                    │
-│ • Moverá el registro a la tabla de armados      │
-│ • Eliminará datos específicos de custodio       │
-│ • No es reversible desde la interfaz            │
-│                                                 │
-│ Motivo: [Error de carga - registro incorrecto]  │
-│                                                 │
-│ Tipo de armado: [Seleccionar ▼]                 │
-│   • Interno                                     │
-│   • Externo                                     │
-│   • Freelance                                   │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│ [Cancelar]          [✓ Confirmar Conversión]    │
-└─────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│ ✏️ Editar Perfil Operativo                     │
+├────────────────────────────────────────────────┤
+│ 📋 Datos de Contacto                           │
+│ ┌──────────────────────────────────────────┐  │
+│ │ Nombre completo                           │  │
+│ │ [Juan Pérez González____________]        │  │
+│ └──────────────────────────────────────────┘  │
+│ ┌────────────────┐ ┌──────────────────────┐  │
+│ │ Teléfono       │ │ Email                │  │
+│ │ [5512345678___]│ │ [email@ejemplo.com]  │  │
+│ └────────────────┘ └──────────────────────┘  │
+│                                                │
+│ 📍 Ubicación                                   │
+│ ┌──────────────────────────────────────────┐  │
+│ │ Zona base: [CDMX ▼]                      │  │
+│ └──────────────────────────────────────────┘  │
+│                                                │
+│ ⚙️ Configuración (solo custodios)              │
+│ ┌──────────────────────────────────────────┐  │
+│ │ ☑ Experiencia en seguridad               │  │
+│ │ ☑ Vehículo propio                        │  │
+│ └──────────────────────────────────────────┘  │
+│                                                │
+│ ⚔️ Configuración Armado (solo armados)        │
+│ ┌──────────────────────────────────────────┐  │
+│ │ Tipo: [Interno ▼]                        │  │
+│ │ Licencia: [_______________]              │  │
+│ │ Vencimiento: [📅 Seleccionar]            │  │
+│ └──────────────────────────────────────────┘  │
+│                                                │
+├────────────────────────────────────────────────┤
+│ [Cancelar]              [💾 Guardar Cambios]  │
+└────────────────────────────────────────────────┘
 ```
 
 ## Cambios Técnicos
 
-### 1. Crear `useConvertirTipoOperativo.ts`
+### 1. Crear Hook `useUpdateOperativeProfile.ts`
 
-Hook para ejecutar la conversión:
+Hook genérico para actualizar tanto custodios como armados:
 
 ```typescript
-interface ConvertirParams {
-  operativoId: string;
-  direccion: 'custodio_a_armado' | 'armado_a_custodio';
-  motivo: string;
-  tipoArmado?: string;
-  ejecutadoPor: string;
+interface UpdateOperativeParams {
+  id: string;
+  tipo: 'custodio' | 'armado';
+  data: Partial<CustodioUpdateData | ArmadoUpdateData>;
+}
+
+interface CustodioUpdateData {
+  nombre: string;
+  telefono: string | null;
+  email: string | null;
+  zona_base: string | null;
+  experiencia_seguridad: boolean | null;
+  vehiculo_propio: boolean | null;
+  certificaciones: string[] | null;
+}
+
+interface ArmadoUpdateData {
+  nombre: string;
+  telefono: string | null;
+  email: string | null;
+  zona_base: string | null;
+  tipo_armado: string;
+  licencia_portacion: string | null;
+  fecha_vencimiento_licencia: string | null;
+  experiencia_anos: number | null;
 }
 ```
 
-Lógica:
-- Fetch registro actual de custodios_operativos
-- Mapear campos comunes (nombre, telefono, email, zona_base, estado, disponibilidad, numero_servicios, rating_promedio, etc.)
-- Insertar en armados_operativos con valores por defecto para campos específicos de armado
-- Eliminar de custodios_operativos
-- Registrar en historial/log
+- Determinar tabla según tipo (custodios_operativos / armados_operativos)
+- Ejecutar update con Supabase
+- Invalidar query `['operative-profile', tipo, id]`
+- Toast de confirmación
 
-### 2. Crear `ConvertirTipoModal.tsx`
+### 2. Crear `EditOperativeProfileSheet.tsx`
 
-Modal de confirmación con:
-- Resumen del operativo a convertir
-- Campo de motivo obligatorio
-- Selector de tipo_armado (requerido para conversión a armado)
-- Advertencia clara de irreversibilidad
+Componente Sheet con formulario React Hook Form + Zod:
+
+**Campos comunes (siempre visibles):**
+- Nombre (requerido, min 3 chars)
+- Teléfono (requerido, min 10 dígitos)
+- Email (opcional, validación formato)
+- Zona base (select con estados)
+
+**Campos específicos custodio (condicional):**
+- Experiencia en seguridad (switch)
+- Vehículo propio (switch)
+- Certificaciones (tag input)
+
+**Campos específicos armado (condicional):**
+- Tipo de armado (select: Interno/Externo/Freelance)
+- Licencia de portación (text)
+- Fecha vencimiento licencia (date picker)
+- Años de experiencia (number input)
 
 ### 3. Actualizar `InformacionPersonalTab.tsx`
 
-- Agregar sección "Corrección de Datos" al final de la tarjeta "Configuración Operativa"
-- Mostrar solo si el usuario tiene rol autorizado
-- Solo visible en perfiles de tipo 'custodio'
-- Integrar hook de autenticación para verificar rol
+- Agregar estado `showEditSheet`
+- Agregar botón "Editar datos" junto a la tarjeta "Datos de Contacto"
+- Visible solo para roles `DATA_CORRECTION_ROLES`
+- Importar e integrar el nuevo Sheet
 
-### 4. Crear constante de roles autorizados
+### 4. Opcional: Actualizar constantes
 
-En `accessControl.ts`:
-
+Reusar `DATA_CORRECTION_ROLES` ya definida en `accessControl.ts`:
 ```typescript
+// Ya existe
 export const DATA_CORRECTION_ROLES = [
   'admin',
   'owner',
@@ -126,40 +132,54 @@ export const DATA_CORRECTION_ROLES = [
 
 | Archivo | Acción |
 |---------|--------|
-| `src/hooks/useConvertirTipoOperativo.ts` | **Crear** - Hook de conversión |
-| `src/pages/PerfilesOperativos/components/ConvertirTipoModal.tsx` | **Crear** - Modal de confirmación |
-| `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx` | Modificar - Agregar sección y botón |
-| `src/constants/accessControl.ts` | Modificar - Agregar DATA_CORRECTION_ROLES |
+| `src/hooks/useUpdateOperativeProfile.ts` | **Crear** - Hook de actualización genérico |
+| `src/pages/PerfilesOperativos/components/EditOperativeProfileSheet.tsx` | **Crear** - Formulario de edición |
+| `src/pages/PerfilesOperativos/components/tabs/InformacionPersonalTab.tsx` | Modificar - Agregar botón y Sheet |
 
-## Mapeo de Campos (Custodio → Armado)
+## Validaciones con Zod
 
-| Campo Custodio | Campo Armado | Acción |
-|----------------|--------------|--------|
-| id | id | Nuevo UUID |
-| nombre | nombre | Copiar |
-| telefono | telefono | Copiar |
-| email | email | Copiar |
-| zona_base | zona_base | Copiar |
-| estado | estado | Copiar |
-| disponibilidad | disponibilidad | Copiar |
-| numero_servicios | numero_servicios | Copiar |
-| rating_promedio | rating_promedio | Copiar |
-| - | tipo_armado | Usuario selecciona |
-| - | licencia_portacion | null (completar después) |
-| - | experiencia_anos | null |
-| pc_custodio_id | - | Se pierde |
-| vehiculo_propio | - | Se pierde |
+```typescript
+const custodioSchema = z.object({
+  nombre: z.string().min(3, 'Nombre muy corto'),
+  telefono: z.string().min(10, 'Teléfono inválido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  zona_base: z.string().optional(),
+  experiencia_seguridad: z.boolean().nullable(),
+  vehiculo_propio: z.boolean().nullable(),
+});
 
-## Consideraciones de Seguridad
+const armadoSchema = z.object({
+  nombre: z.string().min(3, 'Nombre muy corto'),
+  telefono: z.string().min(10, 'Teléfono inválido'),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  zona_base: z.string().optional(),
+  tipo_armado: z.enum(['interno', 'externo', 'freelance']),
+  licencia_portacion: z.string().optional(),
+  fecha_vencimiento_licencia: z.string().optional(),
+  experiencia_anos: z.number().min(0).max(50).optional(),
+});
+```
 
-- Verificación de rol en frontend Y backend (RLS)
-- Registro en tabla de auditoría
-- Campo motivo obligatorio
-- Transacción atómica (insert + delete)
+## Flujo de Usuario
+
+```
+Usuario con rol autorizado → Perfil Operativo → Tab Información
+        ↓
+Ve botón "✏️ Editar datos" en tarjeta Datos de Contacto
+        ↓
+Click → Abre Sheet lateral con formulario
+        ↓
+Modifica campos necesarios → Validación en tiempo real
+        ↓
+Click "Guardar" → Update en BD → Toast éxito → Sheet cierra
+        ↓
+Perfil se refresca automáticamente con datos actualizados
+```
 
 ## Resultado Esperado
 
-- Daniela Castañeda (y otros coordinadores) pueden corregir clasificaciones erróneas
-- Proceso con fricción intencional para evitar errores
-- Registro de auditoría completo
-- UI clara sobre la naturaleza destructiva de la acción
+- Daniela Castañeda (coordinador_operaciones) puede corregir datos erróneos de carga
+- Admin y Owner también tienen acceso
+- Formulario diferenciado según tipo (custodio vs armado)
+- Validación robusta para mantener integridad de datos
+- UI consistente con el resto de la aplicación (Sheet pattern)
