@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, MapPin, Clock, Shield, Calendar, X, CheckCircle2 } from 'lucide-react';
+import { User, MapPin, Shield, Calendar, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CustodianAssignmentStep } from '@/pages/Planeacion/components/workflow/CustodianAssignmentStep';
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
 import { ContextualEditModal } from './ContextualEditModal';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
@@ -16,6 +15,18 @@ import type { EditableService } from './EditServiceModal';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+
+// Componentes modulares de CustodianStep (unificados)
+import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/QuickStats';
+import { CustodianSearch } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianSearch';
+import { CustodianList } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianList';
+import { ConflictSection } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ConflictSection';
+import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
+import { 
+  type CustodianCommunicationState, 
+  type CustodianStepFilters, 
+  DEFAULT_FILTERS 
+} from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/types';
 
 interface PendingAssignmentModalProps {
   open: boolean;
@@ -84,6 +95,114 @@ export function PendingAssignmentModal({
   });
   const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
   const { servicioToEditable } = useServiceTransformations();
+
+  // === NUEVO: Estado para componentes modulares de asignación ===
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<CustodianStepFilters>(DEFAULT_FILTERS);
+  const [comunicaciones, setComunicaciones] = useState<Record<string, CustodianCommunicationState>>({});
+  const [selectedCustodianId, setSelectedCustodianId] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  // Datos del servicio para el hook de proximidad
+  const servicioNuevo = useMemo(() => {
+    if (!service) return undefined;
+    return {
+      fecha_programada: service.fecha_hora_cita ? service.fecha_hora_cita.split('T')[0] : new Date().toISOString().split('T')[0],
+      hora_ventana_inicio: service.fecha_hora_cita ? (service.fecha_hora_cita.split('T')[1]?.substring(0, 5) || '09:00') : '09:00',
+      origen_texto: service.origen,
+      destino_texto: service.destino,
+      tipo_servicio: service.tipo_servicio,
+      incluye_armado: service.requiere_armado,
+      requiere_gadgets: false
+    };
+  }, [service]);
+
+  // Hook unificado de proximidad operacional (mismo que ServiceCreation)
+  const { data: categorized, isLoading: isLoadingCustodians } = useCustodiosConProximidad(
+    servicioNuevo,
+    { enabled: open && currentStep === 'custodian' }
+  );
+
+  // Filtrar custodios localmente
+  const filteredCustodians = useMemo(() => {
+    if (!categorized) return [];
+    let result: CustodioConProximidad[] = [];
+    
+    // Agregar según filtros activos
+    if (filters.disponibles) {
+      result = [...result, ...categorized.disponibles];
+    }
+    if (filters.parcialmenteOcupados) {
+      result = [...result, ...categorized.parcialmenteOcupados];
+    }
+    if (filters.ocupados) {
+      result = [...result, ...categorized.ocupados];
+    }
+    
+    // Aplicar búsqueda
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(c => 
+        c.nombre?.toLowerCase().includes(term) ||
+        c.telefono?.toLowerCase().includes(term) ||
+        c.zona_base?.toLowerCase().includes(term)
+      );
+    }
+    
+    return result;
+  }, [categorized, searchTerm, filters]);
+
+  const totalCount = useMemo(() => {
+    if (!categorized) return 0;
+    return (categorized.disponibles?.length || 0) + 
+           (categorized.parcialmenteOcupados?.length || 0) + 
+           (categorized.ocupados?.length || 0);
+  }, [categorized]);
+
+  // Handler para toggle de filtros
+  const handleFilterToggle = (key: keyof CustodianStepFilters) => {
+    setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Handler para selección de custodio (adaptado)
+  const handleSelectCustodian = async (custodio: CustodioConProximidad) => {
+    setSelectedCustodianId(custodio.id);
+    setComunicaciones(prev => ({
+      ...prev,
+      [custodio.id]: { status: 'acepta', method: 'whatsapp' }
+    }));
+    
+    // Llamar al callback original de asignación
+    await handleCustodianAssignmentComplete({
+      custodio_nombre: custodio.nombre,
+      custodio_asignado_id: custodio.id
+    });
+  };
+
+  // Handler para contacto (WhatsApp/Llamar)
+  const handleContact = (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => {
+    setComunicaciones(prev => ({
+      ...prev,
+      [custodio.id]: { status: 'contacted', method }
+    }));
+    
+    // Abrir enlace de contacto
+    if (custodio.telefono) {
+      const cleanPhone = custodio.telefono.replace(/\D/g, '');
+      if (method === 'whatsapp') {
+        const mensaje = `Hola ${custodio.nombre}, te contactamos de Detecta para un servicio.`;
+        window.open(`https://wa.me/52${cleanPhone}?text=${encodeURIComponent(mensaje)}`, '_blank');
+      } else {
+        window.open(`tel:+52${cleanPhone}`, '_blank');
+      }
+    }
+  };
+
+  // Handler para override de conflicto
+  const handleOverrideSelect = (custodio: CustodioConProximidad) => {
+    // Por ahora, asignar directamente. En el futuro, podría abrir modal de justificación
+    handleSelectCustodian(custodio);
+  };
 
   // Detectar si estamos editando un servicio existente con asignaciones
   const isEditingExisting = service && (
@@ -432,11 +551,50 @@ export function PendingAssignmentModal({
             {/* Component de Asignación */}
             <div className="space-y-4">
               {currentStep === 'custodian' && (
-                <CustodianAssignmentStep
-                  serviceData={serviceData}
-                  onComplete={handleCustodianAssignmentComplete}
-                  onBack={() => onOpenChange(false)}
-                />
+                <div className="space-y-4">
+                  {/* Stats rápidos */}
+                  <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
+                  
+                  {/* Búsqueda y filtros */}
+                  <CustodianSearch
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    filters={filters}
+                    onFilterToggle={handleFilterToggle}
+                    resultsCount={filteredCustodians.length}
+                    totalCount={totalCount}
+                  />
+                  
+                  {/* Lista de custodios */}
+                  <CustodianList
+                    custodians={filteredCustodians}
+                    isLoading={isLoadingCustodians}
+                    selectedId={selectedCustodianId}
+                    highlightedIndex={highlightedIndex}
+                    comunicaciones={comunicaciones}
+                    onSelect={handleSelectCustodian}
+                    onContact={handleContact}
+                  />
+                  
+                  {/* Sección de conflictos (colapsible) */}
+                  {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
+                    <ConflictSection
+                      custodians={categorized.noDisponibles}
+                      onOverrideSelect={handleOverrideSelect}
+                      forceOpen={filteredCustodians.length === 0 && categorized.noDisponibles.length > 0}
+                    />
+                  )}
+                  
+                  {/* Botón Cancelar */}
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
               )}
               
               {currentStep === 'armed' && (custodianAssigned || service?.custodio_asignado) && (
