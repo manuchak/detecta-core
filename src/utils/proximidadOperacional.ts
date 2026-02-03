@@ -169,6 +169,24 @@ export function calcularProximidadOperacional(
     scoring.detalles.bonus_rotacion = true;
   }
 
+  // 6. PENALIZACIÓN POR MISMATCH DE PREFERENCIA
+  const preferencia = (custodio as any).preferencia_tipo_servicio;
+  let penalizacionPreferencia = 0;
+
+  if (preferencia && preferencia !== 'indistinto') {
+    const esServicioForaneo = servicioNuevo.es_foraneo;
+    
+    if (preferencia === 'local' && esServicioForaneo) {
+      // Custodio prefiere local pero servicio es foráneo
+      penalizacionPreferencia = -15;
+      scoring.detalles.razones.push('⚠️ Prefiere servicios locales');
+    } else if (preferencia === 'foraneo' && !esServicioForaneo) {
+      // Custodio prefiere foráneo pero servicio es local
+      penalizacionPreferencia = -10;
+      scoring.detalles.razones.push('ℹ️ Prefiere servicios foráneos');
+    }
+  }
+
   // ALGORITMO EQUITATIVO: Combinar scores con nuevos pesos (incluye rotación)
   if (factorEquidad) {
     scoring.score_total = Math.round(
@@ -189,8 +207,8 @@ export function calcularProximidadOperacional(
     );
   }
   
-  // Asegurar que esté en rango 0-100
-  scoring.score_total = Math.max(0, Math.min(100, scoring.score_total));
+  // Aplicar penalización por preferencia al score total
+  scoring.score_total = Math.max(0, Math.min(100, scoring.score_total + penalizacionPreferencia));
   
   return scoring;
 }

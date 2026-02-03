@@ -1,6 +1,7 @@
 /**
  * CustodiosZonasTab - Apple Design System Refactored
  * Uses semantic tokens, CoverageRing, and apple-list pattern
+ * Phase 2: Added preference column + status actions
  */
 
 import React, { useState, useMemo } from 'react';
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { 
   MapPin, 
   Search, 
@@ -19,7 +21,10 @@ import {
   Phone,
   Home,
   Plane,
-  Circle
+  Circle,
+  MoreHorizontal,
+  Power,
+  CircleDot
 } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +32,8 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { ZoneStatusIndicator } from '@/components/planeacion/ZoneStatusIndicator';
+import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
+import { PreferenciaTipoServicio } from '@/components/operatives/PreferenciaServicioSelector';
 
 interface CustodioOperativo {
   id: string;
@@ -39,6 +46,7 @@ interface CustodioOperativo {
   contador_locales_consecutivos: number;
   contador_foraneos_consecutivos: number;
   fecha_ultimo_servicio: string | null;
+  preferencia_tipo_servicio: PreferenciaTipoServicio | null;
 }
 
 type ActivityFilter = 'all' | '60' | '90' | '120' | '120+';
@@ -75,11 +83,19 @@ const ZONAS_DISPONIBLES = [
   { value: 'Quintana Roo', label: 'Quintana Roo' },
 ];
 
+const PREFERENCIA_OPTIONS: { value: PreferenciaTipoServicio; label: string; icon: typeof Home }[] = [
+  { value: 'local', label: 'Local', icon: Home },
+  { value: 'foraneo', label: 'Foráneo', icon: Plane },
+  { value: 'indistinto', label: 'Indistinto', icon: CircleDot },
+];
+
 export function CustodiosZonasTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSinZona, setFilterSinZona] = useState(false);
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('90');
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const [showEstatusModal, setShowEstatusModal] = useState(false);
+  const [selectedCustodio, setSelectedCustodio] = useState<CustodioOperativo | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch custodios operativos
@@ -88,7 +104,7 @@ export function CustodiosZonasTab() {
     async () => {
       const { data, error } = await supabase
         .from('custodios_operativos')
-        .select('id, nombre, zona_base, estado, disponibilidad, telefono, tipo_ultimo_servicio, contador_locales_consecutivos, contador_foraneos_consecutivos, fecha_ultimo_servicio')
+        .select('id, nombre, zona_base, estado, disponibilidad, telefono, tipo_ultimo_servicio, contador_locales_consecutivos, contador_foraneos_consecutivos, fecha_ultimo_servicio, preferencia_tipo_servicio')
         .eq('estado', 'activo')
         .order('nombre');
       
@@ -186,6 +202,41 @@ export function CustodiosZonasTab() {
         return next;
       });
     }
+  };
+
+  // Actualizar preferencia de servicio
+  const handlePreferenciaChange = async (custodioId: string, nuevaPreferencia: PreferenciaTipoServicio) => {
+    setUpdatingIds(prev => new Set([...prev, custodioId]));
+    
+    try {
+      const { error } = await supabase
+        .from('custodios_operativos')
+        .update({ 
+          preferencia_tipo_servicio: nuevaPreferencia, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', custodioId);
+      
+      if (error) throw error;
+      
+      toast.success('Preferencia actualizada');
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos-zonas'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
+    } catch (err: any) {
+      toast.error(`Error al actualizar: ${err.message}`);
+    } finally {
+      setUpdatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(custodioId);
+        return next;
+      });
+    }
+  };
+
+  // Open status change modal
+  const openCambioEstatus = (custodio: CustodioOperativo) => {
+    setSelectedCustodio(custodio);
+    setShowEstatusModal(true);
   };
 
   // Estadísticas por zona (basado en filtro de actividad)
@@ -405,15 +456,16 @@ export function CustodiosZonasTab() {
                   )}
                 </div>
 
-                {/* Right: Zone Selector + Rotation */}
-                <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Right: Zone Selector + Preference + Rotation + Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Zone Selector */}
                   <Select
                     value={custodio.zona_base || ''}
                     onValueChange={(value) => handleZonaChange(custodio.id, value)}
                     disabled={updatingIds.has(custodio.id)}
                   >
-                    <SelectTrigger className="w-[160px]">
-                      <SelectValue placeholder="Seleccionar zona" />
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="Zona" />
                     </SelectTrigger>
                     <SelectContent>
                       {ZONAS_DISPONIBLES.map((zona) => (
@@ -424,22 +476,61 @@ export function CustodiosZonasTab() {
                     </SelectContent>
                   </Select>
 
+                  {/* Preference Selector */}
+                  <Select
+                    value={custodio.preferencia_tipo_servicio || 'indistinto'}
+                    onValueChange={(value) => handlePreferenciaChange(custodio.id, value as PreferenciaTipoServicio)}
+                    disabled={updatingIds.has(custodio.id)}
+                  >
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Pref." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PREFERENCIA_OPTIONS.map((pref) => {
+                        const Icon = pref.icon;
+                        return (
+                          <SelectItem key={pref.value} value={pref.value}>
+                            <span className="flex items-center gap-1">
+                              <Icon className="h-3 w-3" />
+                              {pref.label}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+
                   {/* Rotation Badge */}
-                  <div className="w-16 text-center">
+                  <div className="w-14 text-center">
                     {custodio.tipo_ultimo_servicio ? (
                       <Badge 
                         variant={custodio.tipo_ultimo_servicio === 'local' ? 'secondary' : 'default'}
                         className="text-xs gap-1"
                       >
                         {custodio.tipo_ultimo_servicio === 'local' 
-                          ? <><Home className="h-3 w-3" /> L×{custodio.contador_locales_consecutivos}</>
-                          : <><Plane className="h-3 w-3" /> F×{custodio.contador_foraneos_consecutivos}</>
+                          ? <><Home className="h-3 w-3" /> {custodio.contador_locales_consecutivos}</>
+                          : <><Plane className="h-3 w-3" /> {custodio.contador_foraneos_consecutivos}</>
                         }
                       </Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </div>
+
+                  {/* Actions Menu */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openCambioEstatus(custodio)}>
+                        <Power className="h-4 w-4 mr-2" />
+                        Dar de baja
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             ))}
@@ -452,6 +543,20 @@ export function CustodiosZonasTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Status Change Modal */}
+      {selectedCustodio && (
+        <CambioEstatusModal
+          open={showEstatusModal}
+          onOpenChange={setShowEstatusModal}
+          operativo={{
+            id: selectedCustodio.id,
+            nombre: selectedCustodio.nombre,
+            tipo: 'custodio',
+            estado: selectedCustodio.estado
+          }}
+        />
+      )}
     </div>
   );
 }

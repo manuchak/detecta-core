@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   User, 
   Phone, 
@@ -10,7 +11,10 @@ import {
   Shield,
   Award,
   Clock,
-  Home
+  Home,
+  Power,
+  Settings,
+  Plane
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,6 +24,9 @@ import { useProfileEconomics } from '../../hooks/useProfileEconomics';
 import { useProfileUbicacion } from '../../hooks/useProfileUbicacion';
 import { VehiculoCard } from './VehiculoCard';
 import { PermanenciaCard } from './PermanenciaCard';
+import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
+import { PreferenciaServicioSelector, PreferenciaTipoServicio } from '@/components/operatives/PreferenciaServicioSelector';
+import { useUpdateOperativoPreferencia } from '@/hooks/useUpdateOperativoPreferencia';
 
 interface InformacionPersonalTabProps {
   profile: OperativeProfileFull | ArmadoProfileFull | null | undefined;
@@ -29,6 +36,9 @@ interface InformacionPersonalTabProps {
 export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTabProps) {
   const isCustodio = tipo === 'custodio';
   const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
+  
+  const [showEstatusModal, setShowEstatusModal] = useState(false);
+  const preferenciaMutation = useUpdateOperativoPreferencia();
   
   const { data: vehicleData, isLoading: loadingVehicle } = useProfileVehicle(
     isCustodio && custodioProfile?.vehiculo_propio ? profile?.id : undefined
@@ -56,6 +66,21 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
     
     return fechaCreated;
   }, [profile?.created_at, economics?.primerServicio, isCustodio]);
+
+  // Handle preference change
+  const handlePreferenciaChange = (newPreferencia: PreferenciaTipoServicio) => {
+    if (profile) {
+      preferenciaMutation.mutate({
+        operativoId: profile.id,
+        operativoTipo: tipo,
+        nuevaPreferencia: newPreferencia
+      });
+    }
+  };
+
+  // Get current preference
+  const currentPreferencia = (profile as any)?.preferencia_tipo_servicio || 'indistinto';
+  const isUpdatingPreferencia = preferenciaMutation.isPending;
 
   if (!profile) {
     return (
@@ -130,6 +155,36 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
               value={format(new Date(custodioProfile.fecha_ultimo_servicio), "d 'de' MMMM yyyy", { locale: es })} 
             />
           )}
+        </CardContent>
+      </Card>
+
+      {/* Configuración Operativa - Phase 2 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Configuración Operativa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {/* Preference Selector */}
+          <PreferenciaServicioSelector
+            value={currentPreferencia}
+            onChange={handlePreferenciaChange}
+            disabled={isUpdatingPreferencia}
+          />
+          
+          {/* Status Change Button */}
+          <div className="pt-2 border-t">
+            <Button 
+              variant={profile.estado === 'activo' ? 'outline' : 'default'}
+              onClick={() => setShowEstatusModal(true)}
+              className="w-full"
+            >
+              <Power className="h-4 w-4 mr-2" />
+              {profile.estado === 'activo' ? 'Dar de baja' : 'Reactivar'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -267,9 +322,21 @@ export function InformacionPersonalTab({ profile, tipo }: InformacionPersonalTab
                 </Badge>
               ))}
             </div>
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
       )}
+
+      {/* Status Change Modal */}
+      <CambioEstatusModal
+        open={showEstatusModal}
+        onOpenChange={setShowEstatusModal}
+        operativo={{
+          id: profile.id,
+          nombre: profile.nombre,
+          tipo,
+          estado: profile.estado
+        }}
+      />
     </div>
   );
 }

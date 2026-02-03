@@ -34,6 +34,9 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   // Pre-fetched vehicle info (OPTIMIZATION: avoids per-card RPC calls)
   vehiculo_info?: string | null;
   
+  // Service preference (Phase 2)
+  preferencia_tipo_servicio?: 'local' | 'foraneo' | 'indistinto';
+  
   // Properties needed for CustodioPerformanceCard compatibility
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
   rejection_risk: 'bajo' | 'medio' | 'alto';
