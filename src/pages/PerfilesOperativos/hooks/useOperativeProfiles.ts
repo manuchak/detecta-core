@@ -61,6 +61,7 @@ export interface BajaProfile {
   fecha_reactivacion_programada: string | null;
   numero_servicios: number | null;
   rating_promedio: number | null;
+  tipo_personal: 'custodio' | 'armado';
 }
 
 export interface ArchivedProfile {
@@ -203,11 +204,12 @@ export function useOperativeProfiles() {
     staleTime: 5 * 60 * 1000
   });
 
-  // Fetch bajas (custodios inactivos/suspendidos)
+  // Fetch bajas (custodios y armados inactivos)
   const bajasQuery = useQuery({
     queryKey: ['operative-profiles', 'bajas'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch custodios inactivos
+      const { data: custodios, error: errorCustodios } = await supabase
         .from('custodios_operativos')
         .select(`
           id,
@@ -222,11 +224,47 @@ export function useOperativeProfiles() {
           numero_servicios,
           rating_promedio
         `)
-        .eq('estado', 'inactivo')
-        .order('fecha_inactivacion', { ascending: false });
+        .eq('estado', 'inactivo');
       
-      if (error) throw error;
-      return (data || []) as BajaProfile[];
+      if (errorCustodios) throw errorCustodios;
+
+      // Fetch armados inactivos
+      const { data: armados, error: errorArmados } = await supabase
+        .from('armados_operativos')
+        .select(`
+          id,
+          nombre,
+          telefono,
+          zona_base,
+          estado,
+          motivo_inactivacion,
+          tipo_inactivacion,
+          fecha_inactivacion,
+          fecha_reactivacion_programada,
+          numero_servicios,
+          rating_promedio
+        `)
+        .eq('estado', 'inactivo');
+      
+      if (errorArmados) throw errorArmados;
+
+      // Combinar con tipo_personal
+      const bajasCustodios = (custodios || []).map(c => ({ 
+        ...c, 
+        tipo_personal: 'custodio' as const 
+      }));
+      const bajasArmados = (armados || []).map(a => ({ 
+        ...a, 
+        tipo_personal: 'armado' as const 
+      }));
+
+      // Combinar y ordenar por fecha de inactivación (más reciente primero)
+      return [...bajasCustodios, ...bajasArmados]
+        .sort((a, b) => {
+          const fechaA = a.fecha_inactivacion ? new Date(a.fecha_inactivacion).getTime() : 0;
+          const fechaB = b.fecha_inactivacion ? new Date(b.fecha_inactivacion).getTime() : 0;
+          return fechaB - fechaA;
+        }) as BajaProfile[];
     },
     staleTime: 5 * 60 * 1000
   });
