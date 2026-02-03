@@ -37,6 +37,12 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   // Service preference (Phase 2)
   preferencia_tipo_servicio?: 'local' | 'foraneo' | 'indistinto';
   
+  // Métricas de actividad 15 días (Phase 4)
+  servicios_locales_15d?: number;
+  servicios_foraneos_15d?: number;
+  total_servicios_15d?: number;
+  sin_clasificar_15d?: number;
+  
   // Properties needed for CustodioPerformanceCard compatibility
   performance_level: 'excelente' | 'bueno' | 'regular' | 'malo' | 'nuevo';
   rejection_risk: 'bajo' | 'medio' | 'alto';
@@ -257,6 +263,12 @@ export function useCustodiosConProximidad(
             };
 
             custodioProcessed.datos_equidad = factorEquidad;
+            
+            // PHASE 4: Extraer métricas de 15 días del RPC
+            custodioProcessed.servicios_locales_15d = disponibilidadEquitativa.servicios_locales_15d ?? 0;
+            custodioProcessed.servicios_foraneos_15d = disponibilidadEquitativa.servicios_foraneos_15d ?? 0;
+            custodioProcessed.total_servicios_15d = disponibilidadEquitativa.total_servicios_15d ?? 0;
+            custodioProcessed.sin_clasificar_15d = disponibilidadEquitativa.sin_clasificar_15d ?? 0;
             
             // Mapear categorías del RPC al formato estándar
             const mapearCategoria = (categoria: string): 'disponible' | 'parcialmente_ocupado' | 'ocupado' | 'no_disponible' => {

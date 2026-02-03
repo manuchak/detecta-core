@@ -14581,6 +14581,7 @@ export type Database = {
         Args: { p_custodio_id: string; p_tipo_servicio: string }
         Returns: undefined
       }
+      actualizar_todas_metricas_15d: { Args: never; Returns: number }
       actualizar_tracking_rotacion: { Args: never; Returns: undefined }
       add_admin_role: { Args: { user_id: string }; Returns: undefined }
       archivar_producto: {
@@ -14877,6 +14878,10 @@ export type Database = {
           p_zona_id?: string
         }
         Returns: string
+      }
+      calcular_metricas_15d_operativo: {
+        Args: { p_operativo_id: string; p_operativo_tipo?: string }
+        Returns: Json
       }
       calcular_puntos_viaje: {
         Args: { estado_viaje: string; km_viaje: number }
