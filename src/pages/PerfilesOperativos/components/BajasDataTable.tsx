@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, UserX } from 'lucide-react';
+import { Search, UserX, Eye } from 'lucide-react';
+import { BajaDetailsDialog } from './BajaDetailsDialog';
 import type { BajaProfile } from '../hooks/useOperativeProfiles';
 
 interface BajasDataTableProps {
@@ -40,6 +41,8 @@ const MOTIVO_LABELS: Record<string, string> = {
 export function BajasDataTable({ data }: BajasDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [motivoFilter, setMotivoFilter] = useState<string>('todos');
+  const [selectedCustodio, setSelectedCustodio] = useState<BajaProfile | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
@@ -108,12 +111,13 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
               <TableHead>Motivo</TableHead>
               <TableHead>Fecha Baja</TableHead>
               <TableHead>Servicios</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <UserX className="h-8 w-8" />
                     <span>No hay bajas definitivas registradas</span>
@@ -122,7 +126,14 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
               </TableRow>
             ) : (
               filteredData.map((profile) => (
-                <TableRow key={profile.id}>
+                <TableRow 
+                  key={profile.id}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => {
+                    setSelectedCustodio(profile);
+                    setDetailsOpen(true);
+                  }}
+                >
                   <TableCell>
                     <div>
                       <p className="font-medium">{profile.nombre}</p>
@@ -154,12 +165,22 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
                   <TableCell>
                     <span className="text-sm font-medium">{profile.numero_servicios || 0}</span>
                   </TableCell>
+                  <TableCell>
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Details Dialog */}
+      <BajaDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        custodio={selectedCustodio}
+      />
     </div>
   );
 }
