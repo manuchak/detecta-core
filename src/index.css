@@ -1269,3 +1269,77 @@
     border-color: hsl(var(--destructive) / 0.35);
   }
 }
+
+/* ===== Fase 3: Funcionalidad Avanzada ===== */
+
+/* FAB Animations */
+@keyframes fab-pop-in {
+  from { 
+    transform: scale(0.8) translateY(10px); 
+    opacity: 0; 
+  }
+  to { 
+    transform: scale(1) translateY(0); 
+    opacity: 1; 
+  }
+}
+
+.fab-menu-item {
+  animation: fab-pop-in 0.2s ease-out backwards;
+}
+
+/* Shortcut Badge */
+.shortcut-badge {
+  @apply w-5 h-5 rounded text-[10px] font-mono 
+         bg-muted/50 text-muted-foreground 
+         flex items-center justify-center
+         flex-shrink-0;
+}
+
+/* Compact Mode Overrides */
+.compact-mode .apple-metric-featured {
+  @apply p-4;
+}
+
+.compact-mode .apple-metric-featured .text-5xl {
+  @apply text-3xl;
+}
+
+.compact-mode .apple-metric .apple-metric-value {
+  @apply text-xl;
+}
+
+.compact-mode .apple-list-item {
+  @apply py-2;
+}
+
+.compact-mode .apple-section-description {
+  @apply hidden;
+}
+
+.compact-mode .apple-card {
+  @apply p-4;
+}
+
+.compact-mode .apple-metric-success-hero {
+  @apply p-4;
+}
+
+.compact-mode .apple-metric-success-hero .text-5xl {
+  @apply text-3xl;
+}
+
+.compact-mode .apple-layout {
+  @apply p-4 space-y-4;
+}
+
+.compact-mode .apple-header {
+  @apply mb-4;
+}
+
+/* Respeta preferencia de movimiento reducido para FAB */
+@media (prefers-reduced-motion: reduce) {
+  .fab-menu-item {
+    animation: none;
+  }
+}

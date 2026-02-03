@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Users, 
   AlertCircle, 
@@ -11,7 +14,8 @@ import {
   TrendingUp,
   MessageSquare,
   FileText,
-  Edit
+  Edit,
+  Minimize2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -27,10 +31,17 @@ import { TrendBadge } from '@/components/planeacion/TrendBadge';
 import { DataFreshnessIndicator } from '@/components/planeacion/DataFreshnessIndicator';
 import { ZoneProgressBar } from '@/components/planeacion/ZoneProgressBar';
 import { StatusIndicator } from '@/components/planeacion/StatusIndicator';
+import { MiniSparkline } from '@/components/planeacion/MiniSparkline';
+import { QuickActionsFAB } from '@/components/planeacion/QuickActionsFAB';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMetricsHistory } from '@/hooks/useMetricsHistory';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { cn } from '@/lib/utils';
 
 export function OperationalDashboard() {
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -38,6 +49,9 @@ export function OperationalDashboard() {
   // Estado para modal de edición de folio
   const [editFolioModalOpen, setEditFolioModalOpen] = useState(false);
   const [selectedFolioService, setSelectedFolioService] = useState<any>(null);
+  
+  // Fase 3: Modo compacto persistido
+  const [compactMode, setCompactMode] = useLocalStorage('dashboard-compact-mode', false);
   
   // Track last data refresh time
   const lastRefetchRef = useRef<Date>(new Date());
@@ -55,6 +69,9 @@ export function OperationalDashboard() {
   const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
   const { data: datosAyer } = useServiciosAyer();
   const { data: custodiosActivos, isLoading: loadingActivos } = useCustodiosActivos30d();
+  
+  // Fase 3: Historial de métricas para sparklines
+  const { data: metricsHistory } = useMetricsHistory(7);
   
   const { updateServiceConfiguration } = useServiciosPlanificados();
   const queryClient = useQueryClient();
@@ -108,6 +125,38 @@ export function OperationalDashboard() {
     return new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime();
   });
 
+  // Fase 3: Función para seleccionar servicio por índice (atajos de teclado)
+  const handleSelectServiceByIndex = (index: number) => {
+    const servicio = accionesPrioritarias[index];
+    if (servicio) {
+      setSelectedService({
+        id: servicio.id,
+        id_servicio: servicio.id_servicio || '',
+        nombre_cliente: servicio.nombre_cliente || 'Sin cliente',
+        origen: servicio.origen || '',
+        destino: servicio.destino || '',
+        fecha_hora_cita: servicio.fecha_hora_cita || '',
+        tipo_servicio: 'custodia',
+        requiere_armado: servicio.requiere_armado ?? false,
+        observaciones: '',
+        created_at: servicio.created_at || new Date().toISOString(),
+        custodio_asignado: servicio.custodio_asignado || undefined,
+        armado_asignado: servicio.armado_asignado || undefined,
+        estado: servicio.estado_planeacion || 'pendiente'
+      });
+      setAssignmentModalOpen(true);
+    }
+  };
+
+  // Fase 3: Atajos de teclado
+  useKeyboardShortcuts({
+    onSelectItem: handleSelectServiceByIndex,
+    onNewService: () => navigate('/planeacion/nuevo-servicio'),
+    onRefresh: () => refetchServicios(),
+    itemsCount: Math.min(accionesPrioritarias.length, 5),
+    enabled: !assignmentModalOpen && !editFolioModalOpen
+  });
+
   // Helper para calcular tiempo restante
   const getTiempoRestante = (fechaCita: string | null) => {
     if (!fechaCita) return null;
@@ -126,7 +175,7 @@ export function OperationalDashboard() {
   const hasCriticalPending = serviciosSinCustodio.length > 0;
 
   return (
-    <div className="apple-layout">
+    <div className={cn("apple-layout", compactMode && "compact-mode")}>
       {/* Header */}
       <div className="apple-header">
         <div>
@@ -140,6 +189,18 @@ export function OperationalDashboard() {
               lastRefetch={lastRefetchRef.current} 
             />
           </div>
+        </div>
+        {/* Fase 3: Toggle modo compacto */}
+        <div className="flex items-center gap-2">
+          <Switch
+            id="compact-mode"
+            checked={compactMode}
+            onCheckedChange={setCompactMode}
+          />
+          <Label htmlFor="compact-mode" className="text-sm text-muted-foreground flex items-center gap-1.5 cursor-pointer">
+            <Minimize2 className="h-3.5 w-3.5" />
+            Compacto
+          </Label>
         </div>
       </div>
 
@@ -235,6 +296,14 @@ export function OperationalDashboard() {
             {datosAyer && (
               <TrendBadge current={serviciosHoy.length} previous={datosAyer.total} />
             )}
+            {/* Fase 3: Sparkline */}
+            {metricsHistory && (
+              <MiniSparkline 
+                data={metricsHistory.servicios} 
+                color="hsl(var(--primary))"
+                className="mt-2"
+              />
+            )}
           </div>
         </div>
 
@@ -312,12 +381,16 @@ export function OperationalDashboard() {
           </div>
           <div className="apple-list">
             {accionesPrioritarias.length > 0 ? (
-              accionesPrioritarias.slice(0, 5).map((servicio) => {
+              accionesPrioritarias.slice(0, 5).map((servicio, index) => {
                 const tiempoRestante = getTiempoRestante(servicio.fecha_hora_cita);
                 return (
                   <div key={servicio.id} className="apple-list-item">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Fase 3: Shortcut badge */}
+                        <span className="shortcut-badge" title={`Atajo: ${index + 1}`}>
+                          {index + 1}
+                        </span>
                         {/* Indicador de urgencia - StatusIndicator Fase 2 */}
                         <StatusIndicator 
                           status={tiempoRestante?.urgency === 'critical' ? 'critical' : 
@@ -556,6 +629,14 @@ export function OperationalDashboard() {
           setEditFolioModalOpen(false);
           setSelectedFolioService(null);
         }}
+      />
+
+      {/* Fase 3: FAB de acciones rápidas */}
+      <QuickActionsFAB
+        pendingCount={serviciosSinCustodio.length}
+        onAssignUrgent={() => handleSelectServiceByIndex(0)}
+        onViewAll={() => navigate('/planeacion')}
+        onCreateNew={() => navigate('/planeacion/nuevo-servicio')}
       />
     </div>
   );
