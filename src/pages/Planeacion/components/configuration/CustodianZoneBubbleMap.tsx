@@ -234,7 +234,9 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
       `);
       
       bubble.addEventListener('mouseenter', () => {
-        popup.setLngLat([zona.lng, zona.lat]).addTo(map.current!);
+        if (map.current) {
+          popup.setLngLat([zona.lng, zona.lat]).addTo(map.current);
+        }
       });
       
       bubble.addEventListener('mouseleave', () => {
@@ -251,9 +253,11 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
         });
       });
 
+      if (!map.current) return;
+      
       const marker = new mapboxgl.Marker({ element: markerRoot })
         .setLngLat([zona.lng, zona.lat])
-        .addTo(map.current!);
+        .addTo(map.current);
       
       markersRef.current.push(marker);
     });
