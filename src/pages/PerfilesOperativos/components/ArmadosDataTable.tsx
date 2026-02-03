@@ -85,7 +85,7 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
-  const [activityFilter, setActivityFilter] = useState<string>('activo');
+  const [activityFilter, setActivityFilter] = useState<string>('all');
   
   // Selection state for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
