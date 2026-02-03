@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   Users, 
   AlertCircle, 
@@ -8,7 +9,8 @@ import {
   MapPin,
   TrendingUp,
   MessageSquare,
-  FileText
+  FileText,
+  Edit
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,22 +18,32 @@ import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/
 import { useServiciosAyer } from '@/hooks/useServiciosAyer';
 import { usePendingFolioCount } from '@/hooks/usePendingFolioCount';
 import { useCustodiosActivos30d } from '@/hooks/useCustodiosActivos30d';
+import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
+import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
 import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { TrendBadge } from '@/components/planeacion/TrendBadge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function OperationalDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('es-ES'));
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
   
-  const { data: serviciosHoy = [], isLoading: loadingServicios } = useServiciosHoy();
+  // Estado para modal de edición de folio
+  const [editFolioModalOpen, setEditFolioModalOpen] = useState(false);
+  const [selectedFolioService, setSelectedFolioService] = useState<any>(null);
+  
+  const { data: serviciosHoy = [], isLoading: loadingServicios, refetch: refetchServicios } = useServiciosHoy();
   const { data: custodiosDisponibles = [], isLoading: loadingCustodios } = useCustodiosDisponibles();
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
   const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
   const { data: datosAyer } = useServiciosAyer();
   const { data: custodiosActivos, isLoading: loadingActivos } = useCustodiosActivos30d();
+  
+  const { updateServiceConfiguration } = useServiciosPlanificados();
+  const queryClient = useQueryClient();
 
   // Update time every second - with dialog protection
   useEffect(() => {
@@ -51,6 +63,11 @@ export function OperationalDashboard() {
   // KPIs operativos reales
   const serviciosSinCustodio = serviciosHoy.filter(s => 
     !s.custodio_asignado || s.custodio_asignado === ''
+  );
+
+  // Servicios con folio temporal (UUID = 36 caracteres) que necesitan folio de Saphiro
+  const serviciosSinFolio = serviciosHoy.filter(s => 
+    s.id_servicio && s.id_servicio.length === 36
   );
 
   const serviciosAsignados = serviciosHoy.filter(s => 
@@ -361,6 +378,94 @@ export function OperationalDashboard() {
           </div>
         </div>
 
+        {/* Pendientes de Folio Saphiro - NUEVA SECCIÓN */}
+        {serviciosSinFolio.length > 0 && (
+          <div className="apple-card">
+            <div className="apple-section-header">
+              <h3 className="apple-section-title flex items-center gap-2">
+                <FileText className="h-5 w-5 text-warning" />
+                Pendientes de Folio Saphiro
+                <Badge variant="secondary" className="ml-2">
+                  {serviciosSinFolio.length}
+                </Badge>
+              </h3>
+              <p className="apple-section-description">
+                Servicios con ID temporal del sistema
+              </p>
+            </div>
+            <div className="apple-list">
+              {serviciosSinFolio.slice(0, 5).map((servicio) => {
+                const tiempoRestante = getTiempoRestante(servicio.fecha_hora_cita);
+                return (
+                  <div key={servicio.id} className="apple-list-item">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        {/* Indicador de advertencia */}
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 bg-warning" />
+                        <div className="flex-1 min-w-0">
+                          <p className="apple-list-title truncate">
+                            {servicio.nombre_cliente || 'Sin cliente'}
+                          </p>
+                          <p className="apple-list-description truncate">
+                            {servicio.origen && servicio.destino 
+                              ? `${servicio.origen} → ${servicio.destino}` 
+                              : servicio.destino || servicio.origen || 'Sin ruta'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {/* Hora de cita */}
+                        <div className={`text-xs font-medium px-2 py-1 rounded ${
+                          tiempoRestante?.urgency === 'critical' 
+                            ? 'bg-destructive/10 text-destructive' 
+                            : tiempoRestante?.urgency === 'warning'
+                            ? 'bg-warning/10 text-warning'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {servicio.fecha_hora_cita 
+                            ? format(new Date(servicio.fecha_hora_cita), 'HH:mm') 
+                            : '--:--'}
+                        </div>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => {
+                            setSelectedFolioService({
+                              id: servicio.id,
+                              id_servicio: servicio.id_servicio || '',
+                              nombre_cliente: servicio.nombre_cliente || 'Sin cliente',
+                              origen: servicio.origen || '',
+                              destino: servicio.destino || '',
+                              fecha_hora_cita: servicio.fecha_hora_cita || '',
+                              tipo_servicio: 'custodia',
+                              requiere_armado: servicio.requiere_armado ?? false,
+                              custodio_asignado: servicio.custodio_asignado || undefined,
+                              armado_asignado: servicio.armado_asignado || undefined,
+                              estado_planeacion: servicio.estado_planeacion || 'pendiente'
+                            });
+                            setEditFolioModalOpen(true);
+                          }}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {serviciosSinFolio.length > 5 && (
+                <div className="text-center py-2">
+                  <span className="text-xs text-muted-foreground">
+                    +{serviciosSinFolio.length - 5} servicios más pendientes de folio
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="apple-card">
           <div className="apple-section-header">
             <h3 className="apple-section-title flex items-center gap-2">
@@ -407,6 +512,22 @@ export function OperationalDashboard() {
         onAssignmentComplete={() => {
           setAssignmentModalOpen(false);
           setSelectedService(null);
+        }}
+      />
+
+      {/* Modal de Edición de Folio */}
+      <ContextualEditModal
+        open={editFolioModalOpen}
+        onOpenChange={setEditFolioModalOpen}
+        service={selectedFolioService}
+        onSave={async (id, data) => {
+          await updateServiceConfiguration({ id, data });
+          await Promise.all([
+            refetchServicios(),
+            queryClient.invalidateQueries({ queryKey: ['pending-folio-count'] })
+          ]);
+          setEditFolioModalOpen(false);
+          setSelectedFolioService(null);
         }}
       />
     </div>
