@@ -111,10 +111,12 @@ export function useReactivacionMasiva() {
         console.warn('History not fully recorded:', historyError);
       }
 
-      // Invalidate all relevant queries
+      // Force refetch of operative profiles to ensure immediate UI sync
+      await queryClient.refetchQueries({ queryKey: ['operative-profiles'] });
+      
+      // Also invalidate other related queries
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
       queryClient.invalidateQueries({ queryKey: ['armados'] });
-      queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
       queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
 
       if (processed > 0) {
