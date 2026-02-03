@@ -88,7 +88,7 @@ const PREFERENCIA_OPTIONS: { value: PreferenciaTipoServicio; label: string; icon
 export function ArmadosZonasTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSinZona, setFilterSinZona] = useState(false);
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('90');
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedArmado, setSelectedArmado] = useState<ArmadoOperativo | null>(null);
@@ -106,7 +106,7 @@ export function ArmadosZonasTab() {
           experiencia_anos, fecha_ultimo_servicio, preferencia_tipo_servicio,
           servicios_locales_15d, servicios_foraneos_15d
         `)
-        .eq('estado', 'activo')
+        .in('estado', ['activo', 'suspendido'])
         .order('nombre');
       
       if (error) throw error;
