@@ -1,248 +1,278 @@
 
-# Propuestas de Mejora UI - Dashboard Operacional
 
-## Analisis del Estado Actual
+# Fase 2: Mejoras Visuales - Dashboard Operacional
 
-El dashboard actual tiene una estructura solida basada en el sistema de diseno "Apple" con:
-- Hero metrics grid con jerarquia visual (2fr + 4x1fr)
-- Card destacada para "Sin Asignar" con CoverageRing
-- Seccion de acciones prioritarias con indicadores de urgencia
-- Seccion de "Pendientes de Folio Saphiro" (nueva)
-- Resumen por zonas con cards de disponibilidad
+## Resumen
 
----
-
-## Mejoras Propuestas
-
-### 1. Indicador de Frescura de Datos
-
-**Problema**: No hay indicacion clara de cuando se actualizaron los datos.
-
-**Solucion**: Agregar badge de "ultima actualizacion" en el header.
-
-```text
-Dashboard Operacional
-Lunes, 03 febrero 2025 • 12:45:32  [●] Datos en vivo (hace 5s)
-```
-
-**Beneficio**: Genera confianza en tiempo real para operadores.
+Esta fase implementa tres mejoras visuales clave:
+1. Sistema de semaforo unificado con componente `StatusIndicator`
+2. Animaciones de transicion para items de lista
+3. Grid responsivo mejorado para metricas
 
 ---
 
-### 2. Sparklines en Metricas Secundarias
+## 1. Sistema de Semaforo Unificado
 
-**Problema**: Las metricas secundarias (Servicios Hoy, Custodios Activos, Por Vencer) muestran solo el valor actual sin contexto historico.
+### Crear componente `StatusIndicator.tsx`
 
-**Solucion**: Agregar mini sparklines de 7 dias debajo de cada metrica.
+**Archivo**: `src/components/planeacion/StatusIndicator.tsx`
 
-```text
-+------------------+
-| [Clock]          |
-| 26               |
-| Servicios Hoy    |
-| ↑3 vs ayer       |
-| [mini sparkline] |
-+------------------+
-```
+El componente unifica los indicadores de estado con 4 niveles semanticos:
 
-**Componente**: Crear `MiniSparkline.tsx` usando SVG path simple.
+| Estado | Color | Clase CSS | Uso |
+|--------|-------|-----------|-----|
+| `critical` | Rojo pulsante | `bg-destructive` | Sin asignar, vencido |
+| `warning` | Ambar | `bg-warning` | Por vencer <4h, sin folio |
+| `info` | Azul | `bg-chart-1` | En proceso |
+| `success` | Verde | `bg-success` | Completado, asignado |
 
----
-
-### 3. Progress Bar en Card de Zonas
-
-**Problema**: Las zonas solo muestran porcentaje numerico, requiere esfuerzo cognitivo.
-
-**Solucion**: Agregar barra de progreso visual coloreada.
-
-```text
-+-------------------+
-| CDMX Norte    [●] |
-| 75%               |
-| [█████████░░░░]   |
-| 6 de 8 disponibles|
-+-------------------+
-```
-
-**Implementacion**: Reutilizar estilos de `CoverageRing` para consistencia de colores.
-
----
-
-### 4. Sistema de Semaforo Unificado
-
-**Problema**: Diferentes indicadores visuales (puntos, badges, colores) sin sistema cohesivo.
-
-**Solucion**: Crear componente `StatusIndicator` unificado:
-
-| Estado | Color | Icono | Uso |
-|--------|-------|-------|-----|
-| Critico | Rojo pulsante | AlertCircle | Sin asignar, vencido |
-| Advertencia | Ambar | Clock | Por vencer <4h, sin folio |
-| Normal | Azul | Info | En proceso, programado |
-| Exito | Verde | CheckCircle | Completado, asignado |
-
----
-
-### 5. Skeleton Loaders Mejorados
-
-**Problema**: El estado de carga actual muestra "..." que no transmite progreso.
-
-**Solucion**: Implementar skeleton loaders con animacion de shimmer que respeten las dimensiones reales.
-
-```text
-// Antes
-{isLoading ? '...' : serviciosHoy.length}
-
-// Despues
-{isLoading ? <Skeleton className="h-8 w-16 animate-shimmer" /> : serviciosHoy.length}
-```
-
----
-
-### 6. Quick Actions Flotante
-
-**Problema**: Las acciones requieren scroll para acceder a "Asignar Mas Urgente".
-
-**Solucion**: Agregar FAB (Floating Action Button) cuando hay servicios sin asignar que persiste durante el scroll.
-
-```text
-                              +---+
-                              | + |  <-- Solo visible si hay pendientes
-                              +---+
-```
-
-**Comportamiento**: 
-- Click abre menu radial con: Asignar urgente, Ver todos, Crear servicio
-- Desaparece si todos estan asignados
-
----
-
-### 7. Mejoras en Lista de Acciones Prioritarias
-
-**Problema**: Los items son funcionales pero podrian tener mejor escaneabilidad.
-
-**Solucion**:
-
-a) **Countdown visual**: Reemplazar badge de tiempo con countdown circular mini
-```text
-[🔴 15m] Cliente ABC → Polanco   [Asignar]
-```
-
-b) **Hover preview**: Al pasar el mouse, mostrar tooltip con detalles adicionales
-```text
-Cliente: ABC Corporation
-Tipo: Traslado de valores
-Monto estimado: $150,000
-Historial: 45 servicios previos
-```
-
-c) **Keyboard shortcuts**: Numeros 1-5 para asignar rapidamente
-```text
-[1] Cliente ABC  [2] Cliente XYZ  ...
-```
-
----
-
-### 8. Modo Compacto para Alta Densidad
-
-**Problema**: Con el zoom al 70%, el dashboard ya es compacto pero podria optimizarse mas.
-
-**Solucion**: Toggle para "Vista Compacta" que:
-- Reduce padding de cards (p-6 → p-3)
-- Usa tipografia mas pequena
-- Muestra mas items en listas (5 → 8)
-- Colapsa descripciones secundarias
-
-```text
-[Vista Normal] [Vista Compacta ✓]
-```
-
----
-
-### 9. Animaciones de Transicion de Estado
-
-**Problema**: Cuando un servicio se asigna, simplemente desaparece de la lista.
-
-**Solucion**: Agregar animacion `animate-fade-out-left` (ya definida en CSS) al remover items, y `animate-fade-in` al agregar.
-
-```css
-.apple-list-item-removing {
-  @apply animate-fade-out-left;
+**Implementacion**:
+```typescript
+interface StatusIndicatorProps {
+  status: 'critical' | 'warning' | 'info' | 'success';
+  size?: 'sm' | 'md';
+  pulse?: boolean;
+  label?: string;
 }
 ```
 
+**Caracteristicas**:
+- Punto indicador con color semantico
+- Opcion de pulso animado para estados criticos
+- Label opcional para contexto
+- Compatible con Dark Mode usando tokens semanticos
+
 ---
 
-### 10. Dashboard Grid Responsivo Mejorado
+## 2. Animaciones de Transicion
 
-**Problema**: El grid actual tiene breakpoints fijos que pueden dejar espacio desperdiciado.
+### Nuevas clases CSS en `src/index.css`
 
-**Solucion**: Usar CSS Grid con `auto-fill` para metricas secundarias:
+**Animacion de entrada para items de lista**:
+```css
+@keyframes fade-in-item {
+  from { 
+    opacity: 0; 
+    transform: translateX(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+.animate-fade-in-item {
+  animation: fade-in-item 0.25s ease-out forwards;
+}
+
+/* Stagger delays para entrada escalonada */
+.apple-list-item:nth-child(1) { animation-delay: 0ms; }
+.apple-list-item:nth-child(2) { animation-delay: 50ms; }
+.apple-list-item:nth-child(3) { animation-delay: 100ms; }
+.apple-list-item:nth-child(4) { animation-delay: 150ms; }
+.apple-list-item:nth-child(5) { animation-delay: 200ms; }
+```
+
+**Mejora de `.apple-list-item`**:
+- Agregar animacion de entrada por defecto
+- Escalonamiento (stagger) para mejor percepcion visual
+
+---
+
+## 3. Grid Responsivo Mejorado
+
+### Actualizar `.apple-metrics-hero` en CSS
+
+**Problema actual**: Breakpoints fijos que pueden dejar espacio desperdiciado.
+
+**Solucion**: Grid con `auto-fill` para metricas secundarias:
 
 ```css
-.apple-metrics-hero-improved {
-  display: grid;
-  grid-template-columns: 
-    minmax(280px, 2fr) 
-    repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
+.apple-metrics-hero {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
 }
+
+@media (min-width: 768px) {
+  .apple-metrics-hero {
+    grid-template-columns: minmax(260px, 2fr) repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-rows: auto auto;
+  }
+  
+  .apple-metrics-hero > :first-child {
+    grid-row: span 2;
+  }
+}
+
+/* Nuevo: Breakpoint para pantallas grandes */
+@media (min-width: 1280px) {
+  .apple-metrics-hero {
+    grid-template-columns: minmax(280px, 2fr) repeat(4, minmax(160px, 1fr));
+  }
+}
+```
+
+**Beneficios**:
+- Metricas se adaptan mejor a diferentes anchos
+- Minimo garantizado de 140px evita compresion excesiva
+- Maximo de 1fr permite crecimiento proporcional
+
+---
+
+## Aplicacion en Dashboard
+
+### Actualizar `OperationalDashboard.tsx`
+
+**Cambios**:
+1. Importar nuevo `StatusIndicator`
+2. Reemplazar indicadores manuales con el componente
+3. Agregar clases de animacion a items de lista
+
+**Antes**:
+```jsx
+<div className={`w-2 h-2 rounded-full ${
+  tiempoRestante?.urgency === 'critical' ? 'bg-destructive animate-pulse' :
+  tiempoRestante?.urgency === 'warning' ? 'bg-warning' : 'bg-success'
+}`} />
+```
+
+**Despues**:
+```jsx
+<StatusIndicator 
+  status={tiempoRestante?.urgency === 'critical' ? 'critical' : 
+          tiempoRestante?.urgency === 'warning' ? 'warning' : 'success'}
+  pulse={tiempoRestante?.urgency === 'critical'}
+/>
 ```
 
 ---
 
-## Resumen de Archivos a Modificar
+## Archivos a Modificar
 
-| Archivo | Cambio | Prioridad |
-|---------|--------|-----------|
-| `OperationalDashboard.tsx` | Agregar indicador de frescura, skeleton loaders, FAB | Alta |
-| `src/index.css` | Nuevas clases de animacion y grid responsivo | Alta |
-| Nuevo: `MiniSparkline.tsx` | Componente de sparkline para metricas | Media |
-| Nuevo: `StatusIndicator.tsx` | Sistema de semaforo unificado | Media |
-| `CoverageRing.tsx` | Variante mini para zonas | Baja |
-| Nuevo: `QuickActionsFAB.tsx` | Boton flotante de acciones rapidas | Baja |
+| Archivo | Accion | Descripcion |
+|---------|--------|-------------|
+| `src/components/planeacion/StatusIndicator.tsx` | Crear | Componente de semaforo unificado |
+| `src/index.css` | Modificar | Agregar animaciones y mejorar grid |
+| `src/pages/Planeacion/components/OperationalDashboard.tsx` | Modificar | Integrar StatusIndicator y animaciones |
+| `.lovable/plan.md` | Actualizar | Marcar Fase 2 como completada |
 
 ---
 
-## Impacto Esperado
+## Detalles Tecnicos
 
-| Mejora | Beneficio |
-|--------|-----------|
-| Indicador de frescura | +Confianza en datos |
-| Sparklines | +Contexto historico rapido |
-| Progress bars en zonas | -Carga cognitiva |
-| Semaforo unificado | +Consistencia visual |
-| Skeleton loaders | +Percepcion de velocidad |
-| FAB flotante | -Tiempo de accion |
-| Keyboard shortcuts | +Eficiencia de power users |
-| Animaciones | +Feedback visual |
+### StatusIndicator - Codigo completo
+
+```typescript
+import { cn } from '@/lib/utils';
+
+interface StatusIndicatorProps {
+  status: 'critical' | 'warning' | 'info' | 'success';
+  size?: 'sm' | 'md';
+  pulse?: boolean;
+  label?: string;
+  className?: string;
+}
+
+const statusConfig = {
+  critical: {
+    dot: 'bg-destructive',
+    text: 'text-destructive',
+    bg: 'bg-destructive/10'
+  },
+  warning: {
+    dot: 'bg-warning',
+    text: 'text-warning',
+    bg: 'bg-warning/10'
+  },
+  info: {
+    dot: 'bg-chart-1',
+    text: 'text-chart-1',
+    bg: 'bg-chart-1/10'
+  },
+  success: {
+    dot: 'bg-success',
+    text: 'text-success',
+    bg: 'bg-success/10'
+  }
+} as const;
+
+export function StatusIndicator({ 
+  status, 
+  size = 'sm', 
+  pulse = false,
+  label,
+  className 
+}: StatusIndicatorProps) {
+  const config = statusConfig[status];
+  const dotSize = size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5';
+
+  return (
+    <div className={cn('flex items-center gap-1.5', className)}>
+      <div className={cn(
+        dotSize,
+        'rounded-full flex-shrink-0',
+        config.dot,
+        pulse && 'animate-pulse'
+      )} />
+      {label && (
+        <span className={cn(
+          'text-xs font-medium',
+          config.text
+        )}>
+          {label}
+        </span>
+      )}
+    </div>
+  );
+}
+```
+
+### Nuevas animaciones CSS
+
+```css
+/* Animacion de entrada para items de lista */
+@keyframes fade-in-item {
+  from { 
+    opacity: 0; 
+    transform: translateX(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+.animate-fade-in-item {
+  animation: fade-in-item 0.25s ease-out forwards;
+}
+
+/* Aplicar animacion a items de lista Apple */
+.apple-list .apple-list-item {
+  animation: fade-in-item 0.25s ease-out both;
+}
+
+.apple-list .apple-list-item:nth-child(1) { animation-delay: 0ms; }
+.apple-list .apple-list-item:nth-child(2) { animation-delay: 50ms; }
+.apple-list .apple-list-item:nth-child(3) { animation-delay: 100ms; }
+.apple-list .apple-list-item:nth-child(4) { animation-delay: 150ms; }
+.apple-list .apple-list-item:nth-child(5) { animation-delay: 200ms; }
+```
 
 ---
 
-## Orden de Implementacion Sugerido
+## Resultado Esperado
 
-**Fase 1 (Quick Wins)** ✅ COMPLETADA:
-1. ✅ Skeleton loaders mejorados - Componente Skeleton reemplaza '...'
-2. ✅ Progress bars en zonas - Nuevo componente ZoneProgressBar.tsx
-3. ✅ Indicador de frescura - Nuevo componente DataFreshnessIndicator.tsx
-
-**Fase 2 (Mejoras Visuales)**:
-4. Sistema de semaforo unificado
-5. Animaciones de transicion
-6. Grid responsivo mejorado
-
-**Fase 3 (Funcionalidad Avanzada)**:
-7. Sparklines historicas
-8. FAB flotante
-9. Keyboard shortcuts
-10. Modo compacto
+| Mejora | Impacto |
+|--------|---------|
+| StatusIndicator | Consistencia visual en todos los estados |
+| Animaciones | Mejor feedback visual, transiciones suaves |
+| Grid responsivo | Adaptabilidad a diferentes resoluciones |
 
 ---
 
-## Nota Tecnica
+## Compatibilidad
 
-Todas las mejoras propuestas:
-- Mantienen compatibilidad con el sistema de zoom al 70%
-- Usan tokens semanticos existentes (bg-destructive, text-success, etc.)
-- Son compatibles con Dark Mode
-- No requieren dependencias adicionales (excepto sparklines que usan SVG nativo)
+- Dark Mode: Usa tokens semanticos (--destructive, --warning, etc.)
+- Zoom 70%: Sin impacto negativo
+- Mobile: Animaciones respetan `prefers-reduced-motion`
+
