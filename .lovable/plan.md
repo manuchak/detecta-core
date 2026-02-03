@@ -1,68 +1,88 @@
 
-# Plan: Ajustar Definición de Bajas vs Suspendidos
+# Plan: Fix Indisponibilidad Bug in Planning Module
 
-## Clarificación Conceptual
+## Root Cause Analysis
 
-| Categoría | Estado DB | Significado | Dónde mostrar |
-|-----------|-----------|-------------|---------------|
-| **Operativos** | `activo` + `suspendido` | Trabajan o volverán a trabajar | Tab "Custodios" |
-| **Bajas** | `inactivo` | Ya no trabajan definitivamente | Tab "Bajas" |
+The error occurs when planners try to report unavailability from the CustodianStep due to **three mismatches** between the UI component and the database:
 
-## Cambios Requeridos
+| Issue | Location | Problem |
+|-------|----------|---------|
+| 1. Invalid `tipo_indisponibilidad` | ReportUnavailabilityCard.tsx | UI sends `emergencia_familiar` but DB expects `familiar` |
+| 2. Null `motivo` | CustodianStep/index.tsx | `motivo` is required in DB but can be undefined |
+| 3. Invalid date | CustodianStep/index.tsx | `addDays(new Date(), null)` when "Hasta nuevo aviso" selected |
 
-### 1. Hook `useOperativeProfiles.ts`
+## Code Flow
 
-**Query de Custodios** - Incluir suspendidos:
-```typescript
-// ANTES
-.eq('estado', 'activo')
-
-// DESPUÉS
-.in('estado', ['activo', 'suspendido'])
+```text
+UI Component                    Handler Function               Database
+┌────────────────────┐         ┌────────────────────┐         ┌──────────────────┐
+│ emergencia_familiar│  ─────▶ │ tipo: data.tipo   │  ─────▶ │ tipo NOT IN enum │ ❌
+│ motivo: undefined  │  ─────▶ │ motivo: undefined │  ─────▶ │ motivo NOT NULL  │ ❌  
+│ dias: null         │  ─────▶ │ addDays(..., null)│  ─────▶ │ Invalid Date     │ ❌
+└────────────────────┘         └────────────────────┘         └──────────────────┘
 ```
 
-**Query de Bajas** - Solo inactivos permanentes:
-```typescript
-// ANTES
-.in('estado', ['inactivo', 'suspendido'])
+## Solution
 
-// DESPUÉS
-.eq('estado', 'inactivo')
-```
+### File 1: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx`
 
-### 2. Stats Actualizados
+**Fix the `handleUnavailabilitySubmit` function** (lines 253-280):
 
 ```typescript
-totalCustodios: // activos + suspendidos (operativos reales)
-totalBajas: // solo inactivos (bajas definitivas)
-suspendidos: // nuevo stat para visibilidad
+// BEFORE (buggy)
+const handleUnavailabilitySubmit = async (data: {
+  tipo: string;
+  motivo: string;
+  dias: number;
+}) => {
+  await crearIndisponibilidad.mutateAsync({
+    custodio_id: unavailabilityCustodian.id,
+    tipo_indisponibilidad: data.tipo as any,
+    motivo: data.motivo,  // Can be undefined!
+    fecha_fin_estimada: addDays(new Date(), data.dias).toISOString(),  // null produces Invalid Date
+    // ...
+  });
+};
+
+// AFTER (fixed)
+const handleUnavailabilitySubmit = async (data: {
+  tipo: string;
+  motivo?: string;
+  dias: number | null;
+}) => {
+  // Map UI types to DB-compatible types
+  const tipoMapping: Record<string, string> = {
+    'emergencia_familiar': 'familiar',
+    'falla_mecanica': 'falla_mecanica',
+    'enfermedad': 'enfermedad',
+    'capacitacion': 'capacitacion',
+    'otro': 'otro',
+  };
+  
+  const tipoDb = tipoMapping[data.tipo] || 'otro';
+  const motivoDb = data.motivo || tipoDb; // Fallback to type if no notes
+  
+  await crearIndisponibilidad.mutateAsync({
+    custodio_id: unavailabilityCustodian.id,
+    tipo_indisponibilidad: tipoDb as any,
+    motivo: motivoDb,  // Always has a value now
+    fecha_fin_estimada: data.dias 
+      ? addDays(new Date(), data.dias).toISOString() 
+      : undefined,  // undefined for "indefinido"
+    // ...
+  });
+};
 ```
 
-### 3. Tabla de Custodios
+## Changes Summary
 
-Agregar columna/badge para distinguir:
-- `activo` = Badge verde "Activo"
-- `suspendido` = Badge amarillo "Suspendido" con fecha de reactivación
+| File | Change |
+|------|--------|
+| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx` | Fix type signature, add mapping for `emergencia_familiar` to `familiar`, handle null `dias`, provide default `motivo` |
 
-### 4. Tabla de Bajas
+## Validation
 
-Simplificar - solo mostrar bajas permanentes:
-- Quitar filtro de tipo (temporal/permanente)
-- Todos son bajas definitivas por inactividad
-
-## Resultado Esperado
-
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| Custodios (operativos) | 77 (solo activos) | ~113 (activos + suspendidos) |
-| Bajas (definitivas) | 37 (mezclados) | ~1 (solo inactivos) |
-| Suspendidos visibles | En "Bajas" | En "Custodios" con badge |
-
-## Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts` | Ajustar queries y stats |
-| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Agregar badge de estado |
-| `src/pages/PerfilesOperativos/components/BajasDataTable.tsx` | Simplificar para solo inactivos |
-| `src/pages/PerfilesOperativos/index.tsx` | Actualizar stat cards |
+After fix:
+- "Emergencia familiar" + "Hasta nuevo aviso" + no notes = Should insert successfully
+- All duration options work correctly
+- All reason types map to valid DB values
