@@ -1,78 +1,67 @@
 
-# Plan: Optimizar Vista de Custodios en Configuración
+# Plan: Adaptar Mapa al Viewport Sin Scroll
 
-## Cambios Solicitados
+## Problema Identificado
 
-| Elemento | Acción |
-|----------|--------|
-| Mapa "Distribución por Zona" | Aumentar tamaño |
-| Sección "Gestión de Zonas Base" | Eliminar de esta vista |
+El mapa tiene altura fija de `500px` que causa scroll vertical cuando el viewport no es suficientemente alto. Con el 70% de zoom global y todos los elementos de navegacion, el espacio disponible es limitado.
 
-## Ubicación del Código
+## Solucion
 
-**Archivo:** `src/pages/Planeacion/components/configuration/CustodiosZonasTab.tsx`
+Cambiar la altura fija a una altura dinamica basada en el viewport disponible usando `calc(100vh - offset)`.
+
+## Calculo del Offset
 
 ```text
-Línea 338:  <CustodianZoneBubbleMap estadisticasZona={estadisticasZona} />
-Líneas 341-547: <Card> Gestión de Zonas Base... </Card>
+SimplifiedTopBar:     48px (3rem)
+Tabs de navegacion:   ~48px
+Header seccion:       ~60px
+Metricas grid:        ~100px
+CardHeader del mapa:  ~56px
+Footer info:          ~32px
+Padding/gaps:         ~56px
+────────────────────────────
+Total offset:         ~400px
 ```
 
-## Implementación
+## Implementacion
 
-### 1. Eliminar "Gestión de Zonas Base"
+### CustodianZoneBubbleMap.tsx
 
-Remover completamente el Card que contiene:
-- CardHeader con título y botón Actualizar
-- Filtros de búsqueda y actividad
-- Lista de custodios con selectores de zona/preferencia
+Agregar soporte para altura responsiva:
 
-### 2. Agrandar el Mapa
+```tsx
+interface CustodianZoneBubbleMapProps {
+  estadisticasZona: [string, number][];
+  height?: number | string; // Permitir string para valores como 'auto' o calc()
+}
 
-Modificar `CustodianZoneBubbleMap.tsx` para aumentar la altura del contenedor del mapa:
+// En el componente, cambiar:
+style={{ height: typeof height === 'number' ? height : height }}
+```
+
+### CustodiosZonasTab.tsx
+
+Usar altura calculada basada en viewport:
 
 ```tsx
 // Antes
-<div className="h-[300px] ...">
+<CustodianZoneBubbleMap estadisticasZona={estadisticasZona} height={500} />
 
-// Después  
-<div className="h-[500px] ...">
+// Despues
+<CustodianZoneBubbleMap 
+  estadisticasZona={estadisticasZona} 
+  height="calc(100vh - 400px)" 
+/>
 ```
 
 ## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `CustodiosZonasTab.tsx` | Eliminar Card de Gestión de Zonas Base (líneas 341-547) |
-| `CustodianZoneBubbleMap.tsx` | Aumentar altura del mapa de 300px a 500px |
+| `CustodianZoneBubbleMap.tsx` | Permitir height string, ajustar min-height |
+| `CustodiosZonasTab.tsx` | Usar altura dinamica `calc(100vh - 400px)` |
 
-## Resultado Visual Esperado
+## Ajustes Adicionales
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Configuración de Planeación                                     │
-├─────────────────────────────────────────────────────────────────┤
-│ [Custodios] [Armados] [Proveedores] [Esquemas] [Sanciones] ...  │
-├─────────────────────────────────────────────────────────────────┤
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│ │ 100      │ │ 0        │ │ 9        │ │ 100%     │            │
-│ │ Activos  │ │ Sin Zona │ │ Zonas    │ │ Completit│            │
-│ └──────────┘ └──────────┘ └──────────┘ └──────────┘            │
-├─────────────────────────────────────────────────────────────────┤
-│ ┌─────────────────────────────────────────────────────────────┐ │
-│ │                                                             │ │
-│ │                    MAPA DE DISTRIBUCIÓN                     │ │
-│ │                       (más grande)                          │ │
-│ │                        ~500px altura                        │ │
-│ │                                                             │ │
-│ │      ● CDMX (45)    ● MTY (12)    ● GDL (18)              │ │
-│ │                                                             │ │
-│ └─────────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│        (Sin sección de Gestión de Zonas Base)                  │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Nota
-
-La funcionalidad de gestionar zonas base seguirá disponible en el módulo de **Perfiles Operativos** (`/perfiles-operativos`), donde existe una interfaz similar para editar custodios individualmente.
+- Agregar `min-h-[280px]` para evitar que el mapa sea demasiado pequeno en viewports muy reducidos
+- El contenedor del mapa y la leyenda usaran `flex-1` con la altura calculada
