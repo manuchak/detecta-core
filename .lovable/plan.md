@@ -1,68 +1,115 @@
-# Plan de Mejoras UI - Dashboard Operacional
 
-## Estado General
+# Fix: Eliminar Flash de "Sin Datos de Custodios" Durante Carga Inicial
 
-| Fase | Estado | Descripción |
-|------|--------|-------------|
-| Fase 1 | ✅ Completada | Jerarquía visual y métricas |
-| Fase 2 | ✅ Completada | Sistema de semáforo, animaciones, grid responsivo |
-| Fase 3 | ✅ Completada | Sparklines, FAB, atajos de teclado, modo compacto |
+## Problema Identificado
 
----
+El componente CustodianStep muestra brevemente el alert "Sin datos de custodios" antes de que la lista cargue correctamente. Esto ocurre por una condicion de carrera en React Query v5:
 
-## Fase 3: Funcionalidad Avanzada ✅
+**Flujo actual:**
+1. `isHydrated` se vuelve `true` (borrador restaurado)
+2. `isReadyToQuery` se vuelve `true` (datos del servicio disponibles)
+3. React Query cambia `enabled` de `false` a `true`
+4. **PROBLEMA**: Hay un frame donde `isLoading: false` pero `data: undefined`
+5. La condicion `!isLoading && filteredCustodians.length === 0` se evalua como `true`
+6. Se muestra NoCustodiansAlert incorrectamente
+7. En el siguiente render, `isLoading: true` y se muestra el skeleton
 
-### Implementado
+## Solucion
 
-1. **MiniSparkline** (`src/components/planeacion/MiniSparkline.tsx`)
-   - Gráfico SVG minimalista de tendencia 7 días
-   - Muestra punto final con círculo
-   - Compatible con tokens de color semánticos
+Usar `isPending` de React Query en lugar de solo `isLoading`:
 
-2. **useMetricsHistory** (`src/hooks/useMetricsHistory.ts`)
-   - Hook para obtener datos históricos de 7 días
-   - Agrupa servicios por día
-   - Cache de 5 minutos para rendimiento
+- `isLoading`: true solo cuando esta fetching por primera vez
+- `isPending`: true cuando no hay data (independiente del fetch status)
 
-3. **QuickActionsFAB** (`src/components/planeacion/QuickActionsFAB.tsx`)
-   - Botón flotante visible cuando hay pendientes
-   - Menú con 3 acciones: Asignar urgente, Ver todos, Crear servicio
-   - Animación de entrada escalonada
+Cuando el query esta deshabilitado (`enabled: false`):
+- `isLoading: false` (no esta fetching)
+- `isPending: true` (no hay data)
 
-4. **useKeyboardShortcuts** (`src/hooks/useKeyboardShortcuts.ts`)
-   - Atajos: 1-5 para selección rápida, 'n' nuevo servicio, 'r' refrescar
-   - Respeta inputs y modales activos
-   - Desactivado automáticamente durante edición
-
-5. **Modo Compacto**
-   - Toggle persistido en localStorage
-   - Reduce padding, fuentes y oculta descripciones secundarias
-   - Clases CSS `.compact-mode` para overrides
-
-6. **CSS** (`src/index.css`)
-   - Animaciones FAB (fab-pop-in)
-   - Shortcut badges
-   - Compact mode overrides
-
-### Archivos Modificados
-
-- `src/components/planeacion/MiniSparkline.tsx` (nuevo)
-- `src/components/planeacion/QuickActionsFAB.tsx` (nuevo)
-- `src/hooks/useMetricsHistory.ts` (nuevo)
-- `src/hooks/useKeyboardShortcuts.ts` (nuevo)
-- `src/index.css` (actualizado)
-- `src/pages/Planeacion/components/OperationalDashboard.tsx` (actualizado)
+Esto permite detectar el estado inicial correctamente.
 
 ---
 
-## Próximos Pasos Sugeridos
+## Cambios Requeridos
 
-1. **Fase 4: Optimización de Rendimiento**
-   - Virtualización de listas largas
-   - Lazy loading de componentes secundarios
-   - Service Worker para datos offline
+### 1. Archivo: `CustodianStep/index.tsx`
 
-2. **Fase 5: Accesibilidad Avanzada**
-   - Screen reader announcements para cambios de estado
-   - High contrast mode
-   - Reducción de movimiento global
+**Cambio A - Extraer `isPending` del hook:**
+
+```typescript
+// Antes (linea ~66)
+const { data: categorized, isLoading, error, refetch: refetchCustodians } = useCustodiosConProximidad(...)
+
+// Despues
+const { data: categorized, isLoading, isPending, error, refetch: refetchCustodians } = useCustodiosConProximidad(...)
+```
+
+**Cambio B - Crear variable de estado de carga consolidada:**
+
+```typescript
+// Agregar despues de la linea 69
+// Estado de carga real: loading o pending (sin datos aun)
+const isLoadingOrPending = isLoading || isPending;
+```
+
+**Cambio C - Actualizar condicion de NoCustodiansAlert (linea ~436):**
+
+```typescript
+// Antes
+{!state.selectedCustodianId && !isLoading && filteredCustodians.length === 0 && (
+  <NoCustodiansAlert ... />
+)}
+
+// Despues
+{!state.selectedCustodianId && !isLoadingOrPending && filteredCustodians.length === 0 && (
+  <NoCustodiansAlert ... />
+)}
+```
+
+**Cambio D - Actualizar CustodianList y QuickStats para usar el estado consolidado:**
+
+```typescript
+// QuickStats (linea ~407)
+<QuickStats categorized={categorized} isLoading={isLoadingOrPending} />
+
+// CustodianList (linea ~449-451)
+<CustodianList
+  custodians={filteredCustodians}
+  isLoading={isLoadingOrPending}
+  ...
+/>
+
+// ConflictSection (linea ~467)
+<ConflictSection
+  conflicts={categorized?.noDisponibles || []}
+  isLoading={isLoadingOrPending}
+  ...
+/>
+```
+
+---
+
+## Impacto
+
+| Estado | Antes | Despues |
+|--------|-------|---------|
+| Query deshabilitado | Muestra "Sin datos" (bug) | Muestra skeleton loader |
+| Query iniciando | Flash de "Sin datos" | Muestra skeleton loader |
+| Query completado sin datos | Muestra "Sin datos" | Muestra "Sin datos" (correcto) |
+| Query completado con datos | Muestra lista | Muestra lista (correcto) |
+
+---
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx` | Usar `isPending`, consolidar estado de carga |
+
+---
+
+## Notas Tecnicas
+
+- `isPending` es el estado correcto de React Query v5 para detectar "sin data aun"
+- No requiere cambios en el hook `useCustodiosConProximidad`
+- Compatible con el patron existente de "Hydration-Safe Initialization"
+- No afecta el comportamiento cuando hay datos o errores reales
