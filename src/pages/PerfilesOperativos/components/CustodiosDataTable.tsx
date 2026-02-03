@@ -174,7 +174,14 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       header: 'Custodio',
       cell: ({ row }) => (
         <div className="flex flex-col min-w-[180px]">
-          <span className="font-medium">{row.getValue('nombre')}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{row.getValue('nombre')}</span>
+            {row.original.estado === 'suspendido' && (
+              <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                Suspendido
+              </Badge>
+            )}
+          </div>
           {row.original.telefono && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" />

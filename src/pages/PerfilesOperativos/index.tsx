@@ -204,10 +204,10 @@ export default function PerfilesOperativos() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Custodios Activos
+                Custodios Operativos
               </CardTitle>
               <CardDescription>
-                Personal de custodia activo y disponible para asignaciones
+                Personal de custodia activo y suspendido temporalmente
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -238,10 +238,10 @@ export default function PerfilesOperativos() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <UserX className="h-5 w-5" />
-                Custodios Dados de Baja
+                Bajas Definitivas
               </CardTitle>
               <CardDescription>
-                Personal suspendido o inactivo - bajas temporales y permanentes
+                Personal que ya no trabaja con nosotros
               </CardDescription>
             </CardHeader>
             <CardContent>
