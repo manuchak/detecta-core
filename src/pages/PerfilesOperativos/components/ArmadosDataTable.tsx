@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
@@ -12,15 +13,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
-  Search, Eye, Phone, MapPin, Star, Shield, Building2, AlertTriangle, X, Filter, Clock 
+  Search, Eye, Phone, MapPin, Star, Shield, Building2, AlertTriangle, X, Filter, Clock,
+  Home, Plane, CircleDot, Edit
 } from 'lucide-react';
 import { ArmadoProfile } from '../hooks/useOperativeProfiles';
+import { QuickEditSheet, PreferenciaTipoServicio } from './QuickEditSheet';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { differenceInDays, parseISO } from 'date-fns';
 
 interface ArmadosDataTableProps {
   data: ArmadoProfile[];
+  onRefresh?: () => void;
 }
 
 const tipoArmadoConfig: Record<string, { label: string; className: string }> = {
@@ -36,12 +48,47 @@ const activityBadgeConfig: Record<string, { label: string; className: string }> 
   sin_actividad: { label: 'Sin actividad', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }
 };
 
-export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
+const ZONAS_ABREVIADAS: Record<string, string> = {
+  'Ciudad de México': 'CDMX',
+  'Estado de México': 'EDOMEX',
+  'Jalisco': 'Jalisco',
+  'Nuevo León': 'NL',
+  'Puebla': 'Puebla',
+  'Querétaro': 'Qro',
+  'Guanajuato': 'Gto',
+  'Michoacán': 'Mich',
+  'Veracruz': 'Veracruz',
+  'Chihuahua': 'Chih',
+  'Sonora': 'Sonora',
+  'Sinaloa': 'Sinaloa',
+  'Tamaulipas': 'Tamps',
+  'Coahuila': 'Coah',
+  'Baja California': 'BC',
+  'Aguascalientes': 'Ags',
+  'Hidalgo': 'Hgo',
+  'Morelos': 'Mor',
+  'Tlaxcala': 'Tlax',
+  'San Luis Potosí': 'SLP',
+};
+
+const PREFERENCIA_ICONS: Record<PreferenciaTipoServicio, { icon: typeof Home; label: string }> = {
+  local: { icon: Home, label: 'Local' },
+  foraneo: { icon: Plane, label: 'Foráneo' },
+  indistinto: { icon: CircleDot, label: 'Indistinto' },
+};
+
+export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [activityFilter, setActivityFilter] = useState<string>('activo');
+  
+  // Quick Edit Sheet state
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [editingArmado, setEditingArmado] = useState<ArmadoProfile | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Get unique zones for filter
   const zones = useMemo(() => {
@@ -52,19 +99,13 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
   // Filter data
   const filteredData = useMemo(() => {
     return data.filter(armado => {
-      // Search filter
       const matchesSearch = !searchTerm || 
         armado.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         armado.telefono?.includes(searchTerm) ||
         armado.email?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Zone filter
       const matchesZona = zonaFilter === 'all' || armado.zona_base === zonaFilter;
-      
-      // Type filter
       const matchesTipo = tipoFilter === 'all' || armado.tipo_armado === tipoFilter;
-      
-      // Activity filter
       const matchesActivity = activityFilter === 'all' || armado.nivel_actividad === activityFilter;
       
       return matchesSearch && matchesZona && matchesTipo && matchesActivity;
@@ -78,6 +119,38 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
     setZonaFilter('all');
     setTipoFilter('all');
     setActivityFilter('activo');
+  };
+
+  const handleOpenEditSheet = (armado: ArmadoProfile) => {
+    setEditingArmado(armado);
+    setEditSheetOpen(true);
+  };
+
+  const handleSaveEdit = async (id: string, zona: string, preferencia: PreferenciaTipoServicio) => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('armados_operativos')
+        .update({ 
+          zona_base: zona || null, 
+          preferencia_tipo_servicio: preferencia,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['armados-con-proximidad'] });
+      toast.success('Datos actualizados correctamente');
+      onRefresh?.();
+    } catch (error) {
+      console.error('Error updating armado:', error);
+      toast.error('Error al actualizar datos');
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   // Check if license is expiring soon
@@ -96,7 +169,7 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       accessorKey: 'nombre',
       header: 'Armado',
       cell: ({ row }) => (
-        <div className="flex flex-col">
+        <div className="flex flex-col min-w-[180px]">
           <span className="font-medium">{row.getValue('nombre')}</span>
           {row.original.telefono && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
@@ -122,6 +195,21 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       },
     },
     {
+      accessorKey: 'zona_base',
+      header: 'Zona',
+      cell: ({ row }) => {
+        const zona = row.original.zona_base;
+        const zonaLabel = zona ? (ZONAS_ABREVIADAS[zona] || zona) : '—';
+        
+        return (
+          <div className="flex items-center gap-1.5 text-sm">
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className={cn(!zona && 'text-muted-foreground')}>{zonaLabel}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'nivel_actividad',
       header: 'Actividad',
       cell: ({ row }) => {
@@ -135,15 +223,17 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       },
     },
     {
-      accessorKey: 'zona_base',
-      header: 'Zona',
+      accessorKey: 'preferencia_tipo_servicio',
+      header: 'Preferencia',
       cell: ({ row }) => {
-        const zona = row.getValue('zona_base') as string | null;
-        if (!zona) return <span className="text-muted-foreground">—</span>;
+        const pref = (row.original.preferencia_tipo_servicio || 'indistinto') as PreferenciaTipoServicio;
+        const config = PREFERENCIA_ICONS[pref];
+        const Icon = config.icon;
+        
         return (
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm">{zona}</span>
+          <div className="flex items-center gap-1.5 text-sm">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <span>{config.label}</span>
           </div>
         );
       },
@@ -162,12 +252,10 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
         };
         
         return (
-          <div className="flex items-center gap-2">
-            <Badge className={cn('text-xs font-normal', statusConfig[status])}>
-              {status === 'warning' && <AlertTriangle className="h-3 w-3 mr-1" />}
-              {label}
-            </Badge>
-          </div>
+          <Badge className={cn('text-xs font-normal', statusConfig[status])}>
+            {status === 'warning' && <AlertTriangle className="h-3 w-3 mr-1" />}
+            {label}
+          </Badge>
         );
       },
     },
@@ -179,20 +267,6 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
           {row.getValue('numero_servicios') || 0}
         </div>
       ),
-    },
-    {
-      accessorKey: 'fecha_ultimo_servicio',
-      header: 'Último Servicio',
-      cell: ({ row }) => {
-        const dias = row.original.dias_sin_actividad;
-        if (dias === 999) return <span className="text-muted-foreground">Nunca</span>;
-        return (
-          <div className="flex items-center gap-1 text-sm">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            <span>{dias === 0 ? 'Hoy' : dias === 1 ? 'Ayer' : `hace ${dias}d`}</span>
-          </div>
-        );
-      },
     },
     {
       accessorKey: 'score_total',
@@ -227,15 +301,51 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
     {
       id: 'actions',
       header: 'Acciones',
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(`/perfiles-operativos/armado/${row.original.id}`)}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const armado = row.original;
+        
+        return (
+          <div className="flex items-center gap-1">
+            {/* Edit button */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleOpenEditSheet(armado)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Editar zona/preferencia</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* View profile */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => navigate(`/perfiles-operativos/armado/${armado.id}`)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Ver perfil forense</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        );
+      },
     },
   ];
   
@@ -309,6 +419,15 @@ export function ArmadosDataTable({ data }: ArmadosDataTableProps) {
       </div>
       
       <DataTable columns={columns} data={filteredData} />
+
+      {/* Quick Edit Sheet */}
+      <QuickEditSheet
+        open={editSheetOpen}
+        onOpenChange={setEditSheetOpen}
+        operative={editingArmado}
+        onSave={handleSaveEdit}
+        isLoading={isSaving}
+      />
     </div>
   );
 }
