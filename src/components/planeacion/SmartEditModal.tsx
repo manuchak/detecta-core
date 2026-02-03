@@ -67,8 +67,24 @@ export function SmartEditModal({
   const getQuickActions = () => {
     const actions = [];
 
-    // Critical assignments first
-    if (needsArmedAssignment && hasCustodio) {
+    // Flexible assignment: when both custodian AND armed are needed
+    if (needsCustodianAssignment && needsArmedAssignment) {
+      actions.push({
+        id: 'flexible_assign',
+        title: 'Asignar Personal',
+        description: 'Asigna custodio y armado en cualquier orden',
+        icon: User,
+        color: 'info' as const,
+        priority: 'high' as const,
+        breadcrumb: 'Custodio ⏳ | Armado ⏳',
+        action: () => {
+          setAssignmentMode('auto');
+          setCurrentView('direct_assign');
+        }
+      });
+    }
+    // Only armed needed (custodian already assigned)
+    else if (needsArmedAssignment && hasCustodio) {
       actions.push({
         id: 'assign_armed',
         title: 'Asignar Armado Pendiente',
@@ -77,11 +93,14 @@ export function SmartEditModal({
         color: 'warning' as const,
         priority: 'high' as const,
         breadcrumb: `${service.custodio_asignado} ✅ → Armado ⏳`,
-        action: () => setCurrentView('direct_assign')
+        action: () => {
+          setAssignmentMode('direct_armed');
+          setCurrentView('direct_assign');
+        }
       });
     }
-
-    if (needsCustodianAssignment) {
+    // Only custodian needed (no armed required)
+    else if (needsCustodianAssignment && !service.requiere_armado) {
       actions.push({
         id: 'assign_custodian',
         title: 'Asignar Custodio',
@@ -90,7 +109,10 @@ export function SmartEditModal({
         color: 'info' as const,
         priority: 'high' as const,
         breadcrumb: 'Custodio ⏳',
-        action: () => setCurrentView('direct_assign')
+        action: () => {
+          setAssignmentMode('direct_custodian');
+          setCurrentView('direct_assign');
+        }
       });
     }
 

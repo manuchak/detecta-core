@@ -7,7 +7,8 @@ export type EditMode =
   | 'add_armed'          // Agregar armado a servicio sin armado
   | 'remove_armed'       // Remover armado de servicio con armado
   | 'basic_info'         // Solo datos básicos (cliente, fecha, etc.)
-  | 'contextual';        // Detectar automáticamente qué cambiar
+  | 'contextual'         // Detectar automáticamente qué cambiar
+  | 'flexible_assign';   // Asignar custodio o armado en cualquier orden
 
 export interface EditIntent {
   mode: EditMode;

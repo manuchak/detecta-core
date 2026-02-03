@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, MapPin, Shield, Calendar, CheckCircle2 } from 'lucide-react';
+import { User, MapPin, Shield, Calendar, CheckCircle2, Circle, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
@@ -63,24 +64,28 @@ export function PendingAssignmentModal({
     return null;
   };
 
-  const [currentStep, setCurrentStep] = useState<'custodian' | 'armed'>(() => {
+  // State for flexible tab-based assignment
+  const [activeTab, setActiveTab] = useState<'custodian' | 'armed'>(() => {
     // Priority 1: Explicit mode passed from caller
     if (mode === 'direct_armed') return 'armed';
     if (mode === 'direct_custodian') return 'custodian';
     
     // Priority 2: Check if service already has a custodian assigned
-    // FIX: Use normalized helper for robust detection
     const hasCustodio = !!normalizeCustodioName(service?.custodio_asignado);
+    const hasArmado = !!(service?.armado_asignado);
+    const requiresArmado = service?.requiere_armado;
     
-    console.log('🔍 [PendingAssignmentModal] Initial step calculation:', {
+    console.log('🔍 [PendingAssignmentModal] Initial tab calculation:', {
       mode,
-      rawCustodio: service?.custodio_asignado,
-      normalizedCustodio: normalizeCustodioName(service?.custodio_asignado),
       hasCustodio,
-      initialStep: hasCustodio ? 'armed' : 'custodian'
+      hasArmado,
+      requiresArmado,
+      initialTab: hasCustodio && requiresArmado && !hasArmado ? 'armed' : 'custodian'
     });
     
-    return hasCustodio ? 'armed' : 'custodian';
+    // If custodian is assigned and armado is pending, go to armed tab
+    if (hasCustodio && requiresArmado && !hasArmado) return 'armed';
+    return 'custodian';
   });
   
   // 🛡️ DEFENSIVE LOGIC: Handle both formats (string or object)
@@ -132,7 +137,7 @@ export function PendingAssignmentModal({
   // Hook unificado de proximidad operacional (mismo que ServiceCreation)
   const { data: categorized, isLoading: isLoadingCustodians } = useCustodiosConProximidad(
     servicioNuevo,
-    { enabled: open && currentStep === 'custodian' }
+    { enabled: open && activeTab === 'custodian' }
   );
 
   // Filtrar custodios localmente
@@ -315,9 +320,9 @@ export function PendingAssignmentModal({
         setShowContextualEdit(false);
         // Determinar paso correcto
         if (mode === 'direct_armed' || (service && service.custodio_asignado)) {
-          setCurrentStep('armed');
+          setActiveTab('armed');
         } else {
-          setCurrentStep('custodian');
+          setActiveTab('custodian');
         }
       }
     } else {
@@ -332,12 +337,12 @@ export function PendingAssignmentModal({
     console.log('[PendingAssignmentModal] Estado cambió:', {
       open,
       showContextualEdit,
-      currentStep,
+      activeTab,
       hasInteracted,
       isEditingExisting,
       serviceId: service?.id_servicio
     });
-  }, [open, showContextualEdit, currentStep, hasInteracted, isEditingExisting, service?.id_servicio]);
+  }, [open, showContextualEdit, activeTab, hasInteracted, isEditingExisting, service?.id_servicio]);
 
   if (!service) return null;
 
@@ -379,7 +384,7 @@ export function PendingAssignmentModal({
           description: 'Ahora proceda a asignar el armado requerido'
         });
         // 🔄 DYNAMIC: Actualizar el estado local del servicio para que el siguiente paso tenga la info correcta
-        setCurrentStep('armed');
+        setActiveTab('armed');
       } else {
         // 🔄 DYNAMIC: Solo refetch y cerrar si NO requiere armado
         onAssignmentComplete();
@@ -430,7 +435,7 @@ export function PendingAssignmentModal({
   const handleStartReassignment = (type: 'custodian' | 'armed_guard', _service?: any) => {
     console.log('[PendingAssignmentModal] handleStartReassignment INICIO', {
       type,
-      antes: { showContextualEdit, currentStep, hasInteracted },
+      antes: { showContextualEdit, activeTab, hasInteracted },
       serviceId: service?.id_servicio,
       hasCustodio: service?.custodio_asignado
     });
@@ -453,12 +458,12 @@ export function PendingAssignmentModal({
     requestAnimationFrame(() => {
       // 5. Cambiar al paso correcto DESPUÉS de que React haya procesado los cambios anteriores
       const targetStep = type === 'custodian' ? 'custodian' : 'armed';
-      setCurrentStep(targetStep);
+      setActiveTab(targetStep);
       
       console.log('[PendingAssignmentModal] handleStartReassignment COMPLETADO', {
         despues: { 
           showContextualEdit: false, 
-          currentStep: targetStep,
+          activeTab: targetStep,
           hasInteracted: true,
           custodianAssigned: type === 'armed_guard' ? service?.custodio_asignado : null
         }
@@ -518,7 +523,7 @@ export function PendingAssignmentModal({
 
   console.log('[PendingAssignmentModal] Render', {
     showContextualEdit,
-    currentStep,
+    activeTab,
     hasInteracted,
     serviceId: service?.id_servicio,
     timestamp: Date.now()
@@ -551,15 +556,28 @@ export function PendingAssignmentModal({
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 apple-text-title">
-                {currentStep === 'armed' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
-                {currentStep === 'armed' ? 'Asignar Armado' : 'Asignar Custodio'} - {service.id_servicio}
+                Asignar Personal - {service.id_servicio}
               </DialogTitle>
               <DialogDescription className="sr-only">Asignación de servicio</DialogDescription>
-              {mode === 'direct_armed' && service && service.custodio_asignado && (
-                <div className="flex items-center gap-2 apple-text-caption text-muted-foreground font-mono">
-                  {service.custodio_asignado} ✅ → Armado ⏳
-                </div>
-              )}
+              {/* Status indicators */}
+              <div className="flex items-center gap-2 mt-2">
+                <Badge 
+                  variant={service.custodio_asignado || custodianAssigned ? 'default' : 'outline'}
+                  className={`gap-1 ${service.custodio_asignado || custodianAssigned ? 'bg-success/10 text-success border-success/20' : ''}`}
+                >
+                  <User className="h-3 w-3" />
+                  {custodianAssigned?.custodio_nombre || service.custodio_asignado || 'Custodio Pendiente'}
+                </Badge>
+                {service.requiere_armado && (
+                  <Badge 
+                    variant={service.armado_asignado ? 'default' : 'outline'}
+                    className={`gap-1 ${service.armado_asignado ? 'bg-success/10 text-success border-success/20' : 'bg-warning/10 text-warning border-warning/20'}`}
+                  >
+                    <Shield className="h-3 w-3" />
+                    {service.armado_asignado || 'Armado Pendiente'}
+                  </Badge>
+                )}
+              </div>
             </DialogHeader>
 
             {/* Service Summary */}
@@ -625,68 +643,81 @@ export function PendingAssignmentModal({
               </CardContent>
             </Card>
 
-            {/* Indicador visual de custodio ya asignado (solo en modo edición directo de armado) */}
-            {currentStep === 'armed' && (mode === 'direct_armed' || isEditingExisting) && service?.custodio_asignado && (
-              <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <span className="text-sm text-green-800 dark:text-green-300">
-                  Custodio asignado: <strong>{custodianAssigned?.custodio_nombre || service.custodio_asignado}</strong>
-                </span>
-              </div>
-            )}
+            {/* Tabs-based Assignment UI */}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'custodian' | 'armed')} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="custodian" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Custodio
+                  {(service.custodio_asignado || custodianAssigned) 
+                    ? <CheckCircle className="h-3 w-3 text-success" />
+                    : <Circle className="h-3 w-3 text-muted-foreground" />
+                  }
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="armed" 
+                  disabled={!service.requiere_armado}
+                  className="flex items-center gap-2"
+                >
+                  <Shield className="h-4 w-4" />
+                  Armado
+                  {service.armado_asignado 
+                    ? <CheckCircle className="h-3 w-3 text-success" />
+                    : service.requiere_armado 
+                      ? <AlertCircle className="h-3 w-3 text-warning" />
+                      : null
+                  }
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Component de Asignación */}
-            <div className="space-y-4">
-              {currentStep === 'custodian' && (
-                <div className="space-y-4">
-                  {/* Stats rápidos */}
-                  <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
-                  
-                  {/* Búsqueda y filtros */}
-                  <CustodianSearch
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    filters={filters}
-                    onFilterToggle={handleFilterToggle}
-                    resultsCount={filteredCustodians.length}
-                    totalCount={totalCount}
+              <TabsContent value="custodian" className="space-y-4">
+                {/* Stats rápidos */}
+                <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
+                
+                {/* Búsqueda y filtros */}
+                <CustodianSearch
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  filters={filters}
+                  onFilterToggle={handleFilterToggle}
+                  resultsCount={filteredCustodians.length}
+                  totalCount={totalCount}
+                />
+                
+                {/* Lista de custodios */}
+                <CustodianList
+                  custodians={filteredCustodians}
+                  isLoading={isLoadingCustodians}
+                  selectedId={selectedCustodianId}
+                  highlightedIndex={highlightedIndex}
+                  comunicaciones={comunicaciones}
+                  onSelect={handleSelectCustodian}
+                  onContact={handleContact}
+                  onReportUnavailability={handleReportUnavailability}
+                  onReportRejection={handleReportRejection}
+                />
+                
+                {/* Sección de conflictos (colapsible) */}
+                {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
+                  <ConflictSection
+                    custodians={categorized.noDisponibles}
+                    onOverrideSelect={handleOverrideSelect}
+                    forceOpen={filteredCustodians.length === 0 && categorized.noDisponibles.length > 0}
                   />
-                  
-                  {/* Lista de custodios */}
-                  <CustodianList
-                    custodians={filteredCustodians}
-                    isLoading={isLoadingCustodians}
-                    selectedId={selectedCustodianId}
-                    highlightedIndex={highlightedIndex}
-                    comunicaciones={comunicaciones}
-                    onSelect={handleSelectCustodian}
-                    onContact={handleContact}
-                    onReportUnavailability={handleReportUnavailability}
-                    onReportRejection={handleReportRejection}
-                  />
-                  
-                  {/* Sección de conflictos (colapsible) */}
-                  {categorized?.noDisponibles && categorized.noDisponibles.length > 0 && (
-                    <ConflictSection
-                      custodians={categorized.noDisponibles}
-                      onOverrideSelect={handleOverrideSelect}
-                      forceOpen={filteredCustodians.length === 0 && categorized.noDisponibles.length > 0}
-                    />
-                  )}
-                  
-                  {/* Botón Cancelar */}
-                  <div className="flex justify-end pt-4 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
+                )}
+                
+                {/* Botón Cancelar */}
+                <div className="flex justify-end pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
-              )}
+              </TabsContent>
               
-              {currentStep === 'armed' && (custodianAssigned || service?.custodio_asignado) && (
+              <TabsContent value="armed" className="space-y-4">
                 <SimplifiedArmedAssignment
                   serviceData={{
                     ...serviceData,
@@ -700,14 +731,15 @@ export function PendingAssignmentModal({
                     if (service?.custodio_asignado && (mode === 'direct_armed' || isEditingExisting)) {
                       onOpenChange(false);
                     } else {
-                      setCurrentStep('custodian');
+                      setActiveTab('custodian');
                     }
                   }}
-                  backLabel={service?.custodio_asignado && (mode === 'direct_armed' || isEditingExisting) ? 'Cancelar' : 'Volver'}
+                  backLabel={service?.custodio_asignado && (mode === 'direct_armed' || isEditingExisting) ? 'Cancelar' : 'Volver a Custodio'}
                   showBackButton={true}
+                  allowWithoutCustodian={!service?.custodio_asignado && !custodianAssigned}
                 />
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       )}

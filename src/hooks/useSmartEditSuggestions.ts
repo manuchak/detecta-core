@@ -33,8 +33,24 @@ export function useSmartEditSuggestions(service: EditableService | null): {
     // ORDEN LÓGICO: Cliente → Custodio → Armado
     let heroSuggestion: EditSuggestion | null = null;
 
-    // PRIORIDAD 1: Custodio sin asignar (SIEMPRE primero)
-    if (!hasCustodio && isPending) {
+    // PRIORIDAD 1: Ambos pendientes - flujo flexible
+    if (!hasCustodio && needsArmedAssignment && isPending) {
+      heroSuggestion = {
+        mode: 'flexible_assign',
+        title: 'Asignar Personal',
+        description: 'Asigna custodio y/o armado en cualquier orden',
+        priority: 'high',
+        icon: 'Users',
+        color: 'blue',
+        estimatedTime: '3 min',
+        consequences: [
+          'Puedes asignar el armado primero si ya confirmó disponibilidad',
+          'El custodio puede asignarse después'
+        ]
+      };
+    }
+    // PRIORIDAD 2: Solo custodio pendiente (sin armado requerido)
+    else if (!hasCustodio && !service.requiere_armado && isPending) {
       heroSuggestion = {
         mode: 'custodian_only',
         title: 'Asignar Custodio',
@@ -44,12 +60,11 @@ export function useSmartEditSuggestions(service: EditableService | null): {
         color: 'blue',
         estimatedTime: '1 min',
         consequences: [
-          'El servicio estará listo para operar',
-          service.requiere_armado ? 'Después podrás asignar el armado requerido' : undefined
-        ].filter(Boolean) as string[]
+          'El servicio estará listo para operar'
+        ]
       };
     } 
-    // PRIORIDAD 2: Armado pendiente (solo si ya hay custodio)
+    // PRIORIDAD 3: Armado pendiente (ya hay custodio)
     else if (needsArmedAssignment && hasCustodio) {
       heroSuggestion = {
         mode: 'armed_only',
@@ -60,19 +75,6 @@ export function useSmartEditSuggestions(service: EditableService | null): {
         color: 'orange',
         estimatedTime: '2 min',
         consequences: ['El servicio pasará a estado confirmado', 'Se notificará al armado asignado']
-      };
-    }
-    // CASO ESPECIAL: Requiere armado pero no hay custodio
-    else if (needsArmedAssignment && !hasCustodio) {
-      heroSuggestion = {
-        mode: 'custodian_only',
-        title: 'Asignar Custodio Primero',
-        description: 'Debes asignar un custodio antes de asignar el armado',
-        priority: 'high',
-        icon: 'User',
-        color: 'orange',
-        estimatedTime: '1 min',
-        consequences: ['Después podrás asignar el armado requerido', 'El flujo correcto es: Cliente → Custodio → Armado']
       };
     }
 
