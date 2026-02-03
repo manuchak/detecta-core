@@ -84,7 +84,7 @@ export function CustodiosZonasTab() {
   const zonasConCustodios = new Set(custodiosPorActividad.filter(c => c.zona_base).map(c => c.zona_base)).size;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Alerta de datos faltantes */}
       {custodiosSinZona.length > 0 && (
         <Alert className="border-warning/50 bg-warning/5">

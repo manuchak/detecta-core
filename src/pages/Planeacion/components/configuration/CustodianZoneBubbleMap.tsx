@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Card wrapper removed for compact layout
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Map, Info, AlertCircle, Users } from 'lucide-react';
@@ -70,7 +70,7 @@ const ZONE_COLORS = {
   veryLow: 'hsl(142, 50%, 65%)',   // green-300
 };
 
-export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh - 400px)' }: CustodianZoneBubbleMapProps) {
+export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh - 280px)' }: CustodianZoneBubbleMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -274,24 +274,24 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
   
   if (zonasConGeo.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+      <div className="rounded-lg border bg-card">
+        <div className="flex items-center justify-between px-4 py-2 border-b">
+          <div className="flex items-center gap-2 text-sm font-medium">
             <Map className="h-4 w-4 text-primary" />
             Distribución por Zona
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </div>
+        </div>
+        <div className="p-3">
           <div 
-            className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30"
+            className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30 min-h-[320px]"
             style={{ height }}
           >
             <AlertCircle className="h-8 w-8 mb-2 text-muted-foreground/50" />
             <p className="text-sm">Sin zonas geolocalizables</p>
             <p className="text-xs mt-1">Asigna zonas a los custodios para visualizar el mapa</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
   
@@ -304,39 +304,39 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Map className="h-4 w-4 text-primary" />
-            Distribución por Zona
-          </CardTitle>
-          
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs gap-1">
-              <Users className="h-3 w-3" />
-              {zonasConGeo.length} zonas
-            </Badge>
-            {sinZona > 0 && (
-              <Badge variant="secondary" className="text-xs bg-warning/10 text-warning border-warning/30">
-                {sinZona} sin zona
-              </Badge>
-            )}
-          </div>
+    <div className="rounded-lg border bg-card">
+      {/* Header compacto inline */}
+      <div className="flex items-center justify-between px-4 py-2 border-b">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Map className="h-4 w-4 text-primary" />
+          Distribución por Zona
         </div>
-      </CardHeader>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs gap-1">
+            <Users className="h-3 w-3" />
+            {zonasConGeo.length} zonas
+          </Badge>
+          {sinZona > 0 && (
+            <Badge variant="secondary" className="text-xs bg-warning/10 text-warning border-warning/30">
+              {sinZona} sin zona
+            </Badge>
+          )}
+        </div>
+      </div>
       
-      <CardContent className="space-y-3">
+      {/* Contenido principal */}
+      <div className="p-3">
         {mapError ? (
-            <div 
-              className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30 min-h-[280px]"
-              style={{ height }}
-            >
+          <div 
+            className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30 min-h-[320px]"
+            style={{ height }}
+          >
             <AlertCircle className="h-8 w-8 mb-2 text-destructive/50" />
             <p className="text-sm">{mapError}</p>
           </div>
         ) : (
-          <div className="flex gap-4 min-h-[280px]" style={{ height }}>
+          <div className="flex gap-3 min-h-[320px]" style={{ height }}>
             {/* Mapa */}
             <div className="relative flex-1">
               <div 
@@ -351,14 +351,14 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
               )}
             </div>
             
-            {/* Leyenda lateral */}
-            <div className="w-56 flex-shrink-0 rounded-lg border bg-card p-4 overflow-y-auto">
-              <div className="space-y-1 mb-4">
+            {/* Leyenda lateral compacta */}
+            <div className="w-52 flex-shrink-0 rounded-lg border bg-card p-3 overflow-y-auto">
+              <div className="space-y-0.5 mb-3">
                 <h4 className="text-sm font-semibold text-foreground">Zonas</h4>
                 <p className="text-xs text-muted-foreground">Custodios por ubicación</p>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {zonasConGeo.map((zona, index) => {
                   const porcentaje = Math.round((zona.cantidad / totalCustodios) * 100);
                   const color = getColorForIndex(index);
@@ -366,7 +366,7 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
                   return (
                     <div 
                       key={zona.zona}
-                      className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                      className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => {
                         map.current?.flyTo({
                           center: [zona.lng, zona.lat],
@@ -376,7 +376,7 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
                       }}
                     >
                       <div 
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
                         style={{ backgroundColor: color }}
                       >
                         {zona.cantidad}
@@ -386,7 +386,7 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
                           {zona.zona}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {porcentaje}% del total
+                          {porcentaje}%
                         </div>
                       </div>
                     </div>
@@ -394,14 +394,14 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
                 })}
                 
                 {sinZona > 0 && (
-                  <div className="flex items-center gap-2 p-2 rounded-md bg-warning/5 border border-warning/20">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-warning/20 text-warning text-xs font-semibold flex-shrink-0">
+                  <div className="flex items-center gap-2 p-1.5 rounded-md bg-warning/5 border border-warning/20">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-warning/20 text-warning text-xs font-semibold flex-shrink-0">
                       {sinZona}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-warning">Sin asignar</div>
                       <div className="text-xs text-muted-foreground">
-                        {Math.round((sinZona / totalCustodios) * 100)}% del total
+                        {Math.round((sinZona / totalCustodios) * 100)}%
                       </div>
                     </div>
                   </div>
@@ -409,19 +409,19 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
               </div>
               
               {/* Mini leyenda de colores */}
-              <div className="mt-4 pt-3 border-t">
-                <div className="text-xs text-muted-foreground mb-2">Ranking cobertura</div>
-                <div className="flex items-center gap-1.5">
+              <div className="mt-3 pt-2 border-t">
+                <div className="text-xs text-muted-foreground mb-1.5">Ranking</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.high }} />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ZONE_COLORS.high }} />
                     <span className="text-[10px] text-muted-foreground">Alta</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.medium }} />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ZONE_COLORS.medium }} />
                     <span className="text-[10px] text-muted-foreground">Media</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ZONE_COLORS.low }} />
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ZONE_COLORS.low }} />
                     <span className="text-[10px] text-muted-foreground">Baja</span>
                   </div>
                 </div>
@@ -429,13 +429,13 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh 
             </div>
           </div>
         )}
-        
-        {/* Footer info */}
-        <div className="flex items-center gap-1.5 pt-2 border-t text-xs text-muted-foreground">
-          <Info className="h-3.5 w-3.5" />
-          <span>Haz clic en una zona de la leyenda para centrar el mapa</span>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      {/* Footer compacto */}
+      <div className="flex items-center gap-1.5 px-4 py-2 border-t text-xs text-muted-foreground">
+        <Info className="h-3 w-3" />
+        <span>Clic en zona para centrar mapa</span>
+      </div>
+    </div>
   );
 }
