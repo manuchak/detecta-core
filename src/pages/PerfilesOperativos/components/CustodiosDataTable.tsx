@@ -40,6 +40,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Search, Eye, Phone, MapPin, Star, TrendingUp, Clock, Filter, X,
   MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2, MessageCircle,
@@ -104,6 +114,16 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
   const [openZonaId, setOpenZonaId] = useState<string | null>(null);
+  
+  // Estado para confirmación de cambios
+  const [pendingChange, setPendingChange] = useState<{
+    type: 'zona' | 'preferencia';
+    custodioId: string;
+    custodioNombre: string;
+    valorActual: string;
+    valorNuevo: string;
+    labelNuevo: string;
+  } | null>(null);
   
   // Get unique zones for filter
   const zones = useMemo(() => {
@@ -198,6 +218,50 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
     queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
     onRefresh?.();
   };
+
+  // Capturar cambio de zona pendiente
+  const requestZonaChange = (custodio: CustodioProfile, nuevaZona: string) => {
+    const zonaLabel = ZONAS_DISPONIBLES.find(z => z.value === nuevaZona)?.label || nuevaZona;
+    setPendingChange({
+      type: 'zona',
+      custodioId: custodio.id,
+      custodioNombre: custodio.nombre,
+      valorActual: custodio.zona_base || 'Sin zona',
+      valorNuevo: nuevaZona,
+      labelNuevo: zonaLabel,
+    });
+    setOpenZonaId(null);
+  };
+
+  // Capturar cambio de preferencia pendiente
+  const requestPreferenciaChange = (custodio: CustodioProfile, preferencia: PreferenciaTipoServicio) => {
+    const prefLabel = PREFERENCIA_OPTIONS.find(o => o.value === preferencia)?.label || preferencia;
+    setPendingChange({
+      type: 'preferencia',
+      custodioId: custodio.id,
+      custodioNombre: custodio.nombre,
+      valorActual: custodio.preferencia_tipo_servicio || 'indistinto',
+      valorNuevo: preferencia,
+      labelNuevo: prefLabel,
+    });
+  };
+
+  // Confirmar cambio
+  const confirmChange = async () => {
+    if (!pendingChange) return;
+    
+    if (pendingChange.type === 'zona') {
+      await handleZonaChange(pendingChange.custodioId, pendingChange.valorNuevo);
+    } else {
+      await handlePreferenciaChange(pendingChange.custodioId, pendingChange.valorNuevo as PreferenciaTipoServicio);
+    }
+    setPendingChange(null);
+  };
+
+  // Cancelar cambio
+  const cancelChange = () => {
+    setPendingChange(null);
+  };
   
   const columns: ColumnDef<CustodioProfile>[] = [
     {
@@ -261,8 +325,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
                           key={zona.value}
                           value={zona.label}
                           onSelect={() => {
-                            handleZonaChange(custodio.id, zona.value);
-                            setOpenZonaId(null);
+                            requestZonaChange(custodio, zona.value);
                           }}
                         >
                           <Check
@@ -319,7 +382,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
           <div className="min-w-[130px]">
             <Select
               value={currentPref}
-              onValueChange={(value) => handlePreferenciaChange(custodio.id, value as PreferenciaTipoServicio)}
+              onValueChange={(value) => requestPreferenciaChange(custodio, value as PreferenciaTipoServicio)}
               disabled={isUpdating}
             >
               <SelectTrigger className="h-8 w-[130px] text-xs">
@@ -516,6 +579,32 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
           onSuccess={handleEstatusSuccess}
         />
       )}
+
+      {/* Confirmation Dialog for Zone/Preference Changes */}
+      <AlertDialog open={!!pendingChange} onOpenChange={(open) => !open && cancelChange()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cambio</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                {pendingChange?.type === 'zona' ? (
+                  <span>
+                    ¿Cambiar la zona base de <strong>{pendingChange.custodioNombre}</strong> a <strong>{pendingChange.labelNuevo}</strong>?
+                  </span>
+                ) : (
+                  <span>
+                    ¿Cambiar la preferencia de servicio de <strong>{pendingChange?.custodioNombre}</strong> a <strong>{pendingChange?.labelNuevo}</strong>?
+                  </span>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelChange}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmChange}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
