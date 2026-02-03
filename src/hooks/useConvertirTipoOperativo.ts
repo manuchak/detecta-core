@@ -62,8 +62,8 @@ export function useConvertirTipoOperativo() {
             experiencia_anos: null,
             fecha_vencimiento_licencia: null,
             equipamiento_disponible: null,
-            fuente: `conversion_custodio:${operativoId}`,
-            origen: 'conversion',
+            fuente: 'manual',
+            origen: 'interno',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
