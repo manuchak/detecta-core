@@ -20,7 +20,7 @@ import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleIn
 import { StatusUpdateButton, type OperationalStatus } from '@/components/planeacion/StatusUpdateButton';
 import { HourDivider } from '@/components/planeacion/HourDivider';
 import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/planeacion/UpcomingServiceBadge';
-import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy, MapPinOff } from 'lucide-react';
+import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy, MapPinOff, FileText } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
@@ -183,6 +183,9 @@ export function ScheduledServicesTab() {
   
   // Sprint 3: PF Filter state
   const [tipoClienteFilter, setTipoClienteFilter] = useState<'todos' | 'empresarial' | 'pf'>('todos');
+  
+  // Nuevo: Filtro por tipo de folio
+  const [tipoFolioFilter, setTipoFolioFilter] = useState<'todos' | 'con_folio' | 'sin_folio'>('todos');
 
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
@@ -531,7 +534,7 @@ export function ScheduledServicesTab() {
   };
 
   // Group services by hour for chronological visualization
-  // Sprint 3: Include PF filter in grouping
+  // Sprint 3: Include PF filter and Folio filter in grouping
   const groupedServices = useMemo(() => {
     if (!summary?.services_data || summary.services_data.length === 0) {
       return {};
@@ -547,6 +550,17 @@ export function ScheduledServicesTab() {
       });
     }
     
+    // Apply Folio filter
+    if (tipoFolioFilter === 'con_folio') {
+      filteredData = filteredData.filter(s => 
+        !s.id_servicio || s.id_servicio.length !== 36
+      );
+    } else if (tipoFolioFilter === 'sin_folio') {
+      filteredData = filteredData.filter(s => 
+        s.id_servicio && s.id_servicio.length === 36
+      );
+    }
+    
     const sorted = [...filteredData].sort(
       (a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime()
     );
@@ -560,12 +574,20 @@ export function ScheduledServicesTab() {
     });
     
     return grouped;
-  }, [summary?.services_data, tipoClienteFilter]);
+  }, [summary?.services_data, tipoClienteFilter, tipoFolioFilter]);
 
   // Count filtered services
   const filteredCount = useMemo(() => {
     return Object.values(groupedServices).flat().length;
   }, [groupedServices]);
+
+  // Count servicios sin folio para badge
+  const sinFolioCount = useMemo(() => {
+    if (!summary?.services_data) return 0;
+    return summary.services_data.filter(s => 
+      s.id_servicio && s.id_servicio.length === 36
+    ).length;
+  }, [summary?.services_data]);
 
   const currentHour = format(now, 'HH:00');
 
@@ -761,11 +783,40 @@ export function ScheduledServicesTab() {
                   PF
                 </Button>
               </div>
-              {tipoClienteFilter !== 'todos' && (
+              {(tipoClienteFilter !== 'todos' || tipoFolioFilter !== 'todos') && (
                 <span className="text-xs text-muted-foreground">
                   ({filteredCount} de {summary.services_data.length})
                 </span>
               )}
+              
+              {/* Separador visual */}
+              <Separator orientation="vertical" className="h-6 mx-2" />
+              
+              {/* Filtro por Folio */}
+              <div className="flex gap-1">
+                <Button
+                  variant={tipoFolioFilter === 'todos' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTipoFolioFilter('todos')}
+                  className="h-7 text-xs"
+                >
+                  <FileText className="w-3 h-3 mr-1" />
+                  Folio
+                </Button>
+                {sinFolioCount > 0 && (
+                  <Button
+                    variant={tipoFolioFilter === 'sin_folio' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTipoFolioFilter('sin_folio')}
+                    className={cn(
+                      "h-7 text-xs",
+                      tipoFolioFilter === 'sin_folio' && "bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                    )}
+                  >
+                    Sin Folio ({sinFolioCount})
+                  </Button>
+                )}
+              </div>
             </div>
             
             {/* Right: Status Semáforo OPERATIVO - Compact Pills (ordenado por prioridad) */}
