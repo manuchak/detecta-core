@@ -1,119 +1,58 @@
 
-# Mejora UX: Separar Acciones Seguras de Destructivas
+# Fix: Alineación Visual de Dropdowns de Zona
 
-## Problema Actual
+## Problema
 
-El dropdown agrupa "Ver perfil" (accion frecuente y segura) con "Dar de baja" (accion destructiva e infrecuente). Esto viola el principio de UX de separar acciones de diferente impacto.
+El `SelectContent` del selector de zona aparece desplazado hacia la izquierda de la tabla, sin conexión visual con el `SelectTrigger` que lo activó. Esto genera confusión sobre qué fila se está editando.
 
-## Solucion Propuesta
+## Causa Técnica
 
-Separar las acciones en dos elementos visuales:
+El componente `Select` de Radix UI en modo `position="popper"` (default) puede desalinearse cuando está dentro de contenedores con scroll horizontal (como una tabla). Necesita props de alineación explícitos.
 
-1. **Boton visible**: "Ver perfil" como boton primario siempre visible
-2. **Menu overflow**: Solo para acciones administrativas/destructivas
+## Solución
 
----
+Agregar props de posicionamiento al `SelectContent`:
 
-## Nueva Estructura Visual
-
-```text
-| ... | Rating | Acciones                    |
-|-----|--------|------------------------------|
-| ... | * 5.0  | [Ver perfil]  [...]          |
-                      |           |
-                 Boton directo    Dropdown con:
-                 (navegacion)     - Llamar
-                                  - Enviar WhatsApp
-                                  -----------
-                                  - Dar de baja (rojo)
-```
-
----
-
-## Cambios en Columna de Acciones
-
-**Antes:**
 ```tsx
-<DropdownMenu>
-  <DropdownMenuItem>Ver perfil</DropdownMenuItem>
-  <DropdownMenuSeparator />
-  <DropdownMenuItem className="text-destructive">Dar de baja</DropdownMenuItem>
-</DropdownMenu>
+<SelectContent 
+  position="popper" 
+  align="start" 
+  sideOffset={4}
+>
 ```
 
-**Despues:**
+Esto fuerza al dropdown a:
+- `position="popper"`: Usar posicionamiento flotante relativo al trigger
+- `align="start"`: Alinearse al borde izquierdo del trigger
+- `sideOffset={4}`: Mantener 4px de separación vertical
+
+## Cambios Requeridos
+
+### Archivo: `CustodiosDataTable.tsx`
+
+**Cambio 1 - SelectContent de Zona (linea ~228):**
+
 ```tsx
-<div className="flex items-center gap-1">
-  {/* Accion primaria - siempre visible */}
-  <Button 
-    variant="ghost" 
-    size="sm" 
-    onClick={() => navigate(`/perfiles-operativos/custodio/${custodio.id}`)}
-  >
-    <Eye className="h-4 w-4" />
-  </Button>
-  
-  {/* Menu secundario - acciones adicionales */}
-  <DropdownMenu>
-    <DropdownMenuTrigger>
-      <MoreHorizontal className="h-4 w-4" />
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="end">
-      <DropdownMenuLabel>Contactar</DropdownMenuLabel>
-      <DropdownMenuItem>
-        <Phone className="h-4 w-4 mr-2" />
-        Llamar
-      </DropdownMenuItem>
-      <DropdownMenuItem>
-        <MessageCircle className="h-4 w-4 mr-2" />
-        WhatsApp
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>Administrar</DropdownMenuLabel>
-      <DropdownMenuItem 
-        className="text-destructive focus:text-destructive focus:bg-destructive/10"
-      >
-        <UserX className="h-4 w-4 mr-2" />
-        Dar de baja
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-</div>
+// Antes
+<SelectContent>
+
+// Después
+<SelectContent position="popper" align="start" sideOffset={4}>
 ```
 
----
+**Cambio 2 - SelectContent de Preferencia (buscar segundo Select):**
 
-## Beneficios de UX
+Aplicar el mismo fix al selector de preferencia para consistencia visual.
 
-| Aspecto | Antes | Despues |
-|---------|-------|---------|
-| Accion frecuente | Oculta en menu | Un click visible |
-| Separacion visual | Ninguna | Clara distincion |
-| Riesgo de error | Alto (items adyacentes) | Bajo (requiere abrir menu + navegar) |
-| Funcionalidad agregada | Solo ver/baja | + Llamar + WhatsApp |
+## Impacto Visual
 
----
+| Antes | Después |
+|-------|---------|
+| Dropdown flotando a la izquierda | Dropdown alineado bajo el trigger |
+| Usuario confundido sobre qué fila edita | Conexión visual clara |
 
 ## Archivo a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Reestructurar columna de acciones |
-
----
-
-## Detalles de Implementacion
-
-1. Importar `MessageCircle` de lucide-react para icono de WhatsApp
-2. Agregar `DropdownMenuLabel` para agrupar opciones logicamente
-3. El boton "Ver perfil" usa `variant="ghost"` con tooltip para mantener minimalismo
-4. Las opciones de contacto abren `tel:` y `https://wa.me/` respectivamente
-5. La accion destructiva tiene fondo rojo en hover para reforzar la advertencia
-
----
-
-## Consideraciones Adicionales
-
-- Se podria agregar Tooltip al boton de Eye para indicar "Ver perfil forense"
-- El dropdown ahora tiene valor agregado (contacto rapido)
-- Mantiene consistencia con patrones de tablas de datos empresariales
+| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Agregar props de posicionamiento a ambos SelectContent |
