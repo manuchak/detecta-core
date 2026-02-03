@@ -1,155 +1,146 @@
 
 
-# Plan: Eliminar Scroll Innecesario en Sidebar
+# Plan: Limpieza Masiva de Custodios por Inactividad
 
-## Diagnóstico Refinado
+## Alcance de la Operación
 
-El sidebar muestra scroll incluso con espacio disponible porque:
-
-1. **`SidebarContent`** tiene `overflow-auto` siempre activo
-2. **Header del sidebar** (botón de colapso) ocupa ~48px adicionales
-3. **Footer condicional** (Vista Rápida) añade ~80px cuando hay stats
-4. **Distribución flexbox** no está optimizada para el contenido real
-
-### Cálculo del Espacio
-
-```text
-Altura total disponible: calc(100svh - 3.5rem)  ≈ ~564px (viewport 900px)
-
-Actualmente usado:
-- Header (toggle):     ~48px
-- Content (grupos):    variable
-- Footer (stats):      ~80px (cuando existe)
-─────────────────────────────────
-Espacio efectivo para navegación: ~436px
-```
+| Categoría | Cantidad |
+|-----------|----------|
+| Custodios activos totales | 415 |
+| Sin servicio registrado (nunca trabajaron) | 64 |
+| Más de 120 días sin actividad | 274 |
+| **Total a dar de baja** | **338** |
 
 ## Solución Propuesta
 
-### 1. Reestructurar Layout del Sidebar
+Crear un nuevo componente de limpieza de custodios inactivos dentro del módulo de Administración, con previsualización antes de ejecutar y registro completo de auditoría.
 
-**Archivo**: `src/components/navigation/UnifiedSidebar.tsx`
-
-Cambiar la estructura para usar mejor el espacio vertical:
+### Estructura de Archivos
 
 ```text
-ANTES                          DESPUÉS
-┌─────────────────┐            ┌─────────────────┐
-│ [◀] toggle      │ 48px       │ Grupos de       │
-│─────────────────│            │ navegación      │
-│ Grupos (scroll) │ flex-1     │ (sin scroll     │
-│                 │            │  si caben)      │
-│─────────────────│            │                 │
-│ Vista Rápida    │ ~80px      │─────────────────│
-└─────────────────┘            │ [◀] [⚙]        │ 48px
-                               └─────────────────┘
+src/components/administration/
+└── InactivityCleanupManager.tsx   (NUEVO)
 ```
 
-**Cambios específicos**:
-- Mover toggle de colapso al footer (junto con stats condensados)
-- Eliminar header del sidebar, ganando 48px
-- Footer compacto: toggle + stats en una línea
+### Integración
 
-### 2. Optimizar SidebarContent
+Agregar nueva pestaña en `AdministrationHub.tsx`:
+- Tab: "Custodios Inactivos"
+- Icono: UserX
 
-**Archivo**: `src/components/ui/sidebar.tsx` (línea 405)
+## Flujo de Usuario
 
-Cambiar comportamiento de overflow:
-
-```tsx
-// ANTES
-"overflow-auto group-data-[collapsible=icon]:overflow-hidden"
-
-// DESPUÉS  
-"overflow-y-auto overflow-x-hidden scrollbar-thin group-data-[collapsible=icon]:overflow-hidden"
+```text
+┌─────────────────────────────────────────────────┐
+│  Limpieza de Custodios por Inactividad          │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐         │
+│  │   338   │  │   64    │  │   274   │         │
+│  │  Total  │  │Sin serv.│  │ >120d   │         │
+│  └─────────┘  └─────────┘  └─────────┘         │
+│                                                 │
+│  Criterio: [120 días ▼]  [Buscar]              │
+│                                                 │
+│  ┌─────────────────────────────────────────┐   │
+│  │ ☑ FELIX LOPEZ GOMEZ     | Sin servicios │   │
+│  │ ☑ JOSÉ FERNANDO ZÚÑIGA  | Sin servicios │   │
+│  │ ☑ MARCOS RAMIREZ        | 145 días      │   │
+│  │ ☑ ...                                   │   │
+│  └─────────────────────────────────────────┘   │
+│                                                 │
+│  ☑ Seleccionar todos (338)                     │
+│                                                 │
+│  [Dar de baja seleccionados (338)]             │
+│                                                 │
+└─────────────────────────────────────────────────┘
 ```
 
-Y agregar clases CSS para ocultar scrollbar cuando no es necesaria.
+## Detalles Técnicos
 
-### 3. Footer Rediseñado
+### 1. Consulta de Custodios Inactivos
 
-**Archivo**: `src/components/navigation/UnifiedSidebar.tsx`
-
-Nuevo footer compacto que combina toggle + stats:
-
-```tsx
-<SidebarFooter className="border-t border-sidebar-border p-2 mt-auto">
-  <div className="flex items-center justify-between">
-    {/* Stats condensados en chips */}
-    {!isCollapsed && stats && (
-      <div className="flex gap-1.5 flex-wrap">
-        {stats.criticalAlerts > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
-            {stats.criticalAlerts} alertas
-          </span>
-        )}
-        {/* ... más stats como chips */}
-      </div>
-    )}
-    
-    {/* Toggle siempre visible */}
-    <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-      <ChevronLeft className={cn("h-4 w-4", isCollapsed && "rotate-180")} />
-    </Button>
-  </div>
-</SidebarFooter>
+```sql
+SELECT id, nombre, telefono, zona_base, 
+       fecha_ultimo_servicio,
+       EXTRACT(DAY FROM NOW() - fecha_ultimo_servicio) as dias_sin_actividad
+FROM custodios_operativos 
+WHERE estado = 'activo'
+AND (fecha_ultimo_servicio IS NULL 
+     OR fecha_ultimo_servicio < NOW() - INTERVAL '120 days')
+ORDER BY fecha_ultimo_servicio ASC NULLS FIRST
 ```
 
-### 4. Grupos Más Compactos
+### 2. Operación de Baja Masiva
 
-Reducir espaciado vertical entre elementos:
+Para cada custodio seleccionado:
 
-| Elemento | Actual | Propuesto |
-|----------|--------|-----------|
-| `SidebarGroupLabel` padding | `py-1.5` | `py-1` |
-| `SidebarMenuItem` gap | `space-y-0.5` | `space-y-px` |
-| Separadores entre grupos | `my-2` | `my-1` |
-| `SidebarMenuButton` padding | `py-2.5` | `py-2` |
-
-### 5. CSS para Scrollbar Inteligente
-
-**Archivo**: `src/index.css`
-
-```css
-/* Ocultar scrollbar cuando no es necesaria */
-[data-sidebar="content"] {
-  scrollbar-gutter: stable;
-}
-
-[data-sidebar="content"]::-webkit-scrollbar {
-  width: 4px;
-}
-
-[data-sidebar="content"]::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 2px;
-}
-
-[data-sidebar="content"]:hover::-webkit-scrollbar-thumb {
-  background: hsl(var(--sidebar-border));
+**Actualizar `custodios_operativos`:**
+```typescript
+{
+  estado: 'inactivo',
+  fecha_inactivacion: new Date().toISOString().split('T')[0],
+  motivo_inactivacion: 'Dado de baja por inactividad',
+  tipo_inactivacion: 'permanente',
+  fecha_reactivacion_programada: null,
+  updated_at: new Date().toISOString()
 }
 ```
 
-## Archivos a Modificar
+**Insertar en `operativo_estatus_historial`:**
+```typescript
+{
+  operativo_id: custodio.id,
+  operativo_tipo: 'custodio',
+  estatus_anterior: 'activo',
+  estatus_nuevo: 'inactivo',
+  tipo_cambio: 'permanente',
+  motivo: 'Dado de baja por inactividad',
+  notas: `Baja automática: ${dias} días sin actividad`,
+  creado_por: user.id
+}
+```
+
+### 3. Procesamiento en Lotes
+
+- Procesar en grupos de 50 para evitar timeouts
+- Mostrar barra de progreso
+- Permitir cancelar operación
+- Resumen final de resultados
+
+### 4. Componente InactivityCleanupManager
+
+**Características:**
+- Selector de días de inactividad (60, 90, 120, 150, 180)
+- Tabla con checkboxes para selección individual/masiva
+- Preview de custodios afectados antes de ejecutar
+- Confirmación con diálogo antes de ejecutar
+- Barra de progreso durante ejecución
+- Toast con resumen al finalizar
+
+## Modificaciones Requeridas
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/navigation/UnifiedSidebar.tsx` | Reestructurar: eliminar header, footer compacto, reducir espaciado |
-| `src/components/ui/sidebar.tsx` | Optimizar overflow en SidebarContent |
-| `src/index.css` | Estilos de scrollbar condicional |
+| `src/components/administration/InactivityCleanupManager.tsx` | **CREAR** - Componente principal |
+| `src/pages/Administration/AdministrationHub.tsx` | Agregar nueva pestaña "Custodios Inactivos" |
+
+## Seguridad y Auditoría
+
+- Solo usuarios autenticados pueden ejecutar
+- Cada baja queda registrada en historial
+- Se invalidan queries de custodios tras operación
+- No se eliminan registros, solo se cambia estado
 
 ## Resultado Esperado
 
-- **Sin scroll** cuando todos los grupos caben en el viewport
-- **Scroll suave** solo cuando el contenido excede el espacio
-- **Scrollbar invisible** hasta hacer hover
-- **~50px más** de espacio vertical para navegación
-- Footer siempre visible con toggle accesible
-
-## Verificación
-
-1. Con todos los grupos colapsados: sin scroll
-2. Con 1-2 grupos expandidos: sin scroll (si caben)
-3. Con muchos grupos expandidos: scroll visible solo al hacer hover
-4. Toggle de colapso siempre accesible en footer
+1. Previsualización clara de los 338 custodios afectados
+2. Opción de seleccionar todos o individualmente
+3. Confirmación antes de ejecutar
+4. Barra de progreso durante la operación
+5. Todos los custodios dados de baja con:
+   - Estado: `inactivo`
+   - Motivo: "Dado de baja por inactividad"
+   - Tipo: `permanente`
+   - Registro en historial para cada uno
 
