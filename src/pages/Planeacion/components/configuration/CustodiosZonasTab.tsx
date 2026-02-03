@@ -157,8 +157,8 @@ export function CustodiosZonasTab() {
         </div>
       </div>
 
-      {/* Mapa de distribución por zona - Expandido */}
-      <CustodianZoneBubbleMap estadisticasZona={estadisticasZona} height={500} />
+      {/* Mapa de distribución por zona - Altura dinámica */}
+      <CustodianZoneBubbleMap estadisticasZona={estadisticasZona} />
     </div>
   );
 }

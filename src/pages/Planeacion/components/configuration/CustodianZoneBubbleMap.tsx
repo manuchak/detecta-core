@@ -21,7 +21,7 @@ interface ZonaDistribucion {
 
 interface CustodianZoneBubbleMapProps {
   estadisticasZona: [string, number][];
-  height?: number;
+  height?: number | string;
 }
 
 // Coordenadas centrales de los estados de México más comunes
@@ -70,7 +70,7 @@ const ZONE_COLORS = {
   veryLow: 'hsl(142, 50%, 65%)',   // green-300
 };
 
-export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: CustodianZoneBubbleMapProps) {
+export function CustodianZoneBubbleMap({ estadisticasZona, height = 'calc(100vh - 400px)' }: CustodianZoneBubbleMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -328,21 +328,20 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: Custo
       
       <CardContent className="space-y-3">
         {mapError ? (
-          <div 
-            className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30"
-            style={{ height }}
-          >
+            <div 
+              className="flex flex-col items-center justify-center text-muted-foreground rounded-lg bg-muted/30 min-h-[280px]"
+              style={{ height }}
+            >
             <AlertCircle className="h-8 w-8 mb-2 text-destructive/50" />
             <p className="text-sm">{mapError}</p>
           </div>
         ) : (
-          <div className="flex gap-4">
+          <div className="flex gap-4 min-h-[280px]" style={{ height }}>
             {/* Mapa */}
             <div className="relative flex-1">
               <div 
                 ref={mapContainer} 
-                className="w-full rounded-lg overflow-hidden"
-                style={{ height }}
+                className="w-full h-full rounded-lg overflow-hidden"
               />
               
               {!mapLoaded && (
@@ -353,10 +352,7 @@ export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: Custo
             </div>
             
             {/* Leyenda lateral */}
-            <div 
-              className="w-56 flex-shrink-0 rounded-lg border bg-card p-4 overflow-y-auto"
-              style={{ height }}
-            >
+            <div className="w-56 flex-shrink-0 rounded-lg border bg-card p-4 overflow-y-auto">
               <div className="space-y-1 mb-4">
                 <h4 className="text-sm font-semibold text-foreground">Zonas</h4>
                 <p className="text-xs text-muted-foreground">Custodios por ubicación</p>
