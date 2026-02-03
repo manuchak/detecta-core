@@ -146,7 +146,7 @@ export function useOperativeProfiles() {
         } as CustodioProfile;
       });
     },
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 1 * 60 * 1000 // 1 minute for better sync
   });
   
   // Fetch armados operativos
@@ -176,7 +176,7 @@ export function useOperativeProfiles() {
           created_at,
           preferencia_tipo_servicio
         `)
-        .eq('estado', 'activo')
+        .in('estado', ['activo', 'suspendido'])
         .order('nombre');
       
       if (error) throw error;
@@ -190,7 +190,7 @@ export function useOperativeProfiles() {
         } as ArmadoProfile;
       });
     },
-    staleTime: 5 * 60 * 1000
+    staleTime: 1 * 60 * 1000 // 1 minute for better sync
   });
   
   // Fetch archived profiles (from personal_archivados if exists, otherwise empty)
@@ -201,7 +201,7 @@ export function useOperativeProfiles() {
       // Will be populated after migration is created
       return [] as ArchivedProfile[];
     },
-    staleTime: 5 * 60 * 1000
+    staleTime: 1 * 60 * 1000 // 1 minute for better sync
   });
 
   // Fetch bajas (custodios y armados inactivos)
@@ -266,7 +266,7 @@ export function useOperativeProfiles() {
           return fechaB - fechaA;
         }) as BajaProfile[];
     },
-    staleTime: 5 * 60 * 1000
+    staleTime: 1 * 60 * 1000 // 1 minute for better sync
   });
 
   // Fetch active unavailabilities count
@@ -287,7 +287,7 @@ export function useOperativeProfiles() {
       }
       return count || 0;
     },
-    staleTime: 5 * 60 * 1000
+    staleTime: 1 * 60 * 1000 // 1 minute for better sync
   });
   
   // Calculate stats
