@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, FileSpreadsheet, Plus, TrendingUp, Search, Filter, Eye, Edit, MapPin, DollarSign, Clock } from 'lucide-react';
+import { Upload, FileSpreadsheet, Plus, TrendingUp, Search, Filter, Eye, Edit, MapPin, DollarSign, Clock, Trash2, MoreHorizontal, Calendar } from 'lucide-react';
 import { useAuthenticatedQuery } from '@/hooks/useAuthenticatedQuery';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,10 +14,15 @@ import { PriceMatrixImportWizard } from './PriceMatrixImportWizard';
 import { RouteManagementForm } from './RouteManagementForm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PERFORMANCE_QUERY_CONFIG } from '@/utils/performanceOptimizations';
+import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DeleteRouteDialog } from './routes/DeleteRouteDialog';
+import { PendingPriceRoute } from '@/hooks/useRoutesWithPendingPrices';
 
 interface MatrizPrecio {
   id: string;
   cliente_nombre: string;
+  origen_texto?: string;
   destino_texto: string;
   dias_operacion?: string;
   valor_bruto: number;
@@ -30,6 +35,16 @@ interface MatrizPrecio {
   activo: boolean;
 }
 
+type ActivityFilter = 'all' | '60' | '90' | '120' | '120+';
+
+const ACTIVITY_FILTER_OPTIONS: { value: ActivityFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: '60', label: 'Últimos 60 días' },
+  { value: '90', label: 'Últimos 90 días' },
+  { value: '120', label: 'Últimos 120 días' },
+  { value: '120+', label: '+120 días sin uso' },
+];
+
 export const MatrizPreciosTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImportWizard, setShowImportWizard] = useState(false);
@@ -39,9 +54,12 @@ export const MatrizPreciosTab = () => {
   const [editingRoute, setEditingRoute] = useState<MatrizPrecio | null>(null);
   const [filterClient, setFilterClient] = useState('all');
   const [filterMargin, setFilterMargin] = useState('all');
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [permissionLoading, setPermissionLoading] = useState(true);
+  const [selectedRoutes, setSelectedRoutes] = useState<Set<string>>(new Set());
+  const [routesToDelete, setRoutesToDelete] = useState<PendingPriceRoute[]>([]);
 
   // Verificación directa y simple de permisos
   useEffect(() => {
@@ -87,11 +105,34 @@ export const MatrizPreciosTab = () => {
 
   const handleRouteUpdated = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
+    setSelectedRoutes(new Set());
     toast.success('Datos actualizados correctamente');
   }, []);
 
-  const filteredPrecios = React.useMemo(() => {
+  // Helper to calculate days since fecha_vigencia
+  const getDaysSinceVigencia = useCallback((fecha: string | null) => {
+    if (!fecha) return null;
+    const vigenciaDate = new Date(fecha);
+    const now = new Date();
+    return Math.floor((now.getTime() - vigenciaDate.getTime()) / (1000 * 60 * 60 * 24));
+  }, []);
+
+  // Filter by activity first
+  const preciosPorActividad = useMemo(() => {
+    if (activityFilter === 'all') return precios;
+    
     return precios.filter(precio => {
+      const days = getDaysSinceVigencia(precio.fecha_vigencia);
+      if (activityFilter === '120+') {
+        return days === null || days > 120;
+      }
+      const maxDays = parseInt(activityFilter);
+      return days !== null && days <= maxDays;
+    });
+  }, [precios, activityFilter, getDaysSinceVigencia]);
+
+  const filteredPrecios = useMemo(() => {
+    return preciosPorActividad.filter(precio => {
       const matchesSearch = precio.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            precio.destino_texto.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesClient = filterClient === 'all' || precio.cliente_nombre === filterClient;
@@ -102,9 +143,79 @@ export const MatrizPreciosTab = () => {
       
       return matchesSearch && matchesClient && matchesMargin;
     });
-  }, [precios, searchTerm, filterClient, filterMargin]);
+  }, [preciosPorActividad, searchTerm, filterClient, filterMargin]);
 
-  const columns: ColumnDef<MatrizPrecio>[] = React.useMemo(() => [
+  // Selection handlers
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (checked) {
+      setSelectedRoutes(new Set(filteredPrecios.map(r => r.id)));
+    } else {
+      setSelectedRoutes(new Set());
+    }
+  }, [filteredPrecios]);
+
+  const handleSelectRoute = useCallback((id: string, checked: boolean) => {
+    setSelectedRoutes(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Convert selected routes to PendingPriceRoute format for DeleteRouteDialog
+  const convertToPendingRoute = useCallback((route: MatrizPrecio): PendingPriceRoute => {
+    const dias = getDaysSinceVigencia(route.fecha_vigencia) || 0;
+    return {
+      id: route.id,
+      cliente_nombre: route.cliente_nombre,
+      origen_texto: route.origen_texto || '',
+      destino_texto: route.destino_texto,
+      valor_bruto: route.valor_bruto,
+      precio_custodio: route.precio_custodio,
+      costo_operativo: route.costo_operativo,
+      margen_neto_calculado: route.margen_neto_calculado,
+      porcentaje_utilidad: route.porcentaje_utilidad,
+      created_at: route.fecha_vigencia,
+      updated_at: route.fecha_vigencia,
+      dias_sin_actualizar: dias,
+      tiene_margen_negativo: route.valor_bruto < route.precio_custodio,
+      es_precio_placeholder: route.valor_bruto <= 10,
+    };
+  }, [getDaysSinceVigencia]);
+
+  const handleDeleteSelected = useCallback(() => {
+    const selectedRoutesData = filteredPrecios
+      .filter(r => selectedRoutes.has(r.id))
+      .map(convertToPendingRoute);
+    setRoutesToDelete(selectedRoutesData);
+  }, [filteredPrecios, selectedRoutes, convertToPendingRoute]);
+
+  const handleDeleteSingle = useCallback((route: MatrizPrecio) => {
+    setRoutesToDelete([convertToPendingRoute(route)]);
+  }, [convertToPendingRoute]);
+
+  const columns: ColumnDef<MatrizPrecio>[] = useMemo(() => [
+    ...(hasPermission ? [{
+      id: 'select',
+      header: () => (
+        <Checkbox 
+          checked={selectedRoutes.size > 0 && selectedRoutes.size === filteredPrecios.length}
+          onCheckedChange={handleSelectAll}
+          aria-label="Seleccionar todas"
+        />
+      ),
+      cell: ({ row }: { row: { original: MatrizPrecio } }) => (
+        <Checkbox 
+          checked={selectedRoutes.has(row.original.id)}
+          onCheckedChange={(checked) => handleSelectRoute(row.original.id, !!checked)}
+          aria-label="Seleccionar ruta"
+        />
+      ),
+    }] as ColumnDef<MatrizPrecio>[] : []),
     {
       accessorKey: 'cliente_nombre',
       header: 'Cliente',
@@ -138,7 +249,7 @@ export const MatrizPreciosTab = () => {
       cell: ({ row }) => {
         const amount = parseFloat(row.getValue('margen_neto_calculado'));
         return (
-          <div className={`font-medium ${amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`font-medium ${amount > 0 ? 'text-success' : 'text-destructive'}`}>
             ${amount.toLocaleString()}
           </div>
         );
@@ -149,8 +260,8 @@ export const MatrizPreciosTab = () => {
       header: '% Utilidad',
       cell: ({ row }) => {
         const percentage = parseFloat(row.getValue('porcentaje_utilidad'));
-        const color = percentage > 50 ? 'text-green-600' : 
-                     percentage > 25 ? 'text-yellow-600' : 'text-red-600';
+        const color = percentage > 50 ? 'text-success' : 
+                     percentage > 25 ? 'text-warning' : 'text-destructive';
         return <div className={`font-medium ${color}`}>{percentage.toFixed(1)}%</div>;
       },
     },
@@ -160,34 +271,49 @@ export const MatrizPreciosTab = () => {
       cell: ({ row }) => {
         const route = row.original;
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setSelectedRuta(route);
-                setShowRouteDetails(true);
-              }}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            {hasPermission && (
-              <Button
-                variant="ghost"
-                size="sm"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
                 onClick={() => {
-                  setEditingRoute(route);
-                  setShowRouteForm(true);
+                  setSelectedRuta(route);
+                  setShowRouteDetails(true);
                 }}
               >
-                <Edit className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+                <Eye className="h-4 w-4 mr-2" />
+                Ver detalles
+              </DropdownMenuItem>
+              {hasPermission && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditingRoute(route);
+                      setShowRouteForm(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar ruta
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleDeleteSingle(route)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar ruta
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
-  ], [hasPermission]);
+  ], [hasPermission, selectedRoutes, filteredPrecios.length, handleSelectAll, handleSelectRoute, handleDeleteSingle]);
 
   if (permissionLoading) {
     return (
@@ -353,22 +479,60 @@ export const MatrizPreciosTab = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="min-w-48">
+                <label className="text-sm font-medium mb-2 block flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  Actividad
+                </label>
+                <Select value={activityFilter} onValueChange={(v) => setActivityFilter(v as ActivityFilter)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas las rutas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ACTIVITY_FILTER_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Results Summary */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Mostrando {filteredPrecios.length} de {precios.length} rutas</span>
-              {(searchTerm || filterClient !== 'all' || filterMargin !== 'all') && (
+            {/* Results Summary and Actions */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Mostrando {filteredPrecios.length} de {preciosPorActividad.length} rutas</span>
+                {activityFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    {ACTIVITY_FILTER_OPTIONS.find(o => o.value === activityFilter)?.label}
+                  </Badge>
+                )}
+                {(searchTerm || filterClient !== 'all' || filterMargin !== 'all' || activityFilter !== 'all') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setFilterClient('all');
+                      setFilterMargin('all');
+                      setActivityFilter('all');
+                      setSelectedRoutes(new Set());
+                    }}
+                  >
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+
+              {hasPermission && selectedRoutes.size > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setFilterClient('all');
-                    setFilterMargin('all');
-                  }}
+                  onClick={handleDeleteSelected}
+                  className="gap-2 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive hover:bg-destructive/10"
                 >
-                  Limpiar filtros
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar ({selectedRoutes.size})
                 </Button>
               )}
             </div>
@@ -473,6 +637,19 @@ export const MatrizPreciosTab = () => {
         editingRoute={editingRoute}
         onRouteUpdated={handleRouteUpdated}
         hasPermission={hasPermission}
+      />
+
+      {/* Delete Route Dialog */}
+      <DeleteRouteDialog
+        open={routesToDelete.length > 0}
+        onOpenChange={(open) => {
+          if (!open) setRoutesToDelete([]);
+        }}
+        routes={routesToDelete}
+        onSuccess={() => {
+          setSelectedRoutes(new Set());
+          handleRouteUpdated();
+        }}
       />
     </div>
   );
