@@ -252,17 +252,31 @@ export default function CustodianStep() {
   // Handle unavailability submission
   const handleUnavailabilitySubmit = async (data: {
     tipo: string;
-    motivo: string;
-    dias: number;
+    motivo?: string;
+    dias: number | null;
   }) => {
     if (!unavailabilityCustodian) return false;
+    
+    // Map UI types to DB-compatible enum values
+    const tipoMapping: Record<string, string> = {
+      'emergencia_familiar': 'familiar',
+      'falla_mecanica': 'falla_mecanica',
+      'enfermedad': 'enfermedad',
+      'capacitacion': 'capacitacion',
+      'otro': 'otro',
+    };
+    
+    const tipoDb = tipoMapping[data.tipo] || 'otro';
+    const motivoDb = data.motivo?.trim() || tipoDb; // Fallback to type name if no notes
     
     try {
       await crearIndisponibilidad.mutateAsync({
         custodio_id: unavailabilityCustodian.id,
-        tipo_indisponibilidad: data.tipo as any,
-        motivo: data.motivo,
-        fecha_fin_estimada: addDays(new Date(), data.dias).toISOString(),
+        tipo_indisponibilidad: tipoDb as any,
+        motivo: motivoDb,
+        fecha_fin_estimada: data.dias 
+          ? addDays(new Date(), data.dias).toISOString() 
+          : undefined, // undefined for "Hasta nuevo aviso"
         severidad: 'media',
         requiere_seguimiento: true,
       });
