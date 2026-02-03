@@ -1,121 +1,111 @@
 
-# Plan: Optimizacion de Espaciado Vertical - Vista Custodios
+# Plan: Alinear Fuentes de Datos con Perfiles Operativos
 
-## Analisis de UI/UX
+## Objetivo
 
-### Problemas Detectados
+Garantizar que los datos mostrados en las pestañas de configuración de Planeación (Custodios y Armados) coincidan con la fuente de verdad establecida en **Perfiles Operativos**, que representa el punto de convergencia entre Supply y Planeación.
 
-| Elemento | Problema | Desperdicio |
-|----------|----------|-------------|
-| Contenedor principal | `space-y-6` (24px gaps) | ~48px |
-| Card del mapa | CardHeader + padding | ~80px |
-| Calculo altura | No compensa zoom 70% | Variable |
-| Metricas grid | Padding interno excesivo | ~20px |
+## Discrepancias Actuales
 
-### Calculo Correcto con Zoom 70%
-
-```text
-Viewport real:        100vh
-Con zoom 70%:         100vh / 0.7 = ~143vh efectivo
-Offset necesario:     ~300px (compensado)
-
-Formula corregida:    calc((100vh / 0.7) - 300px)
-Alternativa simple:   calc(100vh - 210px) = equivalente visual
-```
+| Aspecto | Perfiles Operativos | Config Custodios | Config Armados |
+|---------|---------------------|------------------|----------------|
+| Estados incluidos | `activo` + `suspendido` | Solo `activo` | Solo `activo` |
+| Filtro actividad | Sin filtro (todos) | Forzado 90d | Selector (default 90d) |
+| Consistencia | Fuente de verdad | Subconjunto | Subconjunto |
 
 ## Cambios Propuestos
 
-### 1. Reducir Espaciado General
+### 1. CustodiosZonasTab.tsx
 
+**A. Expandir query de estados**
 ```tsx
-// CustodiosZonasTab.tsx
-// Antes
-<div className="space-y-6">
+// ANTES
+.eq('estado', 'activo')
 
-// Despues  
-<div className="space-y-4">
+// DESPUÉS  
+.in('estado', ['activo', 'suspendido'])
 ```
 
-### 2. Eliminar Card Wrapper del Mapa
-
-Convertir el mapa de un Card envuelto a un componente directo con header inline:
-
+**B. Agregar selector de filtro de actividad** (igual que Armados)
 ```tsx
-// Antes: Card > CardHeader > CardContent > Mapa
-// Despues: Contenedor directo con header integrado
+// Nuevo estado y constantes
+const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
 
-<div className="rounded-lg border bg-card">
-  <div className="flex items-center justify-between px-4 py-2 border-b">
-    <div className="flex items-center gap-2 text-sm font-medium">
-      <Map className="h-4 w-4 text-primary" />
-      Distribucion por Zona
-    </div>
-    <Badge>...</Badge>
-  </div>
-  <div className="flex gap-3 p-3" style={{ height }}>
-    {/* Mapa + Leyenda */}
-  </div>
+const ACTIVITY_FILTER_OPTIONS = [
+  { value: 'all', label: 'Todos' },
+  { value: '60', label: 'Últimos 60 días' },
+  { value: '90', label: 'Últimos 90 días' },
+  { value: '120', label: 'Últimos 120 días' },
+  { value: '120+', label: 'Sin actividad +120 días' },
+];
+```
+
+**C. Implementar lógica de filtrado por actividad**
+```tsx
+const custodiosPorActividad = useMemo(() => {
+  if (activityFilter === 'all') return custodios;
+  
+  return custodios.filter(c => {
+    const days = getDaysSinceLastService(c.fecha_ultimo_servicio);
+    if (activityFilter === '120+') {
+      return days === null || days > 120;
+    }
+    const maxDays = parseInt(activityFilter);
+    return days !== null && days <= maxDays;
+  });
+}, [custodios, activityFilter]);
+```
+
+**D. Actualizar etiquetas de métricas**
+```tsx
+// Métrica dinámica según filtro
+<div className="apple-metric-label">
+  {activityFilter === 'all' 
+    ? 'Total Activos' 
+    : `Activos (${activityFilter === '120+' ? '+120d' : activityFilter + 'd'})`}
 </div>
 ```
 
-### 3. Ajustar Altura Dinamica
+### 2. ArmadosZonasTab.tsx
 
+**A. Cambiar default de filtro**
 ```tsx
-// Compensar zoom 70% correctamente
-height = "calc(100vh - 280px)"
+// ANTES
+const [activityFilter, setActivityFilter] = useState<ActivityFilter>('90');
 
-// Con min-height de seguridad
-className="min-h-[320px]"
+// DESPUÉS
+const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
 ```
 
-### 4. Compactar Metricas (Opcional)
-
+**B. Incluir estado suspendido**
 ```tsx
-// Reducir padding interno de las apple-metric cards
-// De p-4 a p-3, manteniendo legibilidad
+// ANTES
+.eq('estado', 'activo')
+
+// DESPUÉS
+.in('estado', ['activo', 'suspendido'])
 ```
 
-## Layout Final Esperado
+## Resultado Esperado
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│ Configuracion de Planeacion                                      │
-│ Configura operativos, proveedores y parametros del sistema       │
-├──────────────────────────────────────────────────────────────────┤
-│ [Custodios] [Armados] [Proveedores] [Esquemas] ...               │
-├──────────────────────────────────────────────────────────────────┤
-│ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐  <- gap-4 (16px)    │
-│ │ 100    │ │ 0      │ │ 9      │ │ 100%   │  <- padding reducido │
-│ │ Activos│ │Sin Zona│ │ Zonas  │ │Complet.│                      │
-│ └────────┘ └────────┘ └────────┘ └────────┘                      │
-├──────────────────────────────────────────────────────────────────┤
-│ Distribucion por Zona                          [8 zonas]         │
-│ ───────────────────────────────────────────────────────────────  │
-│ ┌───────────────────────────────────────────┐ ┌─────────────────┐│
-│ │                                           │ │ Zonas           ││
-│ │                                           │ │                 ││
-│ │            MAPA MAXIMIZADO                │ │ ● CDMX      45  ││
-│ │          (calc(100vh - 280px))            │ │ ● EdoMex    22  ││
-│ │                                           │ │ ● Jalisco   10  ││
-│ │                                           │ │ ● ...           ││
-│ │                                           │ │                 ││
-│ │                                           │ │ Ranking:        ││
-│ │                                           │ │ Alta Media Baja ││
-│ └───────────────────────────────────────────┘ └─────────────────┘│
-│ ℹ Haz clic en una zona...                                        │
-└──────────────────────────────────────────────────────────────────┘
-```
+Después de los cambios, las tres vistas mostrarán datos consistentes:
+
+| Vista | Estados | Default Actividad | Selector |
+|-------|---------|-------------------|----------|
+| Perfiles Operativos | `activo`, `suspendido` | Todos | No aplica |
+| Config Custodios | `activo`, `suspendido` | Todos | Si (nuevo) |
+| Config Armados | `activo`, `suspendido` | Todos | Si |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `CustodiosZonasTab.tsx` | Reducir `space-y-6` a `space-y-4` |
-| `CustodianZoneBubbleMap.tsx` | Compactar Card: header inline, reducir padding, ajustar altura a `calc(100vh - 280px)` |
+| `CustodiosZonasTab.tsx` | Expandir query, agregar selector actividad, actualizar métricas |
+| `ArmadosZonasTab.tsx` | Cambiar default a 'all', expandir query a incluir suspendidos |
 
-## Beneficios
+## Notas Técnicas
 
-- Aprovechamiento de pantalla: +15-20% espacio para el mapa
-- Sin scroll vertical en viewports estandar
-- Jerarquia visual mantenida
-- Header del mapa mas ligero pero funcional
+- El filtro de actividad será visual/UI, no afecta las queries a DB
+- Las métricas se recalculan dinámicamente según el filtro seleccionado
+- Se mantiene consistencia con el diseño existente de ArmadosZonasTab
+- Los custodios/armados suspendidos se mostrarán pero podrán identificarse visualmente si se requiere
