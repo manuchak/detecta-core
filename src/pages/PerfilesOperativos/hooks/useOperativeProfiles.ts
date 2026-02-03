@@ -49,6 +49,20 @@ export interface ArmadoProfile {
   nivel_actividad: 'activo' | 'moderado' | 'inactivo' | 'sin_actividad';
 }
 
+export interface BajaProfile {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  zona_base: string | null;
+  estado: 'inactivo' | 'suspendido';
+  motivo_inactivacion: string | null;
+  tipo_inactivacion: 'temporal' | 'permanente' | null;
+  fecha_inactivacion: string | null;
+  fecha_reactivacion_programada: string | null;
+  numero_servicios: number | null;
+  rating_promedio: number | null;
+}
+
 export interface ArchivedProfile {
   id: string;
   personal_id: string;
@@ -66,6 +80,7 @@ export interface ProfileStats {
   totalCustodios: number;
   totalArmados: number;
   totalArchivados: number;
+  totalBajas: number;
   activosUltimos30Dias: number;
   inactivosMas60Dias: number;
   documentosCompletos: number;
@@ -114,7 +129,7 @@ export function useOperativeProfiles() {
           created_at,
           preferencia_tipo_servicio
         `)
-        .neq('estado', 'archivado')
+        .eq('estado', 'activo')
         .order('nombre');
       
       if (error) throw error;
@@ -158,7 +173,7 @@ export function useOperativeProfiles() {
           created_at,
           preferencia_tipo_servicio
         `)
-        .neq('estado', 'archivado')
+        .eq('estado', 'activo')
         .order('nombre');
       
       if (error) throw error;
@@ -185,12 +200,41 @@ export function useOperativeProfiles() {
     },
     staleTime: 5 * 60 * 1000
   });
+
+  // Fetch bajas (custodios inactivos/suspendidos)
+  const bajasQuery = useQuery({
+    queryKey: ['operative-profiles', 'bajas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('custodios_operativos')
+        .select(`
+          id,
+          nombre,
+          telefono,
+          zona_base,
+          estado,
+          motivo_inactivacion,
+          tipo_inactivacion,
+          fecha_inactivacion,
+          fecha_reactivacion_programada,
+          numero_servicios,
+          rating_promedio
+        `)
+        .in('estado', ['inactivo', 'suspendido'])
+        .order('fecha_inactivacion', { ascending: false });
+      
+      if (error) throw error;
+      return (data || []) as BajaProfile[];
+    },
+    staleTime: 5 * 60 * 1000
+  });
   
   // Calculate stats
   const stats: ProfileStats = {
     totalCustodios: custodiosQuery.data?.length || 0,
     totalArmados: armadosQuery.data?.length || 0,
     totalArchivados: archivadosQuery.data?.length || 0,
+    totalBajas: bajasQuery.data?.length || 0,
     activosUltimos30Dias: custodiosQuery.data?.filter(c => c.nivel_actividad === 'activo').length || 0,
     inactivosMas60Dias: custodiosQuery.data?.filter(c => 
       c.nivel_actividad === 'inactivo' || c.nivel_actividad === 'sin_actividad'
@@ -202,12 +246,14 @@ export function useOperativeProfiles() {
     custodios: custodiosQuery.data || [],
     armados: armadosQuery.data || [],
     archivados: archivadosQuery.data || [],
+    bajas: bajasQuery.data || [],
     stats,
-    loading: custodiosQuery.isLoading || armadosQuery.isLoading,
+    loading: custodiosQuery.isLoading || armadosQuery.isLoading || bajasQuery.isLoading,
     refetch: () => {
       custodiosQuery.refetch();
       armadosQuery.refetch();
       archivadosQuery.refetch();
+      bajasQuery.refetch();
     }
   };
 }

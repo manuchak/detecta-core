@@ -6,11 +6,12 @@ import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
-  Users, Shield, Archive, UserCheck, TrendingUp, AlertTriangle, CheckCircle 
+  Users, Shield, Archive, UserCheck, TrendingUp, AlertTriangle, CheckCircle, UserX
 } from 'lucide-react';
 import { CustodiosDataTable } from './components/CustodiosDataTable';
 import { ArmadosDataTable } from './components/ArmadosDataTable';
 import { ArchivadosDataTable } from './components/ArchivadosDataTable';
+import { BajasDataTable } from './components/BajasDataTable';
 import { useOperativeProfiles } from './hooks/useOperativeProfiles';
 
 export default function PerfilesOperativos() {
@@ -21,6 +22,7 @@ export default function PerfilesOperativos() {
     custodios, 
     armados,
     archivados,
+    bajas,
     stats,
     loading,
     refetch
@@ -123,6 +125,18 @@ export default function PerfilesOperativos() {
           </CardContent>
         </Card>
         
+        <Card className="border-l-4 border-l-orange-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Bajas</p>
+                <p className="text-2xl font-bold">{stats.totalBajas}</p>
+              </div>
+              <UserX className="h-5 w-5 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
         <Card className="border-l-4 border-l-slate-400">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -137,7 +151,7 @@ export default function PerfilesOperativos() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-3 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-apple-soft border border-border/50">
           <TabsTrigger 
             value="custodios"
             className="flex items-center gap-2 data-[state=active]:bg-corporate-blue data-[state=active]:text-white"
@@ -160,6 +174,17 @@ export default function PerfilesOperativos() {
             </Badge>
           </TabsTrigger>
           
+          <TabsTrigger 
+            value="bajas"
+            className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+          >
+            <UserX className="h-4 w-4" />
+            <span>Bajas</span>
+            <Badge variant="secondary" className="ml-1 text-xs">
+              {bajas.length}
+            </Badge>
+          </TabsTrigger>
+          
           {canManageArchive && (
             <TabsTrigger 
               value="archivados"
@@ -179,10 +204,10 @@ export default function PerfilesOperativos() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Custodios Operativos
+                Custodios Activos
               </CardTitle>
               <CardDescription>
-                Personal de custodia activo con perfiles verificados
+                Personal de custodia activo y disponible para asignaciones
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -204,6 +229,23 @@ export default function PerfilesOperativos() {
             </CardHeader>
             <CardContent>
               <ArmadosDataTable data={armados} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="bajas">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserX className="h-5 w-5" />
+                Custodios Dados de Baja
+              </CardTitle>
+              <CardDescription>
+                Personal suspendido o inactivo - bajas temporales y permanentes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BajasDataTable data={bajas} onRefresh={refetch} />
             </CardContent>
           </Card>
         </TabsContent>
