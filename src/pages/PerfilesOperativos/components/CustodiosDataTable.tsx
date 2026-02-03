@@ -14,6 +14,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -29,7 +42,8 @@ import {
 } from '@/components/ui/tooltip';
 import { 
   Search, Eye, Phone, MapPin, Star, TrendingUp, Clock, Filter, X,
-  MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2, MessageCircle
+  MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2, MessageCircle,
+  Check, ChevronsUpDown
 } from 'lucide-react';
 import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
@@ -89,6 +103,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
+  const [openZonaId, setOpenZonaId] = useState<string | null>(null);
   
   // Get unique zones for filter
   const zones = useMemo(() => {
@@ -207,32 +222,63 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
         const custodio = row.original;
         const isUpdating = updatingIds.has(custodio.id);
         const currentZona = custodio.zona_base || '';
+        const zonaLabel = ZONAS_DISPONIBLES.find(z => z.value === currentZona)?.label || 'Sin zona';
         
         return (
           <div className="min-w-[140px]">
-            <Select
-              value={currentZona}
-              onValueChange={(value) => handleZonaChange(custodio.id, value)}
-              disabled={isUpdating}
+            <Popover
+              open={openZonaId === custodio.id}
+              onOpenChange={(open) => setOpenZonaId(open ? custodio.id : null)}
             >
-              <SelectTrigger className="h-8 w-[140px] text-xs">
-                {isUpdating ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <>
-                    <MapPin className="h-3 w-3 mr-1 shrink-0" />
-                    <SelectValue placeholder="Sin zona" />
-                  </>
-                )}
-              </SelectTrigger>
-              <SelectContent position="popper" align="start" sideOffset={4}>
-                {ZONAS_DISPONIBLES.map(zona => (
-                  <SelectItem key={zona.value} value={zona.value}>
-                    {zona.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-[140px] justify-between text-xs"
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <>
+                      <span className="flex items-center truncate">
+                        <MapPin className="h-3 w-3 mr-1 shrink-0" />
+                        {zonaLabel}
+                      </span>
+                      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+                    </>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar zona..." className="h-9" />
+                  <CommandList>
+                    <CommandEmpty>No encontrada</CommandEmpty>
+                    <CommandGroup>
+                      {ZONAS_DISPONIBLES.map((zona) => (
+                        <CommandItem
+                          key={zona.value}
+                          value={zona.label}
+                          onSelect={() => {
+                            handleZonaChange(custodio.id, zona.value);
+                            setOpenZonaId(null);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              currentZona === zona.value ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {zona.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         );
       },
