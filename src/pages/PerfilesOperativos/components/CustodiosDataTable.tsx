@@ -225,7 +225,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
                   </>
                 )}
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" align="start" sideOffset={4}>
                 {ZONAS_DISPONIBLES.map(zona => (
                   <SelectItem key={zona.value} value={zona.value}>
                     {zona.label}
@@ -286,7 +286,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
                   </>
                 )}
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" align="start" sideOffset={4}>
                 {PREFERENCIA_OPTIONS.map(option => {
                   const OptionIcon = option.icon;
                   return (
