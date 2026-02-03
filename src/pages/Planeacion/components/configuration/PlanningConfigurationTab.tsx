@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Shield, Users, Database, DollarSign, MapPin } from 'lucide-react';
+import { Settings, Shield, Users, Database, DollarSign, MapPin, AlertTriangle } from 'lucide-react';
 import ProveedoresArmadosTab from './ProveedoresArmadosTab';
 import ParametrosOperacionalesTab from './ParametrosOperacionalesTab';
 import EsquemasArmadosTab from './EsquemasArmadosTab';
 import CustodiosZonasTab from './CustodiosZonasTab';
+import SancionesConfigTab from './SancionesConfigTab';
 
 export function PlanningConfigurationTab() {
   const [activeTab, setActiveTab] = useState('proveedores-armados');
@@ -20,7 +21,7 @@ export function PlanningConfigurationTab() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="proveedores-armados" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
             <span className="hidden sm:inline">Proveedores</span>
@@ -35,6 +36,11 @@ export function PlanningConfigurationTab() {
             <MapPin className="w-4 h-4" />
             <span className="hidden sm:inline">Zonas Base</span>
             <span className="sm:hidden">Zonas</span>
+          </TabsTrigger>
+          <TabsTrigger value="sanciones" className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="hidden sm:inline">Sanciones</span>
+            <span className="sm:hidden">Sanc</span>
           </TabsTrigger>
           <TabsTrigger value="parametros" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
@@ -58,6 +64,10 @@ export function PlanningConfigurationTab() {
 
         <TabsContent value="zonas-custodios">
           <CustodiosZonasTab />
+        </TabsContent>
+
+        <TabsContent value="sanciones">
+          <SancionesConfigTab />
         </TabsContent>
 
         <TabsContent value="parametros">
