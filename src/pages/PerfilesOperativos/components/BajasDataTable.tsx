@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, UserX, Eye } from 'lucide-react';
+import { Search, UserX, Eye, Shield, User } from 'lucide-react';
 import { BajaDetailsDialog } from './BajaDetailsDialog';
 import type { BajaProfile } from '../hooks/useOperativeProfiles';
 
@@ -41,6 +41,7 @@ const MOTIVO_LABELS: Record<string, string> = {
 export function BajasDataTable({ data }: BajasDataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [motivoFilter, setMotivoFilter] = useState<string>('todos');
+  const [tipoFilter, setTipoFilter] = useState<string>('todos');
   const [selectedCustodio, setSelectedCustodio] = useState<BajaProfile | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -53,9 +54,12 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
       const matchesMotivo = motivoFilter === 'todos' || 
         item.motivo_inactivacion === motivoFilter;
       
-      return matchesSearch && matchesMotivo;
+      const matchesTipo = tipoFilter === 'todos' || 
+        item.tipo_personal === tipoFilter;
+      
+      return matchesSearch && matchesMotivo && matchesTipo;
     });
-  }, [data, searchTerm, motivoFilter]);
+  }, [data, searchTerm, motivoFilter, tipoFilter]);
 
   const uniqueMotivos = useMemo(() => {
     const motivos = new Set(data.map(d => d.motivo_inactivacion).filter(Boolean));
@@ -80,6 +84,17 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
             className="pl-9"
           />
         </div>
+
+        <Select value={tipoFilter} onValueChange={setTipoFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los tipos</SelectItem>
+            <SelectItem value="custodio">Custodios</SelectItem>
+            <SelectItem value="armado">Armados</SelectItem>
+          </SelectContent>
+        </Select>
 
         <Select value={motivoFilter} onValueChange={setMotivoFilter}>
           <SelectTrigger className="w-[180px]">
@@ -106,6 +121,7 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Zona</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Motivo</TableHead>
@@ -117,17 +133,17 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <UserX className="h-8 w-8" />
-                    <span>No hay bajas definitivas registradas</span>
+                    <span>No hay bajas registradas</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               filteredData.map((profile) => (
                 <TableRow 
-                  key={profile.id}
+                  key={`${profile.tipo_personal}-${profile.id}`}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => {
                     setSelectedCustodio(profile);
@@ -141,6 +157,19 @@ export function BajasDataTable({ data }: BajasDataTableProps) {
                         <p className="text-xs text-muted-foreground">{profile.telefono}</p>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {profile.tipo_personal === 'armado' ? (
+                      <Badge variant="secondary" className="gap-1">
+                        <Shield className="h-3 w-3" />
+                        Armado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1">
+                        <User className="h-3 w-3" />
+                        Custodio
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className="text-sm">{profile.zona_base || '-'}</span>
