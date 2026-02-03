@@ -70,7 +70,7 @@ const ZONE_COLORS = {
   veryLow: 'hsl(142, 50%, 65%)',   // green-300
 };
 
-export function CustodianZoneBubbleMap({ estadisticasZona, height = 280 }: CustodianZoneBubbleMapProps) {
+export function CustodianZoneBubbleMap({ estadisticasZona, height = 500 }: CustodianZoneBubbleMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
