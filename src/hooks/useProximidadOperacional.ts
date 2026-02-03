@@ -460,7 +460,16 @@ export function useCustodiosConProximidad(
     },
     // ✅ Don't execute with invalid key
     enabled: isEnabled && stableKey[0] !== 'sin-servicio',
-    staleTime: 0, // Force refetch when key changes
+    
+    // FIX: Preserve cached data during query key oscillations
+    // When servicioNuevo briefly becomes undefined during re-renders,
+    // this keeps the previous data visible instead of showing "0 custodians"
+    placeholderData: (previousData) => previousData,
+    
+    // FIX: Increase staleTime to prevent unnecessary refetches
+    // during navigation and state sync operations
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: 2,
