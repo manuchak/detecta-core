@@ -234,7 +234,12 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
       header: 'Armado',
       cell: ({ row }) => (
         <div className="flex flex-col min-w-[180px]">
-          <span className="font-medium">{row.getValue('nombre')}</span>
+          <button
+            onClick={() => navigate(`/perfiles-operativos/armado/${row.original.id}`)}
+            className="font-medium text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+          >
+            {row.getValue('nombre')}
+          </button>
           {row.original.telefono && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone className="h-3 w-3" />

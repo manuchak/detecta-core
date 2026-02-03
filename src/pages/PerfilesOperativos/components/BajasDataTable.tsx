@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -42,6 +43,7 @@ const MOTIVO_LABELS: Record<string, string> = {
 };
 
 export function BajasDataTable({ data, onRefresh }: BajasDataTableProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [motivoFilter, setMotivoFilter] = useState<string>('todos');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
@@ -211,14 +213,14 @@ export function BajasDataTable({ data, onRefresh }: BajasDataTableProps) {
                       aria-label={`Seleccionar ${profile.nombre}`}
                     />
                   </TableCell>
-                  <TableCell 
-                    onClick={() => {
-                      setSelectedCustodio(profile);
-                      setDetailsOpen(true);
-                    }}
-                  >
+                  <TableCell>
                     <div>
-                      <p className="font-medium">{profile.nombre}</p>
+                      <button
+                        onClick={() => navigate(`/perfiles-operativos/${profile.tipo_personal}/${profile.id}`)}
+                        className="font-medium text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+                      >
+                        {profile.nombre}
+                      </button>
                       {profile.telefono && (
                         <p className="text-xs text-muted-foreground">{profile.telefono}</p>
                       )}

@@ -240,7 +240,12 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       cell: ({ row }) => (
         <div className="flex flex-col min-w-[180px]">
           <div className="flex items-center gap-2">
-            <span className="font-medium">{row.getValue('nombre')}</span>
+            <button
+              onClick={() => navigate(`/perfiles-operativos/custodio/${row.original.id}`)}
+              className="font-medium text-left hover:text-primary hover:underline cursor-pointer transition-colors"
+            >
+              {row.getValue('nombre')}
+            </button>
             {row.original.estado === 'suspendido' && (
               <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 Suspendido
