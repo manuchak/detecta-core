@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProveedoresArmados } from '@/hooks/useProveedoresArmados';
+import { useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
 
 // Modular custodian selection components
 import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/QuickStats';
@@ -22,6 +23,8 @@ import { ConflictSection } from '@/pages/Planeacion/ServiceCreation/steps/Custod
 import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodianCommunicationState, CustodianStepFilters } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/types';
 import { DEFAULT_FILTERS } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/types';
+import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
+import { RejectionTypificationDialog } from './RejectionTypificationDialog';
 
 export interface ServiceForReassignment {
   id: string;
@@ -88,6 +91,15 @@ export function ReassignmentModal({
   const [filters, setFilters] = useState<CustodianStepFilters>(DEFAULT_FILTERS);
   const [comunicaciones, setComunicaciones] = useState<Record<string, CustodianCommunicationState>>({});
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  
+  // State for unavailability/rejection dialogs
+  const [unavailabilityCustodian, setUnavailabilityCustodian] = useState<CustodioConProximidad | null>(null);
+  const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
+  const [rejectionCustodian, setRejectionCustodian] = useState<CustodioConProximidad | null>(null);
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  
+  // Hook for registering rejections
+  const registrarRechazo = useRegistrarRechazo();
 
   // Hook para proveedores externos
   const { proveedores: proveedoresExternos, loading: loadingProveedores } = useProveedoresArmados();
@@ -231,6 +243,81 @@ export function ReassignmentModal({
     setFilters(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // NEW: Handler for reporting unavailability
+  const handleReportUnavailability = (custodio: CustodioConProximidad) => {
+    setUnavailabilityCustodian(custodio);
+    setShowUnavailabilityDialog(true);
+  };
+
+  // NEW: Handler for unavailability submission
+  const handleUnavailabilitySubmit = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
+    if (!unavailabilityCustodian) return false;
+    
+    try {
+      const fechaFin = data.dias 
+        ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : null;
+      
+      const { error } = await supabase
+        .from('custodio_indisponibilidades')
+        .insert({
+          custodio_id: unavailabilityCustodian.id,
+          tipo: data.tipo,
+          motivo: data.motivo || null,
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          fecha_fin: fechaFin,
+          activo: true
+        });
+      
+      if (error) throw error;
+      
+      toast.success('Indisponibilidad registrada', {
+        description: `${unavailabilityCustodian.nombre} marcado como no disponible`
+      });
+      
+      setShowUnavailabilityDialog(false);
+      setUnavailabilityCustodian(null);
+      return true;
+    } catch (error) {
+      console.error('Error registering unavailability:', error);
+      toast.error('Error al registrar indisponibilidad');
+      return false;
+    }
+  };
+
+  // NEW: Handler for reporting rejection
+  const handleReportRejection = (custodio: CustodioConProximidad) => {
+    setRejectionCustodian(custodio);
+    setShowRejectionDialog(true);
+  };
+
+  // NEW: Handler for rejection confirmation
+  const handleRejectionConfirm = async (reason: string, unavailabilityDays?: number) => {
+    if (!rejectionCustodian) return;
+    
+    try {
+      await registrarRechazo.mutateAsync({
+        custodioId: rejectionCustodian.id,
+        servicioId: service?.id,
+        motivo: reason
+      });
+      
+      // Update local communication state
+      setComunicaciones(prev => ({
+        ...prev,
+        [rejectionCustodian.id]: { 
+          status: 'rechaza', 
+          razon_rechazo: reason
+        }
+      }));
+      
+      setShowRejectionDialog(false);
+      setRejectionCustodian(null);
+    } catch (error) {
+      console.error('Error registering rejection:', error);
+    }
+  };
+
   const handleReassign = async () => {
     if (!service || !selectedName.trim() || !reason.trim()) {
       toast.error('Por favor complete todos los campos requeridos');
@@ -302,7 +389,7 @@ export function ReassignmentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col z-[60]">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col z-[60]">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
@@ -367,7 +454,7 @@ export function ReassignmentModal({
                     />
                     
                     {/* Custodian List with Cards */}
-                    <div className="max-h-[300px] overflow-y-auto">
+                    <div className="max-h-[400px] overflow-y-auto">
                       <CustodianList
                         custodians={filteredCustodians}
                         isLoading={isLoadingCustodians}
@@ -376,6 +463,8 @@ export function ReassignmentModal({
                         comunicaciones={comunicaciones}
                         onSelect={handleSelectCustodian}
                         onContact={handleContact}
+                        onReportUnavailability={handleReportUnavailability}
+                        onReportRejection={handleReportRejection}
                       />
                     </div>
                     
@@ -701,6 +790,30 @@ export function ReassignmentModal({
           </div>
         </DialogFooter>
       </DialogContent>
+      
+      {/* Unavailability Dialog */}
+      {unavailabilityCustodian && (
+        <ReportUnavailabilityCard
+          open={showUnavailabilityDialog}
+          onOpenChange={(open) => {
+            setShowUnavailabilityDialog(open);
+            if (!open) setUnavailabilityCustodian(null);
+          }}
+          onReportUnavailability={handleUnavailabilitySubmit}
+          showTriggerButton={false}
+        />
+      )}
+      
+      {/* Rejection Dialog */}
+      <RejectionTypificationDialog
+        isOpen={showRejectionDialog}
+        onClose={() => {
+          setShowRejectionDialog(false);
+          setRejectionCustodian(null);
+        }}
+        onConfirm={handleRejectionConfirm}
+        guardName={rejectionCustodian?.nombre || ''}
+      />
     </Dialog>
   );
 }
