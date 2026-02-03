@@ -78,6 +78,7 @@ const ServiceWorkflowDocumentation = lazy(() => import('@/pages/Documentation/Se
 const ProductArchitecturePage = lazy(() => import('@/pages/Documentation/ProductArchitecturePage'));
 const PlaneacionDashboard = lazy(() => import('@/pages/Planeacion/PlaneacionDashboard'));
 const ServiceCreationPage = lazy(() => import('@/pages/Planeacion/ServiceCreation'));
+const ConfiguracionSancionesPage = lazy(() => import('@/pages/Planeacion/ConfiguracionSanciones'));
 const ReportesHub = lazy(() => import('@/pages/Reportes'));
 const DuplicateCleanupPage = lazy(() => import('@/pages/Maintenance/DuplicateCleanupPage'));
 const VersionControlPage = lazy(() => import('@/pages/Administration/VersionControlPage'));
@@ -825,6 +826,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones', 'planificador']}>
                         <UnifiedLayout>
                           <ReportesHub />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Configuración de Sanciones */}
+                <Route
+                  path="/planeacion/sanciones"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <ConfiguracionSancionesPage />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

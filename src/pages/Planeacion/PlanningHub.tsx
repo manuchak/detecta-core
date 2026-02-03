@@ -347,6 +347,31 @@ export default function PlanningHub() {
           </CardContent>
         </Card>
       )}
+
+      {/* Sanctions Configuration Widget - Admin/Owner/Coordinador Only */}
+      {(user?.role === 'admin' || user?.role === 'owner' || user?.role === 'coordinador_operaciones') && (
+        <Card className="mb-6 bg-gradient-to-r from-destructive/5 to-destructive/10 border-destructive/20 hover:shadow-md transition-all duration-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+                  <Shield className="h-5 w-5 text-destructive" />
+                  Configuración de Sanciones
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Gestiona la detección automática de incumplimientos y reglas disciplinarias
+                </p>
+              </div>
+              <Link to="/planeacion/sanciones">
+                <Button variant="outline" size="lg" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10">
+                  Configurar Sanciones
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Alert for duplicate services */}
       {!checkingDuplicates && totalDuplicates > 0 && (
         <Alert className="mb-6 border-warning bg-warning/5">
