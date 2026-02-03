@@ -6,6 +6,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Select,
   SelectContent,
@@ -30,11 +31,12 @@ import {
 import { 
   Search, Eye, Phone, MapPin, Star, Filter, X,
   MoreHorizontal, UserX, Home, Plane, CircleDot, MessageCircle,
-  Edit
+  Edit, Trash2
 } from 'lucide-react';
 import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
 import { QuickEditSheet, PreferenciaTipoServicio } from './QuickEditSheet';
+import { BajaMasivaModal } from './BajaMasivaModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -89,6 +91,10 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
   
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBajaMasivaModal, setShowBajaMasivaModal] = useState(false);
+  
   // Quick Edit Sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [editingCustodio, setEditingCustodio] = useState<CustodioProfile | null>(null);
@@ -114,6 +120,11 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       return matchesSearch && matchesZona && matchesActivity;
     });
   }, [data, searchTerm, zonaFilter, activityFilter]);
+
+  // Selected custodios based on current filtered view
+  const selectedCustodios = useMemo(() => {
+    return filteredData.filter(c => selectedIds.has(c.id));
+  }, [filteredData, selectedIds]);
   
   const hasFilters = searchTerm || zonaFilter !== 'all' || activityFilter !== 'all';
   
@@ -121,6 +132,29 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
     setSearchTerm('');
     setZonaFilter('all');
     setActivityFilter('all');
+  };
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredData.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredData.map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
   };
 
   const handleOpenEditSheet = (custodio: CustodioProfile) => {
@@ -167,8 +201,39 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
     queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
     onRefresh?.();
   };
+
+  const handleBajaMasivaSuccess = () => {
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
+    queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
+    onRefresh?.();
+  };
+
+  const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < filteredData.length;
   
   const columns: ColumnDef<CustodioProfile>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <Checkbox
+          checked={isAllSelected}
+          // Use indeterminate for partial selection
+          data-state={isSomeSelected ? 'indeterminate' : isAllSelected ? 'checked' : 'unchecked'}
+          onCheckedChange={toggleSelectAll}
+          aria-label="Seleccionar todos"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedIds.has(row.original.id)}
+          onCheckedChange={() => toggleSelect(row.original.id)}
+          aria-label={`Seleccionar ${row.original.nombre}`}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'nombre',
       header: 'Custodio',
@@ -211,11 +276,21 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       header: 'Actividad',
       cell: ({ row }) => {
         const nivel = row.original.nivel_actividad;
+        const dias = row.original.dias_sin_actividad;
         const config = activityBadgeConfig[nivel];
         return (
-          <Badge className={cn('text-xs font-normal', config.className)}>
-            {config.label}
-          </Badge>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge className={cn('text-xs font-normal', config.className)}>
+                  {config.label}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {dias >= 999 ? 'Sin servicios registrados' : `${dias} días sin actividad`}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       },
     },
@@ -412,6 +487,31 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
           </Badge>
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {selectedIds.size} custodio{selectedIds.size !== 1 ? 's' : ''} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              <X className="h-4 w-4 mr-1" />
+              Limpiar selección
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setShowBajaMasivaModal(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Dar de baja masiva
+            </Button>
+          </div>
+        </div>
+      )}
       
       <DataTable columns={columns} data={filteredData} />
 
@@ -438,6 +538,14 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
           onSuccess={handleEstatusSuccess}
         />
       )}
+
+      {/* Bulk Deactivation Modal */}
+      <BajaMasivaModal
+        open={showBajaMasivaModal}
+        onOpenChange={setShowBajaMasivaModal}
+        custodios={selectedCustodios}
+        onSuccess={handleBajaMasivaSuccess}
+      />
     </div>
   );
 }
