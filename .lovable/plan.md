@@ -1,77 +1,58 @@
 
-# Plan: Auditoría y Baja Masiva de Armados Internos (+90 días)
+# Plan: Corregir Sincronización de Actividad de Armados
 
-## Contexto
+## Diagnóstico
 
-El sistema ya tiene implementada la lógica para calcular días de inactividad (`dias_sin_actividad`) y nivel de actividad para armados. También existe el hook `useBajaMasiva` que ya soporta el tipo `armado`. Solo falta replicar la UI de selección masiva del módulo de custodios.
+**Problema identificado:** El campo `fecha_ultimo_servicio` en `armados_operativos` no se actualiza cuando se asignan armados en servicios planificados.
 
-## Datos Actuales
-- **85 armados** listados en perfiles operativos
-- Ya existe filtro "Sin actividad (+90d)" en la tabla
-- Hook `useBajaMasiva` ya soporta `operativoTipo: 'armado'`
+**Evidencia:**
+- `armados_operativos.fecha_ultimo_servicio` más reciente: **10 sept 2025**
+- `servicios_planificados` con armados asignados: **Hay servicios de hoy (3 feb 2026)**
+- Resultado: El cálculo de `nivel_actividad` muestra todos como "sin_actividad" porque usa la fecha desactualizada
 
-## Cambios a Implementar
+## Solución en 2 partes
 
-### 1. Hacer el Modal Genérico
+### 1. Actualización Masiva Inmediata (SQL)
 
-**Archivo:** `src/pages/PerfilesOperativos/components/BajaMasivaModal.tsx`
+Sincronizar `fecha_ultimo_servicio` usando los datos reales de `servicios_planificados`:
 
-Modificar para aceptar un prop `operativoTipo` y ajustar los textos dinámicamente:
-- Cambiar prop `custodios` → `operativos`
-- Agregar prop `operativoTipo: 'custodio' | 'armado'`
-- Textos dinámicos según el tipo
-
-### 2. Agregar Selección Masiva a Armados
-
-**Archivo:** `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx`
-
-Replicar la funcionalidad del `CustodiosDataTable`:
-- Estado para IDs seleccionados (`selectedIds`)
-- Columna de checkbox con "Seleccionar todos"
-- Barra de acciones flotante cuando hay selección
-- Integración con modal de baja masiva
-
-## Estructura de Cambios
-
-```text
-BajaMasivaModal.tsx          ArmadosDataTable.tsx
-┌────────────────────┐       ┌────────────────────┐
-│ + operativoTipo    │       │ + selectedIds      │
-│ + textos dinámicos │       │ + columna checkbox │
-│ - hardcode custodio│       │ + barra de acciones│
-└────────────────────┘       │ + modal de baja    │
-                             └────────────────────┘
+```sql
+UPDATE armados_operativos ao
+SET fecha_ultimo_servicio = subquery.ultima_fecha
+FROM (
+  SELECT 
+    ao2.id as armado_id,
+    MAX(sp.fecha_hora_cita) as ultima_fecha
+  FROM armados_operativos ao2
+  INNER JOIN servicios_planificados sp 
+    ON UPPER(TRIM(sp.armado_asignado)) = UPPER(TRIM(ao2.nombre))
+  WHERE sp.fecha_hora_cita <= NOW()
+    AND sp.estado_planeacion IN ('confirmado', 'completado', 'en_curso')
+  GROUP BY ao2.id
+) subquery
+WHERE ao.id = subquery.armado_id
+  AND (ao.fecha_ultimo_servicio IS NULL OR subquery.ultima_fecha > ao.fecha_ultimo_servicio);
 ```
 
-## Flujo de Usuario
+### 2. Cambiar Filtro por Defecto (UI)
 
-1. Ir a **Perfiles Operativos > Armados**
-2. Filtrar por **"Sin actividad (+90d)"** para ver los inactivos
-3. Seleccionar armados con checkbox (o "Seleccionar todos")
-4. Clic en **"Dar de baja masiva"**
-5. Confirmar en el modal
-6. Sistema procesa y registra historial
+**Archivo:** `ArmadosDataTable.tsx` línea 88
 
-## Archivos a Modificar
+Cambiar de `'activo'` a `'all'` para que no dependa de datos que pueden estar desactualizados:
 
-| Archivo | Cambio |
-|---------|--------|
-| `BajaMasivaModal.tsx` | Hacerlo genérico para custodios y armados |
-| `ArmadosDataTable.tsx` | Agregar checkboxes, estado de selección, barra de acciones y modal |
-
-## Vista Previa UI
-
-**Tabla con selección (misma que custodios):**
-```
-☑️ Seleccionar | Armado            | Tipo    | Zona  | Actividad     | Días
-☐              | Juan García       | Interno | CDMX  | Sin actividad | 120
-☑️             | Pedro Martínez    | Interno | Qro   | Sin actividad | 95
-☑️             | Luis Sánchez      | Interno | NL    | Sin actividad | 180
+```typescript
+const [activityFilter, setActivityFilter] = useState<string>('all');
 ```
 
-**Barra flotante:**
-```
-┌──────────────────────────────────────────────────────┐
-│ 2 armados seleccionados   [Limpiar] [Dar de baja]   │
-└──────────────────────────────────────────────────────┘
-```
+## Cambios a Realizar
+
+| Componente | Acción |
+|------------|--------|
+| Base de datos | Ejecutar UPDATE para sincronizar fechas |
+| `ArmadosDataTable.tsx` | Cambiar filtro default a 'all' |
+
+## Resultado Esperado
+
+- Los 85 armados serán visibles inmediatamente
+- Los niveles de actividad reflejarán la realidad operativa
+- Podrás identificar correctamente quiénes están realmente inactivos vs activos
