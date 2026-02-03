@@ -34,6 +34,7 @@ import { CoverageRing } from '@/components/planeacion/CoverageRing';
 import { ZoneStatusIndicator } from '@/components/planeacion/ZoneStatusIndicator';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
 import { PreferenciaTipoServicio } from '@/components/operatives/PreferenciaServicioSelector';
+import { CustodianZoneBubbleMap } from './CustodianZoneBubbleMap';
 
 interface CustodioOperativo {
   id: string;
@@ -333,26 +334,8 @@ export function CustodiosZonasTab() {
         </div>
       </div>
 
-      {/* Distribución por zona */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Distribución por Zona</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {estadisticasZona.map(([zona, count]) => (
-              <ZoneStatusIndicator
-                key={zona}
-                status={zona === 'Sin asignar' ? 'missing' : 'assigned'}
-                label={zona}
-                count={count}
-                size="md"
-                showIcon={zona === 'Sin asignar'}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Mapa de distribución por zona */}
+      <CustodianZoneBubbleMap estadisticasZona={estadisticasZona} />
 
       {/* Filtros y búsqueda */}
       <Card>
