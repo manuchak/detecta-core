@@ -665,14 +665,19 @@ export type Database = {
           equipamiento_disponible: string[] | null
           estado: string
           experiencia_anos: number | null
+          fecha_calculo_15d: string | null
+          fecha_inactivacion: string | null
+          fecha_reactivacion_programada: string | null
           fecha_ultimo_servicio: string | null
           fecha_vencimiento_licencia: string | null
           fuente: string | null
           id: string
           licencia_portacion: string | null
+          motivo_inactivacion: string | null
           nombre: string
           numero_servicios: number | null
           origen: string | null
+          preferencia_tipo_servicio: string | null
           proveedor_id: string | null
           rating_promedio: number | null
           restricciones_horario: Json | null
@@ -681,12 +686,15 @@ export type Database = {
           score_desempeno: number | null
           score_disponibilidad: number | null
           score_total: number | null
+          servicios_foraneos_15d: number | null
+          servicios_locales_15d: number | null
           servicios_permitidos: string[] | null
           tasa_confiabilidad: number | null
           tasa_confirmacion: number | null
           tasa_respuesta: number | null
           telefono: string | null
           tipo_armado: string
+          tipo_inactivacion: string | null
           updated_at: string
           verificacion_pendiente: boolean | null
           zona_base: string | null
@@ -699,14 +707,19 @@ export type Database = {
           equipamiento_disponible?: string[] | null
           estado?: string
           experiencia_anos?: number | null
+          fecha_calculo_15d?: string | null
+          fecha_inactivacion?: string | null
+          fecha_reactivacion_programada?: string | null
           fecha_ultimo_servicio?: string | null
           fecha_vencimiento_licencia?: string | null
           fuente?: string | null
           id?: string
           licencia_portacion?: string | null
+          motivo_inactivacion?: string | null
           nombre: string
           numero_servicios?: number | null
           origen?: string | null
+          preferencia_tipo_servicio?: string | null
           proveedor_id?: string | null
           rating_promedio?: number | null
           restricciones_horario?: Json | null
@@ -715,12 +728,15 @@ export type Database = {
           score_desempeno?: number | null
           score_disponibilidad?: number | null
           score_total?: number | null
+          servicios_foraneos_15d?: number | null
+          servicios_locales_15d?: number | null
           servicios_permitidos?: string[] | null
           tasa_confiabilidad?: number | null
           tasa_confirmacion?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
           tipo_armado?: string
+          tipo_inactivacion?: string | null
           updated_at?: string
           verificacion_pendiente?: boolean | null
           zona_base?: string | null
@@ -733,14 +749,19 @@ export type Database = {
           equipamiento_disponible?: string[] | null
           estado?: string
           experiencia_anos?: number | null
+          fecha_calculo_15d?: string | null
+          fecha_inactivacion?: string | null
+          fecha_reactivacion_programada?: string | null
           fecha_ultimo_servicio?: string | null
           fecha_vencimiento_licencia?: string | null
           fuente?: string | null
           id?: string
           licencia_portacion?: string | null
+          motivo_inactivacion?: string | null
           nombre?: string
           numero_servicios?: number | null
           origen?: string | null
+          preferencia_tipo_servicio?: string | null
           proveedor_id?: string | null
           rating_promedio?: number | null
           restricciones_horario?: Json | null
@@ -749,12 +770,15 @@ export type Database = {
           score_desempeno?: number | null
           score_disponibilidad?: number | null
           score_total?: number | null
+          servicios_foraneos_15d?: number | null
+          servicios_locales_15d?: number | null
           servicios_permitidos?: string[] | null
           tasa_confiabilidad?: number | null
           tasa_confirmacion?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
           tipo_armado?: string
+          tipo_inactivacion?: string | null
           updated_at?: string
           verificacion_pendiente?: boolean | null
           zona_base?: string | null
@@ -1768,6 +1792,51 @@ export type Database = {
           total_gmv?: number
           total_services?: number
           year_month?: string
+        }
+        Relationships: []
+      }
+      catalogo_sanciones: {
+        Row: {
+          activo: boolean | null
+          afecta_score: boolean | null
+          categoria: string
+          codigo: string
+          created_at: string | null
+          descripcion: string | null
+          dias_suspension_default: number
+          id: string
+          nombre: string
+          puntos_score_perdidos: number | null
+          requiere_evidencia: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          afecta_score?: boolean | null
+          categoria: string
+          codigo: string
+          created_at?: string | null
+          descripcion?: string | null
+          dias_suspension_default: number
+          id?: string
+          nombre: string
+          puntos_score_perdidos?: number | null
+          requiere_evidencia?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          afecta_score?: boolean | null
+          categoria?: string
+          codigo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          dias_suspension_default?: number
+          id?: string
+          nombre?: string
+          puntos_score_perdidos?: number | null
+          requiere_evidencia?: boolean | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -3694,23 +3763,31 @@ export type Database = {
           email: string | null
           estado: string | null
           experiencia_seguridad: boolean | null
+          fecha_calculo_15d: string | null
+          fecha_inactivacion: string | null
+          fecha_reactivacion_programada: string | null
           fecha_ultimo_servicio: string | null
           fuente: string | null
           id: string
           lat: number | null
           lng: number | null
+          motivo_inactivacion: string | null
           nombre: string
           numero_servicios: number | null
           pc_custodio_id: string | null
+          preferencia_tipo_servicio: string | null
           rating_promedio: number | null
           score_aceptacion: number | null
           score_comunicacion: number | null
           score_confiabilidad: number | null
           score_total: number | null
+          servicios_foraneos_15d: number | null
+          servicios_locales_15d: number | null
           tasa_aceptacion: number | null
           tasa_confiabilidad: number | null
           tasa_respuesta: number | null
           telefono: string | null
+          tipo_inactivacion: string | null
           tipo_ultimo_servicio: string | null
           updated_at: string | null
           vehiculo_propio: boolean | null
@@ -3725,23 +3802,31 @@ export type Database = {
           email?: string | null
           estado?: string | null
           experiencia_seguridad?: boolean | null
+          fecha_calculo_15d?: string | null
+          fecha_inactivacion?: string | null
+          fecha_reactivacion_programada?: string | null
           fecha_ultimo_servicio?: string | null
           fuente?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
+          motivo_inactivacion?: string | null
           nombre: string
           numero_servicios?: number | null
           pc_custodio_id?: string | null
+          preferencia_tipo_servicio?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
           score_confiabilidad?: number | null
           score_total?: number | null
+          servicios_foraneos_15d?: number | null
+          servicios_locales_15d?: number | null
           tasa_aceptacion?: number | null
           tasa_confiabilidad?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
+          tipo_inactivacion?: string | null
           tipo_ultimo_servicio?: string | null
           updated_at?: string | null
           vehiculo_propio?: boolean | null
@@ -3756,23 +3841,31 @@ export type Database = {
           email?: string | null
           estado?: string | null
           experiencia_seguridad?: boolean | null
+          fecha_calculo_15d?: string | null
+          fecha_inactivacion?: string | null
+          fecha_reactivacion_programada?: string | null
           fecha_ultimo_servicio?: string | null
           fuente?: string | null
           id?: string
           lat?: number | null
           lng?: number | null
+          motivo_inactivacion?: string | null
           nombre?: string
           numero_servicios?: number | null
           pc_custodio_id?: string | null
+          preferencia_tipo_servicio?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
           score_confiabilidad?: number | null
           score_total?: number | null
+          servicios_foraneos_15d?: number | null
+          servicios_locales_15d?: number | null
           tasa_aceptacion?: number | null
           tasa_confiabilidad?: number | null
           tasa_respuesta?: number | null
           telefono?: string | null
+          tipo_inactivacion?: string | null
           tipo_ultimo_servicio?: string | null
           updated_at?: string | null
           vehiculo_propio?: boolean | null
@@ -8954,6 +9047,48 @@ export type Database = {
         }
         Relationships: []
       }
+      operativo_estatus_historial: {
+        Row: {
+          creado_por: string | null
+          created_at: string | null
+          estatus_anterior: string
+          estatus_nuevo: string
+          fecha_reactivacion: string | null
+          id: string
+          motivo: string
+          notas: string | null
+          operativo_id: string
+          operativo_tipo: string
+          tipo_cambio: string
+        }
+        Insert: {
+          creado_por?: string | null
+          created_at?: string | null
+          estatus_anterior: string
+          estatus_nuevo: string
+          fecha_reactivacion?: string | null
+          id?: string
+          motivo: string
+          notas?: string | null
+          operativo_id: string
+          operativo_tipo: string
+          tipo_cambio: string
+        }
+        Update: {
+          creado_por?: string | null
+          created_at?: string | null
+          estatus_anterior?: string
+          estatus_nuevo?: string
+          fecha_reactivacion?: string | null
+          id?: string
+          motivo?: string
+          notas?: string | null
+          operativo_id?: string
+          operativo_tipo?: string
+          tipo_cambio?: string
+        }
+        Relationships: []
+      }
       ordenes_compra: {
         Row: {
           aprobado_por: string | null
@@ -11812,6 +11947,71 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sanciones_aplicadas: {
+        Row: {
+          aplicada_por: string | null
+          created_at: string | null
+          dias_suspension: number
+          estado: string | null
+          evidencia_urls: string[] | null
+          fecha_fin: string
+          fecha_inicio: string
+          fecha_revision: string | null
+          id: string
+          notas: string | null
+          operativo_id: string
+          operativo_tipo: string
+          puntos_perdidos: number | null
+          revisada_por: string | null
+          sancion_id: string | null
+          servicio_relacionado_id: string | null
+        }
+        Insert: {
+          aplicada_por?: string | null
+          created_at?: string | null
+          dias_suspension: number
+          estado?: string | null
+          evidencia_urls?: string[] | null
+          fecha_fin: string
+          fecha_inicio: string
+          fecha_revision?: string | null
+          id?: string
+          notas?: string | null
+          operativo_id: string
+          operativo_tipo: string
+          puntos_perdidos?: number | null
+          revisada_por?: string | null
+          sancion_id?: string | null
+          servicio_relacionado_id?: string | null
+        }
+        Update: {
+          aplicada_por?: string | null
+          created_at?: string | null
+          dias_suspension?: number
+          estado?: string | null
+          evidencia_urls?: string[] | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          fecha_revision?: string | null
+          id?: string
+          notas?: string | null
+          operativo_id?: string
+          operativo_tipo?: string
+          puntos_perdidos?: number | null
+          revisada_por?: string | null
+          sancion_id?: string | null
+          servicio_relacionado_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sanciones_aplicadas_sancion_id_fkey"
+            columns: ["sancion_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_sanciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sandbox_promotions: {
         Row: {

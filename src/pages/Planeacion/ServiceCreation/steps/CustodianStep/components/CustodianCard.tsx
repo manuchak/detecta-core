@@ -3,6 +3,7 @@
  * OPTIMIZED: Removed per-card vehicle fetch, uses pre-fetched data
  * ENHANCED: Added rejection persistence, service history display, and Lucide icons
  * FIX: Added isMounted guard for animation to prevent memory leak
+ * V2: Added ServiceHistoryBadges for enhanced visibility (days without service, type, 15d metrics)
  */
 
 import { memo, useRef, useEffect, useCallback } from 'react';
@@ -15,8 +16,6 @@ import {
   AlertTriangle, 
   CalendarX2, 
   XCircle, 
-  Calendar, 
-  TrendingUp,
   Circle,
   Target
 } from 'lucide-react';
@@ -25,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import type { CustodianCommunicationState } from '../types';
+import { ServiceHistoryBadges } from './ServiceHistoryBadges';
 
 interface CustodianCardProps {
   custodio: CustodioConProximidad;
@@ -37,6 +37,7 @@ interface CustodianCardProps {
   onReportRejection?: () => void;
   disabled?: boolean;
   style?: React.CSSProperties;
+  tipoServicioActual?: 'local' | 'foraneo';
 }
 
 function CustodianCardComponent({
@@ -50,6 +51,7 @@ function CustodianCardComponent({
   onReportRejection,
   disabled = false,
   style,
+  tipoServicioActual,
 }: CustodianCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
@@ -110,12 +112,14 @@ function CustodianCardComponent({
     return null;
   };
 
-  // Service history metrics
+  // Service history metrics - enhanced with new fields
   const serviciosHoy = custodio.datos_equidad?.servicios_hoy || 0;
-  const diasSinAsignar = custodio.datos_equidad?.dias_sin_asignar;
-  const fechaUltimo = custodio.ultima_actividad 
-    ? new Date(custodio.ultima_actividad).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-    : null;
+  const diasSinAsignar = custodio.datos_equidad?.dias_sin_asignar ?? null;
+  const fechaUltimoServicio = (custodio as any).fecha_ultimo_servicio || custodio.ultima_actividad || null;
+  const tipoUltimoServicio = (custodio as any).tipo_ultimo_servicio || null;
+  const preferenciaTipoServicio = (custodio as any).preferencia_tipo_servicio || 'indistinto';
+  const serviciosLocales15d = (custodio as any).servicios_locales_15d || 0;
+  const serviciosForaneos15d = (custodio as any).servicios_foraneos_15d || 0;
 
   // Animated rejection handler with mount guard to prevent memory leak
   const handleRejectWithAnimation = useCallback(async () => {
@@ -190,25 +194,21 @@ function CustodianCardComponent({
             )}
           </div>
 
-          {/* Service History Row */}
-          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+          {/* Enhanced Service History Row with new badges */}
+          <div className="mt-3">
+            <ServiceHistoryBadges
+              diasSinServicio={diasSinAsignar}
+              tipoUltimoServicio={tipoUltimoServicio}
+              fechaUltimoServicio={fechaUltimoServicio}
+              serviciosLocales15d={serviciosLocales15d}
+              serviciosForaneos15d={serviciosForaneos15d}
+              preferenciaTipoServicio={preferenciaTipoServicio}
+              tipoServicioActual={tipoServicioActual}
+            />
             {serviciosHoy > 0 && (
-              <div className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                <span><strong className="text-foreground">{serviciosHoy}</strong> hoy</span>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{serviciosHoy}</span> servicios hoy
               </div>
-            )}
-            {fechaUltimo && (
-              <div className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                <span>Último: <strong className="text-foreground">{fechaUltimo}</strong></span>
-              </div>
-            )}
-          {diasSinAsignar !== undefined && diasSinAsignar > 3 && (
-              <span className="text-warning flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                {diasSinAsignar}d sin asignar
-              </span>
             )}
           </div>
 
