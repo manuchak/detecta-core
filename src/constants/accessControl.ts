@@ -72,6 +72,15 @@ export const REPORTES_ALLOWED_ROLES = [
   ...REPORTES_LIMITED_ACCESS_ROLES
 ] as const;
 
+/**
+ * Roles with access to data correction actions (type conversion, etc.)
+ */
+export const DATA_CORRECTION_ROLES = [
+  'admin',
+  'owner',
+  'coordinador_operaciones'
+] as const;
+
 // Type exports for type-safe role checking
 export type SIERCPRole = typeof SIERCP_ALLOWED_ROLES[number];
 export type AdminRole = typeof ADMIN_ROLES[number];
@@ -79,3 +88,4 @@ export type SupplyRole = typeof SUPPLY_ROLES[number];
 export type SecurityRole = typeof SECURITY_ROLES[number];
 export type ReportesFullAccessRole = typeof REPORTES_FULL_ACCESS_ROLES[number];
 export type ReportesLimitedAccessRole = typeof REPORTES_LIMITED_ACCESS_ROLES[number];
+export type DataCorrectionRole = typeof DATA_CORRECTION_ROLES[number];
