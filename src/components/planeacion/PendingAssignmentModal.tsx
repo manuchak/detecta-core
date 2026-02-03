@@ -15,6 +15,7 @@ import type { EditableService } from './EditServiceModal';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
 
 // Componentes modulares de CustodianStep (unificados)
 import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/QuickStats';
@@ -27,6 +28,8 @@ import {
   type CustodianStepFilters, 
   DEFAULT_FILTERS 
 } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/types';
+import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
+import { RejectionTypificationDialog } from './RejectionTypificationDialog';
 
 interface PendingAssignmentModalProps {
   open: boolean;
@@ -102,6 +105,15 @@ export function PendingAssignmentModal({
   const [comunicaciones, setComunicaciones] = useState<Record<string, CustodianCommunicationState>>({});
   const [selectedCustodianId, setSelectedCustodianId] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  
+  // State for unavailability/rejection dialogs
+  const [unavailabilityCustodian, setUnavailabilityCustodian] = useState<CustodioConProximidad | null>(null);
+  const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
+  const [rejectionCustodian, setRejectionCustodian] = useState<CustodioConProximidad | null>(null);
+  const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  
+  // Hook for registering rejections
+  const registrarRechazo = useRegistrarRechazo();
 
   // Datos del servicio para el hook de proximidad
   const servicioNuevo = useMemo(() => {
@@ -202,6 +214,81 @@ export function PendingAssignmentModal({
   const handleOverrideSelect = (custodio: CustodioConProximidad) => {
     // Por ahora, asignar directamente. En el futuro, podría abrir modal de justificación
     handleSelectCustodian(custodio);
+  };
+
+  // NEW: Handler for reporting unavailability
+  const handleReportUnavailability = (custodio: CustodioConProximidad) => {
+    setUnavailabilityCustodian(custodio);
+    setShowUnavailabilityDialog(true);
+  };
+
+  // NEW: Handler for unavailability submission
+  const handleUnavailabilitySubmit = async (data: { tipo: string; motivo?: string; dias: number | null }) => {
+    if (!unavailabilityCustodian) return false;
+    
+    try {
+      const fechaFin = data.dias 
+        ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : null;
+      
+      const { error } = await supabase
+        .from('custodio_indisponibilidades')
+        .insert({
+          custodio_id: unavailabilityCustodian.id,
+          tipo: data.tipo,
+          motivo: data.motivo || null,
+          fecha_inicio: new Date().toISOString().split('T')[0],
+          fecha_fin: fechaFin,
+          activo: true
+        });
+      
+      if (error) throw error;
+      
+      toast.success('Indisponibilidad registrada', {
+        description: `${unavailabilityCustodian.nombre} marcado como no disponible`
+      });
+      
+      setShowUnavailabilityDialog(false);
+      setUnavailabilityCustodian(null);
+      return true;
+    } catch (error) {
+      console.error('Error registering unavailability:', error);
+      toast.error('Error al registrar indisponibilidad');
+      return false;
+    }
+  };
+
+  // NEW: Handler for reporting rejection
+  const handleReportRejection = (custodio: CustodioConProximidad) => {
+    setRejectionCustodian(custodio);
+    setShowRejectionDialog(true);
+  };
+
+  // NEW: Handler for rejection confirmation
+  const handleRejectionConfirm = async (reason: string, unavailabilityDays?: number) => {
+    if (!rejectionCustodian || !service) return;
+    
+    try {
+      await registrarRechazo.mutateAsync({
+        custodioId: rejectionCustodian.id,
+        servicioId: service.id,
+        motivo: reason
+      });
+      
+      // Update local communication state
+      setComunicaciones(prev => ({
+        ...prev,
+        [rejectionCustodian.id]: { 
+          status: 'rechaza', 
+          razon_rechazo: reason
+        }
+      }));
+      
+      setShowRejectionDialog(false);
+      setRejectionCustodian(null);
+    } catch (error) {
+      console.error('Error registering rejection:', error);
+    }
   };
 
   // Detectar si estamos editando un servicio existente con asignaciones
@@ -574,6 +661,8 @@ export function PendingAssignmentModal({
                     comunicaciones={comunicaciones}
                     onSelect={handleSelectCustodian}
                     onContact={handleContact}
+                    onReportUnavailability={handleReportUnavailability}
+                    onReportRejection={handleReportRejection}
                   />
                   
                   {/* Sección de conflictos (colapsible) */}
@@ -622,6 +711,30 @@ export function PendingAssignmentModal({
           </DialogContent>
         </Dialog>
       )}
+      
+      {/* Unavailability Dialog */}
+      {unavailabilityCustodian && (
+        <ReportUnavailabilityCard
+          open={showUnavailabilityDialog}
+          onOpenChange={(open) => {
+            setShowUnavailabilityDialog(open);
+            if (!open) setUnavailabilityCustodian(null);
+          }}
+          onReportUnavailability={handleUnavailabilitySubmit}
+          showTriggerButton={false}
+        />
+      )}
+      
+      {/* Rejection Dialog */}
+      <RejectionTypificationDialog
+        isOpen={showRejectionDialog}
+        onClose={() => {
+          setShowRejectionDialog(false);
+          setRejectionCustodian(null);
+        }}
+        onConfirm={handleRejectionConfirm}
+        guardName={rejectionCustodian?.nombre || ''}
+      />
     </>
   );
 }
