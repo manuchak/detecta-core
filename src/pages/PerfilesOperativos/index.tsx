@@ -77,6 +77,18 @@ export default function PerfilesOperativos() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Disponibles</p>
+                <p className="text-2xl font-bold">{stats.custodiosDisponibles}</p>
+              </div>
+              <UserCheck className="h-5 w-5 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
         
         <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="p-4">

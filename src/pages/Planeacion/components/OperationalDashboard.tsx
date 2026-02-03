@@ -22,7 +22,7 @@ import { es } from 'date-fns/locale';
 import { useServiciosHoy, useCustodiosDisponibles, useZonasOperativas } from '@/hooks/useServiciosHoy';
 import { useServiciosAyer } from '@/hooks/useServiciosAyer';
 import { usePendingFolioCount } from '@/hooks/usePendingFolioCount';
-import { useCustodiosActivos30d } from '@/hooks/useCustodiosActivos30d';
+import { usePersonnelMetrics } from '@/hooks/usePersonnelMetrics';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { PendingAssignmentModal } from '@/components/planeacion/PendingAssignmentModal';
 import { ContextualEditModal } from '@/components/planeacion/ContextualEditModal';
@@ -68,7 +68,7 @@ export function OperationalDashboard() {
   const { data: zonasOperativas = [], isLoading: loadingZonas } = useZonasOperativas();
   const { data: folioStats, isLoading: loadingFolio } = usePendingFolioCount();
   const { data: datosAyer } = useServiciosAyer();
-  const { data: custodiosActivos, isLoading: loadingActivos } = useCustodiosActivos30d();
+  const { data: personnelMetrics, isLoading: loadingPersonnel } = usePersonnelMetrics();
   
   // Fase 3: Historial de métricas para sparklines
   const { data: metricsHistory } = useMetricsHistory(7);
@@ -315,19 +315,19 @@ export function OperationalDashboard() {
               </div>
               <div className="apple-metric-content">
                 <div className="apple-metric-value">
-                  {loadingActivos ? <Skeleton className="h-8 w-12" /> : custodiosActivos?.activos || 0}
+                  {loadingPersonnel ? <Skeleton className="h-8 w-12" /> : personnelMetrics?.custodiosDisponibles || 0}
                 </div>
-                <div className="apple-metric-label">Custodios Activos</div>
+                <div className="apple-metric-label">Custodios Disponibles</div>
                 <span className="text-xs text-muted-foreground">
-                  últimos 30 días
+                  de {personnelMetrics?.custodiosActivos || 0} activos
                 </span>
               </div>
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Custodios distintos con servicios asignados</p>
+            <p>Custodios con estado activo y disponibilidad inmediata</p>
             <p className="text-xs text-muted-foreground">
-              {custodiosActivos?.activos || 0} de {custodiosActivos?.totalPool || 0} del pool total
+              {personnelMetrics?.custodiosNoDisponibles || 0} con indisponibilidad temporal
             </p>
           </TooltipContent>
         </Tooltip>
