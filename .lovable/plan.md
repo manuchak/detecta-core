@@ -1,67 +1,47 @@
 
-# Plan: Fix Bug de Sincronización en Reactivación de Bajas
+# Plan: Cambiar Filtro de Actividad por Defecto
 
-## Problema
+## Problema Identificado
 
-Cuando se reactiva un operativo desde la pestaña "Bajas", el cambio se refleja en las tarjetas de estadísticas pero NO en el listado de "Custodios/Armados" al cambiar de tab.
-
-## Causa Raíz
-
-1. **staleTime de 5 minutos**: Las queries de `useOperativeProfiles` tienen `staleTime: 5 * 60 * 1000`, lo que causa que TanStack Query no refetch inmediatamente después de `invalidateQueries`
-2. **invalidateQueries vs refetch**: `invalidateQueries` marca queries como "stale" pero no fuerza un refetch si la query no tiene observers activos o si el staleTime no ha expirado
-3. **Bug secundario**: La query de armados filtra solo por `estado = 'activo'` y no incluye `'suspendido'`
-
-## Solución
-
-### 1. Modificar `useCambioEstatusOperativo.ts`
-
-Cambiar de `invalidateQueries` a `refetchQueries` para forzar un refetch inmediato:
+El filtro de actividad en `CustodiosDataTable.tsx` tiene como valor por defecto `'activo'` (línea 90):
 
 ```typescript
-// ANTES (líneas 110-114)
-queryClient.invalidateQueries({ queryKey: ['custodios'] });
-queryClient.invalidateQueries({ queryKey: ['operative-profiles'] });
+const [activityFilter, setActivityFilter] = useState<string>('activo');
+```
+
+Esto significa que por defecto solo muestra custodios con servicios en los últimos 30 días, no todos los custodios con estado "activo" en el sistema.
+
+## Confusión de Términos
+
+| Concepto | Significado Actual |
+|----------|-------------------|
+| `estado: activo` | El custodio está empleado/disponible |
+| `nivel_actividad: activo` | Tuvo servicios en últimos 30 días |
+
+Santos Galeana tiene `estado: activo` pero probablemente `nivel_actividad: sin_actividad` porque no ha tenido servicios recientes.
+
+## Solución Propuesta
+
+Cambiar el valor por defecto del filtro de actividad a `'all'` para mostrar todos los custodios activos por defecto.
+
+### Cambios
+
+**Archivo: `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx`**
+
+```typescript
+// ANTES (línea 90)
+const [activityFilter, setActivityFilter] = useState<string>('activo');
 
 // DESPUÉS
-await queryClient.refetchQueries({ queryKey: ['operative-profiles'] });
-queryClient.invalidateQueries({ queryKey: ['custodios'] });
-queryClient.invalidateQueries({ queryKey: ['armados'] });
+const [activityFilter, setActivityFilter] = useState<string>('all');
 ```
 
-### 2. Modificar `useReactivacionMasiva.ts`
+**Archivo: `src/pages/PerfilesOperativos/components/ArmadosDataTable.tsx`**
 
-Aplicar el mismo fix para reactivación masiva.
-
-### 3. Fix secundario en `useOperativeProfiles.ts`
-
-Corregir la query de armados para incluir suspendidos:
-
-```typescript
-// ANTES (línea 179)
-.eq('estado', 'activo')
-
-// DESPUÉS
-.in('estado', ['activo', 'suspendido'])
-```
-
-### 4. Reducir staleTime (opcional pero recomendado)
-
-Reducir el staleTime a 1 minuto para mejor UX:
-
-```typescript
-staleTime: 1 * 60 * 1000 // 1 minuto
-```
-
-## Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/hooks/useCambioEstatusOperativo.ts` | Usar `refetchQueries` en lugar de solo `invalidateQueries` |
-| `src/hooks/useReactivacionMasiva.ts` | Mismo fix para reactivación masiva |
-| `src/pages/PerfilesOperativos/hooks/useOperativeProfiles.ts` | Fix query armados + reducir staleTime |
+Aplicar el mismo cambio para consistencia.
 
 ## Resultado Esperado
 
-- Al reactivar un operativo, el listado se actualiza inmediatamente
-- Las estadísticas y listas permanecen sincronizadas
-- Los armados suspendidos también aparecen en su listado correspondiente
+- Al entrar a la pestaña Custodios, se muestran los 106 custodios activos
+- Santos Galeana (y otros sin actividad reciente) aparecen en el listado
+- El usuario puede filtrar por actividad si lo desea, pero no es el default
