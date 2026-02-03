@@ -2242,6 +2242,66 @@ export type Database = {
           },
         ]
       }
+      configuracion_sanciones_auto: {
+        Row: {
+          activo: boolean | null
+          cancelacion_dias_suspension: number | null
+          cancelacion_habilitado: boolean | null
+          cancelacion_horas_limite: number | null
+          created_at: string | null
+          id: string
+          llegada_tarde_dias_suspension: number | null
+          llegada_tarde_habilitado: boolean | null
+          llegada_tarde_minutos_tolerancia: number | null
+          llegada_tarde_ocurrencias_limite: number | null
+          llegada_tarde_periodo_dias: number | null
+          modificado_por: string | null
+          no_show_dias_suspension: number | null
+          no_show_habilitado: boolean | null
+          no_show_minutos_tolerancia: number | null
+          updated_at: string | null
+          ventana_deteccion_dias: number | null
+        }
+        Insert: {
+          activo?: boolean | null
+          cancelacion_dias_suspension?: number | null
+          cancelacion_habilitado?: boolean | null
+          cancelacion_horas_limite?: number | null
+          created_at?: string | null
+          id?: string
+          llegada_tarde_dias_suspension?: number | null
+          llegada_tarde_habilitado?: boolean | null
+          llegada_tarde_minutos_tolerancia?: number | null
+          llegada_tarde_ocurrencias_limite?: number | null
+          llegada_tarde_periodo_dias?: number | null
+          modificado_por?: string | null
+          no_show_dias_suspension?: number | null
+          no_show_habilitado?: boolean | null
+          no_show_minutos_tolerancia?: number | null
+          updated_at?: string | null
+          ventana_deteccion_dias?: number | null
+        }
+        Update: {
+          activo?: boolean | null
+          cancelacion_dias_suspension?: number | null
+          cancelacion_habilitado?: boolean | null
+          cancelacion_horas_limite?: number | null
+          created_at?: string | null
+          id?: string
+          llegada_tarde_dias_suspension?: number | null
+          llegada_tarde_habilitado?: boolean | null
+          llegada_tarde_minutos_tolerancia?: number | null
+          llegada_tarde_ocurrencias_limite?: number | null
+          llegada_tarde_periodo_dias?: number | null
+          modificado_por?: string | null
+          no_show_dias_suspension?: number | null
+          no_show_habilitado?: boolean | null
+          no_show_minutos_tolerancia?: number | null
+          updated_at?: string | null
+          ventana_deteccion_dias?: number | null
+        }
+        Relationships: []
+      }
       configuracion_sensores: {
         Row: {
           alerta_desconexion_electrica: boolean | null
