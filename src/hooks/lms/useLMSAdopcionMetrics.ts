@@ -26,14 +26,16 @@ export const useLMSAdopcionMetrics = () => {
       const usuariosUnicos = new Set(inscripciones.map(i => i.usuario_id));
       const usuariosConInscripciones = usuariosUnicos.size;
 
-      // 2. Total usuarios activos (perfiles)
+      // 2. Total usuarios activos (perfiles) - count all profiles
       const { count: totalUsuarios, error: usuariosError } = await supabase
         .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('activo', true);
+        .select('*', { count: 'exact', head: true });
 
-      if (usuariosError) throw usuariosError;
-      const totalUsuariosActivos = totalUsuarios || 0;
+      if (usuariosError) {
+        console.warn('Error fetching profiles count:', usuariosError);
+        // Fallback: use unique users from inscriptions if profiles query fails
+      }
+      const totalUsuariosActivos = totalUsuarios || usuariosConInscripciones || 1;
 
       // 3. Tasa de adopción
       const tasaAdopcion = totalUsuariosActivos > 0 
