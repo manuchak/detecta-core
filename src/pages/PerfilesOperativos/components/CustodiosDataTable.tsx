@@ -17,12 +17,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
   Search, Eye, Phone, MapPin, Star, TrendingUp, Clock, Filter, X,
-  MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2
+  MoreHorizontal, UserX, Home, Plane, CircleDot, Loader2, MessageCircle
 } from 'lucide-react';
 import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
@@ -316,30 +323,76 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       header: 'Acciones',
       cell: ({ row }) => {
         const custodio = row.original;
+        const phoneNumber = custodio.telefono?.replace(/\D/g, '');
+        
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => navigate(`/perfiles-operativos/custodio/${custodio.id}`)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Ver perfil
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleDarDeBaja(custodio)}
-                className="text-destructive focus:text-destructive"
-              >
-                <UserX className="h-4 w-4 mr-2" />
-                Dar de baja
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            {/* Acción primaria - siempre visible */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => navigate(`/perfiles-operativos/custodio/${custodio.id}`)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Ver perfil forense</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            {/* Menú secundario - acciones adicionales */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Contactar</DropdownMenuLabel>
+                {phoneNumber && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <a href={`tel:${phoneNumber}`} className="cursor-pointer">
+                        <Phone className="h-4 w-4 mr-2" />
+                        Llamar
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a 
+                        href={`https://wa.me/52${phoneNumber}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="cursor-pointer"
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2" />
+                        WhatsApp
+                      </a>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {!phoneNumber && (
+                  <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                    Sin teléfono registrado
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Administrar</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={() => handleDarDeBaja(custodio)}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <UserX className="h-4 w-4 mr-2" />
+                  Dar de baja
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         );
       },
     },
