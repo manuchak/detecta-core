@@ -1,88 +1,94 @@
 
-# Plan: Fix Indisponibilidad Bug in Planning Module
+# Plan: Baja Masiva por Inactividad (+90 días)
 
-## Root Cause Analysis
+## Contexto
 
-The error occurs when planners try to report unavailability from the CustodianStep due to **three mismatches** between the UI component and the database:
+El sistema ya calcula automáticamente `dias_sin_actividad` y clasifica custodios en niveles de actividad. Los que tienen +90 días sin servicio aparecen como `nivel_actividad: 'sin_actividad'`.
 
-| Issue | Location | Problem |
-|-------|----------|---------|
-| 1. Invalid `tipo_indisponibilidad` | ReportUnavailabilityCard.tsx | UI sends `emergencia_familiar` but DB expects `familiar` |
-| 2. Null `motivo` | CustodianStep/index.tsx | `motivo` is required in DB but can be undefined |
-| 3. Invalid date | CustodianStep/index.tsx | `addDays(new Date(), null)` when "Hasta nuevo aviso" selected |
+**Datos actuales** (según el filtro existente):
+- Ya existe el filtro "Sin actividad (+90d)" en la tabla de Custodios
+- Cada custodio tiene `dias_sin_actividad` calculado
 
-## Code Flow
+## Implementación
 
-```text
-UI Component                    Handler Function               Database
-┌────────────────────┐         ┌────────────────────┐         ┌──────────────────┐
-│ emergencia_familiar│  ─────▶ │ tipo: data.tipo   │  ─────▶ │ tipo NOT IN enum │ ❌
-│ motivo: undefined  │  ─────▶ │ motivo: undefined │  ─────▶ │ motivo NOT NULL  │ ❌  
-│ dias: null         │  ─────▶ │ addDays(..., null)│  ─────▶ │ Invalid Date     │ ❌
-└────────────────────┘         └────────────────────┘         └──────────────────┘
-```
+### 1. Agregar Sistema de Selección con Checkboxes
 
-## Solution
+**Archivo:** `CustodiosDataTable.tsx`
 
-### File 1: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx`
+- Agregar columna de checkbox al inicio de la tabla
+- Estado local para IDs seleccionados
+- Checkbox en header para seleccionar/deseleccionar todos los visibles
+- Badge mostrando cantidad seleccionada
 
-**Fix the `handleUnavailabilitySubmit` function** (lines 253-280):
+### 2. Barra de Acciones en Lote
+
+Cuando hay elementos seleccionados, mostrar barra flotante con:
+- Contador: "X custodios seleccionados"
+- Botón "Dar de baja masiva" (rojo/destructivo)
+- Botón "Limpiar selección"
+
+### 3. Modal de Confirmación de Baja Masiva
+
+**Nuevo componente:** `BajaMasivaModal.tsx`
+
+Contenido del modal:
+- Lista de custodios a dar de baja (nombre, días sin actividad)
+- Selector de motivo (predeterminado: "Dado de baja por inactividad")
+- Campo de notas opcional
+- Resumen: "Se darán de baja X custodios"
+- Botones: Cancelar / Confirmar
+
+### 4. Hook para Baja Masiva
+
+**Nuevo hook:** `useBajaMasiva.ts`
 
 ```typescript
-// BEFORE (buggy)
-const handleUnavailabilitySubmit = async (data: {
-  tipo: string;
-  motivo: string;
-  dias: number;
-}) => {
-  await crearIndisponibilidad.mutateAsync({
-    custodio_id: unavailabilityCustodian.id,
-    tipo_indisponibilidad: data.tipo as any,
-    motivo: data.motivo,  // Can be undefined!
-    fecha_fin_estimada: addDays(new Date(), data.dias).toISOString(),  // null produces Invalid Date
-    // ...
-  });
-};
-
-// AFTER (fixed)
-const handleUnavailabilitySubmit = async (data: {
-  tipo: string;
-  motivo?: string;
-  dias: number | null;
-}) => {
-  // Map UI types to DB-compatible types
-  const tipoMapping: Record<string, string> = {
-    'emergencia_familiar': 'familiar',
-    'falla_mecanica': 'falla_mecanica',
-    'enfermedad': 'enfermedad',
-    'capacitacion': 'capacitacion',
-    'otro': 'otro',
-  };
-  
-  const tipoDb = tipoMapping[data.tipo] || 'otro';
-  const motivoDb = data.motivo || tipoDb; // Fallback to type if no notes
-  
-  await crearIndisponibilidad.mutateAsync({
-    custodio_id: unavailabilityCustodian.id,
-    tipo_indisponibilidad: tipoDb as any,
-    motivo: motivoDb,  // Always has a value now
-    fecha_fin_estimada: data.dias 
-      ? addDays(new Date(), data.dias).toISOString() 
-      : undefined,  // undefined for "indefinido"
-    // ...
-  });
-};
+// Procesa la baja en lote usando transacciones
+async function darDeBajaMasiva(
+  custodioIds: string[],
+  motivo: string,
+  notas?: string
+)
 ```
 
-## Changes Summary
+Funcionalidad:
+- Actualiza todos los custodios a `estado: 'inactivo'`
+- Registra historial en `operativo_estatus_historial`
+- Invalida queries relevantes
+- Muestra toast con resultado
 
-| File | Change |
-|------|--------|
-| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx` | Fix type signature, add mapping for `emergencia_familiar` to `familiar`, handle null `dias`, provide default `motivo` |
+## Flujo de Usuario
 
-## Validation
+```text
+1. Ir a Perfiles Operativos > Custodios
+2. Filtrar por "Sin actividad (+90d)"
+3. Seleccionar custodios con checkbox (o "Seleccionar todos")
+4. Clic en "Dar de baja masiva"
+5. Confirmar motivo en modal
+6. Sistema procesa y mueve custodios a tab "Bajas"
+```
 
-After fix:
-- "Emergencia familiar" + "Hasta nuevo aviso" + no notes = Should insert successfully
-- All duration options work correctly
-- All reason types map to valid DB values
+## Archivos a Crear/Modificar
+
+| Archivo | Acción |
+|---------|--------|
+| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Agregar checkboxes y barra de acciones |
+| `src/pages/PerfilesOperativos/components/BajaMasivaModal.tsx` | **Nuevo** - Modal de confirmación |
+| `src/hooks/useBajaMasiva.ts` | **Nuevo** - Hook para procesar baja en lote |
+
+## Vista Previa UI
+
+**Tabla con selección:**
+```
+☑️ Seleccionar | Custodio          | Zona  | Actividad    | Días
+☐              | Juan Pérez        | CDMX  | Sin actividad| 120
+☑️             | María López       | Qro   | Sin actividad| 95
+☑️             | Carlos Hernández  | NL    | Sin actividad| 180
+```
+
+**Barra de acciones:**
+```
+┌─────────────────────────────────────────────────────┐
+│ 2 custodios seleccionados   [Limpiar] [Dar de baja]│
+└─────────────────────────────────────────────────────┘
+```
