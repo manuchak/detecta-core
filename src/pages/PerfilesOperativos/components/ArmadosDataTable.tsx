@@ -6,6 +6,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Select,
   SelectContent,
@@ -21,10 +22,11 @@ import {
 } from '@/components/ui/tooltip';
 import { 
   Search, Eye, Phone, MapPin, Star, Shield, Building2, AlertTriangle, X, Filter, Clock,
-  Home, Plane, CircleDot, Edit
+  Home, Plane, CircleDot, Edit, UserX
 } from 'lucide-react';
 import { ArmadoProfile } from '../hooks/useOperativeProfiles';
 import { QuickEditSheet, PreferenciaTipoServicio } from './QuickEditSheet';
+import { BajaMasivaModal } from './BajaMasivaModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -85,6 +87,10 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
   const [tipoFilter, setTipoFilter] = useState<string>('all');
   const [activityFilter, setActivityFilter] = useState<string>('activo');
   
+  // Selection state for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBajaMasivaModal, setShowBajaMasivaModal] = useState(false);
+  
   // Quick Edit Sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [editingArmado, setEditingArmado] = useState<ArmadoProfile | null>(null);
@@ -112,6 +118,11 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
     });
   }, [data, searchTerm, zonaFilter, tipoFilter, activityFilter]);
   
+  // Get selected armados for modal
+  const selectedArmados = useMemo(() => {
+    return filteredData.filter(a => selectedIds.has(a.id));
+  }, [filteredData, selectedIds]);
+  
   const hasFilters = searchTerm || zonaFilter !== 'all' || tipoFilter !== 'all' || activityFilter !== 'activo';
   
   const clearFilters = () => {
@@ -119,6 +130,34 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
     setZonaFilter('all');
     setTipoFilter('all');
     setActivityFilter('activo');
+  };
+
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredData.map(a => a.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBajaMasivaSuccess = () => {
+    setSelectedIds(new Set());
+    onRefresh?.();
   };
 
   const handleOpenEditSheet = (armado: ArmadoProfile) => {
@@ -163,8 +202,33 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
     if (diasRestantes <= 30) return { status: 'warning', label: `${diasRestantes}d` };
     return { status: 'ok', label: 'Vigente' };
   };
+
+  // Check if all visible items are selected
+  const allSelected = filteredData.length > 0 && filteredData.every(a => selectedIds.has(a.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
   
   const columns: ColumnDef<ArmadoProfile>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <Checkbox
+          checked={allSelected}
+          onCheckedChange={handleSelectAll}
+          aria-label="Seleccionar todos"
+          className={cn(someSelected && 'data-[state=checked]:bg-primary/50')}
+          {...(someSelected ? { 'data-state': 'indeterminate' } : {})}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedIds.has(row.original.id)}
+          onCheckedChange={(checked) => handleSelectOne(row.original.id, !!checked)}
+          aria-label={`Seleccionar ${row.original.nombre}`}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     {
       accessorKey: 'nombre',
       header: 'Armado',
@@ -219,6 +283,22 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
           <Badge className={cn('text-xs font-normal', config.className)}>
             {config.label}
           </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'dias_sin_actividad',
+      header: 'Días',
+      cell: ({ row }) => {
+        const dias = row.original.dias_sin_actividad;
+        const label = dias >= 999 ? 'N/A' : `${dias}d`;
+        return (
+          <span className={cn(
+            'text-sm',
+            dias >= 90 && 'text-destructive font-medium'
+          )}>
+            {label}
+          </span>
         );
       },
     },
@@ -285,20 +365,6 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
       },
     },
     {
-      accessorKey: 'rating_promedio',
-      header: 'Rating',
-      cell: ({ row }) => {
-        const rating = row.getValue('rating_promedio') as number | null;
-        if (rating === null) return <span className="text-muted-foreground">—</span>;
-        return (
-          <div className="flex items-center gap-1 justify-center">
-            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-            <span className="font-medium">{rating.toFixed(1)}</span>
-          </div>
-        );
-      },
-    },
-    {
       id: 'actions',
       header: 'Acciones',
       cell: ({ row }) => {
@@ -351,6 +417,29 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
   
   return (
     <div className="space-y-4">
+      {/* Selection Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border animate-in slide-in-from-top-2">
+          <span className="text-sm font-medium">
+            {selectedIds.size} armado{selectedIds.size !== 1 ? 's' : ''} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={clearSelection}>
+              <X className="h-4 w-4 mr-1" />
+              Limpiar
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setShowBajaMasivaModal(true)}
+            >
+              <UserX className="h-4 w-4 mr-1" />
+              Dar de baja masiva
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-1 gap-2 w-full sm:w-auto flex-wrap">
@@ -427,6 +516,15 @@ export function ArmadosDataTable({ data, onRefresh }: ArmadosDataTableProps) {
         operative={editingArmado}
         onSave={handleSaveEdit}
         isLoading={isSaving}
+      />
+
+      {/* Bulk Deactivation Modal */}
+      <BajaMasivaModal
+        open={showBajaMasivaModal}
+        onOpenChange={setShowBajaMasivaModal}
+        operativos={selectedArmados}
+        operativoTipo="armado"
+        onSuccess={handleBajaMasivaSuccess}
       />
     </div>
   );

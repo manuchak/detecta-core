@@ -543,7 +543,8 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       <BajaMasivaModal
         open={showBajaMasivaModal}
         onOpenChange={setShowBajaMasivaModal}
-        custodios={selectedCustodios}
+        operativos={selectedCustodios}
+        operativoTipo="custodio"
         onSuccess={handleBajaMasivaSuccess}
       />
     </div>

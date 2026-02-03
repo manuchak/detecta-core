@@ -13,29 +13,51 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, UserX, Clock } from 'lucide-react';
-import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { useBajaMasiva } from '@/hooks/useBajaMasiva';
+
+// Generic operative profile interface for bulk operations
+interface OperativeProfile {
+  id: string;
+  nombre: string;
+  zona_base: string | null;
+  dias_sin_actividad: number;
+}
 
 interface BajaMasivaModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  custodios: CustodioProfile[];
+  operativos: OperativeProfile[];
+  operativoTipo: 'custodio' | 'armado';
   onSuccess: () => void;
 }
+
+const LABELS = {
+  custodio: {
+    singular: 'custodio',
+    plural: 'custodios',
+  },
+  armado: {
+    singular: 'armado',
+    plural: 'armados',
+  },
+};
 
 export function BajaMasivaModal({
   open,
   onOpenChange,
-  custodios,
+  operativos,
+  operativoTipo,
   onSuccess,
 }: BajaMasivaModalProps) {
   const [notas, setNotas] = useState('');
   const { darDeBajaMasiva, isLoading } = useBajaMasiva();
 
+  const labels = LABELS[operativoTipo];
+
   const handleConfirm = async () => {
     const result = await darDeBajaMasiva({
-      operativoIds: custodios.map(c => c.id),
-      operativoTipo: 'custodio',
+      operativoIds: operativos.map(o => o.id),
+      operativoTipo,
       motivo: 'Dado de baja por inactividad (+90 días)',
       notas: notas || undefined,
     });
@@ -61,35 +83,35 @@ export function BajaMasivaModal({
             Confirmar baja masiva
           </DialogTitle>
           <DialogDescription>
-            Esta acción dará de baja permanente a {custodios.length} custodio{custodios.length !== 1 ? 's' : ''} por inactividad prolongada (+90 días sin servicio).
+            Esta acción dará de baja permanente a {operativos.length} {operativos.length !== 1 ? labels.plural : labels.singular} por inactividad prolongada (+90 días sin servicio).
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* List of custodians to be deactivated */}
+          {/* List of operatives to be deactivated */}
           <div>
             <Label className="text-sm font-medium mb-2 block">
-              Custodios a dar de baja:
+              {operativoTipo === 'custodio' ? 'Custodios' : 'Armados'} a dar de baja:
             </Label>
             <ScrollArea className="h-[200px] rounded-md border p-3">
               <div className="space-y-2">
-                {custodios.map((custodio) => (
+                {operativos.map((operativo) => (
                   <div
-                    key={custodio.id}
+                    key={operativo.id}
                     className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-md"
                   >
                     <div className="flex items-center gap-2">
                       <UserX className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium text-sm">{custodio.nombre}</span>
-                      {custodio.zona_base && (
+                      <span className="font-medium text-sm">{operativo.nombre}</span>
+                      {operativo.zona_base && (
                         <Badge variant="outline" className="text-xs">
-                          {custodio.zona_base}
+                          {operativo.zona_base}
                         </Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {formatDiasSinActividad(custodio.dias_sin_actividad)}
+                      {formatDiasSinActividad(operativo.dias_sin_actividad)}
                     </div>
                   </div>
                 ))}
@@ -144,7 +166,7 @@ export function BajaMasivaModal({
             ) : (
               <>
                 <UserX className="h-4 w-4 mr-2" />
-                Confirmar baja ({custodios.length})
+                Confirmar baja ({operativos.length})
               </>
             )}
           </Button>
