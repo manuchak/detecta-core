@@ -374,6 +374,40 @@ export function useServiceStepLogic() {
     );
   }, [hasInitializedFromHydration, servicioId, validation.isValid, validation.isValidating, isDateValid, hora]);
 
+  // ============================================================================
+  // SYNC TO CONTEXT - SYNCHRONOUS VERSION FOR NAVIGATION
+  // Call this BEFORE nextStep() to ensure formData is updated before navigation
+  // ============================================================================
+  const syncToContext = useCallback(() => {
+    console.log('[ServiceStepLogic] syncToContext called - forcing synchronous update');
+    updateFormData({
+      servicioId,
+      idInterno,
+      fechaRecepcion,
+      horaRecepcion,
+      fecha,
+      hora,
+      tipoServicio,
+      requiereArmado,
+      esServicioRetorno,
+      gadgets,
+      observaciones,
+    });
+  }, [
+    updateFormData,
+    servicioId,
+    idInterno,
+    fechaRecepcion,
+    horaRecepcion,
+    fecha,
+    hora,
+    tipoServicio,
+    requiereArmado,
+    esServicioRetorno,
+    gadgets,
+    observaciones,
+  ]);
+
   return {
     // State
     servicioId,
@@ -423,5 +457,8 @@ export function useServiceStepLogic() {
     
     // Constants
     SERVICE_TYPE_OPTIONS,
+    
+    // NEW: Synchronous sync function
+    syncToContext,
   };
 }

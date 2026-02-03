@@ -76,6 +76,9 @@ export default function ServiceStep() {
     
     // Constants
     SERVICE_TYPE_OPTIONS,
+    
+    // NEW: Synchronous sync function to fix race condition
+    syncToContext,
   } = useServiceStepLogic();
 
   const queryClient = useQueryClient();
@@ -107,6 +110,9 @@ export default function ServiceStep() {
   }, [canContinue, fecha, hora, formData.origen, formData.destino, formData.cliente, tipoServicio, requiereArmado, queryClient]);
 
   const handleContinue = () => {
+    // CRITICAL: Sync state to context BEFORE navigation to prevent race condition
+    // This ensures CustodianStep receives the latest fecha/hora values
+    syncToContext();
     markStepCompleted('service');
     nextStep();
   };

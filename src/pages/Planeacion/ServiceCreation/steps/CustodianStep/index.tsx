@@ -331,6 +331,47 @@ export default function CustodianStep() {
     );
   }
 
+  // GUARD: If hydrated but missing critical service data (fecha/hora), show recovery UI
+  // This catches race conditions where navigation happened before state sync
+  if (isHydrated && (!formData.fecha || !formData.hora)) {
+    return (
+      <div className="space-y-6" ref={containerRef}>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold flex items-center gap-2">
+            <User className="h-6 w-6 text-primary" />
+            Asignar Custodio
+          </h2>
+        </div>
+        
+        <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+          <ShieldAlert className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">
+            Datos del servicio incompletos
+          </AlertTitle>
+          <AlertDescription className="space-y-3 text-amber-700 dark:text-amber-300">
+            <p>
+              Falta la fecha u hora del servicio. Por favor regresa al paso anterior 
+              para completar estos datos requeridos.
+            </p>
+            <div className="text-xs bg-amber-100 dark:bg-amber-900/50 p-2 rounded">
+              <p><strong>Fecha:</strong> {formData.fecha || '(no definida)'}</p>
+              <p><strong>Hora:</strong> {formData.hora || '(no definida)'}</p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={previousStep} 
+              className="gap-2 border-amber-500 text-amber-700 hover:bg-amber-100"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver a Detalles del Servicio
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
   // Error state - show explicit error instead of empty list
   if (error) {
     return (
