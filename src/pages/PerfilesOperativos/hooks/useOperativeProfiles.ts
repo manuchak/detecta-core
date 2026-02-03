@@ -84,6 +84,8 @@ export interface ProfileStats {
   activosUltimos30Dias: number;
   inactivosMas60Dias: number;
   documentosCompletos: number;
+  custodiosSancionados: number;
+  custodiosNoDisponibles: number;
 }
 
 function calculateActivityLevel(fechaUltimoServicio: string | null): {
@@ -228,6 +230,27 @@ export function useOperativeProfiles() {
     },
     staleTime: 5 * 60 * 1000
   });
+
+  // Fetch active unavailabilities count
+  const indisponibilidadesQuery = useQuery({
+    queryKey: ['operative-profiles', 'indisponibilidades-count'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { count, error } = await supabase
+        .from('custodio_indisponibilidades')
+        .select('*', { count: 'exact', head: true })
+        .eq('activo', true)
+        .lte('fecha_inicio', today)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${today}`);
+      
+      if (error) {
+        console.warn('Error fetching indisponibilidades:', error);
+        return 0;
+      }
+      return count || 0;
+    },
+    staleTime: 5 * 60 * 1000
+  });
   
   // Calculate stats
   const stats: ProfileStats = {
@@ -239,7 +262,9 @@ export function useOperativeProfiles() {
     inactivosMas60Dias: custodiosQuery.data?.filter(c => 
       c.nivel_actividad === 'inactivo' || c.nivel_actividad === 'sin_actividad'
     ).length || 0,
-    documentosCompletos: 0 // TODO: Calculate when document compliance is implemented
+    documentosCompletos: 0, // TODO: Calculate when document compliance is implemented
+    custodiosSancionados: custodiosQuery.data?.filter(c => c.estado === 'suspendido').length || 0,
+    custodiosNoDisponibles: indisponibilidadesQuery.data || 0
   };
   
   return {
@@ -248,12 +273,13 @@ export function useOperativeProfiles() {
     archivados: archivadosQuery.data || [],
     bajas: bajasQuery.data || [],
     stats,
-    loading: custodiosQuery.isLoading || armadosQuery.isLoading || bajasQuery.isLoading,
+    loading: custodiosQuery.isLoading || armadosQuery.isLoading || bajasQuery.isLoading || indisponibilidadesQuery.isLoading,
     refetch: () => {
       custodiosQuery.refetch();
       armadosQuery.refetch();
       archivadosQuery.refetch();
       bajasQuery.refetch();
+      indisponibilidadesQuery.refetch();
     }
   };
 }

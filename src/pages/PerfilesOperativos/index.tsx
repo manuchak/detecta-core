@@ -6,7 +6,8 @@ import { CustomBreadcrumb } from '@/components/ui/custom-breadcrumb';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
-  Users, Shield, Archive, UserCheck, TrendingUp, AlertTriangle, CheckCircle, UserX
+  Users, Shield, Archive, UserCheck, TrendingUp, AlertTriangle, CheckCircle, UserX,
+  Ban, CalendarOff
 } from 'lucide-react';
 import { CustodiosDataTable } from './components/CustodiosDataTable';
 import { ArmadosDataTable } from './components/ArmadosDataTable';
@@ -64,7 +65,7 @@ export default function PerfilesOperativos() {
       </div>
       
       {/* Stats Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4">
         <Card className="border-l-4 border-l-corporate-blue">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -85,6 +86,30 @@ export default function PerfilesOperativos() {
                 <p className="text-2xl font-bold">{stats.activosUltimos30Dias}</p>
               </div>
               <TrendingUp className="h-5 w-5 text-emerald-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-red-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Sancionados</p>
+                <p className="text-2xl font-bold">{stats.custodiosSancionados}</p>
+              </div>
+              <Ban className="h-5 w-5 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">No Disponibles</p>
+                <p className="text-2xl font-bold">{stats.custodiosNoDisponibles}</p>
+              </div>
+              <CalendarOff className="h-5 w-5 text-blue-500" />
             </div>
           </CardContent>
         </Card>
