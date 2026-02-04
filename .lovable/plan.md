@@ -1,137 +1,94 @@
 
-# Diagnóstico Forense: Bug de "Edición Contextual" Rompe el Flujo
+# Plan: Corregir Error de Actualización de Precios en Rutas
 
-## Problema Reportado
+## Diagnóstico Realizado
 
-Cuando el usuario Axel hace clic en "Continuar" en el modal de "Confirmar Cambios" con "Edición Contextual" seleccionada, el sistema cierra todo y regresa a la página principal en lugar de continuar con el flujo de asignación.
+### Causa Raíz del Error
+
+El componente `QuickPriceEditModal.tsx` está intentando actualizar las columnas `margen_neto_calculado` y `porcentaje_utilidad` que son **GENERATED ALWAYS** en PostgreSQL:
+
+```sql
+-- Estas columnas se calculan automáticamente
+margen_neto_calculado = (valor_bruto - precio_custodio - costo_operativo)
+porcentaje_utilidad = CASE WHEN valor_bruto > 0 THEN (margen / valor_bruto) * 100 ELSE 0 END
+```
+
+PostgreSQL rechaza cualquier intento de escribir valores en columnas generadas, causando el error.
+
+### Permisos RLS Verificados
+
+Los permisos están correctamente configurados - `planificador` tiene acceso UPDATE:
+
+| Rol | UPDATE | SELECT | INSERT |
+|-----|--------|--------|--------|
+| admin | ✅ | ✅ | ✅ |
+| owner | ✅ | ✅ | ✅ |
+| planificador | ✅ | ✅ | ✅ |
+| supply_admin | ✅ | ✅ | ✅ |
+| coordinador_operaciones | ✅ | ✅ | ✅ |
+
+### Auditoría Faltante
+
+Existe la tabla `matriz_precios_historial` pero **no hay trigger** que registre automáticamente los cambios.
 
 ---
 
-## Causa Raíz Identificada
+## Solución
 
-El modo `flexible_assign` no está manejado en ningún switch del `ContextualEditModal.tsx`, causando que caiga en comportamiento `default` que termina cerrando el modal incorrectamente.
+### Fix 1: Remover columnas generadas del UPDATE
 
-### Flujo Actual (Buggeado)
-
-```text
-1. PendingAssignmentModal abre ContextualEditModal (showContextualEdit=true)
-2. useSmartEditSuggestions detecta: sin custodio + sin armado + pendiente
-   → heroSuggestion = { mode: 'flexible_assign', title: 'Asignar Personal' }
-3. Usuario hace clic en "Asignar Personal"
-   → handleEditModeSelect('flexible_assign', ...)
-   → switch NO tiene case para 'flexible_assign'
-   → CAE EN DEFAULT → setCurrentView('preview')
-4. Se muestra vista "Confirmar Cambios" con "Edición Contextual"
-   (ContextualFeedback.tsx default case)
-5. Usuario hace clic en "Continuar"
-   → handleProceed()
-   → selectedEditMode !== 'basic_info'
-   → ejecuta handleDirectAction()
-6. En handleDirectAction:
-   → switch NO tiene case para 'flexible_assign'  
-   → CAE EN DEFAULT → toast.info('Acción en desarrollo')
-   → NO HACE RETURN
-   → await new Promise(...) // espera 1.5s
-   → onOpenChange(false)  // ⚠️ CIERRA TODO
-7. En PendingAssignmentModal:
-   → hasInteracted === false (nunca se marcó)
-   → onOpenChange(false) se propaga al padre
-   → Modal se cierra completamente
-   → Usuario regresa a página principal
-```
-
-### Diagrama del Bug
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ ContextualEditModal                                      │
-│                                                          │
-│  handleEditModeSelect('flexible_assign')                 │
-│         │                                                │
-│         ▼                                                │
-│  switch(mode) {                                          │
-│    case 'custodian_only': ...                            │
-│    case 'armed_only': ...                                │
-│    case 'add_armed': ...                                 │
-│    case 'remove_armed': ...                              │
-│    case 'basic_info': ...                                │
-│    default: ← 'flexible_assign' CAE AQUI                 │
-│      setCurrentView('preview')                           │
-│  }                                                       │
-│                                                          │
-│  handleProceed() → handleDirectAction()                  │
-│         │                                                │
-│         ▼                                                │
-│  switch(selectedEditMode) {                              │
-│    ...                                                   │
-│    default: ← 'flexible_assign' CAE AQUI                 │
-│      toast.info('Acción en desarrollo')                  │
-│      // NO return                                        │
-│  }                                                       │
-│  await sleep(1500)                                       │
-│  onOpenChange(false) ← CIERRA TODO                       │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## Solucion Propuesta
-
-### Fix 1: Agregar case para `flexible_assign` en `handleEditModeSelect`
-
-El modo `flexible_assign` deberia comportarse igual que `custodian_only` - llamar a `onStartReassignment` para que `PendingAssignmentModal` muestre los tabs de asignacion.
+Modificar `QuickPriceEditModal.tsx` para no incluir las columnas calculadas:
 
 ```typescript
-// ContextualEditModal.tsx - handleEditModeSelect
-case 'flexible_assign':
-  // Flexible assign mode - let parent show assignment tabs
-  console.log('[ContextualEditModal] 🔄 Flexible assign mode - starting assignment flow');
-  if (!onStartReassignment) {
-    toast.error('No se pudo iniciar el flujo de asignación');
-    return;
-  }
+// ACTUAL (líneas 63-72) - BUGGEADO
+const { error } = await supabase
+  .from('matriz_precios_rutas')
+  .update({
+    valor_bruto: valorBrutoNum,
+    precio_custodio: precioCustodioNum,
+    margen_neto_calculado: margenNeto,     // ❌ GENERATED ALWAYS
+    porcentaje_utilidad: porcentajeMargen, // ❌ GENERATED ALWAYS
+    updated_at: new Date().toISOString()
+  })
+
+// CORREGIDO
+const { error } = await supabase
+  .from('matriz_precios_rutas')
+  .update({
+    valor_bruto: valorBrutoNum,
+    precio_custodio: precioCustodioNum,
+    updated_at: new Date().toISOString()
+  })
+```
+
+### Fix 2: Crear Trigger de Auditoría
+
+Crear función y trigger para registrar automáticamente cambios en `matriz_precios_historial`:
+
+```sql
+CREATE OR REPLACE FUNCTION log_precio_ruta_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Log cambio en valor_bruto
+  IF OLD.valor_bruto IS DISTINCT FROM NEW.valor_bruto THEN
+    INSERT INTO matriz_precios_historial (ruta_id, campo_modificado, valor_anterior, valor_nuevo, usuario_id)
+    VALUES (NEW.id, 'valor_bruto', OLD.valor_bruto, NEW.valor_bruto, auth.uid());
+  END IF;
   
-  if (service) {
-    // Start with custodian tab (default), armed tab will be available
-    onStartReassignment('custodian', service);
-  }
-  break;
-```
+  -- Log cambio en precio_custodio
+  IF OLD.precio_custodio IS DISTINCT FROM NEW.precio_custodio THEN
+    INSERT INTO matriz_precios_historial (ruta_id, campo_modificado, valor_anterior, valor_nuevo, usuario_id)
+    VALUES (NEW.id, 'precio_custodio', OLD.precio_custodio, NEW.precio_custodio, auth.uid());
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-### Fix 2: Agregar case para `flexible_assign` en `handleDirectAction`
-
-Como respaldo, si por alguna razon llega a `handleDirectAction`:
-
-```typescript
-// ContextualEditModal.tsx - handleDirectAction
-case 'flexible_assign':
-  if (onStartReassignment) {
-    onStartReassignment('custodian', service);
-  } else {
-    toast.error('No se pudo iniciar el flujo de asignación');
-  }
-  return; // IMPORTANTE: return para no cerrar modal
-```
-
-### Fix 3: Agregar feedback en `ContextualFeedback.tsx`
-
-Agregar case especifico para `flexible_assign` en lugar de mostrar "Edición Contextual":
-
-```typescript
-case 'flexible_assign':
-  return {
-    icon: <User className="h-4 w-4 text-blue-600" />,
-    title: 'Asignación Flexible',
-    description: 'Asigna custodio y armado en el orden que prefieras',
-    details: [
-      'Puedes empezar por custodio o por armado',
-      'Ambas asignaciones son requeridas',
-      'El servicio se completará cuando ambos estén asignados'
-    ],
-    estimatedTime: '3 minutos',
-    color: 'blue'
-  };
+CREATE TRIGGER trg_log_precio_ruta_changes
+AFTER UPDATE ON matriz_precios_rutas
+FOR EACH ROW
+EXECUTE FUNCTION log_precio_ruta_changes();
 ```
 
 ---
@@ -140,42 +97,19 @@ case 'flexible_assign':
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/planeacion/ContextualEditModal.tsx` | Agregar case `flexible_assign` en `handleEditModeSelect` y `handleDirectAction` |
-| `src/components/planeacion/ContextualFeedback.tsx` | Agregar case `flexible_assign` con feedback apropiado |
+| `src/pages/Planeacion/components/routes/QuickPriceEditModal.tsx` | Remover `margen_neto_calculado` y `porcentaje_utilidad` del payload |
+| Nueva migración SQL | Crear trigger `log_precio_ruta_changes` para auditoría automática |
 
 ---
 
-## Flujo Corregido
+## Resultado Esperado
 
-```text
-1. PendingAssignmentModal abre ContextualEditModal
-2. heroSuggestion = { mode: 'flexible_assign' }
-3. Usuario hace clic en "Asignar Personal"
-   → handleEditModeSelect('flexible_assign', ...)
-   → case 'flexible_assign': onStartReassignment('custodian', service)
-4. PendingAssignmentModal:
-   → handleStartReassignment('custodian', ...)
-   → hasInteracted = true
-   → showContextualEdit = false
-   → activeTab = 'custodian'
-5. Se muestra PendingAssignmentModal con tabs
-6. Usuario puede asignar custodio → automaticamente pasa a tab armado
-7. Usuario asigna armado → servicio completo
-8. Modal se cierra correctamente
-```
+1. **Planeación puede editar precios** sin errores
+2. **Auditoría automática**: Cada cambio en `valor_bruto` o `precio_custodio` se registra con:
+   - ID de la ruta
+   - Campo modificado
+   - Valor anterior y nuevo
+   - Usuario que realizó el cambio
+   - Timestamp
 
----
-
-## Impacto
-
-- **Usuarios afectados**: Planificadores que editan servicios sin custodio ni armado asignado
-- **Severidad**: Alta - bloquea flujo critico de asignacion
-- **Riesgo de regresion**: Bajo - cambios aislados en switches
-
----
-
-## Notas Tecnicas
-
-- El modo `flexible_assign` fue agregado en la arquitectura de "Flexible Resource Assignment" pero no se implemento correctamente en el `ContextualEditModal`
-- El `SmartEditModal` maneja `flexible_assign` correctamente porque usa acciones directas con callbacks
-- El `ContextualEditModal` asume que todos los modos pasan por la vista preview, pero `flexible_assign` deberia saltar directamente al flujo de asignacion
+3. **Márgenes se calculan automáticamente** por la base de datos
