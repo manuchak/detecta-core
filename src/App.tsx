@@ -99,6 +99,7 @@ const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazy(() => import('@/pages/LMS/LMSAdminCursoEditar'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
+const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -291,6 +292,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi']}>
                         <UnifiedLayout>
                           <CRMHub />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Facturación y Finanzas */}
+                <Route
+                  path="/facturacion"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <FacturacionHub />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

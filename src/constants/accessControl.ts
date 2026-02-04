@@ -81,6 +81,43 @@ export const DATA_CORRECTION_ROLES = [
   'coordinador_operaciones'
 ] as const;
 
+/**
+ * Roles de Facturación y Finanzas
+ */
+export const FACTURACION_ROLES = [
+  'facturacion_admin',
+  'facturacion',
+  'finanzas_admin',
+  'finanzas'
+] as const;
+
+/**
+ * Roles con acceso completo a Facturación (todas las vistas)
+ */
+export const FACTURACION_FULL_ACCESS_ROLES = [
+  'admin',
+  'owner',
+  'bi',
+  'facturacion_admin',
+  'finanzas_admin'
+] as const;
+
+/**
+ * Roles con acceso limitado a Facturación (solo consulta)
+ */
+export const FACTURACION_LIMITED_ROLES = [
+  'facturacion',
+  'finanzas'
+] as const;
+
+/**
+ * Todos los roles que pueden acceder al módulo Facturación
+ */
+export const FACTURACION_ALLOWED_ROLES = [
+  ...FACTURACION_FULL_ACCESS_ROLES,
+  ...FACTURACION_LIMITED_ROLES
+] as const;
+
 // Type exports for type-safe role checking
 export type SIERCPRole = typeof SIERCP_ALLOWED_ROLES[number];
 export type AdminRole = typeof ADMIN_ROLES[number];
@@ -89,3 +126,5 @@ export type SecurityRole = typeof SECURITY_ROLES[number];
 export type ReportesFullAccessRole = typeof REPORTES_FULL_ACCESS_ROLES[number];
 export type ReportesLimitedAccessRole = typeof REPORTES_LIMITED_ACCESS_ROLES[number];
 export type DataCorrectionRole = typeof DATA_CORRECTION_ROLES[number];
+export type FacturacionRole = typeof FACTURACION_ROLES[number];
+export type FacturacionFullAccessRole = typeof FACTURACION_FULL_ACCESS_ROLES[number];

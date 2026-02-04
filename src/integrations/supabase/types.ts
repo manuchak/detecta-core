@@ -1128,6 +1128,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_facturacion_accesos: {
+        Row: {
+          accion: string
+          created_at: string | null
+          filtros_aplicados: Json | null
+          id: string
+          ip_address: unknown
+          registros_consultados: number | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accion: string
+          created_at?: string | null
+          filtros_aplicados?: Json | null
+          id?: string
+          ip_address?: unknown
+          registros_consultados?: number | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accion?: string
+          created_at?: string | null
+          filtros_aplicados?: Json | null
+          id?: string
+          ip_address?: unknown
+          registros_consultados?: number | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_log_productos: {
         Row: {
           accion: string
@@ -1384,6 +1417,13 @@ export type Database = {
             columns: ["servicio_id"]
             isOneToOne: false
             referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditoria_km_correcciones_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
             referencedColumns: ["id"]
           },
         ]
@@ -14634,6 +14674,41 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_servicios_facturacion: {
+        Row: {
+          casetas: string | null
+          cliente_email: string | null
+          cliente_rfc: string | null
+          cobro_cliente: number | null
+          costo_custodio: number | null
+          costo_lista: number | null
+          creado_por: string | null
+          created_at: string | null
+          destino: string | null
+          duracion_servicio: unknown
+          estado: string | null
+          fecha_hora_cita: string | null
+          folio_cliente: string | null
+          forma_pago_preferida: string | null
+          gadget: string | null
+          id: number | null
+          id_servicio: string | null
+          km_recorridos: number | null
+          km_teorico: number | null
+          local_foraneo: string | null
+          margen_bruto: number | null
+          nombre_armado: string | null
+          nombre_cliente: string | null
+          nombre_custodio: string | null
+          origen: string | null
+          porcentaje_margen: number | null
+          precio_lista: number | null
+          proveedor: string | null
+          ruta: string | null
+          tipo_servicio: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       actualizar_roi_custodios: { Args: never; Returns: undefined }
@@ -16638,6 +16713,7 @@ export type Database = {
           nombre: string
         }[]
       }
+      has_facturacion_access: { Args: { user_id: string }; Returns: boolean }
       has_management_role: { Args: never; Returns: boolean }
       has_role: {
         Args: { role_name: string; user_uuid: string }
