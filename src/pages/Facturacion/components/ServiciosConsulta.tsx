@@ -125,7 +125,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
       'Hora Inicio': s.hora_inicio_custodia ? formatCDMXTime(s.hora_inicio_custodia) : '',
       'Hora Arribo': s.hora_arribo ? formatCDMXTime(s.hora_arribo) : '',
       'Hora Fin': s.hora_finalizacion ? formatCDMXTime(s.hora_finalizacion) : '',
-      'Duración': s.duracion_servicio || '',
+      'Duración': s.duracion_calculada ? formatDuracion(s.duracion_calculada) : '',
       'Retraso': s.tiempo_retraso || '',
       // Cliente y Ruta
       'Cliente': s.nombre_cliente,
@@ -242,6 +242,21 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
     } catch {
       return dateStr;
     }
+  };
+
+  // Formatea intervalos PostgreSQL (HH:MM:SS.mmm) a formato legible
+  const formatDuracion = (duracion: string | null) => {
+    if (!duracion) return '-';
+    const match = duracion.match(/^(-?)(\d+):(\d+):(\d+)/);
+    if (!match) return duracion;
+    
+    const [, negativo, horas, minutos] = match;
+    const h = parseInt(horas);
+    const m = parseInt(minutos);
+    
+    if (h === 0 && m === 0) return '< 1m';
+    if (h > 0) return `${negativo}${h}h ${m}m`;
+    return `${negativo}${m}m`;
   };
 
   if (isLoading) {
@@ -525,7 +540,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
                         <TableCell className="text-center py-2">
                           <div className="flex items-center justify-center gap-1">
                             <Timer className="h-3 w-3 text-muted-foreground" />
-                            {s.duracion_servicio || '-'}
+                            {formatDuracion(s.duracion_calculada)}
                           </div>
                         </TableCell>
                         <TableCell className={`text-center py-2 rounded ${getRetrasoStyle(s.tiempo_retraso)}`}>
