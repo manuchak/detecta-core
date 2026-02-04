@@ -1,326 +1,549 @@
 
 
-# Plan: Tabla de Detalle de Servicios BI con Timeline Completo
+# Plan: Sistema Completo de Facturacion y Cobranza
 
-## Hallazgos Clave
+## Vision General
 
-### 1. Campo de Folio Interno del Cliente
-El equipo de Planeación llena el campo **`id_interno_cliente`** en la tabla `servicios_planificados`. Este es el folio/referencia con el que el cliente identifica el servicio y es **crítico para facturación**.
-
-**Problema actual:** Este campo NO está siendo transferido a `servicios_custodia` ni expuesto en la vista `vw_servicios_facturacion`.
-
-### 2. Timestamps del Journey del Servicio
-
-| Evento | Campo en DB | Tipo |
-|--------|-------------|------|
-| Servicio creado | `created_at` | timestamp |
-| Fecha/hora cita | `fecha_hora_cita` | timestamptz |
-| Asignación custodio | `fecha_hora_asignacion` | date |
-| Presentación custodio | `hora_presentacion` | date |
-| Inicio custodia | `hora_inicio_custodia` | date |
-| Arribo destino | `hora_arribo` | date |
-| Finalización | `hora_finalizacion` | date |
-| Duración total | `duracion_servicio` | interval |
-| Retraso | `tiempo_retraso` | interval |
-| Última actualización | `updated_time` | timestamptz |
+Transformar el modulo actual (Dashboard BI) en un sistema completo de gestion de facturacion y cuentas por cobrar, con la generacion de CFDI marcada como "Proximamente".
 
 ---
 
-## Arquitectura de la Solución
+## Arquitectura de Tabs Propuesta
 
-### Vista Enriquecida de Servicios (3 niveles de columnas)
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Receipt] Facturacion y Cobranza          [Feb 01-28] [7d] [30d] [Mes]  [Refresh]           │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [Dashboard] [Servicios] [Cuentas x Cobrar] [Clientes] [Facturas ✨Proximo]                  │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-```
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [Buscar...] [Estado▼] [Cliente▼] [Tipo▼] [Proveedor▼]    Columnas: [Basico][Operativo][Timeline][BI] │
-├───────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ ID │ Folio │Fecha│Cliente│ Ruta  │Custodio│Present│Inicio│Arribo│Fin│Duracion│Cobro│Costo│Margen│Est│
-├────┼───────┼─────┼───────┼───────┼────────┼───────┼──────┼──────┼───┼────────┼─────┼─────┼──────┼───┤
-│T00.│OT-123 │08/01│ Bimbo │CDMX-GD│Felix S.│ 05:30 │05:45 │11:20 │12:│ 06:45  │$8.5K│$3.2K│$5.3K │ ✓ │
-│SII.│RF-456 │08/01│Nestle │CDMX-QR│Irving V│ 04:00 │04:15 │05:10 │05:│ 01:15  │$3.2K│$1.5K│$1.7K │ ✓ │
-└────┴───────┴─────┴───────┴───────┴────────┴───────┴──────┴──────┴───┴────────┴─────┴─────┴──────┴───┘
-```
+| Tab | Estado | Descripcion |
+|-----|--------|-------------|
+| **Dashboard** | Existente | KPIs financieros y charts |
+| **Servicios** | Existente | Tabla BI de servicios con timeline |
+| **Cuentas x Cobrar** | NUEVO | Aging report, estados de cuenta, cobranza |
+| **Clientes** | NUEVO | Gestion de datos fiscales y condiciones |
+| **Facturas** | NUEVO + Badge | Generacion CFDI (deshabilitado con badge "Proximo") |
 
 ---
 
-## Cambios Requeridos
+## 1. Nuevas Tablas de Base de Datos
 
-### 1. Vista SQL: `vw_servicios_facturacion`
+### Tabla: `facturas`
 
-Agregar campos desde `servicios_planificados` (para obtener `id_interno_cliente`) y todos los timestamps de `servicios_custodia`:
+Almacena facturas emitidas (preparacion para CFDI):
 
 ```sql
-CREATE OR REPLACE VIEW vw_servicios_facturacion AS
-SELECT 
-  -- Identificación
-  sc.id,
-  sc.id_servicio,
-  sc.folio_cliente,
-  sp.id_interno_cliente,  -- NUEVO: Folio interno del cliente
+CREATE TABLE facturas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
-  -- Tiempos del journey
-  sc.fecha_hora_cita,
-  sc.fecha_hora_asignacion,
-  sc.hora_presentacion,
-  sc.hora_inicio_custodia,
-  sc.hora_arribo,
-  sc.hora_finalizacion,
-  sc.duracion_servicio,
-  sc.tiempo_retraso,
-  sc.created_at,
-  sc.updated_time,
+  -- Identificacion
+  numero_factura TEXT UNIQUE NOT NULL, -- FAC-2026-00001
+  uuid_sat TEXT,                        -- UUID del CFDI (futuro)
   
   -- Cliente
-  sc.nombre_cliente,
-  sc.comentarios_adicionales,
+  cliente_id UUID REFERENCES pc_clientes(id),
+  cliente_nombre TEXT NOT NULL,
+  cliente_rfc TEXT NOT NULL,
+  cliente_email TEXT,
   
-  -- Ruta
-  sc.ruta,
-  sc.origen,
-  sc.destino,
-  sc.local_foraneo,
+  -- Montos
+  subtotal NUMERIC(12,2) NOT NULL DEFAULT 0,
+  iva NUMERIC(12,2) NOT NULL DEFAULT 0,
+  total NUMERIC(12,2) NOT NULL DEFAULT 0,
+  moneda TEXT DEFAULT 'MXN',
+  tipo_cambio NUMERIC(8,4) DEFAULT 1,
   
-  -- Kilometraje
-  sc.km_teorico,
-  sc.km_recorridos,
-  sc.km_extras,
-  sc.km_auditado,
-  CASE 
-    WHEN COALESCE(sc.km_teorico, 0) > 0 THEN 
-      ROUND(((COALESCE(sc.km_recorridos, 0) - sc.km_teorico) / sc.km_teorico * 100)::numeric, 1)
-    ELSE NULL 
-  END as desviacion_km,
+  -- Fechas
+  fecha_emision DATE NOT NULL,
+  fecha_vencimiento DATE NOT NULL,
+  fecha_pago DATE,
   
-  -- Recursos
-  sc.nombre_custodio,
-  sc.telefono as telefono_custodio,
-  sc.nombre_armado,
-  sc.telefono_armado,
-  sc.proveedor,
-  sc.requiere_armado,
+  -- Estado
+  estado TEXT DEFAULT 'pendiente', -- pendiente, pagada, parcial, cancelada, vencida
   
-  -- Transporte
-  sc.tipo_unidad,
-  sc.tipo_carga,
-  sc.nombre_operador_transporte,
-  sc.placa_carga,
+  -- CFDI (futuro)
+  cfdi_version TEXT DEFAULT '4.0',
+  uso_cfdi TEXT DEFAULT 'G03',
+  forma_pago TEXT,
+  metodo_pago TEXT,
   
-  -- Tracking
-  sc.gadget,
-  sc.tipo_gadget,
-  
-  -- Financiero
-  sc.cobro_cliente,
-  sc.costo_custodio,
-  sc.casetas,
-  COALESCE(sc.cobro_cliente, 0) - COALESCE(sc.costo_custodio, 0) as margen_bruto,
-  CASE 
-    WHEN COALESCE(sc.cobro_cliente, 0) > 0 THEN 
-      ROUND((COALESCE(sc.cobro_cliente, 0) - COALESCE(sc.costo_custodio, 0)) / sc.cobro_cliente * 100, 1)
-    ELSE 0 
-  END as porcentaje_margen,
-  
-  -- Estado y tipo
-  sc.estado,
-  sc.tipo_servicio,
-  sc.estado_planeacion,
-  
-  -- Origen del registro
-  sc.creado_via,
-  sc.creado_por,
-  
-  -- Cliente datos adicionales
-  c.rfc as cliente_rfc,
-  c.email as cliente_email,
-  c.forma_pago_preferida
-
-FROM servicios_custodia sc
-LEFT JOIN servicios_planificados sp ON sc.id_servicio = sp.id_servicio
-LEFT JOIN clientes c ON LOWER(sc.nombre_cliente) = LOWER(c.nombre);
+  -- Metadata
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-### 2. Interface TypeScript: `ServicioFacturacion`
+### Tabla: `factura_partidas`
+
+Detalle de servicios incluidos en cada factura:
+
+```sql
+CREATE TABLE factura_partidas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  factura_id UUID REFERENCES facturas(id) ON DELETE CASCADE,
+  
+  -- Referencia al servicio
+  servicio_id INTEGER REFERENCES servicios_custodia(id),
+  id_servicio TEXT,          -- ID legible del servicio
+  id_interno_cliente TEXT,   -- Folio del cliente
+  
+  -- Detalle
+  descripcion TEXT NOT NULL,
+  fecha_servicio DATE,
+  ruta TEXT,
+  
+  -- Montos
+  cantidad INTEGER DEFAULT 1,
+  precio_unitario NUMERIC(12,2) NOT NULL,
+  importe NUMERIC(12,2) NOT NULL,
+  
+  -- SAT (futuro)
+  clave_prod_serv TEXT DEFAULT '78101800', -- Custodia de valores
+  clave_unidad TEXT DEFAULT 'E48',         -- Servicio
+  
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### Tabla: `pagos`
+
+Registro de pagos recibidos:
+
+```sql
+CREATE TABLE pagos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Referencia
+  factura_id UUID REFERENCES facturas(id),
+  cliente_id UUID REFERENCES pc_clientes(id),
+  
+  -- Monto
+  monto NUMERIC(12,2) NOT NULL,
+  moneda TEXT DEFAULT 'MXN',
+  
+  -- Forma de pago
+  forma_pago TEXT NOT NULL, -- transferencia, cheque, efectivo, tarjeta
+  referencia_bancaria TEXT,
+  banco TEXT,
+  
+  -- Fechas
+  fecha_pago DATE NOT NULL,
+  fecha_deposito DATE,
+  
+  -- Estado
+  estado TEXT DEFAULT 'aplicado', -- aplicado, devuelto, pendiente
+  
+  -- Metadata
+  notas TEXT,
+  comprobante_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id)
+);
+```
+
+### Tabla: `cobranza_seguimiento`
+
+Historial de gestiones de cobranza:
+
+```sql
+CREATE TABLE cobranza_seguimiento (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Referencias
+  factura_id UUID REFERENCES facturas(id),
+  cliente_id UUID REFERENCES pc_clientes(id),
+  
+  -- Tipo de accion
+  tipo_accion TEXT NOT NULL, -- llamada, email, visita, promesa_pago, escalamiento
+  
+  -- Detalle
+  descripcion TEXT NOT NULL,
+  contacto_nombre TEXT,
+  contacto_telefono TEXT,
+  
+  -- Promesa de pago
+  fecha_promesa_pago DATE,
+  monto_prometido NUMERIC(12,2),
+  promesa_cumplida BOOLEAN,
+  
+  -- Resultado
+  resultado TEXT, -- exitoso, sin_respuesta, rechazado, reprogramar
+  proxima_accion DATE,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id)
+);
+```
+
+### Modificar: `pc_clientes`
+
+Agregar campos fiscales faltantes:
+
+```sql
+ALTER TABLE pc_clientes ADD COLUMN IF NOT EXISTS
+  -- Datos fiscales
+  razon_social TEXT,
+  regimen_fiscal TEXT,
+  codigo_postal_fiscal TEXT,
+  direccion_fiscal TEXT,
+  uso_cfdi_default TEXT DEFAULT 'G03',
+  
+  -- Condiciones comerciales
+  dias_credito INTEGER DEFAULT 30,
+  limite_credito NUMERIC(12,2),
+  dia_corte INTEGER DEFAULT 15,
+  dia_pago INTEGER DEFAULT 30,
+  
+  -- Contacto facturacion
+  contacto_facturacion_nombre TEXT,
+  contacto_facturacion_email TEXT,
+  contacto_facturacion_tel TEXT,
+  
+  -- Cobranza
+  prioridad_cobranza TEXT DEFAULT 'normal', -- alta, normal, baja
+  notas_cobranza TEXT;
+```
+
+---
+
+## 2. Vistas SQL para Reportes
+
+### Vista: `vw_aging_cuentas_cobrar`
+
+Reporte de antiguedad de saldos:
+
+```sql
+CREATE VIEW vw_aging_cuentas_cobrar AS
+SELECT
+  f.cliente_id,
+  f.cliente_nombre,
+  f.cliente_rfc,
+  
+  -- Totales
+  SUM(f.total) as total_facturado,
+  SUM(COALESCE(p.total_pagado, 0)) as total_pagado,
+  SUM(f.total - COALESCE(p.total_pagado, 0)) as saldo_pendiente,
+  
+  -- Aging buckets
+  SUM(CASE WHEN f.fecha_vencimiento >= CURRENT_DATE THEN f.total - COALESCE(p.total_pagado, 0) ELSE 0 END) as vigente,
+  SUM(CASE WHEN CURRENT_DATE - f.fecha_vencimiento BETWEEN 1 AND 30 THEN f.total - COALESCE(p.total_pagado, 0) ELSE 0 END) as vencido_1_30,
+  SUM(CASE WHEN CURRENT_DATE - f.fecha_vencimiento BETWEEN 31 AND 60 THEN f.total - COALESCE(p.total_pagado, 0) ELSE 0 END) as vencido_31_60,
+  SUM(CASE WHEN CURRENT_DATE - f.fecha_vencimiento BETWEEN 61 AND 90 THEN f.total - COALESCE(p.total_pagado, 0) ELSE 0 END) as vencido_61_90,
+  SUM(CASE WHEN CURRENT_DATE - f.fecha_vencimiento > 90 THEN f.total - COALESCE(p.total_pagado, 0) ELSE 0 END) as vencido_90_mas,
+  
+  -- Metricas
+  COUNT(DISTINCT f.id) as num_facturas,
+  MAX(f.fecha_vencimiento) as ultima_factura,
+  MAX(p.ultima_fecha_pago) as ultimo_pago
+  
+FROM facturas f
+LEFT JOIN (
+  SELECT factura_id, SUM(monto) as total_pagado, MAX(fecha_pago) as ultima_fecha_pago
+  FROM pagos WHERE estado = 'aplicado'
+  GROUP BY factura_id
+) p ON f.id = p.factura_id
+WHERE f.estado NOT IN ('cancelada')
+GROUP BY f.cliente_id, f.cliente_nombre, f.cliente_rfc;
+```
+
+---
+
+## 3. Componentes de UI
+
+### 3.1 Tab: Cuentas por Cobrar
+
+**Archivo:** `components/CuentasPorCobrar.tsx`
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│ RESUMEN CXC                                                                                  │
+│ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐                   │
+│ │  $2.4M     │ │  $1.8M     │ │  $420K     │ │  $180K     │ │   42       │                   │
+│ │  Total CxC │ │  Vigente   │ │  Vencido   │ │  >60 dias  │ │   DSO      │                   │
+│ │  ▓▓▓▓▓▓▓▓▓ │ │  ▓▓▓▓▓▓▓   │ │  ▓▓▓       │ │  ▓▓ ⚠️    │ │            │                   │
+│ └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ AGING POR CLIENTE                                                                            │
+│ ┌──────────────────────────────────────────────────────────────────────────────────────────┐ │
+│ │ Cliente        │ Total   │ Vigente │ 1-30d  │ 31-60d │ 61-90d │ >90d   │ Acciones         │ │
+│ ├────────────────┼─────────┼─────────┼────────┼────────┼────────┼────────┼──────────────────┤ │
+│ │ Bimbo          │ $850K   │ $650K   │ $150K  │ $50K   │ -      │ -      │ [Ver] [Cobrar]   │ │
+│ │ Nestle         │ $420K   │ $300K   │ $80K   │ $40K   │ -      │ -      │ [Ver] [Cobrar]   │ │
+│ │ Femsa ⚠️       │ $280K   │ $50K    │ $80K   │ $50K   │ $100K  │ -      │ [Ver] [Cobrar]   │ │
+│ └──────────────────────────────────────────────────────────────────────────────────────────┘ │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ PROXIMAS ACCIONES DE COBRANZA                                                                │
+│ • Hoy: 3 llamadas programadas | 2 vencimientos | 1 promesa de pago                          │
+│ • Esta semana: 12 facturas por vencer ($450K)                                               │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Funcionalidades:
+- Tabla de aging con codigo de colores (verde vigente, amarillo 1-30, naranja 31-60, rojo >60)
+- Detalle por cliente con drill-down a facturas individuales
+- Boton "Registrar seguimiento" para agregar notas de cobranza
+- Estado de cuenta descargable en PDF
+- KPIs: DSO (Days Sales Outstanding), % de cartera vencida, eficiencia de cobranza
+
+### 3.2 Tab: Gestion de Clientes
+
+**Archivo:** `components/GestionClientes.tsx`
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Buscar cliente...] [+ Nuevo Cliente]                       [Solo activos] [Exportar]        │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│ │ Cliente       │ RFC           │ Dias Cred │ Limite    │ Saldo    │ Estado │ Acciones      │ │
+│ ├───────────────┼───────────────┼───────────┼───────────┼──────────┼────────┼───────────────┤ │
+│ │ Bimbo         │ BIM880630XX1  │ 30        │ $2M       │ $850K    │ ✅     │ [Editar] [Ver]│ │
+│ │ Nestle        │ NES970501XX2  │ 45        │ $1.5M     │ $420K    │ ✅     │ [Editar] [Ver]│ │
+│ │ Femsa         │ FEM920101XX3  │ 30        │ $500K     │ $280K ⚠️ │ ⚠️     │ [Editar] [Ver]│ │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Modal de Edicion de Cliente:**
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Editar Cliente: Bimbo                              [X]      │
+├─────────────────────────────────────────────────────────────┤
+│ DATOS FISCALES                                              │
+│ ┌─────────────────┐ ┌─────────────────┐                     │
+│ │ Razon Social    │ │ RFC             │                     │
+│ │ [Bimbo S.A...]  │ │ [BIM880630XX1]  │                     │
+│ └─────────────────┘ └─────────────────┘                     │
+│ ┌─────────────────┐ ┌─────────────────┐                     │
+│ │ Regimen Fiscal  │ │ C.P. Fiscal     │                     │
+│ │ [601 - General] │ │ [06600]         │                     │
+│ └─────────────────┘ └─────────────────┘                     │
+│ ┌───────────────────────────────────────┐                   │
+│ │ Direccion Fiscal                      │                   │
+│ │ [Av. Insurgentes Sur 1234...]         │                   │
+│ └───────────────────────────────────────┘                   │
+├─────────────────────────────────────────────────────────────┤
+│ CONDICIONES COMERCIALES                                     │
+│ ┌─────────────────┐ ┌─────────────────┐                     │
+│ │ Dias Credito    │ │ Limite Credito  │                     │
+│ │ [30]            │ │ [$2,000,000]    │                     │
+│ └─────────────────┘ └─────────────────┘                     │
+│ ┌─────────────────┐ ┌─────────────────┐                     │
+│ │ Dia de Corte    │ │ Dia de Pago     │                     │
+│ │ [15]            │ │ [30]            │                     │
+│ └─────────────────┘ └─────────────────┘                     │
+├─────────────────────────────────────────────────────────────┤
+│ CONTACTO FACTURACION                                        │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐ │
+│ │ Nombre          │ │ Email           │ │ Telefono        │ │
+│ │ [Ana Garcia]    │ │ [ana@bimbo.mx]  │ │ [55 1234 5678]  │ │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                                    [Cancelar] [💾 Guardar]  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 3.3 Tab: Facturas (con Badge "Proximo")
+
+**Archivo:** `components/FacturasTab.tsx`
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                              │
+│                        ┌─────────────────────────────────────┐                               │
+│                        │        🧾 Facturacion CFDI          │                               │
+│                        │                                     │                               │
+│                        │  ┌─────────────────────────────┐    │                               │
+│                        │  │  ✨ PROXIMAMENTE            │    │                               │
+│                        │  │     Integracion SAT 4.0     │    │                               │
+│                        │  └─────────────────────────────┘    │                               │
+│                        │                                     │                               │
+│                        │  Estamos trabajando en la           │                               │
+│                        │  integracion con PAC autorizado     │                               │
+│                        │  para generacion de CFDI 4.0.       │                               │
+│                        │                                     │                               │
+│                        │  Funcionalidades planeadas:         │                               │
+│                        │  • Generacion de facturas           │                               │
+│                        │  • Notas de credito                 │                               │
+│                        │  • Complementos de pago             │                               │
+│                        │  • Timbrado automatico              │                               │
+│                        │                                     │                               │
+│                        │  ─────────────────────────────────  │                               │
+│                        │  Por ahora, use la seccion          │                               │
+│                        │  "Servicios" para exportar datos    │                               │
+│                        │  y generar facturas en su sistema   │                               │
+│                        │  externo.                           │                               │
+│                        └─────────────────────────────────────┘                               │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4. Hooks y Servicios
+
+### 4.1 Hook: `useCuentasPorCobrar.ts`
 
 ```typescript
-export interface ServicioFacturacion {
-  // Identificación
-  id: number;
-  id_servicio: string;
-  folio_cliente: string;
-  id_interno_cliente: string | null;  // NUEVO: Folio interno
-  
-  // Timeline completo
-  fecha_hora_cita: string;
-  fecha_hora_asignacion: string | null;
-  hora_presentacion: string | null;
-  hora_inicio_custodia: string | null;
-  hora_arribo: string | null;
-  hora_finalizacion: string | null;
-  duracion_servicio: string | null;
-  tiempo_retraso: string | null;
-  created_at: string;
-  updated_time: string | null;
-  
-  // Cliente
-  nombre_cliente: string;
-  comentarios_adicionales: string | null;
-  
-  // Ruta
-  ruta: string;
-  origen: string;
-  destino: string;
-  local_foraneo: string;
-  
-  // Kilometraje
-  km_teorico: number | null;
-  km_recorridos: number;
-  km_extras: string | null;
-  km_auditado: boolean | null;
-  desviacion_km: number | null;
-  
-  // Recursos
-  nombre_custodio: string;
-  telefono_custodio: string | null;
-  nombre_armado: string | null;
-  telefono_armado: string | null;
-  proveedor: string | null;
-  requiere_armado: boolean;
-  
-  // Transporte
-  tipo_unidad: string | null;
-  tipo_carga: string | null;
-  nombre_operador_transporte: string | null;
-  placa_carga: string | null;
-  
-  // Tracking
-  gadget: string | null;
-  tipo_gadget: string | null;
-  
-  // Financiero
-  cobro_cliente: number;
-  costo_custodio: number;
-  casetas: string | null;
-  margen_bruto: number;
-  porcentaje_margen: number;
-  
-  // Estado
-  estado: string;
-  tipo_servicio: string;
-  estado_planeacion: string | null;
-  
-  // Origen
-  creado_via: string | null;
-  creado_por: string;
-  
-  // Cliente adicional
-  cliente_rfc: string | null;
-  cliente_email: string | null;
-  forma_pago_preferida: string | null;
+interface AgingData {
+  cliente_id: string;
+  cliente_nombre: string;
+  total_facturado: number;
+  saldo_pendiente: number;
+  vigente: number;
+  vencido_1_30: number;
+  vencido_31_60: number;
+  vencido_61_90: number;
+  vencido_90_mas: number;
+  dso: number;
+}
+
+interface CxCMetrics {
+  totalCxC: number;
+  totalVigente: number;
+  totalVencido: number;
+  totalVencidoMas60: number;
+  dsoPromedio: number;
+  eficienciaCobranza: number;
 }
 ```
 
-### 3. Tabla Enriquecida: `ServiciosConsulta.tsx`
-
-#### Grupos de Columnas con Toggle
-
-| Grupo | Columnas | Descripción |
-|-------|----------|-------------|
-| **Básico** | ID, Folio Interno, Fecha Cita, Cliente, Ruta, Cobro, Costo, Margen, Estado | Vista por defecto |
-| **Timeline** | Presentación, Inicio, Arribo, Fin, Duración, Retraso | Journey del servicio |
-| **Operativo** | Custodio, Armado, Proveedor, Tipo Unidad, Km Teórico/Real | Recursos y ejecución |
-| **BI** | % Margen, Desv. Km, Canal, Estado Plan, Km Auditado | Análisis avanzado |
-
-#### Formato Condicional para Timeline
-
-```
-• Retraso > 30 min     → Fondo rojo suave
-• Retraso > 15 min     → Fondo amarillo suave  
-• A tiempo o adelanto  → Fondo verde suave
-• Desviación km > 20%  → Icono de alerta
-```
-
-#### Búsqueda Expandida
-
-Buscar por:
-- ID servicio
-- Folio interno del cliente (`id_interno_cliente`)
-- Nombre cliente
-- Folio cliente (`folio_cliente`)
-- Nombre custodio
-- Ruta
-
----
-
-## Archivos a Modificar
-
-| Archivo | Acción | Cambios |
-|---------|--------|---------|
-| `vw_servicios_facturacion` | **SQL** | Agregar JOIN con servicios_planificados, incluir 20+ campos nuevos |
-| `useServiciosFacturacion.ts` | Modificar | Extender interface con 30+ campos |
-| `ServiciosConsulta.tsx` | Reescribir | Toggle de columnas, timeline, formato condicional |
-
----
-
-## Columnas Detalladas de Timeline
-
-| Columna | Descripción | Formato |
-|---------|-------------|---------|
-| **Folio Interno** | ID que usa el cliente para facturar | `OT-2026-001234` |
-| **Fecha Cita** | Hora programada del servicio | `dd/MM HH:mm` |
-| **Asignación** | Cuándo se asignó el custodio | `dd/MM HH:mm` |
-| **Presentación** | Hora que llegó el custodio al punto | `HH:mm` |
-| **Inicio** | Hora que inició la custodia | `HH:mm` |
-| **Arribo** | Hora de llegada al destino | `HH:mm` |
-| **Fin** | Hora de finalización | `HH:mm` |
-| **Duración** | Tiempo total del servicio | `HH:mm:ss` |
-| **Retraso** | Diferencia vs hora programada | `+15m` / `-5m` |
-
----
-
-## Beneficios para Facturación
-
-1. **Folio Interno**: Permite cruzar con sistemas del cliente para conciliación
-2. **Timeline completo**: Auditoría de tiempos para resolver disputas
-3. **Retrasos visibles**: Identificar servicios con penalizaciones
-4. **Duración real vs estimada**: Base para ajustes de tarifas
-5. **Exportación enriquecida**: Excel con datos completos para auditoría
-
----
-
-## Sección Técnica
-
-### Query para JOIN con servicios_planificados
-
-El `id_interno_cliente` vive en `servicios_planificados`. El JOIN se hace por `id_servicio`:
-
-```sql
-LEFT JOIN servicios_planificados sp ON sc.id_servicio = sp.id_servicio
-```
-
-### Formateo de Timestamps en Frontend
-
-Los campos `hora_*` en servicios_custodia son tipo `date` (no timestamp), por lo que se formatean directamente. Para `tiempo_retraso` (interval), usar el parser existente:
+### 4.2 Hook: `useClientesFiscales.ts`
 
 ```typescript
-import { parsePostgresInterval, formatTiempoRetrasoDisplay } from '@/utils/timeUtils';
-
-// Ejemplo de uso
-const retrasoDisplay = formatTiempoRetrasoDisplay(servicio.tiempo_retraso);
-// Output: "15m tarde" o "5m antes" o "A tiempo"
+interface ClienteFiscal {
+  id: string;
+  nombre: string;
+  razon_social: string;
+  rfc: string;
+  regimen_fiscal: string;
+  codigo_postal_fiscal: string;
+  dias_credito: number;
+  limite_credito: number;
+  saldo_actual: number;
+  estado_credito: 'disponible' | 'limite' | 'bloqueado';
+}
 ```
 
-### Implementación del Toggle de Columnas
+### 4.3 Hook: `useCobranzaSeguimiento.ts`
 
 ```typescript
-const [visibleGroups, setVisibleGroups] = useState<Set<string>>(
-  new Set(['basic'])
-);
+interface SeguimientoCobranza {
+  id: string;
+  factura_id: string;
+  cliente_nombre: string;
+  tipo_accion: 'llamada' | 'email' | 'visita' | 'promesa_pago';
+  descripcion: string;
+  fecha_promesa_pago?: Date;
+  monto_prometido?: number;
+  resultado: string;
+  created_at: Date;
+  created_by_name: string;
+}
+```
 
-const COLUMN_GROUPS = {
-  basic: ['id_servicio', 'id_interno_cliente', 'fecha_hora_cita', 'nombre_cliente', 'ruta', 'cobro_cliente', 'costo_custodio', 'margen_bruto', 'estado'],
-  timeline: ['hora_presentacion', 'hora_inicio_custodia', 'hora_arribo', 'hora_finalizacion', 'duracion_servicio', 'tiempo_retraso'],
-  operativo: ['nombre_custodio', 'nombre_armado', 'proveedor', 'tipo_unidad', 'km_teorico', 'km_recorridos'],
-  bi: ['porcentaje_margen', 'desviacion_km', 'creado_via', 'estado_planeacion', 'km_auditado']
+---
+
+## 5. Estructura de Archivos
+
+```
+src/pages/Facturacion/
+├── FacturacionHub.tsx                    # Hub principal (modificar)
+├── components/
+│   ├── FacturacionDashboard.tsx          # Existente
+│   ├── FacturacionHeroBar.tsx            # Existente
+│   ├── ServiciosConsulta.tsx             # Existente
+│   ├── CuentasPorCobrar/                 # NUEVO
+│   │   ├── CuentasPorCobrarTab.tsx
+│   │   ├── AgingTable.tsx
+│   │   ├── AgingKPIBar.tsx
+│   │   ├── SeguimientoCobranzaModal.tsx
+│   │   └── EstadoCuentaPDF.tsx
+│   ├── GestionClientes/                  # NUEVO
+│   │   ├── GestionClientesTab.tsx
+│   │   ├── ClientesTable.tsx
+│   │   └── ClienteFormModal.tsx
+│   └── Facturas/                         # NUEVO
+│       └── FacturasComingSoon.tsx
+└── hooks/
+    ├── useServiciosFacturacion.ts        # Existente
+    ├── useFacturacionMetrics.ts          # Existente
+    ├── useCuentasPorCobrar.ts            # NUEVO
+    ├── useClientesFiscales.ts            # NUEVO
+    └── useCobranzaSeguimiento.ts         # NUEVO
+```
+
+---
+
+## 6. Migraciones SQL
+
+### Orden de Ejecucion
+
+1. `001_alter_pc_clientes_fiscal.sql` - Agregar campos fiscales a clientes
+2. `002_create_facturas.sql` - Tabla de facturas
+3. `003_create_factura_partidas.sql` - Detalle de facturas
+4. `004_create_pagos.sql` - Registro de pagos
+5. `005_create_cobranza_seguimiento.sql` - Historial de cobranza
+6. `006_create_vw_aging.sql` - Vista de aging report
+7. `007_rls_policies.sql` - Politicas de seguridad
+
+---
+
+## 7. Resumen de Entregables
+
+| Componente | Descripcion | Estado |
+|------------|-------------|--------|
+| **Dashboard** | KPIs y charts financieros | Existente |
+| **Servicios** | Tabla BI con timeline | Existente |
+| **Cuentas x Cobrar** | Aging, DSO, seguimiento | NUEVO |
+| **Gestion Clientes** | Datos fiscales, condiciones | NUEVO |
+| **Facturas CFDI** | Generacion SAT | Badge "Proximo" |
+
+---
+
+## Seccion Tecnica
+
+### Calculo de DSO (Days Sales Outstanding)
+
+```typescript
+// DSO = (Cuentas por Cobrar / Ventas a Credito) * Dias del Periodo
+const calcularDSO = (cxc: number, ventasPeriodo: number, diasPeriodo: number = 30) => {
+  if (ventasPeriodo === 0) return 0;
+  return Math.round((cxc / ventasPeriodo) * diasPeriodo);
 };
+```
+
+### Eficiencia de Cobranza
+
+```typescript
+// Eficiencia = (Pagos Recibidos / Facturas Emitidas) * 100
+const calcularEficiencia = (pagosRecibidos: number, facturasEmitidas: number) => {
+  if (facturasEmitidas === 0) return 100;
+  return Math.min(100, (pagosRecibidos / facturasEmitidas) * 100);
+};
+```
+
+### Codigo de Colores Aging
+
+```typescript
+const getAgingColor = (dias: number) => {
+  if (dias <= 0) return 'bg-emerald-500/10 text-emerald-700'; // Vigente
+  if (dias <= 30) return 'bg-amber-500/10 text-amber-700';    // 1-30
+  if (dias <= 60) return 'bg-orange-500/10 text-orange-700';  // 31-60
+  if (dias <= 90) return 'bg-red-500/10 text-red-700';        // 61-90
+  return 'bg-red-700/20 text-red-800 font-bold';               // >90
+};
+```
+
+### Badge "Proximamente"
+
+```tsx
+<Badge className="bg-gradient-to-r from-violet-500 to-purple-500 text-white border-0">
+  <Sparkles className="h-3 w-3 mr-1" />
+  Proximo
+</Badge>
 ```
 
