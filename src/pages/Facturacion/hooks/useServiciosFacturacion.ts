@@ -2,20 +2,29 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ServicioFacturacion {
-  // Identificación
+  // Identificación completa
   id: number;
-  id_servicio: string;
+  folio_saphiro: string;           // ID completo (ej: EMEDEME-234)
+  id_servicio: string;             // Backward compatibility
+  folio_planeacion: string | null;
   folio_cliente: string;
-  id_interno_cliente: string | null;  // Folio interno del cliente
+  referencia_cliente: string | null;
+  id_interno_cliente: string | null;  // Backward compatibility
   
-  // Timeline completo
-  fecha_hora_cita: string;
+  // Timeline Planeación
+  fecha_recepcion: string | null;      // Cuando se recibió el servicio (sp.created_at)
+  fecha_asignacion: string | null;     // Cuando se asignó custodio
+  fecha_asignacion_armado: string | null;
+  
+  // Timeline Operativo
+  fecha_hora_cita: string;             // FECHA ANCLA del servicio
   fecha_hora_asignacion: string | null;
-  hora_presentacion: string | null;
-  hora_inicio_custodia: string | null;
-  hora_arribo: string | null;
-  hora_finalizacion: string | null;
+  hora_presentacion: string | null;    // Custodio en sitio
+  hora_inicio_custodia: string | null; // Inicio real del servicio
+  hora_arribo: string | null;          // Llegada a destino
+  hora_finalizacion: string | null;    // Fin del servicio
   duracion_servicio: string | null;
+  duracion_calculada: string | null;   // Calculada: fin - inicio
   tiempo_retraso: string | null;
   created_at: string;
   updated_time: string | null;
@@ -35,13 +44,20 @@ export interface ServicioFacturacion {
   km_recorridos: number;
   km_extras: string | null;
   km_auditado: boolean | null;
-  desviacion_km: number | null;
+  desviacion_km: number | null;        // Porcentaje de desviación
   
-  // Recursos
+  // Custodio
   nombre_custodio: string;
+  custodio_id: string | null;
   telefono_custodio: string | null;
+  vehiculo_custodio: string | null;
+  placa_custodio: string | null;
+  
+  // Armado
   nombre_armado: string | null;
+  armado_id: string | null;
   telefono_armado: string | null;
+  tipo_asignacion_armado: string | null; // 'interno' o 'proveedor'
   proveedor: string | null;
   requiere_armado: boolean;
   
@@ -49,6 +65,7 @@ export interface ServicioFacturacion {
   tipo_unidad: string | null;
   tipo_carga: string | null;
   nombre_operador_transporte: string | null;
+  telefono_operador: string | null;
   placa_carga: string | null;
   
   // Tracking
