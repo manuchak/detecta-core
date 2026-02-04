@@ -169,6 +169,22 @@
   }
   
   /* ====================================
+   * Radix Popper Zoom Compensation
+   * Applies to all positioned dropdowns, tooltips, popovers
+   * ==================================== */
+  [data-radix-popper-content-wrapper] {
+    zoom: 1.428571 !important;
+  }
+  
+  /* Firefox fallback for Radix Popper */
+  @supports not (zoom: 1.428571) {
+    [data-radix-popper-content-wrapper] {
+      transform: scale(1.428571);
+      transform-origin: var(--radix-popper-transform-origin);
+    }
+  }
+  
+  /* ====================================
    * Viewport Compensation Utility Classes
    * Use these instead of min-h-screen or 100vh
    * ==================================== */
