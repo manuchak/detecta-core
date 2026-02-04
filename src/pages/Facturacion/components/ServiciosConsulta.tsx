@@ -273,7 +273,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
         <CardContent className="p-4">
           <div className="animate-pulse space-y-3">
             <div className="h-8 bg-muted rounded w-full" />
-            <div className="h-[calc(100vh-280px)] bg-muted rounded" />
+            <div className="h-[calc(var(--vh-full)-280px)] bg-muted rounded" />
           </div>
         </CardContent>
       </Card>
@@ -376,7 +376,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
           </div>
 
           {/* Tabla con altura dinámica y scroll horizontal */}
-          <div className="rounded-md border border-border/50 overflow-auto h-[calc(100vh-340px)] min-h-[300px]">
+          <div className="rounded-md border border-border/50 overflow-auto h-[calc(var(--vh-full)-340px)] min-h-[300px]">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>

@@ -142,7 +142,7 @@ export function ClienteFacturasDrawer({
         </div>
 
         {/* Facturas Table */}
-        <ScrollArea className="h-[calc(100vh-380px)]">
+        <ScrollArea className="h-[calc(var(--vh-full)-380px)]">
           {isLoading ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (

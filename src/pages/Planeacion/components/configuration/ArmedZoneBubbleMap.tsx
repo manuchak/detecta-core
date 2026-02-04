@@ -69,7 +69,7 @@ const ZONE_COLORS = {
   veryLow: 'hsl(45, 93%, 47%)',   // yellow-400
 };
 
-export function ArmedZoneBubbleMap({ estadisticasZona, height = 'calc(100vh - 280px)' }: ArmedZoneBubbleMapProps) {
+export function ArmedZoneBubbleMap({ estadisticasZona, height = 'calc(var(--vh-full) - 280px)' }: ArmedZoneBubbleMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
