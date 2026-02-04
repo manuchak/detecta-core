@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Download, BarChart3, Users, FileText } from 'lucide-react';
+import { RefreshCw, Download, BarChart3, Users, Workflow } from 'lucide-react';
 import { 
   useAgingCuentasPorCobrar, 
   useCxCMetrics, 
@@ -18,6 +18,7 @@ import { EstadoCuentaModal } from './EstadoCuentaModal';
 import { AgendaCobranzaPanel } from './AgendaCobranzaPanel';
 import { HistorialCobranzaTimeline } from './HistorialCobranzaTimeline';
 import { FinancialReportsPanel } from '../FinancialReports';
+import { CobranzaWorkflowTab } from '../CobranzaWorkflow';
 import * as XLSX from 'xlsx';
 
 export function CuentasPorCobrarTab() {
@@ -92,12 +93,16 @@ export function CuentasPorCobrarTab() {
       {/* KPI Bar */}
       <AgingKPIBar metrics={metrics} isLoading={isLoading} />
 
-      {/* Tabs for Aging vs Reports */}
+      {/* Tabs for Aging vs Reports vs Workflow */}
       <Tabs defaultValue="aging" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 h-9">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 h-9">
           <TabsTrigger value="aging" className="flex items-center gap-1.5 text-xs">
             <Users className="h-3.5 w-3.5" />
             Aging por Cliente
+          </TabsTrigger>
+          <TabsTrigger value="workflow" className="flex items-center gap-1.5 text-xs">
+            <Workflow className="h-3.5 w-3.5" />
+            Workflow Cobranza
           </TabsTrigger>
           <TabsTrigger value="reportes" className="flex items-center gap-1.5 text-xs">
             <BarChart3 className="h-3.5 w-3.5" />
@@ -167,6 +172,10 @@ export function CuentasPorCobrarTab() {
               <HistorialCobranzaTimeline maxItems={10} />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="workflow" className="mt-4">
+          <CobranzaWorkflowTab />
         </TabsContent>
 
         <TabsContent value="reportes" className="mt-4">
