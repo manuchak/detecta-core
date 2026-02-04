@@ -21,7 +21,8 @@ import {
   Package,
   Settings,
   LogOut,
-  User
+  User,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +72,13 @@ const modules: Module[] = [
     icon: Package,
     path: '/wms',
     roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
+  },
+  {
+    id: 'facturacion',
+    label: 'Facturación',
+    icon: Receipt,
+    path: '/facturacion',
+    roles: ['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones']
   }
 ];
 

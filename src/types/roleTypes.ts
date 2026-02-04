@@ -17,6 +17,10 @@ export type Role =
   | 'instalador'
   | 'soporte'
   | 'planificador'
+  | 'facturacion_admin'
+  | 'facturacion'
+  | 'finanzas_admin'
+  | 'finanzas'
   | 'pending'
   | 'unverified';
 
