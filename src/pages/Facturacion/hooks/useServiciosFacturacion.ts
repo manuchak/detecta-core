@@ -168,16 +168,17 @@ export function useProveedoresUnicos() {
   return useQuery({
     queryKey: ['proveedores-facturacion-unicos'],
     queryFn: async () => {
+      // Obtener proveedores reales de la tabla proveedores_armados (no de servicios_custodia)
+      // Esto evita mostrar datos legacy incorrectos como "EX-MILITAR", "Seter", etc.
       const { data, error } = await supabase
-        .from('servicios_custodia')
-        .select('proveedor')
-        .not('proveedor', 'is', null)
-        .order('proveedor');
+        .from('proveedores_armados')
+        .select('nombre_empresa')
+        .eq('activo', true)
+        .order('nombre_empresa');
 
       if (error) throw error;
       
-      const proveedores = [...new Set(data?.map(d => d.proveedor).filter(Boolean))];
-      return proveedores as string[];
+      return data?.map(d => d.nombre_empresa).filter(Boolean) as string[];
     },
     staleTime: 5 * 60 * 1000,
   });
