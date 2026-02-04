@@ -90,6 +90,20 @@ export function ContextualEditModal({
     
     // 🚀 Handle each mode explicitly with switch
     switch (mode) {
+      case 'flexible_assign':
+        // Flexible assign mode - let parent show assignment tabs directly
+        console.log('[ContextualEditModal] 🔄 Flexible assign mode - starting assignment flow');
+        if (!onStartReassignment) {
+          toast.error('No se pudo iniciar el flujo de asignación');
+          return;
+        }
+        
+        if (service) {
+          // Start with custodian tab (default), armed tab will be available
+          onStartReassignment('custodian', service);
+        }
+        break;
+        
       case 'custodian_only':
       case 'armed_only':
         // Handle reassignment flow
@@ -239,6 +253,15 @@ export function ContextualEditModal({
       let updatedData: Partial<EditableService> = {};
       
       switch (selectedEditMode) {
+        case 'flexible_assign':
+          // Fallback: if somehow reached here, redirect to assignment flow
+          if (onStartReassignment) {
+            onStartReassignment('custodian', service);
+          } else {
+            toast.error('No se pudo iniciar el flujo de asignación');
+          }
+          return; // IMPORTANT: return to prevent modal close
+          
         case 'remove_armed':
           updatedData = {
             requiere_armado: false,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertTriangle, Info, Clock } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, Clock, Users } from 'lucide-react';
 import type { EditMode } from '@/contexts/EditWorkflowContext';
 import type { EditableService } from './EditServiceModal';
 
@@ -17,6 +17,20 @@ export function ContextualFeedback({ service, selectedMode }: ContextualFeedback
     const hasCustodio = service.custodio_asignado;
     
     switch (selectedMode) {
+      case 'flexible_assign':
+        return {
+          icon: <Users className="h-4 w-4 text-blue-600" />,
+          title: 'Asignación Flexible',
+          description: 'Asigna custodio y armado en el orden que prefieras',
+          details: [
+            'Puedes empezar por custodio o por armado',
+            'Ambas asignaciones son requeridas',
+            'El servicio se completará cuando ambos estén asignados'
+          ],
+          estimatedTime: '3 minutos',
+          color: 'blue'
+        };
+        
       case 'custodian_only':
         return {
           icon: <Info className="h-4 w-4 text-blue-600" />,
