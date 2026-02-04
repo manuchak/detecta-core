@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Download, CreditCard, FileText } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, Download, BarChart3, Users, FileText } from 'lucide-react';
 import { 
   useAgingCuentasPorCobrar, 
   useCxCMetrics, 
@@ -16,6 +17,7 @@ import { RegistrarPagoModal } from './RegistrarPagoModal';
 import { EstadoCuentaModal } from './EstadoCuentaModal';
 import { AgendaCobranzaPanel } from './AgendaCobranzaPanel';
 import { HistorialCobranzaTimeline } from './HistorialCobranzaTimeline';
+import { FinancialReportsPanel } from '../FinancialReports';
 import * as XLSX from 'xlsx';
 
 export function CuentasPorCobrarTab() {
@@ -90,67 +92,87 @@ export function CuentasPorCobrarTab() {
       {/* KPI Bar */}
       <AgingKPIBar metrics={metrics} isLoading={isLoading} />
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Aging Table - Takes 2 columns */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="py-3 px-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">
-                  Antigüedad de Saldos por Cliente
-                </CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-8"
-                    onClick={handleExport}
-                  >
-                    <Download className="h-3.5 w-3.5 mr-1.5" />
-                    Exportar
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    className="h-8 w-8"
-                    onClick={() => refetch()}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <AgingTable 
-                data={agingData}
-                isLoading={isLoading}
-                onViewClient={handleViewClient}
-                onCobranza={handleCobranza}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      {/* Tabs for Aging vs Reports */}
+      <Tabs defaultValue="aging" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 h-9">
+          <TabsTrigger value="aging" className="flex items-center gap-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Aging por Cliente
+          </TabsTrigger>
+          <TabsTrigger value="reportes" className="flex items-center gap-1.5 text-xs">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Reportes Financieros
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Side Panel - Agenda + Historial */}
-        <div className="space-y-4">
-          <AgendaCobranzaPanel 
-            onAccionClick={(accion) => {
-              const cliente = agingData.find(c => c.cliente_id === accion.cliente_id);
-              if (cliente) {
-                setSelectedCliente(cliente);
-                if (accion.tipo === 'promesa' || accion.tipo === 'vencimiento') {
-                  setShowFacturasDrawer(true);
-                } else {
-                  setShowCobranzaModal(true);
-                }
-              }
-            }}
-          />
-          
-          <HistorialCobranzaTimeline maxItems={10} />
-        </div>
-      </div>
+        <TabsContent value="aging" className="mt-4">
+          {/* Main Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Aging Table - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold">
+                      Antigüedad de Saldos por Cliente
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8"
+                        onClick={handleExport}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                        Exportar
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => refetch()}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-4">
+                  <AgingTable 
+                    data={agingData}
+                    isLoading={isLoading}
+                    onViewClient={handleViewClient}
+                    onCobranza={handleCobranza}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Side Panel - Agenda + Historial */}
+            <div className="space-y-4">
+              <AgendaCobranzaPanel 
+                onAccionClick={(accion) => {
+                  const cliente = agingData.find(c => c.cliente_id === accion.cliente_id);
+                  if (cliente) {
+                    setSelectedCliente(cliente);
+                    if (accion.tipo === 'promesa' || accion.tipo === 'vencimiento') {
+                      setShowFacturasDrawer(true);
+                    } else {
+                      setShowCobranzaModal(true);
+                    }
+                  }
+                }}
+              />
+              
+              <HistorialCobranzaTimeline maxItems={10} />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="reportes" className="mt-4">
+          <FinancialReportsPanel />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <SeguimientoCobranzaModal 
@@ -165,7 +187,6 @@ export function CuentasPorCobrarTab() {
         cliente={selectedCliente}
         onRegistrarPago={handleRegistrarPagoFactura}
         onVerDetalle={(factura) => {
-          // Could open a detail modal in the future
           console.log('Ver detalle factura:', factura);
         }}
       />
