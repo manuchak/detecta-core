@@ -5,7 +5,26 @@
 
 @layer base {
   :root {
-    /* Minimalist Grayscale Design System */
+    /* ====================================
+     * Viewport Compensation System
+     * Compensates for global zoom: 0.7
+     * ==================================== */
+    --zoom-scale: 0.7;
+    --zoom-compensation: 1.4286; /* 1 / 0.7 */
+    
+    /* Compensated viewport heights */
+    --vh-full: calc(100vh * var(--zoom-compensation));
+    --vh-90: calc(90vh * var(--zoom-compensation));
+    --vh-80: calc(80vh * var(--zoom-compensation));
+    
+    /* Common content heights (minus TopBar ~56px) */
+    --content-height-full: calc(var(--vh-full) - 56px);
+    --content-height-with-tabs: calc(var(--vh-full) - 120px);
+    --content-height-with-filters: calc(var(--vh-full) - 180px);
+    
+    /* ====================================
+     * Minimalist Grayscale Design System
+     * ==================================== */
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
     
@@ -147,6 +166,30 @@
       width: 142.86%;
       overflow-x: hidden;
     }
+  }
+  
+  /* ====================================
+   * Viewport Compensation Utility Classes
+   * Use these instead of min-h-screen or 100vh
+   * ==================================== */
+  .h-viewport-full {
+    height: var(--vh-full);
+  }
+  
+  .min-h-viewport-full {
+    min-height: var(--vh-full);
+  }
+  
+  .h-content-full {
+    height: var(--content-height-full);
+  }
+  
+  .h-content-tabs {
+    height: var(--content-height-with-tabs);
+  }
+  
+  .h-content-filters {
+    height: var(--content-height-with-filters);
   }
   
   /* Smart Scrollbar for Sidebar - Hidden until hover */

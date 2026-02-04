@@ -858,7 +858,7 @@ export function ScheduledServicesTab() {
         )}
 
         {!error && summary?.services_data && summary.services_data.length > 0 && (
-          <div ref={containerRef} className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+          <div ref={containerRef} className="space-y-2 max-h-[calc(var(--vh-full)-380px)] overflow-y-auto pr-1">
             {Object.entries(groupedServices).map(([hour, services]) => (
               <div key={hour} className="space-y-1.5">
                 {/* Hour Divider */}

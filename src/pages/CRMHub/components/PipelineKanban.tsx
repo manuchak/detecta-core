@@ -182,7 +182,7 @@ function StageColumn({ stage, deals, stageAverages }: StageColumnProps) {
         </div>
       </div>
 
-      <div className="space-y-2 max-h-[calc(100vh-450px)] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[calc(var(--vh-full)-450px)] overflow-y-auto pr-1">
         {deals.length === 0 ? (
           <div className="text-xs text-muted-foreground text-center py-4">
             Sin deals en esta etapa
