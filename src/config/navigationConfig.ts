@@ -49,6 +49,7 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'supply', label: 'Supply & Talento', icon: Users },
   { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
+  { id: 'facturacion', label: 'Facturación', icon: Receipt },
   { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
   { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
 ];
@@ -322,12 +323,13 @@ export const navigationModules: NavigationModule[] = [
     group: 'operations',
     roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
   },
+  // ===== FACTURACIÓN GROUP =====
   {
     id: 'facturacion',
     label: 'Facturación',
     icon: Receipt,
     path: '/facturacion',
-    group: 'operations',
+    group: 'facturacion',
     roles: ['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones'],
     children: [
       {
