@@ -14677,22 +14677,30 @@ export type Database = {
       vw_servicios_facturacion: {
         Row: {
           casetas: string | null
-          cliente_email: string | null
-          cliente_rfc: string | null
           cobro_cliente: number | null
+          comentarios_adicionales: string | null
           costo_custodio: number | null
-          costo_lista: number | null
           creado_por: string | null
+          creado_via: string | null
           created_at: string | null
           destino: string | null
+          desviacion_km: number | null
           duracion_servicio: unknown
           estado: string | null
+          estado_planeacion: string | null
+          fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
           folio_cliente: string | null
-          forma_pago_preferida: string | null
           gadget: string | null
+          hora_arribo: string | null
+          hora_finalizacion: string | null
+          hora_inicio_custodia: string | null
+          hora_presentacion: string | null
           id: number | null
+          id_interno_cliente: string | null
           id_servicio: string | null
+          km_auditado: boolean | null
+          km_extras: string | null
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
@@ -14700,12 +14708,21 @@ export type Database = {
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
+          nombre_operador_transporte: string | null
           origen: string | null
+          placa_carga: string | null
           porcentaje_margen: number | null
-          precio_lista: number | null
           proveedor: string | null
+          requiere_armado: boolean | null
           ruta: string | null
+          telefono_armado: string | null
+          telefono_custodio: string | null
+          tiempo_retraso: unknown
+          tipo_carga: string | null
+          tipo_gadget: string | null
           tipo_servicio: string | null
+          tipo_unidad: string | null
+          updated_time: string | null
         }
         Relationships: []
       }
