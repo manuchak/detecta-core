@@ -1,32 +1,28 @@
 
+# Plan: Facturación como Grupo Independiente en Sidebar
 
-# Plan: Agregar Módulo Facturación al Sidebar
+## Situación Actual
 
-## Diagnóstico
+Facturación está configurado dentro del grupo **"operations"**, pero debe ser un grupo separado como Dashboard, Operaciones, etc.
 
-El módulo de Facturación fue agregado a:
-- ✅ `GlobalNav.tsx` (barra superior) - Sí aparece ahí
-- ❌ `navigationConfig.ts` (sidebar lateral) - **Falta agregar**
+## Cambios a Realizar
 
-El usuario está viendo el sidebar (`UnifiedSidebar`), que lee su configuración desde `navigationConfig.ts`.
+### Archivo: `src/config/navigationConfig.ts`
 
----
-
-## Solución
-
-### Cambio 1: Agregar icono Receipt al import
+#### 1. Agregar nuevo grupo "facturacion" en `navigationGroups`
 
 ```typescript
-// src/config/navigationConfig.ts - línea 1-31
-import { 
-  // ... iconos existentes ...
-  Receipt  // NUEVO
-} from 'lucide-react';
+export const navigationGroups: NavigationGroup[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'supply', label: 'Supply & Talento', icon: Users },
+  { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
+  { id: 'facturacion', label: 'Facturación', icon: Receipt },  // NUEVO
+  { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
+  { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
+];
 ```
 
-### Cambio 2: Agregar módulo Facturación
-
-Agregar después del módulo `wms` en el grupo **operations**:
+#### 2. Cambiar el módulo facturacion de `group: 'operations'` a `group: 'facturacion'`
 
 ```typescript
 {
@@ -34,60 +30,49 @@ Agregar después del módulo `wms` en el grupo **operations**:
   label: 'Facturación',
   icon: Receipt,
   path: '/facturacion',
-  group: 'operations',  // Agrupado con Operaciones
-  roles: [
-    'admin', 
-    'owner', 
-    'bi',
-    'facturacion_admin', 
-    'facturacion',
-    'finanzas_admin',
-    'finanzas',
-    'coordinador_operaciones'
-  ],
-  children: [
-    {
-      id: 'facturacion_dashboard',
-      label: 'Dashboard BI',
-      path: '/facturacion',
-      icon: LayoutDashboard
-    },
-    {
-      id: 'facturacion_servicios',
-      label: 'Servicios',
-      path: '/facturacion?tab=servicios',
-      icon: FileText
-    }
-  ]
+  group: 'facturacion',  // Cambiado de 'operations'
+  roles: ['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones'],
+  children: [...]
 }
 ```
 
----
-
-## Archivo a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/config/navigationConfig.ts` | Agregar import de `Receipt` + módulo facturación |
-
----
-
-## Resultado Esperado
-
-El módulo de Facturación aparecerá en el sidebar dentro del grupo **OPERACIONES**, con:
-- Icono de Receipt (recibo)
-- Submenús: Dashboard BI, Servicios
-- Acceso restringido a roles de facturación/finanzas
+## Resultado Visual en Sidebar
 
 ```text
+DASHBOARD
+├── Ejecutivo
+└── KPIs
+
+SUPPLY & TALENTO
+├── Pipeline
+└── ...
+
 OPERACIONES
 ├── Planeación
 ├── Servicios
-├── Instaladores
-├── Rutas
 ├── WMS
-└── Facturación ← NUEVO
-    ├── Dashboard BI
-    └── Servicios
+└── ...
+
+FACTURACIÓN          ← NUEVO GRUPO INDEPENDIENTE
+├── Dashboard BI
+└── Servicios
+
+MONITOREO & SOPORTE
+└── ...
+
+SISTEMA ▾
+└── ...
 ```
 
+## Roles con Acceso
+
+| Rol | Nivel de Acceso |
+|-----|-----------------|
+| `admin` | Completo |
+| `owner` | Completo |
+| `bi` | Completo |
+| `facturacion_admin` | Completo |
+| `finanzas_admin` | Completo |
+| `facturacion` | Limitado (consulta) |
+| `finanzas` | Limitado (consulta) |
+| `coordinador_operaciones` | Completo |
