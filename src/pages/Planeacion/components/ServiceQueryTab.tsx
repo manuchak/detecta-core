@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useServiceQuery } from '@/hooks/useServiceQuery';
 import { ServiceQueryCard } from './ServiceQueryCard';
 import { ServiceDetailsModal } from './ServiceDetailsModal';
-import { Search, Calendar, X, Loader2, AlertCircle, Clock, Lightbulb } from 'lucide-react';
+import { Search, Calendar, X, Loader2, AlertCircle, Clock, Lightbulb, UserCircle } from 'lucide-react';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -31,9 +31,10 @@ function addRecentSearch(search: string) {
 }
 
 export function ServiceQueryTab() {
-  const [searchMode, setSearchMode] = useState<'id' | 'client'>('id');
+  const [searchMode, setSearchMode] = useState<'id' | 'client' | 'custodian'>('id');
   const [serviceId, setServiceId] = useState('');
   const [clientName, setClientName] = useState('');
+  const [custodianName, setCustodianName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<ServiceQueryResult | null>(null);
@@ -51,6 +52,7 @@ export function ServiceQueryTab() {
     error,
     searchByServiceId,
     searchByClientAndDate,
+    searchByCustodian,
     clearResults
   } = useServiceQuery();
 
@@ -61,7 +63,7 @@ export function ServiceQueryTab() {
         setRecentSearches(getRecentSearches());
       }
       searchByServiceId(serviceId);
-    } else {
+    } else if (searchMode === 'client') {
       if (clientName.trim()) {
         addRecentSearch(clientName.trim());
         setRecentSearches(getRecentSearches());
@@ -69,22 +71,32 @@ export function ServiceQueryTab() {
       const start = startDate ? new Date(startDate) : undefined;
       const end = endDate ? new Date(endDate) : undefined;
       searchByClientAndDate(clientName, start, end);
+    } else if (searchMode === 'custodian') {
+      if (custodianName.trim()) {
+        addRecentSearch(custodianName.trim());
+        setRecentSearches(getRecentSearches());
+      }
+      searchByCustodian(custodianName);
     }
-  }, [searchMode, serviceId, clientName, startDate, endDate, searchByServiceId, searchByClientAndDate]);
+  }, [searchMode, serviceId, clientName, custodianName, startDate, endDate, searchByServiceId, searchByClientAndDate, searchByCustodian]);
 
   const handleRecentSearchClick = useCallback((search: string) => {
     if (searchMode === 'id') {
       setServiceId(search);
       searchByServiceId(search);
-    } else {
+    } else if (searchMode === 'client') {
       setClientName(search);
       searchByClientAndDate(search);
+    } else if (searchMode === 'custodian') {
+      setCustodianName(search);
+      searchByCustodian(search);
     }
-  }, [searchMode, searchByServiceId, searchByClientAndDate]);
+  }, [searchMode, searchByServiceId, searchByClientAndDate, searchByCustodian]);
 
   const handleClear = useCallback(() => {
     setServiceId('');
     setClientName('');
+    setCustodianName('');
     setStartDate('');
     setEndDate('');
     clearResults();
@@ -110,7 +122,7 @@ export function ServiceQueryTab() {
         <div>
           <h1 className="apple-text-largetitle text-foreground">Consultas de Servicios</h1>
           <p className="apple-text-body text-muted-foreground">
-            Busca servicios por ID o por cliente y fecha
+            Busca servicios por ID, cliente, fecha o custodio
           </p>
         </div>
       </div>
@@ -118,7 +130,7 @@ export function ServiceQueryTab() {
       {/* Search Interface */}
       <div className="apple-card p-6">
         {/* Search Mode Toggle */}
-        <div className="flex items-center space-x-2 mb-6">
+        <div className="flex items-center flex-wrap gap-2 mb-6">
           <Button
             variant="ghost"
             onClick={() => setSearchMode('id')}
@@ -134,6 +146,14 @@ export function ServiceQueryTab() {
           >
             <Calendar className="h-4 w-4 mr-2" />
             Por Cliente y Fecha
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setSearchMode('custodian')}
+            className={searchMode === 'custodian' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
+          >
+            <UserCircle className="h-4 w-4 mr-2" />
+            Por Custodio
           </Button>
         </div>
 
@@ -205,11 +225,35 @@ export function ServiceQueryTab() {
           </div>
         )}
 
+        {/* Search by Custodian */}
+        {searchMode === 'custodian' && (
+          <div className="space-y-4">
+            <div>
+              <label className="apple-text-caption text-muted-foreground mb-2 block">
+                Nombre o Teléfono del Custodio
+              </label>
+              <Input
+                type="text"
+                placeholder="Ingresa el nombre o teléfono del custodio..."
+                value={custodianName}
+                onChange={(e) => setCustodianName(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="apple-input"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex items-center space-x-3 mt-6">
           <Button
             onClick={handleSearch}
-            disabled={loading || (searchMode === 'id' ? !serviceId.trim() : !clientName.trim())}
+            disabled={loading || (
+              searchMode === 'id' ? !serviceId.trim() : 
+              searchMode === 'client' ? !clientName.trim() : 
+              !custodianName.trim()
+            )}
             className="apple-button-primary"
           >
             {loading ? (
@@ -297,7 +341,7 @@ export function ServiceQueryTab() {
         </div>
       )}
 
-      {!loading && !error && results.length === 0 && (serviceId || clientName) && (
+      {!loading && !error && results.length === 0 && (serviceId || clientName || custodianName) && (
         <div className="apple-empty-state">
           <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <div className="apple-text-headline text-foreground">No se encontraron resultados</div>
@@ -312,25 +356,28 @@ export function ServiceQueryTab() {
               <span className="apple-text-caption font-medium">Sugerencias</span>
             </div>
             <ul className="apple-text-caption text-muted-foreground space-y-2">
-              <li>• Verifica que el ID esté escrito correctamente</li>
-              <li>• Intenta con una parte del ID (búsqueda parcial)</li>
+              <li>• Verifica que el término esté escrito correctamente</li>
+              <li>• Intenta con una parte del nombre (búsqueda parcial)</li>
               {searchMode === 'id' && (
-                <li>• Prueba buscando por nombre de cliente en su lugar</li>
+                <li>• Prueba buscando por nombre de cliente o custodio</li>
               )}
               {searchMode === 'client' && (
                 <li>• Amplía el rango de fechas o déjalas vacías</li>
+              )}
+              {searchMode === 'custodian' && (
+                <li>• Intenta buscar por teléfono del custodio</li>
               )}
             </ul>
           </div>
         </div>
       )}
 
-      {!loading && !error && results.length === 0 && !serviceId && !clientName && (
+      {!loading && !error && results.length === 0 && !serviceId && !clientName && !custodianName && (
         <div className="apple-empty-state">
           <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <div className="apple-text-headline text-foreground">Comienza tu búsqueda</div>
           <div className="apple-text-body text-muted-foreground">
-            Ingresa un ID de servicio o nombre de cliente para buscar
+            Ingresa un ID de servicio, nombre de cliente o custodio para buscar
           </div>
         </div>
       )}

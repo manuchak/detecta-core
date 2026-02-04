@@ -504,6 +504,123 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     }
   }, []);
 
+  const searchByCustodian = useCallback(async (custodianName: string) => {
+    if (!custodianName.trim()) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Buscar por nombre de custodio o teléfono
+      const [custodiaResult, planificadosResult] = await Promise.allSettled([
+        supabase
+          .from('servicios_custodia')
+          .select('*')
+          .or(`nombre_custodio.ilike.%${custodianName}%,telefono.ilike.%${custodianName}%,telefono_custodio.ilike.%${custodianName}%`)
+          .order('fecha_hora_cita', { ascending: false })
+          .limit(100),
+        supabase
+          .from('servicios_planificados')
+          .select('*')
+          .or(`custodio_asignado.ilike.%${custodianName}%`)
+          .order('fecha_hora_cita', { ascending: false })
+          .limit(100)
+      ]);
+
+      const custodiaData = custodiaResult.status === 'fulfilled' && !custodiaResult.value.error
+        ? custodiaResult.value.data
+        : [];
+      const planificadosData = planificadosResult.status === 'fulfilled' && !planificadosResult.value.error
+        ? planificadosResult.value.data
+        : [];
+
+      const bothFailed = 
+        (custodiaResult.status === 'rejected' || custodiaResult.value?.error) &&
+        (planificadosResult.status === 'rejected' || planificadosResult.value?.error);
+      
+      if (bothFailed) {
+        throw new Error('No tienes permisos para realizar búsquedas');
+      }
+
+      // Mapear resultados de custodia
+      const custodiaResults: ServiceQueryResult[] = (custodiaData || []).map(service => ({
+        id: service.id,
+        id_servicio: service.id_servicio || service.id,
+        nombre_cliente: service.nombre_cliente || 'Cliente sin nombre',
+        empresa_cliente: service.empresa_cliente,
+        email_cliente: service.email_cliente,
+        telefono_cliente: service.telefono_cliente,
+        origen: service.origen || 'No especificado',
+        destino: service.destino || 'No especificado',
+        fecha_hora_cita: service.fecha_hora_cita,
+        tipo_servicio: service.tipo_servicio || 'custodia',
+        estado: service.estado || 'pendiente',
+        created_at: service.created_at,
+        nombre_custodio: service.nombre_custodio,
+        id_custodio: service.id_custodio,
+        telefono_custodio: service.telefono_custodio || service.telefono,
+        km_recorridos: service.km_recorridos,
+        cobro_cliente: service.cobro_cliente,
+        updated_at: service.updated_at,
+        fuente_tabla: 'servicios_custodia'
+      }));
+
+      // Mapear resultados de planificados
+      const planificadosResults: ServiceQueryResult[] = (planificadosData || []).map(service => ({
+        id: service.id,
+        id_servicio: service.id_servicio || service.id,
+        nombre_cliente: service.nombre_cliente || 'Cliente sin nombre',
+        empresa_cliente: service.empresa_cliente,
+        origen: service.origen || 'No especificado',
+        destino: service.destino || 'No especificado',
+        fecha_hora_cita: service.fecha_hora_cita,
+        tipo_servicio: service.tipo_servicio || 'custodia',
+        estado: service.estado_planeacion || 'planificado',
+        created_at: service.created_at,
+        nombre_custodio: service.custodio_asignado,
+        custodio_id: service.custodio_id,
+        estado_planeacion: service.estado_planeacion,
+        updated_at: service.updated_at,
+        fuente_tabla: 'servicios_planificados'
+      }));
+
+      // Deduplicar
+      const custodiaIds = new Set(
+        custodiaResults
+          .map(s => s.id_servicio?.trim().toUpperCase())
+          .filter((id): id is string => !!id)
+      );
+      
+      const planificadosSinDuplicados = planificadosResults.filter(s => {
+        const normalizedId = s.id_servicio?.trim().toUpperCase();
+        return !(normalizedId && custodiaIds.has(normalizedId));
+      });
+
+      const allResults = [...custodiaResults, ...planificadosSinDuplicados].sort((a, b) => {
+        if (a.fuente_tabla === 'servicios_custodia' && b.fuente_tabla !== 'servicios_custodia') return -1;
+        if (b.fuente_tabla === 'servicios_custodia' && a.fuente_tabla !== 'servicios_custodia') return 1;
+        return new Date(b.fecha_hora_cita).getTime() - new Date(a.fecha_hora_cita).getTime();
+      });
+      
+      setResults(allResults);
+
+      if (allResults.length === 0) {
+        toast.info('No se encontraron servicios para ese custodio');
+      }
+
+    } catch (err) {
+      console.error('Error searching by custodian:', err);
+      const errorMessage = 'Error al buscar servicios por custodio';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const clearResults = useCallback(() => {
     setResults([]);
     setError(null);
@@ -515,6 +632,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
     error,
     searchByServiceId,
     searchByClientAndDate,
+    searchByCustodian,
     clearResults
   };
 }
