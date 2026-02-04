@@ -1,143 +1,239 @@
 
-# Plan: Correccion Integral de Portales Radix UI con Zoom 70%
+# Plan Ajustado: Mejoras UI para Pagina de Consultas de Servicios
 
-## Diagnostico del Problema
+## Principios Aplicados (de frameworks enterprise)
 
-El `zoom: 0.7` aplicado al elemento `html` afecta todos los portales de Radix UI que renderizan en `document.body`. Esto causa:
+Basado en los patrones de Salesforce Lightning, IBM Carbon y Apple HIG que realmente aplican:
 
-1. **Escala incorrecta**: Los dropdowns aparecen al 70% del tamano esperado
-2. **Posicionamiento desplazado**: Las coordenadas calculadas por Radix no compensan el zoom
-3. **Inconsistencia visual**: Algunos componentes ya tienen la correccion y otros no
+| Principio | Aplicacion Especifica |
+|-----------|----------------------|
+| Ley de Fitts | Botones de accion cerca del input activo |
+| Recognition over Recall | Busquedas recientes siempre visibles |
+| Progressive Disclosure | Campos opcionales colapsados por defecto |
+| Feedback Inmediato | Contador de resultados persistente |
+| Densidad Optima | Reducir scroll sin sacrificar legibilidad |
 
-### Estado Actual de Componentes
+---
 
-| Componente | Tiene Compensacion | Estado |
-|------------|-------------------|--------|
-| SelectContent | Si (`zoom: 1.428571`) | OK |
-| PopoverContent | Si (`zoom: 1.428571`) | OK |
-| DropdownMenuContent | No | PROBLEMA |
-| DropdownMenuSubContent | No | PROBLEMA |
-| TooltipContent | No | PROBLEMA |
-| ContextMenuContent | No | PROBLEMA |
-| ContextMenuSubContent | No | PROBLEMA |
-| MenubarContent | No | PROBLEMA |
-| MenubarSubContent | No | PROBLEMA |
-| HoverCardContent | No | PROBLEMA |
-| DialogContent | No | ACEPTABLE* |
-| AlertDialogContent | No | ACEPTABLE* |
-| SheetContent | No | ACEPTABLE* |
+## Cambios Propuestos
 
-*Los modales centrados (Dialog, AlertDialog) y sheets anclados a bordes funcionan visualmente porque no dependen de posicionamiento relativo al trigger.
+### 1. Selector de Modo como Segmented Control
 
-## Solucion Propuesta
+**Justificacion**: Los botones ghost actuales no comunican claramente que son mutuamente excluyentes. Un segmented control (patron Apple/Salesforce) indica visualmente "elige uno".
 
-Aplicar `style={{ zoom: 1.428571 }}` a todos los componentes portal que requieren posicionamiento preciso relativo a su trigger.
+```
+Antes:  [ID] [Cliente] [Custodio]  (botones separados)
+Despues: ╭────────────────────────────────────────╮
+         │ [Por ID] │ [Cliente/Fecha] │ [Custodio] │
+         ╰────────────────────────────────────────╯
+```
+
+### 2. Busquedas Recientes en Header (Siempre Visibles)
+
+**Justificacion**: Actualmente solo aparecen cuando no hay resultados. Segun el principio "Recognition over Recall", deben estar siempre accesibles.
+
+```
+╭─────────────────────────────────────────────────────────╮
+│ Consultas de Servicios                                  │
+│ Busca por ID, cliente o custodio    🕐 SAMS.. | abel.. │
+╰─────────────────────────────────────────────────────────╯
+```
+
+### 3. Layout Compacto Input + Accion
+
+**Justificacion**: Ley de Fitts - reducir distancia entre input y boton de accion.
+
+```
+Antes:                          Despues:
+╭──────────────────────╮        ╭────────────────────────────────────╮
+│ Label                │        │ [___input___________] [Buscar] [X] │
+│ [input............]  │        │ ↵ Enter · Esc limpiar              │
+│                      │        ╰────────────────────────────────────╯
+│ [Buscar]  [Limpiar]  │
+╰──────────────────────╯
+```
+
+### 4. Eliminar Footer Redundante de Cards
+
+**Justificacion**: El texto "Doble clic para ver detalles" ocupa espacio valioso. El cursor pointer y hover state ya comunican interactividad.
+
+**Alternativa**: Agregar icono subtle de expand (`ChevronRight`) en hover.
+
+### 5. Contador de Resultados con Ordenamiento
+
+**Justificacion**: Feedback inmediato + control de usuario.
+
+```
+17 resultados  ·  Ordenar: ▼ Mas recientes
+```
+
+### 6. Estado Vacio con Ejemplos Contextuales
+
+**Justificacion**: Onboarding visual reduce curva de aprendizaje.
+
+```
+╭──────────────────────────────────────╮
+│         🔍 Comienza tu busqueda      │
+│                                      │
+│  Ejemplos:                           │
+│  • YONSYGU-131     (ID de servicio)  │
+│  • SAMSUNG         (nombre cliente)  │
+│  • Abel Cruz       (nombre custodio) │
+╰──────────────────────────────────────╯
+```
+
+---
 
 ## Seccion Tecnica
 
-### Archivos a Modificar
+### Archivo: `ServiceQueryTab.tsx`
 
-#### 1. `src/components/ui/dropdown-menu.tsx`
-
-**DropdownMenuContent** (linea 63):
+**Cambio 1 - Segmented Control (lineas 133-158)**:
 ```tsx
-// Antes
-<DropdownMenuPrimitive.Content
-  ref={ref}
-  sideOffset={sideOffset}
-  className={cn(...)}
-  {...props}
-/>
-
-// Despues
-<DropdownMenuPrimitive.Content
-  ref={ref}
-  sideOffset={sideOffset}
-  className={cn(...)}
-  style={{ zoom: 1.428571 }}
-  {...props}
-/>
+// Reemplazar botones ghost por segmented control
+<div className="inline-flex bg-muted/50 rounded-lg p-1 border border-border/50">
+  <button
+    onClick={() => setSearchMode('id')}
+    className={cn(
+      "px-3 py-1.5 text-sm rounded-md transition-all",
+      searchMode === 'id' 
+        ? "bg-background shadow-sm text-foreground font-medium" 
+        : "text-muted-foreground hover:text-foreground"
+    )}
+  >
+    <Search className="h-3.5 w-3.5 mr-1.5 inline" />
+    Por ID
+  </button>
+  {/* Similar para client y custodian */}
+</div>
 ```
 
-**DropdownMenuSubContent** (linea 46):
+**Cambio 2 - Busquedas recientes en header (lineas 121-128)**:
 ```tsx
-// Agregar style={{ zoom: 1.428571 }}
+<div className="apple-section-header">
+  <div className="flex-1">
+    <h1>Consultas de Servicios</h1>
+    <p>Busca por ID, cliente o custodio</p>
+  </div>
+  {recentSearches.length > 0 && (
+    <div className="flex items-center gap-2">
+      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      {recentSearches.slice(0, 3).map((search, i) => (
+        <Badge key={i} variant="secondary" className="cursor-pointer" 
+               onClick={() => handleRecentSearchClick(search)}>
+          {search.length > 10 ? search.slice(0,10) + '...' : search}
+        </Badge>
+      ))}
+    </div>
+  )}
+</div>
 ```
 
-#### 2. `src/components/ui/tooltip.tsx`
-
-**TooltipContent** (linea 16):
+**Cambio 3 - Layout compacto (lineas 160-280)**:
 ```tsx
-// Antes
-<TooltipPrimitive.Content
-  ref={ref}
-  sideOffset={sideOffset}
-  className={cn(...)}
-  {...props}
-/>
-
-// Despues
-<TooltipPrimitive.Content
-  ref={ref}
-  sideOffset={sideOffset}
-  className={cn(...)}
-  style={{ zoom: 1.428571 }}
-  {...props}
-/>
+// Modo ID: Input + botones en una fila
+<div className="flex items-center gap-3">
+  <div className="flex-1">
+    <Input placeholder="ID del servicio..." value={serviceId} ... />
+  </div>
+  <Button onClick={handleSearch} disabled={...}>
+    <Search className="h-4 w-4 mr-2" />Buscar
+  </Button>
+  <Button variant="ghost" onClick={handleClear}>
+    <X className="h-4 w-4" />
+  </Button>
+</div>
+<p className="text-xs text-muted-foreground mt-2">
+  ↵ Enter para buscar · Esc para limpiar
+</p>
 ```
 
-#### 3. `src/components/ui/context-menu.tsx`
+**Cambio 4 - Eliminar bloque de tips separado (lineas 282-291)**:
+Mover tips inline con botones de accion.
 
-**ContextMenuContent** (linea 60):
+**Cambio 5 - Contador con ordenamiento (lineas 387-391)**:
 ```tsx
-// Agregar style={{ zoom: 1.428571 }}
+<div className="flex items-center justify-between">
+  <span className="text-sm text-muted-foreground">
+    <strong>{results.length}</strong> resultados
+  </span>
+  <Select defaultValue="recent">
+    <SelectTrigger className="w-[160px] h-8">
+      <SelectValue placeholder="Ordenar por" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="recent">Mas recientes</SelectItem>
+      <SelectItem value="oldest">Mas antiguos</SelectItem>
+      <SelectItem value="client">Por cliente</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
 ```
 
-**ContextMenuSubContent** (linea 44):
+**Cambio 6 - Estado vacio mejorado (lineas 375-383)**:
 ```tsx
-// Agregar style={{ zoom: 1.428571 }}
+<div className="apple-empty-state">
+  <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+  <div className="text-lg font-medium">Comienza tu busqueda</div>
+  <div className="mt-4 text-sm text-muted-foreground space-y-1">
+    <p className="font-medium">Ejemplos:</p>
+    <p><code className="bg-muted px-1.5 py-0.5 rounded">YONSYGU-131</code> ID de servicio</p>
+    <p><code className="bg-muted px-1.5 py-0.5 rounded">SAMSUNG</code> nombre de cliente</p>
+    <p><code className="bg-muted px-1.5 py-0.5 rounded">Abel Cruz</code> nombre de custodio</p>
+  </div>
+</div>
 ```
 
-#### 4. `src/components/ui/menubar.tsx`
+### Archivo: `ServiceQueryCard.tsx`
 
-**MenubarContent** (linea 92):
+**Cambio 7 - Eliminar footer y agregar hover icon (lineas 152-158)**:
 ```tsx
-// Agregar style={{ zoom: 1.428571 }}
+// Eliminar el footer completo y agregar icono en hover
+<div 
+  className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative"
+  onDoubleClick={() => onDoubleClick(service)}
+>
+  {/* Contenido existente... */}
+  
+  {/* Icono de expand en hover */}
+  <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/0 group-hover:text-muted-foreground/50 transition-all" />
+</div>
 ```
 
-**MenubarSubContent** (linea 72):
-```tsx
-// Agregar style={{ zoom: 1.428571 }}
+---
+
+## Resumen de Archivos a Modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `ServiceQueryTab.tsx` | Segmented control, header con recientes, layout compacto, tips inline, contador con sort, empty state mejorado |
+| `ServiceQueryCard.tsx` | Eliminar footer, agregar hover icon, reducir padding |
+
+## Resultado Visual Esperado
+
 ```
+ANTES                              DESPUES
+╭────────────────────────────╮     ╭─────────────────────────────────────╮
+│ Consultas de Servicios     │     │ Consultas...     🕐 SAMS | abel    │
+│ Subtitulo largo            │     ├─────────────────────────────────────┤
+├────────────────────────────┤     │ [Por ID│Cliente/Fecha│Custodio]    │
+│ [ID] [Cliente] [Custodio]  │     ├─────────────────────────────────────┤
+├────────────────────────────┤     │ [_________input_______][🔍][X]     │
+│ Label                      │     │ ↵ Enter · Esc limpiar              │
+│ [input................]    │     ├─────────────────────────────────────┤
+│                            │     │ 17 resultados  ▼ Mas recientes     │
+│ [Buscar]  [Limpiar]        │     ├─────────────────────────────────────┤
+├────────────────────────────┤     │ [Card][Card][Card]                 │
+│ ⚠ Atajos: Enter para...    │     │ [Card][Card][Card]                 │
+├────────────────────────────┤     ╰─────────────────────────────────────╯
+│ Busquedas recientes        │
+│ [SAMS] [abel]              │
+├────────────────────────────┤
+│ 17 resultados              │
+├────────────────────────────┤
+│ [Card con footer]          │
+│ [Card con footer]          │
+╰────────────────────────────╯
 
-#### 5. `src/components/ui/hover-card.tsx`
-
-**HoverCardContent** (linea 14):
-```tsx
-// Agregar style={{ zoom: 1.428571 }}
+Reduccion estimada: ~35% menos scroll vertical
 ```
-
-### Componentes que NO Requieren Cambio
-
-- **DialogContent**: Centrado con `translate(-50%, -50%)`, no afectado por zoom en posicionamiento
-- **AlertDialogContent**: Mismo caso que Dialog
-- **SheetContent**: Anclado a bordes con `inset-y-0`, no afectado
-
-## Resumen de Cambios
-
-| Archivo | Componentes a Modificar |
-|---------|------------------------|
-| `dropdown-menu.tsx` | DropdownMenuContent, DropdownMenuSubContent |
-| `tooltip.tsx` | TooltipContent |
-| `context-menu.tsx` | ContextMenuContent, ContextMenuSubContent |
-| `menubar.tsx` | MenubarContent, MenubarSubContent |
-| `hover-card.tsx` | HoverCardContent |
-
-**Total**: 8 componentes en 5 archivos
-
-## Resultado Esperado
-
-Todos los menus desplegables, tooltips y popovers apareceran:
-- Al tamano visual correcto (compensando el zoom 70%)
-- Posicionados correctamente relativo a su trigger
-- Consistentes con SelectContent y PopoverContent que ya funcionan
