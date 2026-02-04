@@ -60,13 +60,13 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
 
     setSaving(true);
     try {
+      // Only update editable columns - margen_neto_calculado and porcentaje_utilidad 
+      // are GENERATED ALWAYS columns calculated automatically by PostgreSQL
       const { error } = await supabase
         .from('matriz_precios_rutas')
         .update({
           valor_bruto: valorBrutoNum,
           precio_custodio: precioCustodioNum,
-          margen_neto_calculado: margenNeto,
-          porcentaje_utilidad: porcentajeMargen,
           updated_at: new Date().toISOString()
         })
         .eq('id', route.id);
