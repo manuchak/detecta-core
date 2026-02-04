@@ -2,3 +2,8 @@ export { CuentasPorCobrarTab } from './CuentasPorCobrarTab';
 export { AgingKPIBar } from './AgingKPIBar';
 export { AgingTable } from './AgingTable';
 export { SeguimientoCobranzaModal } from './SeguimientoCobranzaModal';
+export { ClienteFacturasDrawer } from './ClienteFacturasDrawer';
+export { RegistrarPagoModal } from './RegistrarPagoModal';
+export { EstadoCuentaModal } from './EstadoCuentaModal';
+export { AgendaCobranzaPanel } from './AgendaCobranzaPanel';
+export { HistorialCobranzaTimeline } from './HistorialCobranzaTimeline';

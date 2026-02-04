@@ -15,10 +15,18 @@ import {
   Phone, 
   Eye, 
   AlertTriangle,
-  ArrowUpDown
+  ArrowUpDown,
+  CreditCard,
+  FileText
 } from 'lucide-react';
 import { AgingData, getAgingColor } from '../../hooks/useCuentasPorCobrar';
 import { formatCurrency } from '@/utils/formatUtils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface AgingTableProps {
