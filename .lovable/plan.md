@@ -1,91 +1,123 @@
 
+# Propuesta UI/UX: Correccion del Espacio Vertical con Zoom 70%
 
-# Plan: Corregir Fuente de fecha_hora_cita en Vista de Facturacion
+## Diagnostico del Problema
 
-## Problema Identificado
+El `zoom: 0.7` en `html` reduce visualmente todo al 70%, pero:
+- Las unidades de viewport (`100vh`, `min-h-screen`) siguen calculando sobre el viewport **real**
+- El contenido ocupa solo 70% del espacio vertical disponible
+- Se crean espacios en blanco de ~30% en la parte inferior de cada pagina
 
-El campo `fecha_hora_cita` en la vista `vw_servicios_facturacion` muestra timestamps corruptos porque usa directamente `servicios_custodia.fecha_hora_cita` que tiene un patron de corrupcion sistematico.
+### Visualizacion del Problema
 
-### Evidencia de Corrupcion
-
-| Fuente | Patron | Cantidad | Estado |
-|--------|--------|----------|--------|
-| servicios_planificados | `:00:00` | 622 | Correcto |
-| servicios_planificados | `:30:00` | 189 | Correcto |
-| servicios_custodia | `:59:24` | 312 | Corrupto |
-| servicios_custodia | `:29:24` | 116 | Corrupto |
-
-**Ejemplo real:**
-- Planeacion: `2026-02-05 19:00:00+00` (hora cerrada, correcto)
-- Custodia: `2026-02-03 22:59:24+00` (segundos extraños, corrupto)
-
-## Causa Raiz
-
-La vista actual en la linea de `fecha_hora_cita`:
-```sql
-sc.fecha_hora_cita  -- Usa directamente custodia (corrupto)
+```text
++--------------------------------+
+|  TopBar (real 56px → visual 39px)  |
++--------------------------------+
+|  Sidebar  |  Contenido         |
+|           |  (70% del alto)    |
+|           |                    |
+|           +--------------------+
+|           |  ESPACIO VACIO     |
+|           |  (~30% del viewport)|
++--------------------------------+
 ```
 
-Deberia priorizar planeacion:
-```sql
-COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita) AS fecha_hora_cita
+## Solucion Propuesta: Variables CSS de Viewport Escalado
+
+En lugar de quitar el zoom (perdiendo la densidad de informacion que te gusta), propongo **compensar matematicamente** las alturas de viewport.
+
+### Logica de Compensacion
+
+Si el zoom es 0.7, entonces:
+- `100vh` visual equivale a `100vh / 0.7 = 142.86vh` real
+- Crear variables CSS que pre-calculen esto
+
+### Implementacion
+
+**1. Nuevas Variables CSS en `index.css`:**
+
+```css
+:root {
+  --zoom-scale: 0.7;
+  --zoom-compensation: 1.4286; /* 1 / 0.7 */
+  
+  /* Viewport compensado */
+  --vh-full: calc(100vh * var(--zoom-compensation));
+  --vh-90: calc(90vh * var(--zoom-compensation));
+  --vh-80: calc(80vh * var(--zoom-compensation));
+  
+  /* Alturas de contenido comunes */
+  --content-height-full: calc(var(--vh-full) - 56px); /* menos TopBar */
+  --content-height-with-tabs: calc(var(--vh-full) - 120px); /* menos TopBar + tabs */
+  --content-height-with-filters: calc(var(--vh-full) - 180px); /* menos TopBar + tabs + filtros */
+}
 ```
 
-## Solucion
+**2. Clases Utilitarias de Tailwind:**
 
-### Cambio en la Vista SQL
-
-Actualizar `vw_servicios_facturacion` para priorizar `servicios_planificados.fecha_hora_cita` sobre `servicios_custodia.fecha_hora_cita`:
-
-```sql
--- Linea actual:
-sc.fecha_hora_cita,
-
--- Cambiar a:
-COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita) AS fecha_hora_cita,
+```css
+/* Clases para alturas escaladas */
+.h-viewport-full { height: var(--vh-full); }
+.h-content-full { height: var(--content-height-full); }
+.h-content-tabs { height: var(--content-height-with-tabs); }
+.h-content-filters { height: var(--content-height-with-filters); }
+.min-h-viewport-full { min-height: var(--vh-full); }
 ```
 
-Esto asegura que:
-1. Si existe el servicio en planeacion, usa la fecha/hora correcta
-2. Si solo existe en custodia (historicos), usa el dato existente como fallback
+**3. Actualizacion de Componentes Afectados:**
 
-## Validacion del Codigo Frontend
+Reemplazar calculos hardcodeados:
 
-El codigo en `ServicioDetalleDialog.tsx` ya usa correctamente `formatCDMXTime`:
+| Archivo | Antes | Despues |
+|---------|-------|---------|
+| `ServiciosConsulta.tsx` | `h-[calc(100vh-340px)]` | `h-[calc(var(--vh-full)-340px)]` |
+| `ScheduledServicesTabSimple.tsx` | `max-h-[calc(100vh-380px)]` | `max-h-[calc(var(--vh-full)-380px)]` |
+| `CustodianZoneBubbleMap.tsx` | `h-[calc(100vh-280px)]` | `h-[calc(var(--vh-full)-280px)]` |
+| Layouts con `min-h-screen` | `min-h-screen` | `min-h-[var(--vh-full)]` |
 
-```typescript
-const formatDateTime = (dateStr: string | null) => {
-  if (!dateStr) return '-';
-  try {
-    return formatCDMXTime(dateStr, 'dd/MM/yyyy HH:mm'); // Correcto
-  } catch {
-    return dateStr;
-  }
-};
+## Alternativa Considerada: Quitar Zoom
+
+Ventajas:
+- Elimina la complejidad de compensacion
+- Viewport nativo = calculo simple
+
+Desventajas:
+- Requiere reajustar **todos** los componentes manualmente
+- Se pierde la densidad de informacion actual
+- Tipografias, paddings, borders necesitan ajuste individual
+
+**Recomendacion**: Mantener zoom 0.7 con compensacion CSS es mas eficiente.
+
+## Resultado Esperado
+
+```text
++--------------------------------+
+|  TopBar                        |
++--------------------------------+
+|  Sidebar  |  Contenido         |
+|           |  (100% del alto    |
+|           |   compensado)      |
+|           |                    |
+|           |                    |
+|           |  [Sin espacios]    |
++--------------------------------+
 ```
-
-Este formateo usa `formatInTimeZone` con `America/Mexico_City`, lo cual es correcto para convertir UTC a hora local CDMX.
-
-## Impacto
-
-| Servicio | Antes (corrupto) | Despues (correcto) |
-|----------|-----------------|-------------------|
-| EMEDEME-234 | 03/02/2026 16:59 | 05/02/2026 13:00 |
-| MURAMLA-16 | 03/02/2026 12:59 | (fecha real de planeacion) |
 
 ## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `vw_servicios_facturacion` (SQL) | Cambiar `sc.fecha_hora_cita` por `COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita)` |
+| `src/index.css` | Agregar variables de viewport compensado y clases utilitarias |
+| `src/pages/Facturacion/components/ServiciosConsulta.tsx` | Usar `var(--vh-full)` en calculos de altura |
+| `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx` | Usar variables compensadas |
+| `src/pages/Planeacion/components/configuration/*.tsx` | Actualizar mapas y listas |
+| `src/layouts/UnifiedLayout.tsx` | Usar `min-h-[var(--vh-full)]` si aplica |
+| ~15-20 componentes adicionales | Buscar y reemplazar patrones `100vh` |
 
-No se requieren cambios en el frontend ya que el formateo de timezone esta correcto.
+## Beneficios
 
-## Nota sobre Datos Legacy
-
-Los ~3,500+ servicios historicos en `servicios_custodia` con timestamps corruptos seguiran mostrando datos incorrectos porque no tienen registro en `servicios_planificados`. La correccion de esos datos requeriria:
-1. Identificar el patron de corrupcion (parece ser -36 segundos)
-2. Ejecutar UPDATE masivo para corregir
-
-Esto se puede hacer como tarea separada si es necesario.
-
+1. **Consistencia**: Una sola fuente de verdad para el factor de escala
+2. **Mantenibilidad**: Cambiar zoom en un lugar actualiza todo
+3. **Retrocompatibilidad**: Los componentes que no usen viewport no se afectan
+4. **Densidad preservada**: Mantiene el beneficio del zoom 70%
