@@ -68,7 +68,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background">
+    <div className="h-viewport-full flex flex-col overflow-hidden bg-background">
       <SimplifiedTopBar />
       
       <SidebarProvider defaultOpen={true}>
