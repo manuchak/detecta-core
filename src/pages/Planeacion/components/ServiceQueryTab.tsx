@@ -1,13 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useServiceQuery } from '@/hooks/useServiceQuery';
 import { ServiceQueryCard } from './ServiceQueryCard';
 import { ServiceDetailsModal } from './ServiceDetailsModal';
-import { Search, Calendar, X, Loader2, AlertCircle, Clock, Lightbulb, UserCircle } from 'lucide-react';
+import { Search, Calendar, X, Loader2, AlertCircle, Clock, UserCircle } from 'lucide-react';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 // Manejo de búsquedas recientes en sessionStorage
 const RECENT_SEARCHES_KEY = 'planeacion_recent_searches';
@@ -30,6 +32,8 @@ function addRecentSearch(search: string) {
   sessionStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
 }
 
+type SortOption = 'recent' | 'oldest' | 'client';
+
 export function ServiceQueryTab() {
   const [searchMode, setSearchMode] = useState<'id' | 'client' | 'custodian'>('id');
   const [serviceId, setServiceId] = useState('');
@@ -40,6 +44,7 @@ export function ServiceQueryTab() {
   const [selectedService, setSelectedService] = useState<ServiceQueryResult | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [sortOption, setSortOption] = useState<SortOption>('recent');
 
   // Cargar búsquedas recientes al montar
   useEffect(() => {
@@ -55,6 +60,29 @@ export function ServiceQueryTab() {
     searchByCustodian,
     clearResults
   } = useServiceQuery();
+
+  // Sorted results
+  const sortedResults = useMemo(() => {
+    if (!results.length) return results;
+    
+    const sorted = [...results];
+    switch (sortOption) {
+      case 'recent':
+        return sorted.sort((a, b) => 
+          new Date(b.fecha_hora_cita).getTime() - new Date(a.fecha_hora_cita).getTime()
+        );
+      case 'oldest':
+        return sorted.sort((a, b) => 
+          new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime()
+        );
+      case 'client':
+        return sorted.sort((a, b) => 
+          (a.nombre_cliente || '').localeCompare(b.nombre_cliente || '')
+        );
+      default:
+        return sorted;
+    }
+  }, [results, sortOption]);
 
   const handleSearch = useCallback(() => {
     if (searchMode === 'id') {
@@ -115,203 +143,235 @@ export function ServiceQueryTab() {
     setDetailsModalOpen(true);
   }, []);
 
+  const isSearchDisabled = loading || (
+    searchMode === 'id' ? !serviceId.trim() : 
+    searchMode === 'client' ? !clientName.trim() : 
+    !custodianName.trim()
+  );
+
+  const hasSearchInput = serviceId || clientName || custodianName;
+
   return (
-    <div className="apple-container space-y-6">
-      {/* Header */}
+    <div className="apple-container space-y-4">
+      {/* Header with Recent Searches */}
       <div className="apple-section-header">
-        <div>
+        <div className="flex-1">
           <h1 className="apple-text-largetitle text-foreground">Consultas de Servicios</h1>
           <p className="apple-text-body text-muted-foreground">
-            Busca servicios por ID, cliente, fecha o custodio
+            Busca por ID, cliente o custodio
           </p>
         </div>
+        {recentSearches.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            {recentSearches.slice(0, 3).map((search, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="cursor-pointer hover:bg-primary/10 transition-colors text-xs"
+                onClick={() => handleRecentSearchClick(search)}
+              >
+                {search.length > 12 ? search.slice(0, 12) + '...' : search}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Search Interface */}
-      <div className="apple-card p-6">
-        {/* Search Mode Toggle */}
-        <div className="flex items-center flex-wrap gap-2 mb-6">
-          <Button
-            variant="ghost"
+      <div className="apple-card p-5">
+        {/* Segmented Control for Search Mode */}
+        <div className="inline-flex bg-muted/50 rounded-lg p-1 border border-border/50 mb-5">
+          <button
             onClick={() => setSearchMode('id')}
-            className={searchMode === 'id' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-md transition-all flex items-center gap-1.5",
+              searchMode === 'id' 
+                ? "bg-background shadow-sm text-foreground font-medium" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <Search className="h-4 w-4 mr-2" />
-            Por ID de Servicio
-          </Button>
-          <Button
-            variant="ghost"
+            <Search className="h-3.5 w-3.5" />
+            Por ID
+          </button>
+          <button
             onClick={() => setSearchMode('client')}
-            className={searchMode === 'client' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-md transition-all flex items-center gap-1.5",
+              searchMode === 'client' 
+                ? "bg-background shadow-sm text-foreground font-medium" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <Calendar className="h-4 w-4 mr-2" />
-            Por Cliente y Fecha
-          </Button>
-          <Button
-            variant="ghost"
+            <Calendar className="h-3.5 w-3.5" />
+            Cliente/Fecha
+          </button>
+          <button
             onClick={() => setSearchMode('custodian')}
-            className={searchMode === 'custodian' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'hover:bg-accent hover:text-accent-foreground'}
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-md transition-all flex items-center gap-1.5",
+              searchMode === 'custodian' 
+                ? "bg-background shadow-sm text-foreground font-medium" 
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <UserCircle className="h-4 w-4 mr-2" />
-            Por Custodio
-          </Button>
+            <UserCircle className="h-3.5 w-3.5" />
+            Custodio
+          </button>
         </div>
 
-        {/* Search by Service ID */}
+        {/* Search by Service ID - Compact Layout */}
         {searchMode === 'id' && (
-          <div className="space-y-4">
-            <div>
-              <label className="apple-text-caption text-muted-foreground mb-2 block">
-                ID de Servicio
-              </label>
-              <Input
-                type="text"
-                placeholder="Ingresa el ID del servicio..."
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="apple-input"
-                autoFocus
-              />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  placeholder="ID del servicio (ej: YONSYGU-131)"
+                  value={serviceId}
+                  onChange={(e) => setServiceId(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="apple-input"
+                  autoFocus
+                />
+              </div>
+              <Button
+                onClick={handleSearch}
+                disabled={isSearchDisabled}
+                className="apple-button-primary"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="ml-2">Buscar</span>
+              </Button>
+              {hasSearchInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClear}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              ↵ Enter para buscar · Esc para limpiar
+            </p>
           </div>
         )}
 
-        {/* Search by Client and Date */}
+        {/* Search by Client and Date - Compact Layout */}
         {searchMode === 'client' && (
-          <div className="space-y-4">
-            <div>
-              <label className="apple-text-caption text-muted-foreground mb-2 block">
-                Nombre del Cliente
-              </label>
-              <Input
-                type="text"
-                placeholder="Ingresa el nombre del cliente..."
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="apple-input"
-                autoFocus
-              />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  placeholder="Nombre del cliente (ej: SAMSUNG)"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="apple-input"
+                  autoFocus
+                />
+              </div>
+              <Button
+                onClick={handleSearch}
+                disabled={isSearchDisabled}
+                className="apple-button-primary"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="ml-2">Buscar</span>
+              </Button>
+              {hasSearchInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClear}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="apple-text-caption text-muted-foreground mb-2 block">
-                  Fecha Inicio (opcional)
-                </label>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">Rango:</span>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  className="apple-input"
+                  className="apple-input h-8 text-xs"
                 />
-              </div>
-
-              <div>
-                <label className="apple-text-caption text-muted-foreground mb-2 block">
-                  Fecha Fin (opcional)
-                </label>
+                <span className="text-muted-foreground">—</span>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  className="apple-input"
+                  className="apple-input h-8 text-xs"
                 />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              ↵ Enter para buscar · Esc para limpiar · Fechas opcionales
+            </p>
           </div>
         )}
 
-        {/* Search by Custodian */}
+        {/* Search by Custodian - Compact Layout */}
         {searchMode === 'custodian' && (
-          <div className="space-y-4">
-            <div>
-              <label className="apple-text-caption text-muted-foreground mb-2 block">
-                Nombre o Teléfono del Custodio
-              </label>
-              <Input
-                type="text"
-                placeholder="Ingresa el nombre o teléfono del custodio..."
-                value={custodianName}
-                onChange={(e) => setCustodianName(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="apple-input"
-                autoFocus
-              />
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Input
+                  type="text"
+                  placeholder="Nombre o teléfono del custodio"
+                  value={custodianName}
+                  onChange={(e) => setCustodianName(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  className="apple-input"
+                  autoFocus
+                />
+              </div>
+              <Button
+                onClick={handleSearch}
+                disabled={isSearchDisabled}
+                className="apple-button-primary"
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="ml-2">Buscar</span>
+              </Button>
+              {hasSearchInput && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClear}
+                  className="shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              ↵ Enter para buscar · Esc para limpiar
+            </p>
           </div>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex items-center space-x-3 mt-6">
-          <Button
-            onClick={handleSearch}
-            disabled={loading || (
-              searchMode === 'id' ? !serviceId.trim() : 
-              searchMode === 'client' ? !clientName.trim() : 
-              !custodianName.trim()
-            )}
-            className="apple-button-primary"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Buscando...
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4 mr-2" />
-                Buscar
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            onClick={handleClear}
-            className="apple-button-ghost"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Limpiar
-          </Button>
-        </div>
-
-        {/* Quick Tips */}
-        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border/30">
-          <div className="flex items-start space-x-2">
-            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="apple-text-caption text-muted-foreground">
-              <strong>Atajos:</strong> Presiona <kbd className="px-1.5 py-0.5 bg-background rounded border border-border text-xs">Enter</kbd> para buscar,{' '}
-              <kbd className="px-1.5 py-0.5 bg-background rounded border border-border text-xs">Esc</kbd> para limpiar. Doble clic en una tarjeta para ver detalles completos.
-            </div>
-          </div>
-        </div>
       </div>
-
-      {/* Búsquedas recientes */}
-      {recentSearches.length > 0 && !loading && results.length === 0 && (
-        <div className="apple-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="apple-text-caption text-muted-foreground font-medium">Búsquedas recientes</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {recentSearches.map((search, index) => (
-              <Badge
-                key={index}
-                variant="secondary"
-                className="cursor-pointer hover:bg-primary/10 transition-colors"
-                onClick={() => handleRecentSearchClick(search)}
-              >
-                {search}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Results Section */}
       {loading && (
@@ -322,7 +382,7 @@ export function ServiceQueryTab() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="apple-card p-5 space-y-3">
+              <div key={i} className="apple-card p-4 space-y-3">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-full" />
                 <Skeleton className="h-3 w-2/3" />
@@ -335,63 +395,68 @@ export function ServiceQueryTab() {
 
       {!loading && error && (
         <div className="apple-empty-state">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-3" />
-          <div className="apple-text-headline text-red-700">Error al buscar</div>
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+          <div className="apple-text-headline text-destructive">Error al buscar</div>
           <div className="apple-text-body text-muted-foreground">{error}</div>
         </div>
       )}
 
-      {!loading && !error && results.length === 0 && (serviceId || clientName || custodianName) && (
+      {!loading && !error && results.length === 0 && hasSearchInput && (
         <div className="apple-empty-state">
           <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <div className="apple-text-headline text-foreground">No se encontraron resultados</div>
           <div className="apple-text-body text-muted-foreground mb-4">
-            No hay servicios que coincidan con tu búsqueda
-          </div>
-          
-          {/* Sugerencias útiles */}
-          <div className="bg-muted/30 rounded-lg p-4 text-left max-w-md mx-auto">
-            <div className="flex items-center gap-2 mb-3">
-              <Lightbulb className="h-4 w-4 text-amber-500" />
-              <span className="apple-text-caption font-medium">Sugerencias</span>
-            </div>
-            <ul className="apple-text-caption text-muted-foreground space-y-2">
-              <li>• Verifica que el término esté escrito correctamente</li>
-              <li>• Intenta con una parte del nombre (búsqueda parcial)</li>
-              {searchMode === 'id' && (
-                <li>• Prueba buscando por nombre de cliente o custodio</li>
-              )}
-              {searchMode === 'client' && (
-                <li>• Amplía el rango de fechas o déjalas vacías</li>
-              )}
-              {searchMode === 'custodian' && (
-                <li>• Intenta buscar por teléfono del custodio</li>
-              )}
-            </ul>
+            Verifica el término o amplía tu búsqueda
           </div>
         </div>
       )}
 
-      {!loading && !error && results.length === 0 && !serviceId && !clientName && !custodianName && (
+      {/* Contextual Empty State with Examples */}
+      {!loading && !error && results.length === 0 && !hasSearchInput && (
         <div className="apple-empty-state">
           <Search className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
           <div className="apple-text-headline text-foreground">Comienza tu búsqueda</div>
-          <div className="apple-text-body text-muted-foreground">
-            Ingresa un ID de servicio, nombre de cliente o custodio para buscar
+          <div className="mt-4 text-sm text-muted-foreground space-y-2">
+            <p className="font-medium text-foreground">Ejemplos:</p>
+            <div className="flex flex-col gap-1.5">
+              <p>
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">YONSYGU-131</code>
+                <span className="ml-2 text-xs">ID de servicio</span>
+              </p>
+              <p>
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">SAMSUNG</code>
+                <span className="ml-2 text-xs">Nombre de cliente</span>
+              </p>
+              <p>
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">Abel Cruz</code>
+                <span className="ml-2 text-xs">Nombre de custodio</span>
+              </p>
+            </div>
           </div>
         </div>
       )}
 
-      {!loading && results.length > 0 && (
+      {!loading && sortedResults.length > 0 && (
         <>
+          {/* Results Counter with Sorting */}
           <div className="flex items-center justify-between">
-            <div className="apple-text-body text-muted-foreground">
-              {results.length} {results.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
-            </div>
+            <span className="text-sm text-muted-foreground">
+              <strong className="text-foreground">{sortedResults.length}</strong> {sortedResults.length === 1 ? 'resultado' : 'resultados'}
+            </span>
+            <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue placeholder="Ordenar por" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recent">Más recientes</SelectItem>
+                <SelectItem value="oldest">Más antiguos</SelectItem>
+                <SelectItem value="client">Por cliente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map((service, index) => (
+            {sortedResults.map((service, index) => (
               <ServiceQueryCard
                 key={`${service.id}-${index}`}
                 service={service}
