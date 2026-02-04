@@ -2016,6 +2016,72 @@ export type Database = {
           },
         ]
       }
+      cobranza_seguimiento: {
+        Row: {
+          cliente_id: string | null
+          contacto_nombre: string | null
+          contacto_telefono: string | null
+          created_at: string | null
+          created_by: string | null
+          descripcion: string
+          factura_id: string | null
+          fecha_promesa_pago: string | null
+          id: string
+          monto_prometido: number | null
+          promesa_cumplida: boolean | null
+          proxima_accion: string | null
+          resultado: string | null
+          tipo_accion: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion: string
+          factura_id?: string | null
+          fecha_promesa_pago?: string | null
+          id?: string
+          monto_prometido?: number | null
+          promesa_cumplida?: boolean | null
+          proxima_accion?: string | null
+          resultado?: string | null
+          tipo_accion: string
+        }
+        Update: {
+          cliente_id?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string
+          factura_id?: string | null
+          fecha_promesa_pago?: string | null
+          id?: string
+          monto_prometido?: number | null
+          promesa_cumplida?: boolean | null
+          proxima_accion?: string | null
+          resultado?: string | null
+          tipo_accion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobranza_seguimiento_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranza_seguimiento_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comodatos_gps: {
         Row: {
           asignado_por: string
@@ -5360,6 +5426,168 @@ export type Database = {
             columns: ["instalador_id"]
             isOneToOne: false
             referencedRelation: "instaladores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      factura_partidas: {
+        Row: {
+          cantidad: number | null
+          clave_prod_serv: string | null
+          clave_unidad: string | null
+          created_at: string | null
+          descripcion: string
+          factura_id: string | null
+          fecha_servicio: string | null
+          id: string
+          id_interno_cliente: string | null
+          id_servicio: string | null
+          importe: number
+          precio_unitario: number
+          ruta: string | null
+          servicio_id: number | null
+        }
+        Insert: {
+          cantidad?: number | null
+          clave_prod_serv?: string | null
+          clave_unidad?: string | null
+          created_at?: string | null
+          descripcion: string
+          factura_id?: string | null
+          fecha_servicio?: string | null
+          id?: string
+          id_interno_cliente?: string | null
+          id_servicio?: string | null
+          importe: number
+          precio_unitario: number
+          ruta?: string | null
+          servicio_id?: number | null
+        }
+        Update: {
+          cantidad?: number | null
+          clave_prod_serv?: string | null
+          clave_unidad?: string | null
+          created_at?: string | null
+          descripcion?: string
+          factura_id?: string | null
+          fecha_servicio?: string | null
+          id?: string
+          id_interno_cliente?: string | null
+          id_servicio?: string | null
+          importe?: number
+          precio_unitario?: number
+          ruta?: string | null
+          servicio_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factura_partidas_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "factura_partidas_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "factura_partidas_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturas: {
+        Row: {
+          cfdi_version: string | null
+          cliente_email: string | null
+          cliente_id: string | null
+          cliente_nombre: string
+          cliente_rfc: string
+          created_at: string | null
+          created_by: string | null
+          estado: string | null
+          fecha_emision: string
+          fecha_pago: string | null
+          fecha_vencimiento: string
+          forma_pago: string | null
+          id: string
+          iva: number
+          metodo_pago: string | null
+          moneda: string | null
+          notas: string | null
+          numero_factura: string
+          subtotal: number
+          tipo_cambio: number | null
+          total: number
+          updated_at: string | null
+          uso_cfdi: string | null
+          uuid_sat: string | null
+        }
+        Insert: {
+          cfdi_version?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nombre: string
+          cliente_rfc: string
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          fecha_emision: string
+          fecha_pago?: string | null
+          fecha_vencimiento: string
+          forma_pago?: string | null
+          id?: string
+          iva?: number
+          metodo_pago?: string | null
+          moneda?: string | null
+          notas?: string | null
+          numero_factura: string
+          subtotal?: number
+          tipo_cambio?: number | null
+          total?: number
+          updated_at?: string | null
+          uso_cfdi?: string | null
+          uuid_sat?: string | null
+        }
+        Update: {
+          cfdi_version?: string | null
+          cliente_email?: string | null
+          cliente_id?: string | null
+          cliente_nombre?: string
+          cliente_rfc?: string
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          fecha_emision?: string
+          fecha_pago?: string | null
+          fecha_vencimiento?: string
+          forma_pago?: string | null
+          id?: string
+          iva?: number
+          metodo_pago?: string | null
+          moneda?: string | null
+          notas?: string | null
+          numero_factura?: string
+          subtotal?: number
+          tipo_cambio?: number | null
+          total?: number
+          updated_at?: string | null
+          uso_cfdi?: string | null
+          uuid_sat?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
             referencedColumns: ["id"]
           },
         ]
@@ -9288,6 +9516,75 @@ export type Database = {
           },
         ]
       }
+      pagos: {
+        Row: {
+          banco: string | null
+          cliente_id: string | null
+          comprobante_url: string | null
+          created_at: string | null
+          created_by: string | null
+          estado: string | null
+          factura_id: string | null
+          fecha_deposito: string | null
+          fecha_pago: string
+          forma_pago: string
+          id: string
+          moneda: string | null
+          monto: number
+          notas: string | null
+          referencia_bancaria: string | null
+        }
+        Insert: {
+          banco?: string | null
+          cliente_id?: string | null
+          comprobante_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          factura_id?: string | null
+          fecha_deposito?: string | null
+          fecha_pago: string
+          forma_pago: string
+          id?: string
+          moneda?: string | null
+          monto: number
+          notas?: string | null
+          referencia_bancaria?: string | null
+        }
+        Update: {
+          banco?: string | null
+          cliente_id?: string | null
+          comprobante_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          factura_id?: string | null
+          fecha_deposito?: string | null
+          fecha_pago?: string
+          forma_pago?: string
+          id?: string
+          moneda?: string | null
+          monto?: number
+          notas?: string | null
+          referencia_bancaria?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagos_instaladores: {
         Row: {
           comprobante_url: string | null
@@ -9595,63 +9892,105 @@ export type Database = {
       pc_clientes: {
         Row: {
           activo: boolean | null
+          codigo_postal_fiscal: string | null
           contacto_email: string | null
+          contacto_facturacion_email: string | null
+          contacto_facturacion_nombre: string | null
+          contacto_facturacion_tel: string | null
           contacto_nombre: string
           contacto_tel: string
           created_at: string | null
           created_by: string | null
           descuentos_aplicables: Json | null
+          dia_corte: number | null
+          dia_pago: number | null
+          dias_credito: number | null
+          direccion_fiscal: string | null
           forma_pago_preferida: string | null
           id: string
+          limite_credito: number | null
           margen_objetivo_porcentaje: number | null
           nombre: string
           notas: string | null
+          notas_cobranza: string | null
+          prioridad_cobranza: string | null
+          razon_social: string | null
+          regimen_fiscal: string | null
           rfc: string | null
           search_vector: unknown
           sla_minutos_asignacion: number | null
           sla_respuesta_horas: number | null
           tarifas_especiales: boolean | null
           updated_at: string | null
+          uso_cfdi_default: string | null
         }
         Insert: {
           activo?: boolean | null
+          codigo_postal_fiscal?: string | null
           contacto_email?: string | null
+          contacto_facturacion_email?: string | null
+          contacto_facturacion_nombre?: string | null
+          contacto_facturacion_tel?: string | null
           contacto_nombre: string
           contacto_tel: string
           created_at?: string | null
           created_by?: string | null
           descuentos_aplicables?: Json | null
+          dia_corte?: number | null
+          dia_pago?: number | null
+          dias_credito?: number | null
+          direccion_fiscal?: string | null
           forma_pago_preferida?: string | null
           id?: string
+          limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
           nombre: string
           notas?: string | null
+          notas_cobranza?: string | null
+          prioridad_cobranza?: string | null
+          razon_social?: string | null
+          regimen_fiscal?: string | null
           rfc?: string | null
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
           updated_at?: string | null
+          uso_cfdi_default?: string | null
         }
         Update: {
           activo?: boolean | null
+          codigo_postal_fiscal?: string | null
           contacto_email?: string | null
+          contacto_facturacion_email?: string | null
+          contacto_facturacion_nombre?: string | null
+          contacto_facturacion_tel?: string | null
           contacto_nombre?: string
           contacto_tel?: string
           created_at?: string | null
           created_by?: string | null
           descuentos_aplicables?: Json | null
+          dia_corte?: number | null
+          dia_pago?: number | null
+          dias_credito?: number | null
+          direccion_fiscal?: string | null
           forma_pago_preferida?: string | null
           id?: string
+          limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
           nombre?: string
           notas?: string | null
+          notas_cobranza?: string | null
+          prioridad_cobranza?: string | null
+          razon_social?: string | null
+          regimen_fiscal?: string | null
           rfc?: string | null
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
           updated_at?: string | null
+          uso_cfdi_default?: string | null
         }
         Relationships: []
       }
@@ -14673,6 +15012,36 @@ export type Database = {
           tickets_en_progreso: number | null
         }
         Relationships: []
+      }
+      vw_aging_cuentas_cobrar: {
+        Row: {
+          cliente_id: string | null
+          cliente_nombre: string | null
+          cliente_rfc: string | null
+          dias_credito: number | null
+          limite_credito: number | null
+          num_facturas: number | null
+          prioridad_cobranza: string | null
+          saldo_pendiente: number | null
+          total_facturado: number | null
+          total_pagado: number | null
+          ultima_factura: string | null
+          ultimo_pago: string | null
+          vencido_1_30: number | null
+          vencido_31_60: number | null
+          vencido_61_90: number | null
+          vencido_90_mas: number | null
+          vigente: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_servicios_facturacion: {
         Row: {
