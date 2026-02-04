@@ -1,93 +1,90 @@
 
 
-# Plan: Agregar Fallback a servicios_custodia en Vista de Facturacion
+# Plan: Corregir Visualizacion de Timeline en Tabla de Facturacion
 
-## Objetivo
+## Problema Identificado
 
-Modificar la vista `vw_servicios_facturacion` para usar datos de `servicios_planificados` como fuente primaria, pero caer a `servicios_custodia` cuando los datos de planeacion no existan. Esto asegura continuidad durante la transicion de datos.
+La tabla de servicios muestra "-" en los campos de Duracion porque el codigo frontend usa el campo incorrecto.
 
-## Cambios en la Vista SQL
+### Diagnostico
 
-### Campos con Fallback
+| Campo | Variable Usada | Variable Correcta | Tiene Datos? |
+|-------|----------------|-------------------|--------------|
+| Duracion | `duracion_servicio` | `duracion_calculada` | Si (ej: 03:53:37) |
+| Presentacion | `hora_presentacion` | Ya correcto | Parcial |
+| Arribo | `hora_arribo` | Ya correcto | Parcial |
 
-| Campo | Logica Actual | Nueva Logica con Fallback |
-|-------|---------------|---------------------------|
-| hora_presentacion | Solo de sp | `COALESCE(sp.hora_llegada_custodio combinado, sc.hora_presentacion)` |
-| hora_inicio_custodia | Solo `sp.hora_inicio_real` | `COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia)` |
-| hora_finalizacion | Solo `sp.hora_fin_real` | `COALESCE(sp.hora_fin_real, sc.hora_finalizacion)` |
-| nombre_armado | Solo `sp.armado_asignado` | `COALESCE(sp.armado_asignado, sc.nombre_armado)` |
-| proveedor | Solo JOIN a proveedores_armados | `COALESCE(pa.nombre_empresa, sc.proveedor)` |
-| duracion_calculada | Solo si sp tiene inicio Y fin | Calcular con campos ya con fallback |
-| tiempo_retraso | Solo si sp tiene inicio | Calcular con campos ya con fallback, fallback a `sc.tiempo_retraso` |
-
-## SQL Actualizado
-
-```sql
--- PRESENTACION: Planeacion primero, fallback a custodia
-CASE 
-  WHEN sp.hora_llegada_custodio IS NOT NULL 
-  THEN (sp.fecha_hora_cita::date + sp.hora_llegada_custodio)::timestamptz
-  ELSE sc.hora_presentacion
-END AS hora_presentacion,
-
--- INICIO: Planeacion primero, fallback a custodia
-COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia) AS hora_inicio_custodia,
-
--- FIN: Planeacion primero, fallback a custodia
-COALESCE(sp.hora_fin_real, sc.hora_finalizacion) AS hora_finalizacion,
-
--- DURACION: Usar campos ya con fallback
-CASE 
-  WHEN COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia) IS NOT NULL 
-   AND COALESCE(sp.hora_fin_real, sc.hora_finalizacion) IS NOT NULL
-  THEN COALESCE(sp.hora_fin_real, sc.hora_finalizacion) 
-     - COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia)
-  ELSE NULL
-END AS duracion_calculada,
-
--- RETRASO: Calcular con fallback, o usar existente
-CASE 
-  WHEN COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia) IS NOT NULL 
-   AND COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita) IS NOT NULL
-  THEN COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia) 
-     - COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita)
-  ELSE sc.tiempo_retraso
-END AS tiempo_retraso,
-
--- ARMADO: Planeacion primero, fallback a custodia
-COALESCE(sp.armado_asignado, sc.nombre_armado) AS nombre_armado,
-
--- PROVEEDOR: JOIN primero, fallback a campo manual en custodia
-COALESCE(
-  CASE 
-    WHEN sp.tipo_asignacion_armado = 'proveedor' AND sp.proveedor_armado_id IS NOT NULL
-    THEN pa.nombre_empresa
-    ELSE NULL
-  END,
-  sc.proveedor
-) AS proveedor,
+**Evidencia de datos en vista:**
+```
+folio: PRCOPEM-7, duracion_calculada: -06:24:51.325, hora_presentacion: 2026-01-20 08:50:00
+folio: TEOVTEL-719, duracion_calculada: 01:37:41.999
+folio: COGFCGM-93, hora_arribo: 2026-01-19 12:17:42
 ```
 
-## Resultado
+## Cambios Requeridos
 
-| Escenario | Antes | Despues |
-|-----------|-------|---------|
-| Servicio con datos en sp | Usa sp | Usa sp (sin cambio) |
-| Servicio sin datos en sp | NULL/vacio | Usa sc como fallback |
-| Servicio con datos parciales | Solo muestra lo de sp | Combina: sp para lo que existe, sc para lo demas |
+### Archivo: `src/pages/Facturacion/components/ServiciosConsulta.tsx`
 
-## Archivo a Modificar
+#### 1. Agregar funcion para formatear intervalos PostgreSQL
 
+Los intervalos vienen como strings "HH:MM:SS.mmm" desde la vista. Necesita convertirse a formato legible:
+
+```typescript
+const formatDuracion = (duracion: string | null) => {
+  if (!duracion) return '-';
+  const match = duracion.match(/^(-?)(\d+):(\d+):(\d+)/);
+  if (!match) return duracion;
+  
+  const [, negativo, horas, minutos] = match;
+  const h = parseInt(horas);
+  const m = parseInt(minutos);
+  
+  if (h === 0 && m === 0) return '< 1m';
+  if (h > 0) return `${negativo}${h}h ${m}m`;
+  return `${negativo}${m}m`;
+};
 ```
-supabase/migrations/
-└── YYYYMMDD_add_fallback_servicios_custodia.sql
+
+#### 2. Corregir linea 528
+
+**Antes:**
+```typescript
+{s.duracion_servicio || '-'}
 ```
+
+**Despues:**
+```typescript
+{formatDuracion(s.duracion_calculada)}
+```
+
+#### 3. Actualizar exportacion Excel
+
+Agregar duracion calculada a los datos exportados para consistencia.
+
+## Resultado Esperado
+
+| Campo | Antes | Despues |
+|-------|-------|---------|
+| Duracion | - | 3h 53m |
+| Presentacion | - (si NULL) | 08:50 (si tiene datos) |
+| Arribo | - (si NULL) | 12:17 (si tiene datos) |
+
+## Nota sobre Datos Faltantes
+
+Los campos Presentacion y Arribo mostraran "-" cuando no existen datos en la base de datos. Para febrero 2026:
+
+- `hora_presentacion`: Requiere que planeacion registre `hora_llegada_custodio`
+- `hora_arribo`: Requiere que operaciones registre en servicios_custodia
+
+El sistema de fallback esta listo - solo faltan los datos operativos.
 
 ## Seccion Tecnica
 
-La migracion ejecutara:
-1. `DROP VIEW IF EXISTS vw_servicios_facturacion`
-2. `CREATE VIEW` con logica COALESCE para todos los campos de timeline y armado
+El campo `duracion_calculada` es un intervalo PostgreSQL:
+```sql
+COALESCE(sp.hora_fin_real, sc.hora_finalizacion) 
+- COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia)
+```
 
-No requiere cambios en frontend - los tipos en TypeScript ya soportan estos campos.
+Valores negativos indican timestamps invertidos (hora_fin < hora_inicio) que deberian revisarse manualmente.
 
