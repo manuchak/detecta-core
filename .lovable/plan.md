@@ -1,333 +1,334 @@
 
-# Plan: Modulo de Facturacion y Finanzas con Vision BI
+# Analisis Forense: Sidebar No Aprovecha Espacio Vertical
 
-## Resumen Ejecutivo
+## Problema Visual Observado
 
-Crear un nuevo modulo para el equipo de Facturacion y Finanzas con acceso de solo lectura a los servicios de custodia, diseñado con metricas estrategicas para un Head de BI.
-
----
-
-## 1. Nuevos Roles a Crear
-
-| Rol | Descripcion | Acceso |
-|-----|-------------|--------|
-| `facturacion_admin` | Jefe de Facturacion - acceso completo al modulo | Todas las vistas y exportaciones |
-| `facturacion` | Analista de Facturacion | Consultas y reportes basicos |
-| `finanzas_admin` | Director de Finanzas - vision ejecutiva | Dashboards estrategicos + exportacion |
-| `finanzas` | Analista Financiero | Reportes y analisis |
+En la captura se observa:
+- El menu lateral tiene mucho espacio vacio en la parte inferior
+- Los grupos de navegacion parecen "flotar" con espacio excesivo
+- El footer con el boton de colapsar queda muy lejos del contenido
+- La seccion "MONITOREO & SOPORTE" aparece colapsada pero aun asi hay espacio desperdiciado
 
 ---
 
-## 2. Estructura del Modulo
+## Diagnostico Tecnico Profundo
+
+### 1. El Zoom al 70% (Causa Principal)
+
+El zoom `0.7` en `index.css` crea un **desacoplamiento visual-logico**:
+
+```css
+/* index.css linea 134 */
+html {
+  zoom: 0.7;
+}
+```
+
+**Consecuencia**: El zoom reduce todo visualmente al 70%, PERO los calculos CSS de altura siguen basandose en el viewport "real" sin zoom. Esto significa que:
+
+- **Viewport real**: 1080px de alto
+- **Viewport visual**: ~756px de alto (1080 × 0.7)
+- **Calculo CSS**: `100svh - 3.5rem` = ~1024px logicos
+- **Espacio visual**: Solo necesita ~717px pero tiene ~717px × 1.43 = ~1025px reservados
+
+### 2. Desalineacion de Calculos de Altura
+
+Hay **inconsistencia** entre los valores usados:
+
+| Componente | Calculo | Valor |
+|------------|---------|-------|
+| **SimplifiedTopBar** | `h-14` | 3.5rem (56px) |
+| **Sidebar (sidebar.tsx)** | `h-[calc(100svh-3.5rem)]` | Resta 3.5rem |
+| **UnifiedLayout** | `min-h-[calc(100vh-3rem)]` | Resta 3rem |
+
+El layout usa `3rem` pero el sidebar usa `3.5rem`, creando 0.5rem de discrepancia.
+
+### 3. Estructura Interna del Sidebar
 
 ```text
-/facturacion
-├── /dashboard          → KPIs ejecutivos
-├── /servicios          → Consulta detallada de servicios
-├── /clientes           → Analisis por cliente
-├── /rentabilidad       → Margenes y costos
-└── /exportacion        → Generacion de reportes
+UnifiedSidebar
+├── SidebarContent (py-1)
+│   ├── SidebarGroup (py-0.5) × N grupos
+│   │   ├── SidebarGroupLabel (h-8, py-1)
+│   │   └── SidebarMenu (space-y-px, px-2)
+│   │       └── SidebarMenuItem
+│   │           └── SidebarMenuButton (py-2)
+│   └── Separator (my-1) entre grupos
+└── SidebarFooter (p-2, mt-auto) ← Empujado al fondo
+```
+
+El problema: `mt-auto` en SidebarFooter lo empuja al final del contenedor, pero el contenedor tiene altura excesiva por el calculo de viewport.
+
+### 4. Flujo del Bug Visualizado
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Viewport Real: 1080px altura                                │
+├─────────────────────────────────────────────────────────────┤
+│ Con zoom 0.7:                                               │
+│   - Visual: 756px (lo que el usuario VE)                    │
+│   - CSS calcula: 1080px (lo que CSS USA)                    │
+│                                                             │
+│ Sidebar calcula altura:                                     │
+│   100svh - 3.5rem = ~1024px                                 │
+│                                                             │
+│ Contenido real del sidebar:                                 │
+│   - 5 grupos × ~100px = ~500px                              │
+│   - Footer: ~40px                                           │
+│   - Total: ~540px                                           │
+│                                                             │
+│ Espacio desperdiciado: 1024 - 540 = ~484px                  │
+│ (Pero visualmente × 0.7 = ~339px de "vacio")                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Vista Principal: Dashboard Ejecutivo BI
+## Analisis Comparativo de Soluciones
 
-### KPIs Estrategicos (Head de BI)
+### Opcion A: Ajustar altura del sidebar al contenido
 
-| KPI | Descripcion | Fuente |
-|-----|-------------|--------|
-| **Ingresos Brutos** | SUM(cobro_cliente) | servicios_custodia |
-| **Costos Operativos** | SUM(costo_custodio) | servicios_custodia |
-| **Margen Bruto** | Ingresos - Costos | Calculado |
-| **% Margen** | (Margen / Ingresos) * 100 | Calculado |
-| **Ticket Promedio** | AVG(cobro_cliente) | servicios_custodia |
-| **Servicios Completados** | COUNT WHERE estado = 'Finalizado' | servicios_custodia |
-| **Km Facturables** | SUM(km_recorridos) | servicios_custodia |
+**Cambio**: Hacer que el sidebar use altura dinamica basada en contenido.
 
-### Dimensiones de Analisis
-
-- **Temporal**: Diario, Semanal, Mensual, Trimestral, Anual
-- **Cliente**: Top 10 clientes, concentracion de ingresos
-- **Ruta**: Rutas mas rentables vs menos rentables
-- **Tipo Servicio**: Punto A-B vs Repartos
-- **Local/Foraneo**: Segmentacion geografica
-
----
-
-## 4. Vista Espejo de Servicios (Solo Lectura)
-
-### Datos Disponibles para Facturacion
-
-| Campo | Tipo | Uso |
-|-------|------|-----|
-| id_servicio | text | Identificador unico para factura |
-| fecha_hora_cita | timestamp | Fecha del servicio |
-| nombre_cliente | text | Cliente a facturar |
-| folio_cliente | text | Referencia del cliente |
-| ruta | text | Descripcion de la ruta |
-| origen / destino | text | Puntos de servicio |
-| km_recorridos | numeric | Kilometros a facturar |
-| cobro_cliente | numeric | Monto a facturar |
-| costo_custodio | numeric | Costo operativo |
-| nombre_custodio | text | Personal asignado |
-| estado | text | Estado del servicio |
-| tipo_servicio | text | Categoria |
-| local_foraneo | text | Clasificacion geografica |
-| casetas | text | Costos adicionales |
-| gadget | text | Equipo utilizado |
-
-### Filtros Disponibles
-
-- Rango de fechas
-- Cliente
-- Estado (Finalizado, Cancelado, etc.)
-- Tipo de servicio
-- Local/Foraneo
-- Rango de montos
-
----
-
-## 5. Arquitectura de Base de Datos
-
-### Vista SQL para Facturacion (Read-Only)
-
-```sql
-CREATE VIEW vw_servicios_facturacion AS
-SELECT 
-  sc.id,
-  sc.id_servicio,
-  sc.fecha_hora_cita,
-  sc.nombre_cliente,
-  sc.folio_cliente,
-  sc.ruta,
-  sc.origen,
-  sc.destino,
-  sc.tipo_servicio,
-  sc.local_foraneo,
-  sc.km_recorridos,
-  sc.km_teorico,
-  sc.cobro_cliente,
-  sc.costo_custodio,
-  (sc.cobro_cliente - sc.costo_custodio) as margen_bruto,
-  CASE 
-    WHEN sc.cobro_cliente > 0 
-    THEN ((sc.cobro_cliente - sc.costo_custodio) / sc.cobro_cliente) * 100 
-    ELSE 0 
-  END as porcentaje_margen,
-  sc.nombre_custodio,
-  sc.nombre_armado,
-  sc.proveedor,
-  sc.estado,
-  sc.casetas,
-  sc.gadget,
-  sc.duracion_servicio,
-  sc.created_at,
-  sc.creado_por,
-  -- Campos adicionales de cliente
-  pc.rfc as cliente_rfc,
-  pc.contacto_email as cliente_email,
-  pc.forma_pago_preferida,
-  -- Precios de referencia
-  mpr.valor_bruto as precio_lista,
-  mpr.precio_custodio as costo_lista
-FROM servicios_custodia sc
-LEFT JOIN pc_clientes pc ON LOWER(TRIM(sc.nombre_cliente)) = LOWER(TRIM(pc.nombre))
-LEFT JOIN matriz_precios_rutas mpr ON sc.ruta = mpr.clave
-WHERE sc.estado IN ('Finalizado', 'En ruta', 'En Espera');
+```css
+/* En vez de h-[calc(100svh-3.5rem)], usar */
+min-h-[calc(100svh-3.5rem)]
+h-fit
 ```
 
-### Politicas RLS
+**Pros**: El sidebar solo ocupa lo que necesita
+**Contras**: El footer no quedaria fijo en la parte inferior
 
-```sql
--- Solo lectura para roles de facturacion/finanzas
-CREATE POLICY "facturacion_read_servicios" ON servicios_custodia
-FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles ur
-    WHERE ur.user_id = auth.uid()
-    AND ur.role IN ('facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'admin', 'owner', 'bi')
-  )
+### Opcion B: Compensar el zoom en los calculos
+
+**Cambio**: Ajustar el calculo de altura dividiendo por el factor de zoom.
+
+```css
+/* Nueva formula compensada */
+h-[calc((100svh/0.7)-5rem)]
+```
+
+**Pros**: Matematicamente correcto
+**Contras**: Complejo de mantener si cambia el zoom
+
+### Opcion C: Usar flexbox puro sin alturas fijas (Recomendada)
+
+**Cambio**: Reorganizar el layout para que flex controle todo.
+
+```tsx
+// UnifiedLayout.tsx
+<div className="flex flex-col h-screen">
+  <SimplifiedTopBar /> {/* flex-shrink-0 */}
+  <div className="flex flex-1 min-h-0">
+    <UnifiedSidebar />
+    <main className="flex-1 overflow-auto" />
+  </div>
+</div>
+```
+
+**Pros**: 
+- Automaticamente se adapta a cualquier zoom
+- No requiere calculos manuales
+- Funciona en Firefox (que no soporta zoom)
+
+**Contras**: Requiere refactorizar el layout
+
+### Opcion D: Sticky footer dentro del sidebar
+
+**Cambio**: Hacer el contenido scrolleable y el footer sticky.
+
+```tsx
+<Sidebar>
+  <SidebarContent className="flex-1 overflow-y-auto">
+    {/* Grupos */}
+  </SidebarContent>
+  <SidebarFooter className="sticky bottom-0 bg-sidebar">
+    {/* Toggle */}
+  </SidebarFooter>
+</Sidebar>
+```
+
+**Pros**: Footer siempre visible, contenido scrolleable
+**Contras**: No resuelve el espacio vacio si hay pocos items
+
+---
+
+## Solucion Recomendada: Combinacion de C + D
+
+### Cambios a Implementar
+
+#### 1. Modificar `UnifiedLayout.tsx`
+
+```tsx
+return (
+  <div className="h-screen flex flex-col overflow-hidden">
+    <SimplifiedTopBar />
+    
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex flex-1 min-h-0 w-full">
+        <UnifiedSidebar stats={sidebarStats} />
+        
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
+  </div>
 );
 ```
 
----
+#### 2. Modificar `sidebar.tsx` (componente base)
 
-## 6. Componentes UI a Crear
-
-### Archivos Nuevos
-
-```text
-src/pages/Facturacion/
-├── FacturacionHub.tsx              → Hub principal con tabs
-├── components/
-│   ├── FacturacionDashboard.tsx    → KPIs y graficas ejecutivas
-│   ├── ServiciosConsulta.tsx       → Tabla con filtros avanzados
-│   ├── ClientesAnalisis.tsx        → Concentracion y rentabilidad
-│   ├── RentabilidadView.tsx        → Margenes por ruta/cliente
-│   ├── ExportacionPanel.tsx        → Generacion de reportes
-│   └── charts/
-│       ├── IngresosTrendChart.tsx  → Evolucion temporal
-│       ├── MargenPieChart.tsx      → Distribucion de margenes
-│       ├── ClienteConcentration.tsx→ Pareto de clientes
-│       └── RutasRentabilidad.tsx   → Mapa de calor rutas
-├── hooks/
-│   ├── useFacturacionMetrics.ts    → Hook de KPIs
-│   ├── useServiciosFacturacion.ts  → Hook de consulta
-│   └── useExportFacturacion.ts     → Hook de exportacion
-```
-
----
-
-## 7. Integracion con App.tsx
-
-```typescript
-// Nueva ruta protegida
-<Route
-  path="/facturacion/*"
-  element={
-    <ProtectedRoute>
-      <RoleProtectedRoute allowedRoles={[
-        'admin', 
-        'owner', 
-        'bi',
-        'facturacion_admin', 
-        'facturacion',
-        'finanzas_admin',
-        'finanzas'
-      ]}>
-        <UnifiedLayout>
-          <FacturacionHub />
-        </UnifiedLayout>
-      </RoleProtectedRoute>
-    </ProtectedRoute>
-  }
+```tsx
+// Linea 224-232 - Cambiar calculos de altura
+<div
+  className={cn(
+    "duration-200 relative h-full w-[--sidebar-width] bg-transparent transition-[width] ease-linear",
+    // ... resto igual
+  )}
 />
+<div
+  className={cn(
+    "duration-200 fixed inset-y-0 top-14 z-10 hidden w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex flex-col",
+    // Remover h-[calc(100svh-3.5rem)], usar inset-y-0 + top-14
+    // ...
+  )}
+>
+```
+
+#### 3. Modificar `UnifiedSidebar.tsx`
+
+```tsx
+// Hacer el SidebarContent mas compacto
+<SidebarContent className="py-0.5 flex-1">
+  {/* Reducir espaciado entre grupos */}
+</SidebarContent>
+
+// Footer con sticky positioning
+<SidebarFooter className="border-t border-sidebar-border p-1.5 sticky bottom-0 bg-sidebar">
+  {/* ... */}
+</SidebarFooter>
+```
+
+#### 4. Optimizar espaciado interno
+
+| Elemento | Actual | Propuesto |
+|----------|--------|-----------|
+| SidebarContent padding | `py-1` | `py-0.5` |
+| SidebarGroup padding | `py-0.5` | `py-0` |
+| SidebarGroupLabel | `py-1` | `py-0.5` |
+| SidebarMenuButton | `py-2` | `py-1.5` |
+| Separator margin | `my-1` | `my-0.5` |
+| Footer padding | `p-2` | `p-1.5` |
+
+---
+
+## Impacto Visual Esperado
+
+### Antes (Actual)
+```text
+┌──────────────────┐
+│ DASHBOARD        │
+│   ▸ Ejecutivo    │
+│   ▸ KPIs         │
+│                  │
+│ SUPPLY & TALENTO │
+│   ▸ Pipeline     │
+│   ...            │
+│                  │
+│                  │
+│                  │  ← Espacio desperdiciado
+│                  │
+│                  │
+│  [◀ Toggle]      │
+└──────────────────┘
+```
+
+### Despues (Optimizado)
+```text
+┌──────────────────┐
+│ DASHBOARD        │
+│  ▸ Ejecutivo     │
+│  ▸ KPIs          │
+│ SUPPLY & TALENTO │
+│  ▸ Pipeline      │
+│  ...             │
+│ OPERACIONES      │
+│  ▸ Planeación    │
+│ MONITOREO        │
+│  ▸ Monitoreo     │
+│ SISTEMA ▾        │
+│──────────────────│
+│ [◀] 3 alertas    │
+└──────────────────┘
 ```
 
 ---
 
-## 8. Actualizacion de Access Control
+## Archivos a Modificar
 
-```typescript
-// src/constants/accessControl.ts
-
-/**
- * Roles de Facturacion y Finanzas
- */
-export const FACTURACION_ROLES = [
-  'facturacion_admin',
-  'facturacion',
-  'finanzas_admin',
-  'finanzas'
-] as const;
-
-/**
- * Roles con acceso completo a Facturacion
- */
-export const FACTURACION_FULL_ACCESS_ROLES = [
-  'admin',
-  'owner',
-  'bi',
-  'facturacion_admin',
-  'finanzas_admin'
-] as const;
-
-/**
- * Roles con acceso limitado (solo consulta)
- */
-export const FACTURACION_LIMITED_ROLES = [
-  'facturacion',
-  'finanzas'
-] as const;
-```
-
----
-
-## 9. Actualizacion de Role Types
-
-```typescript
-// src/types/roleTypes.ts
-export type Role = 
-  | 'owner'
-  | 'admin'
-  // ... roles existentes ...
-  | 'facturacion_admin'  // NUEVO
-  | 'facturacion'        // NUEVO
-  | 'finanzas_admin'     // NUEVO
-  | 'finanzas'           // NUEVO
-  | 'pending'
-  | 'unverified';
-```
-
----
-
-## 10. Tabs del Modulo
-
-| Tab | Roles | Descripcion |
-|-----|-------|-------------|
-| **Dashboard** | Todos | KPIs ejecutivos, trends, insights |
-| **Servicios** | Todos | Consulta detallada con filtros |
-| **Clientes** | full_access | Analisis de concentracion y rentabilidad |
-| **Rentabilidad** | full_access | Margenes por dimension |
-| **Exportacion** | admin roles | Generacion de reportes Excel/PDF |
-
----
-
-## 11. Funcionalidades Clave
-
-### Para el Head de BI
-
-1. **Insights Automaticos**: Alertas cuando margenes caen debajo de umbral
-2. **Comparacion Temporal**: MoM, YoY, WoW
-3. **Segmentacion Dinamica**: Drill-down por cliente/ruta/periodo
-4. **Concentracion de Riesgo**: Pareto de clientes (80/20)
-5. **Proyecciones**: Forecast basado en tendencias
-
-### Para Facturacion
-
-1. **Busqueda Rapida**: Por folio, cliente, fecha
-2. **Exportacion a Excel**: Con todos los campos necesarios
-3. **Filtros Predefinidos**: "Pendientes de facturar", "Este mes", etc.
-4. **Validacion de Datos**: Alertas de servicios sin cobro asignado
-
----
-
-## 12. Archivos a Crear/Modificar
-
-| Archivo | Accion |
+| Archivo | Cambio |
 |---------|--------|
-| `src/types/roleTypes.ts` | Agregar 4 nuevos roles |
-| `src/constants/accessControl.ts` | Agregar constantes de facturacion |
-| `src/pages/Facturacion/FacturacionHub.tsx` | CREAR - Hub principal |
-| `src/pages/Facturacion/components/*.tsx` | CREAR - 5 componentes |
-| `src/pages/Facturacion/hooks/*.ts` | CREAR - 3 hooks |
-| `src/App.tsx` | Agregar rutas protegidas |
-| `src/components/navigation/GlobalNav.tsx` | Agregar modulo Facturacion |
-| Migracion SQL | CREAR vista + RLS policies |
+| `src/layouts/UnifiedLayout.tsx` | Restructurar con flexbox puro |
+| `src/components/ui/sidebar.tsx` | Remover calculos de altura fija |
+| `src/components/navigation/UnifiedSidebar.tsx` | Optimizar espaciado interno |
+| `src/index.css` | Opcional: ajustar estilos de scrollbar |
 
 ---
 
-## 13. Datos de Muestra (Enero-Febrero 2026)
+## Beneficios
 
-| Metrica | Valor |
-|---------|-------|
-| Servicios Finalizados | 726 |
-| Ingresos Totales | $6,294,356 MXN |
-| Costos Operativos | $2,736,114 MXN |
-| Margen Bruto | $3,558,242 MXN |
-| % Margen Promedio | 56.5% |
-| Servicios Cancelados | 33 (4.3%) |
+1. **Aprovechamiento optimo del espacio**: El sidebar se ajusta al contenido
+2. **Compatibilidad con zoom**: Funciona correctamente con cualquier nivel de zoom
+3. **Firefox compatible**: No depende de la propiedad `zoom`
+4. **Mantenibilidad**: Flexbox es mas facil de mantener que calculos manuales
+5. **Responsive**: Se adapta automaticamente a diferentes alturas de pantalla
 
 ---
 
-## Entregables
+## Seccion Tecnica: Detalles de Implementacion
 
-1. 4 nuevos roles en el sistema
-2. Modulo completo con 5 vistas
-3. Dashboard BI con KPIs estrategicos
-4. Vista espejo read-only de servicios
-5. Exportacion a Excel
-6. Auditoria de accesos (log de consultas)
+### Calculo del Problema Matematico
+
+```
+Zoom = 0.7
+Viewport Height = 1080px (ejemplo)
+TopBar = 56px (h-14 = 3.5rem)
+
+Sin zoom:
+  Sidebar Height = 1080 - 56 = 1024px
+
+Con zoom 0.7:
+  Visual Viewport = 1080 / 0.7 = 1542.86px logicos
+  Pero CSS calcula con 1080px reales
+  
+  Resultado: El sidebar tiene 1024px de altura
+  pero visualmente parece tener 717px (1024 × 0.7)
+  
+  Si el contenido real es ~400px visual:
+  Espacio vacio = 717 - 400 = 317px visuales desperdiciados
+```
+
+### Solucion Flexbox Detallada
+
+```tsx
+// Layout raiz
+<div className="h-screen flex flex-col overflow-hidden">
+  {/* TopBar - altura fija, no crece */}
+  <header className="h-14 shrink-0" />
+  
+  {/* Contenido - crece para llenar */}
+  <div className="flex flex-1 min-h-0">
+    {/* Sidebar - altura automatica */}
+    <aside className="w-60 flex flex-col">
+      <nav className="flex-1 overflow-y-auto" />
+      <footer className="shrink-0" />
+    </aside>
+    
+    {/* Main - crece horizontalmente */}
+    <main className="flex-1 overflow-auto" />
+  </div>
+</div>
+```
+
+Esta arquitectura elimina la necesidad de calculos de altura y permite que el browser maneje el layout automaticamente, independiente del zoom.
