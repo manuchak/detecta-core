@@ -1,90 +1,127 @@
 
 
-# Plan: Corregir Visualizacion de Timeline en Tabla de Facturacion
+# Plan: Corregir Lógica de Proveedor en Vista de Facturación
 
 ## Problema Identificado
 
-La tabla de servicios muestra "-" en los campos de Duracion porque el codigo frontend usa el campo incorrecto.
+El campo "Proveedor" muestra valores incorrectos como "EX - MILITAR", "Seter", "Ex-Militar CDMX" que NO son proveedores externos del sistema.
 
-### Diagnostico
+### Diagnóstico
 
-| Campo | Variable Usada | Variable Correcta | Tiene Datos? |
-|-------|----------------|-------------------|--------------|
-| Duracion | `duracion_servicio` | `duracion_calculada` | Si (ej: 03:53:37) |
-| Presentacion | `hora_presentacion` | Ya correcto | Parcial |
-| Arribo | `hora_arribo` | Ya correcto | Parcial |
+| Valor en Campo | Origen | Es Proveedor Real? |
+|----------------|--------|-------------------|
+| CUSAEM | proveedores_armados | Si |
+| SEICSA | proveedores_armados | Si |
+| EX - MILITAR | servicios_custodia (legacy) | No - Clasificación interna |
+| Ex-Militar CDMX | servicios_custodia (legacy) | No - Clasificación interna |
+| Seter | servicios_custodia (legacy) | No - Dato corrupto |
 
-**Evidencia de datos en vista:**
+### Lógica Actual (Incorrecta)
+
+```sql
+COALESCE(
+    CASE WHEN sp.tipo_asignacion_armado = 'proveedor' 
+         AND sp.proveedor_armado_id IS NOT NULL 
+         THEN pa.nombre_empresa
+         ELSE NULL
+    END,
+    sc.proveedor  -- Este fallback trae datos incorrectos
+) AS proveedor
 ```
-folio: PRCOPEM-7, duracion_calculada: -06:24:51.325, hora_presentacion: 2026-01-20 08:50:00
-folio: TEOVTEL-719, duracion_calculada: 01:37:41.999
-folio: COGFCGM-93, hora_arribo: 2026-01-19 12:17:42
+
+## Solución Propuesta
+
+### Opción A: Vista Estricta (Recomendada)
+
+Solo mostrar proveedor cuando existe una asignación formal a proveedor externo:
+
+```sql
+CASE 
+    WHEN sp.tipo_asignacion_armado = 'proveedor' 
+         AND sp.proveedor_armado_id IS NOT NULL 
+    THEN pa.nombre_empresa
+    ELSE NULL
+END AS proveedor
+```
+
+Esto elimina el fallback a datos legacy incorrectos.
+
+### Opción B: Vista con Filtro de Proveedores Válidos
+
+Solo usar fallback si el valor coincide con un proveedor real:
+
+```sql
+COALESCE(
+    CASE WHEN sp.tipo_asignacion_armado = 'proveedor' 
+         AND sp.proveedor_armado_id IS NOT NULL 
+         THEN pa.nombre_empresa
+         ELSE NULL
+    END,
+    CASE WHEN sc.proveedor IN ('CUSAEM', 'SEICSA', 'Cusaem') 
+         THEN sc.proveedor
+         ELSE NULL
+    END
+) AS proveedor
 ```
 
 ## Cambios Requeridos
 
-### Archivo: `src/pages/Facturacion/components/ServiciosConsulta.tsx`
+### 1. Actualizar Vista SQL (vw_servicios_facturacion)
 
-#### 1. Agregar funcion para formatear intervalos PostgreSQL
+Modificar la línea del proveedor para usar Opción A:
 
-Los intervalos vienen como strings "HH:MM:SS.mmm" desde la vista. Necesita convertirse a formato legible:
-
-```typescript
-const formatDuracion = (duracion: string | null) => {
-  if (!duracion) return '-';
-  const match = duracion.match(/^(-?)(\d+):(\d+):(\d+)/);
-  if (!match) return duracion;
-  
-  const [, negativo, horas, minutos] = match;
-  const h = parseInt(horas);
-  const m = parseInt(minutos);
-  
-  if (h === 0 && m === 0) return '< 1m';
-  if (h > 0) return `${negativo}${h}h ${m}m`;
-  return `${negativo}${m}m`;
-};
-```
-
-#### 2. Corregir linea 528
-
-**Antes:**
-```typescript
-{s.duracion_servicio || '-'}
-```
-
-**Despues:**
-```typescript
-{formatDuracion(s.duracion_calculada)}
-```
-
-#### 3. Actualizar exportacion Excel
-
-Agregar duracion calculada a los datos exportados para consistencia.
-
-## Resultado Esperado
-
-| Campo | Antes | Despues |
-|-------|-------|---------|
-| Duracion | - | 3h 53m |
-| Presentacion | - (si NULL) | 08:50 (si tiene datos) |
-| Arribo | - (si NULL) | 12:17 (si tiene datos) |
-
-## Nota sobre Datos Faltantes
-
-Los campos Presentacion y Arribo mostraran "-" cuando no existen datos en la base de datos. Para febrero 2026:
-
-- `hora_presentacion`: Requiere que planeacion registre `hora_llegada_custodio`
-- `hora_arribo`: Requiere que operaciones registre en servicios_custodia
-
-El sistema de fallback esta listo - solo faltan los datos operativos.
-
-## Seccion Tecnica
-
-El campo `duracion_calculada` es un intervalo PostgreSQL:
 ```sql
-COALESCE(sp.hora_fin_real, sc.hora_finalizacion) 
-- COALESCE(sp.hora_inicio_real, sc.hora_inicio_custodia)
+-- Reemplazar:
+COALESCE(
+    CASE WHEN sp.tipo_asignacion_armado = 'proveedor' AND sp.proveedor_armado_id IS NOT NULL 
+         THEN pa.nombre_empresa
+         ELSE NULL
+    END, 
+    sc.proveedor
+) AS proveedor
+
+-- Por:
+CASE 
+    WHEN sp.tipo_asignacion_armado = 'proveedor' 
+         AND sp.proveedor_armado_id IS NOT NULL 
+    THEN pa.nombre_empresa
+    ELSE NULL
+END AS proveedor
 ```
 
-Valores negativos indican timestamps invertidos (hora_fin < hora_inicio) que deberian revisarse manualmente.
+### 2. Actualizar Hook useProveedoresUnicos
+
+Actualmente obtiene proveedores de servicios_custodia (datos incorrectos). Debe obtenerlos de proveedores_armados:
+
+```typescript
+// Antes (incorrecto):
+const { data } = await supabase
+  .from('servicios_custodia')
+  .select('proveedor')
+
+// Después (correcto):
+const { data } = await supabase
+  .from('proveedores_armados')
+  .select('nombre_empresa')
+  .eq('activo', true)
+```
+
+## Impacto
+
+| Servicio | Antes | Después |
+|----------|-------|---------|
+| Con proveedor real asignado | CUSAEM | CUSAEM |
+| Armado interno | EX - MILITAR | - (vacío) |
+| Armado interno | Seter | - (vacío) |
+| Sin armado | - | - |
+
+## Sección Técnica
+
+La corrección requiere:
+
+1. **Migración SQL**: ALTER VIEW o DROP/CREATE para actualizar vw_servicios_facturacion
+2. **Frontend**: Modificar useProveedoresUnicos para usar proveedores_armados
+3. **No breaking changes**: Los servicios con proveedores reales (CUSAEM, SEICSA) seguirán mostrándose correctamente
+
+Nota: Los 3,397 servicios con "Ex-Militar CDMX" y 181 con "EX - MILITAR" mostrarán proveedor vacío, lo cual es correcto porque son armados internos, no proveedores externos.
 
