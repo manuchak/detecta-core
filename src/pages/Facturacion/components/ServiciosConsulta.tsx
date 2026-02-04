@@ -18,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Download, Filter, X } from 'lucide-react';
+import { Search, Download, X } from 'lucide-react';
 import { ServicioFacturacion } from '../hooks/useServiciosFacturacion';
-import { formatCurrency, formatNumber } from '@/utils/formatUtils';
+import { formatCurrency } from '@/utils/formatUtils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -114,11 +114,11 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-muted rounded w-full" />
-            <div className="h-[400px] bg-muted rounded" />
+      <Card className="border-border/50">
+        <CardContent className="p-4">
+          <div className="animate-pulse space-y-3">
+            <div className="h-8 bg-muted rounded w-full" />
+            <div className="h-[calc(100vh-280px)] bg-muted rounded" />
           </div>
         </CardContent>
       </Card>
@@ -126,40 +126,40 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle className="text-lg">Consulta de Servicios</CardTitle>
+    <Card className="border-border/50">
+      <CardHeader className="py-2.5 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Consulta de Servicios</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {filteredServicios.length} de {servicios.length} servicios
+            <Badge variant="secondary" className="text-xs">
+              {filteredServicios.length} de {servicios.length}
             </Badge>
-            <Button onClick={handleExportExcel} size="sm" variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar Excel
+            <Button onClick={handleExportExcel} size="sm" variant="outline" className="h-7 text-xs">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Exportar
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Filtros */}
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <CardContent className="p-3 pt-0 space-y-2">
+        {/* Filtros compactos */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar por ID, cliente, folio o ruta..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-8 h-8 text-xs"
             />
           </div>
           
           <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los estados</SelectItem>
+              <SelectItem value="all">Todos estados</SelectItem>
               {ESTADOS.map(e => (
                 <SelectItem key={e} value={e}>{e}</SelectItem>
               ))}
@@ -167,11 +167,11 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
           </Select>
 
           <Select value={clienteFilter} onValueChange={setClienteFilter}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="Cliente" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los clientes</SelectItem>
+              <SelectItem value="all">Todos clientes</SelectItem>
               {clientes.slice(0, 50).map(c => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
@@ -179,7 +179,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
           </Select>
 
           <Select value={localForaneoFilter} onValueChange={setLocalForaneoFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[100px] h-8 text-xs">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -190,58 +190,58 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
           </Select>
 
           {hasActiveFilters && (
-            <Button variant="ghost" size="icon" onClick={clearFilters}>
-              <X className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={clearFilters} className="h-8 w-8">
+              <X className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
 
-        {/* Tabla */}
-        <div className="rounded-md border overflow-auto max-h-[600px]">
+        {/* Tabla con altura dinámica */}
+        <div className="rounded-md border border-border/50 overflow-auto h-[calc(100vh-300px)] min-h-[300px]">
           <Table>
-            <TableHeader className="sticky top-0 bg-background">
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
-                <TableHead className="w-[100px]">ID</TableHead>
-                <TableHead className="w-[140px]">Fecha</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Ruta</TableHead>
-                <TableHead className="text-right">Cobro</TableHead>
-                <TableHead className="text-right">Costo</TableHead>
-                <TableHead className="text-right">Margen</TableHead>
-                <TableHead className="text-center">Estado</TableHead>
+                <TableHead className="w-[90px] text-xs">ID</TableHead>
+                <TableHead className="w-[110px] text-xs">Fecha</TableHead>
+                <TableHead className="text-xs">Cliente</TableHead>
+                <TableHead className="text-xs">Ruta</TableHead>
+                <TableHead className="text-right text-xs">Cobro</TableHead>
+                <TableHead className="text-right text-xs">Costo</TableHead>
+                <TableHead className="text-right text-xs">Margen</TableHead>
+                <TableHead className="text-center text-xs">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredServicios.slice(0, 200).map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-mono text-xs">
+                <TableRow key={s.id} className="text-xs">
+                  <TableCell className="font-mono py-2">
                     {s.id_servicio?.substring(0, 8)}...
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="py-2">
                     {s.fecha_hora_cita 
                       ? format(new Date(s.fecha_hora_cita), 'dd/MM/yy HH:mm', { locale: es })
                       : '-'
                     }
                   </TableCell>
-                  <TableCell className="max-w-[180px] truncate" title={s.nombre_cliente}>
+                  <TableCell className="max-w-[160px] truncate py-2" title={s.nombre_cliente}>
                     {s.nombre_cliente || '-'}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate" title={s.ruta}>
+                  <TableCell className="max-w-[180px] truncate py-2" title={s.ruta}>
                     {s.ruta || '-'}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
+                  <TableCell className="text-right font-medium py-2">
                     {s.cobro_cliente ? formatCurrency(s.cobro_cliente) : '-'}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground py-2">
                     {s.costo_custodio ? formatCurrency(s.costo_custodio) : '-'}
                   </TableCell>
-                  <TableCell className={`text-right font-medium ${
-                    s.margen_bruto > 0 ? 'text-green-600' : 'text-red-600'
+                  <TableCell className={`text-right font-medium py-2 ${
+                    s.margen_bruto > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                   }`}>
                     {s.margen_bruto != null ? formatCurrency(s.margen_bruto) : '-'}
                   </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={getEstadoBadgeVariant(s.estado)}>
+                  <TableCell className="text-center py-2">
+                    <Badge variant={getEstadoBadgeVariant(s.estado)} className="text-[10px] px-1.5 py-0">
                       {s.estado}
                     </Badge>
                   </TableCell>
@@ -249,7 +249,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
               ))}
               {filteredServicios.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-xs">
                     No se encontraron servicios con los filtros aplicados
                   </TableCell>
                 </TableRow>
@@ -259,7 +259,7 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
         </div>
 
         {filteredServicios.length > 200 && (
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-[10px] text-muted-foreground text-center">
             Mostrando 200 de {filteredServicios.length} servicios. Use filtros para reducir resultados.
           </p>
         )}
