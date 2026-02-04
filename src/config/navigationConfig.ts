@@ -27,7 +27,8 @@ import {
   Headphones,
   GraduationCap,
   Briefcase,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Receipt
 } from 'lucide-react';
 
 // Roles with restricted navigation access (only see specific groups)
@@ -320,6 +321,28 @@ export const navigationModules: NavigationModule[] = [
     path: '/wms',
     group: 'operations',
     roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
+  },
+  {
+    id: 'facturacion',
+    label: 'Facturación',
+    icon: Receipt,
+    path: '/facturacion',
+    group: 'operations',
+    roles: ['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones'],
+    children: [
+      {
+        id: 'facturacion_dashboard',
+        label: 'Dashboard BI',
+        path: '/facturacion',
+        icon: LayoutDashboard
+      },
+      {
+        id: 'facturacion_servicios',
+        label: 'Servicios',
+        path: '/facturacion?tab=servicios',
+        icon: FileText
+      }
+    ]
   },
 
   // ===== MONITOREO & SOPORTE GROUP =====
