@@ -1,130 +1,91 @@
 
-# Plan: Detalle de Servicio en Card y Columnas por Defecto
 
-## Resumen
+# Plan: Corregir Fuente de fecha_hora_cita en Vista de Facturacion
 
-Implementar dos mejoras en la tabla de servicios de Facturacion:
-1. Mostrar todas las columnas seleccionadas por defecto
-2. Al hacer clic en una fila, abrir un Dialog con toda la informacion del servicio en una sola Card (sin pestanas)
+## Problema Identificado
 
-## Cambios Requeridos
+El campo `fecha_hora_cita` en la vista `vw_servicios_facturacion` muestra timestamps corruptos porque usa directamente `servicios_custodia.fecha_hora_cita` que tiene un patron de corrupcion sistematico.
 
-### 1. Columnas por Defecto
+### Evidencia de Corrupcion
 
-**Archivo:** `src/pages/Facturacion/components/ServiciosConsulta.tsx`
+| Fuente | Patron | Cantidad | Estado |
+|--------|--------|----------|--------|
+| servicios_planificados | `:00:00` | 622 | Correcto |
+| servicios_planificados | `:30:00` | 189 | Correcto |
+| servicios_custodia | `:59:24` | 312 | Corrupto |
+| servicios_custodia | `:29:24` | 116 | Corrupto |
 
-Cambiar el estado inicial de `visibleGroups`:
+**Ejemplo real:**
+- Planeacion: `2026-02-05 19:00:00+00` (hora cerrada, correcto)
+- Custodia: `2026-02-03 22:59:24+00` (segundos extraños, corrupto)
 
-```typescript
-// Antes:
-const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic']);
+## Causa Raiz
 
-// Despues:
-const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic', 'planeacion', 'timeline', 'operativo', 'bi']);
+La vista actual en la linea de `fecha_hora_cita`:
+```sql
+sc.fecha_hora_cita  -- Usa directamente custodia (corrupto)
 ```
 
-### 2. Crear Dialog de Detalle de Servicio
-
-**Nuevo archivo:** `src/pages/Facturacion/components/ServicioDetalleDialog.tsx`
-
-Componente de dialog que muestra toda la informacion del servicio en una sola Card organizada en secciones:
-
-**Secciones en la Card:**
-- **Identificacion**: Folio Saphiro, Ref. Cliente, Folio Cliente, ID Interno
-- **Cliente y Ruta**: Nombre cliente, Ruta, Origen, Destino, Local/Foraneo, Tipo servicio
-- **Timeline Planeacion**: Fecha recepcion, Fecha asignacion, Fecha asignacion armado, Estado planeacion
-- **Timeline Operativo**: Fecha cita, Presentacion, Inicio, Arribo, Fin, Duracion, Retraso
-- **Personal Custodio**: Nombre, Telefono, Vehiculo, Placa
-- **Personal Armado**: Nombre, Telefono, Tipo asignacion, Proveedor
-- **Transporte**: Tipo unidad, Tipo carga, Operador, Telefono operador, Placa carga
-- **Kilometraje**: Km teorico, Km recorridos, Desviacion, Km extras, Km auditado
-- **Financiero**: Cobro cliente, Costo custodio, Casetas, Margen bruto, % Margen
-- **Tracking y Origen**: Gadget, Tipo gadget, Creado via, Creado por
-
-**Estructura visual:**
-```text
-+--------------------------------------------------+
-|  Servicio EMEDEME-234              Estado: ●     |
-+--------------------------------------------------+
-| IDENTIFICACION                                   |
-| Folio: EMEDEME-234    Ref: ABC123    Cliente: X |
-+--------------------------------------------------+
-| RUTA Y CLIENTE                                   |
-| Cliente: Empresa SA                              |
-| Ruta: CDMX - Guadalajara (Foraneo)              |
-| Origen: Av. Insurgentes 123                      |
-| Destino: Av. Vallarta 456                        |
-+--------------------------------------------------+
-| TIMELINE                                         |
-| Cita: 04/02 08:00                               |
-| Present. | Inicio | Arribo | Fin | Duracion     |
-| 07:55    | 08:05  | 14:30  | 15:00| 6h 55m      |
-| Retraso: -5 min (a tiempo)                      |
-+--------------------------------------------------+
-| PERSONAL                                         |
-| Custodio: Juan Perez | Tel: 55-1234-5678        |
-| Armado: Pedro Garcia | Proveedor: CUSAEM        |
-+--------------------------------------------------+
-| FINANCIERO                                       |
-| Cobro: $12,500 | Costo: $8,000 | Margen: $4,500 |
-| % Margen: 36%  | Casetas: $850                  |
-+--------------------------------------------------+
+Deberia priorizar planeacion:
+```sql
+COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita) AS fecha_hora_cita
 ```
 
-### 3. Agregar Interaccion a Tabla
+## Solucion
 
-**Archivo:** `src/pages/Facturacion/components/ServiciosConsulta.tsx`
+### Cambio en la Vista SQL
 
-Agregar:
-- Estado para el servicio seleccionado
-- Handler de clic en la fila
-- Importar y renderizar el Dialog
+Actualizar `vw_servicios_facturacion` para priorizar `servicios_planificados.fecha_hora_cita` sobre `servicios_custodia.fecha_hora_cita`:
+
+```sql
+-- Linea actual:
+sc.fecha_hora_cita,
+
+-- Cambiar a:
+COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita) AS fecha_hora_cita,
+```
+
+Esto asegura que:
+1. Si existe el servicio en planeacion, usa la fecha/hora correcta
+2. Si solo existe en custodia (historicos), usa el dato existente como fallback
+
+## Validacion del Codigo Frontend
+
+El codigo en `ServicioDetalleDialog.tsx` ya usa correctamente `formatCDMXTime`:
 
 ```typescript
-// Nuevos estados
-const [selectedServicio, setSelectedServicio] = useState<ServicioFacturacion | null>(null);
-const [detailOpen, setDetailOpen] = useState(false);
-
-// Handler de clic
-const handleRowClick = (servicio: ServicioFacturacion) => {
-  setSelectedServicio(servicio);
-  setDetailOpen(true);
+const formatDateTime = (dateStr: string | null) => {
+  if (!dateStr) return '-';
+  try {
+    return formatCDMXTime(dateStr, 'dd/MM/yyyy HH:mm'); // Correcto
+  } catch {
+    return dateStr;
+  }
 };
-
-// En TableRow agregar cursor y onClick
-<TableRow 
-  key={s.id} 
-  className="text-xs cursor-pointer hover:bg-muted/50"
-  onClick={() => handleRowClick(s)}
->
 ```
 
-## Seccion Tecnica
+Este formateo usa `formatInTimeZone` con `America/Mexico_City`, lo cual es correcto para convertir UTC a hora local CDMX.
 
-### Estructura del Dialog
+## Impacto
 
-El dialog usara `max-w-4xl` para tener suficiente espacio. La Card interna tendra:
-- `ScrollArea` con altura maxima `max-h-[80vh]`
-- Grid de 2 o 3 columnas para informacion compacta
-- Separadores visuales entre secciones
-- Badges de estado con colores semanticos
-- Formateo de moneda, fechas y duraciones
+| Servicio | Antes (corrupto) | Despues (correcto) |
+|----------|-----------------|-------------------|
+| EMEDEME-234 | 03/02/2026 16:59 | 05/02/2026 13:00 |
+| MURAMLA-16 | 03/02/2026 12:59 | (fecha real de planeacion) |
 
-### Tipos Reutilizados
+## Archivos a Modificar
 
-Se usara la interfaz `ServicioFacturacion` existente directamente, sin necesidad de fetch adicional ya que los datos ya estan cargados en la tabla.
-
-### Funciones de Formateo
-
-Se reutilizaran:
-- `formatCurrency` de `@/utils/formatUtils`
-- `formatCDMXTime` de `@/utils/cdmxTimezone`
-- `formatDuracion` (ya existe en el componente)
-- `formatTiempoRetrasoDisplay` de `@/utils/timeUtils`
-
-## Archivos a Crear/Modificar
-
-| Archivo | Accion |
+| Archivo | Cambio |
 |---------|--------|
-| `src/pages/Facturacion/components/ServicioDetalleDialog.tsx` | Crear |
-| `src/pages/Facturacion/components/ServiciosConsulta.tsx` | Modificar |
+| `vw_servicios_facturacion` (SQL) | Cambiar `sc.fecha_hora_cita` por `COALESCE(sp.fecha_hora_cita, sc.fecha_hora_cita)` |
+
+No se requieren cambios en el frontend ya que el formateo de timezone esta correcto.
+
+## Nota sobre Datos Legacy
+
+Los ~3,500+ servicios historicos en `servicios_custodia` con timestamps corruptos seguiran mostrando datos incorrectos porque no tienen registro en `servicios_planificados`. La correccion de esos datos requeriria:
+1. Identificar el patron de corrupcion (parece ser -36 segundos)
+2. Ejecutar UPDATE masivo para corregir
+
+Esto se puede hacer como tarea separada si es necesario.
+
