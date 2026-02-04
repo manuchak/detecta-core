@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -54,92 +52,90 @@ export default function FacturacionHub() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" />
-            Facturación y Finanzas
-          </h1>
-          <p className="text-muted-foreground">
-            Consulta de servicios y métricas financieras
-          </p>
+    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      {/* Header compacto con filtros inline */}
+      <div className="flex items-center justify-between h-14 px-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
+        <div className="flex items-center gap-3">
+          <Receipt className="h-5 w-5 text-primary" />
+          <div>
+            <h1 className="text-base font-semibold leading-tight">Facturación y Finanzas</h1>
+            <p className="text-[10px] text-muted-foreground">Métricas financieras y consulta de servicios</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualizar
+          {/* Filtros de fecha inline */}
+          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+            <Input
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              className="h-7 w-[120px] text-xs border-0 bg-transparent"
+            />
+            <span className="text-muted-foreground text-xs">–</span>
+            <Input
+              type="date"
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+              className="h-7 w-[120px] text-xs border-0 bg-transparent"
+            />
+          </div>
+          
+          <div className="flex gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickFilter(7)}
+            >
+              7d
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickFilter(30)}
+            >
+              30d
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={handleThisMonth}
+            >
+              <Calendar className="h-3 w-3 mr-1" />
+              Mes
+            </Button>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className="h-7 w-7"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {/* Filtros de fecha */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Fecha Inicio</Label>
-              <Input
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-                className="w-[160px]"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Fecha Fin</Label>
-              <Input
-                type="date"
-                value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
-                className="w-[160px]"
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleQuickFilter(7)}
-              >
-                Últimos 7 días
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => handleQuickFilter(30)}
-              >
-                Últimos 30 días
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleThisMonth}
-              >
-                <Calendar className="h-4 w-4 mr-1" />
-                Este mes
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs y contenido */}
+      <Tabs defaultValue="dashboard" className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-4 pt-2 shrink-0">
+          <TabsList className="h-8">
+            <TabsTrigger value="dashboard" className="text-xs h-7 px-3">
+              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="servicios" className="text-xs h-7 px-3">
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              Servicios
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="dashboard" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="servicios" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Servicios
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="dashboard">
+        <TabsContent value="dashboard" className="flex-1 overflow-auto px-4 py-3">
           <FacturacionDashboard 
             metrics={metrics}
             metricasPorCliente={metricasPorCliente}
@@ -147,7 +143,7 @@ export default function FacturacionHub() {
           />
         </TabsContent>
 
-        <TabsContent value="servicios">
+        <TabsContent value="servicios" className="flex-1 overflow-auto px-4 py-3">
           <ServiciosConsulta 
             servicios={servicios}
             isLoading={isLoading}
