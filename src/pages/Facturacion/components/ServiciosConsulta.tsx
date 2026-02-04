@@ -45,6 +45,7 @@ import { es } from 'date-fns/locale';
 import { formatTiempoRetrasoDisplay, parsePostgresInterval } from '@/utils/timeUtils';
 import { formatCDMXTime } from '@/utils/cdmxTimezone';
 import * as XLSX from 'xlsx';
+import { ServicioDetalleDialog } from './ServicioDetalleDialog';
 
 interface ServiciosConsultaProps {
   servicios: ServicioFacturacion[];
@@ -76,7 +77,14 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
   const [estadoFilter, setEstadoFilter] = useState<string>('all');
   const [clienteFilter, setClienteFilter] = useState<string>('all');
   const [localForaneoFilter, setLocalForaneoFilter] = useState<string>('all');
-  const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic']);
+  const [visibleGroups, setVisibleGroups] = useState<ColumnGroup[]>(['basic', 'planeacion', 'timeline', 'operativo', 'bi']);
+  const [selectedServicio, setSelectedServicio] = useState<ServicioFacturacion | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  const handleRowClick = (servicio: ServicioFacturacion) => {
+    setSelectedServicio(servicio);
+    setDetailOpen(true);
+  };
 
   const filteredServicios = useMemo(() => {
     return servicios.filter(s => {
@@ -444,7 +452,11 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
               </TableHeader>
               <TableBody>
                 {filteredServicios.slice(0, 200).map((s) => (
-                  <TableRow key={s.id} className="text-xs">
+                  <TableRow 
+                    key={s.id} 
+                    className="text-xs cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleRowClick(s)}
+                  >
                     {/* Folio completo con tooltip */}
                     <TableCell className="font-mono py-2 sticky left-0 bg-background min-w-[130px]">
                       <Tooltip>
@@ -640,6 +652,12 @@ export function ServiciosConsulta({ servicios, isLoading, clientes }: ServiciosC
           )}
         </CardContent>
       </Card>
+
+      <ServicioDetalleDialog
+        servicio={selectedServicio}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </TooltipProvider>
   );
 }
