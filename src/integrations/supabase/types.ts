@@ -15045,6 +15045,7 @@ export type Database = {
       }
       vw_servicios_facturacion: {
         Row: {
+          armado_id: string | null
           casetas: string | null
           cobro_cliente: number | null
           comentarios_adicionales: string | null
@@ -15052,14 +15053,21 @@ export type Database = {
           creado_por: string | null
           creado_via: string | null
           created_at: string | null
+          custodio_id: string | null
           destino: string | null
           desviacion_km: number | null
+          duracion_calculada: unknown
           duracion_servicio: unknown
           estado: string | null
           estado_planeacion: string | null
+          fecha_asignacion: string | null
+          fecha_asignacion_armado: string | null
           fecha_hora_asignacion: string | null
           fecha_hora_cita: string | null
+          fecha_recepcion: string | null
           folio_cliente: string | null
+          folio_planeacion: string | null
+          folio_saphiro: string | null
           gadget: string | null
           hora_arribo: string | null
           hora_finalizacion: string | null
@@ -15080,18 +15088,23 @@ export type Database = {
           nombre_operador_transporte: string | null
           origen: string | null
           placa_carga: string | null
+          placa_custodio: string | null
           porcentaje_margen: number | null
           proveedor: string | null
+          referencia_cliente: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono_armado: string | null
           telefono_custodio: string | null
+          telefono_operador: string | null
           tiempo_retraso: unknown
+          tipo_asignacion_armado: string | null
           tipo_carga: string | null
           tipo_gadget: string | null
           tipo_servicio: string | null
           tipo_unidad: string | null
           updated_time: string | null
+          vehiculo_custodio: string | null
         }
         Relationships: []
       }
