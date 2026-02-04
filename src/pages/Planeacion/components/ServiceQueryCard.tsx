@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatCDMXTime } from '@/utils/cdmxTimezone';
-import { MapPin, User, Shield, Clock, CheckCircle2, AlertCircle, Calendar, Database, FileText } from 'lucide-react';
+import { MapPin, User, Shield, Clock, CheckCircle2, AlertCircle, Calendar, Database, FileText, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { ServiceQueryResult } from '@/hooks/useServiceQuery';
 
@@ -15,36 +15,36 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
     
     if (estado.includes('finalizado') || estado.includes('completado')) {
       return {
-        color: 'bg-green-500',
+        color: 'bg-success',
         icon: CheckCircle2,
         label: 'Finalizado',
-        textColor: 'text-green-600'
+        textColor: 'text-success'
       };
     }
     
     if (estado.includes('cancelado') || estado.includes('cancelled')) {
       return {
-        color: 'bg-gray-400',
+        color: 'bg-muted-foreground',
         icon: AlertCircle,
         label: 'Cancelado',
-        textColor: 'text-gray-600'
+        textColor: 'text-muted-foreground'
       };
     }
     
     if (estado.includes('confirmado')) {
       return {
-        color: 'bg-blue-500',
+        color: 'bg-primary',
         icon: CheckCircle2,
         label: 'Confirmado',
-        textColor: 'text-blue-600'
+        textColor: 'text-primary'
       };
     }
     
     return {
-      color: 'bg-yellow-500',
+      color: 'bg-warning',
       icon: Clock,
       label: 'Pendiente',
-      textColor: 'text-yellow-600'
+      textColor: 'text-warning'
     };
   };
 
@@ -53,11 +53,14 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
   
   return (
     <div 
-      className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-5"
+      className="apple-card apple-hover-lift cursor-pointer transition-all duration-200 p-4 group relative"
       onDoubleClick={() => onDoubleClick(service)}
     >
+      {/* Hover expand icon */}
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/0 group-hover:text-muted-foreground/50 transition-all" />
+      
       {/* Header: ID + Estado + Fuente */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 pr-6">
         <div className="flex items-center space-x-3">
           <div className={`w-2.5 h-2.5 rounded-full ${statusConfig.color}`} />
           <div className="flex flex-col">
@@ -68,8 +71,8 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
               variant="outline" 
               className={`text-xs w-fit mt-1 ${
                 service.fuente_tabla === 'servicios_custodia' 
-                  ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800' 
-                  : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+                  ? 'bg-success/10 text-success border-success/20' 
+                  : 'bg-primary/10 text-primary border-primary/20'
               }`}
             >
               {service.fuente_tabla === 'servicios_custodia' ? (
@@ -90,7 +93,7 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
       </div>
 
       {/* Cliente */}
-      <div className="mb-3">
+      <div className="mb-2">
         <div className="apple-text-body font-medium text-foreground">
           {service.nombre_cliente}
         </div>
@@ -102,7 +105,7 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
       </div>
 
       {/* Fecha y Hora */}
-      <div className="flex items-center space-x-2 mb-3">
+      <div className="flex items-center space-x-2 mb-2">
         <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <span className="apple-text-caption text-muted-foreground">
           {formatCDMXTime(service.fecha_hora_cita, 'PPP')}
@@ -115,7 +118,7 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
       </div>
 
       {/* Ruta */}
-      <div className="flex items-center space-x-2 mb-3">
+      <div className="flex items-center space-x-2 mb-2">
         <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <div className="flex items-center space-x-1 min-w-0">
           <span className="apple-text-caption text-muted-foreground truncate">
@@ -129,32 +132,27 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
       </div>
 
       {/* Personal Asignado */}
-      <div className="flex items-center space-x-4">
-        {service.nombre_custodio && (
-          <div className="flex items-center space-x-2">
-            <User className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="apple-text-caption text-muted-foreground">
-              {service.nombre_custodio}
-            </span>
-          </div>
-        )}
-        
-        {(service.incluye_armado || service.armado_asignado) && (
-          <div className="flex items-center space-x-2">
-            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="apple-text-caption text-muted-foreground">
-              Armado requerido
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Footer hint */}
-      <div className="mt-4 pt-3 border-t border-border/50">
-        <span className="apple-text-caption text-muted-foreground/70 italic">
-          Doble clic para ver detalles completos
-        </span>
-      </div>
+      {(service.nombre_custodio || service.incluye_armado || service.armado_asignado) && (
+        <div className="flex items-center space-x-4">
+          {service.nombre_custodio && (
+            <div className="flex items-center space-x-2">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="apple-text-caption text-muted-foreground">
+                {service.nombre_custodio}
+              </span>
+            </div>
+          )}
+          
+          {(service.incluye_armado || service.armado_asignado) && (
+            <div className="flex items-center space-x-2">
+              <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="apple-text-caption text-muted-foreground">
+                Armado requerido
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
