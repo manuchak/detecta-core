@@ -164,7 +164,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           <SidebarMenuButton
             onClick={() => handleNavigate(module.path)}
             className={cn(
-              "w-full justify-start gap-3 py-2 transition-all duration-200",
+              "w-full justify-start gap-2.5 py-1.5 transition-all duration-200",
               "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
             )}
@@ -197,7 +197,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
             }
           }}
           className={cn(
-            "w-full justify-start gap-3 py-2 transition-all duration-200",
+            "w-full justify-start gap-2.5 py-1.5 transition-all duration-200",
             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             isActive && "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
           )}
@@ -251,7 +251,7 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
         isCollapsed ? "w-14" : "w-60"
       )}
     >
-      <SidebarContent className="py-1">
+      <SidebarContent className="py-0.5 flex-1">
         {visibleGroups.map((group, groupIndex) => {
           const groupModules = getModulesByGroup(group.id);
           if (groupModules.length === 0) return null;
@@ -261,13 +261,13 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
           return (
             <React.Fragment key={group.id}>
               {groupIndex > 0 && !isCollapsed && (
-                <Separator className="my-1 bg-sidebar-border/50" />
+                <Separator className="my-0.5 bg-sidebar-border/50" />
               )}
               
-              <SidebarGroup className="py-0.5">
+              <SidebarGroup className="py-0">
                 {!isCollapsed && (
                   <SidebarGroupLabel 
-                    className="px-3 py-1 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider cursor-pointer flex items-center justify-between hover:text-sidebar-foreground/70 transition-colors"
+                    className="px-3 py-0.5 text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider cursor-pointer flex items-center justify-between hover:text-sidebar-foreground/70 transition-colors h-6"
                     onClick={() => toggleNavGroup(group.id)}
                   >
                     <span>{group.label}</span>
@@ -299,12 +299,12 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
         })}
       </SidebarContent>
 
-      {/* Compact Footer with Toggle + Stats */}
-      <SidebarFooter className="border-t border-sidebar-border p-2 mt-auto">
-        <div className="flex items-center justify-between gap-2">
+      {/* Compact Footer with Toggle + Stats - sticky to bottom */}
+      <SidebarFooter className="border-t border-sidebar-border p-1.5 shrink-0 bg-sidebar">
+        <div className="flex items-center justify-between gap-1.5">
           {/* Condensed stats as chips */}
           {!isCollapsed && stats && (
-            <div className="flex gap-1.5 flex-wrap flex-1 min-w-0">
+            <div className="flex gap-1 flex-wrap flex-1 min-w-0">
               {stats.criticalAlerts !== undefined && stats.criticalAlerts > 0 && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive font-medium">
                   {stats.criticalAlerts} alertas
@@ -329,12 +329,12 @@ export function UnifiedSidebar({ stats }: UnifiedSidebarProps) {
             size="icon"
             onClick={toggleSidebar}
             className={cn(
-              "h-7 w-7 shrink-0 hover:bg-sidebar-accent",
+              "h-6 w-6 shrink-0 hover:bg-sidebar-accent",
               isCollapsed && "mx-auto"
             )}
           >
             <ChevronLeft className={cn(
-              "h-4 w-4 transition-transform duration-200",
+              "h-3.5 w-3.5 transition-transform duration-200",
               isCollapsed && "rotate-180"
             )} />
           </Button>
