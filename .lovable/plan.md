@@ -1,273 +1,326 @@
 
 
-# Plan: Rediseno UI/UX del Modulo de Facturacion para Zoom 0.7
+# Plan: Tabla de Detalle de Servicios BI con Timeline Completo
 
-## Problema Identificado
+## Hallazgos Clave
 
-Con el zoom al 70%, el modulo de Facturacion desperdicia espacio de las siguientes formas:
+### 1. Campo de Folio Interno del Cliente
+El equipo de Planeación llena el campo **`id_interno_cliente`** en la tabla `servicios_planificados`. Este es el folio/referencia con el que el cliente identifica el servicio y es **crítico para facturación**.
 
-1. **Header vertical**: Titulo + filtros ocupan ~180px verticales
-2. **KPIs en 2 filas**: 8 KPIs en grid 4x2 cuando podrian estar en una sola fila
-3. **Charts pequenos**: Altura fija de 300px no aprovecha el viewport expandido
-4. **Separacion excesiva**: Cards con padding y gaps generosos
+**Problema actual:** Este campo NO está siendo transferido a `servicios_custodia` ni expuesto en la vista `vw_servicios_facturacion`.
+
+### 2. Timestamps del Journey del Servicio
+
+| Evento | Campo en DB | Tipo |
+|--------|-------------|------|
+| Servicio creado | `created_at` | timestamp |
+| Fecha/hora cita | `fecha_hora_cita` | timestamptz |
+| Asignación custodio | `fecha_hora_asignacion` | date |
+| Presentación custodio | `hora_presentacion` | date |
+| Inicio custodia | `hora_inicio_custodia` | date |
+| Arribo destino | `hora_arribo` | date |
+| Finalización | `hora_finalizacion` | date |
+| Duración total | `duracion_servicio` | interval |
+| Retraso | `tiempo_retraso` | interval |
+| Última actualización | `updated_time` | timestamptz |
 
 ---
 
-## Solucion: Rediseno "Financial Intelligence Dashboard"
+## Arquitectura de la Solución
 
-### Arquitectura Visual Propuesta
+### Vista Enriquecida de Servicios (3 niveles de columnas)
 
-```text
-┌────────────────────────────────────────────────────────────────────────────┐
-│ [Receipt] Facturacion y Finanzas    [Feb 01-28] [7d] [30d] [Mes]  [Refresh]│ <- Header compacto inline
-├────────────────────────────────────────────────────────────────────────────┤
-│ [Tab: Dashboard] [Tab: Servicios]                                          │
-├────────────────────────────────────────────────────────────────────────────┤
-│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐   │
-│ │ $318K│ │ $137K│ │ $180K│ │56.9% │ │ $7.9K│ │  40  │ │13.7K │ │  2   │   │ <- Hero KPIs en 1 fila
-│ │Ingres│ │Costos│ │Margen│ │% Marg│ │Ticket│ │Servs │ │  Km  │ │Cancel│   │
-│ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘   │
-├────────────────────────────────────────────────────────────────────────────┤
-│ ┌─────────────────────────────────────┐ ┌────────────────────────────────┐ │
-│ │                                     │ │                                │ │
-│ │   Top 10 Clientes por Ingresos     │ │  Concentracion de Ingresos    │ │
-│ │   (Bar Chart - altura 400px)       │ │  (Donut Chart + Legend)       │ │
-│ │                                     │ │                                │ │
-│ │                                     │ ├────────────────────────────────┤ │
-│ │                                     │ │  Insights Rapidos:            │ │
-│ │                                     │ │  • Top cliente: 45% ingresos  │ │
-│ │                                     │ │  • Margen prom: 56.9%         │ │
-│ │                                     │ │  • Km/servicio: 342           │ │
-│ └─────────────────────────────────────┘ └────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────────────────────┘
+```
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Buscar...] [Estado▼] [Cliente▼] [Tipo▼] [Proveedor▼]    Columnas: [Basico][Operativo][Timeline][BI] │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ID │ Folio │Fecha│Cliente│ Ruta  │Custodio│Present│Inicio│Arribo│Fin│Duracion│Cobro│Costo│Margen│Est│
+├────┼───────┼─────┼───────┼───────┼────────┼───────┼──────┼──────┼───┼────────┼─────┼─────┼──────┼───┤
+│T00.│OT-123 │08/01│ Bimbo │CDMX-GD│Felix S.│ 05:30 │05:45 │11:20 │12:│ 06:45  │$8.5K│$3.2K│$5.3K │ ✓ │
+│SII.│RF-456 │08/01│Nestle │CDMX-QR│Irving V│ 04:00 │04:15 │05:10 │05:│ 01:15  │$3.2K│$1.5K│$1.7K │ ✓ │
+└────┴───────┴─────┴───────┴───────┴────────┴───────┴──────┴──────┴───┴────────┴─────┴─────┴──────┴───┘
 ```
 
 ---
 
-## Cambios por Componente
+## Cambios Requeridos
 
-### 1. FacturacionHub.tsx - Header Compacto
+### 1. Vista SQL: `vw_servicios_facturacion`
 
-**Antes:**
-- Header ocupa ~80px
-- Filtros en Card separada ~100px
-- Total: ~180px verticales
+Agregar campos desde `servicios_planificados` (para obtener `id_interno_cliente`) y todos los timestamps de `servicios_custodia`:
 
-**Despues:**
-- Header + filtros en una sola linea: ~56px
-- Ahorro: ~124px
-
-```tsx
-// Nueva estructura del header
-<div className="flex items-center justify-between h-14 px-6 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-  <div className="flex items-center gap-3">
-    <Receipt className="h-5 w-5 text-primary" />
-    <h1 className="text-lg font-semibold">Facturacion y Finanzas</h1>
-  </div>
+```sql
+CREATE OR REPLACE VIEW vw_servicios_facturacion AS
+SELECT 
+  -- Identificación
+  sc.id,
+  sc.id_servicio,
+  sc.folio_cliente,
+  sp.id_interno_cliente,  -- NUEVO: Folio interno del cliente
   
-  <div className="flex items-center gap-2">
-    {/* Filtros inline */}
-    <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-      <Input type="date" className="h-8 w-32 text-sm" />
-      <span className="text-muted-foreground">-</span>
-      <Input type="date" className="h-8 w-32 text-sm" />
-    </div>
-    <div className="flex gap-1">
-      <Button variant="ghost" size="sm">7d</Button>
-      <Button variant="ghost" size="sm">30d</Button>
-      <Button variant="outline" size="sm">Este mes</Button>
-    </div>
-    <Button variant="outline" size="icon" className="h-8 w-8">
-      <RefreshCw className="h-4 w-4" />
-    </Button>
-  </div>
-</div>
+  -- Tiempos del journey
+  sc.fecha_hora_cita,
+  sc.fecha_hora_asignacion,
+  sc.hora_presentacion,
+  sc.hora_inicio_custodia,
+  sc.hora_arribo,
+  sc.hora_finalizacion,
+  sc.duracion_servicio,
+  sc.tiempo_retraso,
+  sc.created_at,
+  sc.updated_time,
+  
+  -- Cliente
+  sc.nombre_cliente,
+  sc.comentarios_adicionales,
+  
+  -- Ruta
+  sc.ruta,
+  sc.origen,
+  sc.destino,
+  sc.local_foraneo,
+  
+  -- Kilometraje
+  sc.km_teorico,
+  sc.km_recorridos,
+  sc.km_extras,
+  sc.km_auditado,
+  CASE 
+    WHEN COALESCE(sc.km_teorico, 0) > 0 THEN 
+      ROUND(((COALESCE(sc.km_recorridos, 0) - sc.km_teorico) / sc.km_teorico * 100)::numeric, 1)
+    ELSE NULL 
+  END as desviacion_km,
+  
+  -- Recursos
+  sc.nombre_custodio,
+  sc.telefono as telefono_custodio,
+  sc.nombre_armado,
+  sc.telefono_armado,
+  sc.proveedor,
+  sc.requiere_armado,
+  
+  -- Transporte
+  sc.tipo_unidad,
+  sc.tipo_carga,
+  sc.nombre_operador_transporte,
+  sc.placa_carga,
+  
+  -- Tracking
+  sc.gadget,
+  sc.tipo_gadget,
+  
+  -- Financiero
+  sc.cobro_cliente,
+  sc.costo_custodio,
+  sc.casetas,
+  COALESCE(sc.cobro_cliente, 0) - COALESCE(sc.costo_custodio, 0) as margen_bruto,
+  CASE 
+    WHEN COALESCE(sc.cobro_cliente, 0) > 0 THEN 
+      ROUND((COALESCE(sc.cobro_cliente, 0) - COALESCE(sc.costo_custodio, 0)) / sc.cobro_cliente * 100, 1)
+    ELSE 0 
+  END as porcentaje_margen,
+  
+  -- Estado y tipo
+  sc.estado,
+  sc.tipo_servicio,
+  sc.estado_planeacion,
+  
+  -- Origen del registro
+  sc.creado_via,
+  sc.creado_por,
+  
+  -- Cliente datos adicionales
+  c.rfc as cliente_rfc,
+  c.email as cliente_email,
+  c.forma_pago_preferida
+
+FROM servicios_custodia sc
+LEFT JOIN servicios_planificados sp ON sc.id_servicio = sp.id_servicio
+LEFT JOIN clientes c ON LOWER(sc.nombre_cliente) = LOWER(c.nombre);
 ```
 
-### 2. FacturacionDashboard.tsx - KPIs Hero Bar
+### 2. Interface TypeScript: `ServicioFacturacion`
 
-**Antes:**
-- Grid 4 columnas x 2 filas
-- Cards con padding p-6
-- Height ~200px total
-
-**Despues:**
-- Grid 8 columnas en 1 fila
-- Cards compactas con semaforos
-- Height ~90px
-
-```tsx
-// Crear nuevo componente FacturacionHeroBar
-<div className="grid grid-cols-4 lg:grid-cols-8 gap-3">
-  {kpis.map(kpi => (
-    <div 
-      key={kpi.id}
-      className={cn(
-        "relative p-3 rounded-lg border transition-all",
-        "border-l-4",
-        kpi.semaphore === 'success' && "border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20",
-        kpi.semaphore === 'warning' && "border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20",
-        kpi.semaphore === 'danger' && "border-l-red-500 bg-red-50/50 dark:bg-red-950/20"
-      )}
-    >
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">
-        {kpi.title}
-      </p>
-      <p className="text-xl font-bold mt-0.5">{kpi.value}</p>
-      <p className="text-[10px] text-muted-foreground">{kpi.description}</p>
-    </div>
-  ))}
-</div>
-```
-
-### 3. Charts Expandidos
-
-**Antes:**
-- Altura fija: `h-[300px]`
-- Grid 2 columnas iguales
-
-**Despues:**
-- Altura responsive: `h-[calc(100vh-340px)]` con min 350px
-- Grid asimetrico: 60% / 40%
-
-```tsx
-<div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-  {/* Bar Chart - 3/5 del ancho */}
-  <Card className="lg:col-span-3">
-    <CardHeader className="py-3 px-4">
-      <CardTitle className="text-base">Top 10 Clientes por Ingresos</CardTitle>
-    </CardHeader>
-    <CardContent className="p-4 pt-0">
-      <div className="h-[calc(100vh-400px)] min-h-[350px]">
-        {/* BarChart */}
-      </div>
-    </CardContent>
-  </Card>
-
-  {/* Pie Chart + Insights - 2/5 del ancho */}
-  <Card className="lg:col-span-2">
-    <CardHeader className="py-3 px-4">
-      <CardTitle className="text-base">Concentracion Top 5</CardTitle>
-    </CardHeader>
-    <CardContent className="p-4 pt-0 space-y-4">
-      <div className="h-[200px]">
-        {/* PieChart */}
-      </div>
-      
-      {/* Panel de insights compacto */}
-      <div className="space-y-2 pt-2 border-t">
-        <h4 className="text-xs font-medium uppercase text-muted-foreground">
-          Insights Rapidos
-        </h4>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Top cliente:</span>
-            <span className="font-medium">45%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Km/servicio:</span>
-            <span className="font-medium">342</span>
-          </div>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-</div>
-```
-
-### 4. Nuevo Componente: FacturacionHeroBar.tsx
-
-Crear un componente reutilizable basado en `OperationalHeroBar` pero optimizado para metricas financieras:
-
-```tsx
-// src/pages/Facturacion/components/FacturacionHeroBar.tsx
-interface FinancialMetric {
-  id: string;
-  title: string;
-  value: string;
-  description: string;
-  trend: 'up' | 'down' | 'neutral';
-  semaphore: 'success' | 'warning' | 'danger';
+```typescript
+export interface ServicioFacturacion {
+  // Identificación
+  id: number;
+  id_servicio: string;
+  folio_cliente: string;
+  id_interno_cliente: string | null;  // NUEVO: Folio interno
+  
+  // Timeline completo
+  fecha_hora_cita: string;
+  fecha_hora_asignacion: string | null;
+  hora_presentacion: string | null;
+  hora_inicio_custodia: string | null;
+  hora_arribo: string | null;
+  hora_finalizacion: string | null;
+  duracion_servicio: string | null;
+  tiempo_retraso: string | null;
+  created_at: string;
+  updated_time: string | null;
+  
+  // Cliente
+  nombre_cliente: string;
+  comentarios_adicionales: string | null;
+  
+  // Ruta
+  ruta: string;
+  origen: string;
+  destino: string;
+  local_foraneo: string;
+  
+  // Kilometraje
+  km_teorico: number | null;
+  km_recorridos: number;
+  km_extras: string | null;
+  km_auditado: boolean | null;
+  desviacion_km: number | null;
+  
+  // Recursos
+  nombre_custodio: string;
+  telefono_custodio: string | null;
+  nombre_armado: string | null;
+  telefono_armado: string | null;
+  proveedor: string | null;
+  requiere_armado: boolean;
+  
+  // Transporte
+  tipo_unidad: string | null;
+  tipo_carga: string | null;
+  nombre_operador_transporte: string | null;
+  placa_carga: string | null;
+  
+  // Tracking
+  gadget: string | null;
+  tipo_gadget: string | null;
+  
+  // Financiero
+  cobro_cliente: number;
+  costo_custodio: number;
+  casetas: string | null;
+  margen_bruto: number;
+  porcentaje_margen: number;
+  
+  // Estado
+  estado: string;
+  tipo_servicio: string;
+  estado_planeacion: string | null;
+  
+  // Origen
+  creado_via: string | null;
+  creado_por: string;
+  
+  // Cliente adicional
+  cliente_rfc: string | null;
+  cliente_email: string | null;
+  forma_pago_preferida: string | null;
 }
-
-// Logica de semaforos:
-// - Ingresos: siempre success (informativo)
-// - Costos: warning si > 50% de ingresos, danger si > 60%
-// - Margen: success > 50%, warning 30-50%, danger < 30%
-// - Cancelaciones: success < 3%, warning 3-5%, danger > 5%
 ```
+
+### 3. Tabla Enriquecida: `ServiciosConsulta.tsx`
+
+#### Grupos de Columnas con Toggle
+
+| Grupo | Columnas | Descripción |
+|-------|----------|-------------|
+| **Básico** | ID, Folio Interno, Fecha Cita, Cliente, Ruta, Cobro, Costo, Margen, Estado | Vista por defecto |
+| **Timeline** | Presentación, Inicio, Arribo, Fin, Duración, Retraso | Journey del servicio |
+| **Operativo** | Custodio, Armado, Proveedor, Tipo Unidad, Km Teórico/Real | Recursos y ejecución |
+| **BI** | % Margen, Desv. Km, Canal, Estado Plan, Km Auditado | Análisis avanzado |
+
+#### Formato Condicional para Timeline
+
+```
+• Retraso > 30 min     → Fondo rojo suave
+• Retraso > 15 min     → Fondo amarillo suave  
+• A tiempo o adelanto  → Fondo verde suave
+• Desviación km > 20%  → Icono de alerta
+```
+
+#### Búsqueda Expandida
+
+Buscar por:
+- ID servicio
+- Folio interno del cliente (`id_interno_cliente`)
+- Nombre cliente
+- Folio cliente (`folio_cliente`)
+- Nombre custodio
+- Ruta
 
 ---
 
 ## Archivos a Modificar
 
-| Archivo | Cambios |
-|---------|---------|
-| `FacturacionHub.tsx` | Header compacto, filtros inline, eliminar Card de filtros |
-| `FacturacionDashboard.tsx` | KPIs en 1 fila, charts expandidos, layout asimetrico |
-| **NUEVO** `FacturacionHeroBar.tsx` | Componente de KPIs con semaforos |
-| `ServiciosConsulta.tsx` | Tabla con altura dinamica `h-[calc(100vh-280px)]` |
+| Archivo | Acción | Cambios |
+|---------|--------|---------|
+| `vw_servicios_facturacion` | **SQL** | Agregar JOIN con servicios_planificados, incluir 20+ campos nuevos |
+| `useServiciosFacturacion.ts` | Modificar | Extender interface con 30+ campos |
+| `ServiciosConsulta.tsx` | Reescribir | Toggle de columnas, timeline, formato condicional |
 
 ---
 
-## Comparativa de Espacio
+## Columnas Detalladas de Timeline
 
-| Elemento | Antes | Despues | Ahorro |
-|----------|-------|---------|--------|
-| Header + Filtros | ~180px | ~56px | 124px |
-| KPIs | ~200px | ~90px | 110px |
-| Charts | 300px fijo | 350-500px dinamico | +50-200px |
-| **Total vertical recuperado** | | | **~234px** |
-
----
-
-## Beneficios
-
-1. **Densidad informativa**: Mas datos visibles sin scroll
-2. **Jerarquia visual**: KPIs como "semaforo ejecutivo" en la parte superior
-3. **Aprovechamiento del viewport**: Charts crecen con la pantalla
-4. **Consistencia**: Patron similar a `OperationalHeroBar` usado en otros modulos
-5. **Responsive**: Funciona bien en diferentes tamaños de pantalla
+| Columna | Descripción | Formato |
+|---------|-------------|---------|
+| **Folio Interno** | ID que usa el cliente para facturar | `OT-2026-001234` |
+| **Fecha Cita** | Hora programada del servicio | `dd/MM HH:mm` |
+| **Asignación** | Cuándo se asignó el custodio | `dd/MM HH:mm` |
+| **Presentación** | Hora que llegó el custodio al punto | `HH:mm` |
+| **Inicio** | Hora que inició la custodia | `HH:mm` |
+| **Arribo** | Hora de llegada al destino | `HH:mm` |
+| **Fin** | Hora de finalización | `HH:mm` |
+| **Duración** | Tiempo total del servicio | `HH:mm:ss` |
+| **Retraso** | Diferencia vs hora programada | `+15m` / `-5m` |
 
 ---
 
-## Seccion Tecnica
+## Beneficios para Facturación
 
-### Calculo de Alturas Dinamicas
+1. **Folio Interno**: Permite cruzar con sistemas del cliente para conciliación
+2. **Timeline completo**: Auditoría de tiempos para resolver disputas
+3. **Retrasos visibles**: Identificar servicios con penalizaciones
+4. **Duración real vs estimada**: Base para ajustes de tarifas
+5. **Exportación enriquecida**: Excel con datos completos para auditoría
 
-Con zoom 0.7:
-- Viewport visual efectivo: ~1543px (1080/0.7)
-- Header compacto: 56px
-- Tabs: 44px
-- KPIs Hero: 90px
-- Espacio restante para charts: ~1353px
+---
 
-```tsx
-// Formula para altura de charts
-const chartHeight = "h-[calc(100vh-340px)]";
-// 340px = 56 (header) + 44 (tabs) + 90 (KPIs) + 24 (padding) + 126 (card headers)
+## Sección Técnica
+
+### Query para JOIN con servicios_planificados
+
+El `id_interno_cliente` vive en `servicios_planificados`. El JOIN se hace por `id_servicio`:
+
+```sql
+LEFT JOIN servicios_planificados sp ON sc.id_servicio = sp.id_servicio
 ```
 
-### Semaforos Financieros
+### Formateo de Timestamps en Frontend
+
+Los campos `hora_*` en servicios_custodia son tipo `date` (no timestamp), por lo que se formatean directamente. Para `tiempo_retraso` (interval), usar el parser existente:
 
 ```typescript
-const getFinancialSemaphore = (metric: string, value: number, context: any): SemaphoreLevel => {
-  switch (metric) {
-    case 'margen_porcentaje':
-      if (value >= 50) return 'success';
-      if (value >= 30) return 'warning';
-      return 'danger';
-    case 'cancelaciones':
-      if (value <= 3) return 'success';
-      if (value <= 5) return 'warning';
-      return 'danger';
-    case 'costo_ratio':
-      if (value <= 45) return 'success';
-      if (value <= 55) return 'warning';
-      return 'danger';
-    default:
-      return 'success';
-  }
+import { parsePostgresInterval, formatTiempoRetrasoDisplay } from '@/utils/timeUtils';
+
+// Ejemplo de uso
+const retrasoDisplay = formatTiempoRetrasoDisplay(servicio.tiempo_retraso);
+// Output: "15m tarde" o "5m antes" o "A tiempo"
+```
+
+### Implementación del Toggle de Columnas
+
+```typescript
+const [visibleGroups, setVisibleGroups] = useState<Set<string>>(
+  new Set(['basic'])
+);
+
+const COLUMN_GROUPS = {
+  basic: ['id_servicio', 'id_interno_cliente', 'fecha_hora_cita', 'nombre_cliente', 'ruta', 'cobro_cliente', 'costo_custodio', 'margen_bruto', 'estado'],
+  timeline: ['hora_presentacion', 'hora_inicio_custodia', 'hora_arribo', 'hora_finalizacion', 'duracion_servicio', 'tiempo_retraso'],
+  operativo: ['nombre_custodio', 'nombre_armado', 'proveedor', 'tipo_unidad', 'km_teorico', 'km_recorridos'],
+  bi: ['porcentaje_margen', 'desviacion_km', 'creado_via', 'estado_planeacion', 'km_auditado']
 };
 ```
 
