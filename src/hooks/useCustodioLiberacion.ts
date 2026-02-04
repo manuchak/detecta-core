@@ -247,8 +247,40 @@ export const useCustodioLiberacion = () => {
         };
       };
 
-      // ✅ VERIFICACIÓN POST-LIBERACIÓN: Validar sincronización
+      // ✅ VERIFICACIÓN POST-LIBERACIÓN: Validar sincronización Y estado activo
       const syncVerified = result.pc_custodio_id && result.custodio_operativo_id;
+      let estadoVerified = false;
+      
+      if (syncVerified && result.custodio_operativo_id) {
+        // Verificar que el custodio quedó con estado='activo' en custodios_operativos
+        const { data: verification, error: verifyError } = await supabase
+          .from('custodios_operativos')
+          .select('estado, disponibilidad, nombre')
+          .eq('id', result.custodio_operativo_id)
+          .single();
+        
+        if (verifyError) {
+          console.error('❌ Error verificando estado post-liberación:', verifyError);
+        } else if (verification) {
+          estadoVerified = verification.estado === 'activo';
+          
+          if (!estadoVerified) {
+            console.error('⚠️ ALERTA: Custodio liberado pero estado NO es activo:', {
+              nombre: verification.nombre,
+              estado_actual: verification.estado,
+              disponibilidad: verification.disponibilidad
+            });
+            result.warnings = result.warnings || [];
+            result.warnings.push(`⚠️ Estado=${verification.estado} en lugar de 'activo' - reportar a soporte`);
+          } else {
+            console.log('✅ Estado verificado:', {
+              nombre: verification.nombre,
+              estado: verification.estado,
+              disponibilidad: verification.disponibilidad
+            });
+          }
+        }
+      }
       
       if (!syncVerified) {
         console.error('⚠️ Liberación exitosa pero sincronización incompleta:', {
@@ -262,7 +294,8 @@ export const useCustodioLiberacion = () => {
         console.log('✅ Liberación verificada:', {
           pc_custodio_id: result.pc_custodio_id,
           custodio_operativo_id: result.custodio_operativo_id,
-          sync_status: result.sync_status
+          sync_status: result.sync_status,
+          estado_activo_verificado: estadoVerified
         });
       }
 
