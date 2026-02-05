@@ -78,7 +78,7 @@ export function FacturacionDashboard({
       {/* Charts Row - Layout asimétrico con alturas iguales */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
         {/* Bar Chart - 3/5 del ancho */}
-        <Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+        <Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
           <CardHeader className="py-2.5 px-4 shrink-0">
             <CardTitle className="text-sm font-medium">Top 10 Clientes por Ingresos</CardTitle>
           </CardHeader>
@@ -140,7 +140,7 @@ export function FacturacionDashboard({
         </Card>
 
         {/* Pie Chart + Insights - 2/5 del ancho */}
-        <Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+        <Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
           <CardHeader className="py-2.5 px-4 shrink-0">
             <CardTitle className="text-sm font-medium">Concentración de Ingresos</CardTitle>
           </CardHeader>
