@@ -57,7 +57,7 @@ export default function FacturacionHub() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
       {/* Header compacto con filtros inline */}
       <div className="flex items-center justify-between h-14 px-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-3">
