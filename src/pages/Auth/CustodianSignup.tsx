@@ -107,26 +107,33 @@ export const CustodianSignup = () => {
         return;
       }
 
-      // Show warning if email couldn't be sent but account was created
-      if (data?.warning) {
-        console.warn('Account created with warning:', data.warning);
-      }
-
-      // If user was auto-confirmed (email confirmation disabled), assign role immediately
-      if (data.user && data.session) {
-        const success = await useInvitation(data.user.id);
-        if (success) {
+      // Auto-login: user is already confirmed, sign them in directly
+      if (data?.success && data?.autoLogin) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (!signInError) {
           toast({
             title: '¡Bienvenido!',
             description: 'Tu cuenta ha sido creada. Ahora registra tus documentos.',
           });
-          // Redirect to onboarding to register mandatory documents
           navigate('/custodian/onboarding');
+          return;
+        } else {
+          console.error('Auto-login error:', signInError);
+          // Account created but auto-login failed - redirect to login
+          toast({
+            title: 'Cuenta creada',
+            description: 'Por favor inicia sesión con tus credenciales.',
+          });
+          navigate('/auth/login');
           return;
         }
       }
 
-      // Otherwise, show confirmation pending message
+      // Fallback: show success message
       setRegistrationSuccess(true);
     } catch (error) {
       console.error('Registration error:', error);
