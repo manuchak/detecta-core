@@ -1,4 +1,4 @@
-import { MapPin, Clock, Calendar, ChevronRight } from "lucide-react";
+ import { MapPin, Clock, Calendar, ChevronRight, ClipboardCheck, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -15,9 +15,11 @@ interface CustodianService {
 interface NextServiceCardProps {
   service: CustodianService | null;
   onViewDetails?: () => void;
+   onStartChecklist?: (serviceId: string) => void;
+   checklistCompleted?: boolean;
 }
 
-const NextServiceCard = ({ service, onViewDetails }: NextServiceCardProps) => {
+ const NextServiceCard = ({ service, onViewDetails, onStartChecklist, checklistCompleted }: NextServiceCardProps) => {
   if (!service) {
     return (
       <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 text-center">
@@ -83,11 +85,10 @@ const NextServiceCard = ({ service, onViewDetails }: NextServiceCardProps) => {
       </div>
       
       {/* Service type badge */}
-      <div className="flex items-center justify-between">
+       <div className="flex items-center justify-between mb-4">
         <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
           {service.tipo_servicio || "Custodia"}
         </span>
-        
         {onViewDetails && (
           <button 
             onClick={onViewDetails}
@@ -98,6 +99,34 @@ const NextServiceCard = ({ service, onViewDetails }: NextServiceCardProps) => {
           </button>
         )}
       </div>
+       
+       {/* Checklist section */}
+       {onStartChecklist && (
+         <div className="pt-4 border-t border-primary/20">
+           {checklistCompleted ? (
+             <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-xl p-3">
+               <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                 <CheckCircle className="w-5 h-5" />
+                 <span className="font-medium">Checklist completado</span>
+               </div>
+               <button 
+                 onClick={() => onStartChecklist(service.id_servicio)}
+                 className="text-primary text-sm font-medium active:scale-95 transition-transform"
+               >
+                 Ver detalles
+               </button>
+             </div>
+           ) : (
+             <button 
+               onClick={() => onStartChecklist(service.id_servicio)}
+               className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-semibold text-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+             >
+               <ClipboardCheck className="w-5 h-5" />
+               Iniciar Checklist Pre-Servicio
+             </button>
+           )}
+         </div>
+       )}
     </div>
   );
 };
