@@ -8698,6 +8698,7 @@ export type Database = {
           fecha_vigencia: string
           id: string
           margen_neto_calculado: number | null
+          notas: string | null
           origen_texto: string | null
           pago_custodio_sin_arma: number | null
           porcentaje_utilidad: number | null
@@ -8727,6 +8728,7 @@ export type Database = {
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
+          notas?: string | null
           origen_texto?: string | null
           pago_custodio_sin_arma?: number | null
           porcentaje_utilidad?: number | null
@@ -8756,6 +8758,7 @@ export type Database = {
           fecha_vigencia?: string
           id?: string
           margen_neto_calculado?: number | null
+          notas?: string | null
           origen_texto?: string | null
           pago_custodio_sin_arma?: number | null
           porcentaje_utilidad?: number | null
