@@ -362,6 +362,12 @@ export const navigationModules: NavigationModule[] = [
         icon: Activity
       },
       {
+        id: 'monitoring_checklists',
+        label: 'Checklists',
+        path: '/monitoring?tab=checklists',
+        icon: ClipboardList
+      },
+      {
         id: 'incidentes_rrss',
         label: 'Incidentes RRSS',
         path: '/incidentes-rrss',
