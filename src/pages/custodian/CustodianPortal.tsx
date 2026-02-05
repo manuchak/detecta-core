@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Navigate, Outlet } from "react-router-dom";
 import { useStableAuth } from "@/hooks/useStableAuth";
+import { OnboardingGuard } from "@/components/custodian/OnboardingGuard";
 
 const CustodianPortal = () => {
   const { user, userRole, loading } = useStableAuth();
@@ -36,6 +37,16 @@ const CustodianPortal = () => {
           <Navigate to="/" replace />
         </div>
       </div>
+    );
+  }
+
+  // Wrap with OnboardingGuard to ensure custodian has completed document registration
+  // Admin/Owner bypass the guard (they don't need documents)
+  if (userRole === 'custodio') {
+    return (
+      <OnboardingGuard>
+        <Outlet />
+      </OnboardingGuard>
     );
   }
 

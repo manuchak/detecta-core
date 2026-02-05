@@ -66,6 +66,7 @@ const CustodianTickets = lazy(() => import('@/pages/custodian/CustodianTickets')
 const CustodianServicesPage = lazy(() => import('@/pages/custodian/CustodianServicesPage'));
 const CustodianVehiclePage = lazy(() => import('@/pages/custodian/CustodianVehiclePage'));
 const CustodianSupportPage = lazy(() => import('@/pages/custodian/CustodianSupportPage'));
+const CustodianOnboarding = lazy(() => import('@/pages/custodian/CustodianOnboarding'));
 const CustodianPortalAdmin = lazy(() => import('@/pages/admin/CustodianPortalAdmin'));
 const RecruitmentStrategy = lazy(() => import('@/pages/RecruitmentStrategy'));
 const ModernRecruitment = lazy(() => import('@/pages/ModernRecruitment'));
@@ -808,6 +809,16 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad', 'analista_seguridad']}>
                         <ServiceWorkflowDocumentation />
                       </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+{/* Custodian Onboarding - Standalone page for document registration */}
+                <Route
+                  path="/custodian/onboarding"
+                  element={
+                    <ProtectedRoute>
+                      <CustodianOnboarding />
                     </ProtectedRoute>
                   }
                 />

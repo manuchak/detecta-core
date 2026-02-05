@@ -24,15 +24,23 @@
    'poliza_seguro'
  ];
  
- export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsProps) {
-   const { documents, isLoading, updateDocument, getExpiredDocuments } = useCustodianDocuments(custodioTelefono);
-   const [uploadingDoc, setUploadingDoc] = useState<TipoDocumentoCustodio | null>(null);
-   const [uploadFile, setUploadFile] = useState<File | null>(null);
-   const [uploadDate, setUploadDate] = useState('');
-   const [isUploading, setIsUploading] = useState(false);
- 
-   const expiredDocs = getExpiredDocuments();
-   const canProceed = expiredDocs.length === 0;
+export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsProps) {
+  const { documents, isLoading, updateDocument, getExpiredDocuments } = useCustodianDocuments(custodioTelefono);
+  const [uploadingDoc, setUploadingDoc] = useState<TipoDocumentoCustodio | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDate, setUploadDate] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Verificar documentos faltantes (no existen)
+  const missingDocs = REQUIRED_DOCUMENTS.filter(
+    tipo => !documents.find(d => d.tipo_documento === tipo)
+  );
+  
+  // Verificar documentos vencidos
+  const expiredDocs = getExpiredDocuments();
+  
+  // Solo puede proceder si tiene todos los documentos Y ninguno vencido
+  const canProceed = missingDocs.length === 0 && expiredDocs.length === 0;
  
    const handleUpload = async () => {
      if (!uploadingDoc || !uploadFile || !uploadDate) return;
@@ -73,22 +81,29 @@
          </p>
        </div>
  
-       {/* Status summary */}
-       {expiredDocs.length > 0 ? (
-         <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3">
-           <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-           <p className="text-sm text-destructive">
-             Tienes {expiredDocs.length} documento(s) vencido(s). Actualízalos para continuar.
-           </p>
-         </div>
-       ) : (
-         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3">
-           <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-             Todos tus documentos están vigentes
-           </p>
-         </div>
-       )}
+        {/* Status summary */}
+        {missingDocs.length > 0 ? (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Tienes {missingDocs.length} documento(s) sin registrar. Súbelos para continuar.
+            </p>
+          </div>
+        ) : expiredDocs.length > 0 ? (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+            <p className="text-sm text-destructive">
+              Tienes {expiredDocs.length} documento(s) vencido(s). Actualízalos para continuar.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              Todos tus documentos están vigentes
+            </p>
+          </div>
+        )}
  
        {/* Document list */}
        <div className="space-y-3">

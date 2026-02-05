@@ -115,9 +115,10 @@ export const CustodianSignup = () => {
         if (success) {
           toast({
             title: '¡Bienvenido!',
-            description: 'Tu cuenta ha sido creada exitosamente.',
+            description: 'Tu cuenta ha sido creada. Ahora registra tus documentos.',
           });
-          navigate('/custodian');
+          // Redirect to onboarding to register mandatory documents
+          navigate('/custodian/onboarding');
           return;
         }
       }

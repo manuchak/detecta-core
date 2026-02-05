@@ -113,23 +113,46 @@
      return query.data?.find((doc) => doc.tipo_documento === tipo);
    };
  
-   const isDocumentExpired = (tipo: TipoDocumentoCustodio) => {
-     const doc = getDocumentByType(tipo);
-     if (!doc) return false;
-     const today = new Date().toISOString().split('T')[0];
-     return doc.fecha_vigencia < today;
-   };
- 
-   return {
-     documents: query.data || [],
-     isLoading: query.isLoading,
-     error: query.error,
-     updateDocument,
-     getExpiredDocuments,
-     getExpiringDocuments,
-     hasExpiredDocuments,
-     getDocumentByType,
-     isDocumentExpired,
-     refetch: query.refetch,
-   };
- }
+  const isDocumentExpired = (tipo: TipoDocumentoCustodio) => {
+    const doc = getDocumentByType(tipo);
+    if (!doc) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return doc.fecha_vigencia < today;
+  };
+
+  /**
+   * Obtiene documentos obligatorios faltantes
+   */
+  const getMissingDocuments = (requiredTypes: TipoDocumentoCustodio[]) => {
+    if (!query.data) return requiredTypes;
+    return requiredTypes.filter(
+      tipo => !query.data?.find(doc => doc.tipo_documento === tipo)
+    );
+  };
+
+  /**
+   * Verifica si todos los documentos obligatorios existen y están vigentes
+   */
+  const hasAllRequiredDocuments = (requiredTypes: TipoDocumentoCustodio[]) => {
+    const missing = getMissingDocuments(requiredTypes);
+    const expired = getExpiredDocuments().filter(
+      doc => requiredTypes.includes(doc.tipo_documento as TipoDocumentoCustodio)
+    );
+    return missing.length === 0 && expired.length === 0;
+  };
+
+  return {
+    documents: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    updateDocument,
+    getExpiredDocuments,
+    getExpiringDocuments,
+    hasExpiredDocuments,
+    getDocumentByType,
+    isDocumentExpired,
+    getMissingDocuments,
+    hasAllRequiredDocuments,
+    refetch: query.refetch,
+  };
+}
