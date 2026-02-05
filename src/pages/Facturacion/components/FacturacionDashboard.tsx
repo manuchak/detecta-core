@@ -74,15 +74,15 @@ export function FacturacionDashboard({
       {/* Hero KPIs Bar */}
       <FacturacionHeroBar metrics={metrics} isLoading={isLoading} />
 
-      {/* Charts Row - Layout asimétrico */}
+      {/* Charts Row - Layout asimétrico con alturas iguales */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
         {/* Bar Chart - 3/5 del ancho */}
-        <Card className="lg:col-span-3 border-border/50">
-          <CardHeader className="py-2.5 px-4">
+        <Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+          <CardHeader className="py-2.5 px-4 shrink-0">
             <CardTitle className="text-sm font-medium">Top 10 Clientes por Ingresos</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <div className="h-[calc(var(--vh-full)-340px)] min-h-[300px]">
+          <CardContent className="p-3 pt-0 flex-1 min-h-0">
+            <div className="h-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={metricasPorCliente.slice(0, 10)}
@@ -125,12 +125,12 @@ export function FacturacionDashboard({
         </Card>
 
         {/* Pie Chart + Insights - 2/5 del ancho */}
-        <Card className="lg:col-span-2 border-border/50">
-          <CardHeader className="py-2.5 px-4">
+        <Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+          <CardHeader className="py-2.5 px-4 shrink-0">
             <CardTitle className="text-sm font-medium">Concentración de Ingresos</CardTitle>
           </CardHeader>
-          <CardContent className="p-3 pt-0 flex flex-col">
-            <div className="h-[180px]">
+          <CardContent className="p-3 pt-0 flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-[180px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -159,8 +159,8 @@ export function FacturacionDashboard({
               </ResponsiveContainer>
             </div>
 
-            {/* Legend compacta */}
-            <div className="space-y-1.5 mb-3">
+            {/* Legend compacta - altura fija */}
+            <div className="space-y-1.5 my-3 shrink-0">
               {top5Clientes.map((c, i) => (
                 <div key={c.cliente} className="flex items-center gap-2 text-xs">
                   <div 
@@ -175,8 +175,8 @@ export function FacturacionDashboard({
               ))}
             </div>
 
-            {/* Insights Panel */}
-            <div className="pt-2 border-t space-y-1.5">
+            {/* Insights Panel - altura fija */}
+            <div className="pt-2 border-t space-y-1.5 shrink-0">
               <h4 className="text-[10px] font-medium uppercase text-muted-foreground tracking-wide">
                 Insights
               </h4>
