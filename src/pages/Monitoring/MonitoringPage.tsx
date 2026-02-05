@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
@@ -20,11 +21,23 @@ import {
 import type { ServicioConChecklist, FiltroChecklist } from "@/types/checklist";
 
 const MonitoringPage = () => {
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
-  const [activeTab, setActiveTab] = useState("posicionamiento");
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl === 'checklists' ? 'checklists' : 'posicionamiento'
+  );
+  
+  // Sync tab with URL param
+  useEffect(() => {
+    if (tabFromUrl === 'checklists') {
+      setActiveTab('checklists');
+    }
+  }, [tabFromUrl]);
   
   // Checklist state
   const [filtroChecklist, setFiltroChecklist] = useState<FiltroChecklist>("todos");
