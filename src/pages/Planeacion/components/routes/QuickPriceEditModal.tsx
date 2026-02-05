@@ -18,6 +18,7 @@ interface Route {
   valor_bruto: number;
   precio_custodio: number;
   costo_operativo: number;
+  distancia_km?: number | null;
 }
 
 interface QuickPriceEditModalProps {
@@ -30,6 +31,7 @@ interface QuickPriceEditModalProps {
 export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: QuickPriceEditModalProps) {
   const [valorBruto, setValorBruto] = useState('');
   const [precioCustodio, setPrecioCustodio] = useState('');
+  const [distanciaKm, setDistanciaKm] = useState('');
   const [motivo, setMotivo] = useState('');
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
@@ -39,12 +41,14 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
     if (route) {
       setValorBruto(route.valor_bruto.toString());
       setPrecioCustodio(route.precio_custodio.toString());
+      setDistanciaKm(route.distancia_km?.toString() || '');
       setMotivo('');
     }
   }, [route]);
 
   const valorBrutoNum = parseFloat(valorBruto) || 0;
   const precioCustodioNum = parseFloat(precioCustodio) || 0;
+  const distanciaKmNum = distanciaKm ? parseFloat(distanciaKm) : null;
   const margenNeto = valorBrutoNum - precioCustodioNum - (route?.costo_operativo || 0);
   const porcentajeMargen = valorBrutoNum > 0 ? (margenNeto / valorBrutoNum) * 100 : 0;
   const esMargenNegativo = margenNeto < 0;
@@ -67,6 +71,7 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
         .update({
           valor_bruto: valorBrutoNum,
           precio_custodio: precioCustodioNum,
+          distancia_km: distanciaKmNum,
           updated_at: new Date().toISOString()
         })
         .eq('id', route.id);
@@ -151,6 +156,27 @@ export function QuickPriceEditModal({ open, onOpenChange, route, onSuccess }: Qu
             </div>
             <p className="text-xs text-muted-foreground">
               Actual: ${route.precio_custodio.toLocaleString()}
+            </p>
+          </div>
+
+          {/* Distancia (km) */}
+          <div className="space-y-2">
+            <Label htmlFor="distanciaKm">Distancia (km)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-muted-foreground">🛣️</span>
+              <Input
+                id="distanciaKm"
+                type="number"
+                value={distanciaKm}
+                onChange={(e) => setDistanciaKm(e.target.value)}
+                className="pl-9"
+                placeholder="0.0"
+                step="0.1"
+                min="0"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Actual: {route.distancia_km ? `${route.distancia_km.toLocaleString()} km` : 'Sin registrar'}
             </p>
           </div>
 
