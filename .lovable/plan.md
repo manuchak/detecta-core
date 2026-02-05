@@ -1,97 +1,124 @@
 
-# Plan: Corregir Error al Eliminar Rutas
+# Plan: Corregir Filtro PF para Mostrar Posicionamiento en Falso
 
-## Causa del Bug
+## Diagnóstico del Bug
 
-El código en `DeleteRouteDialog.tsx` intenta actualizar una columna `notas` que **no existe** en la tabla `matriz_precios_rutas`:
-
+### Comportamiento Actual (Líneas 546-550)
 ```typescript
-// Línea 59-64
-const { error } = await supabase
-  .from('matriz_precios_rutas')
-  .update({ 
-    activo: false,
-    notas: `[ELIMINADA ${new Date().toLocaleDateString('es-MX')}] ${reason}`  // ❌ ERROR
-  })
-  .in('id', routes.map(r => r.id));
+const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
+const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
+return tipoClienteFilter === 'pf' ? isPF : !isPF;
 ```
+El filtro "PF" busca servicios por **tipo de servicio** (Persona Física), pero Daniela espera ver servicios con **Posicionamiento en Falso**.
 
-PostgreSQL rechaza el UPDATE porque la columna no existe.
+### Resultado
+- Se muestra "pos. falso: 1" en las métricas
+- Al filtrar por "PF", no aparece nada porque el servicio tiene `posicionamiento_falso = true` pero no `tipo_servicio = 'pf'`
 
 ---
 
 ## Solución Propuesta
 
-Agregar la columna `notas` a la tabla `matriz_precios_rutas` para mantener la trazabilidad de eliminaciones.
+Separar los dos conceptos con filtros distintos:
 
-### Opción A: Migración SQL (Recomendada)
+| Filtro | Campo | Descripción |
+|--------|-------|-------------|
+| Empresarial | `tipo_servicio` no contiene 'pf' | Clientes corporativos |
+| Persona Física | `tipo_servicio` contiene 'pf' | Clientes individuales |
+| **Pos. Falso** (nuevo) | `posicionamiento_falso = true` | Servicios cancelados en origen |
 
-Crear columna `notas` tipo `TEXT` nullable:
+---
 
-```sql
-ALTER TABLE matriz_precios_rutas 
-ADD COLUMN notas TEXT;
+## Cambios en `ScheduledServicesTabSimple.tsx`
 
-COMMENT ON COLUMN matriz_precios_rutas.notas IS 'Notas de auditoría (eliminaciones, observaciones)';
-```
-
-### Opción B: Remover campo del código
-
-Si no se requiere guardar el motivo, simplemente remover `notas` del UPDATE:
+### 1. Agregar nuevo estado para filtro de Posicionamiento Falso
 
 ```typescript
-.update({ 
-  activo: false,
-  updated_at: new Date().toISOString()
-})
+// Línea ~188 - Nuevo estado
+const [showOnlyFalsePositioning, setShowOnlyFalsePositioning] = useState(false);
 ```
 
-**Sin embargo**, esta opción pierde la trazabilidad del motivo de eliminación.
+### 2. Actualizar lógica de filtrado
+
+```typescript
+// Líneas 543-551 - Agregar filtro de posicionamiento falso
+let filteredData = summary.services_data;
+
+// Filtro de Posicionamiento Falso (independiente)
+if (showOnlyFalsePositioning) {
+  filteredData = filteredData.filter(service => 
+    service.posicionamiento_falso === true || service.posicionamiento_falso === 'true'
+  );
+}
+
+// Filtro de tipo cliente (Empresarial/PF)
+if (tipoClienteFilter !== 'todos') {
+  filteredData = filteredData.filter(service => {
+    const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
+    const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
+    return tipoClienteFilter === 'pf' ? isPF : !isPF;
+  });
+}
+```
+
+### 3. Agregar botón de filtro en la UI
+
+Junto al contador "pos. falso" existente, hacerlo clickeable:
+
+```tsx
+{/* Botón para filtrar Posicionamiento Falso - línea ~810 */}
+<Button
+  variant={showOnlyFalsePositioning ? 'default' : 'outline'}
+  size="sm"
+  onClick={() => setShowOnlyFalsePositioning(!showOnlyFalsePositioning)}
+  className={cn(
+    "h-7 text-xs",
+    showOnlyFalsePositioning && "bg-violet-600 hover:bg-violet-700 text-white"
+  )}
+>
+  <MapPinOff className="w-3 h-3 mr-1" />
+  Pos. Falso
+  {falsePositioningCount > 0 && (
+    <Badge variant="secondary" className="ml-1 h-4 text-[10px]">
+      {falsePositioningCount}
+    </Badge>
+  )}
+</Button>
+```
 
 ---
 
-## Implementación Recomendada
+## UI Visual Propuesta
 
-| Paso | Acción |
-|------|--------|
-| 1 | Crear migración SQL para agregar columna `notas` |
-| 2 | El código existente funcionará sin cambios adicionales |
-
-### Migración SQL
-
-```sql
--- Agregar columna notas para trazabilidad de eliminaciones
-ALTER TABLE public.matriz_precios_rutas 
-ADD COLUMN IF NOT EXISTS notas TEXT;
-
--- Comentario descriptivo
-COMMENT ON COLUMN public.matriz_precios_rutas.notas IS 
-  'Notas de auditoría: motivos de eliminación, observaciones de precios';
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ Filtrar: [Todos(32)] [Empresarial] [PF] │ [📍 Pos. Falso (1)] │ [Folio]  │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
+
+Cuando Daniela haga clic en "Pos. Falso", se mostrarán solo los servicios cancelados por posicionamiento en falso.
 
 ---
 
-## Archivo a Crear
+## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/migrations/xxx_add_notas_to_matriz_precios.sql` | Nueva migración |
+| `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx` | Agregar estado, lógica y botón |
 
 ---
 
 ## Beneficios
 
-1. **Trazabilidad**: Se conserva el motivo de eliminación en la propia ruta
-2. **Sin cambios de código**: El flujo actual funciona tal cual
-3. **Mínimo impacto**: Solo agrega una columna nullable
-4. **Auditoría**: Daniela puede ver por qué se eliminó cada ruta
+1. **Claridad**: Separa "Persona Física" de "Posicionamiento Falso"
+2. **Funcionalidad**: Daniela puede ver servicios PF fácilmente
+3. **Independiente**: El filtro PF puede combinarse con otros filtros
 
 ---
 
 ## Testing
 
-- [ ] Ejecutar migración SQL
-- [ ] Probar eliminación de ruta individual
-- [ ] Probar eliminación masiva de rutas
-- [ ] Verificar que el motivo se guarda correctamente
-- [ ] Confirmar que rutas eliminadas muestran `activo = false` y `notas` con el motivo
+- [ ] Verificar que el contador "Pos. Falso" coincide con servicios filtrados
+- [ ] Confirmar que el botón se activa/desactiva correctamente
+- [ ] Validar que servicios con `posicionamiento_falso = true` aparecen
+- [ ] Probar combinación de filtros (Empresarial + Pos. Falso)
