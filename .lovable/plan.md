@@ -1,248 +1,230 @@
 
-# Plan: Optimizaciones de Rendimiento para 100+ Custodios Concurrentes
+# Plan: Sistema de Gestion y Alertamiento de Checklists en Monitoreo
 
 ## Resumen Ejecutivo
 
-Implementar tres optimizaciones criticas para garantizar estabilidad del sistema cuando multiples custodios completan checklists simultaneamente: compresion de imagenes, rate limiting con cola de subida, y backoff exponencial con jitter.
+Crear un sistema completo de consulta, alertamiento y gestion de checklists pre-servicio dentro del modulo de Monitoreo. El sistema asegura que todo servicio tenga un checklist realizado antes de iniciar operaciones, con una UI optimizada para revision rapida de evidencia fotografica y respuestas de inspeccion.
 
 ---
 
-## Arquitectura de Optimizaciones
+## Arquitectura del Sistema
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                        FLUJO OPTIMIZADO DE SUBIDA DE FOTOS                          │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                     │
-│  [Foto Capturada]                                                                   │
-│        │                                                                            │
-│        ▼                                                                            │
-│  ┌─────────────────┐                                                                │
-│  │  COMPRESION     │  Reducir ~2MB -> ~300-500KB                                    │
-│  │  (imageUtils)   │  - Canvas resize: max 1920px                                   │
-│  │                 │  - JPEG quality: 0.7                                           │
-│  │                 │  - Mantiene EXIF GPS                                           │
-│  └────────┬────────┘                                                                │
-│           │                                                                         │
-│           ▼                                                                         │
-│  ┌─────────────────┐                                                                │
-│  │   INDEXEDDB     │  Almacena blob comprimido                                      │
-│  │   (local)       │  - Menor uso de storage                                        │
-│  └────────┬────────┘                                                                │
-│           │                                                                         │
-│           ▼  (Cuando hay conexion)                                                  │
-│  ┌─────────────────┐                                                                │
-│  │  UPLOAD QUEUE   │  Rate limiting por usuario                                     │
-│  │  (uploadQueue)  │  - Max 2 uploads concurrentes                                  │
-│  │                 │  - Cola FIFO con prioridad                                     │
-│  └────────┬────────┘                                                                │
-│           │                                                                         │
-│           ▼  (Si falla)                                                             │
-│  ┌─────────────────┐                                                                │
-│  │ RETRY + BACKOFF │  Reintentos inteligentes                                       │
-│  │ (retryUtils)    │  - Exponential: 1s, 2s, 4s, 8s                                 │
-│  │                 │  - Jitter: +/- 30%                                             │
-│  │                 │  - Circuit breaker integrado                                   │
-│  └────────┬────────┘                                                                │
-│           │                                                                         │
-│           ▼                                                                         │
-│  ┌─────────────────┐                                                                │
-│  │   SUPABASE      │  Carga controlada al servidor                                  │
-│  │   STORAGE       │  - Evita saturacion                                            │
-│  └─────────────────┘                                                                │
-│                                                                                     │
-└─────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│                          SISTEMA DE GESTION DE CHECKLISTS                            │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                        DASHBOARD CHECKLIST (Nueva Tab)                         │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │  │
+│  │  │  Completos   │  │  Pendientes  │  │  Sin Check   │  │   Alertas    │        │  │
+│  │  │     [12]     │  │     [3]      │  │     [5]      │  │     [2]      │        │  │
+│  │  │     OK       │  │   ATENCION   │  │   CRITICO    │  │    GPS/DOC   │        │  │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘        │  │
+│  └────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                          TABLA DE SERVICIOS                                    │  │
+│  │  ┌─────────┬─────────┬──────────┬──────────┬─────────┬─────────┬────────────┐  │  │
+│  │  │ Cliente │ Custodio│  Hora    │ Checklist│  Fotos  │ Alertas │  Acciones  │  │  │
+│  │  ├─────────┼─────────┼──────────┼──────────┼─────────┼─────────┼────────────┤  │  │
+│  │  │ Samsung │ J.Ruiz  │ 08:30    │   OK     │   4/4   │    0    │ [Ver]      │  │  │
+│  │  │ Ferrer  │ L.Lopez │ 09:00    │ Pendiente│   2/4   │    1    │ [Ver][!]   │  │  │
+│  │  │ Loger   │ M.Perez │ 09:30    │   --     │   0/4   │    --   │ [Notif]    │  │  │
+│  │  └─────────┴─────────┴──────────┴──────────┴─────────┴─────────┴────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                    MODAL DETALLE CHECKLIST                                     │  │
+│  │  ┌──────────────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  GALERIA DE FOTOS (Lightbox con swipe)                                   │  │  │
+│  │  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                             │  │  │
+│  │  │  │Frontal │ │Trasero │ │Lat Izq │ │Lat Der │                             │  │  │
+│  │  │  │  GPS   │ │  GPS   │ │  GPS   │ │  GPS   │                             │  │  │
+│  │  │  │  120m  │ │  45m   │ │  680m  │ │  52m   │                             │  │  │
+│  │  │  └────────┘ └────────┘ └────────┘ └────────┘                             │  │  │
+│  │  └──────────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                                │  │
+│  │  ┌──────────────────────────────────────────────────────────────────────────┐  │  │
+│  │  │  INSPECCION VEHICULAR          │  EQUIPAMIENTO DE EMERGENCIA            │  │  │
+│  │  │  [X] Llantas  [X] Luces        │  [X] Gato       [!] Extintor           │  │  │
+│  │  │  [X] Frenos   [X] Espejos      │  [X] Refaccion  [X] Triangulos         │  │  │
+│  │  │  Combustible: [====75%====]    │                                        │  │  │
+│  │  └──────────────────────────────────────────────────────────────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Componente 1: Compresion de Imagenes
+## Componentes a Crear
 
-### Archivo: `src/lib/imageUtils.ts` (Nuevo)
+### 1. Hook Principal: `useChecklistMonitoreo.ts`
 
-Utilidad para comprimir fotos antes de almacenarlas en IndexedDB.
+Logica centralizada para consultar y filtrar checklists del turno.
 
+**Funcionalidades:**
+- Obtener servicios del turno con estado de checklist (JOIN servicios_planificados + checklist_servicio)
+- Calcular metricas: completos, pendientes, sin checklist, con alertas
+- Filtrar por estado de checklist
+- Detectar alertas: GPS fuera de rango, items fallidos, fotos faltantes
+
+**Interface de datos:**
 ```typescript
-interface CompressionOptions {
-  maxWidth: number;      // Default: 1920
-  maxHeight: number;     // Default: 1080
-  quality: number;       // Default: 0.7 (70%)
-  format: 'jpeg' | 'webp';
+interface ServicioConChecklist {
+  servicioId: string;
+  idServicio: string;
+  nombreCliente: string;
+  custodioAsignado: string;
+  custodioTelefono: string;
+  fechaHoraCita: string;
+  estadoPlaneacion: string;
+  // Checklist data
+  checklistId: string | null;
+  checklistEstado: 'completo' | 'pendiente' | 'incompleto' | null;
+  fechaChecklist: string | null;
+  fotosCount: number;
+  alertasGps: number;
+  itemsFallidos: number;
+  tieneAlerta: boolean;
 }
 
-interface CompressionResult {
-  blob: Blob;
-  originalSize: number;
-  compressedSize: number;
-  compressionRatio: number;
+interface ResumenChecklists {
+  completos: number;
+  pendientes: number;
+  sinChecklist: number;
+  conAlertas: number;
+  total: number;
 }
 ```
 
-Funcionalidades:
-- Redimensionar usando Canvas API a max 1920x1080
-- Comprimir a JPEG con calidad 70%
-- Preservar orientacion EXIF
-- Retornar metricas de compresion para logging
-- Reduccion esperada: ~2MB -> ~300-500KB (75-85% reduccion)
+### 2. Componente Dashboard: `ChecklistDashboard.tsx`
 
-### Integracion
+Panel principal con tarjetas de resumen y sistema de alertas.
 
-Modificar `useServiceChecklist.ts` en funcion `capturePhoto`:
+**Elementos UI:**
+- 4 tarjetas de resumen con colores semanticos:
+  - Verde: Checklists completos (sin alertas)
+  - Amarillo: Checklists pendientes/incompletos
+  - Rojo: Servicios sin checklist (critico)
+  - Naranja: Con alertas GPS o items fallidos
+- Sistema de filtrado por click en tarjetas
+- Indicador de tiempo hasta cita para servicios sin checklist
+- Alerta visual pulsante para servicios proximos sin checklist (<60 min)
 
-```typescript
-// Antes de savePhotoBlob:
-const compressed = await compressImage(file, {
-  maxWidth: 1920,
-  quality: 0.7,
-});
-console.log(`[Photo] Comprimida: ${compressed.compressionRatio.toFixed(0)}% reduccion`);
+### 3. Tabla de Servicios: `ChecklistServicesTable.tsx`
 
-// Usar compressed.blob en lugar de file original
-await savePhotoBlob({
-  ...
-  blob: compressed.blob,
-  mimeType: 'image/jpeg',
-});
+Lista detallada con columnas optimizadas para operacion.
+
+**Columnas:**
+| Campo | Descripcion |
+|-------|-------------|
+| Cliente | Nombre + hora cita |
+| Custodio | Nombre + telefono (click-to-call) |
+| Estado Checklist | Badge con color semantico |
+| Fotos | Contador X/4 con indicador visual |
+| Alertas | Iconos de GPS/Items/Docs |
+| Acciones | Ver detalle, Notificar custodio |
+
+**Funcionalidades:**
+- Busqueda por cliente/custodio
+- Ordenamiento por urgencia (sin checklist primero)
+- Filtros rapidos por estado
+- Row expandible para preview rapido
+
+### 4. Modal de Detalle: `ChecklistDetailModal.tsx`
+
+Vista completa del checklist con galeria de fotos mejorada.
+
+**Secciones:**
+1. **Header:** Info del servicio + estado general
+2. **Galeria de Fotos:** Grid 2x2 con lightbox fullscreen
+3. **Mapa de Validacion:** Mini-mapa mostrando ubicacion de captura vs origen
+4. **Inspeccion Vehicular:** Grid de items con iconos
+5. **Equipamiento:** Lista de verificacion
+6. **Observaciones y Firma:** Texto + preview de firma
+7. **Metadata:** Timestamps, estado de sincronizacion
+
+### 5. Lightbox de Fotos: `PhotoLightbox.tsx`
+
+Visor de imagenes fullscreen optimizado para revision.
+
+**Caracteristicas:**
+- Navegacion con swipe (touch) y flechas (desktop)
+- Zoom con pinch/doble-tap
+- Overlay con metadata GPS
+- Indicador de validacion (OK/Fuera de rango/Sin GPS)
+- Boton para abrir en Google Maps la ubicacion
+- Transiciones suaves entre fotos
+
+### 6. Panel de Alertas: `ChecklistAlertPanel.tsx`
+
+Lista de alertas activas que requieren atencion.
+
+**Tipos de alertas:**
+- Servicio proximo (<60 min) sin checklist
+- Foto fuera de rango GPS (>500m)
+- Foto sin GPS
+- Item de inspeccion fallido (frenos, llantas criticos)
+- Checklist incompleto (fotos faltantes)
+
+**Acciones:**
+- Notificar custodio via WhatsApp/SMS
+- Marcar como revisado
+- Agregar nota de seguimiento
+
+---
+
+## Integracion con MonitoringPage
+
+Agregar nueva seccion/tab al modulo de monitoreo existente.
+
+**Opcion recomendada:** Tab system dentro de MonitoringPage
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  [Posicionamiento]  [Checklists]  [Alertas Ruta]                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Contenido de la tab seleccionada                               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Componente 2: Cola de Subida con Rate Limiting
+## Mejores Practicas de UI Implementadas
 
-### Archivo: `src/lib/uploadQueue.ts` (Nuevo)
+### Basadas en investigacion de sistemas de monitoreo vehicular:
 
-Sistema de cola para controlar subidas concurrentes.
+1. **Codigo de colores consistente:**
+   - Verde: Estado optimo/completo
+   - Amarillo: Atencion requerida
+   - Rojo: Critico/Bloqueante
+   - Gris: Sin datos/Pendiente
 
-```typescript
-interface UploadQueueConfig {
-  maxConcurrent: number;      // Default: 2
-  delayBetweenUploads: number; // Default: 500ms
-}
+2. **Jerarquia visual:**
+   - Lo mas critico arriba y destacado
+   - Alertas con animacion sutil (pulse)
+   - Numeros grandes para metricas clave
 
-interface QueuedUpload {
-  id: string;
-  priority: number;
-  execute: () => Promise<void>;
-  onProgress?: (progress: number) => void;
-}
+3. **Galeria de fotos optimizada:**
+   - Grid 2x2 para vista rapida de las 4 fotos
+   - Lightbox fullscreen para revision detallada
+   - Indicadores de validacion GPS en cada thumbnail
+   - Soporte para swipe/touch en movil
 
-class UploadQueue {
-  private queue: QueuedUpload[];
-  private activeCount: number;
-  private config: UploadQueueConfig;
-  
-  add(upload: QueuedUpload): void;
-  pause(): void;
-  resume(): void;
-  clear(): void;
-  getStatus(): { pending: number; active: number };
-}
-```
+4. **Accesibilidad operativa:**
+   - Click-to-call en numeros de custodio
+   - Botones de accion prominentes
+   - Filtros de un click
+   - Busqueda instantanea
 
-Caracteristicas:
-- Maximo 2 uploads concurrentes por usuario
-- Delay de 500ms entre uploads para evitar rafagas
-- Sistema de prioridad (fotos > checklists > documentos)
-- Metodos para pausar/resumir cola
-- Eventos de progreso para UI feedback
-
-### Integracion
-
-Modificar `useOfflineSync.ts`:
-
-```typescript
-const uploadQueue = new UploadQueue({ maxConcurrent: 2 });
-
-const syncAll = useCallback(async () => {
-  const queue = await getSyncQueue();
-  
-  // Agrupar por tipo y encolar
-  for (const item of queue) {
-    uploadQueue.add({
-      id: item.id,
-      priority: item.action === 'upload_photo' ? 1 : 2,
-      execute: () => syncItem(item),
-    });
-  }
-  
-  // La cola maneja el rate limiting automaticamente
-}, []);
-```
-
----
-
-## Componente 3: Backoff Exponencial con Jitter
-
-### Archivo: `src/lib/retryUtils.ts` (Nuevo)
-
-Utilidades para reintentos inteligentes.
-
-```typescript
-interface RetryConfig {
-  maxAttempts: number;      // Default: 5
-  baseDelayMs: number;      // Default: 1000
-  maxDelayMs: number;       // Default: 30000
-  jitterPercent: number;    // Default: 0.3 (30%)
-}
-
-function calculateBackoffDelay(
-  attempt: number, 
-  config: RetryConfig
-): number;
-
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  config?: Partial<RetryConfig>,
-  onRetry?: (attempt: number, delay: number, error: Error) => void
-): Promise<T>;
-```
-
-Comportamiento:
-- Intento 1: 1000ms +/- 300ms
-- Intento 2: 2000ms +/- 600ms
-- Intento 3: 4000ms +/- 1200ms
-- Intento 4: 8000ms +/- 2400ms
-- Intento 5: 16000ms (capped at 30000ms)
-
-El jitter previene el "thundering herd" cuando 100 dispositivos reintenten simultaneamente.
-
-### Integracion con Circuit Breaker
-
-Modificar `useOfflineSync.ts`:
-
-```typescript
-import { CircuitBreaker } from '@/services/circuitBreakerService';
-import { withRetry, calculateBackoffDelay } from '@/lib/retryUtils';
-
-const circuitBreaker = new CircuitBreaker({
-  maxConsecutiveFailures: 5,
-  maxFailureRate: 30,
-  cooldownPeriod: 120,
-});
-
-const syncItem = async (item: SyncQueueItem): Promise<boolean> => {
-  if (circuitBreaker.isCircuitOpen()) {
-    console.warn('[Sync] Circuit abierto, esperando cooldown');
-    return false;
-  }
-  
-  try {
-    await withRetry(
-      () => executeSync(item),
-      { maxAttempts: 3, baseDelayMs: 1000 },
-      (attempt, delay) => {
-        console.log(`[Sync] Reintento ${attempt}, esperando ${delay}ms`);
-      }
-    );
-    circuitBreaker.recordSuccess();
-    return true;
-  } catch (error) {
-    const errorType = error instanceof Error ? error.name : 'unknown';
-    circuitBreaker.recordFailure(errorType);
-    return false;
-  }
-};
-```
+5. **Performance:**
+   - Lazy loading de imagenes
+   - Virtualizacion de lista para muchos servicios
+   - Cache de datos con TanStack Query
 
 ---
 
@@ -250,53 +232,105 @@ const syncItem = async (item: SyncQueueItem): Promise<boolean> => {
 
 | Archivo | Descripcion | Lineas Est. |
 |---------|-------------|-------------|
-| `src/lib/imageUtils.ts` | Compresion de imagenes con Canvas | ~80 |
-| `src/lib/uploadQueue.ts` | Cola con rate limiting | ~120 |
-| `src/lib/retryUtils.ts` | Backoff exponencial + jitter | ~60 |
+| `src/hooks/useChecklistMonitoreo.ts` | Hook principal de datos | ~120 |
+| `src/components/monitoring/checklist/ChecklistDashboard.tsx` | Dashboard con metricas | ~180 |
+| `src/components/monitoring/checklist/ChecklistServicesTable.tsx` | Tabla de servicios | ~220 |
+| `src/components/monitoring/checklist/ChecklistDetailModal.tsx` | Modal de detalle | ~280 |
+| `src/components/monitoring/checklist/PhotoLightbox.tsx` | Visor de fotos fullscreen | ~150 |
+| `src/components/monitoring/checklist/ChecklistAlertPanel.tsx` | Panel de alertas | ~160 |
+| `src/components/monitoring/checklist/index.ts` | Barrel exports | ~10 |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/hooks/useServiceChecklist.ts` | Integrar compresion en capturePhoto |
-| `src/hooks/useOfflineSync.ts` | Integrar cola, retry y circuit breaker |
-| `src/types/checklist.ts` | Agregar config de compresion |
-
----
-
-## Metricas de Impacto Esperado
-
-| Metrica | Antes | Despues | Mejora |
-|---------|-------|---------|--------|
-| Tamano foto promedio | ~2MB | ~400KB | 80% |
-| Trafico total (100 users x 4 fotos) | 800MB | 160MB | 80% |
-| Uploads concurrentes al servidor | Ilimitado | Max 200 | Controlado |
-| Tasa de falla por timeout | Alta en picos | Minima | ~90% |
-| Tiempo de recovery post-offline | Instantaneo (rafaga) | Gradual (2min) | Estable |
+| `src/pages/Monitoring/MonitoringPage.tsx` | Agregar tabs y seccion de checklists |
+| `src/types/checklist.ts` | Agregar tipos para monitoreo |
 
 ---
 
 ## Orden de Implementacion
 
-1. **Crear** `src/lib/imageUtils.ts` - Compresion de imagenes
-2. **Crear** `src/lib/retryUtils.ts` - Backoff + jitter
-3. **Crear** `src/lib/uploadQueue.ts` - Cola con rate limiting
-4. **Modificar** `src/hooks/useServiceChecklist.ts` - Integrar compresion
-5. **Modificar** `src/hooks/useOfflineSync.ts` - Integrar cola y retry
-6. **Probar** flujo completo con conexion intermitente
+1. **Fase 1 - Infraestructura:**
+   - Crear `useChecklistMonitoreo.ts` con query JOIN
+   - Agregar tipos en `checklist.ts`
+
+2. **Fase 2 - Componentes Core:**
+   - `ChecklistDashboard.tsx` con tarjetas de resumen
+   - `ChecklistServicesTable.tsx` con lista filtrable
+
+3. **Fase 3 - Visor de Detalle:**
+   - `ChecklistDetailModal.tsx` con secciones expandidas
+   - `PhotoLightbox.tsx` con navegacion swipe
+
+4. **Fase 4 - Sistema de Alertas:**
+   - `ChecklistAlertPanel.tsx` con acciones
+   - Integracion de notificaciones
+
+5. **Fase 5 - Integracion Final:**
+   - Modificar `MonitoringPage.tsx` con tabs
+   - Testing end-to-end
 
 ---
 
-## Consideraciones Adicionales
+## Detalles Tecnicos
 
-### Compatibilidad Movil
-- Canvas API soportado en todos los navegadores moviles modernos
-- WebWorker opcional para compresion sin bloquear UI (fase futura)
+### Query de Datos (useChecklistMonitoreo)
+```sql
+SELECT 
+  sp.id as servicio_id,
+  sp.id_servicio,
+  sp.nombre_cliente,
+  sp.custodio_asignado,
+  sp.fecha_hora_cita,
+  sp.estado_planeacion,
+  cs.id as checklist_id,
+  cs.estado as checklist_estado,
+  cs.fecha_checklist,
+  cs.fotos_validadas,
+  cs.items_inspeccion
+FROM servicios_planificados sp
+LEFT JOIN checklist_servicio cs ON sp.id::text = cs.servicio_id
+WHERE sp.fecha_hora_cita >= NOW() - INTERVAL 'X hours'
+  AND sp.fecha_hora_cita <= NOW() + INTERVAL 'X hours'
+  AND sp.estado_planeacion NOT IN ('cancelado', 'completado')
+ORDER BY sp.fecha_hora_cita ASC;
+```
 
-### Configuracion Adaptativa
-- Detectar calidad de conexion (NetworkInformation API)
-- Ajustar concurrencia: 2G=1, 3G=2, 4G+=3
+### Calculo de Alertas (client-side)
+```typescript
+function calcularAlertas(checklist) {
+  const alertas = [];
+  
+  // GPS fuera de rango
+  const fotosProblema = checklist.fotos_validadas?.filter(
+    f => f.validacion === 'fuera_rango' || f.validacion === 'sin_gps'
+  );
+  if (fotosProblema?.length > 0) {
+    alertas.push({ tipo: 'gps', count: fotosProblema.length });
+  }
+  
+  // Items criticos fallidos
+  const itemsCriticos = ['llantas_ok', 'frenos_ok'];
+  const fallidos = itemsCriticos.filter(
+    k => checklist.items_inspeccion?.vehiculo?.[k] === false
+  );
+  if (fallidos.length > 0) {
+    alertas.push({ tipo: 'inspeccion', items: fallidos });
+  }
+  
+  return alertas;
+}
+```
 
-### Monitoreo
-- Logs estructurados para metricas de compresion
-- Dashboard de circuit breaker status (fase futura)
+### PhotoLightbox Navigation
+```typescript
+// Soporte para swipe touch
+const handleTouchStart = (e) => setTouchStart(e.touches[0].clientX);
+const handleTouchEnd = (e) => {
+  const diff = touchStart - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) {
+    diff > 0 ? nextPhoto() : prevPhoto();
+  }
+};
+```
