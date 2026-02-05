@@ -1,88 +1,186 @@
 
-# Plan: Corregir Espacio Vertical en Módulo de Facturación
+
+# Plan: Optimizar Espacio Vertical en Dashboard de Facturación
 
 ## Problema Identificado
 
-El módulo de facturación muestra mucho espacio vacío debajo de los gráficos y tablas porque no está utilizando el sistema de compensación de viewport del proyecto.
+El dashboard de facturación tiene dos problemas de layout:
 
-### Causa Raíz
-El proyecto opera a **70% zoom** y tiene variables CSS que compensan esta escala:
-- `--vh-full` = `100vh × 1.4286` (altura real del viewport)
-- `--content-height-with-tabs` = altura para contenido con tabs
+| Card | Problema Actual | Visual |
+|------|-----------------|--------|
+| **Bar Chart (izq)** | Altura dinámica `var(--vh-full)-340px` | ✓ Correcto |
+| **Pie Chart (der)** | Altura fija `180px` + contenido estático | ❌ No llena espacio |
 
-Los componentes de facturación usan `100vh` directo en vez de `var(--vh-full)`, causando que el contenido no aproveche todo el espacio vertical disponible.
+Las tarjetas no tienen alturas iguales, dejando espacio blanco significativo.
 
-## Archivos a Modificar
+## Solución Propuesta
 
-| Archivo | Problema | Solución |
-|---------|----------|----------|
-| `FacturacionDashboard.tsx` | Usa `100vh-340px` | Cambiar a `var(--vh-full)-340px` |
-| `ServiciosPorFacturarTab.tsx` | Sin altura dinámica en tabla | Agregar `h-[calc(var(--vh-full)-420px)]` |
-| `FacturasListTab.tsx` | Sin altura dinámica en tabla | Agregar `h-[calc(var(--vh-full)-420px)]` |
+### Estrategia: Cards con Altura Igualada + Contenido Flex
 
-## Cambios Específicos
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ANTES                                                                        │
+│ ┌────────────────────────────┐  ┌───────────────────────┐                   │
+│ │                            │  │  Pie Chart (180px)    │                   │
+│ │    Bar Chart               │  ├───────────────────────┤                   │
+│ │    (var(--vh-full)-340px)  │  │  Legend               │                   │
+│ │                            │  │  Insights             │                   │
+│ │                            │  └───────────────────────┘                   │
+│ │                            │                            ESPACIO VACÍO     │
+│ └────────────────────────────┘                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
 
-### 1. FacturacionDashboard.tsx (línea 85)
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ DESPUÉS                                                                      │
+│ ┌────────────────────────────┐  ┌───────────────────────┐                   │
+│ │                            │  │                       │                   │
+│ │    Bar Chart               │  │   Pie Chart (flex-1)  │                   │
+│ │    (var(--vh-full)-340px)  │  │   ~ 250px dinámico    │                   │
+│ │                            │  ├───────────────────────┤                   │
+│ │                            │  │   Legend (shrink-0)   │                   │
+│ │                            │  │   Insights (shrink-0) │                   │
+│ └────────────────────────────┘  └───────────────────────┘                   │
+│                                 ALTURAS IGUALES - SIN ESPACIO VACÍO         │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Cambios en FacturacionDashboard.tsx
+
+### 1. Grid con Items Estirados
+
+Agregar `items-stretch` al grid para forzar alturas iguales:
+
 ```tsx
 // ANTES
-<div className="h-[calc(100vh-340px)] min-h-[300px]">
+<div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+
+// DESPUÉS  
+<div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">
+```
+
+### 2. Card Derecha con Altura Dinámica
+
+Hacer que la card de pie chart use flexbox para distribuir espacio:
+
+```tsx
+// ANTES
+<Card className="lg:col-span-2 border-border/50">
+  <CardHeader>...</CardHeader>
+  <CardContent className="p-3 pt-0 flex flex-col">
+    <div className="h-[180px]">  {/* FIJA */}
+      <PieChart>...</PieChart>
+    </div>
+    <div className="space-y-1.5 mb-3">...</div>  {/* Legend */}
+    <div className="pt-2 border-t">...</div>     {/* Insights */}
+  </CardContent>
+</Card>
 
 // DESPUÉS
-<div className="h-[calc(var(--vh-full)-340px)] min-h-[300px]">
+<Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-340px)]">
+  <CardHeader>...</CardHeader>
+  <CardContent className="p-3 pt-0 flex flex-col flex-1 min-h-0">
+    <div className="flex-1 min-h-[180px]">  {/* DINÁMICA */}
+      <PieChart>...</PieChart>
+    </div>
+    <div className="space-y-1.5 mb-3 shrink-0">...</div>  {/* Legend */}
+    <div className="pt-2 border-t shrink-0">...</div>     {/* Insights */}
+  </CardContent>
+</Card>
 ```
 
-### 2. ServiciosPorFacturarTab.tsx
-Envolver la tabla de clientes en un contenedor con scroll y altura dinámica:
-```tsx
-// ANTES: Card sin altura fija
+### 3. Ajustar CardContent del Bar Chart
 
-// DESPUÉS: Card con scroll interno
-<Card>
-  <CardContent className="p-0">
-    <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
-      <Table>...</Table>
+Para consistencia, asegurar que el container también use flex:
+
+```tsx
+<Card className="lg:col-span-3 border-border/50 flex flex-col">
+  <CardHeader className="py-2.5 px-4 shrink-0">...</CardHeader>
+  <CardContent className="p-3 pt-0 flex-1 min-h-0">
+    <div className="h-full min-h-[300px]">
+      <ResponsiveContainer>...</ResponsiveContainer>
     </div>
   </CardContent>
 </Card>
 ```
 
-### 3. FacturasListTab.tsx
-Misma solución para la tabla de facturas emitidas:
+## Código Final Propuesto
+
 ```tsx
-<Card>
-  <CardContent className="p-0">
-    <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
-      <Table>...</Table>
-    </div>
-  </CardContent>
-</Card>
+{/* Charts Row - Layout asimétrico con alturas iguales */}
+<div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+  {/* Bar Chart - 3/5 del ancho */}
+  <Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+    <CardHeader className="py-2.5 px-4 shrink-0">
+      <CardTitle className="text-sm font-medium">Top 10 Clientes por Ingresos</CardTitle>
+    </CardHeader>
+    <CardContent className="p-3 pt-0 flex-1 min-h-0">
+      <div className="h-full">
+        <ResponsiveContainer width="100%" height="100%">
+          {/* BarChart content */}
+        </ResponsiveContainer>
+      </div>
+    </CardContent>
+  </Card>
+
+  {/* Pie Chart + Insights - 2/5 del ancho */}
+  <Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
+    <CardHeader className="py-2.5 px-4 shrink-0">
+      <CardTitle className="text-sm font-medium">Concentración de Ingresos</CardTitle>
+    </CardHeader>
+    <CardContent className="p-3 pt-0 flex flex-col flex-1 min-h-0">
+      {/* Pie chart se expande */}
+      <div className="flex-1 min-h-[180px]">
+        <ResponsiveContainer width="100%" height="100%">
+          {/* PieChart content */}
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend - altura fija */}
+      <div className="space-y-1.5 my-3 shrink-0">
+        {/* Legend items */}
+      </div>
+
+      {/* Insights Panel - altura fija */}
+      <div className="pt-2 border-t space-y-1.5 shrink-0">
+        {/* Insights content */}
+      </div>
+    </CardContent>
+  </Card>
+</div>
 ```
 
-## Cálculo de Alturas
+## Cálculo del Offset
 
-El offset de 340px-420px considera:
-- TopBar: ~56px
-- Header del módulo: ~56px  
-- Tabs: ~44px
-- KPIs: ~80px
-- Toolbar/filtros: ~48px
-- Padding: ~40px
+| Elemento | Altura (px) |
+|----------|-------------|
+| TopBar | ~56 |
+| Header módulo | ~56 |
+| Tabs | ~44 |
+| Hero KPIs | ~80 |
+| Espaciado (gaps) | ~24 |
+| **Total** | **~260px** |
 
-**Total aproximado**: 320-420px dependiendo del tab
+Reducimos de 340px a **260px** para aprovechar más espacio vertical.
+
+## Archivo a Modificar
+
+| Archivo | Cambios |
+|---------|---------|
+| `src/pages/Facturacion/components/FacturacionDashboard.tsx` | Layout flex, alturas dinámicas |
 
 ## Resultado Esperado
 
-| Antes | Después |
-|-------|---------|
-| Gráficos con ~300px fijos | Gráficos que llenan el viewport |
-| Tablas sin scroll con espacio vacío | Tablas con scroll interno que aprovechan altura |
-| Contenido no se adapta al zoom | Contenido compensa automáticamente el 70% zoom |
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Card izquierda | ~calc(vh-340px) | calc(vh-260px) |
+| Card derecha | ~350px fija | calc(vh-260px) dinámica |
+| Espacio blanco | ~200px | 0px |
+| Pie chart | 180px fijo | ~250px+ dinámico |
 
-## Referencia de Implementación Correcta
+## Beneficios
 
-El patrón ya está implementado correctamente en `ServiciosConsulta.tsx` (línea 379):
-```tsx
-<div className="rounded-md border border-border/50 overflow-auto h-[calc(var(--vh-full)-340px)] min-h-[300px]">
-```
+1. **Aprovechamiento total del viewport** - Sin espacio blanco desperdiciado
+2. **Cards con alturas iguales** - Diseño balanceado visualmente
+3. **Pie chart más grande** - Mejor legibilidad de los datos
+4. **Consistencia** - Mismo patrón que otros módulos del sistema
 
-Solo se necesita replicar este patrón en los demás componentes del módulo.
