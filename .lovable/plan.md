@@ -1,258 +1,252 @@
 
-# Plan: Gestión de Nombres Comerciales de Clientes en Planeación + Arquitectura con Cliente ID
+# Plan: Alimentar Sistema de Facturación con Servicios Finalizados
 
-## Diagnóstico Detallado
+## Diagnóstico Actual
 
-### Estado Actual de Datos
+### Estado del Sistema de Facturación
 
-| Métrica | Valor | Impacto |
+| Componente | Estado | Impacto |
+|------------|--------|---------|
+| Servicios finalizados | **22,306** (desde 2024) | $100M+ por facturar |
+| Facturas creadas | **0** | Tabla vacía |
+| Sistema CxC | ✓ Funcional | Depende de tabla `facturas` |
+| Vista Aging | ✓ Funcional | Muestra $0 porque no hay facturas |
+
+### Estructura de Datos Existente
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    FUENTE DE DATOS (existente)                            │
+│  servicios_custodia + servicios_planificados → vw_servicios_facturacion   │
+│  22,306 servicios "Finalizado" listos para facturar                       │
+└────────────────────────────────────┬──────────────────────────────────────┘
+                                     │
+                                     ▼ BRECHA: No existe flujo
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    DESTINO (vacío)                                        │
+│  facturas (0 registros) + factura_partidas (0 registros)                  │
+└────────────────────────────────────┬──────────────────────────────────────┘
+                                     │
+                                     ▼ Ya funciona
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    COBRANZA (operativo pero sin datos)                    │
+│  vw_aging_cuentas_cobrar → CuentasPorCobrarTab → Workflow Cobranza        │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Top 10 Clientes por Facturar
+
+| Cliente | Servicios | Monto |
+|---------|-----------|-------|
+| ASTRA ZENECA | 2,862 | $17.9M |
+| COMARKET | 2,615 | $17.8M |
+| SIEGFRIED RHEIN | 1,474 | $7.6M |
+| TYASA | 1,707 | $6.7M |
+| DXN MEXICO | 232 | $5.1M |
+| MONTE ROSAS | 492 | $4.3M |
+| WIELAND METAL | 256 | $3.9M |
+| MONTE ROSA SPORTS | 417 | $3.9M |
+| LOGER | 247 | $3.7M |
+| YOKOHAMA | 211 | $2.8M |
+
+---
+
+## Solución Propuesta
+
+### Fase 1: Módulo de Pre-Facturación (MVP)
+
+**Objetivo**: Crear facturas desde servicios finalizados para alimentar el sistema de cobranza.
+
+#### 1.1 Nueva Vista: "Servicios por Facturar"
+
+**Ubicación**: Tab "Facturación" en FacturacionHub (reemplazar FacturasComingSoon)
+
+**Funcionalidades**:
+- Tabla de servicios finalizados agrupados por cliente
+- Filtros: período, cliente, estado de facturación
+- Selección múltiple de servicios
+- Botón "Generar Pre-Factura"
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ SERVICIOS POR FACTURAR                                    [Exportar]   │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Filtros: [Período ▼] [Cliente ▼] [Sin facturar ✓]        Total: $100M │
+├─────────────────────────────────────────────────────────────────────────┤
+│ □ Cliente              │ Servicios │ Monto      │ Último    │ Acciones │
+├────────────────────────┼───────────┼────────────┼───────────┼──────────┤
+│ ☑ ASTRA ZENECA         │    2,862  │ $17.9M     │ 30/01/25  │ [Facturar]│
+│ ☑ COMARKET             │    2,615  │ $17.8M     │ 30/01/25  │ [Facturar]│
+│ □ SIEGFRIED RHEIN      │    1,474  │ $7.6M      │ 29/01/25  │ [Facturar]│
+└─────────────────────────────────────────────────────────────────────────┘
+│                    [Generar Facturas Seleccionadas (5)]                │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1.2 Modal de Generación de Factura
+
+**Flujo**:
+1. Usuario selecciona cliente o servicios específicos
+2. Sistema muestra resumen con datos fiscales del cliente
+3. Usuario confirma y el sistema crea:
+   - 1 registro en `facturas`
+   - N registros en `factura_partidas` (uno por servicio)
+
+**Datos a capturar**:
+- Datos del cliente (pre-llenados desde pc_clientes)
+- Fecha de emisión (default: hoy)
+- Fecha de vencimiento (calculada: emisión + días_credito del cliente)
+- Número de factura (auto-generado o manual)
+- Subtotal, IVA, Total (calculados)
+
+#### 1.3 Tracking de Estado de Facturación
+
+**Nuevo campo en servicios**: Agregar columna `factura_id` a `servicios_custodia` o usar la tabla intermedia `factura_partidas` que ya existe.
+
+**Estados de servicio**:
+- `sin_facturar`: Servicio finalizado, no vinculado a factura
+- `facturado`: Servicio incluido en una factura
+- `parcialmente_pagado`: Factura con pagos parciales
+- `cobrado`: Factura 100% pagada
+
+---
+
+### Fase 2: Vista de Facturas Emitidas
+
+#### 2.1 Lista de Facturas
+
+**Reemplaza**: FacturasComingSoon.tsx
+
+**Columnas**:
+| # Factura | Cliente | Fecha | Vencimiento | Total | Pagado | Saldo | Estado | Acciones |
+
+**Acciones por factura**:
+- Ver detalle (partidas/servicios)
+- Descargar PDF
+- Registrar pago
+- Cancelar
+
+#### 2.2 Detalle de Factura
+
+**Drawer con**:
+- Encabezado fiscal (cliente, RFC, dirección)
+- Lista de partidas (servicios incluidos)
+- Timeline de pagos
+- Estado de cobranza
+
+---
+
+### Fase 3: Integración con Sistema Fiscal (Futuro)
+
+**Nota**: Esta fase requiere integración con PAC para timbrado CFDI.
+
+- Generación de XML CFDI 4.0
+- Timbrado automático
+- Complementos de pago
+- Notas de crédito
+
+---
+
+## Archivos a Crear
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/pages/Facturacion/components/Facturas/ServiciosPorFacturarTab.tsx` | Vista principal de servicios sin facturar |
+| `src/pages/Facturacion/components/Facturas/GenerarFacturaModal.tsx` | Modal para crear factura desde servicios |
+| `src/pages/Facturacion/components/Facturas/FacturasListTab.tsx` | Lista de facturas emitidas |
+| `src/pages/Facturacion/components/Facturas/FacturaDetalleDrawer.tsx` | Detalle de factura con partidas |
+| `src/pages/Facturacion/hooks/useServiciosPorFacturar.ts` | Hook para servicios sin facturar |
+| `src/pages/Facturacion/hooks/useGenerarFactura.ts` | Hook para crear factura + partidas |
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Facturacion/FacturacionHub.tsx` | Reemplazar FacturasComingSoon por nuevo módulo |
+| `src/pages/Facturacion/components/Facturas/index.ts` | Exportar nuevos componentes |
+
+---
+
+## Modelo de Datos (Existente - Sin Cambios)
+
+### Tabla `facturas` (ya existe)
+```sql
+-- Ya tiene la estructura correcta:
+id, numero_factura, cliente_id, cliente_nombre, cliente_rfc,
+subtotal, iva, total, fecha_emision, fecha_vencimiento, estado...
+```
+
+### Tabla `factura_partidas` (ya existe)
+```sql
+-- Vincula servicios con facturas:
+id, factura_id, servicio_id, id_servicio, descripcion,
+fecha_servicio, ruta, cantidad, precio_unitario, importe...
+```
+
+### Vista `vw_aging_cuentas_cobrar` (ya existe)
+```sql
+-- Ya calcula aging desde facturas:
+SELECT cliente_id, saldo_pendiente, vigente, vencido_1_30...
+FROM facturas LEFT JOIN pagos...
+```
+
+---
+
+## Flujo de Usuario Final
+
+```text
+1. Usuario entra a Facturación → Tab "Facturas"
+                    │
+                    ▼
+2. Ve servicios finalizados agrupados por cliente
+                    │
+                    ▼
+3. Selecciona cliente(s) → Click "Generar Factura"
+                    │
+                    ▼
+4. Modal muestra resumen + datos fiscales
+   [Confirma] →    │
+                    ▼
+5. Sistema crea factura + partidas
+                    │
+                    ▼
+6. Factura aparece en CxC automáticamente
+                    │
+                    ▼
+7. Workflow de cobranza puede dar seguimiento
+```
+
+---
+
+## Beneficios Inmediatos
+
+| Métrica | Antes | Después |
 |---------|-------|---------|
-| Clientes en `pc_clientes` (tabla maestra) | 69 | Base de datos oficial |
-| Clientes que SOLO existen en rutas (texto libre) | **386** | Sin registro formal |
-| Rutas "huérfanas" (sin vínculo a tabla maestra) | **1,655** | Relaciones rotas |
-| Clientes maestros CON rutas vinculadas | 67 | Solo 2.5% del total de rutas |
-
-### Arquitectura Actual de Relaciones
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     TABLAS CON cliente_id (FK) ✓                        │
-│  facturas, pagos, pc_servicios, pc_rutas_frecuentes, cobranza_seguimiento│
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          pc_clientes                                     │
-│  id (PK) | nombre (comercial) | razon_social (fiscal) | rfc | ...       │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    ▲
-                                    │ NO HAY RELACIÓN
-                                    │
-┌─────────────────────────────────────────────────────────────────────────┐
-│               TABLAS CON cliente_nombre (texto libre) ✗                  │
-│  matriz_precios_rutas, servicios_custodia, servicios_planificados        │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Interfaces de Edición Actuales
-
-| Módulo | Componente | Campo `nombre` | Campo `razon_social` | cliente_id |
-|--------|------------|----------------|----------------------|------------|
-| Planeación | ClienteDialog.tsx | ✓ Editable | ✗ No existe | No aplica |
-| Facturación | ClienteFormModal.tsx | ✓ Editable (recién agregado) | ✓ Editable | No aplica |
-| Rutas | RouteManagementForm.tsx | ✓ Input libre | ✗ No existe | **✗ No existe** |
+| Facturas en sistema | 0 | ~500+ por generar |
+| CxC visible | $0 | $100M+ |
+| Aging por cliente | Vacío | Datos reales |
+| Cobranza automatizable | No | Sí |
 
 ---
 
-## Solución en 3 Fases
+## Consideraciones Técnicas
 
-### Fase 1: Gestión de Clientes desde Rutas (Inmediato)
+1. **No requiere cambios en base de datos**: Las tablas `facturas` y `factura_partidas` ya existen con la estructura correcta.
 
-**Objetivo**: Permitir al equipo de Planeación crear/vincular clientes directamente desde Gestión de Rutas.
+2. **Compatibilidad con CFDI futuro**: El número de factura será "pre-factura" hasta que se integre el timbrado. El campo `uuid_sat` quedará NULL por ahora.
 
-#### 1.1 Nuevo Componente: ClienteSelector para Rutas
+3. **Reversibilidad**: Las facturas pueden cancelarse, lo que libera los servicios para re-facturación.
 
-Reemplazar el input de texto libre por un selector inteligente que:
-- Busque en `pc_clientes` primero
-- Busque en clientes "solo rutas" como fallback
-- Permita crear cliente nuevo si no existe
-
-**Archivos a modificar:**
-- `src/pages/Planeacion/components/RouteManagementForm.tsx`
-- Nuevo: `src/pages/Planeacion/components/routes/ClienteSelectorForRoutes.tsx`
-
-#### 1.2 Gestión Rápida de Nombre Comercial desde Rutas
-
-Agregar acción "Editar Cliente" en el menú de acciones de cada ruta que:
-- Abra modal de edición de `pc_clientes`
-- Solo permita editar `nombre` (comercial)
-- Muestre warning de impacto en rutas existentes
-- Requiera rol autorizado (`NOMBRE_COMERCIAL_EDIT_ROLES`)
-
-**Archivos a crear:**
-- `src/pages/Planeacion/components/routes/QuickClienteEditModal.tsx`
-
-#### 1.3 Sub-tab "Clientes" en Gestión de Rutas
-
-Agregar pestaña para ver/editar clientes con rutas:
-
-**Modificar:**
-- `src/pages/Planeacion/components/RoutesManagementTab.tsx` - Agregar tab "Clientes"
-- Nuevo: `src/pages/Planeacion/components/routes/ClientesConRutasTable.tsx`
-
----
-
-### Fase 2: Agregar cliente_id a matriz_precios_rutas (Riesgo Medio)
-
-**Objetivo**: Normalizar relaciones con foreign keys para queries eficientes.
-
-#### 2.1 Migración de Base de Datos
-
-```sql
--- Paso 1: Agregar columna nullable
-ALTER TABLE matriz_precios_rutas 
-ADD COLUMN cliente_id uuid REFERENCES pc_clientes(id);
-
--- Paso 2: Crear índice para performance
-CREATE INDEX idx_matriz_precios_cliente_id 
-ON matriz_precios_rutas(cliente_id);
-
--- Paso 3: Script de vinculación automática
-UPDATE matriz_precios_rutas mpr
-SET cliente_id = pc.id
-FROM pc_clientes pc
-WHERE LOWER(mpr.cliente_nombre) = LOWER(pc.nombre)
-AND mpr.cliente_id IS NULL;
-
--- Paso 4: Vista para identificar rutas sin vincular
-CREATE VIEW vw_rutas_sin_cliente AS
-SELECT DISTINCT cliente_nombre, COUNT(*) as rutas_count
-FROM matriz_precios_rutas
-WHERE cliente_id IS NULL AND activo = true
-GROUP BY cliente_nombre
-ORDER BY rutas_count DESC;
-```
-
-#### 2.2 Hook Actualizado para Rutas
-
-**Modificar:**
-- `src/hooks/useClientesFromPricing.ts` - Agregar lógica para usar cliente_id cuando exista
-
-#### 2.3 UI de Reconciliación
-
-Crear interfaz para que Planeación vincule manualmente las 386 entidades huérfanas:
-
-**Nuevo:**
-- `src/pages/Planeacion/components/routes/ClienteReconciliationTool.tsx`
-
----
-
-### Fase 3: Sistema de Alias (Largo Plazo)
-
-**Objetivo**: Permitir múltiples nombres para el mismo cliente sin perder historiales.
-
-#### 3.1 Nueva Tabla de Alias
-
-```sql
-CREATE TABLE pc_clientes_alias (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  cliente_id uuid REFERENCES pc_clientes(id) NOT NULL,
-  alias text NOT NULL,
-  tipo text DEFAULT 'comercial', -- 'comercial', 'fiscal', 'historico'
-  es_principal boolean DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id),
-  UNIQUE(alias)
-);
-
--- Trigger para buscar en alias automáticamente
-CREATE OR REPLACE FUNCTION buscar_cliente_por_nombre(nombre_buscar text)
-RETURNS uuid AS $$
-BEGIN
-  -- Primero buscar en nombre principal
-  RETURN (SELECT id FROM pc_clientes WHERE LOWER(nombre) = LOWER(nombre_buscar) LIMIT 1);
-  
-  -- Si no encuentra, buscar en alias
-  IF NOT FOUND THEN
-    RETURN (SELECT cliente_id FROM pc_clientes_alias WHERE LOWER(alias) = LOWER(nombre_buscar) LIMIT 1);
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
-```
-
----
-
-## Implementación Detallada - Fase 1
-
-### Cambios en RouteManagementForm.tsx
-
-El campo "Cliente" actual es un Input libre. Lo reemplazaremos por un componente de búsqueda/selección:
-
-```text
-[Input texto libre]  →  [ClienteSelector con autocomplete + crear nuevo]
-```
-
-**Comportamiento:**
-1. El usuario escribe nombre
-2. Se muestran sugerencias de `pc_clientes` (prioridad) + clientes solo en rutas
-3. Si selecciona existente: se guarda el nombre normalizado
-4. Si escribe nuevo: opción de crear en `pc_clientes` o usar texto libre
-
-### Cambios en RoutesManagementTab.tsx
-
-```text
-Tabs actuales:
-[Pendientes] [Todas las Rutas] [Historial]
-
-Tabs propuestos:
-[Pendientes] [Todas las Rutas] [Clientes] [Historial]
-```
-
-El tab "Clientes" mostrará:
-- Clientes con rutas activas
-- Botón "Editar nombre comercial" (con warning)
-- Indicador de cuántas rutas tiene cada cliente
-
-### Nuevo QuickClienteEditModal
-
-Modal minimalista para editar solo el nombre comercial:
-- Input para nuevo nombre
-- Warning si el cliente tiene rutas/servicios
-- Checkbox de confirmación obligatorio
-- Registro en historial de cambios
-
----
-
-## Control de Acceso
-
-| Acción | Roles Autorizados |
-|--------|-------------------|
-| Ver clientes en rutas | Cualquier planificador |
-| Crear cliente nuevo | admin, owner, coordinador_operaciones, planificador |
-| Editar nombre comercial | admin, owner, coordinador_operaciones |
-| Vincular ruta a cliente existente | Cualquier planificador |
-
----
-
-## Archivos a Crear/Modificar
-
-### Nuevos Archivos
-1. `src/pages/Planeacion/components/routes/ClienteSelectorForRoutes.tsx`
-2. `src/pages/Planeacion/components/routes/QuickClienteEditModal.tsx`
-3. `src/pages/Planeacion/components/routes/ClientesConRutasTable.tsx`
-4. `src/hooks/useClientesEnRutas.ts`
-
-### Archivos a Modificar
-1. `src/pages/Planeacion/components/RoutesManagementTab.tsx` - Agregar tab Clientes
-2. `src/pages/Planeacion/components/RouteManagementForm.tsx` - Integrar ClienteSelector
-3. `src/pages/Planeacion/components/MatrizPreciosTab.tsx` - Agregar acción "Editar Cliente"
-4. `src/constants/accessControl.ts` - Ya tiene NOMBRE_COMERCIAL_EDIT_ROLES
-
----
-
-## Riesgos y Mitigaciones
-
-| Riesgo | Mitigación |
-|--------|------------|
-| Cambiar nombre rompe búsquedas de rutas | No propagar automáticamente; advertencia visual obligatoria |
-| Duplicados al crear clientes | Validación de nombre existente antes de crear |
-| Performance en autocomplete | Debounce + cache de 2 min en useAllClientes |
-| Confusión nombre comercial vs fiscal | Labels claros: "Nombre Comercial (búsquedas)" vs "Razón Social (facturas)" |
+4. **Performance**: Los queries usarán la vista `vw_servicios_facturacion` existente, que ya está optimizada.
 
 ---
 
 ## Orden de Implementación Sugerido
 
-1. **ClienteSelectorForRoutes** - Selector inteligente con autocomplete
-2. **QuickClienteEditModal** - Edición rápida de nombre comercial
-3. **Tab Clientes en RoutesManagementTab** - Vista centralizada
-4. **Integración en RouteManagementForm** - Reemplazar input libre
-5. **Acciones en tabla de rutas** - Botón "Editar Cliente"
-
----
-
-## Métricas de Éxito
-
-- Reducción de clientes "solo rutas" de 386 a <50 en 30 días
-- 100% de nuevas rutas vinculadas a `pc_clientes`
-- Cero incidentes de búsquedas rotas por cambio de nombre
+1. **Hook `useServiciosPorFacturar`** - Query de servicios finalizados sin facturar
+2. **`ServiciosPorFacturarTab`** - Vista de servicios agrupados por cliente
+3. **`GenerarFacturaModal`** - Modal para crear factura
+4. **Hook `useGenerarFactura`** - Lógica de inserción en facturas + partidas
+5. **Integración en `FacturacionHub`** - Reemplazar Coming Soon
+6. **`FacturasListTab`** - Vista de facturas emitidas
+7. **`FacturaDetalleDrawer`** - Detalle con partidas
