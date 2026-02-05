@@ -1984,6 +1984,63 @@ export type Database = {
           },
         ]
       }
+      checklist_servicio: {
+        Row: {
+          created_at: string | null
+          custodio_telefono: string
+          estado: string | null
+          fecha_captura_local: string | null
+          fecha_checklist: string | null
+          fecha_sincronizacion: string | null
+          firma_base64: string | null
+          fotos_validadas: Json | null
+          id: string
+          items_inspeccion: Json | null
+          observaciones: string | null
+          servicio_id: string
+          sincronizado_offline: boolean | null
+          ubicacion_lat: number | null
+          ubicacion_lng: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodio_telefono: string
+          estado?: string | null
+          fecha_captura_local?: string | null
+          fecha_checklist?: string | null
+          fecha_sincronizacion?: string | null
+          firma_base64?: string | null
+          fotos_validadas?: Json | null
+          id?: string
+          items_inspeccion?: Json | null
+          observaciones?: string | null
+          servicio_id: string
+          sincronizado_offline?: boolean | null
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodio_telefono?: string
+          estado?: string | null
+          fecha_captura_local?: string | null
+          fecha_checklist?: string | null
+          fecha_sincronizacion?: string | null
+          firma_base64?: string | null
+          fotos_validadas?: Json | null
+          id?: string
+          items_inspeccion?: Json | null
+          observaciones?: string | null
+          servicio_id?: string
+          sincronizado_offline?: boolean | null
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ciudades: {
         Row: {
           activo: boolean
@@ -4787,6 +4844,54 @@ export type Database = {
             referencedColumns: ["agent_id"]
           },
         ]
+      }
+      documentos_custodio: {
+        Row: {
+          created_at: string | null
+          custodio_telefono: string
+          fecha_emision: string | null
+          fecha_verificacion: string | null
+          fecha_vigencia: string
+          foto_url: string | null
+          id: string
+          notas: string | null
+          numero_documento: string | null
+          tipo_documento: string
+          updated_at: string | null
+          verificado: boolean | null
+          verificado_por: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custodio_telefono: string
+          fecha_emision?: string | null
+          fecha_verificacion?: string | null
+          fecha_vigencia: string
+          foto_url?: string | null
+          id?: string
+          notas?: string | null
+          numero_documento?: string | null
+          tipo_documento: string
+          updated_at?: string | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custodio_telefono?: string
+          fecha_emision?: string | null
+          fecha_verificacion?: string | null
+          fecha_vigencia?: string
+          foto_url?: string | null
+          id?: string
+          notas?: string | null
+          numero_documento?: string | null
+          tipo_documento?: string
+          updated_at?: string | null
+          verificado?: boolean | null
+          verificado_por?: string | null
+        }
+        Relationships: []
       }
       edge_function_rate_limits: {
         Row: {
