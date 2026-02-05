@@ -1,13 +1,10 @@
 
-# Plan: Agregar Campo de Kilometraje al Modal de Edición de Rutas
+# Plan: Mejorar Visualización de Tarjetas de Servicio
 
-## Descripción del Bug
+## Solicitud de Daniela
 
-Daniela de Planeación reporta que al modificar rutas no tiene la opción de editar el kilometraje. El modal "Actualizar Precio" solo permite modificar:
-- Precio Cliente (Valor Bruto)
-- Pago Custodio
-
-Pero falta el campo **Distancia (km)** que es crítico para la gestión de rutas.
+1. **Mostrar la referencia de factura** (`id_interno_cliente`) en la información del servicio
+2. **Mostrar el nombre completo del custodio** sin truncar
 
 ---
 
@@ -15,30 +12,27 @@ Pero falta el campo **Distancia (km)** que es crítico para la gestión de rutas
 
 ### Estado Actual
 
-**Tabla `matriz_precios_rutas`:** Contiene el campo `distancia_km` (editable)
-
-**Interfaz `PendingPriceRoute`:** NO incluye `distancia_km`
-```typescript
-export interface PendingPriceRoute {
-  id: string;
-  cliente_nombre: string;
-  // ... otros campos
-  // ❌ distancia_km: number | null; <- FALTA
-}
+**CompactServiceCard.tsx (Líneas 206-209):**
+```tsx
+{/* ID Servicio */}
+<code className="text-xs text-muted-foreground font-mono flex-shrink-0">
+  {service.id_servicio}
+</code>
 ```
+- Solo muestra el UUID del servicio
+- No muestra la referencia de factura (`id_interno_cliente`)
 
-**Interfaz `Route` en modal:** NO incluye `distancia_km`
-```typescript
-interface Route {
-  id: string;
-  valor_bruto: number;
-  precio_custodio: number;
-  costo_operativo: number;
-  // ❌ distancia_km?: number | null; <- FALTA
-}
+**Nombre del Custodio (Línea 290):**
+```tsx
+<span className="font-medium text-foreground truncate max-w-[120px]">
+  {service.custodio_nombre}
+</span>
 ```
+- Truncado a 120px → nombres largos como "SERGIO MONTANO HERNANDEZ" se cortan
 
-**Modal `QuickPriceEditModal`:** No tiene input para distancia
+### Datos Disponibles
+
+La interfaz `ScheduledService` **ya incluye** `id_interno_cliente` (línea 39 del hook), por lo que solo necesitamos agregarlo a la visualización.
 
 ---
 
@@ -48,95 +42,65 @@ interface Route {
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useRoutesWithPendingPrices.ts` | Agregar `distancia_km` a interfaz `PendingPriceRoute` |
-| `src/pages/Planeacion/components/routes/QuickPriceEditModal.tsx` | Agregar campo de edición de kilometraje |
+| `src/components/planeacion/CompactServiceCard.tsx` | Agregar referencia + expandir nombre custodio |
+| `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx` | Mismo cambio para consistencia |
 
-### Cambios en Detalle
+---
 
-**1. Actualizar interfaz `PendingPriceRoute`:**
-```typescript
-export interface PendingPriceRoute {
-  // ... campos existentes
-  distancia_km: number | null;  // AGREGAR
-}
+### Cambios en CompactServiceCard.tsx
+
+**1. Agregar referencia de factura junto al ID (Líneas 206-209):**
+```tsx
+{/* ID Servicio + Referencia */}
+<code className="text-xs text-muted-foreground font-mono flex-shrink-0">
+  {service.id_servicio}
+</code>
+{service.id_interno_cliente && (
+  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium flex-shrink-0">
+    Ref: {service.id_interno_cliente}
+  </span>
+)}
 ```
 
-**2. Actualizar interfaz `Route` en modal:**
-```typescript
-interface Route {
-  id: string;
-  cliente_nombre: string;
-  origen_texto: string;
-  destino_texto: string;
-  valor_bruto: number;
-  precio_custodio: number;
-  costo_operativo: number;
-  distancia_km?: number | null;  // AGREGAR
-}
-```
+**2. Expandir nombre del custodio (Línea 290):**
+```tsx
+{/* ANTES */}
+<span className="truncate max-w-[120px]">
 
-**3. Agregar estado y campo en modal:**
-- Nuevo estado: `const [distanciaKm, setDistanciaKm] = useState('');`
-- Inicializar en `useEffect` con `route.distancia_km`
-- Agregar input numérico entre Pago Custodio y Margen Estimado
-
-**4. Actualizar UPDATE en `handleSave`:**
-```typescript
-.update({
-  valor_bruto: valorBrutoNum,
-  precio_custodio: precioCustodioNum,
-  distancia_km: distanciaKmNum || null,  // AGREGAR
-  updated_at: new Date().toISOString()
-})
+{/* DESPUÉS */}
+<span className="truncate max-w-[200px]">
 ```
 
 ---
 
-## UI del Campo Nuevo
-
-El campo de Distancia se agregará después de "Pago Custodio" con el siguiente diseño:
+### UI Visual Propuesta
 
 ```text
-┌─────────────────────────────────────────┐
-│  Distancia (km)                         │
-│  ┌───────────────────────────────────┐  │
-│  │ 🛣️  450.5                     ↕ │  │
-│  └───────────────────────────────────┘  │
-│  Actual: 450 km                         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ ANTES                                                                            │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ MONTE ROSAS SPORTS  06:00  b850879c-34e3-48ca...  📅 Programado                 │
+│ 📍 TULTEPEC → CUAUTITLAN IZCALLI, E...  👤 SERGIO MONTANO ...                   │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ DESPUÉS                                                                          │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ MONTE ROSAS SPORTS  06:00  b850879c...  Ref: FAC-2024-0142  📅 Programado       │
+│ 📍 TULTEPEC → CUAUTITLAN IZCALLI, E...  👤 SERGIO MONTANO HERNANDEZ             │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Input tipo número con step="0.1"
-- Mostrar valor actual debajo
-- Icono de ruta para contexto visual
-- Tooltip explicando que es distancia aproximada de la ruta
-
 ---
 
-## Orden de Implementación
+## Resumen de Cambios
 
-1. Agregar `distancia_km` a interfaz `PendingPriceRoute`
-2. Actualizar interfaz `Route` en el modal
-3. Agregar estado `distanciaKm` y función setter
-4. Agregar inicialización en `useEffect`
-5. Agregar campo de input en el formulario
-6. Incluir `distancia_km` en el UPDATE
-
----
-
-## Validaciones
-
-- El campo es opcional (puede ser null)
-- Acepta decimales (step="0.1")
-- No puede ser negativo (min="0")
-- Si está vacío, se guarda como null
+1. **Referencia de factura**: Se mostrará en azul después del ID del servicio cuando exista `id_interno_cliente`
+2. **Nombre del custodio**: Se aumenta el ancho máximo de 120px a 200px para mostrar nombres completos
+3. **Consistencia**: Se aplica el mismo cambio en ambos componentes (`CompactServiceCard` y `ScheduledServicesTabSimple`)
 
 ---
 
 ## Testing
 
-- [ ] Abrir modal de edición de ruta
-- [ ] Verificar que muestra valor actual de distancia
-- [ ] Editar distancia y guardar
-- [ ] Verificar que el cambio persiste en la BD
-- [ ] Verificar que funciona con rutas sin distancia previa
+- [ ] Verificar que la referencia aparece cuando existe
+- [ ] Verificar que nombres largos de custodios se muestran completos
+- [ ] Validar que la UI no se rompe en pantallas pequeñas
