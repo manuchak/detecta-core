@@ -51,6 +51,7 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
   { id: 'facturacion', label: 'Facturación', icon: Receipt },
   { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
+  { id: 'capacitacion', label: 'Capacitación', icon: GraduationCap },
   { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
 ];
 
@@ -414,13 +415,13 @@ export const navigationModules: NavigationModule[] = [
     ]
   },
 
-  // ===== SISTEMA GROUP =====
+  // ===== CAPACITACIÓN GROUP =====
   {
     id: 'lms',
-    label: 'Capacitación',
+    label: 'LMS',
     icon: GraduationCap,
     path: '/lms',
-    group: 'system',
+    group: 'capacitacion',
     roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte'],
     children: [
       {
@@ -435,9 +436,18 @@ export const navigationModules: NavigationModule[] = [
         path: '/lms/admin',
         roles: ['admin', 'owner', 'supply_admin'],
         icon: Settings
+      },
+      {
+        id: 'lms_reportes',
+        label: 'Reportes',
+        path: '/lms/reportes',
+        roles: ['admin', 'owner', 'supply_admin', 'capacitacion_admin'],
+        icon: BarChart3
       }
     ]
   },
+
+  // ===== SISTEMA GROUP =====
   {
     id: 'administration',
     label: 'Administración',
