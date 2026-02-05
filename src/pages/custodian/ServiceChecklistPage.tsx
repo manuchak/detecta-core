@@ -24,7 +24,7 @@
        if (!user?.id) return null;
        const { data, error } = await supabase
          .from('profiles')
-         .select('phone, full_name')
+         .select('phone, display_name')
          .eq('id', user.id)
          .maybeSingle();
        if (error) throw error;
