@@ -1,112 +1,88 @@
 
-# Plan: Corregir RLS de custodian_invitations para coordinador_operaciones
+# Plan: Corregir Espacio Vertical en Módulo de Facturación
 
-## Diagnóstico
+## Problema Identificado
+
+El módulo de facturación muestra mucho espacio vacío debajo de los gráficos y tablas porque no está utilizando el sistema de compensación de viewport del proyecto.
 
 ### Causa Raíz
-Las políticas RLS de la tabla `custodian_invitations` solo incluyen estos roles:
-```sql
-role IN ('admin', 'owner', 'supply_admin', 'supply_lead', 'supply')
+El proyecto opera a **70% zoom** y tiene variables CSS que compensan esta escala:
+- `--vh-full` = `100vh × 1.4286` (altura real del viewport)
+- `--content-height-with-tabs` = altura para contenido con tabs
+
+Los componentes de facturación usan `100vh` directo en vez de `var(--vh-full)`, causando que el contenido no aproveche todo el espacio vertical disponible.
+
+## Archivos a Modificar
+
+| Archivo | Problema | Solución |
+|---------|----------|----------|
+| `FacturacionDashboard.tsx` | Usa `100vh-340px` | Cambiar a `var(--vh-full)-340px` |
+| `ServiciosPorFacturarTab.tsx` | Sin altura dinámica en tabla | Agregar `h-[calc(var(--vh-full)-420px)]` |
+| `FacturasListTab.tsx` | Sin altura dinámica en tabla | Agregar `h-[calc(var(--vh-full)-420px)]` |
+
+## Cambios Específicos
+
+### 1. FacturacionDashboard.tsx (línea 85)
+```tsx
+// ANTES
+<div className="h-[calc(100vh-340px)] min-h-[300px]">
+
+// DESPUÉS
+<div className="h-[calc(var(--vh-full)-340px)] min-h-[300px]">
 ```
 
-**Falta: `coordinador_operaciones`**
+### 2. ServiciosPorFacturarTab.tsx
+Envolver la tabla de clientes en un contenedor con scroll y altura dinámica:
+```tsx
+// ANTES: Card sin altura fija
 
-### Impacto Actual
-- Daniela (coordinador_operaciones) puede ver la página de invitaciones
-- Pero al hacer INSERT, la base de datos rechaza con: "new row violates row-level security policy"
-
-### Políticas Afectadas
-| Política | Operación | Estado |
-|----------|-----------|--------|
-| Admin and supply can view invitations | SELECT | Falta coordinador_operaciones |
-| Admin and supply can create invitations | INSERT | Falta coordinador_operaciones |
-| Admin and supply can update invitations | UPDATE | Falta coordinador_operaciones |
-
----
-
-## Solución
-
-### Migración SQL
-
-Crear una nueva migración que actualice las 3 políticas RLS para incluir `coordinador_operaciones`:
-
-```sql
--- =====================================================
--- FIX: Add coordinador_operaciones to custodian_invitations RLS
--- Bug: Users with this role could access the UI but not create invitations
--- =====================================================
-
--- 1. Drop existing policies
-DROP POLICY IF EXISTS "Admin and supply can view invitations" ON public.custodian_invitations;
-DROP POLICY IF EXISTS "Admin and supply can create invitations" ON public.custodian_invitations;
-DROP POLICY IF EXISTS "Admin and supply can update invitations" ON public.custodian_invitations;
-
--- 2. Recreate with coordinador_operaciones included
-
--- SELECT policy
-CREATE POLICY "Admin, supply and ops can view invitations"
-ON public.custodian_invitations
-FOR SELECT
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles 
-    WHERE user_id = auth.uid() 
-    AND role IN ('admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones')
-  )
-);
-
--- INSERT policy
-CREATE POLICY "Admin, supply and ops can create invitations"
-ON public.custodian_invitations
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.user_roles 
-    WHERE user_id = auth.uid() 
-    AND role IN ('admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones')
-  )
-);
-
--- UPDATE policy
-CREATE POLICY "Admin, supply and ops can update invitations"
-ON public.custodian_invitations
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles 
-    WHERE user_id = auth.uid() 
-    AND role IN ('admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones')
-  )
-);
+// DESPUÉS: Card con scroll interno
+<Card>
+  <CardContent className="p-0">
+    <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
+      <Table>...</Table>
+    </div>
+  </CardContent>
+</Card>
 ```
 
----
+### 3. FacturasListTab.tsx
+Misma solución para la tabla de facturas emitidas:
+```tsx
+<Card>
+  <CardContent className="p-0">
+    <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
+      <Table>...</Table>
+    </div>
+  </CardContent>
+</Card>
+```
 
-## Verificación Post-Despliegue
+## Cálculo de Alturas
 
-1. **Probar con Daniela** - Login como coordinador_operaciones y crear invitación
-2. **Verificar SELECT** - La lista de invitaciones debe cargar
-3. **Verificar INSERT** - "Generar Link de Invitación" debe funcionar
-4. **Verificar UPDATE** - Reenviar emails debe funcionar
+El offset de 340px-420px considera:
+- TopBar: ~56px
+- Header del módulo: ~56px  
+- Tabs: ~44px
+- KPIs: ~80px
+- Toolbar/filtros: ~48px
+- Padding: ~40px
 
----
+**Total aproximado**: 320-420px dependiendo del tab
 
-## Archivos Afectados
-
-| Tipo | Archivo |
-|------|---------|
-| Nueva migración | `supabase/migrations/[timestamp]_fix_custodian_invitations_rls_coordinador.sql` |
-
-**Sin cambios en código frontend** - el hook `useCustodianInvitations.ts` ya está correcto.
-
----
-
-## Impacto
+## Resultado Esperado
 
 | Antes | Después |
 |-------|---------|
-| coordinador_operaciones: ❌ INSERT bloqueado | coordinador_operaciones: ✓ Puede crear invitaciones |
-| Solo 5 roles con acceso | 6 roles con acceso |
+| Gráficos con ~300px fijos | Gráficos que llenan el viewport |
+| Tablas sin scroll con espacio vacío | Tablas con scroll interno que aprovechan altura |
+| Contenido no se adapta al zoom | Contenido compensa automáticamente el 70% zoom |
+
+## Referencia de Implementación Correcta
+
+El patrón ya está implementado correctamente en `ServiciosConsulta.tsx` (línea 379):
+```tsx
+<div className="rounded-md border border-border/50 overflow-auto h-[calc(var(--vh-full)-340px)] min-h-[300px]">
+```
+
+Solo se necesita replicar este patrón en los demás componentes del módulo.
