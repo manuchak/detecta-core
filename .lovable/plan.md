@@ -1,111 +1,107 @@
 
-# Plan: Corregir Truncamiento de Nombres en Tarjetas de Servicio
+# Plan: Exponer Gestión de Checklists en Navegación de Monitoreo
 
-## Diagnóstico del Bug
+## Diagnóstico
 
-El nombre del custodio sigue truncándose porque la fila 2 del `CompactServiceCard` tiene múltiples elementos con anchos fijos que compiten por espacio:
+| Hallazgo | Detalle |
+|----------|---------|
+| **Tab existe** | Código implementado en `MonitoringPage.tsx` líneas 105-190 |
+| **Sin datos** | Tabla `checklist_servicio` tiene 0 registros |
+| **No visible en nav** | El módulo de Checklists no aparece como sub-item en el sidebar |
+| **Acceso interno** | Solo accesible haciendo clic en el tab dentro del Centro de Control |
 
-```tsx
-{/* Línea 280-318 - Layout actual */}
-<div className="flex items-center gap-2 ...">
-  {/* Ruta: max-w-[140px] + max-w-[140px] = 280px */}
-  {/* Separador: ~15px */}
-  {/* Custodio: max-w-[200px] */}
-  {/* Separador + Vehículo: ~150px */}
-</div>
+## Problema
+
+El operador de monitoreo debe navegar manualmente al tab "Checklists" dentro del Centro de Control. Si no hay datos visibles o el tab no destaca, puede parecer que el módulo no existe.
+
+## Solución: Agregar Sub-Módulo de Checklists en Navegación
+
+Exponer el tab de Checklists como un enlace directo en el sidebar para mayor visibilidad.
+
+### Archivo: `src/config/navigationConfig.ts`
+
+Agregar child al módulo `monitoring`:
+
+```typescript
+// Líneas 351-372 - Modificar children del módulo monitoring
+{
+  id: 'monitoring',
+  label: 'Monitoreo',
+  icon: Activity,
+  path: '/monitoring',
+  group: 'monitoring',
+  children: [
+    {
+      id: 'monitoring_general',
+      label: 'Centro de Control',
+      path: '/monitoring',
+      icon: Activity
+    },
+    {
+      id: 'monitoring_checklists',    // ← NUEVO
+      label: 'Checklists',
+      path: '/monitoring?tab=checklists',
+      icon: ClipboardList
+    },
+    {
+      id: 'incidentes_rrss',
+      label: 'Incidentes RRSS',
+      path: '/incidentes-rrss',
+      roles: ['admin', 'owner', 'bi', 'monitoring_supervisor'],
+      icon: Globe
+    }
+  ]
+}
 ```
 
-**Total requerido**: ~645px en una fila de texto pequeño → truncamiento inevitable en pantallas medianas.
+### Archivo: `src/pages/Monitoring/MonitoringPage.tsx`
 
----
+Leer query param para activar tab automáticamente:
 
-## Solución Propuesta
+```typescript
+// Agregar al inicio del componente
+import { useSearchParams } from 'react-router-dom';
 
-Rediseñar el layout para que el nombre del custodio sea flexible y tome el espacio disponible:
+// Dentro del componente
+const [searchParams] = useSearchParams();
+const tabFromUrl = searchParams.get('tab');
 
-| Elemento | Antes | Después |
-|----------|-------|---------|
-| Ruta origen | `max-w-[140px]` | `max-w-[120px]` (reducir) |
-| Ruta destino | `max-w-[140px]` | `max-w-[140px]` (mantener) |
-| **Custodio** | `max-w-[200px]` | **Sin límite + `flex-1`** |
-| Vehículo | `max-w-[100px]` | Ocultar en espacio reducido |
+// Modificar estado inicial
+const [activeTab, setActiveTab] = useState(
+  tabFromUrl === 'checklists' ? 'checklists' : 'posicionamiento'
+);
 
----
-
-## Cambios en `CompactServiceCard.tsx`
-
-### Archivo: `src/components/planeacion/CompactServiceCard.tsx`
-
-**Líneas 280-318** - Rediseñar fila 2:
-
-```tsx
-{/* Row 2: Ruta + Custodio - Layout mejorado */}
-<div className="flex items-center gap-2 mt-1.5 pl-2 text-xs text-muted-foreground">
-  {/* Ruta - Ancho fijo reducido */}
-  <div className="flex items-center gap-1 flex-shrink-0">
-    <MapPin className="w-3 h-3 flex-shrink-0" />
-    <span className="truncate max-w-[120px]">{service.origen}</span>
-    <span className="flex-shrink-0">→</span>
-    <span className="truncate max-w-[120px] font-medium text-foreground">{service.destino}</span>
-  </div>
-  
-  <span className="text-muted-foreground/50 flex-shrink-0">•</span>
-  
-  {/* Custodio - SIN max-width, usa espacio disponible */}
-  {service.custodio_nombre ? (
-    <div className="flex items-center gap-1 min-w-0 flex-1">
-      <User className="w-3 h-3 flex-shrink-0" />
-      <span className="font-medium text-foreground truncate">
-        {service.custodio_nombre}
-      </span>
-      {isHybridCustodian() && (
-        <Shield className="w-3 h-3 text-amber-500 flex-shrink-0" />
-      )}
-    </div>
-  ) : (
-    <span className="text-red-500 font-medium flex-shrink-0">Sin custodio</span>
-  )}
-</div>
-
-{/* Row 3 (nueva): Vehículo en fila separada si existe */}
-{shouldShowVehicle() && vehicleData && (
-  <div className="flex items-center gap-1 mt-1 pl-2 text-xs text-muted-foreground">
-    <Car className="w-3 h-3 flex-shrink-0" />
-    <span>{vehicleData.marca} {vehicleData.modelo}</span>
-    {vehicleData.placa !== 'Sin placa' && (
-      <code className="font-mono text-[10px] ml-1">{vehicleData.placa}</code>
-    )}
-  </div>
-)}
+// Effect para sincronizar con URL
+useEffect(() => {
+  if (tabFromUrl === 'checklists') {
+    setActiveTab('checklists');
+  }
+}, [tabFromUrl]);
 ```
-
----
-
-## Cambios Clave
-
-1. **Custodio sin `max-w`**: Remover el límite fijo para que el nombre use todo el espacio disponible
-2. **`flex-1` en custodio**: Permite expandirse para llenar espacio restante
-3. **Ruta reducida**: `max-w-[120px]` en lugar de `max-w-[140px]` para dar más espacio al custodio
-4. **Vehículo separado**: Mover info de vehículo a su propia línea para evitar competencia
-
----
 
 ## Resultado Esperado
 
+Sidebar del grupo Monitoreo:
 ```text
-ANTES:
-📍 TULTEPEC → CUAUTITLAN IZCALLI, E... • 👤 SERGIO MONTANO ... • 🚗 Toyota...
-
-DESPUÉS:
-📍 TULTEPEC → CUAUTITLAN IZC... • 👤 SERGIO MONTANO HERNANDEZ
-🚗 Toyota Hilux • ABC-123
+📊 Monitoreo
+  ├── Centro de Control
+  ├── Checklists ← Nuevo enlace directo
+  └── Incidentes RRSS
 ```
 
----
+Al hacer clic en "Checklists", navegará a `/monitoring?tab=checklists` y activará el tab automáticamente.
+
+## Nota sobre Datos
+
+La tabla `checklist_servicio` actualmente está vacía. Los datos se llenarán cuando:
+1. Un custodio complete su primer checklist desde el portal `/custodian`
+2. El flujo de guardado (`useServiceChecklist.ts`) ejecute correctamente el `upsert`
+
+El módulo de monitoreo mostrará "0 servicios" hasta que existan registros.
 
 ## Testing
 
-- [ ] Verificar que nombres largos como "SERGIO MONTANO HERNANDEZ" se muestran completos
-- [ ] Confirmar que el vehículo aparece en fila separada cuando existe
-- [ ] Validar layout en diferentes tamaños de pantalla
-- [ ] Probar con custodios híbridos (icono de escudo visible)
+- [ ] Verificar que el link "Checklists" aparece en el sidebar de Monitoreo
+- [ ] Confirmar que `/monitoring?tab=checklists` activa el tab correcto
+- [ ] Validar que roles `monitoring` y `monitoreo` pueden ver el nuevo sub-módulo
+- [ ] Probar inserción manual de un checklist para verificar visualización
