@@ -1,107 +1,60 @@
 
-# Plan: Exponer Gestión de Checklists en Navegación de Monitoreo
+# Plan: Agregar Coordinador de Operaciones a Invitaciones de Custodios
 
 ## Diagnóstico
 
-| Hallazgo | Detalle |
-|----------|---------|
-| **Tab existe** | Código implementado en `MonitoringPage.tsx` líneas 105-190 |
-| **Sin datos** | Tabla `checklist_servicio` tiene 0 registros |
-| **No visible en nav** | El módulo de Checklists no aparece como sub-item en el sidebar |
-| **Acceso interno** | Solo accesible haciendo clic en el tab dentro del Centro de Control |
+El módulo de invitaciones de custodios (`/admin/custodian-invitations`) actualmente permite acceso solo a:
+- `admin`
+- `owner`
+- `supply_admin`
+- `supply_lead`
+- `supply`
 
-## Problema
+El rol `coordinador_operaciones` necesita ser agregado para que pueda invitar custodios.
 
-El operador de monitoreo debe navegar manualmente al tab "Checklists" dentro del Centro de Control. Si no hay datos visibles o el tab no destaca, puede parecer que el módulo no existe.
+---
 
-## Solución: Agregar Sub-Módulo de Checklists en Navegación
+## Cambios Requeridos
 
-Exponer el tab de Checklists como un enlace directo en el sidebar para mayor visibilidad.
+### 1. `src/App.tsx` (Línea 405)
 
-### Archivo: `src/config/navigationConfig.ts`
-
-Agregar child al módulo `monitoring`:
-
+**Antes:**
 ```typescript
-// Líneas 351-372 - Modificar children del módulo monitoring
-{
-  id: 'monitoring',
-  label: 'Monitoreo',
-  icon: Activity,
-  path: '/monitoring',
-  group: 'monitoring',
-  children: [
-    {
-      id: 'monitoring_general',
-      label: 'Centro de Control',
-      path: '/monitoring',
-      icon: Activity
-    },
-    {
-      id: 'monitoring_checklists',    // ← NUEVO
-      label: 'Checklists',
-      path: '/monitoring?tab=checklists',
-      icon: ClipboardList
-    },
-    {
-      id: 'incidentes_rrss',
-      label: 'Incidentes RRSS',
-      path: '/incidentes-rrss',
-      roles: ['admin', 'owner', 'bi', 'monitoring_supervisor'],
-      icon: Globe
-    }
-  ]
-}
+<RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply']}>
 ```
 
-### Archivo: `src/pages/Monitoring/MonitoringPage.tsx`
-
-Leer query param para activar tab automáticamente:
-
+**Después:**
 ```typescript
-// Agregar al inicio del componente
-import { useSearchParams } from 'react-router-dom';
-
-// Dentro del componente
-const [searchParams] = useSearchParams();
-const tabFromUrl = searchParams.get('tab');
-
-// Modificar estado inicial
-const [activeTab, setActiveTab] = useState(
-  tabFromUrl === 'checklists' ? 'checklists' : 'posicionamiento'
-);
-
-// Effect para sincronizar con URL
-useEffect(() => {
-  if (tabFromUrl === 'checklists') {
-    setActiveTab('checklists');
-  }
-}, [tabFromUrl]);
+<RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
 ```
 
-## Resultado Esperado
+### 2. `src/config/navigationConfig.ts` (Línea 193)
 
-Sidebar del grupo Monitoreo:
-```text
-📊 Monitoreo
-  ├── Centro de Control
-  ├── Checklists ← Nuevo enlace directo
-  └── Incidentes RRSS
+**Antes:**
+```typescript
+roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply'],
 ```
 
-Al hacer clic en "Checklists", navegará a `/monitoring?tab=checklists` y activará el tab automáticamente.
+**Después:**
+```typescript
+roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones'],
+```
 
-## Nota sobre Datos
+---
 
-La tabla `checklist_servicio` actualmente está vacía. Los datos se llenarán cuando:
-1. Un custodio complete su primer checklist desde el portal `/custodian`
-2. El flujo de guardado (`useServiceChecklist.ts`) ejecute correctamente el `upsert`
+## Archivos a Modificar
 
-El módulo de monitoreo mostrará "0 servicios" hasta que existan registros.
+| Archivo | Cambio |
+|---------|--------|
+| `src/App.tsx` | Agregar rol a RoleProtectedRoute |
+| `src/config/navigationConfig.ts` | Agregar rol a visibility del sidebar |
+
+---
 
 ## Testing
 
-- [ ] Verificar que el link "Checklists" aparece en el sidebar de Monitoreo
-- [ ] Confirmar que `/monitoring?tab=checklists` activa el tab correcto
-- [ ] Validar que roles `monitoring` y `monitoreo` pueden ver el nuevo sub-módulo
-- [ ] Probar inserción manual de un checklist para verificar visualización
+- [ ] Iniciar sesión como `coordinador_operaciones`
+- [ ] Verificar que el menú "Invitaciones" aparece en el sidebar
+- [ ] Confirmar acceso a `/admin/custodian-invitations`
+- [ ] Probar generación de invitación individual
+- [ ] Verificar que el link se genera correctamente
