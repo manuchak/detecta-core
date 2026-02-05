@@ -1,239 +1,220 @@
 
-# Plan: Optimización del Registro de Custodios y Hardening de Seguridad
+# Plan: Hardening Completo del Sistema de Checklist Pre-Producción
 
 ## Resumen Ejecutivo
 
-Implementar mejoras en el flujo de registro de custodios y reforzar la seguridad para garantizar que los custodios solo accedan a su módulo dedicado, sin posibilidad de visualizar información sensible de otros módulos incluso si conocen las URLs.
+Este plan cierra todas las brechas identificadas en el flujo de checklist y registro de custodios para garantizar un sistema robusto antes del lanzamiento a producción. Incluye sincronización de servicios, validación de existencia de documentos obligatorios, y un onboarding completo para nuevos custodios.
 
 ---
 
-## Análisis de Seguridad Actual
+## Brechas Identificadas y Soluciones
 
-### Flujo de Registro Actual (Funcionando Correctamente)
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     FLUJO DE REGISTRO DE CUSTODIOS                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  [Admin genera invitación]                                                  │
-│         │                                                                   │
-│         ▼                                                                   │
-│  ┌─────────────────┐     ┌─────────────────┐                               │
-│  │ custodian_      │────▶│ Email enviado   │                               │
-│  │ invitations     │     │ con link único  │                               │
-│  └─────────────────┘     └────────┬────────┘                               │
-│                                   │                                         │
-│                                   ▼                                         │
-│                    /auth/registro-custodio?token=XXX                        │
-│                                   │                                         │
-│                                   ▼                                         │
-│                    ┌─────────────────────────┐                              │
-│                    │ CustodianSignup.tsx     │                              │
-│                    │ - Valida token (RPC)    │                              │
-│                    │ - Crea cuenta Supabase  │                              │
-│                    │ - Asigna rol 'custodio' │                              │
-│                    └───────────┬─────────────┘                              │
-│                                │                                            │
-│                                ▼                                            │
-│                    ┌─────────────────────────┐                              │
-│                    │   /custodian (Portal)   │                              │
-│                    └─────────────────────────┘                              │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Brechas de Seguridad Identificadas
-
-| Riesgo | Severidad | Descripción |
-|--------|-----------|-------------|
-| Acceso a rutas sin protección de rol | ALTA | Rutas como `/tickets`, `/services`, `/lms` usan solo `ProtectedRoute` (autenticación) sin validar rol |
-| Navegación manual a URLs | MEDIA | Custodio podría escribir manualmente `/leads`, `/dashboard`, etc. |
-| RLS incompleto para custodio | MEDIA | Algunas tablas podrían permitir lectura a usuarios autenticados |
-| Sin página de login dedicada | BAJA | Custodios usan el mismo login que personal administrativo |
+| Brecha | Severidad | Solución |
+|--------|-----------|----------|
+| Custodio no ve servicios planificados | **CRÍTICA** | Modificar `useNextService` para consultar ambas tablas |
+| Documentos faltantes permiten avanzar | **ALTA** | Validar existencia de 3 documentos obligatorios |
+| Sin onboarding de documentos | **ALTA** | Crear flujo post-registro para subir documentos |
+| Inconsistencia UUID vs Teléfono | **MEDIA** | Agregar campo `custodio_telefono` a `servicios_planificados` |
 
 ---
 
-## Arquitectura de Seguridad Propuesta
+## Arquitectura de Sincronización de Servicios
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                    MODELO DE SEGURIDAD MULTI-CAPA                            │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  CAPA 1: NAVEGACIÓN (UI)                                                     │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │  navigationConfig.ts: custodio NO aparece en ningún módulo            │  │
-│  │  roleHomeConfig.ts: custodio → redirect: '/custodian'                 │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│                                                                              │
-│  CAPA 2: RUTAS (Router)                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │  RoleProtectedRoute: Bloquea rutas sensibles para custodio            │  │
-│  │  CustodianPortal: Solo permite ['custodio', 'admin', 'owner']         │  │
-│  │  NUEVO: RoleBlockedRoute para rutas con ProtectedRoute solamente      │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│                                                                              │
-│  CAPA 3: RLS (Base de Datos)                                                 │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │  Políticas que excluyen explícitamente 'custodio' de tablas sensibles │  │
-│  │  Custodio solo accede: checklist_servicio (propio), profiles (propio) │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│                                                                              │
-│  CAPA 4: RPC/Edge Functions                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────┐  │
-│  │  Funciones con SECURITY DEFINER validan rol antes de ejecutar         │  │
-│  └────────────────────────────────────────────────────────────────────────┘  │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                    FLUJO DE VISIBILIDAD DE SERVICIOS (ACTUAL)                       │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  PLANEACIÓN                              CUSTODIO PORTAL                            │
+│  ┌──────────────────────┐                ┌──────────────────────┐                   │
+│  │ servicios_planificados│                │ useNextService.ts    │                   │
+│  │ - custodio_id (UUID)  │      ❌        │ - query: servicios_  │                   │
+│  │ - custodio_asignado   │────────────────│   custodia (phone)   │                   │
+│  │ (NO HAY telefono)     │  NO CONECTA    │                      │                   │
+│  └──────────────────────┘                └──────────────────────┘                   │
+│                                                                                     │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                    FLUJO DE VISIBILIDAD DE SERVICIOS (PROPUESTO)                    │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  PLANEACIÓN                              CUSTODIO PORTAL                            │
+│  ┌──────────────────────┐                ┌──────────────────────┐                   │
+│  │ servicios_planificados│                │ useNextService.ts    │                   │
+│  │ - custodio_id (UUID)  │      ✅        │ - query UNION:       │                   │
+│  │ - custodio_telefono   │────────────────│   1. servicios_plan  │                   │
+│  │   (NUEVO CAMPO)       │   CONECTA VIA  │      (via telefono)  │                   │
+│  │                       │   TELEFONO     │   2. servicios_cust  │                   │
+│  └──────────────────────┘                │      (via telefono)  │                   │
+│         │                                └──────────────────────┘                   │
+│         │ TRIGGER                                                                   │
+│         ▼                                                                           │
+│  ┌──────────────────────┐                                                           │
+│  │ sync_custodio_phone  │                                                           │
+│  │ ON INSERT/UPDATE     │                                                           │
+│  │ Copia telefono de    │                                                           │
+│  │ custodios_operativos │                                                           │
+│  └──────────────────────┘                                                           │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Componente 1: Wrapper de Bloqueo por Rol
+## Flujo de Onboarding de Documentos
 
-### Archivo: `src/components/RoleBlockedRoute.tsx` (Nuevo)
-
-Componente que bloquea acceso a usuarios con roles específicos, redirigiendo a su portal dedicado.
-
-```typescript
-interface RoleBlockedRouteProps {
-  children: ReactNode;
-  blockedRoles: string[];
-  redirectMap?: Record<string, string>;
-}
-```
-
-**Uso:**
-- Envuelve rutas que actualmente usan solo `ProtectedRoute`
-- Redirige custodios a `/custodian` si intentan acceder a rutas no permitidas
-- Muestra mensaje amigable antes de redirigir
-
----
-
-## Componente 2: Constantes de Control de Acceso
-
-### Archivo: `src/constants/accessControl.ts` (Modificar)
-
-Agregar constantes para roles bloqueados de rutas administrativas:
-
-```typescript
-/**
- * Roles que NO deben acceder a módulos administrativos
- * Estos roles tienen portales dedicados y no necesitan acceso al sistema principal
- */
-export const FIELD_OPERATOR_ROLES = [
-  'custodio',
-  'instalador'
-] as const;
-
-/**
- * Mapa de redirección para roles con portales dedicados
- */
-export const PORTAL_REDIRECTS: Record<string, string> = {
-  'custodio': '/custodian',
-  'instalador': '/installers/portal'
-} as const;
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                    FLUJO DE ONBOARDING (PROPUESTO)                                  │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  [Registro exitoso]                                                                 │
+│         │                                                                           │
+│         ▼                                                                           │
+│  ┌──────────────────────┐                                                           │
+│  │ CustodianOnboarding  │  ← NUEVA PÁGINA                                           │
+│  │ /custodian/onboarding│                                                           │
+│  │                      │                                                           │
+│  │ "¡Bienvenido! Para   │                                                           │
+│  │  iniciar servicios,  │                                                           │
+│  │  sube tus documentos"│                                                           │
+│  └──────────┬───────────┘                                                           │
+│             │                                                                       │
+│             ▼                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐                   │
+│  │                   WIZARD DE DOCUMENTOS                       │                   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐              │                   │
+│  │  │  Licencia  │  │  Tarjeta   │  │  Póliza    │              │                   │
+│  │  │  Conducir  │──│Circulación │──│  Seguro    │              │                   │
+│  │  │  📷 + 📅   │  │  📷 + 📅   │  │  📷 + 📅   │              │                   │
+│  │  └────────────┘  └────────────┘  └────────────┘              │                   │
+│  │       FOTO         FOTO           FOTO                       │                   │
+│  │     VIGENCIA      VIGENCIA       VIGENCIA                    │                   │
+│  └──────────────────────────────────────────────────────────────┘                   │
+│             │                                                                       │
+│             ▼                                                                       │
+│  ┌──────────────────────┐                                                           │
+│  │ Onboarding Completo  │                                                           │
+│  │ redirect → /custodian│                                                           │
+│  │ flag: docs_complete  │                                                           │
+│  └──────────────────────┘                                                           │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Componente 3: Hardening de Rutas en App.tsx
+## Componentes a Crear
 
-### Rutas a Proteger con RoleBlockedRoute
+### 1. Migración SQL: Sincronización de Teléfono
 
-| Ruta | Estado Actual | Cambio Requerido |
-|------|---------------|------------------|
-| `/tickets` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
-| `/services` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
-| `/lms` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
-| `/home` | ProtectedRoute | + Verificar redirect automático |
-
-### Rutas Ya Protegidas (Sin Cambios)
-- `/leads/*` → RoleProtectedRoute con roles específicos
-- `/dashboard/*` → PermissionProtectedRoute
-- `/planeacion/*` → RoleProtectedRoute
-- `/monitoring` → Sin restricción (custodio podría ver mapa público)
-
----
-
-## Componente 4: Migración SQL - Auditoría y Hardening RLS
-
-### Archivo: Migración SQL para RLS
-
-**Políticas a Auditar/Crear:**
+**Archivo:** `supabase/migrations/XXX_custodio_telefono_sync.sql`
 
 ```sql
--- 1. Verificar que leads NO permite acceso a custodio
--- ESTADO: OK - La política actual NO incluye custodio
+-- Agregar campo telefono a servicios_planificados
+ALTER TABLE servicios_planificados 
+ADD COLUMN IF NOT EXISTS custodio_telefono TEXT;
 
--- 2. Verificar servicios_planificados
--- Agregar exclusión explícita de custodio para SELECT general
-CREATE POLICY "servicios_planificados_block_field_operators"
-ON public.servicios_planificados
-FOR SELECT
-USING (
-  NOT EXISTS (
-    SELECT 1 FROM user_roles 
-    WHERE user_id = auth.uid() 
-    AND role IN ('custodio', 'instalador')
-  )
-  OR 
-  -- Excepto su propio servicio por teléfono
-  custodio_telefono = (SELECT phone FROM profiles WHERE id = auth.uid())
+-- Crear índice para búsquedas
+CREATE INDEX IF NOT EXISTS idx_servicios_planificados_custodio_telefono 
+ON servicios_planificados(custodio_telefono);
+
+-- Trigger para sincronizar teléfono automáticamente
+CREATE OR REPLACE FUNCTION sync_custodio_telefono()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.custodio_id IS NOT NULL AND NEW.custodio_id != OLD.custodio_id THEN
+    SELECT telefono INTO NEW.custodio_telefono
+    FROM custodios_operativos
+    WHERE id = NEW.custodio_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Aplicar trigger
+CREATE TRIGGER trg_sync_custodio_telefono
+BEFORE INSERT OR UPDATE ON servicios_planificados
+FOR EACH ROW EXECUTE FUNCTION sync_custodio_telefono();
+
+-- Backfill datos existentes
+UPDATE servicios_planificados sp
+SET custodio_telefono = co.telefono
+FROM custodios_operativos co
+WHERE sp.custodio_id = co.id
+AND sp.custodio_telefono IS NULL;
+```
+
+### 2. Hook Modificado: `useNextService.ts`
+
+**Cambios:**
+- Query UNION entre `servicios_planificados` y `servicios_custodia`
+- Normalizar campos para interface común
+- Priorizar servicios planificados (más recientes)
+
+**Lógica:**
+```typescript
+// Query servicios_planificados (sistema nuevo)
+const planificados = await supabase
+  .from('servicios_planificados')
+  .select('id, id_servicio, nombre_cliente, origen, destino, fecha_hora_cita, estado_planeacion, tipo_servicio')
+  .eq('custodio_telefono', phone)
+  .gte('fecha_hora_cita', today)
+  .in('estado_planeacion', ['asignado', 'confirmado', 'en_transito']);
+
+// Query servicios_custodia (sistema legacy)
+const custodia = await supabase
+  .from('servicios_custodia')
+  .select(...)
+  .or(`telefono.eq.${phone},telefono_operador.eq.${phone}`);
+
+// Combinar y ordenar por fecha, priorizar planificados
+```
+
+### 3. Página de Onboarding: `CustodianOnboarding.tsx`
+
+**Archivo:** `src/pages/custodian/CustodianOnboarding.tsx`
+
+**Características:**
+- Wizard de 3 pasos (un documento por paso)
+- Cada paso requiere foto + fecha vigencia
+- Botón "Siguiente" bloqueado hasta completar
+- Al finalizar, marcar `onboarding_completado` en profiles
+- Redirección automática a dashboard
+
+### 4. Validación de Documentos Obligatorios
+
+**Modificar:** `src/components/custodian/checklist/StepDocuments.tsx`
+
+**Cambios:**
+```typescript
+const REQUIRED_DOCUMENTS = ['licencia_conducir', 'tarjeta_circulacion', 'poliza_seguro'];
+
+// ANTES: Solo verifica vencidos
+const canProceed = expiredDocs.length === 0;
+
+// DESPUÉS: Verifica existencia Y vigencia
+const missingDocs = REQUIRED_DOCUMENTS.filter(
+  tipo => !documents.find(d => d.tipo_documento === tipo)
 );
-
--- 3. Proteger pc_clientes (datos de clientes)
--- Ya tiene RLS pero verificar que custodio está bloqueado
-
--- 4. Proteger candidatos_custodios (datos de reclutamiento)
--- Ya tiene política restrictiva, verificar
-
--- 5. Proteger roi_custodios (datos financieros)
--- Ya tiene política restrictiva, verificar
+const expiredDocs = getExpiredDocuments();
+const canProceed = missingDocs.length === 0 && expiredDocs.length === 0;
 ```
 
----
+### 5. Guard de Onboarding: `OnboardingGuard.tsx`
 
-## Componente 5: Mejoras en Login para Custodios
+**Archivo:** `src/components/custodian/OnboardingGuard.tsx`
 
-### Opción A: Página de Login Dedicada (Recomendada)
+**Función:**
+- Wrapper que verifica si custodio tiene documentos completos
+- Si no tiene los 3 documentos → redirect a `/custodian/onboarding`
+- Si tiene documentos completos → render children
 
-Crear `/auth/custodio-login` con:
-- UI simplificada y mobile-first
-- Prompt de PWA integrado
-- Redirección automática a portal
-- Sin enlaces a registro administrativo
+### 6. Campo en Profiles: `onboarding_completado`
 
-### Opción B: Detección Automática Post-Login
-
-En `useSmartAuthRedirect.ts` ya existe lógica para redirigir custodios:
-```typescript
-case 'custodio':
-  return '/custodian';
-```
-
----
-
-## Componente 6: Función SQL de Validación de Rol
-
-### Archivo: Migración SQL
-
+**Migración:**
 ```sql
--- Función helper para verificar si es operador de campo
-CREATE OR REPLACE FUNCTION is_field_operator()
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM user_roles
-    WHERE user_id = auth.uid()
-    AND role IN ('custodio', 'instalador')
-    AND is_active = true
-  )
-$$;
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS onboarding_completado BOOLEAN DEFAULT FALSE;
 ```
 
 ---
@@ -242,65 +223,82 @@ $$;
 
 | Archivo | Descripción | Líneas Est. |
 |---------|-------------|-------------|
-| `src/components/RoleBlockedRoute.tsx` | Wrapper de bloqueo por rol | ~60 |
-| `supabase/migrations/XXX_custodio_security_hardening.sql` | Políticas RLS adicionales | ~100 |
+| `supabase/migrations/XXX_custodio_telefono_sync.sql` | Sync de teléfono + trigger | ~50 |
+| `src/pages/custodian/CustodianOnboarding.tsx` | Wizard de documentos | ~250 |
+| `src/components/custodian/OnboardingGuard.tsx` | Guard de redirección | ~60 |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Paso individual del wizard | ~120 |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/constants/accessControl.ts` | Agregar FIELD_OPERATOR_ROLES y PORTAL_REDIRECTS |
-| `src/App.tsx` | Envolver rutas sensibles con RoleBlockedRoute |
-| `src/pages/Auth/Login.tsx` | Agregar detección de custodio y prompt PWA |
+| `src/hooks/useNextService.ts` | Query UNION con servicios_planificados |
+| `src/components/custodian/checklist/StepDocuments.tsx` | Validar existencia de documentos |
+| `src/App.tsx` | Agregar ruta `/custodian/onboarding` |
+| `src/pages/Auth/CustodianSignup.tsx` | Redirect a onboarding post-registro |
+| `src/hooks/useCustodianDocuments.ts` | Agregar `getMissingDocuments()` |
 
 ---
 
 ## Orden de Implementación
 
-1. **Fase 1 - Infraestructura:**
-   - Crear `RoleBlockedRoute.tsx`
-   - Actualizar `accessControl.ts` con nuevas constantes
+### Fase 1: Infraestructura de Datos (Crítico)
+1. Crear migración SQL para `custodio_telefono` en `servicios_planificados`
+2. Crear trigger de sincronización
+3. Ejecutar backfill de datos existentes
 
-2. **Fase 2 - Protección de Rutas:**
-   - Modificar `App.tsx` para envolver rutas sensibles
-   - Verificar que custodio no puede acceder manualmente
+### Fase 2: Sincronización de Servicios (Crítico)
+4. Modificar `useNextService.ts` para query UNION
+5. Probar que custodio ve servicios planificados
 
-3. **Fase 3 - Hardening RLS:**
-   - Crear migración SQL con políticas adicionales
-   - Ejecutar auditoría de políticas existentes
+### Fase 3: Validación de Documentos (Alta)
+6. Modificar `StepDocuments.tsx` para validar existencia
+7. Agregar mensajes diferenciados (faltante vs vencido)
 
-4. **Fase 4 - UX de Login:**
-   - Mejorar flujo de login para custodios
-   - Integrar prompt de PWA después de registro
+### Fase 4: Onboarding de Nuevos Custodios (Alta)
+8. Crear `CustodianOnboarding.tsx` con wizard de 3 pasos
+9. Crear `OnboardingGuard.tsx`
+10. Modificar `CustodianSignup.tsx` para redirect post-registro
+11. Agregar ruta en `App.tsx`
 
-5. **Fase 5 - Testing:**
-   - Probar acceso manual a URLs como custodio
-   - Verificar que RLS bloquea queries directas
-
----
-
-## Checklist de Seguridad Post-Implementación
-
-- [ ] Custodio NO puede acceder a `/leads`
-- [ ] Custodio NO puede acceder a `/dashboard`
-- [ ] Custodio NO puede acceder a `/planeacion`
-- [ ] Custodio NO puede acceder a `/tickets`
-- [ ] Custodio NO puede acceder a `/services` (excepto su vista)
-- [ ] Custodio NO puede acceder a `/wms`
-- [ ] Custodio NO puede ver datos de otros custodios
-- [ ] Custodio NO puede ver datos de clientes directamente
-- [ ] RLS bloquea queries directas desde DevTools
-- [ ] Login redirige automáticamente a portal
+### Fase 5: Testing End-to-End
+12. Test: Nuevo custodio → registro → onboarding → documentos
+13. Test: Custodio existente → servicio planificado visible
+14. Test: Checklist bloquea si documento faltante
+15. Test: Checklist bloquea si documento vencido
 
 ---
 
-## Consideraciones Adicionales
+## Validaciones de Seguridad Post-Implementación
 
-### Logging de Intentos de Acceso
-Registrar en `user_role_audit` cuando un custodio intenta acceder a rutas bloqueadas para detectar intentos de abuso.
+- [ ] Custodio solo ve SUS servicios (filtro por teléfono)
+- [ ] Fotos requieren cámara trasera (capture="environment")
+- [ ] Documentos se suben a bucket privado
+- [ ] No se puede avanzar sin los 3 documentos
+- [ ] No se puede avanzar con documentos vencidos
+- [ ] Trigger sincroniza teléfono automáticamente
+- [ ] RLS protege documentos (solo propios)
 
-### Rate Limiting
-Considerar implementar rate limiting en el registro para prevenir abuso de tokens de invitación.
+---
 
-### Expiración de Sesiones
-Las sesiones de custodios podrían tener TTL más corto que usuarios administrativos por seguridad.
+## Consideraciones Técnicas
+
+### Performance
+- Índice en `custodio_telefono` para queries rápidas
+- Query UNION optimizada con LIMIT 1
+- Cache de TanStack Query con staleTime apropiado
+
+### Offline
+- Onboarding requiere conexión (subida de fotos)
+- Checklist mantiene capacidad offline existente
+
+### Migración de Datos
+- Backfill ejecuta una sola vez
+- Trigger mantiene sincronía en tiempo real
+- No rompe datos existentes en `servicios_custodia`
+
+### UX Mobile
+- Wizard de onboarding optimizado para móvil
+- Botones grandes, texto claro
+- Feedback visual de progreso
+- Compresión de imágenes antes de subir
