@@ -402,7 +402,7 @@ function App() {
                   path="/admin/custodian-invitations"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
                         <UnifiedLayout>
                           <CustodianInvitationsPage />
                         </UnifiedLayout>
