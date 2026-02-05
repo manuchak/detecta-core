@@ -1,336 +1,306 @@
 
-# Plan: Sistema de Gestion y Alertamiento de Checklists en Monitoreo
+# Plan: Optimización del Registro de Custodios y Hardening de Seguridad
 
 ## Resumen Ejecutivo
 
-Crear un sistema completo de consulta, alertamiento y gestion de checklists pre-servicio dentro del modulo de Monitoreo. El sistema asegura que todo servicio tenga un checklist realizado antes de iniciar operaciones, con una UI optimizada para revision rapida de evidencia fotografica y respuestas de inspeccion.
+Implementar mejoras en el flujo de registro de custodios y reforzar la seguridad para garantizar que los custodios solo accedan a su módulo dedicado, sin posibilidad de visualizar información sensible de otros módulos incluso si conocen las URLs.
 
 ---
 
-## Arquitectura del Sistema
+## Análisis de Seguridad Actual
+
+### Flujo de Registro Actual (Funcionando Correctamente)
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     FLUJO DE REGISTRO DE CUSTODIOS                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  [Admin genera invitación]                                                  │
+│         │                                                                   │
+│         ▼                                                                   │
+│  ┌─────────────────┐     ┌─────────────────┐                               │
+│  │ custodian_      │────▶│ Email enviado   │                               │
+│  │ invitations     │     │ con link único  │                               │
+│  └─────────────────┘     └────────┬────────┘                               │
+│                                   │                                         │
+│                                   ▼                                         │
+│                    /auth/registro-custodio?token=XXX                        │
+│                                   │                                         │
+│                                   ▼                                         │
+│                    ┌─────────────────────────┐                              │
+│                    │ CustodianSignup.tsx     │                              │
+│                    │ - Valida token (RPC)    │                              │
+│                    │ - Crea cuenta Supabase  │                              │
+│                    │ - Asigna rol 'custodio' │                              │
+│                    └───────────┬─────────────┘                              │
+│                                │                                            │
+│                                ▼                                            │
+│                    ┌─────────────────────────┐                              │
+│                    │   /custodian (Portal)   │                              │
+│                    └─────────────────────────┘                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Brechas de Seguridad Identificadas
+
+| Riesgo | Severidad | Descripción |
+|--------|-----------|-------------|
+| Acceso a rutas sin protección de rol | ALTA | Rutas como `/tickets`, `/services`, `/lms` usan solo `ProtectedRoute` (autenticación) sin validar rol |
+| Navegación manual a URLs | MEDIA | Custodio podría escribir manualmente `/leads`, `/dashboard`, etc. |
+| RLS incompleto para custodio | MEDIA | Algunas tablas podrían permitir lectura a usuarios autenticados |
+| Sin página de login dedicada | BAJA | Custodios usan el mismo login que personal administrativo |
+
+---
+
+## Arquitectura de Seguridad Propuesta
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│                          SISTEMA DE GESTION DE CHECKLISTS                            │
-├──────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                        DASHBOARD CHECKLIST (Nueva Tab)                         │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │  │
-│  │  │  Completos   │  │  Pendientes  │  │  Sin Check   │  │   Alertas    │        │  │
-│  │  │     [12]     │  │     [3]      │  │     [5]      │  │     [2]      │        │  │
-│  │  │     OK       │  │   ATENCION   │  │   CRITICO    │  │    GPS/DOC   │        │  │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘        │  │
-│  └────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          TABLA DE SERVICIOS                                    │  │
-│  │  ┌─────────┬─────────┬──────────┬──────────┬─────────┬─────────┬────────────┐  │  │
-│  │  │ Cliente │ Custodio│  Hora    │ Checklist│  Fotos  │ Alertas │  Acciones  │  │  │
-│  │  ├─────────┼─────────┼──────────┼──────────┼─────────┼─────────┼────────────┤  │  │
-│  │  │ Samsung │ J.Ruiz  │ 08:30    │   OK     │   4/4   │    0    │ [Ver]      │  │  │
-│  │  │ Ferrer  │ L.Lopez │ 09:00    │ Pendiente│   2/4   │    1    │ [Ver][!]   │  │  │
-│  │  │ Loger   │ M.Perez │ 09:30    │   --     │   0/4   │    --   │ [Notif]    │  │  │
-│  │  └─────────┴─────────┴──────────┴──────────┴─────────┴─────────┴────────────┘  │  │
-│  └────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                      │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                    MODAL DETALLE CHECKLIST                                     │  │
-│  │  ┌──────────────────────────────────────────────────────────────────────────┐  │  │
-│  │  │  GALERIA DE FOTOS (Lightbox con swipe)                                   │  │  │
-│  │  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐                             │  │  │
-│  │  │  │Frontal │ │Trasero │ │Lat Izq │ │Lat Der │                             │  │  │
-│  │  │  │  GPS   │ │  GPS   │ │  GPS   │ │  GPS   │                             │  │  │
-│  │  │  │  120m  │ │  45m   │ │  680m  │ │  52m   │                             │  │  │
-│  │  │  └────────┘ └────────┘ └────────┘ └────────┘                             │  │  │
-│  │  └──────────────────────────────────────────────────────────────────────────┘  │  │
-│  │                                                                                │  │
-│  │  ┌──────────────────────────────────────────────────────────────────────────┐  │  │
-│  │  │  INSPECCION VEHICULAR          │  EQUIPAMIENTO DE EMERGENCIA            │  │  │
-│  │  │  [X] Llantas  [X] Luces        │  [X] Gato       [!] Extintor           │  │  │
-│  │  │  [X] Frenos   [X] Espejos      │  [X] Refaccion  [X] Triangulos         │  │  │
-│  │  │  Combustible: [====75%====]    │                                        │  │  │
-│  │  └──────────────────────────────────────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    MODELO DE SEGURIDAD MULTI-CAPA                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  CAPA 1: NAVEGACIÓN (UI)                                                     │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  navigationConfig.ts: custodio NO aparece en ningún módulo            │  │
+│  │  roleHomeConfig.ts: custodio → redirect: '/custodian'                 │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  CAPA 2: RUTAS (Router)                                                      │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  RoleProtectedRoute: Bloquea rutas sensibles para custodio            │  │
+│  │  CustodianPortal: Solo permite ['custodio', 'admin', 'owner']         │  │
+│  │  NUEVO: RoleBlockedRoute para rutas con ProtectedRoute solamente      │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  CAPA 3: RLS (Base de Datos)                                                 │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  Políticas que excluyen explícitamente 'custodio' de tablas sensibles │  │
+│  │  Custodio solo accede: checklist_servicio (propio), profiles (propio) │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  CAPA 4: RPC/Edge Functions                                                  │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  Funciones con SECURITY DEFINER validan rol antes de ejecutar         │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Componentes a Crear
+## Componente 1: Wrapper de Bloqueo por Rol
 
-### 1. Hook Principal: `useChecklistMonitoreo.ts`
+### Archivo: `src/components/RoleBlockedRoute.tsx` (Nuevo)
 
-Logica centralizada para consultar y filtrar checklists del turno.
+Componente que bloquea acceso a usuarios con roles específicos, redirigiendo a su portal dedicado.
 
-**Funcionalidades:**
-- Obtener servicios del turno con estado de checklist (JOIN servicios_planificados + checklist_servicio)
-- Calcular metricas: completos, pendientes, sin checklist, con alertas
-- Filtrar por estado de checklist
-- Detectar alertas: GPS fuera de rango, items fallidos, fotos faltantes
-
-**Interface de datos:**
 ```typescript
-interface ServicioConChecklist {
-  servicioId: string;
-  idServicio: string;
-  nombreCliente: string;
-  custodioAsignado: string;
-  custodioTelefono: string;
-  fechaHoraCita: string;
-  estadoPlaneacion: string;
-  // Checklist data
-  checklistId: string | null;
-  checklistEstado: 'completo' | 'pendiente' | 'incompleto' | null;
-  fechaChecklist: string | null;
-  fotosCount: number;
-  alertasGps: number;
-  itemsFallidos: number;
-  tieneAlerta: boolean;
-}
-
-interface ResumenChecklists {
-  completos: number;
-  pendientes: number;
-  sinChecklist: number;
-  conAlertas: number;
-  total: number;
+interface RoleBlockedRouteProps {
+  children: ReactNode;
+  blockedRoles: string[];
+  redirectMap?: Record<string, string>;
 }
 ```
 
-### 2. Componente Dashboard: `ChecklistDashboard.tsx`
-
-Panel principal con tarjetas de resumen y sistema de alertas.
-
-**Elementos UI:**
-- 4 tarjetas de resumen con colores semanticos:
-  - Verde: Checklists completos (sin alertas)
-  - Amarillo: Checklists pendientes/incompletos
-  - Rojo: Servicios sin checklist (critico)
-  - Naranja: Con alertas GPS o items fallidos
-- Sistema de filtrado por click en tarjetas
-- Indicador de tiempo hasta cita para servicios sin checklist
-- Alerta visual pulsante para servicios proximos sin checklist (<60 min)
-
-### 3. Tabla de Servicios: `ChecklistServicesTable.tsx`
-
-Lista detallada con columnas optimizadas para operacion.
-
-**Columnas:**
-| Campo | Descripcion |
-|-------|-------------|
-| Cliente | Nombre + hora cita |
-| Custodio | Nombre + telefono (click-to-call) |
-| Estado Checklist | Badge con color semantico |
-| Fotos | Contador X/4 con indicador visual |
-| Alertas | Iconos de GPS/Items/Docs |
-| Acciones | Ver detalle, Notificar custodio |
-
-**Funcionalidades:**
-- Busqueda por cliente/custodio
-- Ordenamiento por urgencia (sin checklist primero)
-- Filtros rapidos por estado
-- Row expandible para preview rapido
-
-### 4. Modal de Detalle: `ChecklistDetailModal.tsx`
-
-Vista completa del checklist con galeria de fotos mejorada.
-
-**Secciones:**
-1. **Header:** Info del servicio + estado general
-2. **Galeria de Fotos:** Grid 2x2 con lightbox fullscreen
-3. **Mapa de Validacion:** Mini-mapa mostrando ubicacion de captura vs origen
-4. **Inspeccion Vehicular:** Grid de items con iconos
-5. **Equipamiento:** Lista de verificacion
-6. **Observaciones y Firma:** Texto + preview de firma
-7. **Metadata:** Timestamps, estado de sincronizacion
-
-### 5. Lightbox de Fotos: `PhotoLightbox.tsx`
-
-Visor de imagenes fullscreen optimizado para revision.
-
-**Caracteristicas:**
-- Navegacion con swipe (touch) y flechas (desktop)
-- Zoom con pinch/doble-tap
-- Overlay con metadata GPS
-- Indicador de validacion (OK/Fuera de rango/Sin GPS)
-- Boton para abrir en Google Maps la ubicacion
-- Transiciones suaves entre fotos
-
-### 6. Panel de Alertas: `ChecklistAlertPanel.tsx`
-
-Lista de alertas activas que requieren atencion.
-
-**Tipos de alertas:**
-- Servicio proximo (<60 min) sin checklist
-- Foto fuera de rango GPS (>500m)
-- Foto sin GPS
-- Item de inspeccion fallido (frenos, llantas criticos)
-- Checklist incompleto (fotos faltantes)
-
-**Acciones:**
-- Notificar custodio via WhatsApp/SMS
-- Marcar como revisado
-- Agregar nota de seguimiento
+**Uso:**
+- Envuelve rutas que actualmente usan solo `ProtectedRoute`
+- Redirige custodios a `/custodian` si intentan acceder a rutas no permitidas
+- Muestra mensaje amigable antes de redirigir
 
 ---
 
-## Integracion con MonitoringPage
+## Componente 2: Constantes de Control de Acceso
 
-Agregar nueva seccion/tab al modulo de monitoreo existente.
+### Archivo: `src/constants/accessControl.ts` (Modificar)
 
-**Opcion recomendada:** Tab system dentro de MonitoringPage
+Agregar constantes para roles bloqueados de rutas administrativas:
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  [Posicionamiento]  [Checklists]  [Alertas Ruta]                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Contenido de la tab seleccionada                               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```typescript
+/**
+ * Roles que NO deben acceder a módulos administrativos
+ * Estos roles tienen portales dedicados y no necesitan acceso al sistema principal
+ */
+export const FIELD_OPERATOR_ROLES = [
+  'custodio',
+  'instalador'
+] as const;
+
+/**
+ * Mapa de redirección para roles con portales dedicados
+ */
+export const PORTAL_REDIRECTS: Record<string, string> = {
+  'custodio': '/custodian',
+  'instalador': '/installers/portal'
+} as const;
 ```
 
 ---
 
-## Mejores Practicas de UI Implementadas
+## Componente 3: Hardening de Rutas en App.tsx
 
-### Basadas en investigacion de sistemas de monitoreo vehicular:
+### Rutas a Proteger con RoleBlockedRoute
 
-1. **Codigo de colores consistente:**
-   - Verde: Estado optimo/completo
-   - Amarillo: Atencion requerida
-   - Rojo: Critico/Bloqueante
-   - Gris: Sin datos/Pendiente
+| Ruta | Estado Actual | Cambio Requerido |
+|------|---------------|------------------|
+| `/tickets` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
+| `/services` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
+| `/lms` | ProtectedRoute | + RoleBlockedRoute(FIELD_OPERATOR_ROLES) |
+| `/home` | ProtectedRoute | + Verificar redirect automático |
 
-2. **Jerarquia visual:**
-   - Lo mas critico arriba y destacado
-   - Alertas con animacion sutil (pulse)
-   - Numeros grandes para metricas clave
+### Rutas Ya Protegidas (Sin Cambios)
+- `/leads/*` → RoleProtectedRoute con roles específicos
+- `/dashboard/*` → PermissionProtectedRoute
+- `/planeacion/*` → RoleProtectedRoute
+- `/monitoring` → Sin restricción (custodio podría ver mapa público)
 
-3. **Galeria de fotos optimizada:**
-   - Grid 2x2 para vista rapida de las 4 fotos
-   - Lightbox fullscreen para revision detallada
-   - Indicadores de validacion GPS en cada thumbnail
-   - Soporte para swipe/touch en movil
+---
 
-4. **Accesibilidad operativa:**
-   - Click-to-call en numeros de custodio
-   - Botones de accion prominentes
-   - Filtros de un click
-   - Busqueda instantanea
+## Componente 4: Migración SQL - Auditoría y Hardening RLS
 
-5. **Performance:**
-   - Lazy loading de imagenes
-   - Virtualizacion de lista para muchos servicios
-   - Cache de datos con TanStack Query
+### Archivo: Migración SQL para RLS
+
+**Políticas a Auditar/Crear:**
+
+```sql
+-- 1. Verificar que leads NO permite acceso a custodio
+-- ESTADO: OK - La política actual NO incluye custodio
+
+-- 2. Verificar servicios_planificados
+-- Agregar exclusión explícita de custodio para SELECT general
+CREATE POLICY "servicios_planificados_block_field_operators"
+ON public.servicios_planificados
+FOR SELECT
+USING (
+  NOT EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_id = auth.uid() 
+    AND role IN ('custodio', 'instalador')
+  )
+  OR 
+  -- Excepto su propio servicio por teléfono
+  custodio_telefono = (SELECT phone FROM profiles WHERE id = auth.uid())
+);
+
+-- 3. Proteger pc_clientes (datos de clientes)
+-- Ya tiene RLS pero verificar que custodio está bloqueado
+
+-- 4. Proteger candidatos_custodios (datos de reclutamiento)
+-- Ya tiene política restrictiva, verificar
+
+-- 5. Proteger roi_custodios (datos financieros)
+-- Ya tiene política restrictiva, verificar
+```
+
+---
+
+## Componente 5: Mejoras en Login para Custodios
+
+### Opción A: Página de Login Dedicada (Recomendada)
+
+Crear `/auth/custodio-login` con:
+- UI simplificada y mobile-first
+- Prompt de PWA integrado
+- Redirección automática a portal
+- Sin enlaces a registro administrativo
+
+### Opción B: Detección Automática Post-Login
+
+En `useSmartAuthRedirect.ts` ya existe lógica para redirigir custodios:
+```typescript
+case 'custodio':
+  return '/custodian';
+```
+
+---
+
+## Componente 6: Función SQL de Validación de Rol
+
+### Archivo: Migración SQL
+
+```sql
+-- Función helper para verificar si es operador de campo
+CREATE OR REPLACE FUNCTION is_field_operator()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM user_roles
+    WHERE user_id = auth.uid()
+    AND role IN ('custodio', 'instalador')
+    AND is_active = true
+  )
+$$;
+```
 
 ---
 
 ## Archivos a Crear
 
-| Archivo | Descripcion | Lineas Est. |
+| Archivo | Descripción | Líneas Est. |
 |---------|-------------|-------------|
-| `src/hooks/useChecklistMonitoreo.ts` | Hook principal de datos | ~120 |
-| `src/components/monitoring/checklist/ChecklistDashboard.tsx` | Dashboard con metricas | ~180 |
-| `src/components/monitoring/checklist/ChecklistServicesTable.tsx` | Tabla de servicios | ~220 |
-| `src/components/monitoring/checklist/ChecklistDetailModal.tsx` | Modal de detalle | ~280 |
-| `src/components/monitoring/checklist/PhotoLightbox.tsx` | Visor de fotos fullscreen | ~150 |
-| `src/components/monitoring/checklist/ChecklistAlertPanel.tsx` | Panel de alertas | ~160 |
-| `src/components/monitoring/checklist/index.ts` | Barrel exports | ~10 |
+| `src/components/RoleBlockedRoute.tsx` | Wrapper de bloqueo por rol | ~60 |
+| `supabase/migrations/XXX_custodio_security_hardening.sql` | Políticas RLS adicionales | ~100 |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/pages/Monitoring/MonitoringPage.tsx` | Agregar tabs y seccion de checklists |
-| `src/types/checklist.ts` | Agregar tipos para monitoreo |
+| `src/constants/accessControl.ts` | Agregar FIELD_OPERATOR_ROLES y PORTAL_REDIRECTS |
+| `src/App.tsx` | Envolver rutas sensibles con RoleBlockedRoute |
+| `src/pages/Auth/Login.tsx` | Agregar detección de custodio y prompt PWA |
 
 ---
 
-## Orden de Implementacion
+## Orden de Implementación
 
 1. **Fase 1 - Infraestructura:**
-   - Crear `useChecklistMonitoreo.ts` con query JOIN
-   - Agregar tipos en `checklist.ts`
+   - Crear `RoleBlockedRoute.tsx`
+   - Actualizar `accessControl.ts` con nuevas constantes
 
-2. **Fase 2 - Componentes Core:**
-   - `ChecklistDashboard.tsx` con tarjetas de resumen
-   - `ChecklistServicesTable.tsx` con lista filtrable
+2. **Fase 2 - Protección de Rutas:**
+   - Modificar `App.tsx` para envolver rutas sensibles
+   - Verificar que custodio no puede acceder manualmente
 
-3. **Fase 3 - Visor de Detalle:**
-   - `ChecklistDetailModal.tsx` con secciones expandidas
-   - `PhotoLightbox.tsx` con navegacion swipe
+3. **Fase 3 - Hardening RLS:**
+   - Crear migración SQL con políticas adicionales
+   - Ejecutar auditoría de políticas existentes
 
-4. **Fase 4 - Sistema de Alertas:**
-   - `ChecklistAlertPanel.tsx` con acciones
-   - Integracion de notificaciones
+4. **Fase 4 - UX de Login:**
+   - Mejorar flujo de login para custodios
+   - Integrar prompt de PWA después de registro
 
-5. **Fase 5 - Integracion Final:**
-   - Modificar `MonitoringPage.tsx` con tabs
-   - Testing end-to-end
+5. **Fase 5 - Testing:**
+   - Probar acceso manual a URLs como custodio
+   - Verificar que RLS bloquea queries directas
 
 ---
 
-## Detalles Tecnicos
+## Checklist de Seguridad Post-Implementación
 
-### Query de Datos (useChecklistMonitoreo)
-```sql
-SELECT 
-  sp.id as servicio_id,
-  sp.id_servicio,
-  sp.nombre_cliente,
-  sp.custodio_asignado,
-  sp.fecha_hora_cita,
-  sp.estado_planeacion,
-  cs.id as checklist_id,
-  cs.estado as checklist_estado,
-  cs.fecha_checklist,
-  cs.fotos_validadas,
-  cs.items_inspeccion
-FROM servicios_planificados sp
-LEFT JOIN checklist_servicio cs ON sp.id::text = cs.servicio_id
-WHERE sp.fecha_hora_cita >= NOW() - INTERVAL 'X hours'
-  AND sp.fecha_hora_cita <= NOW() + INTERVAL 'X hours'
-  AND sp.estado_planeacion NOT IN ('cancelado', 'completado')
-ORDER BY sp.fecha_hora_cita ASC;
-```
+- [ ] Custodio NO puede acceder a `/leads`
+- [ ] Custodio NO puede acceder a `/dashboard`
+- [ ] Custodio NO puede acceder a `/planeacion`
+- [ ] Custodio NO puede acceder a `/tickets`
+- [ ] Custodio NO puede acceder a `/services` (excepto su vista)
+- [ ] Custodio NO puede acceder a `/wms`
+- [ ] Custodio NO puede ver datos de otros custodios
+- [ ] Custodio NO puede ver datos de clientes directamente
+- [ ] RLS bloquea queries directas desde DevTools
+- [ ] Login redirige automáticamente a portal
 
-### Calculo de Alertas (client-side)
-```typescript
-function calcularAlertas(checklist) {
-  const alertas = [];
-  
-  // GPS fuera de rango
-  const fotosProblema = checklist.fotos_validadas?.filter(
-    f => f.validacion === 'fuera_rango' || f.validacion === 'sin_gps'
-  );
-  if (fotosProblema?.length > 0) {
-    alertas.push({ tipo: 'gps', count: fotosProblema.length });
-  }
-  
-  // Items criticos fallidos
-  const itemsCriticos = ['llantas_ok', 'frenos_ok'];
-  const fallidos = itemsCriticos.filter(
-    k => checklist.items_inspeccion?.vehiculo?.[k] === false
-  );
-  if (fallidos.length > 0) {
-    alertas.push({ tipo: 'inspeccion', items: fallidos });
-  }
-  
-  return alertas;
-}
-```
+---
 
-### PhotoLightbox Navigation
-```typescript
-// Soporte para swipe touch
-const handleTouchStart = (e) => setTouchStart(e.touches[0].clientX);
-const handleTouchEnd = (e) => {
-  const diff = touchStart - e.changedTouches[0].clientX;
-  if (Math.abs(diff) > 50) {
-    diff > 0 ? nextPhoto() : prevPhoto();
-  }
-};
-```
+## Consideraciones Adicionales
+
+### Logging de Intentos de Acceso
+Registrar en `user_role_audit` cuando un custodio intenta acceder a rutas bloqueadas para detectar intentos de abuso.
+
+### Rate Limiting
+Considerar implementar rate limiting en el registro para prevenir abuso de tokens de invitación.
+
+### Expiración de Sesiones
+Las sesiones de custodios podrían tener TTL más corto que usuarios administrativos por seguridad.
