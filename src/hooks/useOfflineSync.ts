@@ -19,6 +19,14 @@ import { CircuitBreaker } from '@/services/circuitBreakerService';
  
  export type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
  
+export interface CircuitBreakerInfo {
+  isOpen: boolean;
+  consecutiveFailures: number;
+  failureRate: number;
+  cooldownRemaining: number;
+  errorReport: string;
+}
+
  const MAX_RETRY_ATTEMPTS = 3;
 
 // Circuit breaker para proteger contra fallos en cascada
@@ -39,6 +47,36 @@ const uploadQueue = getGlobalUploadQueue({
    const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
    const [pendingCount, setPendingCount] = useState(0);
    const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [circuitBreakerInfo, setCircuitBreakerInfo] = useState<CircuitBreakerInfo>({
+    isOpen: false,
+    consecutiveFailures: 0,
+    failureRate: 0,
+    cooldownRemaining: 0,
+    errorReport: '',
+  });
+
+  // Actualizar info del circuit breaker
+  const updateCircuitBreakerInfo = useCallback(() => {
+    const state = circuitBreaker.getState();
+    const cooldownRemaining = state.isOpen
+      ? Math.max(0, 120 - Math.floor((Date.now() - state.lastFailureTime) / 1000))
+      : 0;
+    
+    setCircuitBreakerInfo({
+      isOpen: state.isOpen,
+      consecutiveFailures: state.consecutiveFailures,
+      failureRate: circuitBreaker.getFailureRate(),
+      cooldownRemaining,
+      errorReport: circuitBreaker.getErrorReport(),
+    });
+  }, []);
+
+  // Reset manual del circuit breaker
+  const resetCircuitBreaker = useCallback(() => {
+    circuitBreaker.reset();
+    updateCircuitBreakerInfo();
+    console.log('[OfflineSync] Circuit breaker reseteado manualmente');
+  }, [updateCircuitBreakerInfo]);
  
   const executeItemSync = async (item: SyncQueueItem): Promise<void> => {
     switch (item.action) {
@@ -100,10 +138,12 @@ const uploadQueue = getGlobalUploadQueue({
         }
       );
       circuitBreaker.recordSuccess();
+      updateCircuitBreakerInfo();
       return true;
     } catch (error) {
       const errorType = error instanceof Error ? error.name : 'unknown';
       circuitBreaker.recordFailure(errorType);
+      updateCircuitBreakerInfo();
       console.error(`[OfflineSync] Error final en ${item.id}:`, error);
       return false;
     }
@@ -116,6 +156,7 @@ const uploadQueue = getGlobalUploadQueue({
       console.warn('[OfflineSync] Circuit breaker abierto:', circuitBreaker.getErrorReport());
       setLastSyncError('Demasiados errores, esperando cooldown');
       setSyncStatus('error');
+      updateCircuitBreakerInfo();
       return;
     }
 
@@ -178,7 +219,14 @@ const uploadQueue = getGlobalUploadQueue({
          error instanceof Error ? error.message : 'Error de sincronización'
        );
      }
-   }, [isOnline]);
+  }, [isOnline, updateCircuitBreakerInfo]);
+
+  // Monitorear estado del circuit breaker
+  useEffect(() => {
+    updateCircuitBreakerInfo();
+    const interval = setInterval(updateCircuitBreakerInfo, 5000);
+    return () => clearInterval(interval);
+  }, [updateCircuitBreakerInfo]);
  
    // Auto-sync cuando recupera conexión
    useEffect(() => {
@@ -208,5 +256,7 @@ const uploadQueue = getGlobalUploadQueue({
      lastSyncError,
      isOnline,
      syncAll,
+    circuitBreakerInfo,
+    resetCircuitBreaker,
    };
  }
