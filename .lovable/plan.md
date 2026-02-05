@@ -1,259 +1,302 @@
 
+# Plan: Optimizaciones de Rendimiento para 100+ Custodios Concurrentes
 
-# Plan: Integrar Acceso al Checklist desde Dashboard Custodio
+## Resumen Ejecutivo
 
-## Resumen
-
-Agregar una tarjeta de "Proximo Servicio" prominente en el dashboard movil del custodio con un boton "Iniciar Checklist" que active el flujo de 4 pasos.
+Implementar tres optimizaciones criticas para garantizar estabilidad del sistema cuando multiples custodios completan checklists simultaneamente: compresion de imagenes, rate limiting con cola de subida, y backoff exponencial con jitter.
 
 ---
 
-## Flujo de Usuario Propuesto
+## Arquitectura de Optimizaciones
 
 ```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  DASHBOARD CUSTODIO (Mobile)                                                  │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────┐      │
-│  │  📋 PROXIMO SERVICIO                                    6:00 AM    │      │
-│  │                                                                    │      │
-│  │  Cliente: Transportes del Norte                                    │      │
-│  │  📅 Martes 5 de febrero                                           │      │
-│  │                                                                    │      │
-│  │  ┌──────────────────────────────────────────────────────────────┐ │      │
-│  │  │ ● Toluca, Estado de México                                   │ │      │
-│  │  │ │                                                            │ │      │
-│  │  │ ○ Querétaro, Querétaro                                       │ │      │
-│  │  └──────────────────────────────────────────────────────────────┘ │      │
-│  │                                                                    │      │
-│  │  ┌────────────────────────────────────────────────────────────┐   │      │
-│  │  │  📝 INICIAR CHECKLIST PRE-SERVICIO                         │   │      │
-│  │  │      Requerido antes de salir                              │   │      │
-│  │  └────────────────────────────────────────────────────────────┘   │      │
-│  │                                                                    │      │
-│  └────────────────────────────────────────────────────────────────────┘      │
-│                                                                              │
-│  [Stats Bar]  [Quick Actions]  [Recent Services]                            │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                        FLUJO OPTIMIZADO DE SUBIDA DE FOTOS                          │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                     │
+│  [Foto Capturada]                                                                   │
+│        │                                                                            │
+│        ▼                                                                            │
+│  ┌─────────────────┐                                                                │
+│  │  COMPRESION     │  Reducir ~2MB -> ~300-500KB                                    │
+│  │  (imageUtils)   │  - Canvas resize: max 1920px                                   │
+│  │                 │  - JPEG quality: 0.7                                           │
+│  │                 │  - Mantiene EXIF GPS                                           │
+│  └────────┬────────┘                                                                │
+│           │                                                                         │
+│           ▼                                                                         │
+│  ┌─────────────────┐                                                                │
+│  │   INDEXEDDB     │  Almacena blob comprimido                                      │
+│  │   (local)       │  - Menor uso de storage                                        │
+│  └────────┬────────┘                                                                │
+│           │                                                                         │
+│           ▼  (Cuando hay conexion)                                                  │
+│  ┌─────────────────┐                                                                │
+│  │  UPLOAD QUEUE   │  Rate limiting por usuario                                     │
+│  │  (uploadQueue)  │  - Max 2 uploads concurrentes                                  │
+│  │                 │  - Cola FIFO con prioridad                                     │
+│  └────────┬────────┘                                                                │
+│           │                                                                         │
+│           ▼  (Si falla)                                                             │
+│  ┌─────────────────┐                                                                │
+│  │ RETRY + BACKOFF │  Reintentos inteligentes                                       │
+│  │ (retryUtils)    │  - Exponential: 1s, 2s, 4s, 8s                                 │
+│  │                 │  - Jitter: +/- 30%                                             │
+│  │                 │  - Circuit breaker integrado                                   │
+│  └────────┬────────┘                                                                │
+│           │                                                                         │
+│           ▼                                                                         │
+│  ┌─────────────────┐                                                                │
+│  │   SUPABASE      │  Carga controlada al servidor                                  │
+│  │   STORAGE       │  - Evita saturacion                                            │
+│  └─────────────────┘                                                                │
+│                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Cambios Requeridos
+## Componente 1: Compresion de Imagenes
 
-### 1. Modificar NextServiceCard.tsx
+### Archivo: `src/lib/imageUtils.ts` (Nuevo)
 
-Agregar prop para iniciar checklist y boton prominente:
+Utilidad para comprimir fotos antes de almacenarlas en IndexedDB.
 
 ```typescript
-interface NextServiceCardProps {
-  service: CustodianService | null;
-  onViewDetails?: () => void;
-  onStartChecklist?: (serviceId: string) => void;  // NUEVO
-  checklistCompleted?: boolean;                     // NUEVO
+interface CompressionOptions {
+  maxWidth: number;      // Default: 1920
+  maxHeight: number;     // Default: 1080
+  quality: number;       // Default: 0.7 (70%)
+  format: 'jpeg' | 'webp';
+}
+
+interface CompressionResult {
+  blob: Blob;
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
 }
 ```
 
-Cambios visuales:
-- Agregar boton grande "Iniciar Checklist Pre-Servicio"
-- Mostrar badge verde "Checklist Completado" si ya se hizo
-- El boton navega a `/custodian/checklist/{serviceId}`
+Funcionalidades:
+- Redimensionar usando Canvas API a max 1920x1080
+- Comprimir a JPEG con calidad 70%
+- Preservar orientacion EXIF
+- Retornar metricas de compresion para logging
+- Reduccion esperada: ~2MB -> ~300-500KB (75-85% reduccion)
 
-### 2. Crear Hook useNextService
+### Integracion
 
-Nuevo hook para obtener el proximo servicio con estado del checklist:
+Modificar `useServiceChecklist.ts` en funcion `capturePhoto`:
 
 ```typescript
-// src/hooks/useNextService.ts
+// Antes de savePhotoBlob:
+const compressed = await compressImage(file, {
+  maxWidth: 1920,
+  quality: 0.7,
+});
+console.log(`[Photo] Comprimida: ${compressed.compressionRatio.toFixed(0)}% reduccion`);
 
-interface NextServiceWithChecklist {
-  service: CustodianService | null;
-  hasChecklist: boolean;
-  checklistStatus: 'pendiente' | 'completo' | null;
-  isLoading: boolean;
+// Usar compressed.blob en lugar de file original
+await savePhotoBlob({
+  ...
+  blob: compressed.blob,
+  mimeType: 'image/jpeg',
+});
+```
+
+---
+
+## Componente 2: Cola de Subida con Rate Limiting
+
+### Archivo: `src/lib/uploadQueue.ts` (Nuevo)
+
+Sistema de cola para controlar subidas concurrentes.
+
+```typescript
+interface UploadQueueConfig {
+  maxConcurrent: number;      // Default: 2
+  delayBetweenUploads: number; // Default: 500ms
 }
 
-export function useNextService(custodianPhone: string | undefined) {
-  // 1. Obtener proximo servicio de servicios_custodia
-  // 2. Verificar si existe checklist_servicio para ese servicio
-  // 3. Retornar datos combinados
+interface QueuedUpload {
+  id: string;
+  priority: number;
+  execute: () => Promise<void>;
+  onProgress?: (progress: number) => void;
+}
+
+class UploadQueue {
+  private queue: QueuedUpload[];
+  private activeCount: number;
+  private config: UploadQueueConfig;
+  
+  add(upload: QueuedUpload): void;
+  pause(): void;
+  resume(): void;
+  clear(): void;
+  getStatus(): { pending: number; active: number };
 }
 ```
 
-### 3. Modificar MobileDashboardLayout.tsx
+Caracteristicas:
+- Maximo 2 uploads concurrentes por usuario
+- Delay de 500ms entre uploads para evitar rafagas
+- Sistema de prioridad (fotos > checklists > documentos)
+- Metodos para pausar/resumir cola
+- Eventos de progreso para UI feedback
 
-Integrar la tarjeta de proximo servicio en la seccion principal:
+### Integracion
+
+Modificar `useOfflineSync.ts`:
 
 ```typescript
-// Importar hook y componente
-import { useNextService } from "@/hooks/useNextService";
-import NextServiceCard from "./NextServiceCard";
+const uploadQueue = new UploadQueue({ maxConcurrent: 2 });
 
-// Dentro del componente:
-const { service: nextService, hasChecklist, checklistStatus } = useNextService(profile?.phone);
+const syncAll = useCallback(async () => {
+  const queue = await getSyncQueue();
+  
+  // Agrupar por tipo y encolar
+  for (const item of queue) {
+    uploadQueue.add({
+      id: item.id,
+      priority: item.action === 'upload_photo' ? 1 : 2,
+      execute: () => syncItem(item),
+    });
+  }
+  
+  // La cola maneja el rate limiting automaticamente
+}, []);
+```
 
-const handleStartChecklist = (serviceId: string) => {
-  navigate(`/custodian/checklist/${serviceId}`);
+---
+
+## Componente 3: Backoff Exponencial con Jitter
+
+### Archivo: `src/lib/retryUtils.ts` (Nuevo)
+
+Utilidades para reintentos inteligentes.
+
+```typescript
+interface RetryConfig {
+  maxAttempts: number;      // Default: 5
+  baseDelayMs: number;      // Default: 1000
+  maxDelayMs: number;       // Default: 30000
+  jitterPercent: number;    // Default: 0.3 (30%)
+}
+
+function calculateBackoffDelay(
+  attempt: number, 
+  config: RetryConfig
+): number;
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  config?: Partial<RetryConfig>,
+  onRetry?: (attempt: number, delay: number, error: Error) => void
+): Promise<T>;
+```
+
+Comportamiento:
+- Intento 1: 1000ms +/- 300ms
+- Intento 2: 2000ms +/- 600ms
+- Intento 3: 4000ms +/- 1200ms
+- Intento 4: 8000ms +/- 2400ms
+- Intento 5: 16000ms (capped at 30000ms)
+
+El jitter previene el "thundering herd" cuando 100 dispositivos reintenten simultaneamente.
+
+### Integracion con Circuit Breaker
+
+Modificar `useOfflineSync.ts`:
+
+```typescript
+import { CircuitBreaker } from '@/services/circuitBreakerService';
+import { withRetry, calculateBackoffDelay } from '@/lib/retryUtils';
+
+const circuitBreaker = new CircuitBreaker({
+  maxConsecutiveFailures: 5,
+  maxFailureRate: 30,
+  cooldownPeriod: 120,
+});
+
+const syncItem = async (item: SyncQueueItem): Promise<boolean> => {
+  if (circuitBreaker.isCircuitOpen()) {
+    console.warn('[Sync] Circuit abierto, esperando cooldown');
+    return false;
+  }
+  
+  try {
+    await withRetry(
+      () => executeSync(item),
+      { maxAttempts: 3, baseDelayMs: 1000 },
+      (attempt, delay) => {
+        console.log(`[Sync] Reintento ${attempt}, esperando ${delay}ms`);
+      }
+    );
+    circuitBreaker.recordSuccess();
+    return true;
+  } catch (error) {
+    const errorType = error instanceof Error ? error.name : 'unknown';
+    circuitBreaker.recordFailure(errorType);
+    return false;
+  }
 };
-
-// En el JSX, agregar entre las alertas y los stats:
-{nextService && (
-  <section className="animate-fade-in">
-    <NextServiceCard 
-      service={nextService}
-      onStartChecklist={handleStartChecklist}
-      checklistCompleted={checklistStatus === 'completo'}
-    />
-  </section>
-)}
 ```
-
----
-
-## Logica de Negocio
-
-### Cuando Mostrar la Tarjeta
-
-| Condicion | Accion |
-|-----------|--------|
-| Servicio programado para hoy o manana | Mostrar tarjeta prominente |
-| Sin servicios proximos | Mostrar mensaje "Sin servicios pendientes" |
-| Checklist ya completado | Mostrar badge verde, boton dice "Ver Checklist" |
-| Checklist pendiente | Boton prominente "Iniciar Checklist" |
-
-### Validaciones Pre-Checklist
-
-El sistema ya valida en `ServiceChecklistPage.tsx`:
-1. Usuario autenticado
-2. Telefono del custodio disponible
-3. ID del servicio valido
-
-### Coordenadas para Validacion GPS
-
-Como `servicios_custodia` no tiene coordenadas:
-- El checklist obtendra la ubicacion actual del dispositivo al capturar fotos
-- La validacion de distancia comparara contra la primera foto (referencia)
-- El equipo de monitoreo vera las coordenadas en la auditoria
 
 ---
 
 ## Archivos a Crear
 
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/hooks/useNextService.ts` | Hook para obtener proximo servicio con estado de checklist |
+| Archivo | Descripcion | Lineas Est. |
+|---------|-------------|-------------|
+| `src/lib/imageUtils.ts` | Compresion de imagenes con Canvas | ~80 |
+| `src/lib/uploadQueue.ts` | Cola con rate limiting | ~120 |
+| `src/lib/retryUtils.ts` | Backoff exponencial + jitter | ~60 |
 
 ## Archivos a Modificar
 
 | Archivo | Cambios |
 |---------|---------|
-| `src/components/custodian/NextServiceCard.tsx` | Agregar boton de checklist y estado |
-| `src/components/custodian/MobileDashboardLayout.tsx` | Integrar NextServiceCard en el layout |
+| `src/hooks/useServiceChecklist.ts` | Integrar compresion en capturePhoto |
+| `src/hooks/useOfflineSync.ts` | Integrar cola, retry y circuit breaker |
+| `src/types/checklist.ts` | Agregar config de compresion |
 
 ---
 
-## Detalles de Implementacion
+## Metricas de Impacto Esperado
 
-### useNextService.ts
-
-```typescript
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-
-export function useNextService(custodianPhone: string | undefined) {
-  return useQuery({
-    queryKey: ['next-service', custodianPhone],
-    queryFn: async () => {
-      if (!custodianPhone) return { service: null, checklistStatus: null };
-      
-      // 1. Obtener proximo servicio (hoy o futuro, estado pendiente/programado)
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      
-      const { data: services } = await supabase
-        .from('servicios_custodia')
-        .select('*')
-        .or(`telefono.eq.${custodianPhone},telefono_operador.eq.${custodianPhone}`)
-        .gte('fecha_hora_cita', now.toISOString())
-        .in('estado', ['pendiente', 'programado', 'Pendiente', 'Programado'])
-        .order('fecha_hora_cita', { ascending: true })
-        .limit(1);
-      
-      const nextService = services?.[0] || null;
-      
-      if (!nextService) {
-        return { service: null, checklistStatus: null };
-      }
-      
-      // 2. Verificar si existe checklist para este servicio
-      const { data: checklist } = await supabase
-        .from('checklist_servicio')
-        .select('estado')
-        .eq('servicio_id', nextService.id_servicio)
-        .eq('custodio_telefono', custodianPhone)
-        .maybeSingle();
-      
-      return {
-        service: nextService,
-        checklistStatus: checklist?.estado || null
-      };
-    },
-    enabled: !!custodianPhone,
-    staleTime: 60000, // 1 minuto
-  });
-}
-```
-
-### NextServiceCard.tsx (Modificaciones)
-
-Agregar seccion de checklist al final de la tarjeta:
-
-```typescript
-{/* Seccion Checklist */}
-{onStartChecklist && (
-  <div className="mt-4 pt-4 border-t border-primary/20">
-    {checklistCompleted ? (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-green-600">
-          <CheckCircle className="w-5 h-5" />
-          <span className="font-medium">Checklist completado</span>
-        </div>
-        <button 
-          onClick={() => onStartChecklist(service.id_servicio)}
-          className="text-primary text-sm font-medium"
-        >
-          Ver detalles
-        </button>
-      </div>
-    ) : (
-      <button 
-        onClick={() => onStartChecklist(service.id_servicio)}
-        className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-semibold text-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-      >
-        <ClipboardCheck className="w-5 h-5" />
-        Iniciar Checklist Pre-Servicio
-      </button>
-    )}
-  </div>
-)}
-```
+| Metrica | Antes | Despues | Mejora |
+|---------|-------|---------|--------|
+| Tamano foto promedio | ~2MB | ~400KB | 80% |
+| Trafico total (100 users x 4 fotos) | 800MB | 160MB | 80% |
+| Uploads concurrentes al servidor | Ilimitado | Max 200 | Controlado |
+| Tasa de falla por timeout | Alta en picos | Minima | ~90% |
+| Tiempo de recovery post-offline | Instantaneo (rafaga) | Gradual (2min) | Estable |
 
 ---
 
 ## Orden de Implementacion
 
-1. **Crear hook** `useNextService.ts`
-2. **Modificar** `NextServiceCard.tsx` - agregar props y UI de checklist
-3. **Modificar** `MobileDashboardLayout.tsx` - integrar la tarjeta
-4. **Probar** flujo completo en movil
+1. **Crear** `src/lib/imageUtils.ts` - Compresion de imagenes
+2. **Crear** `src/lib/retryUtils.ts` - Backoff + jitter
+3. **Crear** `src/lib/uploadQueue.ts` - Cola con rate limiting
+4. **Modificar** `src/hooks/useServiceChecklist.ts` - Integrar compresion
+5. **Modificar** `src/hooks/useOfflineSync.ts` - Integrar cola y retry
+6. **Probar** flujo completo con conexion intermitente
 
 ---
 
-## Resultado Esperado
+## Consideraciones Adicionales
 
-El custodio vera:
-1. Su proximo servicio de forma prominente en el dashboard
-2. Boton claro para iniciar el checklist pre-servicio
-3. Indicador visual cuando el checklist ya este completado
-4. Transicion fluida al wizard de 4 pasos al presionar el boton
+### Compatibilidad Movil
+- Canvas API soportado en todos los navegadores moviles modernos
+- WebWorker opcional para compresion sin bloquear UI (fase futura)
 
+### Configuracion Adaptativa
+- Detectar calidad de conexion (NetworkInformation API)
+- Ajustar concurrencia: 2G=1, 3G=2, 4G+=3
+
+### Monitoreo
+- Logs estructurados para metricas de compresion
+- Dashboard de circuit breaker status (fase futura)
