@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw } from "lucide-react";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
@@ -9,14 +10,34 @@ import TwitterFeed from "@/components/monitoring/TwitterFeed";
 import ServiceDetailModal from "@/components/monitoring/ServiceDetailModal";
 import { useServiciosTurno, ServicioTurno, EstadoVisual } from "@/hooks/useServiciosTurno";
 import { useServiciosTurnoRealtime } from "@/hooks/useServiciosTurnoRealtime";
+import { useChecklistMonitoreo } from "@/hooks/useChecklistMonitoreo";
+import {
+  ChecklistDashboard,
+  ChecklistServicesTable,
+  ChecklistDetailModal,
+  ChecklistAlertPanel,
+} from "@/components/monitoring/checklist";
+import type { ServicioConChecklist, FiltroChecklist } from "@/types/checklist";
 
 const MonitoringPage = () => {
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
+  const [activeTab, setActiveTab] = useState("posicionamiento");
+  
+  // Checklist state
+  const [filtroChecklist, setFiltroChecklist] = useState<FiltroChecklist>("todos");
+  const [servicioChecklistSeleccionado, setServicioChecklistSeleccionado] = 
+    useState<ServicioConChecklist | null>(null);
+  const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
+  const { 
+    data: checklistData, 
+    isLoading: isLoadingChecklists,
+    refetch: refetchChecklists 
+  } = useChecklistMonitoreo(timeWindow);
   
   const servicios = data?.servicios || [];
   const resumen = data?.resumen || {
@@ -25,6 +46,15 @@ const MonitoringPage = () => {
     asignados: 0,
     sinAsignar: 0,
     total: 0
+  };
+  
+  const serviciosChecklist = checklistData?.servicios || [];
+  const resumenChecklists = checklistData?.resumen || {
+    completos: 0,
+    pendientes: 0,
+    sinChecklist: 0,
+    conAlertas: 0,
+    total: 0,
   };
 
   // Hook de alertas en tiempo real
@@ -37,6 +67,12 @@ const MonitoringPage = () => {
 
   const handleRefresh = () => {
     refetch();
+    refetchChecklists();
+  };
+
+  const handleVerChecklistDetalle = (servicio: ServicioConChecklist) => {
+    setServicioChecklistSeleccionado(servicio);
+    setIsChecklistDetailOpen(true);
   };
 
   return (
@@ -55,59 +91,117 @@ const MonitoringPage = () => {
           onClick={handleRefresh} 
           variant="outline" 
           className="gap-2" 
-          disabled={isLoading}
+          disabled={isLoading || isLoadingChecklists}
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isLoading || isLoadingChecklists ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <ShiftSummaryCards 
-        resumen={resumen}
-        isLoading={isLoading}
-        lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : undefined}
-        onFilterChange={setFilterEstado}
-        activeFilter={filterEstado}
-        timeWindow={timeWindow}
-        onTimeWindowChange={setTimeWindow}
-      />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="posicionamiento">Posicionamiento</TabsTrigger>
+          <TabsTrigger value="checklists" className="relative">
+            Checklists
+            {resumenChecklists.conAlertas > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                {resumenChecklists.conAlertas}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map column - takes 2/3 on large screens */}
-        <div className="lg:col-span-2 space-y-4">
-          <ShiftServicesMap 
-            servicios={servicios}
-            className="h-[450px] lg:h-[500px]"
-            onServiceClick={handleServiceClick}
-            selectedServiceId={selectedService}
-            filterEstado={filterEstado}
-          />
-          {/* Weather Widget - Debajo del mapa para mayor visibilidad */}
-          <WeatherWidget />
-        </div>
-
-        {/* Side panel - services list */}
-        <div className="lg:col-span-1">
-          <ShiftServicesTable 
-            servicios={servicios}
-            onServiceClick={handleServiceClick}
-            selectedServiceId={selectedService}
-            filterEstado={filterEstado}
+        {/* Tab: Posicionamiento */}
+        <TabsContent value="posicionamiento" className="space-y-6 mt-0">
+          {/* Summary Cards */}
+          <ShiftSummaryCards 
+            resumen={resumen}
+            isLoading={isLoading}
+            lastUpdated={dataUpdatedAt ? new Date(dataUpdatedAt) : undefined}
             onFilterChange={setFilterEstado}
+            activeFilter={filterEstado}
+            timeWindow={timeWindow}
+            onTimeWindowChange={setTimeWindow}
           />
-        </div>
-      </div>
 
-      {/* Alertas de Ruta - Full width */}
-      <TwitterFeed />
+          {/* Main content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Map column - takes 2/3 on large screens */}
+            <div className="lg:col-span-2 space-y-4">
+              <ShiftServicesMap 
+                servicios={servicios}
+                className="h-[450px] lg:h-[500px]"
+                onServiceClick={handleServiceClick}
+                selectedServiceId={selectedService}
+                filterEstado={filterEstado}
+              />
+              {/* Weather Widget - Debajo del mapa para mayor visibilidad */}
+              <WeatherWidget />
+            </div>
+
+            {/* Side panel - services list */}
+            <div className="lg:col-span-1">
+              <ShiftServicesTable 
+                servicios={servicios}
+                onServiceClick={handleServiceClick}
+                selectedServiceId={selectedService}
+                filterEstado={filterEstado}
+                onFilterChange={setFilterEstado}
+              />
+            </div>
+          </div>
+
+          {/* Alertas de Ruta - Full width */}
+          <TwitterFeed />
+        </TabsContent>
+
+        {/* Tab: Checklists */}
+        <TabsContent value="checklists" className="space-y-6 mt-0">
+          {/* Dashboard de métricas */}
+          <ChecklistDashboard
+            resumen={resumenChecklists}
+            isLoading={isLoadingChecklists}
+            filtroActivo={filtroChecklist}
+            onFiltroChange={setFiltroChecklist}
+            timeWindow={timeWindow}
+          />
+
+          {/* Main content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tabla de servicios - 2/3 */}
+            <div className="lg:col-span-2">
+              <ChecklistServicesTable
+                servicios={serviciosChecklist}
+                isLoading={isLoadingChecklists}
+                filtro={filtroChecklist}
+                onVerDetalle={handleVerChecklistDetalle}
+              />
+            </div>
+
+            {/* Panel de alertas - 1/3 */}
+            <div className="lg:col-span-1">
+              <ChecklistAlertPanel
+                servicios={serviciosChecklist}
+                onVerDetalle={handleVerChecklistDetalle}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Service Detail Modal */}
       <ServiceDetailModal
         serviceId={selectedService}
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+      />
+
+      {/* Checklist Detail Modal */}
+      <ChecklistDetailModal
+        servicio={servicioChecklistSeleccionado}
+        open={isChecklistDetailOpen}
+        onOpenChange={setIsChecklistDetailOpen}
       />
     </div>
   );

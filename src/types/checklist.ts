@@ -189,3 +189,58 @@
    TIMEOUT_GPS_MS: 10000,
    MAX_AGE_GPS_MS: 60000,
  } as const;
+
+// ============ TIPOS PARA MONITOREO ============
+
+export type EstadoChecklistMonitoreo = 'completo' | 'pendiente' | 'incompleto' | 'sin_checklist';
+
+export type TipoAlertaChecklist = 
+  | 'sin_checklist_urgente'
+  | 'gps_fuera_rango'
+  | 'gps_sin_datos'
+  | 'item_critico_fallido'
+  | 'fotos_incompletas';
+
+export interface AlertaChecklist {
+  tipo: TipoAlertaChecklist;
+  descripcion: string;
+  detalles?: string[];
+  severidad: 'critica' | 'alta' | 'media';
+}
+
+export interface ServicioConChecklist {
+  servicioId: string;
+  idServicio: string;
+  nombreCliente: string;
+  custodioAsignado: string;
+  custodioTelefono: string | null;
+  fechaHoraCita: string;
+  estadoPlaneacion: string;
+  origen: string | null;
+  destino: string | null;
+  // Checklist data
+  checklistId: string | null;
+  checklistEstado: EstadoChecklistMonitoreo;
+  fechaChecklist: string | null;
+  fotosValidadas: FotoValidada[];
+  itemsInspeccion: ItemsInspeccion | null;
+  observaciones: string | null;
+  firmaBase64: string | null;
+  // Computed
+  fotosCount: number;
+  alertasGps: number;
+  itemsFallidos: string[];
+  alertas: AlertaChecklist[];
+  tieneAlerta: boolean;
+  minutosParaCita: number;
+}
+
+export interface ResumenChecklists {
+  completos: number;
+  pendientes: number;
+  sinChecklist: number;
+  conAlertas: number;
+  total: number;
+}
+
+export type FiltroChecklist = 'todos' | 'completos' | 'pendientes' | 'sin_checklist' | 'alertas';
