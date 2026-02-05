@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Building2, CreditCard, User } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store } from 'lucide-react';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
@@ -26,6 +27,8 @@ import {
   USOS_CFDI
 } from '../../hooks/useClientesFiscales';
 import { toast } from 'sonner';
+import { useUserRole } from '@/hooks/useUserRole';
+import { NOMBRE_COMERCIAL_EDIT_ROLES } from '@/constants/accessControl';
 
 interface ClienteFormModalProps {
   open: boolean;
@@ -35,8 +38,17 @@ interface ClienteFormModalProps {
 
 export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormModalProps) {
   const updateMutation = useUpdateClienteFiscal();
+  const { hasAnyRole } = useUserRole();
+  
+  // Check if user can edit commercial name
+  const canEditNombreComercial = hasAnyRole([...NOMBRE_COMERCIAL_EDIT_ROLES]);
+
+  // Track original name to detect changes
+  const [originalNombre, setOriginalNombre] = useState<string>('');
+  const [nombreModificado, setNombreModificado] = useState(false);
   
   const [formData, setFormData] = useState<ClienteFiscalUpdate>({
+    nombre: '',
     razon_social: '',
     rfc: '',
     regimen_fiscal: '',
@@ -56,7 +68,10 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
 
   useEffect(() => {
     if (cliente) {
+      setOriginalNombre(cliente.nombre);
+      setNombreModificado(false);
       setFormData({
+        nombre: cliente.nombre,
         razon_social: cliente.razon_social || '',
         rfc: cliente.rfc || '',
         regimen_fiscal: cliente.regimen_fiscal || '',
@@ -76,16 +91,40 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
     }
   }, [cliente]);
 
+  // Detect if nombre was modified
+  useEffect(() => {
+    if (formData.nombre && originalNombre) {
+      setNombreModificado(formData.nombre !== originalNombre);
+    }
+  }, [formData.nombre, originalNombre]);
+
+  const handleNombreChange = (value: string) => {
+    setFormData({ ...formData, nombre: value });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente) return;
 
+    // Prepare data - exclude nombre if not modified to avoid unnecessary updates
+    const dataToSubmit: ClienteFiscalUpdate = { ...formData };
+    if (!nombreModificado) {
+      delete dataToSubmit.nombre;
+    }
+
     try {
       await updateMutation.mutateAsync({
         id: cliente.id,
-        data: formData,
+        data: dataToSubmit,
       });
-      toast.success('Cliente actualizado correctamente');
+      
+      if (nombreModificado) {
+        toast.success('Cliente actualizado. Nota: El nombre comercial cambió pero no se propagó a rutas/servicios existentes.', {
+          duration: 6000,
+        });
+      } else {
+        toast.success('Cliente actualizado correctamente');
+      }
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating cliente:', error);
@@ -102,7 +141,13 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="fiscal" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
+              {canEditNombreComercial && (
+                <TabsTrigger value="comercialName" className="gap-1.5">
+                  <Store className="h-3.5 w-3.5" />
+                  Nombre
+                </TabsTrigger>
+              )}
               <TabsTrigger value="fiscal" className="gap-1.5">
                 <Building2 className="h-3.5 w-3.5" />
                 Datos Fiscales
@@ -116,6 +161,51 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
                 Contacto
               </TabsTrigger>
             </TabsList>
+
+            {/* Nombre Comercial - Solo para roles autorizados */}
+            {canEditNombreComercial && (
+              <TabsContent value="comercialName" className="space-y-4 mt-4">
+                <Alert className="border-amber-500/50 bg-amber-500/10 [&>svg]:text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle className="text-amber-700">Precaución: Cambio de Alto Impacto</AlertTitle>
+                  <AlertDescription className="text-xs mt-1 text-amber-600">
+                    Modificar el nombre comercial <strong>NO actualizará automáticamente</strong> las rutas tarifarias ni el historial de servicios. 
+                    Los registros existentes seguirán usando el nombre anterior "{originalNombre}".
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    Nombre Comercial
+                    {nombreModificado && (
+                      <span className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                        Modificado
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    placeholder="Nombre comercial del cliente"
+                    value={formData.nombre || ''}
+                    onChange={(e) => handleNombreChange(e.target.value)}
+                    className={nombreModificado ? 'border-amber-500 ring-1 ring-amber-200' : ''}
+                  />
+                  {nombreModificado && (
+                    <p className="text-xs text-muted-foreground">
+                      Valor original: <span className="font-mono bg-muted px-1 rounded">{originalNombre}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
+                  <p className="font-medium">¿Cuándo usar este campo?</p>
+                  <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+                    <li>Corrección de errores ortográficos</li>
+                    <li>Actualización por cambio de marca comercial</li>
+                    <li>Estandarización de nombres para nuevos servicios</li>
+                  </ul>
+                </div>
+              </TabsContent>
+            )}
 
             {/* Datos Fiscales */}
             <TabsContent value="fiscal" className="space-y-4 mt-4">
@@ -310,9 +400,17 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
+            <Button 
+              type="submit" 
+              disabled={updateMutation.isPending}
+              variant={nombreModificado ? 'destructive' : 'default'}
+            >
               <Save className="h-4 w-4 mr-1.5" />
-              {updateMutation.isPending ? 'Guardando...' : 'Guardar Cambios'}
+              {updateMutation.isPending 
+                ? 'Guardando...' 
+                : nombreModificado 
+                  ? 'Guardar (nombre modificado)' 
+                  : 'Guardar Cambios'}
             </Button>
           </div>
         </form>

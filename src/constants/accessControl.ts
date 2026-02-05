@@ -137,6 +137,16 @@ export const FACTURACION_ALLOWED_ROLES = [
   ...FACTURACION_LIMITED_ROLES
 ] as const;
 
+/**
+ * Roles autorizados para editar el nombre comercial de clientes
+ * IMPORTANTE: Este cambio puede afectar vinculaciones con rutas/servicios históricos
+ */
+export const NOMBRE_COMERCIAL_EDIT_ROLES = [
+  'admin',
+  'owner',
+  'coordinador_operaciones'
+] as const;
+
 // Type exports for type-safe role checking
 export type SIERCPRole = typeof SIERCP_ALLOWED_ROLES[number];
 export type AdminRole = typeof ADMIN_ROLES[number];
@@ -147,3 +157,4 @@ export type ReportesLimitedAccessRole = typeof REPORTES_LIMITED_ACCESS_ROLES[num
 export type DataCorrectionRole = typeof DATA_CORRECTION_ROLES[number];
 export type FacturacionRole = typeof FACTURACION_ROLES[number];
 export type FacturacionFullAccessRole = typeof FACTURACION_FULL_ACCESS_ROLES[number];
+export type NombreComercialEditRole = typeof NOMBRE_COMERCIAL_EDIT_ROLES[number];
