@@ -1,162 +1,183 @@
 
 
-# Plan: Implementar Mejoras UI del Análisis Fishbone
+# Análisis de Causa Raíz: Gráficos Cortados y Espacio en Blanco
 
-## Resumen de Cambios
+## Diagrama Fishbone (Ishikawa)
 
-Aplicar las 3 mejoras críticas identificadas en el análisis de causa raíz para maximizar la eficiencia visual del dashboard de facturación.
+```text
+                              GRÁFICOS CORTADOS + ESPACIO EN BLANCO
+                                            │
+    ┌───────────────────┬───────────────────┼───────────────────┬───────────────────┐
+    │                   │                   │                   │                   │
+CONTENEDOR          CONFLICTO DE        CADENA DE           OVERFLOW
+   PADRE            VARIABLES CSS       CÁLCULOS            OCULTO
+    │                   │                   │                   │
+    │                   │                   │                   │
+ Hub usa            Charts usan        Offset de 260px    TabsContent tiene
+ 100vh              var(--vh-full)     es incorrecto      overflow-auto
+    │                   │                   │                   │
+    ▼                   ▼                   ▼                   ▼
+ CAUSA RAÍZ #1      CAUSA RAÍZ #2      CAUSA RAÍZ #3      EFECTO SECUNDARIO
+```
+
+## Causa Raíz #1: Inconsistencia en el Contenedor Padre (CRÍTICA)
+
+**Archivo**: `FacturacionHub.tsx` línea 60
+
+```tsx
+// ❌ ACTUAL - Usa 100vh directo
+<div className="flex flex-col h-[calc(100vh-3.5rem)]">
+
+// ✓ CORRECTO - Debe usar la variable compensada
+<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
+```
+
+**Por qué es crítico**:
+- El sistema usa `zoom: 0.7` (línea 152-154 de index.css)
+- `100vh` representa solo el 70% del viewport real
+- `var(--vh-full)` = `100vh × 1.4286` = viewport real compensado
+- **Resultado**: El Hub tiene ~700px de altura, pero los charts intentan ocupar ~800px
+
+## Causa Raíz #2: Conflicto de Cálculos
+
+**Archivo**: `FacturacionDashboard.tsx` líneas 81 y 143
+
+```tsx
+// El dashboard dice:
+h-[calc(var(--vh-full)-260px)]  // = ~840px en pantalla 1080p
+
+// Pero el Hub (padre) dice:
+h-[calc(100vh-3.5rem)]          // = ~700px con zoom 0.7
+```
+
+Los hijos quieren ser **más grandes** que el contenedor padre. CSS trunca el excedente.
+
+## Causa Raíz #3: Offset Incorrecto
+
+El offset de 260px no refleja la altura real de los elementos superiores:
+
+| Elemento | Altura Real |
+|----------|-------------|
+| Hub Header (h-14) | 56px |
+| TabsList container (pt-2) | 8px |
+| TabsList (h-9) | 36px |
+| TabsContent padding (py-3) | 24px |
+| HeroBar (grid h-[72px] + gap) | ~80px |
+| Dashboard spacing (space-y-3) | 12px |
+| **Total** | **~216px** |
+
+Pero además, el Hub resta `3.5rem` (~56px) para el TopBar global, así que el cálculo correcto es más complejo.
+
+## Solución Propuesta
+
+### Paso 1: Corregir FacturacionHub.tsx (línea 60)
+
+```tsx
+// ANTES
+<div className="flex flex-col h-[calc(100vh-3.5rem)]">
+
+// DESPUÉS - Usar variable CSS compensada
+<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
+```
+
+### Paso 2: Simplificar con Variables CSS Predefinidas
+
+El sistema ya tiene variables optimizadas (index.css líneas 20-23):
+
+```css
+--content-height-full: calc(var(--vh-full) - 56px);      /* TopBar */
+--content-height-with-tabs: calc(var(--vh-full) - 120px); /* TopBar + Tabs */
+--content-height-with-filters: calc(var(--vh-full) - 180px); /* TopBar + Tabs + Filtros */
+```
+
+### Paso 3: Ajustar Dashboard Cards
+
+En `FacturacionDashboard.tsx`, usar un offset que considere solo los elementos internos del dashboard:
+
+```tsx
+// ANTES - Offset hardcodeado
+h-[calc(var(--vh-full)-260px)]
+
+// DESPUÉS - Offset ajustado considerando:
+// - Contenido ya está dentro de TabsContent con padding
+// - HeroBar: ~80px
+// - Gaps: ~12px
+// Total interno: ~92px + un margen de seguridad
+h-[calc(var(--content-height-with-tabs)-100px)]
+```
+
+O usando cálculo directo más preciso:
+```tsx
+h-[calc(var(--vh-full)-220px)]
+```
 
 ## Cambios Específicos
 
-### 1. Pie Chart - Radios Dinámicos (Líneas 136-148)
+### Archivo 1: `src/pages/Facturacion/FacturacionHub.tsx`
 
-**Problema**: Radios fijos (`innerRadius={45} outerRadius={75}`) no escalan con el contenedor flex, dejando ~70% del espacio como whitespace.
-
-**Solución**: Usar porcentajes para que el gráfico se adapte al espacio disponible.
-
+**Línea 60**: Cambiar altura del contenedor principal
 ```tsx
 // ANTES
-<Pie
-  data={pieData}
-  cx="50%"
-  cy="50%"
-  innerRadius={45}
-  outerRadius={75}
-  paddingAngle={2}
-  dataKey="value"
->
+<div className="flex flex-col h-[calc(100vh-3.5rem)]">
 
 // DESPUÉS
-<Pie
-  data={pieData}
-  cx="50%"
-  cy="50%"
-  innerRadius="40%"
-  outerRadius="70%"
-  paddingAngle={1}
-  dataKey="value"
->
+<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
 ```
 
-**Impacto**: El pie chart ahora ocupará ~70% del contenedor dinámicamente, escalando con la altura de la card.
+### Archivo 2: `src/pages/Facturacion/components/FacturacionDashboard.tsx`
 
----
-
-### 2. Bar Chart - barSize y LabelList (Líneas 116-120)
-
-**Problema**: Sin `barSize` definido, las barras se expanden excesivamente. Sin labels, los usuarios deben hacer hover para ver valores.
-
-**Solución**: 
-- Agregar `barSize={22}` para barras compactas y consistentes
-- Agregar `LabelList` para mostrar valores directamente
-
+**Línea 81**: Card del Bar Chart
 ```tsx
 // ANTES
-<Bar 
-  dataKey="ingresos" 
-  fill="hsl(var(--primary))" 
-  radius={[0, 4, 4, 0]}
-/>
+<Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
 
-// DESPUÉS
-<Bar 
-  dataKey="ingresos" 
-  fill="hsl(var(--primary))" 
-  radius={[0, 4, 4, 0]}
-  barSize={22}
->
-  <LabelList 
-    dataKey="ingresos" 
-    position="right" 
-    formatter={(value: number) => `$${(value/1000).toFixed(0)}k`}
-    className="fill-muted-foreground text-[9px]"
-  />
-</Bar>
+// DESPUÉS - Usar variable predefinida + offset interno
+<Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
 ```
 
-**Impacto**: 
-- Barras de altura uniforme (22px)
-- Valores visibles sin interacción
-- Mejor aprovechamiento del espacio vertical
-
----
-
-### 3. CartesianGrid - Menor Opacidad (Línea 92)
-
-**Problema**: El grid con `stroke-border/50` es demasiado prominente y compite visualmente con los datos.
-
-**Solución**: Reducir opacidad y usar stroke horizontal únicamente.
-
+**Línea 143**: Card del Pie Chart
 ```tsx
 // ANTES
-<CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+<Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
 
 // DESPUÉS
-<CartesianGrid 
-  strokeDasharray="3 3" 
-  horizontal={true}
-  vertical={false}
-  stroke="hsl(var(--border))"
-  opacity={0.3}
-/>
+<Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
 ```
 
-**Impacto**: Grid sutil que guía la lectura sin distraer de los datos.
+## Cálculo de la Nueva Altura
 
----
+```text
+Viewport Real (1080p):                    1080px
+var(--vh-full):                           1080px × 1.4286 = 1542px (compensado para zoom)
+var(--content-height-with-tabs):          1542px - 120px = 1422px
+Menos HeroBar + spacing interno:          1422px - 100px = 1322px
 
-## Cambio de Import
-
-Agregar `LabelList` al import de recharts:
-
-```tsx
-// Línea 6-17
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LabelList,  // NUEVO
-} from 'recharts';
+Altura disponible para charts:            1322px
+Bar Chart (10 barras × 22px + margins):   ~300px → ✓ Cabe perfectamente
+Pie Chart + Legend + Insights:            ~400px → ✓ Cabe perfectamente
 ```
 
----
+## Resultado Esperado
 
-## Archivo a Modificar
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Bar Chart: barras visibles | 6/10 | 10/10 |
+| Espacio blanco inferior | ~200px | 0px |
+| Consistencia de variables | ❌ Mezcladas | ✓ Unificadas |
+| Pie Chart | Tamaño correcto | Tamaño correcto |
 
-| Archivo | Cambios |
-|---------|---------|
-| `src/pages/Facturacion/components/FacturacionDashboard.tsx` | Import + Pie radios + Bar barSize/LabelList + Grid opacity |
+## Archivos a Modificar
 
----
+| Archivo | Línea | Cambio |
+|---------|-------|--------|
+| `FacturacionHub.tsx` | 60 | `100vh` → `var(--vh-full)` |
+| `FacturacionDashboard.tsx` | 81 | `var(--vh-full)-260px` → `var(--content-height-with-tabs)-100px` |
+| `FacturacionDashboard.tsx` | 143 | `var(--vh-full)-260px` → `var(--content-height-with-tabs)-100px` |
 
-## Comparación Visual Esperada
+## Beneficios
 
-| Elemento | Antes | Después |
-|----------|-------|---------|
-| **Pie Chart** | ~150px fijo, 30% del contenedor | Escala a ~70% del contenedor |
-| **Bar thickness** | Variable (~40px) | Fijo 22px, más barras visibles |
-| **Data labels** | Solo en hover | Visibles directamente |
-| **Grid** | Prominente, distrae | Sutil, guía lectura |
-
----
-
-## Detalles Técnicos
-
-### Por qué porcentajes en Pie vs píxeles
-
-Los porcentajes (`innerRadius="40%"`) se calculan respecto al menor entre width y height del `ResponsiveContainer`. Con un contenedor `flex-1`, esto significa:
-- En pantallas grandes: pie más grande
-- En pantallas pequeñas: pie proporcional
-- Sin desperdicio de espacio
-
-### LabelList positioning
-
-`position="right"` coloca los labels fuera de la barra, lo cual es ideal para `layout="vertical"`. El margen derecho de 20px en el BarChart ya contempla este espacio.
+1. **Consistencia**: Todo el módulo usa el mismo sistema de variables CSS
+2. **Mantenibilidad**: Variables predefinidas facilitan ajustes futuros
+3. **Aprovechamiento total del viewport**: Sin espacio desperdiciado
+4. **Todos los clientes visibles**: Las 10 barras del chart se mostrarán correctamente
 
