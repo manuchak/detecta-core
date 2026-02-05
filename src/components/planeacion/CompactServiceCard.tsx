@@ -276,47 +276,42 @@ export function CompactServiceCard({
         </div>
       </div>
       
-      {/* Row 2: Ruta + Custodio + Vehículo */}
+      {/* Row 2: Ruta + Custodio */}
       <div className="flex items-center gap-2 mt-1.5 pl-2 text-xs text-muted-foreground">
-        {/* Ruta */}
-        <div className="flex items-center gap-1 min-w-0">
+        {/* Ruta - Ancho reducido */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <MapPin className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate max-w-[140px]">{service.origen}</span>
+          <span className="truncate max-w-[120px]">{service.origen}</span>
           <span className="flex-shrink-0">→</span>
-          <span className="truncate max-w-[140px] font-medium text-foreground">{service.destino}</span>
+          <span className="truncate max-w-[120px] font-medium text-foreground">{service.destino}</span>
         </div>
         
         <span className="text-muted-foreground/50 flex-shrink-0">•</span>
         
-        {/* Custodio */}
+        {/* Custodio - SIN max-width, usa espacio disponible */}
         {service.custodio_nombre ? (
-          <div className="flex items-center gap-1 min-w-0">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
             <User className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium text-foreground truncate max-w-[200px]">{service.custodio_nombre}</span>
+            <span className="font-medium text-foreground truncate">{service.custodio_nombre}</span>
             {isHybridCustodian() && (
               <Shield className="w-3 h-3 text-amber-500 flex-shrink-0" />
             )}
           </div>
         ) : (
-          <span className="text-red-500 font-medium">Sin custodio</span>
-        )}
-        
-        {/* Vehículo inline */}
-        {shouldShowVehicle() && vehicleData && (
-          <>
-            <span className="text-muted-foreground/50 flex-shrink-0">•</span>
-            <div className="flex items-center gap-1">
-              <Car className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate max-w-[100px]">
-                {vehicleData.marca} {vehicleData.modelo}
-              </span>
-              {vehicleData.placa !== 'Sin placa' && (
-                <code className="font-mono text-[10px]">{vehicleData.placa}</code>
-              )}
-            </div>
-          </>
+          <span className="text-red-500 font-medium flex-shrink-0">Sin custodio</span>
         )}
       </div>
+      
+      {/* Row 3: Vehículo en fila separada */}
+      {shouldShowVehicle() && vehicleData && (
+        <div className="flex items-center gap-1 mt-1 pl-2 text-xs text-muted-foreground">
+          <Car className="w-3 h-3 flex-shrink-0" />
+          <span>{vehicleData.marca} {vehicleData.modelo}</span>
+          {vehicleData.placa !== 'Sin placa' && (
+            <code className="font-mono text-[10px] ml-1">{vehicleData.placa}</code>
+          )}
+        </div>
+      )}
       
       {/* Row 3 (conditional): Armado */}
       {showArmedSection && (
