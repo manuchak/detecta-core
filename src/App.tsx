@@ -100,6 +100,7 @@ const LMSAdminCursoEditar = lazy(() => import('@/pages/LMS/LMSAdminCursoEditar')
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
+ const ServiceChecklistPage = lazy(() => import('@/pages/custodian/ServiceChecklistPage'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -809,6 +810,16 @@ function App() {
                   <Route path="tickets" element={<Navigate to="/custodian/support" replace />} />
                 </Route>
                 
+                 {/* Custodian Checklist - Standalone page (no portal wrapper) */}
+                 <Route
+                   path="/custodian/checklist/:serviceId"
+                   element={
+                     <ProtectedRoute>
+                       <ServiceChecklistPage />
+                     </ProtectedRoute>
+                   }
+                 />
+ 
                 {/* Planeación Custodias */}
                 <Route
                   path="/planeacion"
