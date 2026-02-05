@@ -75,38 +75,41 @@ export const CustodianSignup = () => {
     setLoading(true);
     
     try {
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-      const redirectUrl = `${currentOrigin}/auth/email-confirmation?invitation=${token}`;
-      
-      // Create the user account
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: name,
-            invitation_token: token,
-            phone: prefillData?.telefono || '', // Bug #2: Pasar phone en metadata
-          },
-          emailRedirectTo: redirectUrl
-        },
+      // Call edge function to create account via Admin API + send email via Resend
+      // This bypasses Supabase's native email rate limits
+      const { data, error } = await supabase.functions.invoke('create-custodian-account', {
+        body: {
+          email,
+          password,
+          nombre: name,
+          invitationToken: token,
+          telefono: prefillData?.telefono || '',
+        }
       });
 
       if (error) {
-        let errorMessage = 'Error al crear la cuenta';
-        
-        if (error.message.includes('User already registered')) {
-          errorMessage = 'Este email ya está registrado. Intenta iniciar sesión.';
-        } else if (error.message.includes('Password should be at least')) {
-          errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
-        }
-        
+        console.error('Edge function error:', error);
         toast({
           title: 'Error',
-          description: errorMessage,
+          description: 'Error de conexión. Intenta de nuevo.',
           variant: 'destructive',
         });
         return;
+      }
+
+      // Handle response from edge function
+      if (data?.error) {
+        toast({
+          title: 'Error',
+          description: data.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Show warning if email couldn't be sent but account was created
+      if (data?.warning) {
+        console.warn('Account created with warning:', data.warning);
       }
 
       // If user was auto-confirmed (email confirmation disabled), assign role immediately
