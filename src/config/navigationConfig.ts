@@ -190,7 +190,7 @@ export const navigationModules: NavigationModule[] = [
         id: 'leads_invitaciones',
         label: 'Invitaciones',
         path: '/admin/custodian-invitations',
-        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply'],
+        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones'],
         icon: UserPlus
       }
     ]
