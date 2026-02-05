@@ -1,106 +1,97 @@
 
-# Plan: Mejorar Visualización de Tarjetas de Servicio
+# Plan: Corregir Error al Eliminar Rutas
 
-## Solicitud de Daniela
+## Causa del Bug
 
-1. **Mostrar la referencia de factura** (`id_interno_cliente`) en la información del servicio
-2. **Mostrar el nombre completo del custodio** sin truncar
+El código en `DeleteRouteDialog.tsx` intenta actualizar una columna `notas` que **no existe** en la tabla `matriz_precios_rutas`:
 
----
-
-## Análisis Técnico
-
-### Estado Actual
-
-**CompactServiceCard.tsx (Líneas 206-209):**
-```tsx
-{/* ID Servicio */}
-<code className="text-xs text-muted-foreground font-mono flex-shrink-0">
-  {service.id_servicio}
-</code>
+```typescript
+// Línea 59-64
+const { error } = await supabase
+  .from('matriz_precios_rutas')
+  .update({ 
+    activo: false,
+    notas: `[ELIMINADA ${new Date().toLocaleDateString('es-MX')}] ${reason}`  // ❌ ERROR
+  })
+  .in('id', routes.map(r => r.id));
 ```
-- Solo muestra el UUID del servicio
-- No muestra la referencia de factura (`id_interno_cliente`)
 
-**Nombre del Custodio (Línea 290):**
-```tsx
-<span className="font-medium text-foreground truncate max-w-[120px]">
-  {service.custodio_nombre}
-</span>
-```
-- Truncado a 120px → nombres largos como "SERGIO MONTANO HERNANDEZ" se cortan
-
-### Datos Disponibles
-
-La interfaz `ScheduledService` **ya incluye** `id_interno_cliente` (línea 39 del hook), por lo que solo necesitamos agregarlo a la visualización.
+PostgreSQL rechaza el UPDATE porque la columna no existe.
 
 ---
 
 ## Solución Propuesta
 
-### Archivos a Modificar
+Agregar la columna `notas` a la tabla `matriz_precios_rutas` para mantener la trazabilidad de eliminaciones.
+
+### Opción A: Migración SQL (Recomendada)
+
+Crear columna `notas` tipo `TEXT` nullable:
+
+```sql
+ALTER TABLE matriz_precios_rutas 
+ADD COLUMN notas TEXT;
+
+COMMENT ON COLUMN matriz_precios_rutas.notas IS 'Notas de auditoría (eliminaciones, observaciones)';
+```
+
+### Opción B: Remover campo del código
+
+Si no se requiere guardar el motivo, simplemente remover `notas` del UPDATE:
+
+```typescript
+.update({ 
+  activo: false,
+  updated_at: new Date().toISOString()
+})
+```
+
+**Sin embargo**, esta opción pierde la trazabilidad del motivo de eliminación.
+
+---
+
+## Implementación Recomendada
+
+| Paso | Acción |
+|------|--------|
+| 1 | Crear migración SQL para agregar columna `notas` |
+| 2 | El código existente funcionará sin cambios adicionales |
+
+### Migración SQL
+
+```sql
+-- Agregar columna notas para trazabilidad de eliminaciones
+ALTER TABLE public.matriz_precios_rutas 
+ADD COLUMN IF NOT EXISTS notas TEXT;
+
+-- Comentario descriptivo
+COMMENT ON COLUMN public.matriz_precios_rutas.notas IS 
+  'Notas de auditoría: motivos de eliminación, observaciones de precios';
+```
+
+---
+
+## Archivo a Crear
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/planeacion/CompactServiceCard.tsx` | Agregar referencia + expandir nombre custodio |
-| `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx` | Mismo cambio para consistencia |
+| `supabase/migrations/xxx_add_notas_to_matriz_precios.sql` | Nueva migración |
 
 ---
 
-### Cambios en CompactServiceCard.tsx
+## Beneficios
 
-**1. Agregar referencia de factura junto al ID (Líneas 206-209):**
-```tsx
-{/* ID Servicio + Referencia */}
-<code className="text-xs text-muted-foreground font-mono flex-shrink-0">
-  {service.id_servicio}
-</code>
-{service.id_interno_cliente && (
-  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium flex-shrink-0">
-    Ref: {service.id_interno_cliente}
-  </span>
-)}
-```
-
-**2. Expandir nombre del custodio (Línea 290):**
-```tsx
-{/* ANTES */}
-<span className="truncate max-w-[120px]">
-
-{/* DESPUÉS */}
-<span className="truncate max-w-[200px]">
-```
-
----
-
-### UI Visual Propuesta
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ ANTES                                                                            │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ MONTE ROSAS SPORTS  06:00  b850879c-34e3-48ca...  📅 Programado                 │
-│ 📍 TULTEPEC → CUAUTITLAN IZCALLI, E...  👤 SERGIO MONTANO ...                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ DESPUÉS                                                                          │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ MONTE ROSAS SPORTS  06:00  b850879c...  Ref: FAC-2024-0142  📅 Programado       │
-│ 📍 TULTEPEC → CUAUTITLAN IZCALLI, E...  👤 SERGIO MONTANO HERNANDEZ             │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Resumen de Cambios
-
-1. **Referencia de factura**: Se mostrará en azul después del ID del servicio cuando exista `id_interno_cliente`
-2. **Nombre del custodio**: Se aumenta el ancho máximo de 120px a 200px para mostrar nombres completos
-3. **Consistencia**: Se aplica el mismo cambio en ambos componentes (`CompactServiceCard` y `ScheduledServicesTabSimple`)
+1. **Trazabilidad**: Se conserva el motivo de eliminación en la propia ruta
+2. **Sin cambios de código**: El flujo actual funciona tal cual
+3. **Mínimo impacto**: Solo agrega una columna nullable
+4. **Auditoría**: Daniela puede ver por qué se eliminó cada ruta
 
 ---
 
 ## Testing
 
-- [ ] Verificar que la referencia aparece cuando existe
-- [ ] Verificar que nombres largos de custodios se muestran completos
-- [ ] Validar que la UI no se rompe en pantallas pequeñas
+- [ ] Ejecutar migración SQL
+- [ ] Probar eliminación de ruta individual
+- [ ] Probar eliminación masiva de rutas
+- [ ] Verificar que el motivo se guarda correctamente
+- [ ] Confirmar que rutas eliminadas muestran `activo = false` y `notas` con el motivo
