@@ -186,6 +186,9 @@ export function ScheduledServicesTab() {
   
   // Nuevo: Filtro por tipo de folio
   const [tipoFolioFilter, setTipoFolioFilter] = useState<'todos' | 'con_folio' | 'sin_folio'>('todos');
+  
+  // Nuevo: Filtro para mostrar solo servicios con Posicionamiento en Falso
+  const [showOnlyFalsePositioning, setShowOnlyFalsePositioning] = useState(false);
 
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
@@ -540,10 +543,17 @@ export function ScheduledServicesTab() {
       return {};
     }
     
-    // Apply PF filter
+    // Apply Posicionamiento Falso filter (independiente)
     let filteredData = summary.services_data;
+    if (showOnlyFalsePositioning) {
+      filteredData = filteredData.filter(service => 
+        service.posicionamiento_falso === true || service.posicionamiento_falso === 'true'
+      );
+    }
+    
+    // Apply tipo cliente filter (Empresarial/PF)
     if (tipoClienteFilter !== 'todos') {
-      filteredData = summary.services_data.filter(service => {
+      filteredData = filteredData.filter(service => {
         const tipoServicio = service.tipo_servicio?.toLowerCase() || '';
         const isPF = tipoServicio.startsWith('pf_') || tipoServicio === 'pf';
         return tipoClienteFilter === 'pf' ? isPF : !isPF;
@@ -574,7 +584,7 @@ export function ScheduledServicesTab() {
     });
     
     return grouped;
-  }, [summary?.services_data, tipoClienteFilter, tipoFolioFilter]);
+  }, [summary?.services_data, tipoClienteFilter, tipoFolioFilter, showOnlyFalsePositioning]);
 
   // Count filtered services
   const filteredCount = useMemo(() => {
@@ -787,6 +797,25 @@ export function ScheduledServicesTab() {
                 <span className="text-xs text-muted-foreground">
                   ({filteredCount} de {summary.services_data.length})
                 </span>
+              )}
+              
+              {/* Pos. Falso toggle filter */}
+              {falsePositioningCount > 0 && (
+                <Button
+                  variant={showOnlyFalsePositioning ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setShowOnlyFalsePositioning(!showOnlyFalsePositioning)}
+                  className={cn(
+                    "h-7 text-xs",
+                    showOnlyFalsePositioning && "bg-violet-600 hover:bg-violet-700 text-white border-violet-600"
+                  )}
+                >
+                  <MapPinOff className="w-3 h-3 mr-1" />
+                  Pos. Falso
+                  <Badge variant="secondary" className="ml-1 h-4 text-[10px] px-1">
+                    {falsePositioningCount}
+                  </Badge>
+                </Button>
               )}
               
               {/* Separador visual */}
