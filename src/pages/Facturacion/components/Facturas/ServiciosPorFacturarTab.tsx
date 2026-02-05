@@ -184,6 +184,7 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
       {/* Tabla de clientes */}
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -257,6 +258,7 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
