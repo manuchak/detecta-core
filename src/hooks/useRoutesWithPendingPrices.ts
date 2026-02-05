@@ -11,6 +11,7 @@ export interface PendingPriceRoute {
   costo_operativo: number;
   margen_neto_calculado: number;
   porcentaje_utilidad: number;
+  distancia_km: number | null;
   created_at: string;
   updated_at: string;
   dias_sin_actualizar: number;

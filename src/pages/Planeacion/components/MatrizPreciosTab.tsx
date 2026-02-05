@@ -179,6 +179,7 @@ export const MatrizPreciosTab = () => {
       costo_operativo: route.costo_operativo,
       margen_neto_calculado: route.margen_neto_calculado,
       porcentaje_utilidad: route.porcentaje_utilidad,
+      distancia_km: route.distancia_km ?? null,
       created_at: route.fecha_vigencia,
       updated_at: route.fecha_vigencia,
       dias_sin_actualizar: dias,
