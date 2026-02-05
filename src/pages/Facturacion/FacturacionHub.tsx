@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -10,8 +9,7 @@ import {
   Calendar,
   Receipt,
   Wallet,
-  Users,
-  Sparkles
+  Users
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FACTURACION_FULL_ACCESS_ROLES } from '@/constants/accessControl';
@@ -21,7 +19,7 @@ import { FacturacionDashboard } from './components/FacturacionDashboard';
 import { ServiciosConsulta } from './components/ServiciosConsulta';
 import { CuentasPorCobrarTab } from './components/CuentasPorCobrar/CuentasPorCobrarTab';
 import { GestionClientesTab } from './components/GestionClientes/GestionClientesTab';
-import { FacturasComingSoon } from './components/Facturas/FacturasComingSoon';
+import { FacturasTab } from './components/Facturas/FacturasTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function FacturacionHub() {
@@ -150,10 +148,6 @@ export default function FacturacionHub() {
             <TabsTrigger value="facturas" className="text-xs h-7 px-3 gap-1.5">
               <Receipt className="h-3.5 w-3.5" />
               Facturas
-              <Badge className="bg-gradient-to-r from-violet-500 to-purple-500 text-white border-0 text-[9px] px-1.5 py-0 h-4">
-                <Sparkles className="h-2.5 w-2.5 mr-0.5" />
-                Próximo
-              </Badge>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -183,7 +177,7 @@ export default function FacturacionHub() {
         </TabsContent>
 
         <TabsContent value="facturas" className="flex-1 overflow-auto px-4 py-3">
-          <FacturasComingSoon />
+          <FacturasTab fechaInicio={fechaInicio} fechaFin={fechaFin} />
         </TabsContent>
       </Tabs>
     </div>
