@@ -16,6 +16,7 @@
    addToSyncQueue,
    deletePhotoBlob,
  } from '@/lib/offlineStorage';
+import { compressImage, needsCompression } from '@/lib/imageUtils';
  import {
    getCurrentPositionSafe,
    validarUbicacionFoto,
@@ -151,6 +152,25 @@
  
    const capturePhoto = useCallback(
      async (angle: AnguloFoto, file: File): Promise<FotoValidada> => {
+        // Comprimir imagen si es necesario (>500KB)
+        let processedFile: Blob = file;
+        let mimeType = file.type;
+        
+        if (needsCompression(file)) {
+          try {
+            const compressed = await compressImage(file, {
+              maxWidth: 1920,
+              maxHeight: 1080,
+              quality: 0.7,
+            });
+            processedFile = compressed.blob;
+            mimeType = 'image/jpeg';
+            console.log(`[Checklist] Foto ${angle} comprimida: ${compressed.compressionRatio.toFixed(0)}% reducción`);
+          } catch (compressionError) {
+            console.warn('[Checklist] Error comprimiendo foto, usando original:', compressionError);
+          }
+        }
+
        const coords = await getCurrentPositionSafe();
  
        let distancia: number | null = null;
@@ -190,8 +210,8 @@
          id: photoId,
          servicioId,
          angle,
-         blob: file,
-         mimeType: file.type,
+          blob: processedFile,
+          mimeType,
          geotagLat: coords?.lat || null,
          geotagLng: coords?.lng || null,
          distanciaOrigen: distancia,
