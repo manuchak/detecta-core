@@ -1,18 +1,34 @@
  /**
   * Banner que muestra el estado de sincronización offline
+  * Incluye indicador de Circuit Breaker cuando hay errores
   */
  import { RefreshCw, Check, AlertTriangle, Cloud } from 'lucide-react';
  import { Button } from '@/components/ui/button';
  import { cn } from '@/lib/utils';
  import { useOfflineSync, type SyncStatus } from '@/hooks/useOfflineSync';
+import { CircuitBreakerIndicator } from '../CircuitBreakerIndicator';
  
  interface SyncStatusBannerProps {
    className?: string;
  }
  
  export function SyncStatusBanner({ className }: SyncStatusBannerProps) {
-   const { syncStatus, pendingCount, isOnline, syncAll } = useOfflineSync();
+  const { syncStatus, pendingCount, isOnline, syncAll, circuitBreakerInfo, resetCircuitBreaker } = useOfflineSync();
  
+  // Mostrar circuit breaker si está activo
+  if (circuitBreakerInfo.isOpen || circuitBreakerInfo.consecutiveFailures > 2) {
+    return (
+      <CircuitBreakerIndicator
+        info={circuitBreakerInfo}
+        onReset={() => {
+          resetCircuitBreaker();
+          syncAll();
+        }}
+        className={className}
+      />
+    );
+  }
+
    if (pendingCount === 0 && syncStatus !== 'syncing') {
      return null;
    }
