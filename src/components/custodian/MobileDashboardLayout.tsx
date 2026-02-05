@@ -6,6 +6,7 @@ import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useCustodianTicketsEnhanced, CustodianTicket } from "@/hooks/useCustodianTicketsEnhanced";
 import { useCustodianMaintenance } from "@/hooks/useCustodianMaintenance";
 import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilidades";
+ import { useNextService } from "@/hooks/useNextService";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserRole } from "@/utils/authHelpers";
@@ -22,6 +23,7 @@ import MobileBottomNavNew, { NavItem } from "./MobileBottomNavNew";
 import BatchMaintenanceDialog from "./BatchMaintenanceDialog";
 import { CustodianTicketDetail } from "./CustodianTicketDetail";
 import ReportUnavailabilityCard from "./ReportUnavailabilityCard";
+ import NextServiceCard from "./NextServiceCard";
 import PhoneUpdatePrompt from "./PhoneUpdatePrompt";
 import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
@@ -35,6 +37,7 @@ const MobileDashboardLayout = () => {
   const { stats: ticketStats, loading: ticketsLoading, refetch: refetchTicketStats } = useCustodianTickets(profile?.phone);
   const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
   const { maintenanceStatus, pendingMaintenance, createMaintenance, createBatchMaintenance, loading: maintenanceLoading, refetch: refetchMaintenance } = useCustodianMaintenance(profile?.phone, stats.km_totales);
+   const { service: nextService, checklistStatus, refetch: refetchNextService } = useNextService(profile?.phone);
   const { 
     indisponibilidadesActivas,
     crearIndisponibilidad, 
@@ -152,6 +155,7 @@ const MobileDashboardLayout = () => {
         refetchTickets?.(),
         refetchTicketStats?.(),
         refetchMaintenance?.(),
+         refetchNextService?.(),
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -287,6 +291,10 @@ const MobileDashboardLayout = () => {
     }
   };
 
+   const handleStartChecklist = (serviceId: string) => {
+     navigate(`/custodian/checklist/${serviceId}`);
+   };
+ 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -392,6 +400,16 @@ const MobileDashboardLayout = () => {
           />
         )}
 
+         {/* Próximo servicio con checklist */}
+         <section className="animate-fade-in" style={{ animationDelay: (resolvedTicketsToShow.length > 0 || hasOldPendingTickets) ? '75ms' : '0ms' }}>
+           <NextServiceCard
+             service={nextService}
+             onStartChecklist={handleStartChecklist}
+             checklistCompleted={checklistStatus === 'completo'}
+             onViewDetails={() => nextService && navigate(`/custodian/services`)}
+           />
+         </section>
+ 
         {/* 3. Hero Alert - Maintenance status (only show "all OK" if no urgent tickets) */}
         {!hasUrgentTickets && (
           <section className="animate-fade-in" style={{ animationDelay: (resolvedTicketsToShow.length > 0 || hasOldPendingTickets) ? '100ms' : '0ms' }}>
