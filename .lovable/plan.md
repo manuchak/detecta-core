@@ -1,111 +1,139 @@
 
-# Análisis de Gestión de Nombres de Clientes (Comercial vs Fiscal)
+# Plan: Gestión de Nombres Comerciales de Clientes en Planeación + Arquitectura con Cliente ID
 
-## Diagnóstico del Problema
+## Diagnóstico Detallado
 
-### 1. Estructura Actual de Datos
+### Estado Actual de Datos
 
-La tabla `pc_clientes` tiene dos campos para nombres:
+| Métrica | Valor | Impacto |
+|---------|-------|---------|
+| Clientes en `pc_clientes` (tabla maestra) | 69 | Base de datos oficial |
+| Clientes que SOLO existen en rutas (texto libre) | **386** | Sin registro formal |
+| Rutas "huérfanas" (sin vínculo a tabla maestra) | **1,655** | Relaciones rotas |
+| Clientes maestros CON rutas vinculadas | 67 | Solo 2.5% del total de rutas |
 
-| Campo | Tipo | Propósito | Estado Actual |
-|-------|------|-----------|---------------|
-| `nombre` | text NOT NULL | Nombre comercial (día a día) | Poblado en todos los clientes |
-| `razon_social` | text NULL | Nombre fiscal (facturación) | **NULL en el 100% de los clientes** |
-
-### 2. Tablas Relacionadas SIN Foreign Keys
+### Arquitectura Actual de Relaciones
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                          pc_clientes                                 │
-│  ┌──────────────────────┬────────────────────────────────────────┐  │
-│  │ id (uuid, PK)        │ nombre | razon_social | rfc | ...       │  │
-│  └──────────────────────┴────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-         ▲                          ▲                      ▲
-         │                          │                      │
-         │ NO HAY FK                │ NO HAY FK            │ NO HAY FK
-         │                          │                      │
-┌────────┴───────┐       ┌──────────┴──────────┐    ┌──────┴─────────┐
-│servicios_custodia│     │servicios_planificados│   │matriz_precios   │
-│                │        │                     │    │     _rutas      │
-│nombre_cliente  │        │nombre_cliente       │    │cliente_nombre   │
-│(texto libre)   │        │(texto libre)        │    │(texto libre)    │
-└────────────────┘        └─────────────────────┘    └────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     TABLAS CON cliente_id (FK) ✓                        │
+│  facturas, pagos, pc_servicios, pc_rutas_frecuentes, cobranza_seguimiento│
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          pc_clientes                                     │
+│  id (PK) | nombre (comercial) | razon_social (fiscal) | rfc | ...       │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ▲
+                                    │ NO HAY RELACIÓN
+                                    │
+┌─────────────────────────────────────────────────────────────────────────┐
+│               TABLAS CON cliente_nombre (texto libre) ✗                  │
+│  matriz_precios_rutas, servicios_custodia, servicios_planificados        │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Problema crítico**: Las relaciones se basan en **coincidencia de texto**, no en IDs.
+### Interfaces de Edición Actuales
 
-### 3. Inconsistencia de Datos Detectada
-
-Ejemplo de nombres en diferentes tablas:
-
-| Tabla | Ejemplo de nombre |
-|-------|-------------------|
-| pc_clientes | "AIRMAR" |
-| servicios_custodia | "AIRMAR LOGISTICS SA" |
-| matriz_precios_rutas | "AIRMAR LOGISTIKS" |
-
-**Consecuencia**: Cambiar el nombre comercial en `pc_clientes` **rompe la vinculación** con:
-- Historial de servicios
-- Tarifario de rutas
-- Servicios planificados
-
-### 4. Interfaces de Edición Actuales
-
-| Módulo | Componente | Campos Editables | Problema |
-|--------|------------|------------------|----------|
-| Planeación | `ClienteDialog.tsx` | `nombre`, RFC, contacto, SLA | NO tiene razon_social |
-| Facturación | `ClienteFormModal.tsx` | `razon_social`, RFC, régimen, crédito | NO permite editar `nombre` |
-
-**El coordinador de operaciones NO puede cambiar el nombre comercial** desde Facturación porque el campo no está en el formulario.
+| Módulo | Componente | Campo `nombre` | Campo `razon_social` | cliente_id |
+|--------|------------|----------------|----------------------|------------|
+| Planeación | ClienteDialog.tsx | ✓ Editable | ✗ No existe | No aplica |
+| Facturación | ClienteFormModal.tsx | ✓ Editable (recién agregado) | ✓ Editable | No aplica |
+| Rutas | RouteManagementForm.tsx | ✓ Input libre | ✗ No existe | **✗ No existe** |
 
 ---
 
-## Riesgos de Modificación Directa
+## Solución en 3 Fases
 
-### Si cambiamos el nombre en `pc_clientes`:
+### Fase 1: Gestión de Clientes desde Rutas (Inmediato)
 
-1. **matriz_precios_rutas**: Las tarifas quedan huérfanas (buscan por `cliente_nombre` texto)
-2. **servicios_custodia**: El historial se desvincula
-3. **servicios_planificados**: Servicios pendientes pierden referencia
-4. **Reportes de facturación**: Agrupaciones incorrectas
-5. **CRM Hub**: El Client Matcher deja de funcionar
+**Objetivo**: Permitir al equipo de Planeación crear/vincular clientes directamente desde Gestión de Rutas.
+
+#### 1.1 Nuevo Componente: ClienteSelector para Rutas
+
+Reemplazar el input de texto libre por un selector inteligente que:
+- Busque en `pc_clientes` primero
+- Busque en clientes "solo rutas" como fallback
+- Permita crear cliente nuevo si no existe
+
+**Archivos a modificar:**
+- `src/pages/Planeacion/components/RouteManagementForm.tsx`
+- Nuevo: `src/pages/Planeacion/components/routes/ClienteSelectorForRoutes.tsx`
+
+#### 1.2 Gestión Rápida de Nombre Comercial desde Rutas
+
+Agregar acción "Editar Cliente" en el menú de acciones de cada ruta que:
+- Abra modal de edición de `pc_clientes`
+- Solo permita editar `nombre` (comercial)
+- Muestre warning de impacto en rutas existentes
+- Requiera rol autorizado (`NOMBRE_COMERCIAL_EDIT_ROLES`)
+
+**Archivos a crear:**
+- `src/pages/Planeacion/components/routes/QuickClienteEditModal.tsx`
+
+#### 1.3 Sub-tab "Clientes" en Gestión de Rutas
+
+Agregar pestaña para ver/editar clientes con rutas:
+
+**Modificar:**
+- `src/pages/Planeacion/components/RoutesManagementTab.tsx` - Agregar tab "Clientes"
+- Nuevo: `src/pages/Planeacion/components/routes/ClientesConRutasTable.tsx`
 
 ---
 
-## Solución Propuesta (3 Fases)
+### Fase 2: Agregar cliente_id a matriz_precios_rutas (Riesgo Medio)
 
-### Fase 1: Habilitar Edición de Nombre Comercial (Bajo Riesgo)
+**Objetivo**: Normalizar relaciones con foreign keys para queries eficientes.
 
-**Objetivo**: Permitir al coordinador_operaciones editar el nombre comercial con confirmación.
-
-**Cambios**:
-
-1. Agregar campo `nombre` al formulario `ClienteFormModal.tsx`:
-   - Con warning visual de impacto
-   - Solo para roles autorizados
-
-2. Crear constante `NOMBRE_COMERCIAL_EDIT_ROLES` en `accessControl.ts`:
-```typescript
-export const NOMBRE_COMERCIAL_EDIT_ROLES = [
-  'admin',
-  'owner', 
-  'coordinador_operaciones'
-] as const;
-```
-
-3. Agregar confirmación antes de guardar cambio de nombre:
-   - Mostrar cuántas rutas/servicios tienen ese nombre
-   - Preguntar si desea propagar el cambio
-
-### Fase 2: Sistema de Alias/Nombres Alternativos (Riesgo Medio)
-
-**Objetivo**: Permitir múltiples nombres para el mismo cliente sin romper historiales.
-
-**Cambios en base de datos**:
+#### 2.1 Migración de Base de Datos
 
 ```sql
--- Nueva tabla para nombres alternativos
+-- Paso 1: Agregar columna nullable
+ALTER TABLE matriz_precios_rutas 
+ADD COLUMN cliente_id uuid REFERENCES pc_clientes(id);
+
+-- Paso 2: Crear índice para performance
+CREATE INDEX idx_matriz_precios_cliente_id 
+ON matriz_precios_rutas(cliente_id);
+
+-- Paso 3: Script de vinculación automática
+UPDATE matriz_precios_rutas mpr
+SET cliente_id = pc.id
+FROM pc_clientes pc
+WHERE LOWER(mpr.cliente_nombre) = LOWER(pc.nombre)
+AND mpr.cliente_id IS NULL;
+
+-- Paso 4: Vista para identificar rutas sin vincular
+CREATE VIEW vw_rutas_sin_cliente AS
+SELECT DISTINCT cliente_nombre, COUNT(*) as rutas_count
+FROM matriz_precios_rutas
+WHERE cliente_id IS NULL AND activo = true
+GROUP BY cliente_nombre
+ORDER BY rutas_count DESC;
+```
+
+#### 2.2 Hook Actualizado para Rutas
+
+**Modificar:**
+- `src/hooks/useClientesFromPricing.ts` - Agregar lógica para usar cliente_id cuando exista
+
+#### 2.3 UI de Reconciliación
+
+Crear interfaz para que Planeación vincule manualmente las 386 entidades huérfanas:
+
+**Nuevo:**
+- `src/pages/Planeacion/components/routes/ClienteReconciliationTool.tsx`
+
+---
+
+### Fase 3: Sistema de Alias (Largo Plazo)
+
+**Objetivo**: Permitir múltiples nombres para el mismo cliente sin perder historiales.
+
+#### 3.1 Nueva Tabla de Alias
+
+```sql
 CREATE TABLE pc_clientes_alias (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   cliente_id uuid REFERENCES pc_clientes(id) NOT NULL,
@@ -113,67 +141,118 @@ CREATE TABLE pc_clientes_alias (
   tipo text DEFAULT 'comercial', -- 'comercial', 'fiscal', 'historico'
   es_principal boolean DEFAULT false,
   created_at timestamptz DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id),
   UNIQUE(alias)
 );
 
--- Trigger para mantener nombre principal sincronizado
+-- Trigger para buscar en alias automáticamente
+CREATE OR REPLACE FUNCTION buscar_cliente_por_nombre(nombre_buscar text)
+RETURNS uuid AS $$
+BEGIN
+  -- Primero buscar en nombre principal
+  RETURN (SELECT id FROM pc_clientes WHERE LOWER(nombre) = LOWER(nombre_buscar) LIMIT 1);
+  
+  -- Si no encuentra, buscar en alias
+  IF NOT FOUND THEN
+    RETURN (SELECT cliente_id FROM pc_clientes_alias WHERE LOWER(alias) = LOWER(nombre_buscar) LIMIT 1);
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
-**Beneficios**:
-- Un cliente puede tener: "AIRMAR", "AIRMAR LOGISTICS", "AIRMAR SA"
-- La búsqueda encuentra cualquier variante
-- El historial se preserva
+---
 
-### Fase 3: Migración a Foreign Keys (Alto Impacto - Largo Plazo)
+## Implementación Detallada - Fase 1
 
-**Objetivo**: Normalizar relaciones con IDs en lugar de texto.
+### Cambios en RouteManagementForm.tsx
 
-**Pasos**:
+El campo "Cliente" actual es un Input libre. Lo reemplazaremos por un componente de búsqueda/selección:
 
-1. Agregar columna `cliente_id` a tablas relacionadas
-2. Script de migración para vincular registros existentes
-3. Actualizar queries para usar JOIN en lugar de texto
-4. Marcar columnas de texto como deprecated
-5. Eventualmente eliminar columnas de texto
+```text
+[Input texto libre]  →  [ClienteSelector con autocomplete + crear nuevo]
+```
+
+**Comportamiento:**
+1. El usuario escribe nombre
+2. Se muestran sugerencias de `pc_clientes` (prioridad) + clientes solo en rutas
+3. Si selecciona existente: se guarda el nombre normalizado
+4. Si escribe nuevo: opción de crear en `pc_clientes` o usar texto libre
+
+### Cambios en RoutesManagementTab.tsx
+
+```text
+Tabs actuales:
+[Pendientes] [Todas las Rutas] [Historial]
+
+Tabs propuestos:
+[Pendientes] [Todas las Rutas] [Clientes] [Historial]
+```
+
+El tab "Clientes" mostrará:
+- Clientes con rutas activas
+- Botón "Editar nombre comercial" (con warning)
+- Indicador de cuántas rutas tiene cada cliente
+
+### Nuevo QuickClienteEditModal
+
+Modal minimalista para editar solo el nombre comercial:
+- Input para nuevo nombre
+- Warning si el cliente tiene rutas/servicios
+- Checkbox de confirmación obligatorio
+- Registro en historial de cambios
 
 ---
 
-## Recomendación Inmediata
+## Control de Acceso
 
-Para la solicitud actual del coordinador de operaciones, recomiendo **Fase 1** únicamente:
-
-### Cambios Requeridos:
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/constants/accessControl.ts` | Agregar `NOMBRE_COMERCIAL_EDIT_ROLES` |
-| `src/pages/Facturacion/hooks/useClientesFiscales.ts` | Agregar `nombre` a `ClienteFiscalUpdate` |
-| `src/pages/Facturacion/components/GestionClientes/ClienteFormModal.tsx` | Agregar campo editable para `nombre` con warning |
-
-### Validaciones de Seguridad:
-
-1. **Solo roles autorizados** pueden ver/editar el campo nombre
-2. **Confirmación obligatoria** si el nombre tiene servicios/rutas asociadas
-3. **Audit log** del cambio (quién, cuándo, valor anterior/nuevo)
-4. **NO propagar automáticamente** el cambio a otras tablas (evita corrupción masiva)
+| Acción | Roles Autorizados |
+|--------|-------------------|
+| Ver clientes en rutas | Cualquier planificador |
+| Crear cliente nuevo | admin, owner, coordinador_operaciones, planificador |
+| Editar nombre comercial | admin, owner, coordinador_operaciones |
+| Vincular ruta a cliente existente | Cualquier planificador |
 
 ---
 
-## Próximos Pasos Sugeridos
+## Archivos a Crear/Modificar
 
-1. **Aprobar este análisis** para implementar Fase 1
-2. **Documentar** los casos donde nombre != razon_social
-3. **Planificar** migración de datos para poblar `razon_social` en clientes existentes
-4. **Evaluar** si Fase 2 (alias) es necesaria según volumen de inconsistencias
+### Nuevos Archivos
+1. `src/pages/Planeacion/components/routes/ClienteSelectorForRoutes.tsx`
+2. `src/pages/Planeacion/components/routes/QuickClienteEditModal.tsx`
+3. `src/pages/Planeacion/components/routes/ClientesConRutasTable.tsx`
+4. `src/hooks/useClientesEnRutas.ts`
+
+### Archivos a Modificar
+1. `src/pages/Planeacion/components/RoutesManagementTab.tsx` - Agregar tab Clientes
+2. `src/pages/Planeacion/components/RouteManagementForm.tsx` - Integrar ClienteSelector
+3. `src/pages/Planeacion/components/MatrizPreciosTab.tsx` - Agregar acción "Editar Cliente"
+4. `src/constants/accessControl.ts` - Ya tiene NOMBRE_COMERCIAL_EDIT_ROLES
 
 ---
 
-## Resumen Técnico
+## Riesgos y Mitigaciones
 
-| Aspecto | Estado Actual | Propuesta Fase 1 |
-|---------|---------------|------------------|
-| Edición nombre comercial | Solo desde Planeación | También desde Facturación |
-| Control de roles | Sin restricción | Solo admin/owner/coord_ops |
-| Validación de impacto | Ninguna | Mostrar rutas/servicios afectados |
-| Propagación de cambios | N/A | Manual (usuario decide) |
-| Compatibilidad hacia atrás | N/A | 100% - no rompe nada existente |
+| Riesgo | Mitigación |
+|--------|------------|
+| Cambiar nombre rompe búsquedas de rutas | No propagar automáticamente; advertencia visual obligatoria |
+| Duplicados al crear clientes | Validación de nombre existente antes de crear |
+| Performance en autocomplete | Debounce + cache de 2 min en useAllClientes |
+| Confusión nombre comercial vs fiscal | Labels claros: "Nombre Comercial (búsquedas)" vs "Razón Social (facturas)" |
+
+---
+
+## Orden de Implementación Sugerido
+
+1. **ClienteSelectorForRoutes** - Selector inteligente con autocomplete
+2. **QuickClienteEditModal** - Edición rápida de nombre comercial
+3. **Tab Clientes en RoutesManagementTab** - Vista centralizada
+4. **Integración en RouteManagementForm** - Reemplazar input libre
+5. **Acciones en tabla de rutas** - Botón "Editar Cliente"
+
+---
+
+## Métricas de Éxito
+
+- Reducción de clientes "solo rutas" de 386 a <50 en 30 días
+- 100% de nuevas rutas vinculadas a `pc_clientes`
+- Cero incidentes de búsquedas rotas por cambio de nombre
