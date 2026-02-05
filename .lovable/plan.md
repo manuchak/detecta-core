@@ -1,169 +1,176 @@
 
-# Plan: Implementar Signup con Resend para Evitar Rate Limits
+# Plan: Soluciones para Manejar 50+ Registros de Custodios sin Resend
 
-## Problema Actual
+## Opciones Disponibles
 
-El flujo actual usa `supabase.auth.signUp()` que internamente envía emails via el sistema nativo de Supabase, el cual tiene un **rate limit de ~4 emails/hora por dirección**. Cuando los custodios reintentan el registro, este límite se excede rápidamente.
+| Opción | Complejidad | Tiempo | Requiere Verificación |
+|--------|-------------|--------|----------------------|
+| **A) Auto-confirmar usuarios** | Baja | 5 min | No |
+| **B) SMTP personalizado (SendGrid/AWS SES)** | Media | 30 min | Sí (dominio) |
+| **C) Deshabilitar confirmación global** | Baja | 2 min | No |
 
-## Solución Propuesta
+---
 
-Replicar el patrón exitoso de `send-password-reset`: usar la Admin API de Supabase para crear usuarios y generar links, luego enviar el email via Resend (sin rate limits restrictivos).
+## Opción A: Auto-confirmar Usuarios (RECOMENDADA)
 
-## Arquitectura del Cambio
+### Ventajas
+- **Sin verificación de dominio**: No necesitas Resend ni otro servicio
+- **Acceso inmediato**: Custodios pueden entrar al instante
+- **Seguridad mantenida**: El token de invitación ya valida que fueron invitados
+- **Sin rate limits**: Usa la Admin API que no tiene límites
+
+### Cómo Funciona
 
 ```text
-ANTES (con rate limits):
-┌─────────────┐      ┌─────────────────┐      ┌──────────────┐
-│ CustodianSignup │─────▶│ supabase.auth   │─────▶│ Supabase     │
-│    .tsx      │      │ .signUp()       │      │ Email (4/hr) │
-└─────────────┘      └─────────────────┘      └──────────────┘
+FLUJO ACTUAL (bloqueado por Resend):
+┌─────────┐     ┌──────────────┐     ┌────────┐     ┌─────────────┐
+│ Signup  │────▶│ createUser() │────▶│ Resend │────▶│ Email conf. │
+│ Form    │     │ confirm:false│     │ ❌FALLA│     │ (no llega)  │
+└─────────┘     └──────────────┘     └────────┘     └─────────────┘
 
-DESPUÉS (sin rate limits):
-┌─────────────┐      ┌──────────────────────┐      ┌──────────────┐
-│ CustodianSignup │─────▶│ Edge Function        │─────▶│ Resend       │
-│    .tsx      │      │ create-custodian-    │      │ (ilimitado)  │
-│             │      │ account              │      │              │
-└─────────────┘      └──────────────────────┘      └──────────────┘
-                              │
-                              ▼
-                     ┌──────────────────────┐
-                     │ supabaseAdmin.auth   │
-                     │ .admin.createUser()  │
-                     │ .admin.generateLink()│
-                     └──────────────────────┘
+FLUJO PROPUESTO (sin dependencias):
+┌─────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐
+│ Signup  │────▶│ createUser() │────▶│ Asignar rol │────▶│ Onboarding│
+│ Form    │     │ confirm:TRUE │     │ de custodio │     │ directo   │
+└─────────┘     └──────────────┘     └─────────────┘     └───────────┘
 ```
 
-## Archivos a Crear/Modificar
+### Cambios Requeridos
 
-| Archivo | Acción | Descripción |
-|---------|--------|-------------|
-| `supabase/functions/create-custodian-account/index.ts` | Crear | Edge function que crea usuario + envía email via Resend |
-| `src/pages/Auth/CustodianSignup.tsx` | Modificar | Llamar a edge function en lugar de signUp() |
-| `supabase/config.toml` | Modificar | Agregar nueva función |
+**Archivo 1: `supabase/functions/create-custodian-account/index.ts`**
 
-## Detalle de Implementación
-
-### 1. Nueva Edge Function: `create-custodian-account`
-
-Esta función:
-1. Recibe: `email`, `password`, `nombre`, `invitationToken`
-2. Valida que el token de invitación sea válido
-3. Crea el usuario con `supabaseAdmin.auth.admin.createUser()` (SIN email automático)
-4. Genera link de confirmación con `supabaseAdmin.auth.admin.generateLink({ type: 'signup' })`
-5. Envía el email de bienvenida via Resend con el link de confirmación
-6. Retorna éxito o errores específicos
-
-**Estructura del código:**
+1. Cambiar `email_confirm: false` → `email_confirm: true` (auto-confirma el email)
+2. Después de crear el usuario, marcar la invitación como usada
+3. Asignar el rol de custodio directamente
+4. Retornar sesión para login automático
 
 ```typescript
-// Validar invitación
-const { data: invitation } = await supabase
-  .from('custodian_invitations')
-  .select('*')
-  .eq('token', invitationToken)
-  .is('used_at', null)
-  .gte('expires_at', new Date().toISOString())
-  .single();
-
-if (!invitation) {
-  return { error: 'Invitación inválida o expirada' };
-}
-
-// Crear usuario SIN enviar email automático
-const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
+// Crear usuario AUTO-CONFIRMADO
+const { data: userData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
   email,
   password,
-  email_confirm: false, // No confirmar automáticamente
-  user_metadata: {
+  email_confirm: true, // ✅ Auto-confirmar
+  user_metadata: { display_name: nombre, invitation_token: invitationToken }
+});
+
+// Marcar invitación como usada
+await supabaseAdmin
+  .from('custodian_invitations')
+  .update({ used_at: new Date().toISOString(), used_by: userData.user.id })
+  .eq('token', invitationToken);
+
+// Asignar rol de custodio
+await supabaseAdmin
+  .from('user_profiles')
+  .upsert({
+    id: userData.user.id,
+    email: email,
     display_name: nombre,
-    invitation_token: invitationToken,
-  }
-});
+    role: 'custodio',
+    telefono: telefono
+  });
 
-// Generar link de confirmación
-const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-  type: 'signup',
+// Generar sesión para login automático
+const { data: sessionData } = await supabaseAdmin.auth.admin.generateLink({
+  type: 'magiclink',
   email,
-  options: { redirectTo: `${origin}/auth/email-confirmation?invitation=${invitationToken}` }
 });
 
-// Enviar email via Resend
-await resend.emails.send({
-  from: "Detecta <notificaciones@detecta.app>",
-  to: [email],
-  subject: "📧 Confirma tu cuenta - Detecta",
-  html: emailTemplate
-});
+return { success: true, user: userData.user, autoLogin: true };
 ```
 
-### 2. Modificar CustodianSignup.tsx
+**Archivo 2: `src/pages/Auth/CustodianSignup.tsx`**
 
-**Cambio principal (líneas 77-110):**
+Modificar para manejar el login automático:
 
 ```typescript
-// ANTES - Usa sistema nativo de Supabase
-const { data, error } = await supabase.auth.signUp({ ... });
-
-// DESPUÉS - Llama a edge function con Resend
-const { data, error } = await supabase.functions.invoke('create-custodian-account', {
-  body: {
+if (data?.success && data?.autoLogin) {
+  // Iniciar sesión automáticamente
+  const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
-    password,
-    nombre: name,
-    invitationToken: token,
-  }
-});
-```
-
-**Manejo de errores mejorado:**
-
-```typescript
-if (error) {
-  let errorMessage = 'Error al crear la cuenta';
+    password
+  });
   
-  if (error.message.includes('already registered')) {
-    errorMessage = 'Este email ya está registrado. Intenta iniciar sesión.';
-  } else if (error.message.includes('invalid invitation')) {
-    errorMessage = 'La invitación no es válida o ha expirado.';
-  } else if (error.message.includes('password')) {
-    errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+  if (!signInError) {
+    navigate('/custodian/onboarding');
+    return;
   }
-  // No más errores de rate limit!
 }
 ```
 
-### 3. Email Template de Confirmación
+### Flujo de Usuario Final
 
-Usar el mismo estilo visual que `send-custodian-invitation` pero para confirmación:
+1. Custodio abre link de invitación
+2. Llena formulario (nombre, email, contraseña)
+3. Click "Crear cuenta"
+4. **Inmediatamente** es redirigido al onboarding de documentos
+5. No necesita revisar email ni confirmar nada
 
-- Header con branding de Detecta
-- Mensaje de bienvenida personalizado
-- Botón CTA para confirmar email
-- Link de respaldo
-- Advertencia de expiración (24 horas estándar de Supabase)
+---
 
-## Beneficios
+## Opción B: SMTP Personalizado (SendGrid/AWS SES)
 
-| Aspecto | Antes | Después |
-|---------|-------|---------|
-| Rate limit | 4 emails/hora | Sin límite práctico |
-| Control de errores | Genérico | Específico |
-| Personalización email | Limitada | Total |
-| Tracking | Ninguno | Resend webhooks |
-| Consistencia visual | Template de Supabase | Template de marca |
+Si prefieres mantener la confirmación por email, puedes configurar un SMTP en Supabase.
 
-## Flujo de Usuario Final
+### Pasos
+1. Crear cuenta en SendGrid (gratis hasta 100 emails/día) o AWS SES
+2. Verificar dominio `detecta.app` en el proveedor elegido
+3. Obtener credenciales SMTP
+4. Configurar en Supabase Dashboard → Settings → Auth → SMTP
 
-1. Custodio llena formulario de registro
-2. Frontend llama a `create-custodian-account`
-3. Edge function crea usuario + envía email via Resend
-4. Custodio recibe email con link de confirmación
-5. Al hacer clic, se confirma el email y se redirige a la app
-6. Hook existente asigna rol de custodio
+### Credenciales Requeridas
+- **Host**: `smtp.sendgrid.net` o similar
+- **Port**: 587
+- **Username**: `apikey` (SendGrid) o tu usuario
+- **Password**: Tu API key
+- **Sender email**: `notificaciones@detecta.app`
 
-## Consideraciones Técnicas
+### Limitación
+- SendGrid también requiere verificar el dominio
+- El proceso es similar a Resend
 
-- La función usa `SUPABASE_SERVICE_ROLE_KEY` (solo disponible en edge functions)
-- El link generado por `generateLink()` tiene el formato estándar de Supabase
-- El webhook de Resend existente puede trackear bounces/delivers
-- No requiere cambios en la configuración de Supabase Auth
+---
+
+## Opción C: Deshabilitar Confirmación Globalmente
+
+### Pasos
+1. Ir a Supabase Dashboard → Authentication → Sign In / Providers
+2. En la sección "Email", desactivar "Confirm email"
+3. Guardar
+
+### Implicaciones
+- **Todos** los usuarios (no solo custodios) podrán registrarse sin confirmar email
+- Menor seguridad para otros flujos de registro
+- No recomendado si tienes otros tipos de usuarios
+
+---
+
+## Recomendación Final
+
+**Opción A (Auto-confirmar)** es la mejor porque:
+
+| Criterio | Auto-confirmar | SMTP | Deshabilitar global |
+|----------|----------------|------|---------------------|
+| Sin dependencias externas | ✅ | ❌ | ✅ |
+| Seguridad (invitación requerida) | ✅ | ✅ | ⚠️ |
+| Experiencia de usuario | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ |
+| Tiempo de implementación | 5 min | 30+ min | 2 min |
+| Escalabilidad (50+ custodios) | ✅ | ✅ | ✅ |
+
+El token de invitación ya actúa como verificación de que el custodio fue aprobado por un administrador, así que la confirmación de email es redundante en este flujo.
+
+---
+
+## Archivos a Modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/functions/create-custodian-account/index.ts` | Auto-confirmar + asignar rol + login automático |
+| `src/pages/Auth/CustodianSignup.tsx` | Manejar respuesta de login automático |
+
+## Resultado Esperado
+
+- 50+ custodios pueden registrarse sin problemas
+- Acceso inmediato al portal sin esperar emails
+- Sin dependencia de servicios externos de email
+- Seguridad mantenida via tokens de invitación
