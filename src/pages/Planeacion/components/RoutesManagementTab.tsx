@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Map, History, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Map, History, TrendingUp, Building2 } from 'lucide-react';
 import { useRoutesStats } from '@/hooks/useRoutesWithPendingPrices';
 import { PendingRoutesTable } from './routes/PendingRoutesTable';
 import { PriceHistoryTable } from './routes/PriceHistoryTable';
 import { MatrizPreciosTab } from './MatrizPreciosTab';
+import { ClientesConRutasTable } from './routes/ClientesConRutasTable';
 
 export function RoutesManagementTab() {
   const [activeSubTab, setActiveSubTab] = useState('pending');
@@ -83,6 +84,10 @@ export function RoutesManagementTab() {
           <TabsTrigger value="all">
             Todas las Rutas
           </TabsTrigger>
+          <TabsTrigger value="clientes">
+            <Building2 className="h-4 w-4 mr-1" />
+            Clientes
+          </TabsTrigger>
           <TabsTrigger value="history">
             <History className="h-4 w-4 mr-1" />
             Historial
@@ -95,6 +100,10 @@ export function RoutesManagementTab() {
 
         <TabsContent value="all">
           <MatrizPreciosTab />
+        </TabsContent>
+
+        <TabsContent value="clientes">
+          <ClientesConRutasTable />
         </TabsContent>
 
         <TabsContent value="history">
