@@ -1,183 +1,169 @@
 
+# Plan: Implementar Signup con Resend para Evitar Rate Limits
 
-# Análisis de Causa Raíz: Gráficos Cortados y Espacio en Blanco
+## Problema Actual
 
-## Diagrama Fishbone (Ishikawa)
-
-```text
-                              GRÁFICOS CORTADOS + ESPACIO EN BLANCO
-                                            │
-    ┌───────────────────┬───────────────────┼───────────────────┬───────────────────┐
-    │                   │                   │                   │                   │
-CONTENEDOR          CONFLICTO DE        CADENA DE           OVERFLOW
-   PADRE            VARIABLES CSS       CÁLCULOS            OCULTO
-    │                   │                   │                   │
-    │                   │                   │                   │
- Hub usa            Charts usan        Offset de 260px    TabsContent tiene
- 100vh              var(--vh-full)     es incorrecto      overflow-auto
-    │                   │                   │                   │
-    ▼                   ▼                   ▼                   ▼
- CAUSA RAÍZ #1      CAUSA RAÍZ #2      CAUSA RAÍZ #3      EFECTO SECUNDARIO
-```
-
-## Causa Raíz #1: Inconsistencia en el Contenedor Padre (CRÍTICA)
-
-**Archivo**: `FacturacionHub.tsx` línea 60
-
-```tsx
-// ❌ ACTUAL - Usa 100vh directo
-<div className="flex flex-col h-[calc(100vh-3.5rem)]">
-
-// ✓ CORRECTO - Debe usar la variable compensada
-<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
-```
-
-**Por qué es crítico**:
-- El sistema usa `zoom: 0.7` (línea 152-154 de index.css)
-- `100vh` representa solo el 70% del viewport real
-- `var(--vh-full)` = `100vh × 1.4286` = viewport real compensado
-- **Resultado**: El Hub tiene ~700px de altura, pero los charts intentan ocupar ~800px
-
-## Causa Raíz #2: Conflicto de Cálculos
-
-**Archivo**: `FacturacionDashboard.tsx` líneas 81 y 143
-
-```tsx
-// El dashboard dice:
-h-[calc(var(--vh-full)-260px)]  // = ~840px en pantalla 1080p
-
-// Pero el Hub (padre) dice:
-h-[calc(100vh-3.5rem)]          // = ~700px con zoom 0.7
-```
-
-Los hijos quieren ser **más grandes** que el contenedor padre. CSS trunca el excedente.
-
-## Causa Raíz #3: Offset Incorrecto
-
-El offset de 260px no refleja la altura real de los elementos superiores:
-
-| Elemento | Altura Real |
-|----------|-------------|
-| Hub Header (h-14) | 56px |
-| TabsList container (pt-2) | 8px |
-| TabsList (h-9) | 36px |
-| TabsContent padding (py-3) | 24px |
-| HeroBar (grid h-[72px] + gap) | ~80px |
-| Dashboard spacing (space-y-3) | 12px |
-| **Total** | **~216px** |
-
-Pero además, el Hub resta `3.5rem` (~56px) para el TopBar global, así que el cálculo correcto es más complejo.
+El flujo actual usa `supabase.auth.signUp()` que internamente envía emails via el sistema nativo de Supabase, el cual tiene un **rate limit de ~4 emails/hora por dirección**. Cuando los custodios reintentan el registro, este límite se excede rápidamente.
 
 ## Solución Propuesta
 
-### Paso 1: Corregir FacturacionHub.tsx (línea 60)
+Replicar el patrón exitoso de `send-password-reset`: usar la Admin API de Supabase para crear usuarios y generar links, luego enviar el email via Resend (sin rate limits restrictivos).
 
-```tsx
-// ANTES
-<div className="flex flex-col h-[calc(100vh-3.5rem)]">
-
-// DESPUÉS - Usar variable CSS compensada
-<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
-```
-
-### Paso 2: Simplificar con Variables CSS Predefinidas
-
-El sistema ya tiene variables optimizadas (index.css líneas 20-23):
-
-```css
---content-height-full: calc(var(--vh-full) - 56px);      /* TopBar */
---content-height-with-tabs: calc(var(--vh-full) - 120px); /* TopBar + Tabs */
---content-height-with-filters: calc(var(--vh-full) - 180px); /* TopBar + Tabs + Filtros */
-```
-
-### Paso 3: Ajustar Dashboard Cards
-
-En `FacturacionDashboard.tsx`, usar un offset que considere solo los elementos internos del dashboard:
-
-```tsx
-// ANTES - Offset hardcodeado
-h-[calc(var(--vh-full)-260px)]
-
-// DESPUÉS - Offset ajustado considerando:
-// - Contenido ya está dentro de TabsContent con padding
-// - HeroBar: ~80px
-// - Gaps: ~12px
-// Total interno: ~92px + un margen de seguridad
-h-[calc(var(--content-height-with-tabs)-100px)]
-```
-
-O usando cálculo directo más preciso:
-```tsx
-h-[calc(var(--vh-full)-220px)]
-```
-
-## Cambios Específicos
-
-### Archivo 1: `src/pages/Facturacion/FacturacionHub.tsx`
-
-**Línea 60**: Cambiar altura del contenedor principal
-```tsx
-// ANTES
-<div className="flex flex-col h-[calc(100vh-3.5rem)]">
-
-// DESPUÉS
-<div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
-```
-
-### Archivo 2: `src/pages/Facturacion/components/FacturacionDashboard.tsx`
-
-**Línea 81**: Card del Bar Chart
-```tsx
-// ANTES
-<Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
-
-// DESPUÉS - Usar variable predefinida + offset interno
-<Card className="lg:col-span-3 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
-```
-
-**Línea 143**: Card del Pie Chart
-```tsx
-// ANTES
-<Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--vh-full)-260px)] min-h-[400px]">
-
-// DESPUÉS
-<Card className="lg:col-span-2 border-border/50 flex flex-col h-[calc(var(--content-height-with-tabs)-100px)] min-h-[400px]">
-```
-
-## Cálculo de la Nueva Altura
+## Arquitectura del Cambio
 
 ```text
-Viewport Real (1080p):                    1080px
-var(--vh-full):                           1080px × 1.4286 = 1542px (compensado para zoom)
-var(--content-height-with-tabs):          1542px - 120px = 1422px
-Menos HeroBar + spacing interno:          1422px - 100px = 1322px
+ANTES (con rate limits):
+┌─────────────┐      ┌─────────────────┐      ┌──────────────┐
+│ CustodianSignup │─────▶│ supabase.auth   │─────▶│ Supabase     │
+│    .tsx      │      │ .signUp()       │      │ Email (4/hr) │
+└─────────────┘      └─────────────────┘      └──────────────┘
 
-Altura disponible para charts:            1322px
-Bar Chart (10 barras × 22px + margins):   ~300px → ✓ Cabe perfectamente
-Pie Chart + Legend + Insights:            ~400px → ✓ Cabe perfectamente
+DESPUÉS (sin rate limits):
+┌─────────────┐      ┌──────────────────────┐      ┌──────────────┐
+│ CustodianSignup │─────▶│ Edge Function        │─────▶│ Resend       │
+│    .tsx      │      │ create-custodian-    │      │ (ilimitado)  │
+│             │      │ account              │      │              │
+└─────────────┘      └──────────────────────┘      └──────────────┘
+                              │
+                              ▼
+                     ┌──────────────────────┐
+                     │ supabaseAdmin.auth   │
+                     │ .admin.createUser()  │
+                     │ .admin.generateLink()│
+                     └──────────────────────┘
 ```
 
-## Resultado Esperado
+## Archivos a Crear/Modificar
 
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| Bar Chart: barras visibles | 6/10 | 10/10 |
-| Espacio blanco inferior | ~200px | 0px |
-| Consistencia de variables | ❌ Mezcladas | ✓ Unificadas |
-| Pie Chart | Tamaño correcto | Tamaño correcto |
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `supabase/functions/create-custodian-account/index.ts` | Crear | Edge function que crea usuario + envía email via Resend |
+| `src/pages/Auth/CustodianSignup.tsx` | Modificar | Llamar a edge function en lugar de signUp() |
+| `supabase/config.toml` | Modificar | Agregar nueva función |
 
-## Archivos a Modificar
+## Detalle de Implementación
 
-| Archivo | Línea | Cambio |
-|---------|-------|--------|
-| `FacturacionHub.tsx` | 60 | `100vh` → `var(--vh-full)` |
-| `FacturacionDashboard.tsx` | 81 | `var(--vh-full)-260px` → `var(--content-height-with-tabs)-100px` |
-| `FacturacionDashboard.tsx` | 143 | `var(--vh-full)-260px` → `var(--content-height-with-tabs)-100px` |
+### 1. Nueva Edge Function: `create-custodian-account`
+
+Esta función:
+1. Recibe: `email`, `password`, `nombre`, `invitationToken`
+2. Valida que el token de invitación sea válido
+3. Crea el usuario con `supabaseAdmin.auth.admin.createUser()` (SIN email automático)
+4. Genera link de confirmación con `supabaseAdmin.auth.admin.generateLink({ type: 'signup' })`
+5. Envía el email de bienvenida via Resend con el link de confirmación
+6. Retorna éxito o errores específicos
+
+**Estructura del código:**
+
+```typescript
+// Validar invitación
+const { data: invitation } = await supabase
+  .from('custodian_invitations')
+  .select('*')
+  .eq('token', invitationToken)
+  .is('used_at', null)
+  .gte('expires_at', new Date().toISOString())
+  .single();
+
+if (!invitation) {
+  return { error: 'Invitación inválida o expirada' };
+}
+
+// Crear usuario SIN enviar email automático
+const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
+  email,
+  password,
+  email_confirm: false, // No confirmar automáticamente
+  user_metadata: {
+    display_name: nombre,
+    invitation_token: invitationToken,
+  }
+});
+
+// Generar link de confirmación
+const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+  type: 'signup',
+  email,
+  options: { redirectTo: `${origin}/auth/email-confirmation?invitation=${invitationToken}` }
+});
+
+// Enviar email via Resend
+await resend.emails.send({
+  from: "Detecta <notificaciones@detecta.app>",
+  to: [email],
+  subject: "📧 Confirma tu cuenta - Detecta",
+  html: emailTemplate
+});
+```
+
+### 2. Modificar CustodianSignup.tsx
+
+**Cambio principal (líneas 77-110):**
+
+```typescript
+// ANTES - Usa sistema nativo de Supabase
+const { data, error } = await supabase.auth.signUp({ ... });
+
+// DESPUÉS - Llama a edge function con Resend
+const { data, error } = await supabase.functions.invoke('create-custodian-account', {
+  body: {
+    email,
+    password,
+    nombre: name,
+    invitationToken: token,
+  }
+});
+```
+
+**Manejo de errores mejorado:**
+
+```typescript
+if (error) {
+  let errorMessage = 'Error al crear la cuenta';
+  
+  if (error.message.includes('already registered')) {
+    errorMessage = 'Este email ya está registrado. Intenta iniciar sesión.';
+  } else if (error.message.includes('invalid invitation')) {
+    errorMessage = 'La invitación no es válida o ha expirado.';
+  } else if (error.message.includes('password')) {
+    errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+  }
+  // No más errores de rate limit!
+}
+```
+
+### 3. Email Template de Confirmación
+
+Usar el mismo estilo visual que `send-custodian-invitation` pero para confirmación:
+
+- Header con branding de Detecta
+- Mensaje de bienvenida personalizado
+- Botón CTA para confirmar email
+- Link de respaldo
+- Advertencia de expiración (24 horas estándar de Supabase)
 
 ## Beneficios
 
-1. **Consistencia**: Todo el módulo usa el mismo sistema de variables CSS
-2. **Mantenibilidad**: Variables predefinidas facilitan ajustes futuros
-3. **Aprovechamiento total del viewport**: Sin espacio desperdiciado
-4. **Todos los clientes visibles**: Las 10 barras del chart se mostrarán correctamente
+| Aspecto | Antes | Después |
+|---------|-------|---------|
+| Rate limit | 4 emails/hora | Sin límite práctico |
+| Control de errores | Genérico | Específico |
+| Personalización email | Limitada | Total |
+| Tracking | Ninguno | Resend webhooks |
+| Consistencia visual | Template de Supabase | Template de marca |
 
+## Flujo de Usuario Final
+
+1. Custodio llena formulario de registro
+2. Frontend llama a `create-custodian-account`
+3. Edge function crea usuario + envía email via Resend
+4. Custodio recibe email con link de confirmación
+5. Al hacer clic, se confirma el email y se redirige a la app
+6. Hook existente asigna rol de custodio
+
+## Consideraciones Técnicas
+
+- La función usa `SUPABASE_SERVICE_ROLE_KEY` (solo disponible en edge functions)
+- El link generado por `generateLink()` tiene el formato estándar de Supabase
+- El webhook de Resend existente puede trackear bounces/delivers
+- No requiere cambios en la configuración de Supabase Auth
