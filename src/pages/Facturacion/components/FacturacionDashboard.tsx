@@ -145,7 +145,7 @@ export function FacturacionDashboard({
             <CardTitle className="text-sm font-medium">Concentración de Ingresos</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 flex flex-col flex-1 min-h-0">
-            <div className="flex-1 min-h-[180px]">
+            <div className="flex-1 min-h-[180px] relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -172,6 +172,15 @@ export function FacturacionDashboard({
                   />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Hero central label */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-center">
+                  <span className="text-2xl font-bold text-foreground">
+                    {concentracionTop5.toFixed(0)}%
+                  </span>
+                  <p className="text-[10px] text-muted-foreground">Top 5</p>
+                </div>
+              </div>
             </div>
 
             {/* Legend compacta - altura fija */}
