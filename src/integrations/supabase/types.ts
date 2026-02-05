@@ -11372,6 +11372,7 @@ export type Database = {
           id: string
           is_verified: boolean | null
           last_login: string | null
+          onboarding_completado: boolean | null
           phone: string
           photo_url: string | null
           updated_at: string
@@ -11383,6 +11384,7 @@ export type Database = {
           id: string
           is_verified?: boolean | null
           last_login?: string | null
+          onboarding_completado?: boolean | null
           phone?: string
           photo_url?: string | null
           updated_at?: string
@@ -11394,6 +11396,7 @@ export type Database = {
           id?: string
           is_verified?: boolean | null
           last_login?: string | null
+          onboarding_completado?: boolean | null
           phone?: string
           photo_url?: string | null
           updated_at?: string
@@ -13313,6 +13316,7 @@ export type Database = {
           created_by: string | null
           custodio_asignado: string | null
           custodio_id: string | null
+          custodio_telefono: string | null
           destino: string
           email_cliente: string | null
           empresa_cliente: string | null
@@ -13370,6 +13374,7 @@ export type Database = {
           created_by?: string | null
           custodio_asignado?: string | null
           custodio_id?: string | null
+          custodio_telefono?: string | null
           destino: string
           email_cliente?: string | null
           empresa_cliente?: string | null
@@ -13427,6 +13432,7 @@ export type Database = {
           created_by?: string | null
           custodio_asignado?: string | null
           custodio_id?: string | null
+          custodio_telefono?: string | null
           destino?: string
           email_cliente?: string | null
           empresa_cliente?: string | null
@@ -16653,6 +16659,7 @@ export type Database = {
           id: string
           is_verified: boolean | null
           last_login: string | null
+          onboarding_completado: boolean | null
           phone: string
           photo_url: string | null
           updated_at: string
