@@ -203,10 +203,15 @@ export function CompactServiceCard({
             {formatCDMXTime(service.fecha_hora_cita)}
           </span>
           
-          {/* ID Servicio */}
+          {/* ID Servicio + Referencia */}
           <code className="text-xs text-muted-foreground font-mono flex-shrink-0">
             {service.id_servicio}
           </code>
+          {service.id_interno_cliente && (
+            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium flex-shrink-0">
+              Ref: {service.id_interno_cliente}
+            </span>
+          )}
           
           {/* Upcoming badge */}
           <UpcomingServiceBadge citaTime={citaTime} now={now} />
@@ -287,7 +292,7 @@ export function CompactServiceCard({
         {service.custodio_nombre ? (
           <div className="flex items-center gap-1 min-w-0">
             <User className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium text-foreground truncate max-w-[120px]">{service.custodio_nombre}</span>
+            <span className="font-medium text-foreground truncate max-w-[200px]">{service.custodio_nombre}</span>
             {isHybridCustodian() && (
               <Shield className="w-3 h-3 text-amber-500 flex-shrink-0" />
             )}
