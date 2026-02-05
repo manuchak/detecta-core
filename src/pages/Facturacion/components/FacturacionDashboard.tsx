@@ -82,7 +82,7 @@ export function FacturacionDashboard({
             <CardTitle className="text-sm font-medium">Top 10 Clientes por Ingresos</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0">
-            <div className="h-[calc(100vh-340px)] min-h-[300px]">
+            <div className="h-[calc(var(--vh-full)-340px)] min-h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={metricasPorCliente.slice(0, 10)}

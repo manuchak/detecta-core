@@ -196,6 +196,7 @@ export function FacturasListTab() {
       {/* Tabla de facturas */}
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-auto h-[calc(var(--vh-full)-420px)] min-h-[300px]">
           <Table>
             <TableHeader>
               <TableRow>
@@ -272,6 +273,7 @@ export function FacturasListTab() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
