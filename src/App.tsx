@@ -11,7 +11,8 @@ import { SandboxRouteGuard } from '@/components/sandbox/SandboxRouteGuard';
 import { lazy, Suspense, useEffect } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
-import { SIERCP_ALLOWED_ROLES } from '@/constants/accessControl';
+import { SIERCP_ALLOWED_ROLES, FIELD_OPERATOR_ROLES } from '@/constants/accessControl';
+import RoleBlockedRoute from '@/components/RoleBlockedRoute';
 
 // Layout imports
 import DashboardLayout from '@/layouts/DashboardLayout';
@@ -203,14 +204,16 @@ function App() {
                 <Route path="/auth/pending-activation" element={<PendingActivation />} />
                 <Route path="/auth/registro-custodio" element={<CustodianSignup />} />
                 
-                {/* Protected routes - Home accessible to all authenticated users */}
+                {/* Protected routes - Home for admin users, field operators redirect to portal */}
                 <Route
                   path="/home"
                   element={
                     <ProtectedRoute>
-                      <UnifiedLayout>
-                        <Home />
-                      </UnifiedLayout>
+                      <RoleBlockedRoute>
+                        <UnifiedLayout>
+                          <Home />
+                        </UnifiedLayout>
+                      </RoleBlockedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -313,14 +316,16 @@ function App() {
                   }
                 />
                 
-                {/* Services routes */}
+                {/* Services routes - field operators have dedicated views */}
                 <Route
                   path="/services"
                   element={
                     <ProtectedRoute>
-                      <UnifiedLayout>
-                        <ServicesPage />
-                      </UnifiedLayout>
+                      <RoleBlockedRoute>
+                        <UnifiedLayout>
+                          <ServicesPage />
+                        </UnifiedLayout>
+                      </RoleBlockedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -338,14 +343,16 @@ function App() {
                   }
                 />
                 
-                {/* Leads routes */}
+                {/* Leads routes - restricted from field operators */}
                 <Route
                   path="/leads"
                   element={
                     <ProtectedRoute>
-                      <UnifiedLayout>
-                        <SimpleLeadsPage />
-                      </UnifiedLayout>
+                      <RoleBlockedRoute>
+                        <UnifiedLayout>
+                          <SimpleLeadsPage />
+                        </UnifiedLayout>
+                      </RoleBlockedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -599,9 +606,11 @@ function App() {
                   path="/tickets"
                   element={
                     <ProtectedRoute>
-                      <UnifiedLayout>
-                        <TicketsList />
-                      </UnifiedLayout>
+                      <RoleBlockedRoute>
+                        <UnifiedLayout>
+                          <TicketsList />
+                        </UnifiedLayout>
+                      </RoleBlockedRoute>
                     </ProtectedRoute>
                   }
                 />
@@ -610,9 +619,11 @@ function App() {
                   path="/tickets/:ticketId"
                   element={
                     <ProtectedRoute>
-                      <UnifiedLayout>
-                        <TicketDetailPage />
-                      </UnifiedLayout>
+                      <RoleBlockedRoute>
+                        <UnifiedLayout>
+                          <TicketDetailPage />
+                        </UnifiedLayout>
+                      </RoleBlockedRoute>
                     </ProtectedRoute>
                   }
                 />

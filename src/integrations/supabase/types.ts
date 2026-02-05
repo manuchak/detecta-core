@@ -12626,6 +12626,39 @@ export type Database = {
         }
         Relationships: []
       }
+      security_access_log: {
+        Row: {
+          attempted_action: string
+          attempted_table: string
+          blocked_at: string | null
+          id: string
+          ip_address: unknown
+          user_agent: string | null
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          attempted_action: string
+          attempted_table: string
+          blocked_at?: string | null
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          attempted_action?: string
+          attempted_table?: string
+          blocked_at?: string | null
+          id?: string
+          ip_address?: unknown
+          user_agent?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: []
+      }
       security_audit_log: {
         Row: {
           action: string
@@ -17265,6 +17298,7 @@ export type Database = {
       is_coordinator_or_security: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_custodio: { Args: never; Returns: boolean }
+      is_field_operator: { Args: never; Returns: boolean }
       is_installer_or_admin: { Args: never; Returns: boolean }
       is_sales_executive_or_admin: { Args: never; Returns: boolean }
       is_security_analyst_or_admin: { Args: never; Returns: boolean }

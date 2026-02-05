@@ -9,6 +9,25 @@
 export const APP_BUILD_ID = `build-${Date.now()}`;
 
 /**
+ * Field operator roles - these have dedicated portals and should NOT access admin modules
+ * Used by RoleBlockedRoute to redirect unauthorized access attempts
+ */
+export const FIELD_OPERATOR_ROLES = [
+  'custodio',
+  'instalador'
+] as const;
+
+/**
+ * Portal redirect map for field operators
+ * When a blocked role tries to access admin routes, redirect here
+ */
+export const PORTAL_REDIRECTS: Record<string, string> = {
+  'custodio': '/custodian',
+  'instalador': '/installers/portal'
+} as const;
+
+export type FieldOperatorRole = typeof FIELD_OPERATOR_ROLES[number];
+/**
  * Roles with access to SIERCP evaluation module
  * Used in: App.tsx routes, Sidebar.tsx menu
  */
