@@ -24,6 +24,7 @@ export interface ClienteFiscal {
 }
 
 export interface ClienteFiscalUpdate {
+  nombre?: string; // Nombre comercial - cambio sensible, afecta vinculaciones
   razon_social?: string | null;
   rfc?: string | null;
   regimen_fiscal?: string | null;
