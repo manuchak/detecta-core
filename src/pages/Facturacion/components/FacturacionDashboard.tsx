@@ -14,6 +14,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  LabelList,
 } from 'recharts';
 
 interface FacturacionDashboardProps {
@@ -89,7 +90,13 @@ export function FacturacionDashboard({
                   layout="vertical"
                   margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    horizontal={true}
+                    vertical={false}
+                    stroke="hsl(var(--border))"
+                    opacity={0.3}
+                  />
                   <XAxis 
                     type="number" 
                     tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
@@ -117,7 +124,15 @@ export function FacturacionDashboard({
                     dataKey="ingresos" 
                     fill="hsl(var(--primary))" 
                     radius={[0, 4, 4, 0]}
-                  />
+                    barSize={22}
+                  >
+                    <LabelList 
+                      dataKey="ingresos" 
+                      position="right" 
+                      formatter={(value: number) => `$${(value/1000).toFixed(0)}k`}
+                      className="fill-muted-foreground text-[9px]"
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -137,9 +152,9 @@ export function FacturacionDashboard({
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={45}
-                    outerRadius={75}
-                    paddingAngle={2}
+                    innerRadius="40%"
+                    outerRadius="70%"
+                    paddingAngle={1}
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
