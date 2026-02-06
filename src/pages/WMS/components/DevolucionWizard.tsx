@@ -68,11 +68,12 @@ export const DevolucionWizard = ({ open, onOpenChange }: DevolucionWizardProps) 
   const { productos } = useProductosInventario();
   const { crearDevolucion, agregarDetalle } = useDevolucionesProveedor();
 
-  // Persistence hook
+  // Persistence hook - upgraded to robust for multi-step wizard
   const persistence = useFormPersistence<DevolucionWizardState>({
     key: 'wms_devolucion_wizard',
     initialData: initialState,
-    level: 'standard',
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
     isMeaningful: (data) => Object.keys(data.seleccion).length > 0 || !!data.numeroRMA || !!data.proveedorId,
     calculateProgress: (data) => {
       let score = 0;

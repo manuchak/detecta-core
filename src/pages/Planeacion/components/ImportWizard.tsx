@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,8 @@ import ImportPreviewStep from './ImportPreviewStep';
 import ImportResultsStep from './ImportResultsStep';
 import { parseExcelFile, ExcelData, MappingConfig, getDefaultMapping } from '@/utils/excelImporter';
 import { ImportResult, ImportProgress, importServicios } from '@/services/importService';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 interface ImportWizardProps {
   open: boolean;
@@ -37,65 +39,79 @@ type WizardStep = 'upload' | 'mapping' | 'preview' | 'import' | 'results';
 
 interface WizardState {
   step: WizardStep;
-  file: File | null;
   excelData: ExcelData | null;
   mapping: MappingConfig;
   importResult: ImportResult | null;
   importProgress: ImportProgress | null;
   selectedSheet: string;
   headerRow: number;
+  fileName: string;
 }
+
+const initialState: WizardState = {
+  step: 'upload',
+  excelData: null,
+  mapping: {},
+  importResult: null,
+  importProgress: null,
+  selectedSheet: '',
+  headerRow: 1,
+  fileName: '',
+};
 
 export default function ImportWizard({
   open,
   onOpenChange,
   onComplete
 }: ImportWizardProps) {
-  const [state, setState] = useState<WizardState>({
-    step: 'upload',
-    file: null,
-    excelData: null,
-    mapping: {},
-    importResult: null,
-    importProgress: null,
-    selectedSheet: '',
-    headerRow: 1
-  });
-
+  const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const resetWizard = () => {
-    setState({
-      step: 'upload',
-      file: null,
-      excelData: null,
-      mapping: {},
-      importResult: null,
-      importProgress: null,
-      selectedSheet: '',
-      headerRow: 1
-    });
+  // Persistence hook for robust draft recovery
+  const persistence = useFormPersistence<WizardState>({
+    key: 'import_wizard_servicios',
+    initialData: initialState,
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    isMeaningful: (data) => !!(data.fileName || Object.keys(data.mapping).length > 0),
+    calculateProgress: (data) => {
+      const progress: Record<WizardStep, number> = {
+        upload: 0,
+        mapping: 25,
+        preview: 50,
+        import: 75,
+        results: 100
+      };
+      return progress[data.step] || 0;
+    },
+  });
+
+  const { data: state, updateData, hasDraft, hasUnsavedChanges, lastSaved, getTimeSinceSave, clearDraft } = persistence;
+
+  const resetWizard = useCallback(() => {
+    clearDraft(true);
+    setFile(null);
     setError(null);
     setIsLoading(false);
-  };
+  }, [clearDraft]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const uploadedFile = event.target.files?.[0];
+    if (!uploadedFile) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await parseExcelFile(file);
-      setState(prev => ({
-        ...prev,
-        file,
+      const data = await parseExcelFile(uploadedFile);
+      setFile(uploadedFile);
+      updateData({
         excelData: data,
         selectedSheet: data.selectedSheet,
-        headerRow: data.headerRow
-      }));
+        headerRow: data.headerRow,
+        fileName: uploadedFile.name,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al procesar el archivo');
     } finally {
@@ -104,21 +120,20 @@ export default function ImportWizard({
   };
 
   const handleSheetAndHeaderConfirm = async () => {
-    if (!state.file) return;
+    if (!file) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await parseExcelFile(state.file, state.selectedSheet, state.headerRow);
+      const data = await parseExcelFile(file, state.selectedSheet, state.headerRow);
       const defaultMapping = getDefaultMapping(data.columns);
       
-      setState(prev => ({
-        ...prev,
+      updateData({
         excelData: data,
         mapping: defaultMapping,
         step: 'mapping'
-      }));
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al procesar el archivo');
     } finally {
@@ -127,55 +142,46 @@ export default function ImportWizard({
   };
 
   const handleMappingComplete = (mapping: MappingConfig) => {
-    setState(prev => ({
-      ...prev,
-      mapping,
-      step: 'preview'
-    }));
+    updateData({ mapping, step: 'preview' });
   };
 
   const handleImportConfirm = () => {
-    setState(prev => ({
-      ...prev,
-      step: 'import'
-    }));
+    updateData({ step: 'import' });
   };
 
   const handleImportProgress = (progress: ImportProgress) => {
-    setState(prev => ({
-      ...prev,
-      importProgress: progress
-    }));
+    updateData({ importProgress: progress });
   };
 
   const handleImportComplete = (result: ImportResult) => {
-    setState(prev => ({
-      ...prev,
-      importResult: result,
-      step: 'results'
-    }));
+    updateData({ importResult: result, step: 'results' });
+    // Clear draft on successful import
+    if (result.imported > 0) {
+      clearDraft(true);
+    }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(async () => {
     if (state.importResult?.imported && state.importResult.imported > 0) {
       onComplete?.();
+      resetWizard();
+    } else if (hasUnsavedChanges && state.step !== 'upload') {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+      resetWizard();
     }
     onOpenChange(false);
-    resetWizard();
-  };
+  }, [state.importResult, state.step, hasUnsavedChanges, onComplete, onOpenChange, resetWizard, persistence]);
 
   const goToPreviousStep = () => {
     const stepOrder: WizardStep[] = ['upload', 'mapping', 'preview', 'import', 'results'];
     const currentIndex = stepOrder.indexOf(state.step);
     if (currentIndex > 0) {
-      setState(prev => ({
-        ...prev,
-        step: stepOrder[currentIndex - 1]
-      }));
+      updateData({ step: stepOrder[currentIndex - 1] });
     }
   };
 
-  const stepProgress = {
+  const stepProgress: Record<WizardStep, number> = {
     upload: 0,
     mapping: 25,
     preview: 50,
@@ -193,22 +199,18 @@ export default function ImportWizard({
 
   const StepIcon = stepIcons[state.step];
 
-  // Actualiza la vista previa cuando cambia la hoja seleccionada
+  // Refresh preview when sheet changes
   useEffect(() => {
     const refreshPreview = async () => {
-      if (!state.file || !state.selectedSheet || state.step !== 'upload') return;
+      if (!file || !state.selectedSheet || state.step !== 'upload') return;
       setIsLoading(true);
       setError(null);
       try {
-        const data = await parseExcelFile(state.file, state.selectedSheet);
-        setState(prev => ({
-          ...prev,
-          excelData: {
-            ...(prev.excelData || data),
-            ...data,
-          },
+        const data = await parseExcelFile(file, state.selectedSheet);
+        updateData({
+          excelData: { ...(state.excelData || data), ...data },
           headerRow: 1,
-        }));
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar la hoja seleccionada');
       } finally {
@@ -216,16 +218,26 @@ export default function ImportWizard({
       }
     };
     refreshPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.selectedSheet]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <StepIcon className="h-5 w-5" />
-            Importar Servicios desde Excel
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <StepIcon className="h-5 w-5" />
+              Importar Servicios desde Excel
+            </DialogTitle>
+            <DraftIndicator
+              hasDraft={hasDraft}
+              hasUnsavedChanges={hasUnsavedChanges}
+              lastSaved={lastSaved}
+              getTimeSinceSave={getTimeSinceSave}
+              variant="minimal"
+            />
+          </div>
           <DialogDescription>
             Sube un archivo Excel con datos históricos de servicios para importar al sistema
           </DialogDescription>
@@ -253,7 +265,7 @@ export default function ImportWizard({
                 </p>
               </div>
 
-              {!state.file ? (
+              {!file ? (
                 <div className="border-2 border-dashed border-muted rounded-lg p-8">
                   <div className="text-center">
                     <input
@@ -276,10 +288,10 @@ export default function ImportWizard({
               ) : (
                 <div className="space-y-6">
                   <div className="flex items-center justify-center gap-2 p-4 bg-muted/50 rounded-lg">
-                    <FileText className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">{state.file.name}</span>
+                    <FileText className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-medium">{file.name}</span>
                     <Badge variant="secondary">
-                      {(state.file.size / 1024 / 1024).toFixed(1)} MB
+                      {(file.size / 1024 / 1024).toFixed(1)} MB
                     </Badge>
                   </div>
 
@@ -291,7 +303,7 @@ export default function ImportWizard({
                           <Label>Seleccionar Hoja de Trabajo</Label>
                           <Select 
                             value={state.selectedSheet} 
-                            onValueChange={(value) => setState(prev => ({...prev, selectedSheet: value}))}
+                            onValueChange={(value) => updateData({ selectedSheet: value })}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecciona una hoja" />
@@ -313,7 +325,7 @@ export default function ImportWizard({
                           min="1"
                           max="20"
                           value={state.headerRow}
-                          onChange={(e) => setState(prev => ({...prev, headerRow: parseInt(e.target.value) || 1}))}
+                          onChange={(e) => updateData({ headerRow: parseInt(e.target.value) || 1 })}
                           className="w-24"
                         />
                         <p className="text-xs text-muted-foreground">
