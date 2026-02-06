@@ -2,7 +2,7 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v5.0 - Timeout en compresión + toasts detallados para debugging Android
+ * v6.0 - Timeout de 8s para img.onload + fallback obligatorio a original
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
@@ -15,7 +15,7 @@ import { compressImage, needsCompression } from '@/lib/imageUtils';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -155,8 +155,11 @@ export function DocumentUploadStep({
       
       if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
         setIsCompressing(true);
-        console.log(`[DocumentUpload] ${VERSION} - Comprimiendo imagen: ${(selectedFile.size / 1024).toFixed(0)}KB`);
-        toast.info('Comprimiendo imagen...', { duration: 2000 });
+        
+        // v6: Toast más visible ANTES de compresión
+        const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(1);
+        toast.info(`📷 Cargando imagen (${fileSizeMB}MB)...`, { duration: 5000 });
+        console.log(`[DocumentUpload] ${VERSION} - Tipo: "${selectedFile.type}", Tamaño: ${selectedFile.size} bytes`);
         
         try {
           const { blob, compressionRatio } = await compressImage(selectedFile, {
@@ -167,28 +170,28 @@ export function DocumentUploadStep({
           
           fileToUse = new File([blob], selectedFile.name, { type: 'image/jpeg' });
           console.log(`[DocumentUpload] ${VERSION} - Compresión exitosa: ${compressionRatio.toFixed(0)}% reducción`);
-          toast.success('Imagen comprimida ✓', { duration: 1500 });
+          toast.success('Imagen comprimida ✓', { duration: 2000 });
         } catch (compressionError) {
+          // v6: SIEMPRE hacer fallback a original, nunca quedarse colgado
           console.error(`[DocumentUpload] ${VERSION} - Error de compresión:`, compressionError);
           
-          // Verificar si es timeout
           const errorMsg = compressionError instanceof Error ? compressionError.message : '';
-          if (errorMsg.includes('Timeout')) {
-            toast.warning('Compresión tardó mucho, usando original', { duration: 3000 });
-            console.warn(`[DocumentUpload] ${VERSION} - Timeout, usando archivo original`);
-            fileToUse = selectedFile;
-          } else if (isQuotaError(compressionError)) {
+          
+          if (isQuotaError(compressionError)) {
             setUploadStatus('error');
             setErrorType('storage_low');
             setErrorMessage('No hay suficiente espacio para procesar la imagen');
             setIsCompressing(false);
             return;
-          } else {
-            // Si falla la compresión pero no es error de quota ni timeout, usar archivo original
-            console.warn(`[DocumentUpload] ${VERSION} - Usando archivo original sin comprimir`);
-            toast.warning('Usando foto original', { duration: 2000 });
-            fileToUse = selectedFile;
           }
+          
+          // v6: Para CUALQUIER otro error (timeout, img.onload falla, etc.) usar original
+          console.warn(`[DocumentUpload] ${VERSION} - Fallback a archivo original. Error: ${errorMsg}`);
+          toast.warning('Usando foto sin comprimir', { 
+            description: errorMsg.includes('Timeout') ? 'La compresión tardó mucho' : 'Error al procesar',
+            duration: 3000 
+          });
+          fileToUse = selectedFile;
         }
         
         setIsCompressing(false);

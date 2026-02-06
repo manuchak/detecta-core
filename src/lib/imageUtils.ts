@@ -2,7 +2,7 @@
  * Utilidades para compresión de imágenes
  * Reduce tamaño de fotos antes de almacenar en IndexedDB
  * 
- * v5: Timeout de 10s + fallback toDataURL para Android WebViews problemáticos
+ * v6: Timeout de 8s para img.onload + fallback a archivo original si falla todo
  */
 
 export interface CompressionOptions {
@@ -26,13 +26,14 @@ const DEFAULT_OPTIONS: CompressionOptions = {
   format: 'jpeg',
 };
 
-const COMPRESSION_TIMEOUT_MS = 10000; // 10 segundos máximo
+const IMG_LOAD_TIMEOUT_MS = 8000; // 8 segundos para que la imagen cargue
+const TOBLOB_TIMEOUT_MS = 5000; // 5 segundos para toBlob
 
 /**
  * Convierte un dataURL a Blob (fallback para cuando toBlob falla)
  */
 function dataURLToBlob(dataUrl: string, mimeType: string): Blob {
-  console.log('[ImageUtils] Usando fallback dataURLToBlob');
+  console.log('[ImageUtils] v6 - Usando fallback dataURLToBlob');
   const byteString = atob(dataUrl.split(',')[1]);
   const arrayBuffer = new ArrayBuffer(byteString.length);
   const uint8Array = new Uint8Array(arrayBuffer);
@@ -48,7 +49,7 @@ function dataURLToBlob(dataUrl: string, mimeType: string): Blob {
  * Comprime una imagen usando Canvas API
  * Mantiene aspect ratio y reduce calidad para optimizar almacenamiento
  * 
- * v5: Incluye timeout de 10s y fallback a toDataURL para Android
+ * v6: Timeout de 8s para img.onload + fallback toDataURL
  */
 export async function compressImage(
   file: File | Blob,
@@ -57,15 +58,23 @@ export async function compressImage(
   const config = { ...DEFAULT_OPTIONS, ...options };
   const originalSize = file.size;
   
-  console.log(`[ImageUtils] v5 - Iniciando compresión: ${(originalSize / 1024).toFixed(0)}KB`);
+  console.log(`[ImageUtils] v6 - Iniciando compresión: ${(originalSize / 1024).toFixed(0)}KB, tipo: ${file.type}`);
 
-  const compressionPromise = new Promise<CompressionResult>((resolve, reject) => {
+  return new Promise<CompressionResult>((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
 
-    img.onload = () => {
+    // v6: Timeout específico para img.onload (8 segundos)
+    const imgLoadTimeout = setTimeout(() => {
       URL.revokeObjectURL(url);
-      console.log('[ImageUtils] v5 - Imagen cargada, procesando...');
+      console.error('[ImageUtils] v6 - TIMEOUT: img.onload no disparó en 8 segundos');
+      reject(new Error('Timeout: La imagen no se pudo cargar'));
+    }, IMG_LOAD_TIMEOUT_MS);
+
+    img.onload = () => {
+      clearTimeout(imgLoadTimeout);
+      URL.revokeObjectURL(url);
+      console.log(`[ImageUtils] v6 - Imagen cargada: ${img.width}x${img.height}`);
 
       // Calcular nuevas dimensiones manteniendo aspect ratio
       let { width, height } = img;
@@ -99,15 +108,15 @@ export async function compressImage(
       // Convertir a blob comprimido
       const mimeType = config.format === 'webp' ? 'image/webp' : 'image/jpeg';
       
-      console.log('[ImageUtils] v5 - Llamando canvas.toBlob()...');
+      console.log('[ImageUtils] v6 - Canvas listo, llamando toBlob...');
       
       // Flag para detectar si toBlob llamó al callback
       let toBlobCalled = false;
       
-      // Timeout interno para toBlob (5 segundos)
+      // v6: Timeout de 5s para toBlob específicamente
       const toBlobTimeout = setTimeout(() => {
         if (!toBlobCalled) {
-          console.warn('[ImageUtils] v5 - toBlob no respondió, usando toDataURL fallback');
+          console.warn('[ImageUtils] v6 - toBlob no respondió en 5s, usando toDataURL fallback');
           try {
             const dataUrl = canvas.toDataURL(mimeType, config.quality);
             const fallbackBlob = dataURLToBlob(dataUrl, mimeType);
@@ -117,7 +126,7 @@ export async function compressImage(
               : 0;
             
             console.log(
-              `[ImageUtils] v5 - Fallback exitoso: ${(originalSize / 1024).toFixed(0)}KB -> ${(compressedSize / 1024).toFixed(0)}KB (${compressionRatio.toFixed(0)}% reducción)`
+              `[ImageUtils] v6 - Fallback exitoso: ${(originalSize / 1024).toFixed(0)}KB -> ${(compressedSize / 1024).toFixed(0)}KB (${compressionRatio.toFixed(0)}% reducción)`
             );
             
             resolve({
@@ -127,22 +136,22 @@ export async function compressImage(
               compressionRatio,
             });
           } catch (fallbackError) {
-            console.error('[ImageUtils] v5 - Fallback toDataURL también falló:', fallbackError);
+            console.error('[ImageUtils] v6 - Fallback toDataURL también falló:', fallbackError);
             reject(new Error('Error en compresión: toBlob y toDataURL fallaron'));
           }
         }
-      }, 5000);
+      }, TOBLOB_TIMEOUT_MS);
       
       canvas.toBlob(
         (blob) => {
           toBlobCalled = true;
           clearTimeout(toBlobTimeout);
           
-          console.log('[ImageUtils] v5 - toBlob callback ejecutado, blob:', blob ? `${blob.size} bytes` : 'NULL');
+          console.log('[ImageUtils] v6 - toBlob callback:', blob ? `${blob.size} bytes` : 'NULL');
           
           if (!blob) {
             // toBlob llamó al callback pero con null - usar fallback
-            console.warn('[ImageUtils] v5 - toBlob devolvió null, usando toDataURL');
+            console.warn('[ImageUtils] v6 - toBlob devolvió null, usando toDataURL');
             try {
               const dataUrl = canvas.toDataURL(mimeType, config.quality);
               const fallbackBlob = dataURLToBlob(dataUrl, mimeType);
@@ -169,7 +178,7 @@ export async function compressImage(
             : 0;
 
           console.log(
-            `[ImageUtils] v5 - Comprimido: ${(originalSize / 1024).toFixed(0)}KB -> ${(compressedSize / 1024).toFixed(0)}KB (${compressionRatio.toFixed(0)}% reducción)`
+            `[ImageUtils] v6 - Comprimido: ${(originalSize / 1024).toFixed(0)}KB -> ${(compressedSize / 1024).toFixed(0)}KB (${compressionRatio.toFixed(0)}% reducción)`
           );
 
           resolve({
@@ -184,24 +193,16 @@ export async function compressImage(
       );
     };
 
-    img.onerror = () => {
+    img.onerror = (e) => {
+      clearTimeout(imgLoadTimeout);
       URL.revokeObjectURL(url);
-      console.error('[ImageUtils] v5 - Error al cargar imagen');
+      console.error('[ImageUtils] v6 - Error al cargar imagen:', e);
       reject(new Error('Error al cargar imagen para compresión'));
     };
 
+    console.log('[ImageUtils] v6 - Asignando src a img...');
     img.src = url;
   });
-
-  // Timeout global de 10 segundos para toda la operación
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      console.error('[ImageUtils] v5 - TIMEOUT: Compresión tardó más de 10 segundos');
-      reject(new Error('Timeout: La compresión tardó demasiado'));
-    }, COMPRESSION_TIMEOUT_MS);
-  });
-
-  return Promise.race([compressionPromise, timeoutPromise]);
 }
 
 /**
