@@ -1,128 +1,123 @@
 
 
-# Plan: Agregar Timeout y Logging Robusto en Compresión de Imágenes
+# Plan: Agregar Timeout para img.onload + Logging Más Granular (v6)
 
 ## Diagnóstico Confirmado
 
-El usuario reporta que ve "Procesando: [nombre]" pero luego la imagen nunca aparece. Esto confirma:
+El problema está en `imageUtils.ts` donde `img.onload` nunca se dispara en algunos dispositivos Android. El archivo se recibe correctamente (aparece toast "Procesando") pero la imagen nunca termina de cargar en el elemento `<img>`, causando que la Promise se quede colgada.
 
-1. **El archivo SÍ se recibe** (el toast aparece en línea 131)
-2. **La compresión se inicia** pero nunca termina
-3. **La Promise de `compressImage` se queda colgada** - probablemente `canvas.toBlob()` no llama al callback en este Android
+**Causa raíz**: El timeout de 10 segundos solo cubre el caso donde `toBlob()` falla, pero NO cubre el caso donde `img.onload` nunca se ejecuta.
 
-## Causa Raíz
+## Solución
 
-En `imageUtils.ts`, la función `compressImage` usa:
-```typescript
-canvas.toBlob((blob) => {
-  // Este callback NUNCA se llama en algunos Android
-}, mimeType, quality);
-```
+### 1. Agregar Timeout a la Carga de Imagen (imageUtils.ts)
 
-Este es un **bug conocido en algunos navegadores Android** donde `toBlob()` falla silenciosamente sin llamar al callback ni generar error.
-
-## Solución Propuesta
-
-### 1. Agregar Timeout a `compressImage` (imageUtils.ts)
-
-Envolver la Promise en un timeout de 10 segundos:
+Mover el timeout para cubrir TODO el proceso, incluyendo la carga de la imagen:
 
 ```typescript
 export async function compressImage(
   file: File | Blob,
   options: Partial<CompressionOptions> = {}
 ): Promise<CompressionResult> {
-  const TIMEOUT_MS = 10000; // 10 segundos máximo
+  const config = { ...DEFAULT_OPTIONS, ...options };
+  const originalSize = file.size;
+  
+  console.log(`[ImageUtils] v6 - Iniciando compresión: ${(originalSize / 1024).toFixed(0)}KB`);
+
+  // Timeout para TODA la operación (incluyendo carga de imagen)
+  let timeoutId: NodeJS.Timeout;
   
   const compressionPromise = new Promise<CompressionResult>((resolve, reject) => {
-    // ... código existente
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    
+    // v6: Timeout de 8s para img.onload específicamente
+    const imgLoadTimeout = setTimeout(() => {
+      URL.revokeObjectURL(url);
+      console.error('[ImageUtils] v6 - TIMEOUT: Imagen no cargó en 8 segundos');
+      reject(new Error('Timeout: La imagen no se pudo cargar'));
+    }, 8000);
+
+    img.onload = () => {
+      clearTimeout(imgLoadTimeout); // Limpiar timeout de carga
+      URL.revokeObjectURL(url);
+      console.log('[ImageUtils] v6 - Imagen cargada correctamente');
+      
+      // ... resto del código de compresión
+    };
+
+    img.onerror = (e) => {
+      clearTimeout(imgLoadTimeout);
+      URL.revokeObjectURL(url);
+      console.error('[ImageUtils] v6 - Error al cargar imagen:', e);
+      reject(new Error('Error al cargar imagen para compresión'));
+    };
+
+    img.src = url;
   });
-  
-  // Timeout wrapper
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      reject(new Error('Timeout: La compresión tardó demasiado'));
-    }, TIMEOUT_MS);
-  });
-  
-  return Promise.race([compressionPromise, timeoutPromise]);
+
+  return compressionPromise;
 }
 ```
 
-### 2. Agregar Fallback: Usar toDataURL si toBlob Falla
+### 2. Agregar Logging Antes de Compresión (DocumentUploadStep.tsx)
 
-`toDataURL` es más confiable en Android:
+Mostrar toast ANTES de iniciar la compresión para confirmar que el flujo llega ahí:
 
 ```typescript
-// Si toBlob falla, usar toDataURL como fallback
-canvas.toBlob(
-  (blob) => {
-    if (!blob) {
-      // Fallback a toDataURL
-      const dataUrl = canvas.toDataURL(mimeType, config.quality);
-      const byteString = atob(dataUrl.split(',')[1]);
-      const arrayBuffer = new ArrayBuffer(byteString.length);
-      const uint8Array = new Uint8Array(arrayBuffer);
-      for (let i = 0; i < byteString.length; i++) {
-        uint8Array[i] = byteString.charCodeAt(i);
-      }
-      const fallbackBlob = new Blob([uint8Array], { type: mimeType });
-      resolve({ blob: fallbackBlob, ... });
-      return;
-    }
-    resolve({ blob, ... });
-  },
-  mimeType,
-  config.quality
-);
+// Línea ~155
+if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
+  setIsCompressing(true);
+  
+  // v6: Toast MÁS VISIBLE antes de compresión
+  toast.info(`📷 Cargando imagen (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB)...`, { 
+    duration: 5000 
+  });
+  console.log(`[DocumentUpload] v6 - Tipo de archivo: "${selectedFile.type}", Tamaño: ${selectedFile.size}`);
+  
+  try {
+    const { blob, compressionRatio } = await compressImage(selectedFile, { ... });
+    // ...
+  } catch (compressionError) {
+    console.error(`[DocumentUpload] v6 - Error completo:`, compressionError);
+    toast.error('Error al procesar imagen', {
+      description: compressionError instanceof Error ? compressionError.message : 'Error desconocido',
+      duration: 5000
+    });
+    // Usar archivo original como fallback
+    fileToUse = selectedFile;
+  }
+}
 ```
 
-### 3. Agregar Logging Detallado (DocumentUploadStep.tsx)
+### 3. Fallback: Si la Compresión Falla, Usar Original
 
-Agregar toasts y logs después de cada paso crítico:
-
-```typescript
-// Después de compresión
-console.log(`[DocumentUpload] ${VERSION} - Compresión completada`);
-toast.success('Imagen comprimida', { duration: 1500 });
-
-// Después de crear preview
-console.log(`[DocumentUpload] ${VERSION} - Preview creado:`, url);
-toast.success('Foto lista ✓', { duration: 2000 });
-```
-
-### 4. Agregar Timeout en el Handler (Plan B)
-
-Si la compresión tarda más de 10 segundos, mostrar error y ofrecer retry:
+En lugar de quedarse colgado, usar el archivo original:
 
 ```typescript
-const handleFileSelect = useCallback(async (e) => {
-  // ... código existente
+// En el catch de compressImage
+} catch (compressionError) {
+  console.error(`[DocumentUpload] v6 - Compresión falló:`, compressionError);
   
-  const compressionTimeout = setTimeout(() => {
-    if (isCompressing) {
-      setIsCompressing(false);
-      toast.error('La compresión tardó demasiado', {
-        description: 'Intenta con una foto más pequeña',
-        duration: 5000
-      });
-    }
-  }, 12000);
+  // v6: SIEMPRE usar archivo original como fallback
+  toast.warning('Usando foto sin comprimir', { duration: 3000 });
+  fileToUse = selectedFile;
   
-  // ... compresión
-  
-  clearTimeout(compressionTimeout);
-}, []);
+  setIsCompressing(false);
+}
+
+// El preview se crea FUERA del try/catch de compresión
+// Esto garantiza que siempre se muestre algo
 ```
 
 ## Archivos a Modificar
 
-| Archivo | Cambio | Prioridad |
-|---------|--------|-----------|
-| `src/lib/imageUtils.ts` | Agregar timeout de 10s + fallback toDataURL | Alta |
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Agregar toast después de cada paso + timeout handler | Alta |
+| Archivo | Cambio | 
+|---------|--------|
+| `src/lib/imageUtils.ts` | Agregar timeout de 8s para `img.onload` |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Mejorar logging y asegurar fallback a original |
 
-## Flujo Esperado Post-Implementación
+## Flujo Esperado v6
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -131,41 +126,44 @@ const handleFileSelect = useCallback(async (e) => {
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Compresión inicia → Log: "Comprimiendo imagen: 3500KB"             │
+│  Toast "📷 Cargando imagen (2.5MB)..."                              │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                     ┌───────────────┴───────────────┐
                     │                               │
                     ▼                               ▼
     ┌───────────────────────────┐    ┌─────────────────────────────────┐
-    │ Compresión exitosa < 10s  │    │ Timeout después de 10s          │
-    │ Toast: "Imagen comprimida"│    │ Error: "Compresión tardó mucho" │
-    │ → Preview aparece ✓       │    │ → Intenta con toDataURL         │
-    │ → Toast: "Foto lista ✓"   │    │ → Si falla: usa original        │
-    └───────────────────────────┘    └─────────────────────────────────┘
+    │ img.onload dispara < 8s   │    │ TIMEOUT: img.onload no dispara  │
+    │ → Compresión inicia       │    │ → Toast "Usando foto sin        │
+    │ → Preview aparece ✓       │    │   comprimir"                    │
+    └───────────────────────────┘    │ → Usa archivo original          │
+                                     │ → Preview aparece ✓             │
+                                     └─────────────────────────────────┘
 ```
 
-## Verificación Post-Implementación
+## Verificación
 
-1. Refrescar la app en el Android de prueba
-2. Ver badge **"v5"** en la pantalla
-3. Tomar foto
-4. Verificar secuencia de toasts:
+1. Refrescar app y confirmar badge **"v6"**
+2. Tomar foto
+3. Verificar secuencia de toasts:
    - "Procesando: [nombre]"
-   - "Imagen comprimida" o "Timeout..."
+   - "📷 Cargando imagen (X.XMB)..."
+   - "Imagen comprimida ✓" O "Usando foto sin comprimir"
    - "Foto lista ✓" con preview visible
 
 ## Sección Técnica
 
-### Por qué canvas.toBlob() falla en Android
+### Por qué img.onload puede no dispararse
 
-1. **Memory pressure**: Si el dispositivo tiene poca RAM, el navegador puede abortar operaciones costosas como toBlob sin generar error
+1. **Blob URL inválida**: Algunos Android WebViews no manejan bien los blobs de la cámara
+2. **EXIF corrupto**: Metadatos de orientación mal formados pueden causar que la imagen no cargue
+3. **Formato no soportado**: HEIC/HEIF de cámaras nuevas no son soportados en todos los WebViews
+4. **Memory pressure**: Android puede pausar la carga de imagen si hay poca memoria
 
-2. **WebView bugs**: Algunos fabricantes (Samsung, Xiaomi) tienen WebViews con bugs conocidos en canvas
+### Por qué el fallback es seguro
 
-3. **Imagen corrupta**: Si la foto de la cámara tiene metadatos mal formados, el canvas puede no poder procesarla
-
-### Por qué toDataURL es más confiable
-
-`toDataURL` es sincrónico y no depende de callbacks asincrónicos que pueden perderse. Es más lento pero más predecible.
+Usar el archivo original sin comprimir es preferible a no mostrar nada porque:
+1. El upload a Supabase Storage maneja archivos de cualquier tamaño (hasta el límite del bucket)
+2. Una foto de 3-5MB sube en segundos con buena conexión
+3. Es mejor tener la foto sin comprimir que no tenerla
 
