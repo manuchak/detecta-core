@@ -1,212 +1,195 @@
 
-# Plan v11: Fix Definitivo - Prevenir Desmontaje por Loading Transitorio
+# Plan: Integrar Documentos de Custodios en Perfiles Operativos
 
-## Análisis de la Causa Raíz (10 versiones de aprendizaje)
+## Contexto del Problema
 
-### La Secuencia Completa del Bug
+Actualmente existen **dos fuentes de documentación**:
+
+| Fuente | Tabla | Clave | Quién sube |
+|--------|-------|-------|------------|
+| Reclutamiento | `documentos_candidato` | `candidato_id` | Supply/Admin |
+| Onboarding Custodio | `documentos_custodio` | `custodio_telefono` | Custodio |
+
+La tab "Documentación" en Perfiles Operativos solo muestra documentos de reclutamiento, ignorando los que suben los custodios desde su portal.
+
+## Solución Propuesta
+
+Unificar ambas fuentes en la vista de Perfiles Operativos, permitiendo a Supply ver y auditar TODOS los documentos.
+
+## Cambios a Realizar
+
+### 1. Nuevo Hook: useCustodianDocsForProfile
+
+Crear hook que busque documentos por teléfono del custodio:
+
+```typescript
+// src/pages/PerfilesOperativos/hooks/useCustodianDocsForProfile.ts
+
+export function useCustodianDocsForProfile(telefono: string | null) {
+  return useQuery({
+    queryKey: ['custodian-docs-profile', telefono],
+    queryFn: async () => {
+      if (!telefono) return [];
+      
+      const { data, error } = await supabase
+        .from('documentos_custodio')
+        .select('*')
+        .eq('custodio_telefono', telefono)
+        .order('updated_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!telefono
+  });
+}
+```
+
+### 2. Modificar DocumentacionTab
+
+Actualizar el componente para:
+- Recibir `telefono` además de `candidatoId`
+- Mostrar documentos de ambas fuentes en secciones separadas
+- Agregar badges para indicar origen (Reclutamiento vs Portal Custodio)
+- Permitir verificación de documentos del custodio
+
+```typescript
+interface DocumentacionTabProps {
+  candidatoId: string | null;
+  telefono: string | null;  // NUEVO
+}
+```
+
+### 3. Funcionalidad de Verificación
+
+Agregar botón para que Supply pueda:
+- Marcar documento como verificado/no verificado
+- Agregar notas de revisión
+- Ver fecha y quién verificó
+
+```typescript
+const handleVerificar = async (docId: string, verificado: boolean, notas?: string) => {
+  await supabase
+    .from('documentos_custodio')
+    .update({
+      verificado,
+      verificado_por: user.email,
+      fecha_verificacion: new Date().toISOString(),
+      notas
+    })
+    .eq('id', docId);
+};
+```
+
+### 4. Actualizar PerfilForense.tsx
+
+Pasar el teléfono a DocumentacionTab:
+
+```typescript
+<DocumentacionTab 
+  candidatoId={candidatoId} 
+  telefono={profile.telefono}  // NUEVO
+/>
+```
+
+## Diseño de UI
 
 ```text
-1. Usuario toca "Tomar foto"
-2. Cámara nativa se abre, app va a background
-3. Usuario captura foto y acepta
-4. App regresa a foreground
-         │
-         ▼
-5. Supabase Auth detecta que la app volvió
-   (evento TOKEN_REFRESHED o VISIBILITY_CHANGE)
-         │
-         ▼
-6. useStableAuth.onAuthStateChange() se dispara
-         │
-         ▼
-7. updateAuthState(session) → setUser(newSession.user)
-   (nueva referencia de objeto, aunque sea el mismo usuario)
-         │
-         ▼
-8. useCustodianProfile.useEffect() detecta cambio en 'user'
-         │
-         ▼
-9. fetchProfile() se ejecuta
-         │
-         ▼
-10. setLoading(true) ← PROBLEMA CLAVE
-         │
-         ▼
-11. CustodianOnboarding ve profileLoading = true
-         │
-         ▼
-12. Renderiza SPINNER en lugar del wizard
-         │
-         ▼
-13. ★★★ DocumentUploadStep SE DESMONTA ★★★
-    (TODO el estado local se pierde: preview, file, etc.)
-         │
-         ▼
-14. fetchProfile() completa → setLoading(false)
-         │
-         ▼
-15. CustodianOnboarding renderiza wizard de nuevo
-         │
-         ▼
-16. DocumentUploadStep se MONTA desde cero
-    (preview = null, file = null)
-         │
-         ▼
-17. Usuario ve "Tomar foto" en lugar de su imagen
+┌─────────────────────────────────────────────────────────────┐
+│  📊 Resumen                                                 │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│  │ Total: 7 │ │ Válidos:3│ │ Pend.: 2 │ │ Vencer: 1│       │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
+├─────────────────────────────────────────────────────────────┤
+│  📁 Documentos del Custodio (Portal)         [Expandido ▼]  │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ 📄 Póliza de Seguro           [✓ Verificado] [🔗 Ver]  ││
+│  │    Vence: 15 Ene 2026 • Subido: 6 Feb 2025             ││
+│  │    ✓ Verificado por: admin@... el 6 Feb 2025           ││
+│  ├─────────────────────────────────────────────────────────┤│
+│  │ 📄 Tarjeta de Circulación     [⏳ Pendiente] [🔗 Ver]  ││
+│  │    Vence: 20 Mar 2026 • Subido: 6 Feb 2025             ││
+│  │    [ Verificar ✓ ] [ Rechazar ✗ ]                      ││
+│  └─────────────────────────────────────────────────────────┘│
+├─────────────────────────────────────────────────────────────┤
+│  📋 Documentos de Reclutamiento              [Expandido ▼]  │
+│  │ (documentos existentes del sistema actual)              ││
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Por qué cada versión anterior falló
+## Archivos a Crear/Modificar
 
-| Versión | Lo que arreglamos | Por qué no funcionó |
-|---------|-------------------|---------------------|
-| v1-v6 | Compresión de imagen | Síntoma incorrecto |
-| v7 | Input dinámico | Arregló captura, no rendering |
-| v8 | Diagnósticos img | Reveló que img no se renderiza |
-| v9 | Base64 en lugar de blob | Formato correcto, pero componente se desmonta |
-| v10 | refetchOnWindowFocus: false | Solo arregló useCustodianDocuments, pero el problema está en useCustodianProfile |
+| Archivo | Acción | Descripción |
+|---------|--------|-------------|
+| `src/pages/PerfilesOperativos/hooks/useCustodianDocsForProfile.ts` | Crear | Hook para obtener documentos por teléfono |
+| `src/pages/PerfilesOperativos/hooks/useVerifyDocument.ts` | Crear | Mutación para verificar documentos |
+| `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx` | Modificar | Integrar ambas fuentes + verificación |
+| `src/pages/PerfilesOperativos/hooks/useProfileDocuments.ts` | Modificar | Agregar labels de documentos custodio |
+| `src/pages/PerfilesOperativos/PerfilForense.tsx` | Modificar | Pasar telefono a DocumentacionTab |
 
-### La Evidencia Clave
+## Labels Unificados de Documentos
 
-En `useCustodianProfile.ts` línea 23-29:
-```typescript
-useEffect(() => {
-  if (user && !authLoading) {
-    fetchProfile();  // ← Se re-ejecuta cuando 'user' cambia de referencia
-  }
-}, [user, authLoading]);
-```
-
-Y en `fetchProfile()` línea 31-33:
-```typescript
-const fetchProfile = async () => {
-  try {
-    setLoading(true);  // ← Causa el spinner que desmonta DocumentUploadStep
-```
-
-## Solución v11
-
-### Cambio 1: No mostrar loading si ya tenemos perfil
-
-En `useCustodianProfile.ts`, modificar `fetchProfile` para evitar el parpadeo de loading:
+Combinar los labels existentes:
 
 ```typescript
-const fetchProfile = async (silent = false) => {
-  try {
-    // v11: Solo mostrar loading si no hay perfil cargado
-    // Esto evita desmontar componentes hijos cuando la app regresa de background
-    if (!silent && !profile) {
-      setLoading(true);
-    }
-    
-    // ... resto del código igual
+export const DOCUMENTO_LABELS: Record<string, string> = {
+  // De reclutamiento (documentos_candidato)
+  ine: 'INE / Identificación Oficial',
+  curp: 'CURP',
+  rfc: 'RFC',
+  comprobante_domicilio: 'Comprobante de Domicilio',
+  licencia_conducir: 'Licencia de Conducir',
+  antecedentes_penales: 'Carta de Antecedentes Penales',
+  acta_nacimiento: 'Acta de Nacimiento',
+  comprobante_estudios: 'Comprobante de Estudios',
+  cv: 'Curriculum Vitae',
+  foto: 'Fotografía',
+  contrato: 'Contrato Firmado',
+  
+  // De portal custodio (documentos_custodio)
+  tarjeta_circulacion: 'Tarjeta de Circulación',
+  poliza_seguro: 'Póliza de Seguro',
+  verificacion_vehicular: 'Verificación Vehicular',
+  credencial_custodia: 'Credencial de Custodia',
+  
+  otro: 'Otro Documento'
+};
 ```
 
-### Cambio 2: Usar fetch silencioso en re-ejecuciones
-
-En el useEffect, usar fetch silencioso si ya tenemos perfil:
-
-```typescript
-useEffect(() => {
-  if (user && !authLoading) {
-    // v11: Si ya tenemos perfil, hacer refresh silencioso
-    // para no desmontar componentes hijos
-    fetchProfile(!!profile);
-  } else if (!authLoading) {
-    setLoading(false);
-  }
-}, [user, authLoading]);
-```
-
-### Cambio 3: Actualizar badge de versión
-
-En `DocumentUploadStep.tsx`:
-```typescript
-const VERSION = 'v11';
-```
-
-## Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/hooks/useCustodianProfile.ts` | Agregar parámetro `silent` a fetchProfile para evitar loading cuando ya hay perfil |
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Actualizar VERSION a v11 |
-
-## Por qué esta solución es definitiva
-
-1. **Ataca la causa raíz**: El problema no es la captura de imagen, sino el desmontaje del componente
-2. **No rompe nada existente**: El loading inicial sigue funcionando normalmente
-3. **Patrón establecido**: Similar a `refetchOnWindowFocus: false` pero para hooks manuales
-4. **Sin efectos secundarios**: Solo evita el parpadeo de UI, no cambia la lógica de datos
-
-## Flujo Esperado v11
+## Flujo de Auditoría
 
 ```text
-Usuario toca "Tomar foto"
+Custodio sube documento (v11)
          │
          ▼
-Cámara nativa se abre
+documentos_custodio (verificado: false)
          │
          ▼
-Usuario captura foto
+Supply abre Perfil Forense > Documentación
          │
          ▼
-App regresa a foreground
+Ve documento con badge "Pendiente Verificación"
          │
-         ├─────────────────────────────────────────┐
-         │                                         │
-         ▼                                         ▼
-input.onchange dispara              Supabase Auth event dispara
-processFile() ejecuta                       │
-fileToBase64() convierte                    ▼
-setPreview(dataUrl)                 useStableAuth actualiza
-Toast "Foto lista"                          │
-         │                                  ▼
-         │                          useCustodianProfile detecta
-         │                                  │
-         │                                  ▼
-         │                          fetchProfile(silent=true)
-         │                          ↓
-         │                          setLoading(true) ← IGNORADO (profile existe)
-         │                                  │
-         ▼                                  ▼
-   DocumentUploadStep              CustodianOnboarding NO
-   MANTIENE su estado              muestra spinner
-   (preview = dataUrl)                      │
-         │                                  │
-         ▼                                  │
-   img.onLoad dispara                       │
-   Toast "✓ Imagen visible"                 │
-         │                                  │
-         ▼                                  │
-   ★★★ ÉXITO ★★★                           │
-   Usuario ve su foto                       │
-         │                                  │
-         └──────────────────────────────────┘
+         ▼
+Click "Verificar" → Modal con preview de imagen
+         │
+         ▼
+Supply confirma → UPDATE verificado=true
+         │
+         ▼
+Badge cambia a "✓ Verificado por X el Y"
 ```
 
 ## Verificación
 
-1. Actualizar app y confirmar badge **"v11"**
-2. Tomar foto
-3. Al regresar de la cámara:
-   - NO debe aparecer spinner de carga
-   - La secuencia de toasts debe completarse
-   - La imagen DEBE ser visible
-4. Verificar que "Guardar documento" funciona normalmente
+1. Abrir un Perfil Operativo que tenga documentos subidos desde el portal
+2. Ir a tab "Documentación"
+3. Verificar que aparecen documentos de `documentos_custodio`
+4. Probar el flujo de verificación
+5. Confirmar que las imágenes son visibles desde los links
 
-## Notas Técnicas
+## Impacto
 
-### Por qué useRef no funcionaría aquí
-
-Usar `useRef` para guardar el preview evitaría perder el valor, pero el componente aún se desmontaría y remontaría, causando parpadeo de UI y potenciales problemas con otros estados.
-
-### Por qué levantar el estado al padre no es ideal
-
-Mover `preview` al padre (CustodianOnboarding) funcionaría, pero:
-1. Complicaría innecesariamente el código
-2. El componente DocumentUploadStep perdería su encapsulamiento
-3. No resuelve el problema de fondo (el desmontaje innecesario)
-
-### Impacto en otros flujos
-
-Este fix beneficia a TODOS los flujos del portal custodio que usan `useCustodianProfile`, no solo el onboarding de documentos. Cualquier componente que dependa de este hook ya no sufrirá desmontajes innecesarios al regresar de apps nativas.
+- **Supply**: Puede auditar documentos digitalizados sin salir de Perfiles Operativos
+- **Custodios**: Sus documentos son visibles y validados por el equipo
+- **Operaciones**: Base documental digitalizada y centralizada
