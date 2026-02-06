@@ -228,7 +228,19 @@ serve(async (req) => {
     
     if (!kapsoResponse.ok) {
       console.error('Error de Kapso:', kapsoData);
-      throw new Error(kapsoData.error?.message || `Error de Kapso: ${kapsoResponse.status}`);
+      
+      // Detectar errores específicos de WhatsApp
+      const errorMessage = kapsoData.error || kapsoData.message || '';
+      
+      // Error de ventana de 24 horas - las credenciales son válidas
+      if (errorMessage.includes('24-hour') || errorMessage.includes('template')) {
+        throw new Error(
+          `WHATSAPP_24H_RULE: ${errorMessage}. ` +
+          `Las credenciales son válidas pero se requiere un template para iniciar conversaciones.`
+        );
+      }
+      
+      throw new Error(kapsoData.error?.message || kapsoData.error || `Error de Kapso: ${kapsoResponse.status}`);
     }
     
     const messageId = kapsoData.messages?.[0]?.id;
