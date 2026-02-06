@@ -43,14 +43,28 @@
       fechaVigencia: string;
       numeroDocumento?: string;
     }) => {
-      if (!custodioTelefono) throw new Error('No se encontró número de teléfono');
+      console.log('[useCustodianDocuments] mutationFn iniciado:', {
+        tipoDocumento,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        fechaVigencia,
+        custodioTelefono
+      });
+
+      if (!custodioTelefono) {
+        console.error('[useCustodianDocuments] No hay teléfono de custodio');
+        throw new Error('No se encontró número de teléfono');
+      }
 
       // Sanitizar teléfono para ruta de archivo (remover espacios y caracteres especiales)
       const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+      console.log('[useCustodianDocuments] Teléfono sanitizado:', sanitizedPhone);
       
       // Validar que tenga al menos 8 dígitos (teléfono válido)
       const digitsOnly = sanitizedPhone.replace(/[^0-9]/g, '');
       if (digitsOnly.length < 8) {
+        console.error('[useCustodianDocuments] Teléfono inválido:', { digitsOnly, length: digitsOnly.length });
         throw new Error('Tu número de teléfono no es válido. Por favor actualiza tu perfil.');
       }
       
