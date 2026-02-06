@@ -1,224 +1,220 @@
 
 
-# Plan: Corregir Flujo de Subida de Fotos para Custodios
+# Plan: Corrección Integral de Subida de Fotos en Todo el Sistema
 
-## Resumen del Problema
+## Diagnóstico Completo
 
-El sistema actual tiene múltiples fallas en la gestión de fotos de documentos:
+### Estado Actual de Buckets de Storage
 
-1. **Bucket Privado**: `checklist-evidencias` está configurado como privado pero el código usa `getPublicUrl()` que genera URLs que requieren acceso público
-2. **Sin Feedback Visual**: El usuario ve un preview local pero no hay confirmación real de que la foto se subió correctamente
-3. **Rutas con Caracteres Especiales**: Los teléfonos tienen espacios ("56 4129 6853") que pueden causar problemas en rutas de archivos
-4. **Errores Silenciosos**: Si el upload falla, el usuario no recibe notificación clara
+| Bucket | ¿Público? | Usa getPublicUrl | Estado |
+|--------|-----------|------------------|--------|
+| `checklist-evidencias` | ✅ Sí | Sí | **OK** (recién arreglado) |
+| `lms-media` | ✅ Sí | Sí | **OK** |
+| `instalacion-fotos` | ✅ Sí | Sí | **OK** |
+| `reward-images` | ✅ Sí | Sí | **OK** |
+| `ticket-evidencias` | ❌ No | Sí | **ROTO** |
+| `candidato-documentos` | ❌ No | Sí | **ROTO** |
+| `contratos-firmados` | ❌ No | Posiblemente | Interno (evaluar) |
+
+### Problema Identificado
+
+Cuando un bucket es **privado** (`public: false`) pero el código usa `getPublicUrl()`, las URLs generadas devuelven **403 Forbidden**. Las fotos se suben correctamente pero no se pueden ver.
 
 ---
 
-## Solución Propuesta (3 Cambios)
+## Archivos Afectados
 
-### Cambio 1: Hacer el Bucket Público
+### 1. `src/hooks/useCustodianTicketsEnhanced.ts` - **CRÍTICO**
 
-**Archivo:** Nueva migración SQL
+**Bucket:** `ticket-evidencias` (privado)
+**Problema:** 
+- Líneas 188-203: Sube evidencias y usa `getPublicUrl()` → URLs no funcionan
+- Líneas 269-284: Misma situación para adjuntos de respuestas
+- Sin feedback visual de progreso
+- Errores silenciosos (solo `console.error`)
 
-El bucket `checklist-evidencias` necesita ser público para que las URLs generadas funcionen:
+**Uso:** Custodios suben fotos de problemas para tickets de soporte
+
+### 2. `src/hooks/useDocumentosCandidato.ts` - **CRÍTICO**
+
+**Bucket:** `candidato-documentos` (privado)
+**Problema:**
+- Líneas 106-118: Sube documentos y usa `getPublicUrl()` → URLs no funcionan
+- Sin validación post-upload
+- Feedback básico
+
+**Uso:** Supply sube documentos de candidatos (INE, CURP, licencia)
+
+### 3. Archivos Ya Corregidos (No requieren cambios)
+
+- ✅ `useCustodianDocuments.ts` - Arreglado en esta sesión
+- ✅ `useServiceChecklist.ts` - Bucket público
+- ✅ `useInstalacionDocumentacion.ts` - Bucket público
+- ✅ `MediaUploader.tsx` / `ImageUploader.tsx` - Bucket público
+
+---
+
+## Solución Propuesta
+
+### Cambio 1: Hacer Buckets Públicos (SQL Migration)
+
+Para tickets y candidatos, las fotos necesitan ser visibles en la UI. La seguridad se mantiene con RLS policies existentes que controlan quién puede subir/actualizar.
 
 ```sql
+-- Hacer públicos los buckets que usan getPublicUrl()
 UPDATE storage.buckets 
 SET public = true 
-WHERE id = 'checklist-evidencias';
+WHERE id IN ('ticket-evidencias', 'candidato-documentos');
 ```
 
 **Justificación:**
-- Los documentos de custodios necesitan ser visibles en la app móvil y panel de monitoreo
-- Las políticas RLS en `storage.objects` ya controlan quién puede subir/actualizar
-- Otros buckets como `lms-media` y `candidato-documentos` también son públicos
+- `ticket-evidencias`: Los custodios necesitan ver sus propias evidencias en el historial de tickets
+- `candidato-documentos`: Supply necesita ver documentos para validación OCR y aprobación
+- Las políticas RLS ya restringen quién puede INSERT/UPDATE/DELETE
 
----
+### Cambio 2: Mejorar Hook de Tickets (`useCustodianTicketsEnhanced.ts`)
 
-### Cambio 2: Mejorar Hook de Upload con Sanitización y Feedback
-
-**Archivo:** `src/hooks/useCustodianDocuments.ts`
-
-Mejoras a implementar:
-- Sanitizar teléfono para rutas de archivo (remover espacios y caracteres especiales)
-- Agregar validación de respuesta del storage
-- Mejorar mensajes de error específicos
-- Verificar que el archivo realmente existe después del upload
+Agregar validación post-upload y mejor manejo de errores:
 
 ```typescript
-const updateDocument = useMutation({
-  mutationFn: async ({ tipoDocumento, file, fechaVigencia, numeroDocumento }) => {
-    if (!custodioTelefono) throw new Error('No se encontró número de teléfono');
-
-    // Sanitizar teléfono para ruta de archivo
-    const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+// En createTicket - mejorar upload de evidencias
+if (evidencias && evidencias.length > 0) {
+  for (const file of evidencias) {
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `${ticketNumber}/${Date.now()}-${sanitizedName}`;
     
-    const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `documentos/${sanitizedPhone}/${tipoDocumento}_${Date.now()}.${fileExt}`;
-
-    // 1. Subir archivo con validación
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('checklist-evidencias')
-      .upload(fileName, file, { 
-        upsert: true,
+      .from('ticket-evidencias')
+      .upload(fileName, file, {
         contentType: file.type || 'image/jpeg'
       });
-
+    
     if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw new Error(`Error al subir foto: ${uploadError.message}`);
-    }
-
-    // 2. Verificar que el archivo existe
-    const { data: fileCheck } = await supabase.storage
-      .from('checklist-evidencias')
-      .list(`documentos/${sanitizedPhone}`, {
-        search: `${tipoDocumento}_`
+      console.error('Error uploading file:', uploadError);
+      toast({
+        title: 'Advertencia',
+        description: `No se pudo subir: ${file.name}`,
+        variant: 'destructive'
       });
-
-    if (!fileCheck || fileCheck.length === 0) {
-      throw new Error('La foto no se guardó correctamente. Por favor intenta de nuevo.');
+      continue;
     }
-
-    // 3. Obtener URL pública
-    const { data: urlData } = supabase.storage
-      .from('checklist-evidencias')
-      .getPublicUrl(fileName);
-
-    // 4. Guardar en base de datos
-    const { error: dbError } = await supabase
-      .from('documentos_custodio')
-      .upsert({
-        custodio_telefono: custodioTelefono, // Original con formato
-        tipo_documento: tipoDocumento,
-        numero_documento: numeroDocumento,
-        fecha_vigencia: fechaVigencia,
-        foto_url: urlData.publicUrl,
-        verificado: false,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'custodio_telefono,tipo_documento' });
-
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw new Error(`Error al guardar registro: ${dbError.message}`);
+    
+    // Verificar que existe
+    const { data: fileCheck } = await supabase.storage
+      .from('ticket-evidencias')
+      .list(ticketNumber, { search: sanitizedName });
+    
+    if (fileCheck && fileCheck.length > 0) {
+      const { data: urlData } = supabase.storage
+        .from('ticket-evidencias')
+        .getPublicUrl(uploadData.path);
+      
+      evidenciaUrls.push(urlData.publicUrl);
     }
-
-    return { url: urlData.publicUrl };
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['custodian-documents', custodioTelefono] });
-    toast.success('¡Documento guardado correctamente!', {
-      description: 'La foto se subió y el registro fue creado.',
-      duration: 4000
-    });
-  },
-  onError: (error) => {
-    console.error('Error updating document:', error);
-    toast.error('Error al guardar documento', {
-      description: error.message || 'Por favor verifica tu conexión e intenta de nuevo.',
-      duration: 5000
-    });
-  },
-});
-```
-
----
-
-### Cambio 3: Mejorar UI con Estados de Carga y Confirmación
-
-**Archivo:** `src/components/custodian/onboarding/DocumentUploadStep.tsx`
-
-Mejoras visuales:
-- Mostrar spinner durante upload
-- Mostrar confirmación visual después del éxito
-- Mostrar mensaje de error si falla
-- Deshabilitar interacción durante upload
-
-```typescript
-// Estados adicionales
-const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-
-// Antes de llamar onUpload
-setUploadStatus('uploading');
-
-try {
-  await onUpload(file, fechaVigencia);
-  setUploadStatus('success');
-  
-  // Mostrar confirmación visual por 2 segundos
-  setTimeout(() => setUploadStatus('idle'), 2000);
-} catch (error) {
-  setUploadStatus('error');
+  }
 }
 ```
 
-Agregar indicadores visuales:
-- Badge verde con checkmark cuando `uploadStatus === 'success'`
-- Overlay de carga con spinner cuando `uploadStatus === 'uploading'`
-- Mensaje de error con botón de reintentar cuando `uploadStatus === 'error'`
+### Cambio 3: Mejorar Hook de Documentos Candidato (`useDocumentosCandidato.ts`)
+
+Agregar sanitización de rutas y validación:
+
+```typescript
+// En useUploadDocumento
+mutationFn: async ({ candidatoId, tipoDocumento, file, nombreEsperado }) => {
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const fileName = `${candidatoId}/${tipoDocumento}_${Date.now()}.${fileExt}`;
+  
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('candidato-documentos')
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type
+    });
+
+  if (uploadError) throw uploadError;
+
+  // Verificar que el archivo existe
+  const { data: fileCheck } = await supabase.storage
+    .from('candidato-documentos')
+    .list(candidatoId, { search: tipoDocumento });
+
+  if (!fileCheck || fileCheck.length === 0) {
+    throw new Error('El archivo no se guardó correctamente');
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('candidato-documentos')
+    .getPublicUrl(fileName);
+
+  // Resto del código...
+}
+```
 
 ---
 
-## Archivos a Modificar/Crear
+## Resumen de Archivos a Modificar
 
-| Archivo | Acción | Descripción |
-|---------|--------|-------------|
-| `supabase/migrations/YYYYMMDD_fix_checklist_bucket_public.sql` | Crear | Hacer bucket público |
-| `src/hooks/useCustodianDocuments.ts` | Modificar | Sanitización + validación + mejor feedback |
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Modificar | UI con estados de carga/éxito/error |
+| Archivo | Cambios |
+|---------|---------|
+| Nueva migración SQL | Hacer públicos `ticket-evidencias` y `candidato-documentos` |
+| `src/hooks/useCustodianTicketsEnhanced.ts` | Sanitización, validación post-upload, feedback de errores |
+| `src/hooks/useDocumentosCandidato.ts` | Validación post-upload, mejor contentType |
 
 ---
 
 ## Flujo Corregido
 
+### Antes (Roto)
 ```text
-1. Usuario toma foto → Preview local ✅
-2. Click "Guardar" → UI muestra "Subiendo..." con spinner
-3. Upload a Storage → Bucket PÚBLICO permite acceso
-4. Verificación de archivo → Confirmar que existe
-5. getPublicUrl() → URL válida y accesible
-6. Guardar en BD → Registro con URL funcional
-7. UI muestra "¡Guardado!" con checkmark verde ✅
-8. Al recargar → Imagen carga correctamente ✅
+1. Usuario sube foto → Storage OK
+2. getPublicUrl() → URL generada
+3. Usuario ve imagen → 403 Forbidden ❌
+```
+
+### Después (Funcional)
+```text
+1. Usuario sube foto → Storage OK
+2. Verificación de existencia → Confirmado ✓
+3. getPublicUrl() → URL generada
+4. Usuario ve imagen → Carga correctamente ✅
 ```
 
 ---
 
 ## Verificación Post-Implementación
 
-1. **Test de nuevo upload:**
-   - Tomar foto de documento
-   - Verificar spinner de carga
-   - Confirmar mensaje de éxito
-   - Recargar página y verificar que imagen persiste
-
-2. **Test de error:**
-   - Desconectar internet
-   - Intentar subir foto
-   - Verificar mensaje de error claro
-
-3. **Query de verificación:**
 ```sql
--- Verificar bucket es público
-SELECT id, public FROM storage.buckets WHERE id = 'checklist-evidencias';
--- Esperado: public = true
+-- Verificar buckets públicos
+SELECT id, public FROM storage.buckets 
+WHERE id IN ('ticket-evidencias', 'candidato-documentos', 'checklist-evidencias');
+-- Todos deben mostrar public = true
 
--- Verificar archivos subidos
-SELECT name, created_at FROM storage.objects 
-WHERE bucket_id = 'checklist-evidencias' 
-ORDER BY created_at DESC LIMIT 5;
-
--- Verificar registros en BD
-SELECT custodio_telefono, tipo_documento, foto_url 
-FROM documentos_custodio 
-ORDER BY created_at DESC LIMIT 5;
+-- Verificar archivos recientes
+SELECT bucket_id, name, created_at 
+FROM storage.objects 
+WHERE bucket_id IN ('ticket-evidencias', 'candidato-documentos')
+ORDER BY created_at DESC 
+LIMIT 10;
 ```
+
+### Tests Manuales
+
+1. **Tickets de Custodio:**
+   - Crear ticket con foto adjunta
+   - Verificar que la imagen se muestra en el historial
+   
+2. **Documentos de Candidato:**
+   - Subir INE de prueba
+   - Verificar que la imagen carga en la vista de validación
 
 ---
 
 ## Impacto
 
-- **Riesgo:** Bajo - Solo cambia visibilidad del bucket y mejora UX
-- **Usuarios afectados:** Todos los custodios nuevos y existentes
-- **Seguridad:** Las políticas RLS siguen controlando quién puede subir
-- **Retrocompatibilidad:** 100% - URLs existentes seguirán funcionando
+- **Riesgo:** Bajo - Solo cambia visibilidad de buckets, RLS sigue activo
+- **Módulos afectados:** Tickets de custodios, Documentos de candidatos
+- **Seguridad:** Las políticas RLS controlan quién puede subir/modificar
+- **Retrocompatibilidad:** URLs existentes comenzarán a funcionar
 
