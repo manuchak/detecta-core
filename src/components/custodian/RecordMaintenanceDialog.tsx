@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { MaintenanceStatus, MaintenanceType } from "@/hooks/useCustodianMaintenance";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 
 interface RecordMaintenanceDialogProps {
   open: boolean;
@@ -21,6 +22,13 @@ interface RecordMaintenanceDialogProps {
   }) => Promise<boolean>;
 }
 
+interface MaintenanceFormData {
+  km: string;
+  costo: string;
+  taller: string;
+  notas: string;
+}
+
 const RecordMaintenanceDialog = ({
   open,
   onOpenChange,
@@ -28,11 +36,39 @@ const RecordMaintenanceDialog = ({
   currentKm,
   onConfirm,
 }: RecordMaintenanceDialogProps) => {
-  const [km, setKm] = useState(currentKm.toString());
-  const [costo, setCosto] = useState("");
-  const [taller, setTaller] = useState("");
-  const [notas, setNotas] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Form persistence
+  const persistence = useFormPersistence<MaintenanceFormData>({
+    key: `maintenance_record_${maintenance?.tipo || 'unknown'}`,
+    level: 'light',
+    initialData: { km: '', costo: '', taller: '', notas: '' },
+    isMeaningful: (data) => !!(data?.costo || data?.taller || data?.notas),
+  });
+
+  const [km, setKm] = useState(persistence.data?.km || currentKm.toString());
+  const [costo, setCosto] = useState(persistence.data?.costo || "");
+  const [taller, setTaller] = useState(persistence.data?.taller || "");
+  const [notas, setNotas] = useState(persistence.data?.notas || "");
+
+  // Sync to persistence
+  useEffect(() => {
+    persistence.updateData({ km, costo, taller, notas });
+  }, [km, costo, taller, notas]);
+
+  // Reset km when currentKm changes
+  useEffect(() => {
+    if (!persistence.hasDraft) {
+      setKm(currentKm.toString());
+    }
+  }, [currentKm, persistence.hasDraft]);
+
+  const handleClose = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      persistence.confirmDiscard();
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence]);
 
   const handleSubmit = async () => {
     if (!maintenance) return;
@@ -46,19 +82,21 @@ const RecordMaintenanceDialog = ({
         taller_mecanico: taller || undefined,
         notas: notas || undefined,
       });
-    } finally {
-      setLoading(false);
-      // Reset form
+      
+      // Clear draft on success
+      persistence.clearDraft(true);
       setCosto("");
       setTaller("");
       setNotas("");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (!maintenance) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

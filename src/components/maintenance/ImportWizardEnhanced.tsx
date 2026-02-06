@@ -23,6 +23,8 @@ import { Input } from "@/components/ui/input";
 import { useTabVisibility } from '@/hooks/useTabVisibility';
 import { parseRobustDate } from '@/utils/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 
 interface ImportWizardEnhancedProps {
   open: boolean;
@@ -45,6 +47,13 @@ interface WizardState {
 
 import { CUSTODIAN_SERVICE_FIELDS } from '@/config/custodianServiceFields';
 
+interface WizardPersistenceState {
+  step: WizardStep;
+  fileName: string;
+  dataCount: number;
+  mapping: Record<string, string>;
+}
+
 export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
   open,
   onOpenChange,
@@ -52,16 +61,37 @@ export const ImportWizardEnhanced: React.FC<ImportWizardEnhancedProps> = ({
 }) => {
   const { validateMultipleIds, isValidating: isValidatingIds } = useServiceIdValidation();
   
+  // Form persistence for wizard state
+  const persistence = useFormPersistence<WizardPersistenceState>({
+    key: 'import_wizard_enhanced_state',
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    initialData: { step: 'upload', fileName: '', dataCount: 0, mapping: {} },
+    isMeaningful: (data) => (data?.step === 'mapping' || data?.step === 'validation') && data?.dataCount > 0,
+  });
+  
   const [state, setState] = useState<WizardState>({
-    step: 'upload',
+    step: (persistence.data?.step as WizardStep) || 'upload',
     file: null,
     parsedData: null,
-    mapping: {},
+    mapping: persistence.data?.mapping || {},
     validation: null,
     progress: null,
     result: null,
-    fileName: '',
+    fileName: persistence.data?.fileName || '',
   });
+  
+  // Sync state to persistence (only meaningful steps)
+  useEffect(() => {
+    if (state.step === 'mapping' || state.step === 'validation' || state.step === 'preview') {
+      persistence.updateData({
+        step: state.step,
+        fileName: state.fileName,
+        dataCount: state.parsedData?.length || 0,
+        mapping: state.mapping,
+      });
+    }
+  }, [state.step, state.fileName, state.parsedData?.length, state.mapping]);
   
   const [importMode, setImportMode] = useState<'auto' | 'create' | 'update'>('auto');
   

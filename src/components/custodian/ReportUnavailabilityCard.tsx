@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AlertCircle, Calendar, ChevronRight, Loader2, Wrench, Stethoscope, Users, BookOpen, HelpCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 
 const UNAVAILABILITY_REASONS = [
   { id: 'falla_mecanica', icon: Wrench, label: 'Falla mecánica', sublabel: 'Carro en taller', color: 'text-orange-600 bg-orange-500/10' },
@@ -41,6 +42,12 @@ interface ReportUnavailabilityCardProps {
   showTriggerButton?: boolean;
 }
 
+interface UnavailabilityFormData {
+  selectedReason: string;
+  selectedDuration: string;
+  notas: string;
+}
+
 const ReportUnavailabilityCard = ({
   open: controlledOpen,
   onOpenChange,
@@ -51,21 +58,38 @@ const ReportUnavailabilityCard = ({
   showTriggerButton = true,
 }: ReportUnavailabilityCardProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
-  const [selectedReason, setSelectedReason] = useState<string>('');
-  const [selectedDuration, setSelectedDuration] = useState<string>('hoy');
-  const [notas, setNotas] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  // Form persistence
+  const persistence = useFormPersistence<UnavailabilityFormData>({
+    key: 'custodian_unavailability_report',
+    level: 'light',
+    initialData: { selectedReason: '', selectedDuration: 'hoy', notas: '' },
+    isMeaningful: (data) => !!(data?.selectedReason || data?.notas),
+  });
+
+  const [selectedReason, setSelectedReason] = useState<string>(persistence.data?.selectedReason || '');
+  const [selectedDuration, setSelectedDuration] = useState<string>(persistence.data?.selectedDuration || 'hoy');
+  const [notas, setNotas] = useState(persistence.data?.notas || '');
+
+  // Sync to persistence when values change
+  useEffect(() => {
+    persistence.updateData({ selectedReason, selectedDuration, notas });
+  }, [selectedReason, selectedDuration, notas]);
+
   // Support both controlled and uncontrolled modes
   const dialogOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
-  const setDialogOpen = (value: boolean) => {
+  const setDialogOpen = useCallback((value: boolean) => {
+    if (!value) {
+      persistence.confirmDiscard();
+    }
     if (onOpenChange) {
       onOpenChange(value);
     } else {
       setInternalOpen(value);
     }
-  };
+  }, [onOpenChange, persistence]);
 
   const handleSubmit = async () => {
     if (!selectedReason) {
@@ -86,6 +110,8 @@ const ReportUnavailabilityCard = ({
       });
 
       if (success) {
+        // Clear draft on success
+        persistence.clearDraft(true);
         setDialogOpen(false);
         setSelectedReason('');
         setSelectedDuration('hoy');

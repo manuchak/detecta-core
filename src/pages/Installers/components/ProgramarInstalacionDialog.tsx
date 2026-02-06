@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useVehicleData } from '@/hooks/useVehicleData';
 import { Car } from 'lucide-react';
 import type { TipoInstalacion, PrioridadInstalacion } from '@/types/instaladores';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 
 const schema = z.object({
   servicio_id: z.string().min(1, 'Debe seleccionar un servicio'),
@@ -81,6 +82,14 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
     sensores_requeridos: string[];
   } | null>(null);
 
+  // Form persistence
+  const persistence = useFormPersistence<Partial<FormData>>({
+    key: `programar_instalacion_${servicioId || 'new'}`,
+    level: 'standard',
+    initialData: {},
+    isMeaningful: (data) => !!(data?.direccion_instalacion || data?.contacto_cliente || data?.tipo_instalacion),
+  });
+
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -88,11 +97,20 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
       prioridad: 'normal',
       tiempo_estimado: 120,
       requiere_vehiculo_elevado: false,
-      acceso_restringido: false
+      acceso_restringido: false,
+      ...persistence.data, // Restore from draft if exists
     }
   });
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = form;
+
+  // Sync form to persistence
+  const formValues = watch();
+  useEffect(() => {
+    if (open) {
+      persistence.updateData(formValues);
+    }
+  }, [formValues, open]);
 
   // Set servicioId when prop changes
   React.useEffect(() => {
@@ -199,6 +217,9 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
       reset();
       onOpenChange(false);
       
+      // Clear draft on success
+      persistence.clearDraft(true);
+      
       // Abrir diálogo de asignación GPS
       setShowAsignacionGPS(true);
       
@@ -216,16 +237,20 @@ export const ProgramarInstalacionDialog: React.FC<ProgramarInstalacionDialogProp
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    persistence.confirmDiscard();
     reset();
     onOpenChange(false);
-  };
+  }, [reset, onOpenChange, persistence]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Programar Nueva Instalación</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Programar Nueva Instalación
+            <DraftIndicator lastSaved={persistence.lastSaved} />
+          </DialogTitle>
           <DialogDescription>
             Complete los detalles para programar una nueva instalación de GPS
           </DialogDescription>

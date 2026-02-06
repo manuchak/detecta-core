@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,6 +29,8 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, User, MapPin, Settings, Shield } from 'lucide-react';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 import { useUpdateOperativeProfile } from '@/hooks/useUpdateOperativeProfile';
 import type { OperativeProfileFull, ArmadoProfileFull } from '../hooks/useOperativeProfile';
 
@@ -83,6 +85,14 @@ export function EditOperativeProfileSheet({
   const isCustodio = tipo === 'custodio';
   const updateMutation = useUpdateOperativeProfile();
 
+  // Form persistence for draft recovery
+  const persistence = useFormPersistence<Partial<CustodioFormData | ArmadoFormData>>({
+    key: `edit_operative_profile_${tipo}_${profile?.id || 'new'}`,
+    level: 'light',
+    initialData: {},
+    isMeaningful: (data) => !!(data?.nombre || data?.telefono || data?.email),
+  });
+
   const custodioForm = useForm<CustodioFormData>({
     resolver: zodResolver(custodioSchema),
     defaultValues: {
@@ -111,10 +121,21 @@ export function EditOperativeProfileSheet({
 
   const form = isCustodio ? custodioForm : armadoForm;
 
+  // Sync form changes to persistence
+  const formValues = form.watch();
+  useEffect(() => {
+    if (open && formValues) {
+      persistence.updateData(formValues);
+    }
+  }, [formValues, open]);
+
   // Reset form when profile changes or sheet opens
   useEffect(() => {
     if (open && profile) {
-      if (isCustodio) {
+      // Check for existing draft first
+      if (persistence.hasDraft && persistence.data) {
+        form.reset(persistence.data as any);
+      } else if (isCustodio) {
         const custodioProfile = profile as OperativeProfileFull;
         custodioForm.reset({
           nombre: custodioProfile.nombre || '',
@@ -155,16 +176,26 @@ export function EditOperativeProfileSheet({
       data: cleanedData,
     });
     
+    // Clear draft on successful save
+    persistence.clearDraft(true);
     onOpenChange(false);
   };
 
+  const handleClose = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      persistence.confirmDiscard();
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence]);
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
             Editar Perfil Operativo
+            <DraftIndicator lastSaved={persistence.lastSaved} />
           </SheetTitle>
           <SheetDescription>
             Modifica los datos del {isCustodio ? 'custodio' : 'armado'}. Los cambios se guardarán inmediatamente.
