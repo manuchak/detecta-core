@@ -206,6 +206,24 @@ serve(async (req) => {
       body: JSON.stringify(messagePayload)
     });
     
+    // Validar content-type antes de parsear
+    const contentType = kapsoResponse.headers.get('content-type');
+    console.log('Kapso response status:', kapsoResponse.status, 'content-type:', contentType);
+    
+    if (!contentType?.includes('application/json')) {
+      const textResponse = await kapsoResponse.text();
+      console.error('Kapso returned non-JSON response:', textResponse.substring(0, 500));
+      
+      if (textResponse.trim().startsWith('<!') || textResponse.includes('<html')) {
+        throw new Error(
+          `Kapso API returned HTML instead of JSON (status: ${kapsoResponse.status}). ` +
+          `This usually indicates: invalid API key, wrong endpoint, or service unavailable. ` +
+          `Check KAPSO_API_KEY and KAPSO_PHONE_NUMBER_ID secrets.`
+        );
+      }
+      throw new Error(`Unexpected response format from Kapso: ${contentType}`);
+    }
+    
     const kapsoData = await kapsoResponse.json();
     
     if (!kapsoResponse.ok) {
