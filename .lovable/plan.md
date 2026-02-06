@@ -1,90 +1,117 @@
-# Plan: Debugging Robusto para Captura de Fotos en Android ✅ COMPLETADO
+
+
+# Plan: Agregar Timeout y Logging Robusto en Compresión de Imágenes
 
 ## Diagnóstico Confirmado
 
-El componente `DocumentUploadStep.tsx` tiene una falla silenciosa cuando `e.target.files?.[0]` es `undefined`. Esto es común en algunos dispositivos Android donde el evento onChange se dispara pero sin datos del archivo.
+El usuario reporta que ve "Procesando: [nombre]" pero luego la imagen nunca aparece. Esto confirma:
+
+1. **El archivo SÍ se recibe** (el toast aparece en línea 131)
+2. **La compresión se inicia** pero nunca termina
+3. **La Promise de `compressImage` se queda colgada** - probablemente `canvas.toBlob()` no llama al callback en este Android
+
+## Causa Raíz
+
+En `imageUtils.ts`, la función `compressImage` usa:
+```typescript
+canvas.toBlob((blob) => {
+  // Este callback NUNCA se llama en algunos Android
+}, mimeType, quality);
+```
+
+Este es un **bug conocido en algunos navegadores Android** donde `toBlob()` falla silenciosamente sin llamar al callback ni generar error.
 
 ## Solución Propuesta
 
-### 1. Agregar Logging Defensivo al INICIO del Handler
+### 1. Agregar Timeout a `compressImage` (imageUtils.ts)
 
-Modificar `handleFileSelect` para loguear inmediatamente al entrar, antes de cualquier verificación:
+Envolver la Promise en un timeout de 10 segundos:
 
 ```typescript
-const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-  // LOG INMEDIATO - antes de cualquier verificación
-  console.log('[DocumentUpload] v4 - onChange disparado:', {
-    hasTarget: !!e.target,
-    hasFiles: !!e.target?.files,
-    filesLength: e.target?.files?.length ?? 0,
-    firstFile: e.target?.files?.[0] ? {
-      name: e.target.files[0].name,
-      size: e.target.files[0].size,
-      type: e.target.files[0].type
-    } : 'NO FILE'
+export async function compressImage(
+  file: File | Blob,
+  options: Partial<CompressionOptions> = {}
+): Promise<CompressionResult> {
+  const TIMEOUT_MS = 10000; // 10 segundos máximo
+  
+  const compressionPromise = new Promise<CompressionResult>((resolve, reject) => {
+    // ... código existente
   });
-
-  const selectedFile = e.target.files?.[0];
   
-  // FEEDBACK VISUAL si no hay archivo
-  if (!selectedFile) {
-    console.warn('[DocumentUpload] v4 - NO HAY ARCHIVO - Android issue detectado');
-    toast.error('No se recibió la foto', {
-      description: 'Intenta tomar la foto de nuevo o reinicia la app',
-      duration: 5000
-    });
-    return;
-  }
+  // Timeout wrapper
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('Timeout: La compresión tardó demasiado'));
+    }, TIMEOUT_MS);
+  });
   
-  // Toast de confirmación al recibir archivo
-  toast.info(`Procesando: ${selectedFile.name}`, { duration: 2000 });
-  
-  // ... resto del código
-}, [preview]);
+  return Promise.race([compressionPromise, timeoutPromise]);
+}
 ```
 
-### 2. Agregar Banner de Versión Visible
+### 2. Agregar Fallback: Usar toDataURL si toBlob Falla
 
-Mostrar versión del código en la UI para confirmar que el código actualizado está activo:
-
-```typescript
-// Al inicio del componente, agregar badge de versión visible
-<div className="absolute top-2 right-2 bg-primary/10 px-2 py-1 rounded text-xs font-mono">
-  v4
-</div>
-```
-
-### 3. Fallback: Input Dinámico como PhotoSlot
-
-Si el problema persiste, implementar el patrón de `PhotoSlot.tsx` que crea el input dinámicamente:
+`toDataURL` es más confiable en Android:
 
 ```typescript
-const handleCameraClick = () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-  input.onchange = (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    console.log('[DocumentUpload] Dynamic input - file:', file);
-    if (file) {
-      processFile(file);
-    } else {
-      toast.error('No se recibió la foto');
+// Si toBlob falla, usar toDataURL como fallback
+canvas.toBlob(
+  (blob) => {
+    if (!blob) {
+      // Fallback a toDataURL
+      const dataUrl = canvas.toDataURL(mimeType, config.quality);
+      const byteString = atob(dataUrl.split(',')[1]);
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < byteString.length; i++) {
+        uint8Array[i] = byteString.charCodeAt(i);
+      }
+      const fallbackBlob = new Blob([uint8Array], { type: mimeType });
+      resolve({ blob: fallbackBlob, ... });
+      return;
     }
-  };
-  input.click();
-};
+    resolve({ blob, ... });
+  },
+  mimeType,
+  config.quality
+);
 ```
 
-### 4. Agregar Toast al Montar el Componente
+### 3. Agregar Logging Detallado (DocumentUploadStep.tsx)
 
-Para confirmar que el código nuevo está activo:
+Agregar toasts y logs después de cada paso crítico:
 
 ```typescript
-useEffect(() => {
-  toast.info('DocumentUpload v4 cargado', { duration: 3000 });
-  console.log('[DocumentUpload] v4 montado');
+// Después de compresión
+console.log(`[DocumentUpload] ${VERSION} - Compresión completada`);
+toast.success('Imagen comprimida', { duration: 1500 });
+
+// Después de crear preview
+console.log(`[DocumentUpload] ${VERSION} - Preview creado:`, url);
+toast.success('Foto lista ✓', { duration: 2000 });
+```
+
+### 4. Agregar Timeout en el Handler (Plan B)
+
+Si la compresión tarda más de 10 segundos, mostrar error y ofrecer retry:
+
+```typescript
+const handleFileSelect = useCallback(async (e) => {
+  // ... código existente
+  
+  const compressionTimeout = setTimeout(() => {
+    if (isCompressing) {
+      setIsCompressing(false);
+      toast.error('La compresión tardó demasiado', {
+        description: 'Intenta con una foto más pequeña',
+        duration: 5000
+      });
+    }
+  }, 12000);
+  
+  // ... compresión
+  
+  clearTimeout(compressionTimeout);
 }, []);
 ```
 
@@ -92,61 +119,53 @@ useEffect(() => {
 
 | Archivo | Cambio | Prioridad |
 |---------|--------|-----------|
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Agregar logging al inicio, toast de error, badge de versión | Alta |
+| `src/lib/imageUtils.ts` | Agregar timeout de 10s + fallback toDataURL | Alta |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Agregar toast después de cada paso + timeout handler | Alta |
 
 ## Flujo Esperado Post-Implementación
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│  Usuario abre onboarding → Ve badge "v4" (confirma código nuevo)  │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  Usuario toma foto → Toast "Procesando: IMG_001.jpg"                │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌────────────────────────────────────────────────────────────────────┐
-│  Usuario toca "Tomar foto" → Cámara se abre → Toma foto           │
-└────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────┐
-│  onChange se dispara → LOG INMEDIATO "[DocumentUpload] v4..."     │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  Compresión inicia → Log: "Comprimiendo imagen: 3500KB"             │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                     ┌───────────────┴───────────────┐
                     │                               │
                     ▼                               ▼
-        ┌───────────────────────┐      ┌───────────────────────┐
-        │ Archivo recibido ✓   │      │ Archivo NO recibido ✗ │
-        │ Toast: "Procesando"  │      │ Toast: "No se recibió │
-        │ → Compresión         │      │  la foto. Reintenta"  │
-        │ → Preview            │      │ → Usuario sabe qué    │
-        │ → Listo para submit  │      │   pasó y puede actuar │
-        └───────────────────────┘      └───────────────────────┘
+    ┌───────────────────────────┐    ┌─────────────────────────────────┐
+    │ Compresión exitosa < 10s  │    │ Timeout después de 10s          │
+    │ Toast: "Imagen comprimida"│    │ Error: "Compresión tardó mucho" │
+    │ → Preview aparece ✓       │    │ → Intenta con toDataURL         │
+    │ → Toast: "Foto lista ✓"   │    │ → Si falla: usa original        │
+    └───────────────────────────┘    └─────────────────────────────────┘
 ```
 
 ## Verificación Post-Implementación
 
 1. Refrescar la app en el Android de prueba
-2. Verificar que aparece badge "v4" en la pantalla de documento
+2. Ver badge **"v5"** en la pantalla
 3. Tomar foto
-4. Si aparece toast "No se recibió la foto" → Confirma que es problema de Android
-5. Si aparece toast "Procesando..." → El código funciona y debería mostrar preview
+4. Verificar secuencia de toasts:
+   - "Procesando: [nombre]"
+   - "Imagen comprimida" o "Timeout..."
+   - "Foto lista ✓" con preview visible
 
 ## Sección Técnica
 
-### Por qué puede fallar el input file en Android
+### Por qué canvas.toBlob() falla en Android
 
-1. **Page lifecycle**: Cuando se abre la cámara nativa, el navegador puede "congelar" la página. Al volver, el estado del componente React se puede perder en algunos dispositivos.
+1. **Memory pressure**: Si el dispositivo tiene poca RAM, el navegador puede abortar operaciones costosas como toBlob sin generar error
 
-2. **Memory pressure**: En dispositivos con poca RAM, Android puede matar la pestaña del navegador mientras la cámara está abierta.
+2. **WebView bugs**: Algunos fabricantes (Samsung, Xiaomi) tienen WebViews con bugs conocidos en canvas
 
-3. **Browser bugs**: Algunos navegadores Android (especialmente versiones antiguas de Chrome o WebView) tienen bugs conocidos con `capture="environment"`.
+3. **Imagen corrupta**: Si la foto de la cámara tiene metadatos mal formados, el canvas puede no poder procesarla
 
-### Solución alternativa si persiste
+### Por qué toDataURL es más confiable
 
-Si después de agregar logging vemos que el problema es que Android no envía el archivo, podemos implementar:
+`toDataURL` es sincrónico y no depende de callbacks asincrónicos que pueden perderse. Es más lento pero más predecible.
 
-1. **WebRTC camera**: Usar `navigator.mediaDevices.getUserMedia()` para abrir la cámara dentro del navegador (sin salir a la app de cámara nativa)
-
-2. **Almacenamiento de estado**: Usar `sessionStorage` para preservar el estado antes de abrir la cámara
-
-3. **Service Worker**: Capturar la foto en un Service Worker que no se ve afectado por el ciclo de vida de la página
