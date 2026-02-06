@@ -1,23 +1,68 @@
 /**
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
+ * 
+ * v2.0 - Agregado compresión de imágenes y manejo de errores de almacenamiento
  */
-import { useState, useRef } from 'react';
-import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { compressImage, needsCompression } from '@/lib/imageUtils';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'generic';
 
 interface DocumentUploadStepProps {
   tipoDocumento: TipoDocumentoCustodio;
   existingDocument?: DocumentoCustodio;
   onUpload: (file: File, fechaVigencia: string) => Promise<void>;
   isUploading: boolean;
+}
+
+// Verificar si hay espacio disponible en el dispositivo
+async function checkStorageAvailable(): Promise<{
+  available: boolean;
+  spaceLeft?: number;
+}> {
+  try {
+    if (!navigator.storage?.estimate) {
+      return { available: true };
+    }
+    
+    const { usage = 0, quota = 0 } = await navigator.storage.estimate();
+    const spaceLeft = quota - usage;
+    
+    // Requerir al menos 10MB disponibles
+    return {
+      available: spaceLeft > 10 * 1024 * 1024,
+      spaceLeft
+    };
+  } catch {
+    // Si no podemos verificar, asumimos que hay espacio
+    return { available: true };
+  }
+}
+
+// Detectar errores de quota de almacenamiento
+function isQuotaError(error: unknown): boolean {
+  if (error instanceof DOMException) {
+    return error.name === 'QuotaExceededError' || 
+           error.code === 22; // Legacy quota error code
+  }
+  // También verificar el mensaje de error
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('quota') || 
+           msg.includes('storage') || 
+           msg.includes('space') ||
+           msg.includes('espacio');
+  }
+  return false;
 }
 
 export function DocumentUploadStep({
@@ -30,33 +75,112 @@ export function DocumentUploadStep({
   const [preview, setPreview] = useState<string | null>(null);
   const [fechaVigencia, setFechaVigencia] = useState('');
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
+  const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isExpired = existingDocument 
     ? new Date(existingDocument.fecha_vigencia) < new Date()
     : false;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Limpiar URL de objeto al desmontar o cuando cambie
+  useEffect(() => {
+    return () => {
+      if (preview && preview.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setUploadStatus('idle');
-      setErrorMessage(null);
-      
-      // Crear preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
+    if (!selectedFile) return;
+
+    // Limpiar preview anterior
+    if (preview && preview.startsWith('blob:')) {
+      URL.revokeObjectURL(preview);
     }
-  };
+
+    setUploadStatus('idle');
+    setErrorType(null);
+    setErrorMessage(null);
+
+    try {
+      // 1. Verificar espacio disponible antes de procesar
+      const { available, spaceLeft } = await checkStorageAvailable();
+      if (!available) {
+        console.warn('[DocumentUpload] Espacio insuficiente:', spaceLeft);
+        setUploadStatus('error');
+        setErrorType('storage_low');
+        setErrorMessage(`Solo quedan ${((spaceLeft || 0) / 1024 / 1024).toFixed(1)}MB disponibles`);
+        return;
+      }
+
+      // 2. Comprimir imagen si es necesario (>500KB)
+      let fileToUse = selectedFile;
+      
+      if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
+        setIsCompressing(true);
+        console.log(`[DocumentUpload] Comprimiendo imagen: ${(selectedFile.size / 1024).toFixed(0)}KB`);
+        
+        try {
+          const { blob, compressionRatio } = await compressImage(selectedFile, {
+            maxWidth: 1920,
+            maxHeight: 1080,
+            quality: 0.7
+          });
+          
+          fileToUse = new File([blob], selectedFile.name, { type: 'image/jpeg' });
+          console.log(`[DocumentUpload] Compresión exitosa: ${compressionRatio.toFixed(0)}% reducción`);
+        } catch (compressionError) {
+          console.error('[DocumentUpload] Error de compresión:', compressionError);
+          
+          if (isQuotaError(compressionError)) {
+            setUploadStatus('error');
+            setErrorType('storage_low');
+            setErrorMessage('No hay suficiente espacio para procesar la imagen');
+            setIsCompressing(false);
+            return;
+          }
+          
+          // Si falla la compresión pero no es error de quota, usar archivo original
+          console.warn('[DocumentUpload] Usando archivo original sin comprimir');
+          fileToUse = selectedFile;
+        }
+        
+        setIsCompressing(false);
+      }
+
+      // 3. Crear preview usando URL.createObjectURL (más eficiente que FileReader)
+      const url = URL.createObjectURL(fileToUse);
+      setFile(fileToUse);
+      setPreview(url);
+      
+    } catch (error) {
+      console.error('[DocumentUpload] Error procesando archivo:', error);
+      setIsCompressing(false);
+      
+      if (isQuotaError(error)) {
+        setUploadStatus('error');
+        setErrorType('storage_low');
+        setErrorMessage('Tu dispositivo no tiene suficiente espacio');
+      } else {
+        setUploadStatus('error');
+        setErrorType('generic');
+        setErrorMessage(error instanceof Error ? error.message : 'Error al procesar la imagen');
+      }
+    }
+    
+    // Resetear input para permitir seleccionar el mismo archivo de nuevo
+    e.target.value = '';
+  }, [preview]);
 
   const handleSubmit = async () => {
     if (!file || !fechaVigencia) return;
     
     setUploadStatus('uploading');
+    setErrorType(null);
     setErrorMessage(null);
     
     try {
@@ -65,21 +189,41 @@ export function DocumentUploadStep({
       
       // Limpiar estado después de mostrar éxito
       setTimeout(() => {
+        if (preview && preview.startsWith('blob:')) {
+          URL.revokeObjectURL(preview);
+        }
         setFile(null);
         setPreview(null);
         setFechaVigencia('');
         setUploadStatus('idle');
       }, 2000);
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('[DocumentUpload] Upload failed:', error);
       setUploadStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Error desconocido al subir');
+      
+      if (isQuotaError(error)) {
+        setErrorType('storage_low');
+        setErrorMessage('No hay espacio para guardar el documento');
+      } else {
+        setErrorType('upload_failed');
+        setErrorMessage(error instanceof Error ? error.message : 'Error desconocido al subir');
+      }
     }
   };
 
   const handleRetry = () => {
     setUploadStatus('idle');
+    setErrorType(null);
     setErrorMessage(null);
+    
+    // Si el error era de almacenamiento, también limpiar el archivo
+    if (errorType === 'storage_low') {
+      if (preview && preview.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+      setFile(null);
+      setPreview(null);
+    }
   };
 
   // Si ya existe un documento válido
@@ -153,7 +297,49 @@ export function DocumentUploadStep({
     );
   }
 
-  // Estado de error
+  // Estado de error - Espacio bajo en dispositivo
+  if (uploadStatus === 'error' && errorType === 'storage_low') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
+              <HardDrive className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">
+                Tu dispositivo tiene poco espacio
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                Para continuar, libera espacio en tu teléfono:
+              </p>
+              <ul className="text-sm text-amber-700 dark:text-amber-300 mt-2 space-y-1">
+                <li>• Borra fotos o videos que ya no necesites</li>
+                <li>• Elimina apps que no uses</li>
+                <li>• Limpia la caché del navegador</li>
+              </ul>
+              {errorMessage && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 italic">
+                  {errorMessage}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <Button
+          onClick={handleRetry}
+          className="w-full"
+          size="lg"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
+  // Estado de error - Genérico
   if (uploadStatus === 'error') {
     return (
       <div className="space-y-4">
@@ -198,7 +384,7 @@ export function DocumentUploadStep({
           capture="environment"
           onChange={handleFileSelect}
           className="hidden"
-          disabled={uploadStatus === 'uploading'}
+          disabled={uploadStatus === 'uploading' || isCompressing}
         />
         
         {preview ? (
@@ -210,11 +396,13 @@ export function DocumentUploadStep({
                 className="w-full h-full object-cover"
               />
             </div>
-            {uploadStatus === 'uploading' && (
+            {(uploadStatus === 'uploading' || isCompressing) && (
               <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-white">
                   <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="text-sm font-medium">Subiendo...</span>
+                  <span className="text-sm font-medium">
+                    {isCompressing ? 'Comprimiendo...' : 'Subiendo...'}
+                  </span>
                 </div>
               </div>
             )}
@@ -223,7 +411,7 @@ export function DocumentUploadStep({
               size="sm"
               className="absolute bottom-2 right-2"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploadStatus === 'uploading'}
+              disabled={uploadStatus === 'uploading' || isCompressing}
             >
               <Camera className="w-4 h-4 mr-1" />
               Cambiar
@@ -234,17 +422,26 @@ export function DocumentUploadStep({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="w-full aspect-video border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center gap-3 bg-muted/50 hover:bg-muted transition-colors"
-            disabled={uploadStatus === 'uploading'}
+            disabled={uploadStatus === 'uploading' || isCompressing}
           >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Camera className="w-8 h-8 text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium">Tomar foto</p>
-              <p className="text-sm text-muted-foreground">
-                Usa la cámara trasera para mejor calidad
-              </p>
-            </div>
+            {isCompressing ? (
+              <>
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="font-medium">Procesando imagen...</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Camera className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="font-medium">Tomar foto</p>
+                  <p className="text-sm text-muted-foreground">
+                    Usa la cámara trasera para mejor calidad
+                  </p>
+                </div>
+              </>
+            )}
           </button>
         )}
       </div>
@@ -262,7 +459,7 @@ export function DocumentUploadStep({
           onChange={(e) => setFechaVigencia(e.target.value)}
           min={new Date().toISOString().split('T')[0]}
           className="text-base"
-          disabled={uploadStatus === 'uploading'}
+          disabled={uploadStatus === 'uploading' || isCompressing}
         />
         <p className="text-xs text-muted-foreground">
           Indica la fecha de vencimiento del documento
@@ -272,7 +469,7 @@ export function DocumentUploadStep({
       {/* Botón de subir */}
       <Button
         onClick={handleSubmit}
-        disabled={!file || !fechaVigencia || uploadStatus === 'uploading' || isUploading}
+        disabled={!file || !fechaVigencia || uploadStatus === 'uploading' || isUploading || isCompressing}
         className="w-full"
         size="lg"
       >
