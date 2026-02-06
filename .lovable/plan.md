@@ -1,56 +1,101 @@
-# Plan: Mejorar Manejo de Almacenamiento en Onboarding de Documentos
 
-## ✅ IMPLEMENTADO - 2026-02-06
-
----
+# Plan: Corregir Validación de Teléfono y Columna DB en Portal Custodio
 
 ## Problema Identificado
 
-El componente `DocumentUploadStep.tsx` usado en el onboarding de custodios tenía tres deficiencias críticas:
-
-| Problema | Impacto |
-|----------|---------|
-| Sin compresión de imágenes | Fotos de 2-8MB saturaban memoria del dispositivo |
-| Sin manejo de errores de quota | FileReader fallaba silenciosamente en dispositivos con poco espacio |
-| Sin guía al usuario | El custodio no sabía qué hacer cuando ocurría el error |
+| Bug | Causa | Impacto |
+|-----|-------|---------|
+| Subida silenciosa falla | Teléfono "Sin telefono" se sanitiza a "" | Usuario no ve error, foto no se guarda |
+| Error DB repetido | `pc_custodios.telefono` no existe (es `tel`) | Logs llenos de errores, funcionalidad rota |
 
 ---
 
-## Solución Implementada
+## Solución Propuesta
 
-### Archivos Modificados
+### 1. Validación de Teléfono en `useCustodianDocuments.ts`
 
-| Archivo | Cambios |
-|---------|---------|
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Compresión de imágenes, detección de quota, UI de error específica |
-| `src/components/custodian/CameraUploader.tsx` | Mismas mejoras para consistencia en todo el portal |
+Agregar validación estricta ANTES de intentar subir:
 
-### Cambios Técnicos
+```typescript
+// Sanitizar teléfono
+const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
 
-1. **Compresión de Imágenes**
-   - Usa `compressImage()` de `@/lib/imageUtils`
-   - Comprime a 1920x1080 @ 0.7 calidad
-   - Reduce ~80% (2MB → 400KB)
+// Validar que tenga al menos 8 dígitos
+if (sanitizedPhone.replace(/[^0-9]/g, '').length < 8) {
+  throw new Error('Tu número de teléfono no es válido. Por favor actualiza tu perfil.');
+}
+```
 
-2. **Detección de Espacio Disponible**
-   - `navigator.storage.estimate()` antes de capturar
-   - Umbral de 10MB mínimo requerido
+### 2. Mensaje de Error Específico en `DocumentUploadStep.tsx`
 
-3. **Manejo de Errores de Quota**
-   - Detecta `QuotaExceededError` y código 22
-   - UI específica con instrucciones para liberar espacio
+Nuevo tipo de error para teléfono inválido:
 
-4. **Optimización de Memoria**
-   - Usa `URL.createObjectURL()` en lugar de `FileReader.readAsDataURL()`
-   - Limpia URLs de objeto al desmontar componente
+```typescript
+type ErrorType = 'storage_low' | 'invalid_phone' | 'upload_failed' | 'generic';
+
+// En catch de handleSubmit
+if (error.message.includes('teléfono no es válido')) {
+  setErrorType('invalid_phone');
+  setErrorMessage('Actualiza tu número de teléfono en tu perfil para continuar');
+}
+```
+
+UI específica con botón para ir a editar perfil.
+
+### 3. Corregir Columna en `useChecklistMonitoreo.ts`
+
+```typescript
+// ANTES (línea 143)
+.select('id, telefono')
+
+// DESPUÉS  
+.select('id, tel')
+```
+
+Y actualizar el mapeo:
+```typescript
+// ANTES
+const telefonoMap = new Map(custodios?.map((c) => [c.id, c.telefono]) || []);
+
+// DESPUÉS
+const telefonoMap = new Map(custodios?.map((c) => [c.id, c.tel]) || []);
+```
 
 ---
 
-## Resultado
+## Archivos a Modificar
 
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| Tamaño de imagen | 2-8MB sin procesar | ~300KB comprimida |
-| Error de espacio | "Error desconocido" | Mensaje con pasos claros |
-| Recuperación | Usuario confundido | Botón "Reintentar" visible |
-| Prevención | Ninguna | Detecta espacio bajo antes |
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useCustodianDocuments.ts` | Validación estricta de teléfono sanitizado |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | UI de error para teléfono inválido |
+| `src/hooks/useChecklistMonitoreo.ts` | Cambiar `telefono` → `tel` |
+
+---
+
+## UI de Error para Teléfono Inválido
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│ ⚠️ Teléfono no válido                                   │
+│─────────────────────────────────────────────────────────│
+│                                                         │
+│ Para subir documentos necesitas un número de            │
+│ teléfono válido registrado en tu perfil.                │
+│                                                         │
+│ Tu teléfono actual: "Sin telefono"                      │
+│                                                         │
+│                  [Ir a Mi Perfil]                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Resultado Esperado
+
+| Escenario | Antes | Después |
+|-----------|-------|---------|
+| Teléfono "Sin telefono" | Falla silenciosa | Error claro con acción |
+| Teléfono vacío | Falla silenciosa | Error claro |
+| Teléfono válido | Funciona | Funciona igual |
+| Monitoreo checklists | Error DB repetido | Funciona correctamente |
