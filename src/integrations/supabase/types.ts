@@ -13323,11 +13323,13 @@ export type Database = {
           destino: string
           email_cliente: string | null
           empresa_cliente: string | null
+          estado_confirmacion_custodio: string | null
           estado_planeacion: string
           fecha_asignacion: string | null
           fecha_asignacion_armado: string | null
           fecha_cancelacion: string | null
           fecha_comunicacion: string | null
+          fecha_confirmacion: string | null
           fecha_hora_cita: string
           fecha_respuesta: string | null
           gadgets_cantidades: Json | null
@@ -13354,6 +13356,7 @@ export type Database = {
           proveedor_armado_id: string | null
           punto_encuentro: string | null
           requiere_armado: boolean | null
+          requiere_reasignacion: boolean | null
           respuesta_custodio: string | null
           tarifa_acordada: number | null
           telefono_cliente: string | null
@@ -13381,11 +13384,13 @@ export type Database = {
           destino: string
           email_cliente?: string | null
           empresa_cliente?: string | null
+          estado_confirmacion_custodio?: string | null
           estado_planeacion?: string
           fecha_asignacion?: string | null
           fecha_asignacion_armado?: string | null
           fecha_cancelacion?: string | null
           fecha_comunicacion?: string | null
+          fecha_confirmacion?: string | null
           fecha_hora_cita: string
           fecha_respuesta?: string | null
           gadgets_cantidades?: Json | null
@@ -13412,6 +13417,7 @@ export type Database = {
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           requiere_armado?: boolean | null
+          requiere_reasignacion?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
           telefono_cliente?: string | null
@@ -13439,11 +13445,13 @@ export type Database = {
           destino?: string
           email_cliente?: string | null
           empresa_cliente?: string | null
+          estado_confirmacion_custodio?: string | null
           estado_planeacion?: string
           fecha_asignacion?: string | null
           fecha_asignacion_armado?: string | null
           fecha_cancelacion?: string | null
           fecha_comunicacion?: string | null
+          fecha_confirmacion?: string | null
           fecha_hora_cita?: string
           fecha_respuesta?: string | null
           gadgets_cantidades?: Json | null
@@ -13470,6 +13478,7 @@ export type Database = {
           proveedor_armado_id?: string | null
           punto_encuentro?: string | null
           requiere_armado?: boolean | null
+          requiere_reasignacion?: boolean | null
           respuesta_custodio?: string | null
           tarifa_acordada?: number | null
           telefono_cliente?: string | null
@@ -14577,7 +14586,10 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          integration_type: string | null
           is_active: boolean | null
+          kapso_phone_number_id: string | null
+          kapso_waba_id: string | null
           last_connected_at: string | null
           phone_number: string | null
           qr_code: string | null
@@ -14593,7 +14605,10 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          integration_type?: string | null
           is_active?: boolean | null
+          kapso_phone_number_id?: string | null
+          kapso_waba_id?: string | null
           last_connected_at?: string | null
           phone_number?: string | null
           qr_code?: string | null
@@ -14609,7 +14624,10 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          integration_type?: string | null
           is_active?: boolean | null
+          kapso_phone_number_id?: string | null
+          kapso_waba_id?: string | null
           last_connected_at?: string | null
           phone_number?: string | null
           qr_code?: string | null
@@ -14655,6 +14673,7 @@ export type Database = {
         Row: {
           chat_id: string
           created_at: string | null
+          delivery_status: string | null
           id: string
           is_from_bot: boolean | null
           is_read: boolean | null
@@ -14669,6 +14688,7 @@ export type Database = {
         Insert: {
           chat_id: string
           created_at?: string | null
+          delivery_status?: string | null
           id?: string
           is_from_bot?: boolean | null
           is_read?: boolean | null
@@ -14683,6 +14703,7 @@ export type Database = {
         Update: {
           chat_id?: string
           created_at?: string | null
+          delivery_status?: string | null
           id?: string
           is_from_bot?: boolean | null
           is_read?: boolean | null
