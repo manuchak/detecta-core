@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Settings, 
   Copy, 
@@ -12,10 +13,13 @@ import {
   CheckCircle2, 
   AlertCircle,
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  FileText,
+  Webhook
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { WhatsAppTemplatesPanel } from './kapso/WhatsAppTemplatesPanel';
 
 export const KapsoConfig = () => {
   const { toast } = useToast();
@@ -101,162 +105,187 @@ export const KapsoConfig = () => {
   };
   
   return (
-    <div className="space-y-6">
-      {/* Estado de conexión */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" />
-            Integración Kapso WhatsApp
-          </CardTitle>
-          <CardDescription>
-            Configuración de la API oficial de WhatsApp Cloud via Kapso
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-            <div className="flex items-center gap-3">
-              {connectionStatus === 'connected' && (
-                <CheckCircle2 className="w-5 h-5 text-success" />
-              )}
-              {connectionStatus === 'error' && (
-                <AlertCircle className="w-5 h-5 text-destructive" />
-              )}
-              {connectionStatus === 'unknown' && (
-                <Settings className="w-5 h-5 text-muted-foreground" />
-              )}
-              <div>
-                <p className="font-medium">Estado de Conexión</p>
-                <p className="text-sm text-muted-foreground">
-                  {connectionStatus === 'connected' && 'Conectado y funcionando'}
-                  {connectionStatus === 'error' && 'Error de conexión'}
-                  {connectionStatus === 'unknown' && 'No verificado'}
-                </p>
+    <Tabs defaultValue="conexion" className="w-full">
+      <TabsList className="mb-6">
+        <TabsTrigger value="conexion" className="gap-2">
+          <MessageCircle className="h-4 w-4" />
+          Conexión
+        </TabsTrigger>
+        <TabsTrigger value="templates" className="gap-2">
+          <FileText className="h-4 w-4" />
+          Templates (34)
+        </TabsTrigger>
+        <TabsTrigger value="webhook" className="gap-2">
+          <Webhook className="h-4 w-4" />
+          Webhook
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Conexión Tab */}
+      <TabsContent value="conexion" className="space-y-6">
+        {/* Estado de conexión */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              Integración Kapso WhatsApp
+            </CardTitle>
+            <CardDescription>
+              Configuración de la API oficial de WhatsApp Cloud via Kapso
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-3">
+                {connectionStatus === 'connected' && (
+                  <CheckCircle2 className="w-5 h-5 text-success" />
+                )}
+                {connectionStatus === 'error' && (
+                  <AlertCircle className="w-5 h-5 text-destructive" />
+                )}
+                {connectionStatus === 'unknown' && (
+                  <Settings className="w-5 h-5 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="font-medium">Estado de Conexión</p>
+                  <p className="text-sm text-muted-foreground">
+                    {connectionStatus === 'connected' && 'Conectado y funcionando'}
+                    {connectionStatus === 'error' && 'Error de conexión'}
+                    {connectionStatus === 'unknown' && 'No verificado'}
+                  </p>
+                </div>
               </div>
+              <Badge 
+                variant={
+                  connectionStatus === 'connected' ? 'default' : 
+                  connectionStatus === 'error' ? 'destructive' : 
+                  'secondary'
+                }
+              >
+                {connectionStatus === 'connected' ? '✅ Conectado' : 
+                 connectionStatus === 'error' ? '❌ Error' : 
+                 '⚪ Sin verificar'}
+              </Badge>
             </div>
-            <Badge 
-              variant={
-                connectionStatus === 'connected' ? 'default' : 
-                connectionStatus === 'error' ? 'destructive' : 
-                'secondary'
-              }
+            
+            <Button 
+              onClick={testConnection} 
+              disabled={testing}
+              className="w-full"
             >
-              {connectionStatus === 'connected' ? '✅ Conectado' : 
-               connectionStatus === 'error' ? '❌ Error' : 
-               '⚪ Sin verificar'}
-            </Badge>
-          </div>
-          
-          <Button 
-            onClick={testConnection} 
-            disabled={testing}
-            className="w-full"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${testing ? 'animate-spin' : ''}`} />
-            {testing ? 'Probando conexión...' : 'Probar Conexión'}
-          </Button>
-          
-          {lastTestResult && (
-            <Alert variant={connectionStatus === 'connected' ? 'default' : 'destructive'}>
-              <AlertDescription className="font-mono text-sm">
-                {lastTestResult}
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Configuración de Webhook */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Configuración de Webhook
-          </CardTitle>
-          <CardDescription>
-            URL para recibir mensajes entrantes desde Kapso
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Webhook URL</Label>
-            <div className="flex gap-2">
+              <RefreshCw className={`w-4 h-4 mr-2 ${testing ? 'animate-spin' : ''}`} />
+              {testing ? 'Probando conexión...' : 'Probar Conexión'}
+            </Button>
+            
+            {lastTestResult && (
+              <Alert variant={connectionStatus === 'connected' ? 'default' : 'destructive'}>
+                <AlertDescription className="font-mono text-sm whitespace-pre-line">
+                  {lastTestResult}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Información de la integración */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Funcionalidades Habilitadas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Envío de mensajes de texto
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Envío de imágenes y documentos
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Mensajes interactivos con botones
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Recepción de mensajes (bidireccional)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Confirmación de servicios via WhatsApp
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Creación automática de tickets
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                Tracking de delivery (enviado/entregado/leído)
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Templates Tab */}
+      <TabsContent value="templates">
+        <WhatsAppTemplatesPanel />
+      </TabsContent>
+
+      {/* Webhook Tab */}
+      <TabsContent value="webhook" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Configuración de Webhook
+            </CardTitle>
+            <CardDescription>
+              URL para recibir mensajes entrantes desde Kapso
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Webhook URL</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={webhookUrl}
+                  readOnly
+                  className="font-mono text-sm"
+                />
+                <Button variant="outline" onClick={copyWebhookUrl}>
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Configura esta URL en el dashboard de Kapso para recibir mensajes entrantes
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Verify Token</Label>
               <Input 
-                value={webhookUrl}
+                value="detecta_kapso_webhook"
                 readOnly
                 className="font-mono text-sm"
               />
-              <Button variant="outline" onClick={copyWebhookUrl}>
-                <Copy className="w-4 h-4" />
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                Token de verificación para el webhook (usa este valor en Kapso)
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Configura esta URL en el dashboard de Kapso para recibir mensajes entrantes
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Verify Token</Label>
-            <Input 
-              value="detecta_kapso_webhook"
-              readOnly
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Token de verificación para el webhook (usa este valor en Kapso)
-            </p>
-          </div>
-          
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => window.open('https://dashboard.kapso.ai', '_blank')}
-          >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Abrir Dashboard de Kapso
-          </Button>
-        </CardContent>
-      </Card>
-      
-      {/* Información de la integración */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Funcionalidades Habilitadas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Envío de mensajes de texto
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Envío de imágenes y documentos
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Mensajes interactivos con botones
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Recepción de mensajes (bidireccional)
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Confirmación de servicios via WhatsApp
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Creación automática de tickets
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Tracking de delivery (enviado/entregado/leído)
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+            
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => window.open('https://dashboard.kapso.ai', '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Abrir Dashboard de Kapso
+            </Button>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 };
 

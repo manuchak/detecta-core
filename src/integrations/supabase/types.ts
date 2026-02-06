@@ -14757,34 +14757,61 @@ export type Database = {
       }
       whatsapp_templates: {
         Row: {
+          button_count: number | null
           category: string | null
           content: string
           created_at: string | null
           created_by: string | null
+          has_buttons: boolean | null
           id: string
           is_active: boolean | null
+          last_test_at: string | null
+          last_test_phone: string | null
+          meta_category: string | null
+          meta_status: string | null
+          meta_template_id: string | null
           name: string
+          rejection_reason: string | null
           updated_at: string | null
+          variable_count: number | null
         }
         Insert: {
+          button_count?: number | null
           category?: string | null
           content: string
           created_at?: string | null
           created_by?: string | null
+          has_buttons?: boolean | null
           id?: string
           is_active?: boolean | null
+          last_test_at?: string | null
+          last_test_phone?: string | null
+          meta_category?: string | null
+          meta_status?: string | null
+          meta_template_id?: string | null
           name: string
+          rejection_reason?: string | null
           updated_at?: string | null
+          variable_count?: number | null
         }
         Update: {
+          button_count?: number | null
           category?: string | null
           content?: string
           created_at?: string | null
           created_by?: string | null
+          has_buttons?: boolean | null
           id?: string
           is_active?: boolean | null
+          last_test_at?: string | null
+          last_test_phone?: string | null
+          meta_category?: string | null
+          meta_status?: string | null
+          meta_template_id?: string | null
           name?: string
+          rejection_reason?: string | null
           updated_at?: string | null
+          variable_count?: number | null
         }
         Relationships: []
       }

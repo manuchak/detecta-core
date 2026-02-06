@@ -464,3 +464,499 @@ export const TEMPLATE_CONFIGS: Record<DetectaTemplateName, TemplateConfig> = {
   supply_documentacion_solicitada: { name: 'supply_documentacion_solicitada', category: 'UTILITY', variableCount: 3, hasButtons: true, buttonCount: 2 },
   supply_aprobacion_final: { name: 'supply_aprobacion_final', category: 'UTILITY', variableCount: 2, hasButtons: true, buttonCount: 1 }
 };
+
+// ==================== ADMIN PANEL TYPES ====================
+
+export type MetaApprovalStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
+
+export interface WhatsAppTemplateRecord {
+  id: string;
+  name: string;
+  content: string;
+  category: string;
+  meta_status: MetaApprovalStatus;
+  meta_template_id?: string;
+  meta_category: MetaTemplateCategory;
+  variable_count: number;
+  has_buttons: boolean;
+  button_count: number;
+  is_active: boolean;
+  last_test_at?: string;
+  last_test_phone?: string;
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const TEMPLATE_CATEGORIES = {
+  servicios: { 
+    label: 'Servicios y Planeación', 
+    icon: 'Truck', 
+    count: 7,
+    templates: [
+      'servicio_asignado', 'servicio_reasignado', 'recordatorio_servicio_60min',
+      'recordatorio_servicio_30min', 'servicio_cancelado', 'confirmacion_posicionamiento', 'servicio_completado'
+    ]
+  },
+  checklist: { 
+    label: 'Checklist y GPS', 
+    icon: 'ClipboardCheck', 
+    count: 5,
+    templates: [
+      'alerta_checklist_pendiente', 'alerta_gps_fuera_rango', 'alerta_gps_sin_datos',
+      'alerta_item_critico', 'checklist_aprobado'
+    ]
+  },
+  tickets: { 
+    label: 'Tickets de Soporte', 
+    icon: 'Ticket', 
+    count: 5,
+    templates: [
+      'ticket_creado', 'ticket_asignado', 'ticket_actualizado',
+      'ticket_resuelto', 'ticket_encuesta_csat'
+    ]
+  },
+  onboarding: { 
+    label: 'Onboarding Custodios', 
+    icon: 'UserPlus', 
+    count: 4,
+    templates: [
+      'custodio_invitacion', 'onboarding_documentos_pendientes',
+      'onboarding_documento_vencido', 'onboarding_completado'
+    ]
+  },
+  siercp: { 
+    label: 'Evaluaciones SIERCP', 
+    icon: 'Brain', 
+    count: 3,
+    templates: ['siercp_invitacion', 'siercp_recordatorio', 'siercp_completada']
+  },
+  lms: { 
+    label: 'LMS y Capacitación', 
+    icon: 'GraduationCap', 
+    count: 4,
+    templates: [
+      'lms_curso_asignado', 'lms_curso_recordatorio',
+      'lms_quiz_disponible', 'lms_certificado_emitido'
+    ]
+  },
+  leads: { 
+    label: 'Adquisición de Leads', 
+    icon: 'Target', 
+    count: 3,
+    templates: ['lead_bienvenida', 'lead_seguimiento', 'lead_armados_campana']
+  },
+  supply: { 
+    label: 'Supply y Operaciones', 
+    icon: 'Users', 
+    count: 3,
+    templates: [
+      'supply_entrevista_programada', 'supply_documentacion_solicitada', 'supply_aprobacion_final'
+    ]
+  }
+} as const;
+
+export type TemplateCategoryKey = keyof typeof TEMPLATE_CATEGORIES;
+
+// ==================== TEMPLATE CONTENT ====================
+
+/**
+ * Contenido de cada template para preview y seed
+ */
+export const TEMPLATE_CONTENT: Record<DetectaTemplateName, string> = {
+  // Servicios
+  servicio_asignado: `🛡️ SERVICIO ASIGNADO
+
+Hola {{1}},
+
+Tienes un nuevo servicio asignado:
+
+📅 {{2}}
+⏰ {{3}}
+👤 Cliente: {{4}}
+📍 Origen: {{5}}
+➡️ Destino: {{6}}
+
+Confirma tu disponibilidad.`,
+
+  servicio_reasignado: `🔄 SERVICIO REASIGNADO
+
+Hola {{1}},
+
+Se te ha reasignado el servicio {{2}}:
+
+📅 {{3}} a las {{4}}
+👤 Cliente: {{5}}
+📍 {{6}} → {{7}}
+
+⚠️ Este servicio requiere atención inmediata.`,
+
+  recordatorio_servicio_60min: `⏰ RECORDATORIO - 1 HORA
+
+{{1}}, tu servicio inicia en 1 hora:
+
+👤 Cliente: {{2}}
+📍 Origen: {{3}}
+⏰ Hora cita: {{4}}
+
+✅ Recuerda completar el checklist pre-servicio.`,
+
+  recordatorio_servicio_30min: `⚠️ ALERTA - 30 MINUTOS
+
+{{1}}, tu servicio inicia en 30 minutos:
+
+📍 {{2}}
+⏰ {{3}}
+
+🚗 Confirma que estás en camino.`,
+
+  servicio_cancelado: `❌ SERVICIO CANCELADO
+
+{{1}}, el siguiente servicio ha sido cancelado:
+
+📋 Folio: {{2}}
+👤 Cliente: {{3}}
+📅 Fecha: {{4}}
+
+Motivo: {{5}}
+
+Tu disponibilidad ha sido actualizada automáticamente.`,
+
+  confirmacion_posicionamiento: `✅ POSICIÓN CONFIRMADA
+
+{{1}}, tu posición ha sido registrada:
+
+📍 Ubicación: {{2}}
+⏰ Hora: {{3}}
+📋 Servicio: {{4}}
+
+El cliente ha sido notificado de tu llegada.`,
+
+  servicio_completado: `🎉 SERVICIO COMPLETADO
+
+{{1}}, ¡excelente trabajo!
+
+El servicio {{2}} ha sido completado exitosamente.
+
+⭐ Recuerda calificar tu experiencia en la app.
+
+Puntos ganados: +{{3}} 🏆`,
+
+  // Checklist
+  alerta_checklist_pendiente: `⚠️ CHECKLIST PENDIENTE
+
+{{1}}, tienes un checklist sin completar:
+
+📋 Servicio: {{2}}
+👤 Cliente: {{3}}
+⏰ Hora cita: {{4}}
+
+Completa el checklist desde la app Detecta antes de iniciar.`,
+
+  alerta_gps_fuera_rango: `📍 ALERTA GPS
+
+{{1}}, detectamos que tu ubicación está lejos del punto de origen:
+
+📋 Servicio: {{2}}
+📍 Distancia: {{3}} metros
+
+Si hay un cambio de ubicación, notifica a monitoreo.`,
+
+  alerta_gps_sin_datos: `⚠️ GPS NO DETECTADO
+
+{{1}}, las fotos del checklist no tienen ubicación GPS:
+
+📋 Servicio: {{2}}
+
+Verifica que tu teléfono tenga el GPS activado y vuelve a tomar las fotos.`,
+
+  alerta_item_critico: `🚨 ALERTA DE SEGURIDAD
+
+{{1}}, se detectó un problema crítico en la inspección:
+
+⚠️ {{2}}
+📋 Servicio: {{3}}
+
+Por seguridad, NO inicies el servicio hasta resolver este tema.`,
+
+  checklist_aprobado: `✅ CHECKLIST APROBADO
+
+{{1}}, tu checklist pre-servicio está completo:
+
+📋 Servicio: {{2}}
+⏰ Hora cita: {{3}}
+📍 Origen: {{4}}
+
+Estás listo para iniciar. ¡Buen servicio!`,
+
+  // Tickets
+  ticket_creado: `🎫 TICKET CREADO
+
+Hola {{1}},
+
+Hemos recibido tu solicitud:
+
+📋 Ticket: {{2}}
+📂 Categoría: {{3}}
+⏰ Tiempo de respuesta: {{4}}
+
+Un agente te contactará pronto. Puedes responder a este chat para agregar información.`,
+
+  ticket_asignado: `👤 AGENTE ASIGNADO
+
+{{1}}, tu ticket {{2}} ha sido asignado:
+
+👤 Agente: {{3}}
+📂 Departamento: {{4}}
+
+El agente revisará tu caso y te contactará pronto.`,
+
+  ticket_actualizado: `📝 ACTUALIZACIÓN DE TICKET
+
+{{1}}, hay novedades en tu ticket {{2}}:
+
+Estado: {{3}}
+Mensaje: {{4}}
+
+Puedes responder a este mensaje para continuar la conversación.`,
+
+  ticket_resuelto: `✅ TICKET RESUELTO
+
+{{1}}, tu ticket {{2}} ha sido resuelto:
+
+Solución: {{3}}
+
+¿Te fue útil esta atención?`,
+
+  ticket_encuesta_csat: `⭐ TU OPINIÓN IMPORTA
+
+{{1}}, ¿cómo calificarías la atención de tu ticket {{2}}?
+
+Tu retroalimentación nos ayuda a mejorar.`,
+
+  // Onboarding
+  custodio_invitacion: `🛡️ BIENVENIDO A DETECTA
+
+¡Hola {{1}}! 🎉
+
+Ya eres parte del equipo de custodios de Detecta.
+
+Para activar tu cuenta, usa este link:
+{{2}}
+
+⚠️ Este link es personal y expira en 7 días.`,
+
+  onboarding_documentos_pendientes: `📄 DOCUMENTOS PENDIENTES
+
+{{1}}, para completar tu registro necesitas subir:
+
+{{2}}
+
+Ingresa a tu portal para subir los documentos:
+{{3}}
+
+⏰ Tienes {{4}} días para completar este paso.`,
+
+  onboarding_documento_vencido: `⚠️ DOCUMENTO POR VENCER
+
+{{1}}, tu {{2}} vence el {{3}}.
+
+Para seguir operando, actualiza tu documento antes de la fecha de vencimiento.`,
+
+  onboarding_completado: `🎉 REGISTRO COMPLETADO
+
+¡Felicidades {{1}}!
+
+Tu registro como custodio está completo. Ya puedes recibir asignaciones de servicio.
+
+Descarga la app Detecta:
+📱 Android: {{2}}
+🍎 iOS: {{3}}
+
+¡Bienvenido al equipo! 🛡️`,
+
+  // SIERCP
+  siercp_invitacion: `🧠 EVALUACIÓN PSICOMÉTRICA
+
+Hola {{1}},
+
+Te invitamos a completar tu evaluación SIERCP:
+
+🔗 {{2}}
+
+⏰ El enlace es válido por {{3}} horas.
+
+Esta evaluación es requerida para continuar con tu proceso de selección.`,
+
+  siercp_recordatorio: `⏰ RECORDATORIO SIERCP
+
+{{1}}, tu evaluación SIERCP está pendiente:
+
+🔗 {{2}}
+
+⚠️ El enlace expira en {{3}} horas.
+
+Completa la evaluación para avanzar en tu proceso.`,
+
+  siercp_completada: `✅ EVALUACIÓN COMPLETADA
+
+{{1}}, has completado tu evaluación SIERCP.
+
+Nuestro equipo revisará los resultados y te contactaremos pronto.
+
+Gracias por tu participación.`,
+
+  // LMS
+  lms_curso_asignado: `📚 NUEVO CURSO ASIGNADO
+
+{{1}}, tienes un nuevo curso asignado:
+
+📖 {{2}}
+⏰ Duración: {{3}}
+📅 Fecha límite: {{4}}
+
+Accede desde tu portal de capacitación.`,
+
+  lms_curso_recordatorio: `⏰ CURSO PENDIENTE
+
+{{1}}, tu curso "{{2}}" vence en {{3}} días.
+
+Progreso actual: {{4}}%
+
+Completa el curso para evitar penalizaciones.`,
+
+  lms_quiz_disponible: `📝 QUIZ DISPONIBLE
+
+{{1}}, ya puedes tomar el quiz del módulo "{{2}}":
+
+⏱️ Tiempo: {{3}} minutos
+📊 Intentos: {{4}}/3
+
+Debes aprobar con mínimo 80%.`,
+
+  lms_certificado_emitido: `🏆 CERTIFICADO EMITIDO
+
+¡Felicidades {{1}}! 🎉
+
+Has completado el curso "{{2}}" y tu certificado está listo.
+
+📜 Código: {{3}}
+🔗 Descargar: {{4}}
+
++{{5}} puntos de gamificación 🏅`,
+
+  // Leads
+  lead_bienvenida: `🛡️ ÚNETE A DETECTA
+
+¡Hola {{1}}!
+
+Gracias por tu interés en ser custodio de Detecta.
+
+✅ Ingresos competitivos
+✅ Horarios flexibles
+✅ Capacitación continua
+✅ Seguro y prestaciones
+
+¿Listo para dar el siguiente paso?`,
+
+  lead_seguimiento: `🤝 TE ESTAMOS ESPERANDO
+
+{{1}}, notamos que iniciaste tu proceso con Detecta pero no lo completaste.
+
+¿Tienes alguna duda? Estamos aquí para ayudarte.
+
+Zonas con alta demanda: {{2}}`,
+
+  lead_armados_campana: `🎯 OPORTUNIDAD ARMADOS
+
+{{1}}, estamos buscando personal armado certificado para nuestra red de seguridad.
+
+Requisitos:
+✅ Licencia de portación vigente
+✅ Experiencia comprobable
+✅ Disponibilidad inmediata
+
+Beneficios exclusivos para armados certificados.`,
+
+  // Supply
+  supply_entrevista_programada: `📅 ENTREVISTA PROGRAMADA
+
+{{1}}, tu entrevista ha sido agendada:
+
+📅 Fecha: {{2}}
+⏰ Hora: {{3}}
+📍 Modalidad: {{4}}
+👤 Entrevistador: {{5}}
+
+{{6}}`,
+
+  supply_documentacion_solicitada: `📄 DOCUMENTOS REQUERIDOS
+
+{{1}}, para avanzar en tu proceso necesitamos:
+
+{{2}}
+
+Envía los documentos respondiendo a este mensaje o súbelos en el portal.
+
+⏰ Tienes {{3}} días para enviarlos.`,
+
+  supply_aprobacion_final: `🎉 ¡APROBADO!
+
+¡Felicidades {{1}}!
+
+Has sido aprobado para unirte al equipo de Detecta como {{2}}.
+
+Próximos pasos:
+1️⃣ Completar onboarding digital
+2️⃣ Firmar contrato
+3️⃣ Recibir capacitación inicial
+
+Te contactaremos para coordinar tu inicio.`
+};
+
+/**
+ * Variables descriptivas para cada template
+ */
+export const TEMPLATE_VARIABLES: Record<DetectaTemplateName, string[]> = {
+  servicio_asignado: ['custodio_nombre', 'fecha', 'hora', 'cliente', 'origen', 'destino'],
+  servicio_reasignado: ['custodio_nombre', 'servicio_id', 'fecha', 'hora', 'cliente', 'origen', 'destino'],
+  recordatorio_servicio_60min: ['custodio_nombre', 'cliente', 'origen', 'hora_cita'],
+  recordatorio_servicio_30min: ['custodio_nombre', 'origen', 'hora'],
+  servicio_cancelado: ['custodio_nombre', 'folio', 'cliente', 'fecha', 'motivo'],
+  confirmacion_posicionamiento: ['custodio_nombre', 'ubicacion', 'hora', 'servicio_id'],
+  servicio_completado: ['custodio_nombre', 'servicio_id', 'puntos'],
+  
+  alerta_checklist_pendiente: ['custodio_nombre', 'servicio_id', 'cliente', 'hora_cita'],
+  alerta_gps_fuera_rango: ['custodio_nombre', 'servicio_id', 'distancia_metros'],
+  alerta_gps_sin_datos: ['custodio_nombre', 'servicio_id'],
+  alerta_item_critico: ['custodio_nombre', 'item_critico', 'servicio_id'],
+  checklist_aprobado: ['custodio_nombre', 'servicio_id', 'hora_cita', 'origen'],
+  
+  ticket_creado: ['nombre', 'ticket_number', 'categoria', 'tiempo_respuesta'],
+  ticket_asignado: ['nombre', 'ticket_number', 'agente', 'departamento'],
+  ticket_actualizado: ['nombre', 'ticket_number', 'estado', 'mensaje'],
+  ticket_resuelto: ['nombre', 'ticket_number', 'solucion'],
+  ticket_encuesta_csat: ['nombre', 'ticket_number'],
+  
+  custodio_invitacion: ['nombre', 'link'],
+  onboarding_documentos_pendientes: ['nombre', 'documentos_lista', 'portal_link', 'dias_restantes'],
+  onboarding_documento_vencido: ['nombre', 'tipo_documento', 'fecha_vencimiento'],
+  onboarding_completado: ['nombre', 'link_android', 'link_ios'],
+  
+  siercp_invitacion: ['nombre', 'link', 'horas_validez'],
+  siercp_recordatorio: ['nombre', 'link', 'horas_restantes'],
+  siercp_completada: ['nombre'],
+  
+  lms_curso_asignado: ['nombre', 'curso_nombre', 'duracion', 'fecha_limite'],
+  lms_curso_recordatorio: ['nombre', 'curso_nombre', 'dias_restantes', 'progreso_pct'],
+  lms_quiz_disponible: ['nombre', 'modulo_nombre', 'tiempo_minutos', 'intentos'],
+  lms_certificado_emitido: ['nombre', 'curso_nombre', 'codigo_certificado', 'link_descarga', 'puntos'],
+  
+  lead_bienvenida: ['nombre'],
+  lead_seguimiento: ['nombre', 'zonas_demanda'],
+  lead_armados_campana: ['nombre'],
+  
+  supply_entrevista_programada: ['nombre', 'fecha', 'hora', 'modalidad', 'entrevistador', 'instrucciones'],
+  supply_documentacion_solicitada: ['nombre', 'documentos_lista', 'dias_plazo'],
+  supply_aprobacion_final: ['nombre', 'rol']
+};
