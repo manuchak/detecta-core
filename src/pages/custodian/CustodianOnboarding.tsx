@@ -4,7 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ChevronLeft, ChevronRight, CheckCircle2, FileText } from 'lucide-react';
+import { Shield, ChevronLeft, ChevronRight, CheckCircle2, FileText, AlertTriangle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -43,23 +43,37 @@ const STEP_INFO = [
   }
 ];
 
+// Validador de teléfono: debe tener al menos 8 dígitos
+const isPhoneValid = (phone: string | undefined): boolean => {
+  if (!phone) return false;
+  const digitsOnly = phone.replace(/[^0-9]/g, '');
+  return digitsOnly.length >= 8;
+};
+
 export default function CustodianOnboarding() {
   const navigate = useNavigate();
   const { profile, loading: profileLoading } = useCustodianProfile();
-  const { documents, updateDocument, refetch } = useCustodianDocuments(profile?.phone);
+  const phoneValid = isPhoneValid(profile?.phone);
+  const { documents, updateDocument, refetch } = useCustodianDocuments(phoneValid ? profile?.phone : undefined);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Log de montaje para debugging
+  // Log de montaje para debugging - v3
   useEffect(() => {
-    console.log('[CustodianOnboarding] Componente montado - v2', {
+    console.log('[CustodianOnboarding] Componente montado - v3', {
       hasProfile: !!profile,
       phone: profile?.phone,
+      phoneValid,
       documentsCount: documents.length
     });
-  }, [profile, documents]);
+    
+    // Toast visible para confirmar código actualizado
+    if (profile && !profileLoading) {
+      toast.info(`📱 Teléfono: ${profile.phone || 'No registrado'}`, { duration: 3000 });
+    }
+  }, [profile, documents, profileLoading, phoneValid]);
 
   // Verificar documentos ya subidos
   useEffect(() => {
@@ -130,6 +144,43 @@ export default function CustodianOnboarding() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  // Validación anticipada: teléfono inválido bloquea el flujo
+  if (!phoneValid) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-8 h-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-semibold">Teléfono no válido</h2>
+              <p className="text-muted-foreground">
+                Para subir documentos necesitas un número de teléfono válido registrado en tu perfil.
+              </p>
+              <div className="bg-muted rounded-lg p-3 text-sm">
+                <div className="flex items-center gap-2 justify-center text-muted-foreground">
+                  <Phone className="w-4 h-4" />
+                  <span>Tu número actual: <strong>"{profile?.phone || 'No registrado'}"</strong></span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Contacta a soporte para actualizar tu información de contacto.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/custodian')}
+                className="w-full"
+              >
+                Volver al inicio
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
