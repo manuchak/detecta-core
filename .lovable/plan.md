@@ -1,169 +1,162 @@
 
 
-# Plan: Agregar Timeout para img.onload + Logging Más Granular (v6)
+# Plan v7: Cambio de Patrón de Input + Bypass de Compresión
 
-## Diagnóstico Confirmado
+## Causa Raíz Confirmada
 
-El problema está en `imageUtils.ts` donde `img.onload` nunca se dispara en algunos dispositivos Android. El archivo se recibe correctamente (aparece toast "Procesando") pero la imagen nunca termina de cargar en el elemento `<img>`, causando que la Promise se quede colgada.
+El problema NO es la compresión de imagen. El problema es el **patrón de input file usando `useRef`** que se desincroniza en Android cuando la app de cámara nativa se abre y cierra.
 
-**Causa raíz**: El timeout de 10 segundos solo cubre el caso donde `toBlob()` falla, pero NO cubre el caso donde `img.onload` nunca se ejecuta.
+**Evidencia**: `PhotoSlot.tsx` usa input dinámico (`document.createElement`) y funciona perfectamente. `DocumentUploadStep.tsx` usa `useRef` y falla.
 
 ## Solución
 
-### 1. Agregar Timeout a la Carga de Imagen (imageUtils.ts)
+### Cambio 1: Adoptar el Patrón de PhotoSlot (Input Dinámico)
 
-Mover el timeout para cubrir TODO el proceso, incluyendo la carga de la imagen:
+Reemplazar el sistema actual de `useRef` por creación dinámica de input:
 
 ```typescript
-export async function compressImage(
-  file: File | Blob,
-  options: Partial<CompressionOptions> = {}
-): Promise<CompressionResult> {
-  const config = { ...DEFAULT_OPTIONS, ...options };
-  const originalSize = file.size;
-  
-  console.log(`[ImageUtils] v6 - Iniciando compresión: ${(originalSize / 1024).toFixed(0)}KB`);
+// ANTES (no funciona en Android)
+const fileInputRef = useRef<HTMLInputElement>(null);
+<input ref={fileInputRef} onChange={handleFileSelect} />
+<button onClick={() => fileInputRef.current?.click()}>Tomar foto</button>
 
-  // Timeout para TODA la operación (incluyendo carga de imagen)
-  let timeoutId: NodeJS.Timeout;
-  
-  const compressionPromise = new Promise<CompressionResult>((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    
-    // v6: Timeout de 8s para img.onload específicamente
-    const imgLoadTimeout = setTimeout(() => {
-      URL.revokeObjectURL(url);
-      console.error('[ImageUtils] v6 - TIMEOUT: Imagen no cargó en 8 segundos');
-      reject(new Error('Timeout: La imagen no se pudo cargar'));
-    }, 8000);
+// DESPUÉS (patrón de PhotoSlot que SÍ funciona)
+const handleCameraClick = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.capture = 'environment';
+  input.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+  };
+  input.click();
+};
 
-    img.onload = () => {
-      clearTimeout(imgLoadTimeout); // Limpiar timeout de carga
-      URL.revokeObjectURL(url);
-      console.log('[ImageUtils] v6 - Imagen cargada correctamente');
-      
-      // ... resto del código de compresión
-    };
-
-    img.onerror = (e) => {
-      clearTimeout(imgLoadTimeout);
-      URL.revokeObjectURL(url);
-      console.error('[ImageUtils] v6 - Error al cargar imagen:', e);
-      reject(new Error('Error al cargar imagen para compresión'));
-    };
-
-    img.src = url;
-  });
-
-  return compressionPromise;
-}
+<button onClick={handleCameraClick}>Tomar foto</button>
 ```
 
-### 2. Agregar Logging Antes de Compresión (DocumentUploadStep.tsx)
+### Cambio 2: Desactivar Compresión Temporalmente
 
-Mostrar toast ANTES de iniciar la compresión para confirmar que el flujo llega ahí:
+Para aislar el problema y confirmar que es el input (no la compresión):
 
 ```typescript
-// Línea ~155
-if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
-  setIsCompressing(true);
-  
-  // v6: Toast MÁS VISIBLE antes de compresión
-  toast.info(`📷 Cargando imagen (${(selectedFile.size / 1024 / 1024).toFixed(1)}MB)...`, { 
-    duration: 5000 
+// v7: Skip compresión para diagnóstico
+const processFile = async (selectedFile: File) => {
+  console.log(`[DocumentUpload] v7 - Archivo recibido:`, {
+    name: selectedFile.name,
+    size: selectedFile.size,
+    type: selectedFile.type
   });
-  console.log(`[DocumentUpload] v6 - Tipo de archivo: "${selectedFile.type}", Tamaño: ${selectedFile.size}`);
   
-  try {
-    const { blob, compressionRatio } = await compressImage(selectedFile, { ... });
-    // ...
-  } catch (compressionError) {
-    console.error(`[DocumentUpload] v6 - Error completo:`, compressionError);
-    toast.error('Error al procesar imagen', {
-      description: compressionError instanceof Error ? compressionError.message : 'Error desconocido',
-      duration: 5000
-    });
-    // Usar archivo original como fallback
-    fileToUse = selectedFile;
-  }
-}
+  toast.info(`Procesando: ${selectedFile.name}`);
+  
+  // v7: SIN COMPRESIÓN - usar archivo directo
+  const url = URL.createObjectURL(selectedFile);
+  setFile(selectedFile);
+  setPreview(url);
+  
+  toast.success('Foto lista ✓');
+  console.log(`[DocumentUpload] v7 - Preview creado`);
+};
 ```
 
-### 3. Fallback: Si la Compresión Falla, Usar Original
+### Cambio 3: Logging Ultra-Detallado
 
-En lugar de quedarse colgado, usar el archivo original:
+Agregar toasts visibles en CADA paso para confirmar flujo:
 
 ```typescript
-// En el catch de compressImage
-} catch (compressionError) {
-  console.error(`[DocumentUpload] v6 - Compresión falló:`, compressionError);
+const handleCameraClick = () => {
+  toast.info('📷 Abriendo cámara...', { duration: 2000 });
+  console.log(`[DocumentUpload] v7 - Creando input dinámico`);
   
-  // v6: SIEMPRE usar archivo original como fallback
-  toast.warning('Usando foto sin comprimir', { duration: 3000 });
-  fileToUse = selectedFile;
+  const input = document.createElement('input');
+  // ... configuración
   
-  setIsCompressing(false);
-}
-
-// El preview se crea FUERA del try/catch de compresión
-// Esto garantiza que siempre se muestre algo
+  input.onchange = async (e) => {
+    toast.info('Foto recibida, procesando...', { duration: 2000 });
+    // ... procesar
+  };
+  
+  input.click();
+};
 ```
 
 ## Archivos a Modificar
 
-| Archivo | Cambio | 
+| Archivo | Cambio |
 |---------|--------|
-| `src/lib/imageUtils.ts` | Agregar timeout de 8s para `img.onload` |
-| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Mejorar logging y asegurar fallback a original |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Cambiar a input dinámico + skip compresión |
 
-## Flujo Esperado v6
+## Flujo Esperado v7
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  Usuario toma foto → Toast "Procesando: IMG_001.jpg"                │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Toast "📷 Cargando imagen (2.5MB)..."                              │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    │                               │
-                    ▼                               ▼
-    ┌───────────────────────────┐    ┌─────────────────────────────────┐
-    │ img.onload dispara < 8s   │    │ TIMEOUT: img.onload no dispara  │
-    │ → Compresión inicia       │    │ → Toast "Usando foto sin        │
-    │ → Preview aparece ✓       │    │   comprimir"                    │
-    └───────────────────────────┘    │ → Usa archivo original          │
-                                     │ → Preview aparece ✓             │
-                                     └─────────────────────────────────┘
+Usuario toca "Tomar foto"
+         │
+         ▼
+Toast: "📷 Abriendo cámara..."
+         │
+         ▼
+[Se crea input DINÁMICO - document.createElement]
+         │
+         ▼
+Cámara nativa se abre → Usuario toma foto
+         │
+         ▼
+input.onchange dispara (nuevo input, no hay desincronización)
+         │
+         ▼
+Toast: "Foto recibida, procesando..."
+         │
+         ▼
+[SIN COMPRESIÓN - uso directo del archivo]
+         │
+         ▼
+setPreview(url) → UI muestra foto
+         │
+         ▼
+Toast: "Foto lista ✓"
 ```
+
+## Por Qué Esto Funcionará
+
+1. **Input dinámico**: El elemento se crea FRESCO cada vez, sin posibilidad de desincronización de ref
+2. **Sin compresión**: Eliminamos una variable del problema para confirmar que el input es la causa
+3. **Mismo patrón que PhotoSlot**: Que ya funciona perfectamente en el checklist
 
 ## Verificación
 
-1. Refrescar app y confirmar badge **"v6"**
-2. Tomar foto
-3. Verificar secuencia de toasts:
-   - "Procesando: [nombre]"
-   - "📷 Cargando imagen (X.XMB)..."
-   - "Imagen comprimida ✓" O "Usando foto sin comprimir"
-   - "Foto lista ✓" con preview visible
+1. Actualizar la app (confirmar badge **"v7"**)
+2. Confirmar toast "📷 Abriendo cámara..." al tocar botón
+3. Tomar foto
+4. Confirmar toast "Foto recibida, procesando..."
+5. Verificar que el preview aparece
+6. Si funciona → reactivar compresión
+7. Si NO funciona → el problema es más profundo (posiblemente WebView del dispositivo)
 
 ## Sección Técnica
 
-### Por qué img.onload puede no dispararse
+### Por qué useRef falla en Android pero createElement no
 
-1. **Blob URL inválida**: Algunos Android WebViews no manejan bien los blobs de la cámara
-2. **EXIF corrupto**: Metadatos de orientación mal formados pueden causar que la imagen no cargue
-3. **Formato no soportado**: HEIC/HEIF de cámaras nuevas no son soportados en todos los WebViews
-4. **Memory pressure**: Android puede pausar la carga de imagen si hay poca memoria
+**useRef + input hidden:**
+1. El input existe en el DOM desde el render inicial
+2. Cuando Android abre la cámara, puede pausar/matar el proceso del navegador
+3. Al regresar, React puede re-renderizar el componente
+4. El ref puede apuntar a un elemento "huérfano" o recreado
+5. El onChange se dispara pero el callback puede estar desactualizado (closure problem)
 
-### Por qué el fallback es seguro
+**createElement dinámico:**
+1. El input se crea JUSTO cuando el usuario toca el botón
+2. El onchange se asigna INMEDIATAMENTE antes de input.click()
+3. No hay estado previo que pueda corromperse
+4. Cuando la cámara regresa, el input aún tiene su callback fresco
+5. No depende de React refs ni closures antiguos
 
-Usar el archivo original sin comprimir es preferible a no mostrar nada porque:
-1. El upload a Supabase Storage maneja archivos de cualquier tamaño (hasta el límite del bucket)
-2. Una foto de 3-5MB sube en segundos con buena conexión
-3. Es mejor tener la foto sin comprimir que no tenerla
+### Riesgo de la solución
+
+- **Bajo**: Es el mismo patrón usado en PhotoSlot que funciona
+- El archivo sin comprimir pesará más (~2-5MB vs ~400KB) pero Supabase Storage lo maneja
+- Una vez confirmado que funciona, podemos reactivar compresión progresivamente
 
