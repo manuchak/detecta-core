@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { DocumentUploadStep } from '@/components/custodian/onboarding/DocumentUploadStep';
 import { useCustodianDocuments } from '@/hooks/useCustodianDocuments';
 import { useCustodianProfile } from '@/hooks/useCustodianProfile';
+import PhoneUpdatePrompt from '@/components/custodian/PhoneUpdatePrompt';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { TipoDocumentoCustodio } from '@/types/checklist';
@@ -52,13 +53,15 @@ const isPhoneValid = (phone: string | undefined): boolean => {
 
 export default function CustodianOnboarding() {
   const navigate = useNavigate();
-  const { profile, loading: profileLoading } = useCustodianProfile();
+  const { profile, loading: profileLoading, updateProfile, refetch: refetchProfile } = useCustodianProfile();
   const phoneValid = isPhoneValid(profile?.phone);
   const { documents, updateDocument, refetch } = useCustodianDocuments(phoneValid ? profile?.phone : undefined);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Log de montaje para debugging - v3
   useEffect(() => {
@@ -148,6 +151,21 @@ export default function CustodianOnboarding() {
     );
   }
 
+  // Handler para actualizar teléfono desde el prompt
+  const handlePhoneUpdate = async (newPhone: string): Promise<boolean> => {
+    setPhoneError(null);
+    const success = await updateProfile({ phone: newPhone });
+    
+    if (success) {
+      toast.success('Teléfono actualizado correctamente');
+      await refetchProfile(); // Recargar perfil para validar de nuevo
+      return true;
+    } else {
+      setPhoneError('No se pudo actualizar el teléfono. Intenta de nuevo.');
+      return false;
+    }
+  };
+
   // Validación anticipada: teléfono inválido bloquea el flujo
   if (!phoneValid) {
     return (
@@ -168,19 +186,35 @@ export default function CustodianOnboarding() {
                   <span>Tu número actual: <strong>"{profile?.phone || 'No registrado'}"</strong></span>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Contacta a soporte para actualizar tu información de contacto.
-              </p>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/custodian')}
-                className="w-full"
-              >
-                Volver al inicio
-              </Button>
+              
+              <div className="space-y-2 pt-2">
+                <Button 
+                  onClick={() => setShowPhonePrompt(true)}
+                  className="w-full"
+                >
+                  <Phone className="w-4 h-4 mr-2" />
+                  Actualizar mi teléfono
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => navigate('/custodian')}
+                  className="w-full"
+                >
+                  Volver al inicio
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Dialog para actualizar teléfono */}
+        <PhoneUpdatePrompt
+          open={showPhonePrompt}
+          onOpenChange={setShowPhonePrompt}
+          currentPhone={profile?.phone}
+          onPhoneUpdated={handlePhoneUpdate}
+          errorMessage={phoneError}
+        />
       </div>
     );
   }
