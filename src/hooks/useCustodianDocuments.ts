@@ -48,6 +48,12 @@
       // Sanitizar teléfono para ruta de archivo (remover espacios y caracteres especiales)
       const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
       
+      // Validar que tenga al menos 8 dígitos (teléfono válido)
+      const digitsOnly = sanitizedPhone.replace(/[^0-9]/g, '');
+      if (digitsOnly.length < 8) {
+        throw new Error('Tu número de teléfono no es válido. Por favor actualiza tu perfil.');
+      }
+      
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `documentos/${sanitizedPhone}/${tipoDocumento}_${Date.now()}.${fileExt}`;
 

@@ -140,10 +140,10 @@ export function useChecklistMonitoreo(timeWindow: number = 8) {
       const custodioIds = servicios?.map((s) => s.custodio_id).filter(Boolean) || [];
       const { data: custodios } = await supabase
         .from('pc_custodios')
-        .select('id, telefono')
+        .select('id, tel')
         .in('id', custodioIds);
 
-      const telefonoMap = new Map(custodios?.map((c) => [c.id, c.telefono]) || []);
+      const telefonoMap = new Map(custodios?.map((c) => [c.id, c.tel]) || []);
       const checklistMap = new Map(checklists?.map((c) => [c.servicio_id, c]) || []);
 
       // Procesar y enriquecer datos
