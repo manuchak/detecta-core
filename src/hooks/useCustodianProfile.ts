@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useStableAuth } from '@/hooks/useStableAuth';
 
@@ -20,17 +20,27 @@ export const useCustodianProfile = () => {
   const [profile, setProfile] = useState<CustodianProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // v11: Usar ref para acceder al perfil actual sin re-disparar el effect
+  const profileRef = React.useRef(profile);
+  profileRef.current = profile;
+
   useEffect(() => {
     if (user && !authLoading) {
-      fetchProfile();
+      // v11: Si ya tenemos perfil, hacer refresh silencioso
+      // para no desmontar componentes hijos al regresar de cámara
+      fetchProfile(!!profileRef.current);
     } else if (!authLoading) {
       setLoading(false);
     }
   }, [user, authLoading]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (silent = false) => {
     try {
-      setLoading(true);
+      // v11: Solo mostrar loading si no hay perfil cargado
+      // Esto evita desmontar componentes hijos cuando la app regresa de background
+      if (!silent && !profile) {
+        setLoading(true);
+      }
       
       // Si el usuario es admin, crear un perfil mock para demo
       if (userRole === 'admin' || userRole === 'owner') {
