@@ -31,61 +31,95 @@
      staleTime: 5 * 60 * 1000,
    });
  
-   const updateDocument = useMutation({
-     mutationFn: async ({
-       tipoDocumento,
-       file,
-       fechaVigencia,
-       numeroDocumento,
-     }: {
-       tipoDocumento: TipoDocumentoCustodio;
-       file: File;
-       fechaVigencia: string;
-       numeroDocumento?: string;
-     }) => {
-       if (!custodioTelefono) throw new Error('No phone');
- 
-       const fileExt = file.name.split('.').pop();
-       const fileName = `${custodioTelefono}/${tipoDocumento}_${Date.now()}.${fileExt}`;
- 
-       const { error: uploadError } = await supabase.storage
-         .from('checklist-evidencias')
-         .upload(`documentos/${fileName}`, file, { upsert: true });
- 
-       if (uploadError) throw uploadError;
- 
-       const { data: urlData } = supabase.storage
-         .from('checklist-evidencias')
-         .getPublicUrl(`documentos/${fileName}`);
- 
-       const { error: dbError } = await supabase
-         .from('documentos_custodio')
-         .upsert(
-           {
-             custodio_telefono: custodioTelefono,
-             tipo_documento: tipoDocumento,
-             numero_documento: numeroDocumento,
-             fecha_vigencia: fechaVigencia,
-             foto_url: urlData.publicUrl,
-             verificado: false,
-             updated_at: new Date().toISOString(),
-           },
-           { onConflict: 'custodio_telefono,tipo_documento' }
-         );
- 
-       if (dbError) throw dbError;
-     },
-     onSuccess: () => {
-       queryClient.invalidateQueries({
-         queryKey: ['custodian-documents', custodioTelefono],
-       });
-       toast.success('Documento actualizado');
-     },
-     onError: (error) => {
-       console.error('Error updating document:', error);
-       toast.error('Error al actualizar documento');
-     },
-   });
+  const updateDocument = useMutation({
+    mutationFn: async ({
+      tipoDocumento,
+      file,
+      fechaVigencia,
+      numeroDocumento,
+    }: {
+      tipoDocumento: TipoDocumentoCustodio;
+      file: File;
+      fechaVigencia: string;
+      numeroDocumento?: string;
+    }) => {
+      if (!custodioTelefono) throw new Error('No se encontró número de teléfono');
+
+      // Sanitizar teléfono para ruta de archivo (remover espacios y caracteres especiales)
+      const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+      
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `documentos/${sanitizedPhone}/${tipoDocumento}_${Date.now()}.${fileExt}`;
+
+      // 1. Subir archivo con validación
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('checklist-evidencias')
+        .upload(fileName, file, { 
+          upsert: true,
+          contentType: file.type || 'image/jpeg'
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(`Error al subir foto: ${uploadError.message}`);
+      }
+
+      // 2. Verificar que el archivo existe
+      const { data: fileCheck } = await supabase.storage
+        .from('checklist-evidencias')
+        .list(`documentos/${sanitizedPhone}`, {
+          search: `${tipoDocumento}_`
+        });
+
+      if (!fileCheck || fileCheck.length === 0) {
+        throw new Error('La foto no se guardó correctamente. Por favor intenta de nuevo.');
+      }
+
+      // 3. Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('checklist-evidencias')
+        .getPublicUrl(fileName);
+
+      // 4. Guardar en base de datos
+      const { error: dbError } = await supabase
+        .from('documentos_custodio')
+        .upsert(
+          {
+            custodio_telefono: custodioTelefono, // Original con formato
+            tipo_documento: tipoDocumento,
+            numero_documento: numeroDocumento,
+            fecha_vigencia: fechaVigencia,
+            foto_url: urlData.publicUrl,
+            verificado: false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'custodio_telefono,tipo_documento' }
+        );
+
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw new Error(`Error al guardar registro: ${dbError.message}`);
+      }
+
+      return { url: urlData.publicUrl };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['custodian-documents', custodioTelefono],
+      });
+      toast.success('¡Documento guardado correctamente!', {
+        description: 'La foto se subió y el registro fue creado.',
+        duration: 4000
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Error updating document:', error);
+      toast.error('Error al guardar documento', {
+        description: error.message || 'Por favor verifica tu conexión e intenta de nuevo.',
+        duration: 5000
+      });
+    },
+  });
  
    const getExpiredDocuments = () => {
      if (!query.data) return [];
