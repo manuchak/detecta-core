@@ -15,7 +15,7 @@ import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v9';
+const VERSION = 'v10';
 
 /**
  * v9: Convierte un File a Base64 Data URL
