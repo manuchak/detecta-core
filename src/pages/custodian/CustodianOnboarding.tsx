@@ -52,6 +52,15 @@ export default function CustodianOnboarding() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Log de montaje para debugging
+  useEffect(() => {
+    console.log('[CustodianOnboarding] Componente montado - v2', {
+      hasProfile: !!profile,
+      phone: profile?.phone,
+      documentsCount: documents.length
+    });
+  }, [profile, documents]);
+
   // Verificar documentos ya subidos
   useEffect(() => {
     if (documents.length > 0) {

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Wrench, MessageSquarePlus, AlertCircle, Phone } from "lucide-react";
+import { Wrench, MessageSquarePlus, AlertCircle, Phone, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QuickActionsGridProps {
@@ -18,6 +18,15 @@ const QuickActionsGrid = ({
   const navigate = useNavigate();
 
   const actions = [
+    {
+      icon: FileText,
+      label: "Mis Documentos",
+      sublabel: "Ver / Actualizar",
+      onClick: () => navigate('/custodian/onboarding'),
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-500/10",
+      borderColor: "border-cyan-500/20",
+    },
     {
       icon: Wrench,
       label: "Registrar Servicio",
