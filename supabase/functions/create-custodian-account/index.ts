@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "v2.0.1";
+const VERSION = "v2.1.0"; // Added pending role cleanup
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,6 +103,20 @@ const handler = async (req: Request): Promise<Response> => {
     if (roleErr) {
       console.error(`[create-custodian-account] Error assigning role:`, roleErr);
       // Don't fail the whole operation - the user is created
+    } else {
+      // Clean up 'pending' role if it exists (inserted by email_confirmation trigger)
+      // This prevents duplicate roles and ensures custodio role takes precedence
+      const { error: cleanupErr } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userData.user.id)
+        .eq('role', 'pending');
+      
+      if (cleanupErr) {
+        console.error(`[create-custodian-account] Error cleaning up pending role:`, cleanupErr);
+      } else {
+        console.log(`[create-custodian-account] Cleaned up pending role for ${email}`);
+      }
     }
 
     // Create/update profile - use 'phone' column (NOT 'telefono')
