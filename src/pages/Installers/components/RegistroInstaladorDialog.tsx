@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useInstaladorData } from '@/hooks/useInstaladorData';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 const schema = z.object({
   nombre_completo: z.string().min(1, 'Nombre completo es requerido'),
@@ -26,6 +27,19 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const defaultValues: FormData = {
+  nombre_completo: '',
+  telefono: '',
+  email: '',
+  cedula_profesional: '',
+  especialidades: '',
+  vehiculo_propio: false,
+  banco: '',
+  cuenta: '',
+  clabe: '',
+  titular: ''
+};
+
 interface RegistroInstaladorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,19 +51,21 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
 }) => {
   const { createInstalador } = useInstaladorData();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-    setValue,
-    watch,
-    getValues
-  } = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      vehiculo_propio: false
-    }
+    defaultValues
+  });
+
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch, getValues } = form;
+
+  // Persistence hook
+  const persistence = useFormPersistence<FormData>({
+    key: 'registro_instalador_dialog',
+    initialData: defaultValues,
+    level: 'standard',
+    form,
+    isMeaningful: (data) => !!(data.nombre_completo?.trim() || data.telefono?.trim() || data.email?.trim()),
+    ttl: 4 * 60 * 60 * 1000, // 4 hours
   });
 
   const vehiculoPropio = watch('vehiculo_propio');
@@ -76,6 +92,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
         banco_datos: bancoData
       });
       
+      persistence.clearDraft(true);
       reset();
       onOpenChange(false);
     } catch (error) {
@@ -83,11 +100,28 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
     }
   };
 
+  const handleClose = useCallback(async () => {
+    if (persistence.hasUnsavedChanges) {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+    }
+    onOpenChange(false);
+  }, [persistence, onOpenChange]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Registrar Nuevo Instalador</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Registrar Nuevo Instalador</DialogTitle>
+            <DraftIndicator
+              hasDraft={persistence.hasDraft}
+              hasUnsavedChanges={persistence.hasUnsavedChanges}
+              lastSaved={persistence.lastSaved}
+              getTimeSinceSave={persistence.getTimeSinceSave}
+              variant="minimal"
+            />
+          </div>
           <DialogDescription>
             Complete la información para registrar un nuevo instalador certificado
           </DialogDescription>
@@ -106,7 +140,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
                   placeholder="Nombre completo del instalador"
                 />
                 {errors.nombre_completo && (
-                  <p className="text-sm text-red-500">{errors.nombre_completo.message}</p>
+                  <p className="text-sm text-destructive">{errors.nombre_completo.message}</p>
                 )}
               </div>
 
@@ -127,7 +161,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
                   placeholder="Número de teléfono"
                 />
                 {errors.telefono && (
-                  <p className="text-sm text-red-500">{errors.telefono.message}</p>
+                  <p className="text-sm text-destructive">{errors.telefono.message}</p>
                 )}
               </div>
 
@@ -139,7 +173,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
                   placeholder="Correo electrónico"
                 />
                 {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message}</p>
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
                 )}
               </div>
             </div>
@@ -153,9 +187,9 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
               placeholder="GPS Vehicular, GPS Personal, Alarmas, Cámaras (separadas por comas)"
             />
             {errors.especialidades && (
-              <p className="text-sm text-red-500">{errors.especialidades.message}</p>
+              <p className="text-sm text-destructive">{errors.especialidades.message}</p>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Ingrese las especialidades separadas por comas
             </p>
           </div>
@@ -165,6 +199,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
             <div className="flex items-center space-x-2">
               <Switch
                 id="vehiculo_propio"
+                checked={vehiculoPropio}
                 onCheckedChange={(checked) => setValue('vehiculo_propio', checked)}
               />
               <Label htmlFor="vehiculo_propio">Cuenta con vehículo propio</Label>
@@ -213,7 +248,7 @@ export const RegistroInstaladorDialog: React.FC<RegistroInstaladorDialogProps> =
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>

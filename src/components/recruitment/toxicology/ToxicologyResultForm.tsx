@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, TestTube, AlertTriangle } from 'lucide-react';
 import { useCreateToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftIndicator';
 
 interface Props {
   isOpen: boolean;
@@ -16,12 +18,33 @@ interface Props {
   candidatoNombre: string;
 }
 
+interface ToxicologyFormData {
+  resultado: 'negativo' | 'positivo';
+  laboratorio: string;
+  fechaMuestra: string;
+  sustancias: string;
+  notas: string;
+}
+
+const initialData: ToxicologyFormData = {
+  resultado: 'negativo',
+  laboratorio: '',
+  fechaMuestra: '',
+  sustancias: '',
+  notas: '',
+};
+
 export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNombre }: Props) {
-  const [resultado, setResultado] = useState<'negativo' | 'positivo'>('negativo');
-  const [laboratorio, setLaboratorio] = useState('');
-  const [fechaMuestra, setFechaMuestra] = useState('');
-  const [sustancias, setSustancias] = useState('');
-  const [notas, setNotas] = useState('');
+  // Persistence hook - key includes candidatoId for uniqueness
+  const persistence = useFormPersistence<ToxicologyFormData>({
+    key: `toxicology_result_${candidatoId}`,
+    initialData,
+    level: 'standard',
+    isMeaningful: (data) => !!(data.laboratorio || data.fechaMuestra || data.notas),
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+  });
+
+  const { data, updateData, hasDraft, hasUnsavedChanges, lastSaved, getTimeSinceSave, clearDraft } = persistence;
 
   const createMutation = useCreateToxicologia();
 
@@ -30,35 +53,44 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
     
     await createMutation.mutateAsync({
       candidato_id: candidatoId,
-      resultado,
-      laboratorio: laboratorio || undefined,
-      fecha_muestra: fechaMuestra ? new Date(fechaMuestra).toISOString() : undefined,
-      sustancias_detectadas: resultado === 'positivo' && sustancias 
-        ? sustancias.split(',').map(s => s.trim()) 
+      resultado: data.resultado,
+      laboratorio: data.laboratorio || undefined,
+      fecha_muestra: data.fechaMuestra ? new Date(data.fechaMuestra).toISOString() : undefined,
+      sustancias_detectadas: data.resultado === 'positivo' && data.sustancias 
+        ? data.sustancias.split(',').map(s => s.trim()) 
         : undefined,
-      notas: notas || undefined,
+      notas: data.notas || undefined,
     });
 
+    clearDraft(true);
     onClose();
-    resetForm();
   };
 
-  const resetForm = () => {
-    setResultado('negativo');
-    setLaboratorio('');
-    setFechaMuestra('');
-    setSustancias('');
-    setNotas('');
-  };
+  const handleClose = useCallback(async () => {
+    if (hasUnsavedChanges) {
+      const discard = await persistence.confirmDiscard();
+      if (!discard) return;
+    }
+    onClose();
+  }, [hasUnsavedChanges, persistence, onClose]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <TestTube className="h-5 w-5" />
-            Registrar Resultado Toxicológico
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <TestTube className="h-5 w-5" />
+              Registrar Resultado Toxicológico
+            </DialogTitle>
+            <DraftIndicator
+              hasDraft={hasDraft}
+              hasUnsavedChanges={hasUnsavedChanges}
+              lastSaved={lastSaved}
+              getTimeSinceSave={getTimeSinceSave}
+              variant="minimal"
+            />
+          </div>
           <DialogDescription>
             Ingrese el resultado de la prueba de antidoping para {candidatoNombre}
           </DialogDescription>
@@ -68,25 +100,25 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
           {/* Resultado */}
           <div className="space-y-3">
             <Label>Resultado de la prueba *</Label>
-            <RadioGroup value={resultado} onValueChange={(v) => setResultado(v as 'negativo' | 'positivo')}>
+            <RadioGroup value={data.resultado} onValueChange={(v) => updateData({ resultado: v as 'negativo' | 'positivo' })}>
               <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                 <RadioGroupItem value="negativo" id="negativo" />
                 <Label htmlFor="negativo" className="flex-1 cursor-pointer">
-                  <span className="font-medium text-green-700">✅ Negativo</span>
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">✅ Negativo</span>
                   <p className="text-xs text-muted-foreground">No se detectaron sustancias</p>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                 <RadioGroupItem value="positivo" id="positivo" />
                 <Label htmlFor="positivo" className="flex-1 cursor-pointer">
-                  <span className="font-medium text-red-700">❌ Positivo</span>
+                  <span className="font-medium text-destructive">❌ Positivo</span>
                   <p className="text-xs text-muted-foreground">Se detectaron sustancias</p>
                 </Label>
               </div>
             </RadioGroup>
           </div>
 
-          {resultado === 'positivo' && (
+          {data.resultado === 'positivo' && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
@@ -96,14 +128,14 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
           )}
 
           {/* Sustancias detectadas (solo si positivo) */}
-          {resultado === 'positivo' && (
+          {data.resultado === 'positivo' && (
             <div className="space-y-2">
               <Label htmlFor="sustancias">Sustancias detectadas (separadas por coma)</Label>
               <Input
                 id="sustancias"
                 placeholder="Ej: THC, Cocaína..."
-                value={sustancias}
-                onChange={(e) => setSustancias(e.target.value)}
+                value={data.sustancias}
+                onChange={(e) => updateData({ sustancias: e.target.value })}
               />
             </div>
           )}
@@ -114,8 +146,8 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
             <Input
               id="laboratorio"
               placeholder="Nombre del laboratorio"
-              value={laboratorio}
-              onChange={(e) => setLaboratorio(e.target.value)}
+              value={data.laboratorio}
+              onChange={(e) => updateData({ laboratorio: e.target.value })}
             />
           </div>
 
@@ -125,8 +157,8 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
             <Input
               id="fechaMuestra"
               type="date"
-              value={fechaMuestra}
-              onChange={(e) => setFechaMuestra(e.target.value)}
+              value={data.fechaMuestra}
+              onChange={(e) => updateData({ fechaMuestra: e.target.value })}
             />
           </div>
 
@@ -136,15 +168,15 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
             <Textarea
               id="notas"
               placeholder="Observaciones..."
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
+              value={data.notas}
+              onChange={(e) => updateData({ notas: e.target.value })}
               rows={2}
             />
           </div>
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={createMutation.isPending}>
