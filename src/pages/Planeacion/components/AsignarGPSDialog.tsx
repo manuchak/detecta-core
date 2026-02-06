@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -41,6 +41,8 @@ import {
   useCustodiosOperativosActivos 
 } from '@/hooks/useComodatosGPS';
 import type { ComodatoGPSForm } from '@/types/comodatos';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 
 const asignarGPSSchema = z.object({
   producto_gps_id: z.string().min(1, 'Selecciona un producto GPS'),
@@ -80,6 +82,14 @@ export const AsignarGPSDialog: React.FC<AsignarGPSDialogProps> = ({
   const { data: productosGPS = [], isLoading: loadingProductos } = useProductosGPSDisponibles();
   const { data: custodiosOperativos = [], isLoading: loadingCustodios } = useCustodiosOperativosActivos();
 
+  // Form persistence
+  const persistence = useFormPersistence<Partial<ComodatoGPSForm>>({
+    key: 'asignar_gps_comodato',
+    level: 'standard',
+    initialData: {},
+    isMeaningful: (data) => !!(data?.producto_gps_id || data?.numero_serie_gps || data?.custodio_operativo_nombre),
+  });
+
   // Query para custodios de planeación
   const { data: custodiosPlaneacion = [] } = useQuery({
     queryKey: ['pc-custodios'],
@@ -100,9 +110,18 @@ export const AsignarGPSDialog: React.FC<AsignarGPSDialogProps> = ({
     defaultValues: {
       custodio_tipo: 'planeacion',
       fecha_devolucion_programada: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString().split('T')[0] // 30 días por defecto
+        .toISOString().split('T')[0], // 30 días por defecto
+      ...persistence.data,
     }
   });
+
+  // Sync form to persistence
+  const formValues = form.watch();
+  useEffect(() => {
+    if (open) {
+      persistence.updateData(formValues);
+    }
+  }, [formValues, open]);
 
   const custodioTipo = form.watch('custodio_tipo');
   const productoSeleccionado = form.watch('producto_gps_id');
@@ -110,12 +129,20 @@ export const AsignarGPSDialog: React.FC<AsignarGPSDialogProps> = ({
   const onSubmit = async (data: ComodatoGPSForm) => {
     try {
       await createComodato.mutateAsync(data);
+      persistence.clearDraft(true);
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error('Error al asignar GPS:', error);
     }
   };
+
+  const handleClose = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      persistence.confirmDiscard();
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence]);
 
   const custodiosOperativosFiltrados = custodiosOperativos.filter(custodio =>
     custodio.nombre_custodio.toLowerCase().includes(busquedaCustodio.toLowerCase())
@@ -124,10 +151,13 @@ export const AsignarGPSDialog: React.FC<AsignarGPSDialogProps> = ({
   const productoGPSSeleccionado = productosGPS.find(p => p.id === productoSeleccionado);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Asignar GPS en Comodato</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Asignar GPS en Comodato
+            <DraftIndicator lastSaved={persistence.lastSaved} />
+          </DialogTitle>
           <DialogDescription>
             Selecciona un GPS disponible y asígnalo a un custodio activo
           </DialogDescription>

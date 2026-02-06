@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -28,6 +28,8 @@ import { useComodatosGPS } from '@/hooks/useComodatosGPS';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DevolucionForm } from '@/types/comodatos';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 
 const devolucionSchema = z.object({
   fecha_devolucion_real: z.string().min(1, 'Selecciona la fecha de devolución'),
@@ -47,6 +49,14 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
   comodatoId
 }) => {
   const { procesarDevolucion } = useComodatosGPS();
+
+  // Form persistence
+  const persistence = useFormPersistence<Partial<DevolucionForm>>({
+    key: `devolucion_gps_${comodatoId || 'unknown'}`,
+    level: 'light',
+    initialData: {},
+    isMeaningful: (data) => !!(data?.condiciones_devolucion || data?.observaciones),
+  });
 
   // Query para obtener detalles del comodato
   const { data: comodato, isLoading } = useQuery({
@@ -69,9 +79,18 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
   const form = useForm<DevolucionForm>({
     resolver: zodResolver(devolucionSchema),
     defaultValues: {
-      fecha_devolucion_real: new Date().toISOString().split('T')[0]
+      fecha_devolucion_real: new Date().toISOString().split('T')[0],
+      ...persistence.data,
     }
   });
+
+  // Sync form to persistence
+  const formValues = form.watch();
+  useEffect(() => {
+    if (open) {
+      persistence.updateData(formValues);
+    }
+  }, [formValues, open]);
 
   const onSubmit = async (data: DevolucionForm) => {
     if (!comodatoId) return;
@@ -81,12 +100,20 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
         comodatoId,
         formData: data
       });
+      persistence.clearDraft(true);
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error('Error al procesar devolución:', error);
     }
   };
+
+  const handleClose = useCallback((newOpen: boolean) => {
+    if (!newOpen) {
+      persistence.confirmDiscard();
+    }
+    onOpenChange(newOpen);
+  }, [onOpenChange, persistence]);
 
   if (!comodatoId) return null;
 
@@ -123,12 +150,13 @@ export const DevolucionDialog: React.FC<DevolucionDialogProps> = ({
   const estaVencido = diasVencido > 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RotateCcw className="h-5 w-5" />
             Procesar Devolución de GPS
+            <DraftIndicator lastSaved={persistence.lastSaved} />
           </DialogTitle>
           <DialogDescription>
             Registra la devolución del GPS y actualiza el inventario

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { Upload, FileSpreadsheet, CheckCircle, XCircle, AlertTriangle, Download 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 
 interface ExcelRow {
   CLIENTE?: string;
@@ -35,13 +37,41 @@ interface ExcelImportWizardProps {
   onSuccess: () => void;
 }
 
+interface WizardState {
+  step: 'upload' | 'preview' | 'importing' | 'success';
+  fileName: string;
+  dataCount: number;
+}
+
 export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSuccess }) => {
+  // Form persistence for wizard state
+  const persistence = useFormPersistence<WizardState>({
+    key: 'excel_import_wizard_precios',
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    initialData: { step: 'upload', fileName: '', dataCount: 0 },
+    isMeaningful: (data) => data?.step === 'preview' && data?.dataCount > 0,
+  });
+
   const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<ExcelRow[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'success'>('upload');
+  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'success'>(
+    persistence.data?.step || 'upload'
+  );
+
+  // Sync state to persistence
+  useEffect(() => {
+    if (step !== 'importing') {
+      persistence.updateData({
+        step,
+        fileName: file?.name || '',
+        dataCount: data.length,
+      });
+    }
+  }, [step, file, data.length]);
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -182,6 +212,7 @@ export const ExcelImportWizard: React.FC<ExcelImportWizardProps> = ({ onSuccess 
       }
 
       setStep('success');
+      persistence.clearDraft(true);
       toast.success(`${validData.length} precios importados exitosamente`);
       
       setTimeout(() => {

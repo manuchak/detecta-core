@@ -32,3 +32,6 @@ export { useSecurityAudit } from './useSecurityAudit';
 export { usePersistedForm } from './usePersistedForm';
 export { useAllClientes, useClientesFromPricing, useOrigenesFromPricing, useDestinosFromPricing } from './useClientesFromPricing';
 export { useIncidentesRRSS, useIncidentesStats } from './useIncidentesRRSS';
+
+// Re-export DraftAutoRestorePrompt components for convenience
+export { DraftAutoRestorePrompt, DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';

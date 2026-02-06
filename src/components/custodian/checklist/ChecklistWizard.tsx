@@ -1,31 +1,33 @@
- /**
-  * Wizard principal del checklist de servicios
-  * Orquesta los 4 pasos y maneja navegación
-  */
- import { useState, useCallback } from 'react';
- import { useNavigate } from 'react-router-dom';
- import { ArrowLeft, X } from 'lucide-react';
- import { Button } from '@/components/ui/button';
- import { 
-   AlertDialog,
-   AlertDialogAction,
-   AlertDialogCancel,
-   AlertDialogContent,
-   AlertDialogDescription,
-   AlertDialogFooter,
-   AlertDialogHeader,
-   AlertDialogTitle,
- } from '@/components/ui/alert-dialog';
- import { ChecklistProgressBar } from './ChecklistProgressBar';
- import { OfflineIndicator } from './OfflineIndicator';
- import { SyncStatusBanner } from './SyncStatusBanner';
- import { StepDocuments } from './StepDocuments';
- import { StepVehicleInspection } from './StepVehicleInspection';
- import { StepVehiclePhotos } from './StepVehiclePhotos';
- import { StepConfirmation } from './StepConfirmation';
- import { useServiceChecklist } from '@/hooks/useServiceChecklist';
- import { useOfflineSync } from '@/hooks/useOfflineSync';
- import { toast } from 'sonner';
+/**
+ * Wizard principal del checklist de servicios
+ * Orquesta los 4 pasos y maneja navegación
+ */
+import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ChecklistProgressBar } from './ChecklistProgressBar';
+import { OfflineIndicator } from './OfflineIndicator';
+import { SyncStatusBanner } from './SyncStatusBanner';
+import { StepDocuments } from './StepDocuments';
+import { StepVehicleInspection } from './StepVehicleInspection';
+import { StepVehiclePhotos } from './StepVehiclePhotos';
+import { StepConfirmation } from './StepConfirmation';
+import { useServiceChecklist } from '@/hooks/useServiceChecklist';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
+import { toast } from 'sonner';
  
  interface ChecklistWizardProps {
    servicioId: string;
@@ -41,71 +43,92 @@
    { id: 4, label: 'Firma' },
  ];
  
- export function ChecklistWizard({
-   servicioId,
-   custodioTelefono,
-   origenCoords,
-   onComplete
- }: ChecklistWizardProps) {
-   const navigate = useNavigate();
-   const [currentStep, setCurrentStep] = useState(1);
-   const [showExitDialog, setShowExitDialog] = useState(false);
- 
-   const {
-     items,
-     fotos,
-     observaciones,
-     firma,
-     isLoading,
-     isSaving,
-     isOnline,
-     updateItem,
-     setObservaciones,
-     setFirma,
-     capturePhoto,
-     removePhoto,
-     saveChecklist,
-     existingChecklist
-   } = useServiceChecklist({
-     servicioId,
-     custodioTelefono,
-     origenCoords
-   });
- 
-   const { syncStatus, pendingCount } = useOfflineSync();
- 
-   const handleBack = useCallback(() => {
-     if (currentStep > 1) {
-       setCurrentStep(prev => prev - 1);
-     }
-   }, [currentStep]);
- 
-   const handleNext = useCallback(() => {
-     if (currentStep < 4) {
-       setCurrentStep(prev => prev + 1);
-     }
-   }, [currentStep]);
- 
-   const handleSubmit = useCallback(() => {
-     saveChecklist(undefined, {
-       onSuccess: () => {
-         toast.success('¡Checklist completado!');
-         if (onComplete) {
-           onComplete();
-         } else {
-           navigate('/custodian');
-         }
-       }
-     });
-   }, [saveChecklist, onComplete, navigate]);
- 
-   const handleExit = useCallback(() => {
-     setShowExitDialog(true);
-   }, []);
- 
-   const confirmExit = useCallback(() => {
-     navigate('/custodian');
-   }, [navigate]);
+interface ChecklistWizardState {
+  currentStep: number;
+  observaciones: string;
+}
+
+export function ChecklistWizard({
+  servicioId,
+  custodioTelefono,
+  origenCoords,
+  onComplete
+}: ChecklistWizardProps) {
+  const navigate = useNavigate();
+  const [showExitDialog, setShowExitDialog] = useState(false);
+
+  // Form persistence for wizard state
+  const persistence = useFormPersistence<ChecklistWizardState>({
+    key: `checklist_wizard_${servicioId}`,
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    initialData: { currentStep: 1, observaciones: '' },
+    isMeaningful: (data) => (data?.currentStep || 1) > 1,
+  });
+
+  const [currentStep, setCurrentStep] = useState(persistence.data?.currentStep || 1);
+
+  const {
+    items,
+    fotos,
+    observaciones,
+    firma,
+    isLoading,
+    isSaving,
+    isOnline,
+    updateItem,
+    setObservaciones,
+    setFirma,
+    capturePhoto,
+    removePhoto,
+    saveChecklist,
+    existingChecklist
+  } = useServiceChecklist({
+    servicioId,
+    custodioTelefono,
+    origenCoords
+  });
+
+  const { syncStatus, pendingCount } = useOfflineSync();
+
+  // Sync step changes to persistence
+  useEffect(() => {
+    persistence.updateData({ currentStep, observaciones });
+  }, [currentStep, observaciones]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  }, [currentStep]);
+
+  const handleNext = useCallback(() => {
+    if (currentStep < 4) {
+      setCurrentStep(prev => prev + 1);
+    }
+  }, [currentStep]);
+
+  const handleSubmit = useCallback(() => {
+    saveChecklist(undefined, {
+      onSuccess: () => {
+        persistence.clearDraft(true);
+        toast.success('¡Checklist completado!');
+        if (onComplete) {
+          onComplete();
+        } else {
+          navigate('/custodian');
+        }
+      }
+    });
+  }, [saveChecklist, onComplete, navigate, persistence]);
+
+  const handleExit = useCallback(() => {
+    setShowExitDialog(true);
+  }, []);
+
+  const confirmExit = useCallback(() => {
+    navigate('/custodian');
+  }, [navigate]);
  
    // Show loading state
    if (isLoading) {
@@ -142,18 +165,21 @@
        {/* Header */}
        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b">
          <div className="container max-w-lg mx-auto px-4 py-3">
-           <div className="flex items-center justify-between mb-3">
-             <Button
-               variant="ghost"
-               size="sm"
-               onClick={handleExit}
-               className="gap-1 -ml-2"
-             >
-               <ArrowLeft className="h-4 w-4" />
-               Salir
-             </Button>
-             <OfflineIndicator />
-           </div>
+          <div className="flex items-center justify-between mb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExit}
+              className="gap-1 -ml-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Salir
+            </Button>
+            <div className="flex items-center gap-2">
+              <DraftIndicator lastSaved={persistence.lastSaved} />
+              <OfflineIndicator />
+            </div>
+          </div>
            <ChecklistProgressBar steps={STEPS} currentStep={currentStep} />
          </div>
        </div>
