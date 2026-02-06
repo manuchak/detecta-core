@@ -12,6 +12,7 @@ export interface ProfileDocument {
 }
 
 export const DOCUMENTO_LABELS: Record<string, string> = {
+  // De reclutamiento (documentos_candidato)
   ine: 'INE / Identificación Oficial',
   curp: 'CURP',
   rfc: 'RFC',
@@ -23,6 +24,13 @@ export const DOCUMENTO_LABELS: Record<string, string> = {
   cv: 'Curriculum Vitae',
   foto: 'Fotografía',
   contrato: 'Contrato Firmado',
+  
+  // De portal custodio (documentos_custodio)
+  tarjeta_circulacion: 'Tarjeta de Circulación',
+  poliza_seguro: 'Póliza de Seguro',
+  verificacion_vehicular: 'Verificación Vehicular',
+  credencial_custodia: 'Credencial de Custodia',
+  
   otro: 'Otro Documento'
 };
 

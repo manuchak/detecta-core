@@ -9,21 +9,45 @@ import {
   XCircle, 
   AlertTriangle,
   ExternalLink,
-  Loader2
+  Loader2,
+  ShieldCheck,
+  Upload,
+  UserCheck
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useProfileDocuments, useDocumentStats, DOCUMENTO_LABELS } from '../../hooks/useProfileDocuments';
+import { useCustodianDocsForProfile, useCustodianDocStats, CustodianDocument } from '../../hooks/useCustodianDocsForProfile';
+import { useVerifyDocument } from '../../hooks/useVerifyDocument';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 interface DocumentacionTabProps {
   candidatoId: string | null;
+  telefono: string | null;
 }
 
-export function DocumentacionTab({ candidatoId }: DocumentacionTabProps) {
-  const { data: documents, isLoading } = useProfileDocuments(candidatoId);
-  const { stats } = useDocumentStats(candidatoId);
+export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProps) {
+  const { data: recruitmentDocs, isLoading: loadingRecruitment } = useProfileDocuments(candidatoId);
+  const { stats: recruitmentStats } = useDocumentStats(candidatoId);
+  const { data: custodianDocs, isLoading: loadingCustodian } = useCustodianDocsForProfile(telefono);
+  const { stats: custodianStats } = useCustodianDocStats(telefono);
+  const verifyMutation = useVerifyDocument(telefono);
+  
+  const [custodianOpen, setCustodianOpen] = useState(true);
+  const [recruitmentOpen, setRecruitmentOpen] = useState(true);
 
-  if (!candidatoId) {
+  const isLoading = loadingRecruitment || loadingCustodian;
+
+  // Combined stats
+  const totalDocs = recruitmentStats.total + custodianStats.total;
+  const totalValidos = recruitmentStats.validos + custodianStats.verificados;
+  const totalPendientes = recruitmentStats.pendientes + custodianStats.pendientes;
+  const totalPorVencer = recruitmentStats.porVencer + custodianStats.porVencer;
+  const completionRate = totalDocs > 0 ? (totalValidos / totalDocs) * 100 : 0;
+
+  if (!candidatoId && !telefono) {
     return (
       <Card>
         <CardContent className="text-center py-12 text-muted-foreground">
@@ -76,33 +100,39 @@ export function DocumentacionTab({ candidatoId }: DocumentacionTabProps) {
     return null;
   };
 
-  const completionRate = stats.total > 0 ? (stats.validos / stats.total) * 100 : 0;
+  const handleVerify = (doc: CustodianDocument, verificado: boolean) => {
+    verifyMutation.mutate({
+      docId: doc.id,
+      verificado,
+      verificadoPor: 'supply@detecta.mx' // TODO: Use actual user email
+    });
+  };
 
   return (
     <div className="space-y-6">
-      {/* Resumen */}
+      {/* Resumen Unificado */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{totalDocs}</div>
             <p className="text-sm text-muted-foreground">Total Documentos</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-500">{stats.validos}</div>
-            <p className="text-sm text-muted-foreground">Validados</p>
+            <div className="text-2xl font-bold text-green-500">{totalValidos}</div>
+            <p className="text-sm text-muted-foreground">Validados / Verificados</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-amber-500">{stats.pendientes}</div>
+            <div className="text-2xl font-bold text-amber-500">{totalPendientes}</div>
             <p className="text-sm text-muted-foreground">Pendientes</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-orange-500">{stats.porVencer}</div>
+            <div className="text-2xl font-bold text-orange-500">{totalPorVencer}</div>
             <p className="text-sm text-muted-foreground">Por Vencer</p>
           </CardContent>
         </Card>
@@ -126,58 +156,179 @@ export function DocumentacionTab({ candidatoId }: DocumentacionTabProps) {
         </CardContent>
       </Card>
 
-      {/* Lista de documentos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Documentos Registrados
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {documents && documents.length > 0 ? (
-            <div className="space-y-3">
-              {documents.map((doc) => (
-                <div 
-                  key={doc.id} 
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium text-sm">
-                        {DOCUMENTO_LABELS[doc.tipo_documento] || doc.tipo_documento}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Subido: {format(new Date(doc.created_at), "d MMM yyyy", { locale: es })}
-                        {doc.fecha_vencimiento && (
-                          <> • Vence: {format(new Date(doc.fecha_vencimiento), "d MMM yyyy", { locale: es })}</>
-                        )}
-                      </p>
-                    </div>
+      {/* Documentos del Portal Custodio */}
+      {telefono && (
+        <Collapsible open={custodianOpen} onOpenChange={setCustodianOpen}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-blue-500" />
+                    Documentos del Custodio (Portal)
+                    <Badge variant="secondary" className="ml-2">{custodianStats.total}</Badge>
+                  </CardTitle>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${custodianOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                {custodianDocs && custodianDocs.length > 0 ? (
+                  <div className="space-y-3">
+                    {custodianDocs.map((doc) => (
+                      <div 
+                        key={doc.id} 
+                        className="flex items-start justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <FileText className="h-5 w-5 text-blue-500 mt-0.5" />
+                          <div className="space-y-1">
+                            <p className="font-medium text-sm">
+                              {DOCUMENTO_LABELS[doc.tipo_documento] || doc.tipo_documento}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Subido: {format(new Date(doc.created_at), "d MMM yyyy", { locale: es })}
+                              {doc.fecha_vencimiento && (
+                                <> • Vence: {format(new Date(doc.fecha_vencimiento), "d MMM yyyy", { locale: es })}</>
+                              )}
+                            </p>
+                            {doc.verificado && doc.verificado_por && (
+                              <p className="text-xs text-green-600 flex items-center gap-1">
+                                <UserCheck className="h-3 w-3" />
+                                Verificado por {doc.verificado_por} 
+                                {doc.fecha_verificacion && (
+                                  <> el {format(new Date(doc.fecha_verificacion), "d MMM yyyy", { locale: es })}</>
+                                )}
+                              </p>
+                            )}
+                            {doc.notas && (
+                              <p className="text-xs text-muted-foreground italic">"{doc.notas}"</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          {getVencimientoBadge(doc.fecha_vencimiento)}
+                          {doc.verificado ? (
+                            <Badge className="bg-green-500/10 text-green-500">
+                              <ShieldCheck className="h-3 w-3 mr-1" />Verificado
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-500/10 text-amber-500">
+                              <Clock className="h-3 w-3 mr-1" />Pendiente
+                            </Badge>
+                          )}
+                          {doc.archivo_url && (
+                            <Button variant="ghost" size="sm" asChild>
+                              <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {!doc.verificado && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-green-600 border-green-600/30 hover:bg-green-500/10"
+                              onClick={() => handleVerify(doc, true)}
+                              disabled={verifyMutation.isPending}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Verificar
+                            </Button>
+                          )}
+                          {doc.verificado && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-muted-foreground"
+                              onClick={() => handleVerify(doc, false)}
+                              disabled={verifyMutation.isPending}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Desmarcar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {getVencimientoBadge(doc.fecha_vencimiento)}
-                    {getEstadoBadge(doc.estado_validacion)}
-                    {doc.archivo_url && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Upload className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">El custodio no ha subido documentos desde el portal</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
-              <p>No hay documentos registrados</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
+      {/* Documentos de Reclutamiento */}
+      {candidatoId && (
+        <Collapsible open={recruitmentOpen} onOpenChange={setRecruitmentOpen}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-purple-500" />
+                    Documentos de Reclutamiento
+                    <Badge variant="secondary" className="ml-2">{recruitmentStats.total}</Badge>
+                  </CardTitle>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${recruitmentOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                {recruitmentDocs && recruitmentDocs.length > 0 ? (
+                  <div className="space-y-3">
+                    {recruitmentDocs.map((doc) => (
+                      <div 
+                        key={doc.id} 
+                        className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5 text-purple-500" />
+                          <div>
+                            <p className="font-medium text-sm">
+                              {DOCUMENTO_LABELS[doc.tipo_documento] || doc.tipo_documento}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Subido: {format(new Date(doc.created_at), "d MMM yyyy", { locale: es })}
+                              {doc.fecha_vencimiento && (
+                                <> • Vence: {format(new Date(doc.fecha_vencimiento), "d MMM yyyy", { locale: es })}</>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getVencimientoBadge(doc.fecha_vencimiento)}
+                          {getEstadoBadge(doc.estado_validacion)}
+                          {doc.archivo_url && (
+                            <Button variant="ghost" size="sm" asChild>
+                              <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No hay documentos de reclutamiento</p>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
     </div>
   );
 }
