@@ -3,7 +3,7 @@
  * Supports temporary and permanent deactivation with audit trail
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -38,6 +38,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useCambioEstatusOperativo } from '@/hooks/useCambioEstatusOperativo';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 const motivosBaja = [
   { value: 'vacaciones', label: 'Vacaciones' },
@@ -106,6 +107,14 @@ export function CambioEstatusModal({
   
   const esActivo = operativo.estado === 'activo';
   
+  // Light persistence for quick form
+  const persistence = useFormPersistence<Partial<FormData>>({
+    key: `cambio_estatus_${operativo.id}`,
+    initialData: {},
+    level: 'light',
+    isMeaningful: (data) => !!(data.motivo || data.notas),
+  });
+  
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -116,6 +125,14 @@ export function CambioEstatusModal({
       notas: '',
     },
   });
+
+  // Sync form to persistence
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      persistence.updateData(values as Partial<FormData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, persistence.updateData]);
 
   const nuevoEstatus = form.watch('nuevoEstatus');
   const tipoCambio = form.watch('tipoCambio');
@@ -137,6 +154,7 @@ export function CambioEstatusModal({
     });
 
     if (success) {
+      persistence.clearDraft(true);
       onOpenChange(false);
       form.reset();
       onSuccess?.();

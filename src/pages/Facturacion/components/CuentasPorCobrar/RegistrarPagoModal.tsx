@@ -31,6 +31,7 @@ import {
 import { AgingData } from '../../hooks/useCuentasPorCobrar';
 import { useFacturasPendientes, FacturaCliente } from '../../hooks/useFacturasCliente';
 import { useCreatePago, FORMAS_PAGO, BANCOS } from '../../hooks/usePagos';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { formatCurrency } from '@/utils/formatUtils';
 import { format } from 'date-fns';
 
@@ -58,18 +59,38 @@ export function RegistrarPagoModal({
   const { data: facturasPendientes = [], isLoading: loadingFacturas } = useFacturasPendientes(cliente?.cliente_id);
   const createPago = useCreatePago();
 
-  const [formData, setFormData] = useState({
-    monto: '',
-    forma_pago: 'transferencia',
-    referencia_bancaria: '',
-    banco: '',
-    fecha_pago: format(new Date(), 'yyyy-MM-dd'),
-    fecha_deposito: '',
-    notas: '',
+  // Standard persistence for payment form
+  const persistence = useFormPersistence<{
+    monto: string;
+    forma_pago: string;
+    referencia_bancaria: string;
+    banco: string;
+    fecha_pago: string;
+    fecha_deposito: string;
+    notas: string;
+  }>({
+    key: `registrar_pago_${cliente?.cliente_id || 'new'}`,
+    initialData: {
+      monto: '',
+      forma_pago: 'transferencia',
+      referencia_bancaria: '',
+      banco: '',
+      fecha_pago: format(new Date(), 'yyyy-MM-dd'),
+      fecha_deposito: '',
+      notas: '',
+    },
+    level: 'standard',
+    isMeaningful: (data) => !!(data.monto || data.referencia_bancaria || data.notas),
   });
 
+  const [formData, setFormData] = useState(persistence.data);
   const [aplicaciones, setAplicaciones] = useState<AplicacionFactura[]>([]);
   const [autoDistribuir, setAutoDistribuir] = useState(true);
+
+  // Sync form data to persistence
+  useEffect(() => {
+    persistence.updateData(formData);
+  }, [formData]);
 
   // Initialize aplicaciones when facturas load
   useEffect(() => {
@@ -164,7 +185,8 @@ export function RegistrarPagoModal({
       aplicaciones: aplicacionesValidas.length > 0 ? aplicacionesValidas : undefined,
     });
 
-    // Reset and close
+    // Clear persistence and reset
+    persistence.clearDraft(true);
     setFormData({
       monto: '',
       forma_pago: 'transferencia',

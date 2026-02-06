@@ -12,18 +12,9 @@ import { StepEstructura, type ModuleOutline } from "./wizard/StepEstructura";
 import { StepConfiguracion } from "./wizard/StepConfiguracion";
 import { StepVistaPrevia } from "./wizard/StepVistaPrevia";
 import { cn } from "@/lib/utils";
-import { usePersistedForm } from "@/hooks/usePersistedForm";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { DraftRestoreBanner } from "@/components/ui/DraftAutoRestorePrompt";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 const cursoSchema = z.object({
   codigo: z.string().min(2, "El código debe tener al menos 2 caracteres").max(20),
@@ -77,85 +68,70 @@ const defaultFormValues: CursoSchemaType = {
 export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   const [step, setStep] = useState(1);
   const [modulos, setModulos] = useState<ModuleOutline[]>([]);
-  const [showDraftDialog, setShowDraftDialog] = useState(false);
   const navigate = useNavigate();
   const crearCurso = useLMSCrearCursoCompleto();
 
-  // Persistence hook
-  const {
-    formData: draftData,
-    updateFormData: updateDraft,
-    hasDraft,
-    restoreDraft,
-    clearDraft,
-    getTimeSinceSave,
-    lastSaved,
-  } = usePersistedForm<WizardDraftData>({
+  // Enhanced persistence hook (robust level for multi-step wizard)
+  const persistence = useFormPersistence<WizardDraftData>({
     key: 'lms_curso_wizard',
     initialData: {
       step: 1,
       formValues: defaultFormValues,
       modulos: [],
     },
-    saveOnChangeDebounceMs: 2000,
-    isMeaningfulDraft: (data) => {
-      return !!(data.formValues?.titulo || data.modulos?.length > 0);
-    },
-    hydrateOnMount: false,
+    level: 'robust',
+    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    isMeaningful: (data) => !!(data.formValues?.titulo || data.modulos?.length > 0),
   });
+
+  const { 
+    data: draftData, 
+    updateData, 
+    clearDraft, 
+    lastSaved,
+    showRestorePrompt,
+    pendingRestore,
+    acceptRestore,
+    rejectRestore,
+  } = persistence;
 
   const form = useForm<CursoSchemaType>({
     resolver: zodResolver(cursoSchema),
     defaultValues: defaultFormValues,
   });
 
-  // Show draft dialog on mount if there's a saved draft
-  useEffect(() => {
-    if (hasDraft) {
-      setShowDraftDialog(true);
+  // Restore draft when accepted
+  const handleRestoreDraft = () => {
+    if (pendingRestore) {
+      form.reset(pendingRestore.data.formValues);
+      setStep(pendingRestore.data.step);
+      setModulos(pendingRestore.data.modulos || []);
+      acceptRestore();
+      toast.success("Borrador restaurado");
     }
-  }, []);
+  };
+
+  const handleDiscardDraft = () => {
+    rejectRestore();
+  };
 
   // Sync form changes to draft
   useEffect(() => {
     const subscription = form.watch((values) => {
-      updateDraft(prev => ({
-        ...prev,
-        formValues: values as CursoSchemaType,
-      }));
+      updateData({ formValues: values as CursoSchemaType });
     });
     return () => subscription.unsubscribe();
-  }, [form, updateDraft]);
+  }, [form, updateData]);
 
   // Sync modulos to draft
   useEffect(() => {
-    updateDraft(prev => ({
-      ...prev,
-      modulos,
-    }));
-  }, [modulos, updateDraft]);
+    updateData({ modulos });
+  }, [modulos, updateData]);
 
   // Sync step to draft
   useEffect(() => {
-    updateDraft(prev => ({
-      ...prev,
-      step,
-    }));
-  }, [step, updateDraft]);
-
-  const handleRestoreDraft = () => {
-    restoreDraft();
-    form.reset(draftData.formValues);
-    setStep(draftData.step);
-    setModulos(draftData.modulos || []);
-    setShowDraftDialog(false);
-    toast.success("Borrador restaurado");
-  };
-
-  const handleDiscardDraft = () => {
-    clearDraft(true);
-    setShowDraftDialog(false);
-  };
+    updateData({ step });
+  }, [step, updateData]);
 
   // Update duration when modules change
   const updateDurationFromModules = () => {
@@ -242,32 +218,16 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
   const isSubmitting = crearCurso.isPending;
 
   return (
-    <>
-      {/* Draft Recovery Dialog */}
-      <AlertDialog open={showDraftDialog} onOpenChange={setShowDraftDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-primary" />
-              Curso en progreso encontrado
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Tienes un borrador guardado {getTimeSinceSave()}.
-              ¿Deseas continuar donde lo dejaste?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardDraft}>
-              Empezar de cero
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestoreDraft}>
-              Continuar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
+      {/* Draft Recovery Banner */}
+      <DraftRestoreBanner
+        visible={showRestorePrompt}
+        savedAt={pendingRestore?.savedAt ? new Date(pendingRestore.savedAt) : null}
+        moduleName="Curso en progreso"
+        previewText={pendingRestore?.data?.formValues?.titulo}
+        onRestore={handleRestoreDraft}
+        onDiscard={handleDiscardDraft}
+      />
         {/* Header with progress */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
@@ -385,6 +345,5 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
           </Button>
         </div>
       </div>
-    </>
   );
 }

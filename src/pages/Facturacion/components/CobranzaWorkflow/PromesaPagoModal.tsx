@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useCreatePromesaPago } from '../../hooks/useCobranzaWorkflow';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { formatCurrency } from '@/utils/formatUtils';
 
 interface PromesaPagoModalProps {
@@ -39,23 +40,46 @@ export function PromesaPagoModal({
   numeroFactura,
   montoSugerido = 0,
 }: PromesaPagoModalProps) {
-  const [monto, setMonto] = useState(montoSugerido.toString());
+  // Standard persistence
+  const persistence = useFormPersistence<{
+    monto: string;
+    contactoNombre: string;
+    contactoTelefono: string;
+    descripcion: string;
+  }>({
+    key: `promesa_pago_${clienteId}_${facturaId || 'general'}`,
+    initialData: {
+      monto: montoSugerido.toString(),
+      contactoNombre: '',
+      contactoTelefono: '',
+      descripcion: '',
+    },
+    level: 'standard',
+    isMeaningful: (data) => !!(data.monto && parseFloat(data.monto) > 0) || !!data.descripcion,
+  });
+
+  const [monto, setMonto] = useState(persistence.data.monto || montoSugerido.toString());
   const [fecha, setFecha] = useState<Date | undefined>(undefined);
-  const [contactoNombre, setContactoNombre] = useState('');
-  const [contactoTelefono, setContactoTelefono] = useState('');
-  const [descripcion, setDescripcion] = useState('');
+  const [contactoNombre, setContactoNombre] = useState(persistence.data.contactoNombre || '');
+  const [contactoTelefono, setContactoTelefono] = useState(persistence.data.contactoTelefono || '');
+  const [descripcion, setDescripcion] = useState(persistence.data.descripcion || '');
   
   const createPromesa = useCreatePromesaPago();
 
+  // Sync to persistence
   useEffect(() => {
-    if (open) {
+    persistence.updateData({ monto, contactoNombre, contactoTelefono, descripcion });
+  }, [monto, contactoNombre, contactoTelefono, descripcion]);
+
+  useEffect(() => {
+    if (open && !persistence.hasDraft) {
       setMonto(montoSugerido.toString());
       setFecha(undefined);
       setContactoNombre('');
       setContactoTelefono('');
       setDescripcion('');
     }
-  }, [open, montoSugerido]);
+  }, [open, montoSugerido, persistence.hasDraft]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,12 +90,13 @@ export function PromesaPagoModal({
       cliente_id: clienteId,
       factura_id: facturaId,
       monto_prometido: parseFloat(monto),
-      fecha_promesa: format(fecha, 'yyyy-MM-dd'),
+      fecha_promesa: format(fecha!, 'yyyy-MM-dd'),
       contacto_nombre: contactoNombre || undefined,
       contacto_telefono: contactoTelefono || undefined,
       descripcion: descripcion || undefined,
     });
 
+    persistence.clearDraft(true);
     onOpenChange(false);
   };
 
