@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const VERSION = "v2.0.1";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -103,27 +105,30 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't fail the whole operation - the user is created
     }
 
-    // Create/update profile
+    // Create/update profile - use 'phone' column (NOT 'telefono')
     const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: userData.user.id,
         email: email,
         display_name: nombre,
-        telefono: telefono || null
+        phone: telefono || 'Sin telefono'  // Correct column name, with default value
       });
 
     if (profileErr) {
       console.error(`[create-custodian-account] Error creating profile:`, profileErr);
+    } else {
+      console.log(`[create-custodian-account] Profile created successfully for ${email}`);
     }
 
-    console.log(`[create-custodian-account] Account ready for ${email} - autoLogin enabled`);
+    console.log(`[create-custodian-account] ${VERSION} Account ready for ${email} - autoLogin enabled`);
     
     return new Response(JSON.stringify({ 
       success: true, 
       message: "Cuenta creada exitosamente", 
       userId: userData.user.id,
-      autoLogin: true // Signal frontend to auto-login
+      autoLogin: true,
+      _version: VERSION
     }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 
   } catch (error) {
