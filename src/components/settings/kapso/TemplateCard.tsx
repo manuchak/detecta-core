@@ -2,6 +2,13 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -10,15 +17,21 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  CircleDot
+  CircleDot,
+  Download,
+  FileJson,
+  MoreVertical,
+  ExternalLink
 } from 'lucide-react';
 import { WhatsAppTemplateRecord, MetaApprovalStatus, TEMPLATE_CONFIGS, DetectaTemplateName } from '@/types/kapso';
+import { downloadSingleTemplateJSON } from '@/utils/exportWhatsAppTemplates';
 import { cn } from '@/lib/utils';
 
 interface TemplateCardProps {
   template: WhatsAppTemplateRecord;
   onTest: (template: WhatsAppTemplateRecord) => void;
   onUpdateStatus: (templateName: string, status: MetaApprovalStatus) => void;
+  onViewMeta?: (template: WhatsAppTemplateRecord) => void;
 }
 
 const statusConfig: Record<MetaApprovalStatus, { 
@@ -53,12 +66,16 @@ const statusConfig: Record<MetaApprovalStatus, {
   }
 };
 
-export const TemplateCard = ({ template, onTest, onUpdateStatus }: TemplateCardProps) => {
+export const TemplateCard = ({ template, onTest, onUpdateStatus, onViewMeta }: TemplateCardProps) => {
   const [expanded, setExpanded] = useState(false);
   
   const config = TEMPLATE_CONFIGS[template.name as DetectaTemplateName];
   const status = statusConfig[template.meta_status as MetaApprovalStatus] || statusConfig.not_submitted;
   const canTest = template.meta_status === 'approved';
+
+  const handleDownloadJSON = () => {
+    downloadSingleTemplateJSON(template.name as DetectaTemplateName);
+  };
 
   return (
     <Card className="border-border/50 hover:border-border transition-colors">
@@ -96,18 +113,44 @@ export const TemplateCard = ({ template, onTest, onUpdateStatus }: TemplateCardP
               {status.label}
             </Badge>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </Button>
+            {/* View Meta button */}
+            {onViewMeta && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onViewMeta(template)}
+                className="gap-1 hidden sm:flex"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Vista
+              </Button>
+            )}
+            
+            {/* More actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onViewMeta && (
+                  <DropdownMenuItem onClick={() => onViewMeta(template)}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ver formato Meta
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => setExpanded(!expanded)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  {expanded ? 'Ocultar contenido' : 'Ver contenido'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleDownloadJSON}>
+                  <FileJson className="h-4 w-4 mr-2" />
+                  Descargar JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <Button
               variant={canTest ? "default" : "outline"}

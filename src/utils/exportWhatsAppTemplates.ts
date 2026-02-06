@@ -127,35 +127,44 @@ interface ExportedTemplate {
   has_buttons: boolean;
 }
 
-export const exportToJSON = (): string => {
-  const templates: ExportedTemplate[] = Object.entries(TEMPLATE_CONFIGS).map(([key, config]) => {
-    const templateName = key as DetectaTemplateName;
-    const variables = TEMPLATE_VARIABLES[templateName] || [];
-    const buttons = TEMPLATE_BUTTONS[templateName] || [];
-    const internalCategory = getCategoryForTemplate(templateName);
+const buildTemplateExport = (templateName: DetectaTemplateName): ExportedTemplate => {
+  const config = TEMPLATE_CONFIGS[templateName];
+  const variables = TEMPLATE_VARIABLES[templateName] || [];
+  const buttons = TEMPLATE_BUTTONS[templateName] || [];
+  const internalCategory = getCategoryForTemplate(templateName);
 
-    return {
-      name: config.name,
-      category: config.category,
-      language: 'es',
-      internal_category: internalCategory,
-      components: {
-        body: {
-          text: TEMPLATE_CONTENT[templateName],
-          example: getExampleValues(variables)
-        },
-        ...(config.hasButtons && buttons.length > 0 && {
-          buttons: buttons.map(text => ({ type: 'QUICK_REPLY', text }))
-        })
+  return {
+    name: config.name,
+    category: config.category,
+    language: 'es_MX',
+    internal_category: internalCategory,
+    components: {
+      body: {
+        text: TEMPLATE_CONTENT[templateName],
+        example: getExampleValues(variables)
       },
-      variables: variables.reduce((acc, v, i) => {
-        acc[String(i + 1)] = v;
-        return acc;
-      }, {} as Record<string, string>),
-      variable_count: config.variableCount,
-      has_buttons: config.hasButtons
-    };
-  });
+      ...(config.hasButtons && buttons.length > 0 && {
+        buttons: buttons.map(text => ({ type: 'QUICK_REPLY', text }))
+      })
+    },
+    variables: variables.reduce((acc, v, i) => {
+      acc[String(i + 1)] = v;
+      return acc;
+    }, {} as Record<string, string>),
+    variable_count: config.variableCount,
+    has_buttons: config.hasButtons
+  };
+};
+
+export const exportSingleTemplateJSON = (templateName: DetectaTemplateName): string => {
+  const template = buildTemplateExport(templateName);
+  return JSON.stringify(template, null, 2);
+};
+
+export const exportToJSON = (): string => {
+  const templates: ExportedTemplate[] = Object.keys(TEMPLATE_CONFIGS).map((key) => 
+    buildTemplateExport(key as DetectaTemplateName)
+  );
 
   const exportData = {
     exportDate: new Date().toISOString(),
@@ -340,6 +349,10 @@ export const downloadFile = (content: string, filename: string, mimeType: string
 
 export const downloadJSON = (): void => {
   downloadFile(exportToJSON(), 'detecta-whatsapp-templates.json', 'application/json');
+};
+
+export const downloadSingleTemplateJSON = (templateName: DetectaTemplateName): void => {
+  downloadFile(exportSingleTemplateJSON(templateName), `template-${templateName}.json`, 'application/json');
 };
 
 export const downloadCSV = (): void => {
