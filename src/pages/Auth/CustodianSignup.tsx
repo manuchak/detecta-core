@@ -88,10 +88,10 @@ export const CustodianSignup = () => {
       });
 
       if (error) {
-        console.error('Edge function error:', error);
+        console.error('[CustodianSignup] Edge function network error:', error);
         toast({
-          title: 'Error',
-          description: 'Error de conexión. Intenta de nuevo.',
+          title: 'Error de Conexión',
+          description: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
           variant: 'destructive',
         });
         return;
@@ -99,13 +99,16 @@ export const CustodianSignup = () => {
 
       // Handle response from edge function
       if (data?.error) {
+        console.error('[CustodianSignup] Edge function returned error:', data.error);
         toast({
-          title: 'Error',
+          title: 'Error en Registro',
           description: data.error,
           variant: 'destructive',
         });
         return;
       }
+
+      console.log('[CustodianSignup] Success, edge function version:', data?._version);
 
       // Auto-login: user is already confirmed, sign them in directly
       if (data?.success && data?.autoLogin) {
