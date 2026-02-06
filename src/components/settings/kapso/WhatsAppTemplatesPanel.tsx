@@ -51,6 +51,7 @@ import { TEMPLATE_CATEGORIES, WhatsAppTemplateRecord, MetaApprovalStatus, Templa
 import { TemplateCard } from './TemplateCard';
 import { TemplateTestDialog } from './TemplateTestDialog';
 import { TemplateExportDialog } from './TemplateExportDialog';
+import { TemplateMetaViewDialog } from './TemplateMetaViewDialog';
 
 const categoryIcons: Record<TemplateCategoryKey, React.ReactNode> = {
   servicios: <Truck className="h-4 w-4" />,
@@ -97,6 +98,8 @@ export const WhatsAppTemplatesPanel = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplateRecord | null>(null);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [metaViewDialogOpen, setMetaViewDialogOpen] = useState(false);
+  const [viewTemplate, setViewTemplate] = useState<WhatsAppTemplateRecord | null>(null);
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
@@ -135,6 +138,11 @@ export const WhatsAppTemplatesPanel = () => {
   const handleTest = (template: WhatsAppTemplateRecord) => {
     setSelectedTemplate(template);
     setTestDialogOpen(true);
+  };
+
+  const handleViewMeta = (template: WhatsAppTemplateRecord) => {
+    setViewTemplate(template);
+    setMetaViewDialogOpen(true);
   };
 
   const handleSendTest = async (phone: string, variables: Record<string, string>) => {
@@ -390,6 +398,7 @@ export const WhatsAppTemplatesPanel = () => {
                           key={template.id}
                           template={template}
                           onTest={handleTest}
+                          onViewMeta={handleViewMeta}
                           onUpdateStatus={(name, status) => updateStatus({ templateName: name, status })}
                         />
                       ))
@@ -419,6 +428,13 @@ export const WhatsAppTemplatesPanel = () => {
       <TemplateExportDialog
         open={exportDialogOpen}
         onOpenChange={setExportDialogOpen}
+      />
+
+      {/* Meta View Dialog */}
+      <TemplateMetaViewDialog
+        open={metaViewDialogOpen}
+        onOpenChange={setMetaViewDialogOpen}
+        template={viewTemplate}
       />
     </div>
   );
