@@ -13,23 +13,24 @@
  export function useCustodianDocuments(custodioTelefono: string | undefined) {
    const queryClient = useQueryClient();
  
-   const query = useQuery({
-     queryKey: ['custodian-documents', custodioTelefono],
-     queryFn: async () => {
-       if (!custodioTelefono) return [];
- 
-       const { data, error } = await supabase
-         .from('documentos_custodio')
-         .select('*')
-         .eq('custodio_telefono', custodioTelefono)
-         .order('tipo_documento');
- 
-       if (error) throw error;
-       return data as DocumentoCustodio[];
-     },
-     enabled: !!custodioTelefono,
-     staleTime: 5 * 60 * 1000,
-   });
+    const query = useQuery({
+      queryKey: ['custodian-documents', custodioTelefono],
+      queryFn: async () => {
+        if (!custodioTelefono) return [];
+
+        const { data, error } = await supabase
+          .from('documentos_custodio')
+          .select('*')
+          .eq('custodio_telefono', custodioTelefono)
+          .order('tipo_documento');
+
+        if (error) throw error;
+        return data as DocumentoCustodio[];
+      },
+      enabled: !!custodioTelefono,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false, // v10: Evitar refetch al volver de cámara en móvil
+    });
  
   const updateDocument = useMutation({
     mutationFn: async ({

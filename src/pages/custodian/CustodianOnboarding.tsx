@@ -63,20 +63,16 @@ export default function CustodianOnboarding() {
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
-  // Log de montaje para debugging - v3
+  // Log de montaje para debugging - v10 (sin toast de teléfono para evitar re-renders)
   useEffect(() => {
-    console.log('[CustodianOnboarding] Componente montado - v3', {
+    console.log('[CustodianOnboarding] v10 - Estado:', {
       hasProfile: !!profile,
       phone: profile?.phone,
       phoneValid,
       documentsCount: documents.length
     });
-    
-    // Toast visible para confirmar código actualizado
-    if (profile && !profileLoading) {
-      toast.info(`📱 Teléfono: ${profile.phone || 'No registrado'}`, { duration: 3000 });
-    }
-  }, [profile, documents, profileLoading, phoneValid]);
+    // v10: Eliminado toast de teléfono - causaba confusión al dispararse en cada refetch
+  }, [profile, profileLoading, phoneValid]); // v10: Removido 'documents' de deps
 
   // Verificar documentos ya subidos
   useEffect(() => {
