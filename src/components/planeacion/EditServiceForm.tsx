@@ -37,7 +37,10 @@ const editServiceSchema = z.object({
     .trim()
     .min(1, 'El ID del servicio es requerido')
     .max(50, 'El ID no puede exceder 50 caracteres')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Solo se permiten letras, números, guiones y guiones bajos'),
+    .regex(
+      /^[^<>'"`\\;=\s]+$/, 
+      'No se permiten caracteres de inyección (<, >, \', ", `, \\, ;, =) ni espacios'
+    ),
   id_interno_cliente: z.string()
     .max(50, 'La referencia no puede exceder 50 caracteres')
     .optional()
@@ -603,7 +606,7 @@ export function EditServiceForm({
               )}
               {canEditServiceId() && !validationErrors.id_servicio && !isValidatingId && (
                 <p className="text-xs text-muted-foreground">
-                  Solo letras, números, guiones y guiones bajos (máx. 50 caracteres)
+                  Acepta folios de sistemas externos. No usar: &lt; &gt; ' " ` \ ; =
                 </p>
               )}
             </div>
