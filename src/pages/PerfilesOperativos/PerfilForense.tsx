@@ -149,7 +149,7 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="documentacion">
-          <DocumentacionTab candidatoId={candidatoId} />
+          <DocumentacionTab candidatoId={candidatoId} telefono={profile.telefono || null} />
         </TabsContent>
         
         <TabsContent value="capacitacion">
