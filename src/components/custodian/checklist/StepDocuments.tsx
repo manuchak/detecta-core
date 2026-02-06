@@ -42,23 +42,42 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
   // Solo puede proceder si tiene todos los documentos Y ninguno vencido
   const canProceed = missingDocs.length === 0 && expiredDocs.length === 0;
  
-   const handleUpload = async () => {
-     if (!uploadingDoc || !uploadFile || !uploadDate) return;
-     
-     setIsUploading(true);
-     try {
-       await updateDocument.mutateAsync({
-         tipoDocumento: uploadingDoc,
-         file: uploadFile,
-         fechaVigencia: uploadDate
-       });
-       setUploadingDoc(null);
-       setUploadFile(null);
-       setUploadDate('');
-     } finally {
-       setIsUploading(false);
-     }
-   };
+  const handleUpload = async () => {
+    console.log('[StepDocuments] Iniciando upload:', { 
+      tipo: uploadingDoc, 
+      hasFile: !!uploadFile, 
+      fileName: uploadFile?.name,
+      fileSize: uploadFile?.size,
+      fecha: uploadDate 
+    });
+
+    if (!uploadingDoc || !uploadFile || !uploadDate) {
+      console.warn('[StepDocuments] Faltan datos para upload:', {
+        uploadingDoc,
+        hasFile: !!uploadFile,
+        uploadDate
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    try {
+      console.log('[StepDocuments] Llamando updateDocument.mutateAsync...');
+      await updateDocument.mutateAsync({
+        tipoDocumento: uploadingDoc,
+        file: uploadFile,
+        fechaVigencia: uploadDate
+      });
+      console.log('[StepDocuments] Upload exitoso');
+      setUploadingDoc(null);
+      setUploadFile(null);
+      setUploadDate('');
+    } catch (error) {
+      console.error('[StepDocuments] Error en upload:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
  
    const getDocumentForType = (tipo: TipoDocumentoCustodio) => {
      return documents.find(d => d.tipo_documento === tipo);
@@ -114,7 +133,8 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
                key={tipo}
                tipoDocumento={tipo}
                documento={doc}
-               onUpdate={() => setUploadingDoc(tipo)}
+               onRequestUpdate={() => setUploadingDoc(tipo)}
+               isUpdating={uploadingDoc === tipo && isUploading}
              />
            );
          })}
