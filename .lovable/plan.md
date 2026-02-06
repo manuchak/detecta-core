@@ -1,1230 +1,388 @@
 
-# Plan de Integración Completa de Kapso WhatsApp en Detecta
+# Diseño Completo de Templates de WhatsApp para Detecta
 
 ## Resumen Ejecutivo
 
-Este plan detalla la integración de Kapso como la plataforma oficial de comunicación WhatsApp para Detecta, reemplazando el sistema actual basado en Baileys (librería no oficial que no funciona) y los enlaces manuales `wa.me`. La integración habilitará comunicación bidireccional real, automatización de notificaciones y soporte en tiempo real.
+Este documento presenta el diseño detallado de **32 templates de WhatsApp** organizados en 10 categorías funcionales, basados en un análisis exhaustivo de los flujos de comunicación existentes en Detecta.
 
 ---
 
-## Análisis del Estado Actual
+## 1. Templates de Servicios y Planeación (7 templates)
 
-### Sistema WhatsApp Existente (Problemático)
+### 1.1 `servicio_asignado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Asignación de servicio desde `PendingAssignmentModal.tsx`
 
-**1. Implementación Actual con Baileys:**
-- Edge function `whatsapp-bot/index.ts` intenta usar Baileys
-- Solo genera QR codes de demostración (no funcionales)
-- Los mensajes se envían en "modo demo" sin entrega real
-- No hay comunicación bidireccional
+```text
+Header: 🛡️ SERVICIO ASIGNADO
 
-**2. Envíos Manuales via wa.me (10 lugares identificados):**
+Body:
+Hola {{1}},
 
-| Ubicación | Caso de Uso | Archivo |
-|-----------|-------------|---------|
-| Invitaciones de custodios | Envío de link de registro | `InvitationActionsDropdown.tsx` |
-| Asignación de servicios | Contacto inicial | `PendingAssignmentModal.tsx` |
-| Reasignación | Notificar cambio | `ReassignmentModal.tsx` |
-| Liberación de custodios | Envío de credenciales | `LiberacionSuccessModal.tsx` |
-| Recordatorio de checklist | Pre-servicio | `ChecklistDetailModal.tsx` |
-| Alertas de checklist | Urgentes | `ChecklistAlertPanel.tsx` |
-| Contacto directo | Desde perfiles | `CustodiosDataTable.tsx` |
-| Envío SIERCP | Evaluaciones | `SendSIERCPDialog.tsx` |
-| Asignación custodio | Confirmación | `SelectedCustodianSummary.tsx` |
-| Invitaciones masivas | Bulk | `BulkInvitationWizard.tsx` |
+Tienes un nuevo servicio asignado:
 
-**3. Infraestructura de Base de Datos Existente:**
+📅 {{2}}
+⏰ {{3}}
+👤 Cliente: {{4}}
+📍 Origen: {{5}}
+➡️ Destino: {{6}}
 
+Confirma tu disponibilidad.
+
+Footer: Detecta - Sistema de Custodios
+
+Buttons:
+[✅ Confirmar] [❌ No disponible]
 ```
-whatsapp_configurations  - Configuración general del bot
-whatsapp_sessions       - Sesiones activas (no funcional)
-whatsapp_messages       - Historial de mensajes
-whatsapp_templates      - Plantillas predefinidas
-whatsapp_connection_logs - Logs de conexión
-tickets.whatsapp_chat_id - Vínculo ticket-conversación
-```
+
+**Variables:**
+1. `custodio_nombre` - Nombre del custodio
+2. `fecha` - Fecha del servicio (ej: "15 de febrero")
+3. `hora` - Hora de cita (ej: "09:00")
+4. `cliente` - Nombre del cliente
+5. `origen` - Dirección de origen
+6. `destino` - Dirección de destino
 
 ---
 
-## Arquitectura de Integración Kapso
+### 1.2 `servicio_reasignado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Reasignación desde `ReassignmentModal.tsx`
 
-### Componentes Principales
+```text
+Header: 🔄 SERVICIO REASIGNADO
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         DETECTA FRONTEND                             │
-├─────────────────────────────────────────────────────────────────────┤
-│  Components que disparan notificaciones:                             │
-│  - PendingAssignmentModal → kapso-send-message                      │
-│  - LiberacionSuccessModal → kapso-send-template                     │
-│  - ChecklistAlertPanel → kapso-send-message                         │
-│  - TicketsList → kapso-send-message (respuestas)                    │
-│  - Settings/WhatsAppManager → kapso-config (actualizado)            │
-└────────────────────────────────┬────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    SUPABASE EDGE FUNCTIONS                           │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌─────────────────────┐  ┌─────────────────────────┐               │
-│  │ kapso-send-message  │  │ kapso-send-template     │               │
-│  │ • Mensajes de texto │  │ • Templates aprobados   │               │
-│  │ • Imágenes/docs     │  │ • Notificaciones        │               │
-│  │ • Botones interac.  │  │ • Confirmaciones        │               │
-│  │ • Ubicaciones       │  │ • Alertas               │               │
-│  └─────────┬───────────┘  └───────────┬─────────────┘               │
-│            │                          │                              │
-│            └──────────┬───────────────┘                              │
-│                       ▼                                              │
-│  ┌───────────────────────────────────────────────────────┐          │
-│  │                   Kapso API Layer                      │          │
-│  │  @kapso/whatsapp-cloud-api (npm:@kapso/...)           │          │
-│  │  Base URL: https://api.kapso.ai/meta/whatsapp         │          │
-│  └───────────────────────────────────────────────────────┘          │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │               kapso-webhook-receiver                         │    │
-│  │  Eventos:                                                    │    │
-│  │  • whatsapp.message.received → Crear/actualizar tickets     │    │
-│  │  • whatsapp.message.delivered → Actualizar status           │    │
-│  │  • whatsapp.message.read → Marcar como leído                │    │
-│  │  • Interactive button clicks → Procesar respuestas          │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         KAPSO PLATFORM                               │
-├─────────────────────────────────────────────────────────────────────┤
-│  • API oficial de WhatsApp Cloud                                     │
-│  • Webhooks estructurados                                            │
-│  • Gestión de templates                                              │
-│  • Historial de conversaciones                                       │
-│  • Phone Number ID: [Configurar en dashboard]                        │
-└─────────────────────────────────────────────────────────────────────┘
+Body:
+Hola {{1}},
+
+Se te ha reasignado el servicio {{2}}:
+
+📅 {{3}} a las {{4}}
+👤 Cliente: {{5}}
+📍 {{6}} → {{7}}
+
+⚠️ Este servicio requiere atención inmediata.
+
+Buttons:
+[✅ Confirmar] [📞 Necesito ayuda]
 ```
 
 ---
 
-## Fase 1: Configuración Base y Secretos
+### 1.3 `recordatorio_servicio_60min`
+**Categoría Meta:** UTILITY  
+**Trigger:** Cron job 60 minutos antes del servicio
 
-### 1.1 Almacenamiento del API Key de Kapso
+```text
+Header: ⏰ RECORDATORIO - 1 HORA
 
-**Acción:** Agregar secret `KAPSO_API_KEY` a Supabase
+Body:
+{{1}}, tu servicio inicia en 1 hora:
 
-**Ubicación del secret:** Supabase Dashboard → Settings → Secrets
+👤 Cliente: {{2}}
+📍 Origen: {{3}}
+⏰ Hora cita: {{4}}
 
-**Uso en edge functions:**
-```typescript
-const KAPSO_API_KEY = Deno.env.get('KAPSO_API_KEY');
-if (!KAPSO_API_KEY) {
-  throw new Error('KAPSO_API_KEY no configurado');
-}
-```
+✅ Recuerda completar el checklist pre-servicio.
 
-### 1.2 Configuración Adicional Requerida
-
-**Secrets adicionales a configurar:**
-- `KAPSO_PHONE_NUMBER_ID` - ID del número de WhatsApp Business en Kapso
-- `KAPSO_WEBHOOK_SECRET` - Para validar webhooks entrantes (opcional pero recomendado)
-
-### 1.3 Actualizar Tabla de Configuración
-
-**Migración SQL para extender whatsapp_configurations:**
-
-```sql
--- Agregar campos para Kapso
-ALTER TABLE whatsapp_configurations ADD COLUMN IF NOT EXISTS 
-  kapso_phone_number_id TEXT;
-
-ALTER TABLE whatsapp_configurations ADD COLUMN IF NOT EXISTS 
-  kapso_waba_id TEXT;
-
-ALTER TABLE whatsapp_configurations ADD COLUMN IF NOT EXISTS 
-  integration_type TEXT DEFAULT 'kapso' 
-  CHECK (integration_type IN ('kapso', 'legacy_baileys'));
-
--- Índice para búsqueda rápida
-CREATE INDEX IF NOT EXISTS idx_whatsapp_config_type 
-  ON whatsapp_configurations(integration_type);
+Buttons:
+[📋 Abrir Checklist] [🆘 Tengo un problema]
 ```
 
 ---
 
-## Fase 2: Edge Functions para Comunicación Saliente
+### 1.4 `recordatorio_servicio_30min`
+**Categoría Meta:** UTILITY  
+**Trigger:** Cron job 30 minutos antes
 
-### 2.1 Edge Function: `kapso-send-message`
+```text
+Header: ⚠️ ALERTA - 30 MINUTOS
 
-**Propósito:** Enviar mensajes de texto, imágenes, documentos y mensajes interactivos
+Body:
+{{1}}, tu servicio inicia en 30 minutos:
 
-**Archivo:** `supabase/functions/kapso-send-message/index.ts`
+📍 {{2}}
+⏰ {{3}}
 
-**Estructura completa:**
+🚗 Confirma que estás en camino.
 
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const KAPSO_BASE_URL = 'https://api.kapso.ai/meta/whatsapp';
-
-interface SendMessageRequest {
-  to: string;                    // Número de teléfono (con código país)
-  type: 'text' | 'image' | 'document' | 'template' | 'interactive';
-  
-  // Para mensajes de texto
-  text?: string;
-  
-  // Para imágenes/documentos
-  mediaUrl?: string;
-  mediaCaption?: string;
-  filename?: string;
-  
-  // Para mensajes interactivos
-  interactive?: {
-    type: 'button' | 'list';
-    header?: string;
-    body: string;
-    footer?: string;
-    buttons?: Array<{
-      id: string;
-      title: string;
-    }>;
-    sections?: Array<{
-      title: string;
-      rows: Array<{
-        id: string;
-        title: string;
-        description?: string;
-      }>;
-    }>;
-  };
-  
-  // Contexto para tracking
-  context?: {
-    servicio_id?: string;
-    ticket_id?: string;
-    custodio_telefono?: string;
-    tipo_notificacion?: string;
-  };
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const KAPSO_API_KEY = Deno.env.get('KAPSO_API_KEY');
-    const KAPSO_PHONE_NUMBER_ID = Deno.env.get('KAPSO_PHONE_NUMBER_ID');
-    
-    if (!KAPSO_API_KEY || !KAPSO_PHONE_NUMBER_ID) {
-      throw new Error('Configuración de Kapso incompleta');
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const request: SendMessageRequest = await req.json();
-    
-    // Normalizar número de teléfono (formato internacional)
-    const normalizedPhone = normalizePhoneNumber(request.to);
-    
-    let messagePayload: any;
-    let endpoint = `${KAPSO_BASE_URL}/${KAPSO_PHONE_NUMBER_ID}/messages`;
-    
-    // Construir payload según tipo de mensaje
-    switch (request.type) {
-      case 'text':
-        messagePayload = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: normalizedPhone,
-          type: 'text',
-          text: { body: request.text }
-        };
-        break;
-        
-      case 'image':
-        messagePayload = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: normalizedPhone,
-          type: 'image',
-          image: {
-            link: request.mediaUrl,
-            caption: request.mediaCaption
-          }
-        };
-        break;
-        
-      case 'document':
-        messagePayload = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: normalizedPhone,
-          type: 'document',
-          document: {
-            link: request.mediaUrl,
-            filename: request.filename,
-            caption: request.mediaCaption
-          }
-        };
-        break;
-        
-      case 'interactive':
-        messagePayload = buildInteractivePayload(normalizedPhone, request.interactive!);
-        break;
-        
-      default:
-        throw new Error(`Tipo de mensaje no soportado: ${request.type}`);
-    }
-    
-    // Enviar a Kapso
-    console.log('Enviando mensaje a Kapso:', JSON.stringify(messagePayload, null, 2));
-    
-    const kapsoResponse = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${KAPSO_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(messagePayload)
-    });
-    
-    const kapsoData = await kapsoResponse.json();
-    
-    if (!kapsoResponse.ok) {
-      console.error('Error de Kapso:', kapsoData);
-      throw new Error(kapsoData.error?.message || 'Error al enviar mensaje');
-    }
-    
-    // Registrar mensaje en base de datos
-    const messageRecord = {
-      chat_id: normalizedPhone,
-      message_id: kapsoData.messages?.[0]?.id,
-      sender_phone: KAPSO_PHONE_NUMBER_ID,
-      message_text: request.text || request.mediaCaption || '[Mensaje interactivo]',
-      message_type: request.type,
-      media_url: request.mediaUrl,
-      is_from_bot: true,
-      ticket_id: request.context?.ticket_id || null,
-      created_at: new Date().toISOString()
-    };
-    
-    await supabase.from('whatsapp_messages').insert(messageRecord);
-    
-    // Log de auditoría
-    console.log(`Mensaje enviado exitosamente a ${normalizedPhone}. ID: ${kapsoData.messages?.[0]?.id}`);
-    
-    return new Response(JSON.stringify({
-      success: true,
-      message_id: kapsoData.messages?.[0]?.id,
-      to: normalizedPhone
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-    
-  } catch (error) {
-    console.error('Error en kapso-send-message:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
-
-function normalizePhoneNumber(phone: string): string {
-  // Eliminar espacios, guiones, paréntesis
-  let cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
-  
-  // Si no tiene código de país, agregar +52 (México)
-  if (!cleaned.startsWith('+') && !cleaned.startsWith('52')) {
-    cleaned = '52' + cleaned;
-  }
-  
-  // Eliminar el + si existe
-  cleaned = cleaned.replace(/^\+/, '');
-  
-  return cleaned;
-}
-
-function buildInteractivePayload(to: string, interactive: any) {
-  if (interactive.type === 'button') {
-    return {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        header: interactive.header ? { type: 'text', text: interactive.header } : undefined,
-        body: { text: interactive.body },
-        footer: interactive.footer ? { text: interactive.footer } : undefined,
-        action: {
-          buttons: interactive.buttons.map((btn: any, index: number) => ({
-            type: 'reply',
-            reply: {
-              id: btn.id,
-              title: btn.title.substring(0, 20) // WhatsApp limita a 20 chars
-            }
-          }))
-        }
-      }
-    };
-  } else if (interactive.type === 'list') {
-    return {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to,
-      type: 'interactive',
-      interactive: {
-        type: 'list',
-        header: interactive.header ? { type: 'text', text: interactive.header } : undefined,
-        body: { text: interactive.body },
-        footer: interactive.footer ? { text: interactive.footer } : undefined,
-        action: {
-          button: 'Ver opciones',
-          sections: interactive.sections
-        }
-      }
-    };
-  }
-  
-  throw new Error('Tipo interactivo no soportado');
-}
-```
-
-### 2.2 Edge Function: `kapso-send-template`
-
-**Propósito:** Enviar templates aprobados por WhatsApp (necesarios para iniciar conversaciones fuera de ventana de 24h)
-
-**Archivo:** `supabase/functions/kapso-send-template/index.ts`
-
-**Estructura completa:**
-
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const KAPSO_BASE_URL = 'https://api.kapso.ai/meta/whatsapp';
-
-interface SendTemplateRequest {
-  to: string;
-  templateName: string;
-  languageCode?: string;  // Default: 'es_MX'
-  
-  // Componentes del template
-  components?: {
-    header?: {
-      type: 'text' | 'image' | 'document' | 'video';
-      parameters?: Array<{
-        type: 'text' | 'image' | 'document' | 'video';
-        text?: string;
-        image?: { link: string };
-        document?: { link: string; filename: string };
-      }>;
-    };
-    body?: {
-      parameters: Array<{
-        type: 'text';
-        text: string;
-      }>;
-    };
-    buttons?: Array<{
-      type: 'quick_reply' | 'url';
-      index: number;
-      parameters?: Array<{
-        type: 'text';
-        text: string;
-      }>;
-    }>;
-  };
-  
-  // Contexto para tracking
-  context?: {
-    servicio_id?: string;
-    ticket_id?: string;
-    custodio_telefono?: string;
-    tipo_notificacion?: string;
-    invitation_id?: string;
-  };
-}
-
-// Templates predefinidos para Detecta
-const DETECTA_TEMPLATES = {
-  // Invitación de custodio
-  custodio_invitacion: {
-    name: 'custodio_invitacion',
-    language: 'es_MX',
-    bodyParams: ['nombre', 'link']
-  },
-  
-  // Asignación de servicio
-  servicio_asignado: {
-    name: 'servicio_asignado',
-    language: 'es_MX',
-    bodyParams: ['custodio_nombre', 'cliente', 'fecha', 'hora', 'origen']
-  },
-  
-  // Recordatorio de servicio
-  recordatorio_servicio: {
-    name: 'recordatorio_servicio',
-    language: 'es_MX',
-    bodyParams: ['custodio_nombre', 'minutos', 'cliente', 'origen']
-  },
-  
-  // Alerta de checklist
-  alerta_checklist: {
-    name: 'alerta_checklist',
-    language: 'es_MX',
-    bodyParams: ['custodio_nombre', 'servicio_id']
-  },
-  
-  // Confirmación de posicionamiento
-  confirmacion_posicion: {
-    name: 'confirmacion_posicion',
-    language: 'es_MX',
-    bodyParams: ['custodio_nombre', 'hora', 'ubicacion']
-  },
-  
-  // Ticket actualizado
-  ticket_actualizado: {
-    name: 'ticket_actualizado',
-    language: 'es_MX',
-    bodyParams: ['ticket_numero', 'status', 'mensaje']
-  }
-};
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const KAPSO_API_KEY = Deno.env.get('KAPSO_API_KEY');
-    const KAPSO_PHONE_NUMBER_ID = Deno.env.get('KAPSO_PHONE_NUMBER_ID');
-    
-    if (!KAPSO_API_KEY || !KAPSO_PHONE_NUMBER_ID) {
-      throw new Error('Configuración de Kapso incompleta');
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const request: SendTemplateRequest = await req.json();
-    
-    const normalizedPhone = request.to.replace(/[\s\-\(\)\.]/g, '').replace(/^\+/, '');
-    const languageCode = request.languageCode || 'es_MX';
-    
-    // Construir payload del template
-    const templatePayload = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: normalizedPhone,
-      type: 'template',
-      template: {
-        name: request.templateName,
-        language: {
-          code: languageCode
-        },
-        components: []
-      }
-    };
-    
-    // Agregar componentes si existen
-    if (request.components?.header) {
-      templatePayload.template.components.push({
-        type: 'header',
-        parameters: request.components.header.parameters
-      });
-    }
-    
-    if (request.components?.body) {
-      templatePayload.template.components.push({
-        type: 'body',
-        parameters: request.components.body.parameters
-      });
-    }
-    
-    if (request.components?.buttons) {
-      request.components.buttons.forEach(button => {
-        templatePayload.template.components.push({
-          type: 'button',
-          sub_type: button.type,
-          index: button.index,
-          parameters: button.parameters
-        });
-      });
-    }
-    
-    // Enviar a Kapso
-    console.log('Enviando template a Kapso:', JSON.stringify(templatePayload, null, 2));
-    
-    const kapsoResponse = await fetch(`${KAPSO_BASE_URL}/${KAPSO_PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${KAPSO_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(templatePayload)
-    });
-    
-    const kapsoData = await kapsoResponse.json();
-    
-    if (!kapsoResponse.ok) {
-      console.error('Error de Kapso:', kapsoData);
-      throw new Error(kapsoData.error?.message || 'Error al enviar template');
-    }
-    
-    // Registrar en base de datos
-    const messageRecord = {
-      chat_id: normalizedPhone,
-      message_id: kapsoData.messages?.[0]?.id,
-      sender_phone: KAPSO_PHONE_NUMBER_ID,
-      message_text: `[Template: ${request.templateName}]`,
-      message_type: 'template',
-      is_from_bot: true,
-      ticket_id: request.context?.ticket_id || null,
-      created_at: new Date().toISOString()
-    };
-    
-    await supabase.from('whatsapp_messages').insert(messageRecord);
-    
-    // Actualizar whatsapp_templates con uso
-    await supabase
-      .from('whatsapp_templates')
-      .update({ 
-        updated_at: new Date().toISOString()
-      })
-      .eq('name', request.templateName);
-    
-    console.log(`Template enviado exitosamente a ${normalizedPhone}. ID: ${kapsoData.messages?.[0]?.id}`);
-    
-    return new Response(JSON.stringify({
-      success: true,
-      message_id: kapsoData.messages?.[0]?.id,
-      to: normalizedPhone,
-      template: request.templateName
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-    
-  } catch (error) {
-    console.error('Error en kapso-send-template:', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
+Buttons:
+[🚗 En camino] [⚠️ Tengo retraso]
 ```
 
 ---
 
-## Fase 3: Webhook para Comunicación Entrante (Bidireccional)
+### 1.5 `servicio_cancelado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Cancelación de servicio
 
-### 3.1 Edge Function: `kapso-webhook-receiver`
+```text
+Header: ❌ SERVICIO CANCELADO
 
-**Propósito:** Recibir y procesar todos los eventos de WhatsApp desde Kapso
+Body:
+{{1}}, el siguiente servicio ha sido cancelado:
 
-**Archivo:** `supabase/functions/kapso-webhook-receiver/index.ts`
+📋 Folio: {{2}}
+👤 Cliente: {{3}}
+📅 Fecha: {{4}}
 
-**Estructura completa:**
+Motivo: {{5}}
 
-```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kapso-signature',
-};
-
-interface KapsoWebhookPayload {
-  event: string;
-  timestamp: string;
-  data: {
-    id?: string;
-    from?: string;
-    to?: string;
-    timestamp?: string;
-    type?: string;
-    text?: { body: string };
-    image?: { id: string; mime_type: string; caption?: string };
-    document?: { id: string; filename: string; mime_type: string };
-    interactive?: {
-      type: string;
-      button_reply?: { id: string; title: string };
-      list_reply?: { id: string; title: string };
-    };
-    status?: string;
-    conversation?: { id: string };
-    context?: { message_id: string };
-  };
-}
-
-serve(async (req) => {
-  // Verificación de webhook (GET request de Kapso/Meta)
-  if (req.method === 'GET') {
-    const url = new URL(req.url);
-    const mode = url.searchParams.get('hub.mode');
-    const token = url.searchParams.get('hub.verify_token');
-    const challenge = url.searchParams.get('hub.challenge');
-    
-    const VERIFY_TOKEN = Deno.env.get('KAPSO_WEBHOOK_VERIFY_TOKEN') || 'detecta_kapso_webhook';
-    
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('Webhook verificado exitosamente');
-      return new Response(challenge, { status: 200 });
-    }
-    
-    return new Response('Verification failed', { status: 403 });
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const payload: KapsoWebhookPayload = await req.json();
-    
-    console.log('Webhook recibido:', JSON.stringify(payload, null, 2));
-    
-    // Procesar según tipo de evento
-    switch (payload.event) {
-      case 'whatsapp.message.received':
-        await handleIncomingMessage(supabase, payload);
-        break;
-        
-      case 'whatsapp.message.delivered':
-        await handleDeliveryStatus(supabase, payload, 'delivered');
-        break;
-        
-      case 'whatsapp.message.read':
-        await handleDeliveryStatus(supabase, payload, 'read');
-        break;
-        
-      case 'whatsapp.message.failed':
-        await handleDeliveryStatus(supabase, payload, 'failed');
-        break;
-        
-      default:
-        console.log('Evento no manejado:', payload.event);
-    }
-    
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-    
-  } catch (error) {
-    console.error('Error en kapso-webhook-receiver:', error);
-    // Siempre responder 200 para evitar reintentos
-    return new Response(JSON.stringify({ 
-      received: true, 
-      error: error.message 
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-});
-
-async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload) {
-  const { data } = payload;
-  const senderPhone = data.from!;
-  const messageType = data.type || 'text';
-  
-  // Extraer contenido del mensaje
-  let messageText = '';
-  let mediaUrl = null;
-  
-  if (data.text) {
-    messageText = data.text.body;
-  } else if (data.image) {
-    messageText = data.image.caption || '[Imagen]';
-    mediaUrl = data.image.id; // ID de media para descargar
-  } else if (data.document) {
-    messageText = `[Documento: ${data.document.filename}]`;
-    mediaUrl = data.document.id;
-  } else if (data.interactive) {
-    // Respuesta a botón o lista
-    const reply = data.interactive.button_reply || data.interactive.list_reply;
-    messageText = reply?.title || '[Respuesta interactiva]';
-    
-    // Procesar respuesta interactiva
-    await handleInteractiveResponse(supabase, senderPhone, reply!);
-  }
-  
-  // Guardar mensaje en base de datos
-  const messageRecord = {
-    chat_id: senderPhone,
-    message_id: data.id,
-    sender_phone: senderPhone,
-    sender_name: null, // Se puede enriquecer con datos del perfil
-    message_text: messageText,
-    message_type: messageType,
-    media_url: mediaUrl,
-    is_from_bot: false,
-    is_read: false,
-    created_at: new Date().toISOString()
-  };
-  
-  const { data: insertedMsg, error: msgError } = await supabase
-    .from('whatsapp_messages')
-    .insert(messageRecord)
-    .select()
-    .single();
-  
-  if (msgError) {
-    console.error('Error guardando mensaje:', msgError);
-  }
-  
-  // Buscar si hay un ticket abierto con este chat
-  const { data: existingTicket } = await supabase
-    .from('tickets')
-    .select('id, ticket_number, status')
-    .eq('whatsapp_chat_id', senderPhone)
-    .neq('status', 'cerrado')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  
-  if (existingTicket) {
-    // Agregar mensaje como respuesta al ticket
-    await supabase.from('ticket_respuestas').insert({
-      ticket_id: existingTicket.id,
-      autor_id: null, // Usuario externo (custodio vía WhatsApp)
-      autor_tipo: 'custodio',
-      autor_nombre: senderPhone,
-      mensaje: messageText,
-      es_resolucion: false,
-      es_interno: false,
-      created_at: new Date().toISOString()
-    });
-    
-    // Actualizar mensaje con ticket_id
-    if (insertedMsg) {
-      await supabase
-        .from('whatsapp_messages')
-        .update({ ticket_id: existingTicket.id })
-        .eq('id', insertedMsg.id);
-    }
-    
-    console.log(`Mensaje vinculado a ticket existente: ${existingTicket.ticket_number}`);
-  } else {
-    // Verificar si es un custodio activo
-    const { data: custodio } = await supabase
-      .from('profiles')
-      .select('id, full_name, role, telefono')
-      .or(`telefono.eq.${senderPhone},telefono.ilike.%${senderPhone.slice(-10)}%`)
-      .eq('role', 'custodio')
-      .maybeSingle();
-    
-    if (custodio) {
-      // Crear ticket automático para custodio
-      const ticketNumber = `TKT-WA-${Date.now().toString(36).toUpperCase()}`;
-      
-      const { data: newTicket, error: ticketError } = await supabase
-        .from('tickets')
-        .insert({
-          ticket_number: ticketNumber,
-          customer_phone: senderPhone,
-          customer_name: custodio.full_name,
-          subject: `Mensaje de WhatsApp de ${custodio.full_name}`,
-          description: messageText,
-          status: 'abierto',
-          priority: 'media',
-          category: 'soporte_custodio',
-          source: 'whatsapp',
-          whatsapp_chat_id: senderPhone,
-          custodio_id: custodio.id,
-          custodio_telefono: senderPhone,
-          tipo_ticket: 'soporte_whatsapp'
-        })
-        .select()
-        .single();
-      
-      if (!ticketError && newTicket) {
-        // Actualizar mensaje con ticket_id
-        if (insertedMsg) {
-          await supabase
-            .from('whatsapp_messages')
-            .update({ ticket_id: newTicket.id })
-            .eq('id', insertedMsg.id);
-        }
-        
-        console.log(`Ticket creado automáticamente: ${ticketNumber}`);
-        
-        // Enviar respuesta automática
-        await sendAutoReply(supabase, senderPhone, custodio.full_name, ticketNumber);
-      }
-    } else {
-      console.log(`Mensaje de número desconocido: ${senderPhone}`);
-      // Opcional: Respuesta genérica para números no registrados
-    }
-  }
-}
-
-async function handleInteractiveResponse(supabase: any, phone: string, reply: { id: string; title: string }) {
-  console.log(`Respuesta interactiva de ${phone}: ${reply.id} - ${reply.title}`);
-  
-  // Buscar contexto del mensaje original
-  const buttonId = reply.id;
-  
-  // Ejemplos de acciones según ID del botón
-  if (buttonId.startsWith('CONFIRM_SERVICE_')) {
-    const serviceId = buttonId.replace('CONFIRM_SERVICE_', '');
-    await handleServiceConfirmation(supabase, phone, serviceId, true);
-  } else if (buttonId.startsWith('REJECT_SERVICE_')) {
-    const serviceId = buttonId.replace('REJECT_SERVICE_', '');
-    await handleServiceConfirmation(supabase, phone, serviceId, false);
-  } else if (buttonId.startsWith('NEED_HELP_')) {
-    // Crear ticket de ayuda
-    await createHelpTicket(supabase, phone);
-  }
-}
-
-async function handleServiceConfirmation(supabase: any, phone: string, serviceId: string, accepted: boolean) {
-  if (accepted) {
-    // Actualizar estado del servicio
-    await supabase
-      .from('servicios_planificados')
-      .update({
-        estado_confirmacion_custodio: 'confirmado',
-        fecha_confirmacion: new Date().toISOString()
-      })
-      .eq('id', serviceId);
-    
-    console.log(`Servicio ${serviceId} confirmado por ${phone}`);
-  } else {
-    // Marcar como rechazado para reasignación
-    await supabase
-      .from('servicios_planificados')
-      .update({
-        estado_confirmacion_custodio: 'rechazado',
-        requiere_reasignacion: true
-      })
-      .eq('id', serviceId);
-    
-    console.log(`Servicio ${serviceId} rechazado por ${phone}`);
-    
-    // TODO: Notificar a planificación para reasignar
-  }
-}
-
-async function createHelpTicket(supabase: any, phone: string) {
-  // Implementar creación de ticket de ayuda
-  console.log(`Solicitud de ayuda de ${phone}`);
-}
-
-async function handleDeliveryStatus(supabase: any, payload: KapsoWebhookPayload, status: string) {
-  const messageId = payload.data.id;
-  
-  if (messageId) {
-    await supabase
-      .from('whatsapp_messages')
-      .update({ 
-        is_read: status === 'read',
-        delivery_status: status
-      })
-      .eq('message_id', messageId);
-    
-    console.log(`Mensaje ${messageId} actualizado a: ${status}`);
-  }
-}
-
-async function sendAutoReply(supabase: any, phone: string, custodioName: string, ticketNumber: string) {
-  // Invocar función de envío
-  const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/kapso-send-message`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      to: phone,
-      type: 'text',
-      text: `¡Hola ${custodioName}! 👋\n\nHemos recibido tu mensaje y creado el ticket ${ticketNumber}.\n\nUn agente te responderá pronto. Mientras tanto, puedes seguir enviando mensajes aquí.\n\n🛡️ Equipo Detecta`
-    })
-  });
-  
-  console.log('Auto-reply enviado:', await response.json());
-}
-```
-
-### 3.2 Actualizar Tabla para Delivery Status
-
-**Migración SQL:**
-
-```sql
--- Agregar campo para tracking de delivery
-ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS 
-  delivery_status TEXT DEFAULT 'sent' 
-  CHECK (delivery_status IN ('sent', 'delivered', 'read', 'failed'));
-
--- Índice para consultas de mensajes no leídos
-CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_unread 
-  ON whatsapp_messages(chat_id, is_read) 
-  WHERE is_read = false;
-
--- Agregar campos para confirmación de servicio
-ALTER TABLE servicios_planificados ADD COLUMN IF NOT EXISTS 
-  estado_confirmacion_custodio TEXT 
-  CHECK (estado_confirmacion_custodio IN ('pendiente', 'confirmado', 'rechazado'));
-
-ALTER TABLE servicios_planificados ADD COLUMN IF NOT EXISTS 
-  fecha_confirmacion TIMESTAMPTZ;
-
-ALTER TABLE servicios_planificados ADD COLUMN IF NOT EXISTS 
-  requiere_reasignacion BOOLEAN DEFAULT false;
+Tu disponibilidad ha sido actualizada automáticamente.
 ```
 
 ---
 
-## Fase 4: Integración con Módulos Existentes
+### 1.6 `confirmacion_posicionamiento`
+**Categoría Meta:** UTILITY  
+**Trigger:** Check-in exitoso del custodio
 
-### 4.1 Actualizar `InvitationActionsDropdown.tsx`
+```text
+Header: ✅ POSICIÓN CONFIRMADA
 
-**Cambios requeridos:**
+Body:
+{{1}}, tu posición ha sido registrada:
 
-Reemplazar el enlace `wa.me` por llamada a la edge function:
+📍 Ubicación: {{2}}
+⏰ Hora: {{3}}
+📋 Servicio: {{4}}
 
-```typescript
-// ANTES (líneas 101-122 actuales)
-const handleWhatsApp = () => {
-  const link = getInvitationLink(invitation.token);
-  const message = encodeURIComponent(...);
-  window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-};
-
-// DESPUÉS
-const handleWhatsApp = async () => {
-  setLoading(true);
-  try {
-    const link = getInvitationLink(invitation.token);
-    const { data, error } = await supabase.functions.invoke('kapso-send-template', {
-      body: {
-        to: invitation.telefono,
-        templateName: 'custodio_invitacion',
-        components: {
-          body: {
-            parameters: [
-              { type: 'text', text: invitation.nombre || 'Custodio' },
-              { type: 'text', text: link }
-            ]
-          }
-        },
-        context: {
-          invitation_id: invitation.id,
-          tipo_notificacion: 'invitacion_custodio'
-        }
-      }
-    });
-    
-    if (error) throw error;
-    
-    toast({
-      title: 'Mensaje enviado',
-      description: `Invitación enviada por WhatsApp a ${invitation.telefono}`,
-    });
-  } catch (error) {
-    console.error('Error enviando WhatsApp:', error);
-    toast({
-      title: 'Error',
-      description: 'No se pudo enviar el mensaje. ¿Deseas intentar con wa.me?',
-      variant: 'destructive',
-    });
-    // Fallback a wa.me
-    const link = getInvitationLink(invitation.token);
-    const message = encodeURIComponent(`¡Hola ${invitation.nombre}! ...`);
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-  } finally {
-    setLoading(false);
-  }
-};
-```
-
-### 4.2 Actualizar `PendingAssignmentModal.tsx`
-
-**Envío de notificación de asignación con botones interactivos:**
-
-```typescript
-const notifyAssignment = async (custodio: CustodioConProximidad, serviceData: any) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('kapso-send-message', {
-      body: {
-        to: custodio.telefono,
-        type: 'interactive',
-        interactive: {
-          type: 'button',
-          header: '🛡️ NUEVO SERVICIO ASIGNADO',
-          body: `Hola ${custodio.nombre},\n\nSe te ha asignado un nuevo servicio:\n\n📍 Cliente: ${serviceData.nombre_cliente}\n📅 Fecha: ${serviceData.fecha}\n⏰ Hora: ${serviceData.hora}\n📌 Origen: ${serviceData.origen}\n\n¿Confirmas tu disponibilidad?`,
-          footer: 'Detecta - Sistema de Custodios',
-          buttons: [
-            { id: `CONFIRM_SERVICE_${serviceData.id}`, title: '✅ Confirmar' },
-            { id: `REJECT_SERVICE_${serviceData.id}`, title: '❌ No disponible' },
-            { id: `NEED_HELP_${serviceData.id}`, title: '❓ Necesito ayuda' }
-          ]
-        },
-        context: {
-          servicio_id: serviceData.id,
-          custodio_telefono: custodio.telefono,
-          tipo_notificacion: 'asignacion_servicio'
-        }
-      }
-    });
-    
-    if (error) throw error;
-    
-    toast.success(`Notificación enviada a ${custodio.nombre}`);
-  } catch (error) {
-    console.error('Error notificando asignación:', error);
-    // Fallback a wa.me
-    window.open(`https://wa.me/52${custodio.telefono.replace(/\D/g, '')}`, '_blank');
-  }
-};
-```
-
-### 4.3 Actualizar `ChecklistAlertPanel.tsx`
-
-**Recordatorio automático con botón de respuesta:**
-
-```typescript
-const sendChecklistReminder = async (servicio: any) => {
-  try {
-    await supabase.functions.invoke('kapso-send-message', {
-      body: {
-        to: servicio.custodioTelefono,
-        type: 'interactive',
-        interactive: {
-          type: 'button',
-          header: '⚠️ CHECKLIST PENDIENTE',
-          body: `${servicio.custodioNombre}, tienes un checklist pre-servicio pendiente para:\n\n🚗 Servicio: ${servicio.idServicio}\n👤 Cliente: ${servicio.nombreCliente}\n⏰ Hora cita: ${servicio.horaCita}\n\nCompleta el checklist desde la app Detecta.`,
-          buttons: [
-            { id: `CHECKLIST_STARTED_${servicio.id}`, title: '✅ Ya lo inicié' },
-            { id: `CHECKLIST_HELP_${servicio.id}`, title: '❓ Tengo un problema' }
-          ]
-        },
-        context: {
-          servicio_id: servicio.id,
-          custodio_telefono: servicio.custodioTelefono,
-          tipo_notificacion: 'recordatorio_checklist'
-        }
-      }
-    });
-    
-    toast.success('Recordatorio enviado por WhatsApp');
-  } catch (error) {
-    console.error('Error enviando recordatorio:', error);
-  }
-};
-```
-
-### 4.4 Actualizar `WhatsAppManager.tsx` (Settings)
-
-**Nuevo componente con configuración de Kapso:**
-
-```typescript
-// Agregar nueva pestaña "Kapso"
-<TabsContent value="kapso" className="space-y-4">
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Settings className="w-5 h-5" />
-        Configuración de Kapso
-      </CardTitle>
-      <CardDescription>
-        Configuración de la integración con Kapso WhatsApp API
-      </CardDescription>
-    </CardHeader>
-    <CardContent className="space-y-4">
-      <div className="space-y-2">
-        <Label>Estado de Conexión</Label>
-        <div className="flex items-center gap-2">
-          <Badge variant={kapsoConnected ? "default" : "secondary"}>
-            {kapsoConnected ? '✅ Conectado' : '⚠️ Desconectado'}
-          </Badge>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label>Phone Number ID</Label>
-        <Input 
-          value={kapsoPhoneNumberId}
-          placeholder="Ej: 647015955153740"
-          disabled
-        />
-        <p className="text-xs text-muted-foreground">
-          Configurado en variables de entorno
-        </p>
-      </div>
-      
-      <div className="space-y-2">
-        <Label>Webhook URL</Label>
-        <div className="flex gap-2">
-          <Input 
-            value={webhookUrl}
-            readOnly
-          />
-          <Button variant="outline" onClick={copyWebhookUrl}>
-            <Copy className="w-4 h-4" />
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Configura esta URL en el dashboard de Kapso
-        </p>
-      </div>
-      
-      <Button onClick={testConnection}>
-        <RefreshCw className={`w-4 h-4 mr-2 ${testing ? 'animate-spin' : ''}`} />
-        Probar Conexión
-      </Button>
-    </CardContent>
-  </Card>
-</TabsContent>
+El cliente ha sido notificado de tu llegada.
 ```
 
 ---
 
-## Fase 5: Templates de WhatsApp para Aprobar en Meta
+### 1.7 `servicio_completado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Finalización de servicio
 
-### 5.1 Templates Requeridos
+```text
+Header: 🎉 SERVICIO COMPLETADO
 
-Estos templates deben ser creados y aprobados en Meta Business Suite:
+Body:
+{{1}}, ¡excelente trabajo!
 
-**1. custodio_invitacion**
+El servicio {{2}} ha sido completado exitosamente.
+
+⭐ Recuerda calificar tu experiencia en la app.
+
+Puntos ganados: +{{3}} 🏆
 ```
-Categoría: UTILITY
-Idioma: es_MX
 
-Header: 🛡️ DETECTA - Bienvenido al Equipo
-Body: 
+---
+
+## 2. Templates de Checklist y GPS (5 templates)
+
+### 2.1 `alerta_checklist_pendiente`
+**Categoría Meta:** UTILITY  
+**Trigger:** `ChecklistAlertPanel.tsx` - Checklist no completado a 60 min
+
+```text
+Header: ⚠️ CHECKLIST PENDIENTE
+
+Body:
+{{1}}, tienes un checklist sin completar:
+
+📋 Servicio: {{2}}
+👤 Cliente: {{3}}
+⏰ Hora cita: {{4}}
+
+Completa el checklist desde la app Detecta antes de iniciar.
+
+Buttons:
+[📋 Completar ahora] [❓ Tengo un problema]
+```
+
+---
+
+### 2.2 `alerta_gps_fuera_rango`
+**Categoría Meta:** UTILITY  
+**Trigger:** Validación GPS > 500m del origen
+
+```text
+Header: 📍 ALERTA GPS
+
+Body:
+{{1}}, detectamos que tu ubicación está lejos del punto de origen:
+
+📋 Servicio: {{2}}
+📍 Distancia: {{3}} metros
+
+Si hay un cambio de ubicación, notifica a monitoreo.
+
+Buttons:
+[📞 Llamar a Monitoreo] [✅ Todo en orden]
+```
+
+---
+
+### 2.3 `alerta_gps_sin_datos`
+**Categoría Meta:** UTILITY  
+**Trigger:** Fotos sin metadata GPS
+
+```text
+Header: ⚠️ GPS NO DETECTADO
+
+Body:
+{{1}}, las fotos del checklist no tienen ubicación GPS:
+
+📋 Servicio: {{2}}
+
+Verifica que tu teléfono tenga el GPS activado y vuelve a tomar las fotos.
+
+Buttons:
+[📷 Retomar fotos] [📞 Soporte técnico]
+```
+
+---
+
+### 2.4 `alerta_item_critico`
+**Categoría Meta:** UTILITY  
+**Trigger:** Fallo en item crítico (frenos, llantas)
+
+```text
+Header: 🚨 ALERTA DE SEGURIDAD
+
+Body:
+{{1}}, se detectó un problema crítico en la inspección:
+
+⚠️ {{2}}
+📋 Servicio: {{3}}
+
+Por seguridad, NO inicies el servicio hasta resolver este tema.
+
+Buttons:
+[📞 Contactar Supervisor] [✅ Problema resuelto]
+```
+
+---
+
+### 2.5 `checklist_aprobado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Checklist completado sin alertas
+
+```text
+Header: ✅ CHECKLIST APROBADO
+
+Body:
+{{1}}, tu checklist pre-servicio está completo:
+
+📋 Servicio: {{2}}
+⏰ Hora cita: {{3}}
+📍 Origen: {{4}}
+
+Estás listo para iniciar. ¡Buen servicio!
+```
+
+---
+
+## 3. Templates de Tickets de Soporte (5 templates)
+
+### 3.1 `ticket_creado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Creación automática de ticket desde WhatsApp
+
+```text
+Header: 🎫 TICKET CREADO
+
+Body:
+Hola {{1}},
+
+Hemos recibido tu solicitud:
+
+📋 Ticket: {{2}}
+📂 Categoría: {{3}}
+⏰ Tiempo de respuesta: {{4}}
+
+Un agente te contactará pronto. Puedes responder a este chat para agregar información.
+```
+
+---
+
+### 3.2 `ticket_asignado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Asignación de agente al ticket
+
+```text
+Header: 👤 AGENTE ASIGNADO
+
+Body:
+{{1}}, tu ticket {{2}} ha sido asignado:
+
+👤 Agente: {{3}}
+📂 Departamento: {{4}}
+
+El agente revisará tu caso y te contactará pronto.
+```
+
+---
+
+### 3.3 `ticket_actualizado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Respuesta de agente
+
+```text
+Header: 📝 ACTUALIZACIÓN DE TICKET
+
+Body:
+{{1}}, hay novedades en tu ticket {{2}}:
+
+Estado: {{3}}
+Mensaje: {{4}}
+
+Puedes responder a este mensaje para continuar la conversación.
+```
+
+---
+
+### 3.4 `ticket_resuelto`
+**Categoría Meta:** UTILITY  
+**Trigger:** Ticket marcado como resuelto
+
+```text
+Header: ✅ TICKET RESUELTO
+
+Body:
+{{1}}, tu ticket {{2}} ha sido resuelto:
+
+Solución: {{3}}
+
+¿Te fue útil esta atención?
+
+Buttons:
+[👍 Sí, gracias] [👎 No resolvió] [📞 Reabrir ticket]
+```
+
+---
+
+### 3.5 `ticket_encuesta_csat`
+**Categoría Meta:** UTILITY  
+**Trigger:** Post-resolución (24h después)
+
+```text
+Header: ⭐ TU OPINIÓN IMPORTA
+
+Body:
+{{1}}, ¿cómo calificarías la atención de tu ticket {{2}}?
+
+Tu retroalimentación nos ayuda a mejorar.
+
+Buttons:
+[😊 Excelente] [😐 Regular] [😞 Deficiente]
+```
+
+---
+
+## 4. Templates de Onboarding de Custodios (4 templates)
+
+### 4.1 `custodio_invitacion`
+**Categoría Meta:** UTILITY  
+**Trigger:** `InvitationActionsDropdown.tsx`, `LiberacionSuccessModal.tsx`
+
+```text
+Header: 🛡️ BIENVENIDO A DETECTA
+
+Body:
 ¡Hola {{1}}! 🎉
 
 Ya eres parte del equipo de custodios de Detecta.
@@ -1232,525 +390,454 @@ Ya eres parte del equipo de custodios de Detecta.
 Para activar tu cuenta, usa este link:
 {{2}}
 
-⚠️ Este link es personal y expira en 30 días.
+⚠️ Este link es personal y expira en 7 días.
 
-Equipo Detecta
+Footer: Equipo Detecta
 ```
 
-**2. servicio_asignado**
-```
-Categoría: UTILITY
-Idioma: es_MX
+---
 
-Header: 📋 NUEVO SERVICIO ASIGNADO
+### 4.2 `onboarding_documentos_pendientes`
+**Categoría Meta:** UTILITY  
+**Trigger:** `CustodianOnboarding.tsx` - Documentos faltantes
+
+```text
+Header: 📄 DOCUMENTOS PENDIENTES
+
+Body:
+{{1}}, para completar tu registro necesitas subir:
+
+{{2}}
+
+Ingresa a tu portal para subir los documentos:
+{{3}}
+
+⏰ Tienes {{4}} días para completar este paso.
+
+Buttons:
+[📤 Subir documentos] [❓ Necesito ayuda]
+```
+
+---
+
+### 4.3 `onboarding_documento_vencido`
+**Categoría Meta:** UTILITY  
+**Trigger:** Documento próximo a vencer
+
+```text
+Header: ⚠️ DOCUMENTO POR VENCER
+
+Body:
+{{1}}, tu {{2}} vence el {{3}}.
+
+Para seguir operando, actualiza tu documento antes de la fecha de vencimiento.
+
+Buttons:
+[📤 Actualizar documento] [📞 Soporte]
+```
+
+---
+
+### 4.4 `onboarding_completado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Onboarding finalizado exitosamente
+
+```text
+Header: 🎉 REGISTRO COMPLETADO
+
+Body:
+¡Felicidades {{1}}!
+
+Tu registro como custodio está completo. Ya puedes recibir asignaciones de servicio.
+
+Descarga la app Detecta:
+📱 Android: {{2}}
+🍎 iOS: {{3}}
+
+¡Bienvenido al equipo! 🛡️
+```
+
+---
+
+## 5. Templates de Evaluaciones SIERCP (3 templates)
+
+### 5.1 `siercp_invitacion`
+**Categoría Meta:** UTILITY  
+**Trigger:** `SendSIERCPDialog.tsx`
+
+```text
+Header: 🧠 EVALUACIÓN PSICOMÉTRICA
+
 Body:
 Hola {{1}},
 
-Se te ha asignado un nuevo servicio:
+Te invitamos a completar tu evaluación SIERCP:
 
-👤 Cliente: {{2}}
-📅 Fecha: {{3}}
-⏰ Hora: {{4}}
-📍 Origen: {{5}}
+🔗 {{2}}
 
-Confirma tu disponibilidad en la app.
+⏰ El enlace es válido por {{3}} horas.
 
-Buttons:
-- ✅ Confirmar
-- ❌ No disponible
-```
-
-**3. recordatorio_servicio**
-```
-Categoría: UTILITY
-Idioma: es_MX
-
-Header: ⏰ RECORDATORIO DE SERVICIO
-Body:
-{{1}}, tu servicio inicia en {{2}} minutos.
-
-👤 Cliente: {{3}}
-📍 Origen: {{4}}
-
-Recuerda completar el checklist pre-servicio.
+Esta evaluación es requerida para continuar con tu proceso de selección.
 
 Buttons:
-- ✅ Ya estoy listo
-- ❓ Tengo un problema
-```
-
-**4. alerta_checklist**
-```
-Categoría: UTILITY
-Idioma: es_MX
-
-Header: ⚠️ CHECKLIST PENDIENTE
-Body:
-{{1}}, tienes un checklist pendiente para el servicio {{2}}.
-
-Completa el checklist desde la app Detecta antes de iniciar el servicio.
-
-Buttons:
-- ✅ Abrir App
-- ❓ Necesito ayuda
-```
-
-**5. ticket_actualizado**
-```
-Categoría: UTILITY
-Idioma: es_MX
-
-Header: 🎫 ACTUALIZACIÓN DE TICKET
-Body:
-Tu ticket {{1}} ha sido actualizado:
-
-Estado: {{2}}
-Mensaje: {{3}}
-
-Puedes responder a este mensaje para continuar la conversación.
+[📝 Iniciar evaluación] [❓ Tengo dudas]
 ```
 
 ---
 
-## Fase 6: Casos de Uso de Comunicación Bidireccional
+### 5.2 `siercp_recordatorio`
+**Categoría Meta:** UTILITY  
+**Trigger:** 24h después de envío sin completar
 
-### 6.1 Flujo de Tickets de Soporte via WhatsApp
+```text
+Header: ⏰ RECORDATORIO SIERCP
 
-```
-CUSTODIO                          DETECTA SYSTEM
-    │                                   │
-    │ [Envía mensaje WhatsApp]          │
-    ├──────────────────────────────────►│
-    │                                   │ → Webhook recibe mensaje
-    │                                   │ → Busca tickets abiertos
-    │                                   │ → Si no hay, crea nuevo
-    │                                   │ → Guarda en whatsapp_messages
-    │                                   │
-    │    [Auto-reply: Ticket creado]    │
-    │◄──────────────────────────────────┤
-    │                                   │
-    │                        [Agente responde en panel]
-    │                                   │
-    │    [Respuesta del agente]         │
-    │◄──────────────────────────────────┤
-    │                                   │
-    │ [Custodio responde]               │
-    ├──────────────────────────────────►│
-    │                                   │ → Webhook vincula a ticket
-    │                                   │ → Agrega como ticket_respuesta
-    │                                   │
-    │         [... conversación continúa ...]
-```
+Body:
+{{1}}, tu evaluación SIERCP está pendiente:
 
-### 6.2 Flujo de Confirmación de Servicio
+🔗 {{2}}
 
-```
-PLANIFICADOR                      SYSTEM                         CUSTODIO
-    │                                │                                │
-    │ [Asigna servicio]              │                                │
-    ├───────────────────────────────►│                                │
-    │                                │ → Guarda asignación            │
-    │                                │ → Llama kapso-send-message     │
-    │                                │                                │
-    │                                │   [Mensaje con botones]        │
-    │                                ├───────────────────────────────►│
-    │                                │                                │
-    │                                │                                │ [Click ✅ Confirmar]
-    │                                │◄───────────────────────────────┤
-    │                                │                                │
-    │                                │ → Webhook recibe button_reply  │
-    │                                │ → Actualiza estado servicio    │
-    │                                │                                │
-    │  [Notificación de confirmación]│                                │
-    │◄───────────────────────────────┤                                │
-```
+⚠️ El enlace expira en {{3}} horas.
 
-### 6.3 Flujo de Alerta de Checklist
+Completa la evaluación para avanzar en tu proceso.
 
-```
-CRON JOB (cada 5 min)             SYSTEM                         CUSTODIO
-    │                                │                                │
-    │ [Trigger verificación]         │                                │
-    ├───────────────────────────────►│                                │
-    │                                │ → Busca servicios próximos     │
-    │                                │ → Filtra sin checklist         │
-    │                                │ → Para cada uno:               │
-    │                                │   → Llama kapso-send-message   │
-    │                                │                                │
-    │                                │   [Alerta con botones]         │
-    │                                ├───────────────────────────────►│
-    │                                │                                │
-    │                                │          [Click ❓ Problema]   │
-    │                                │◄───────────────────────────────┤
-    │                                │                                │
-    │                                │ → Crea ticket automático       │
-    │                                │ → Notifica a monitoreo         │
+Buttons:
+[📝 Completar ahora]
 ```
 
 ---
 
-## Fase 7: Hook Centralizado para WhatsApp
+### 5.3 `siercp_completada`
+**Categoría Meta:** UTILITY  
+**Trigger:** Evaluación finalizada
 
-### 7.1 Crear `useKapsoWhatsApp.ts`
+```text
+Header: ✅ EVALUACIÓN COMPLETADA
 
-**Archivo:** `src/hooks/useKapsoWhatsApp.ts`
+Body:
+{{1}}, has completado tu evaluación SIERCP.
+
+Nuestro equipo revisará los resultados y te contactaremos pronto.
+
+Gracias por tu participación.
+```
+
+---
+
+## 6. Templates de LMS y Capacitación (4 templates)
+
+### 6.1 `lms_curso_asignado`
+**Categoría Meta:** UTILITY  
+**Trigger:** Inscripción masiva o individual
+
+```text
+Header: 📚 NUEVO CURSO ASIGNADO
+
+Body:
+{{1}}, tienes un nuevo curso asignado:
+
+📖 {{2}}
+⏰ Duración: {{3}}
+📅 Fecha límite: {{4}}
+
+Accede desde tu portal de capacitación.
+
+Buttons:
+[📚 Ir al curso] [📅 Recordarme después]
+```
+
+---
+
+### 6.2 `lms_curso_recordatorio`
+**Categoría Meta:** UTILITY  
+**Trigger:** Curso pendiente con fecha límite próxima
+
+```text
+Header: ⏰ CURSO PENDIENTE
+
+Body:
+{{1}}, tu curso "{{2}}" vence en {{3}} días.
+
+Progreso actual: {{4}}%
+
+Completa el curso para evitar penalizaciones.
+
+Buttons:
+[📚 Continuar curso]
+```
+
+---
+
+### 6.3 `lms_quiz_disponible`
+**Categoría Meta:** UTILITY  
+**Trigger:** Quiz desbloqueado
+
+```text
+Header: 📝 QUIZ DISPONIBLE
+
+Body:
+{{1}}, ya puedes tomar el quiz del módulo "{{2}}":
+
+⏱️ Tiempo: {{3}} minutos
+📊 Intentos: {{4}}/3
+
+Debes aprobar con mínimo 80%.
+
+Buttons:
+[📝 Iniciar quiz]
+```
+
+---
+
+### 6.4 `lms_certificado_emitido`
+**Categoría Meta:** UTILITY  
+**Trigger:** Curso completado con certificado
+
+```text
+Header: 🏆 CERTIFICADO EMITIDO
+
+Body:
+¡Felicidades {{1}}! 🎉
+
+Has completado el curso "{{2}}" y tu certificado está listo.
+
+📜 Código: {{3}}
+🔗 Descargar: {{4}}
+
++{{5}} puntos de gamificación 🏅
+```
+
+---
+
+## 7. Templates de Adquisición de Leads (3 templates)
+
+### 7.1 `lead_bienvenida`
+**Categoría Meta:** MARKETING  
+**Trigger:** Nuevo lead registrado
+
+```text
+Header: 🛡️ ÚNETE A DETECTA
+
+Body:
+¡Hola {{1}}!
+
+Gracias por tu interés en ser custodio de Detecta.
+
+✅ Ingresos competitivos
+✅ Horarios flexibles
+✅ Capacitación continua
+✅ Seguro y prestaciones
+
+¿Listo para dar el siguiente paso?
+
+Buttons:
+[📝 Completar registro] [📞 Más información]
+```
+
+---
+
+### 7.2 `lead_seguimiento`
+**Categoría Meta:** MARKETING  
+**Trigger:** Lead sin completar registro (48h)
+
+```text
+Header: 🤝 TE ESTAMOS ESPERANDO
+
+Body:
+{{1}}, notamos que iniciaste tu proceso con Detecta pero no lo completaste.
+
+¿Tienes alguna duda? Estamos aquí para ayudarte.
+
+Zonas con alta demanda: {{2}}
+
+Buttons:
+[📝 Continuar registro] [📞 Hablar con reclutador]
+```
+
+---
+
+### 7.3 `lead_armados_campana`
+**Categoría Meta:** MARKETING  
+**Trigger:** Campaña de adquisición de armados
+
+```text
+Header: 🎯 OPORTUNIDAD ARMADOS
+
+Body:
+{{1}}, estamos buscando personal armado certificado para nuestra red de seguridad.
+
+Requisitos:
+✅ Licencia de portación vigente
+✅ Experiencia comprobable
+✅ Disponibilidad inmediata
+
+Beneficios exclusivos para armados certificados.
+
+Buttons:
+[📝 Aplicar ahora] [📞 Más información]
+```
+
+---
+
+## 8. Templates de Supply y Operaciones (3 templates)
+
+### 8.1 `supply_entrevista_programada`
+**Categoría Meta:** UTILITY  
+**Trigger:** Entrevista agendada
+
+```text
+Header: 📅 ENTREVISTA PROGRAMADA
+
+Body:
+{{1}}, tu entrevista ha sido agendada:
+
+📅 Fecha: {{2}}
+⏰ Hora: {{3}}
+📍 Modalidad: {{4}}
+👤 Entrevistador: {{5}}
+
+{{6}}
+
+Buttons:
+[✅ Confirmar asistencia] [🔄 Reagendar]
+```
+
+---
+
+### 8.2 `supply_documentacion_solicitada`
+**Categoría Meta:** UTILITY  
+**Trigger:** Solicitud de documentos adicionales
+
+```text
+Header: 📄 DOCUMENTOS REQUERIDOS
+
+Body:
+{{1}}, para avanzar en tu proceso necesitamos:
+
+{{2}}
+
+Envía los documentos respondiendo a este mensaje o súbelos en el portal.
+
+⏰ Tienes {{3}} días para enviarlos.
+
+Buttons:
+[📤 Subir documentos] [❓ Tengo dudas]
+```
+
+---
+
+### 8.3 `supply_aprobacion_final`
+**Categoría Meta:** UTILITY  
+**Trigger:** Candidato aprobado
+
+```text
+Header: 🎉 ¡APROBADO!
+
+Body:
+¡Felicidades {{1}}!
+
+Has sido aprobado para unirte al equipo de Detecta como {{2}}.
+
+Próximos pasos:
+1️⃣ Completar onboarding digital
+2️⃣ Firmar contrato
+3️⃣ Recibir capacitación inicial
+
+Te contactaremos para coordinar tu inicio.
+
+Buttons:
+[📝 Iniciar onboarding]
+```
+
+---
+
+## Resumen de Templates por Categoría
+
+| Categoría | Cantidad | Tipo Meta |
+|-----------|----------|-----------|
+| Servicios y Planeación | 7 | UTILITY |
+| Checklist y GPS | 5 | UTILITY |
+| Tickets de Soporte | 5 | UTILITY |
+| Onboarding Custodios | 4 | UTILITY |
+| Evaluaciones SIERCP | 3 | UTILITY |
+| LMS y Capacitación | 4 | UTILITY |
+| Adquisición de Leads | 3 | MARKETING |
+| Supply y Operaciones | 3 | UTILITY |
+| **TOTAL** | **34** | |
+
+---
+
+## Detalles Técnicos
+
+### Estructura de Variables
+
+Cada template usa variables numeradas `{{1}}` a `{{n}}` según los requisitos de Meta. Las variables comunes son:
+
+| Variable | Uso Típico |
+|----------|-----------|
+| `{{1}}` | Nombre del destinatario |
+| `{{2}}` | Identificador principal (servicio, ticket, curso) |
+| `{{3}}` | Fecha o tiempo |
+| `{{4}}` | Información secundaria |
+| `{{5}}-{{n}}` | Contexto adicional |
+
+### IDs de Botones Interactivos
+
+Los botones de respuesta rápida usan prefijos estandarizados:
 
 ```typescript
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-
-interface SendMessageParams {
-  to: string;
-  type: 'text' | 'image' | 'document' | 'interactive';
-  text?: string;
-  mediaUrl?: string;
-  mediaCaption?: string;
-  filename?: string;
-  interactive?: {
-    type: 'button' | 'list';
-    header?: string;
-    body: string;
-    footer?: string;
-    buttons?: Array<{ id: string; title: string }>;
-    sections?: Array<{
-      title: string;
-      rows: Array<{ id: string; title: string; description?: string }>;
-    }>;
-  };
-  context?: {
-    servicio_id?: string;
-    ticket_id?: string;
-    custodio_telefono?: string;
-    tipo_notificacion?: string;
-  };
+const BUTTON_PREFIXES = {
+  CONFIRM_SERVICE: 'CONFIRM_SERVICE_',
+  REJECT_SERVICE: 'REJECT_SERVICE_',
+  NEED_HELP: 'NEED_HELP_',
+  CHECKLIST_DONE: 'CHECKLIST_DONE_',
+  CHECKLIST_HELP: 'CHECKLIST_HELP_',
+  TICKET_REOPEN: 'TICKET_REOPEN_',
+  LMS_START: 'LMS_START_',
+  LEAD_REGISTER: 'LEAD_REGISTER_',
+  CSAT_POSITIVE: 'CSAT_POSITIVE_',
+  CSAT_NEGATIVE: 'CSAT_NEGATIVE_'
 }
-
-interface SendTemplateParams {
-  to: string;
-  templateName: string;
-  languageCode?: string;
-  components?: {
-    header?: { type: string; parameters?: any[] };
-    body?: { parameters: Array<{ type: 'text'; text: string }> };
-    buttons?: Array<{ type: string; index: number; parameters?: any[] }>;
-  };
-  context?: Record<string, string>;
-}
-
-export const useKapsoWhatsApp = () => {
-  // Enviar mensaje genérico
-  const sendMessage = useMutation({
-    mutationFn: async (params: SendMessageParams) => {
-      const { data, error } = await supabase.functions.invoke('kapso-send-message', {
-        body: params
-      });
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast.success('Mensaje enviado', {
-        description: `ID: ${data.message_id}`
-      });
-    },
-    onError: (error) => {
-      console.error('Error enviando mensaje:', error);
-      toast.error('Error al enviar mensaje', {
-        description: error.message
-      });
-    }
-  });
-  
-  // Enviar template
-  const sendTemplate = useMutation({
-    mutationFn: async (params: SendTemplateParams) => {
-      const { data, error } = await supabase.functions.invoke('kapso-send-template', {
-        body: params
-      });
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      toast.success('Template enviado', {
-        description: `Template: ${data.template}`
-      });
-    },
-    onError: (error) => {
-      console.error('Error enviando template:', error);
-      toast.error('Error al enviar template', {
-        description: error.message
-      });
-    }
-  });
-  
-  // Helpers para casos de uso comunes
-  const sendServiceAssignment = async (
-    custodioPhone: string,
-    custodioName: string,
-    serviceData: {
-      id: string;
-      cliente: string;
-      fecha: string;
-      hora: string;
-      origen: string;
-    }
-  ) => {
-    return sendMessage.mutateAsync({
-      to: custodioPhone,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        header: '🛡️ NUEVO SERVICIO ASIGNADO',
-        body: `Hola ${custodioName},\n\nSe te ha asignado:\n\n👤 Cliente: ${serviceData.cliente}\n📅 Fecha: ${serviceData.fecha}\n⏰ Hora: ${serviceData.hora}\n📍 Origen: ${serviceData.origen}`,
-        footer: 'Detecta - Sistema de Custodios',
-        buttons: [
-          { id: `CONFIRM_SERVICE_${serviceData.id}`, title: '✅ Confirmar' },
-          { id: `REJECT_SERVICE_${serviceData.id}`, title: '❌ No disponible' }
-        ]
-      },
-      context: {
-        servicio_id: serviceData.id,
-        custodio_telefono: custodioPhone,
-        tipo_notificacion: 'asignacion_servicio'
-      }
-    });
-  };
-  
-  const sendChecklistReminder = async (
-    custodioPhone: string,
-    custodioName: string,
-    servicioId: string,
-    cliente: string
-  ) => {
-    return sendMessage.mutateAsync({
-      to: custodioPhone,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        header: '⚠️ CHECKLIST PENDIENTE',
-        body: `${custodioName}, completa el checklist pre-servicio para:\n\n📋 Servicio: ${servicioId}\n👤 Cliente: ${cliente}`,
-        buttons: [
-          { id: `CHECKLIST_DONE_${servicioId}`, title: '✅ Ya lo completé' },
-          { id: `CHECKLIST_HELP_${servicioId}`, title: '❓ Necesito ayuda' }
-        ]
-      },
-      context: {
-        servicio_id: servicioId,
-        custodio_telefono: custodioPhone,
-        tipo_notificacion: 'recordatorio_checklist'
-      }
-    });
-  };
-  
-  const sendCustodianInvitation = async (
-    phone: string,
-    name: string,
-    invitationLink: string,
-    invitationId: string
-  ) => {
-    return sendTemplate.mutateAsync({
-      to: phone,
-      templateName: 'custodio_invitacion',
-      components: {
-        body: {
-          parameters: [
-            { type: 'text', text: name },
-            { type: 'text', text: invitationLink }
-          ]
-        }
-      },
-      context: {
-        invitation_id: invitationId,
-        tipo_notificacion: 'invitacion_custodio'
-      }
-    });
-  };
-  
-  const sendTicketUpdate = async (
-    phone: string,
-    ticketNumber: string,
-    status: string,
-    message: string
-  ) => {
-    return sendTemplate.mutateAsync({
-      to: phone,
-      templateName: 'ticket_actualizado',
-      components: {
-        body: {
-          parameters: [
-            { type: 'text', text: ticketNumber },
-            { type: 'text', text: status },
-            { type: 'text', text: message }
-          ]
-        }
-      },
-      context: {
-        tipo_notificacion: 'ticket_update'
-      }
-    });
-  };
-  
-  return {
-    // Mutaciones base
-    sendMessage,
-    sendTemplate,
-    
-    // Helpers específicos
-    sendServiceAssignment,
-    sendChecklistReminder,
-    sendCustodianInvitation,
-    sendTicketUpdate,
-    
-    // Estados
-    isSending: sendMessage.isPending || sendTemplate.isPending
-  };
-};
 ```
+
+### Categorías Meta
+
+- **UTILITY**: Templates transaccionales (notificaciones, confirmaciones, alertas)
+- **MARKETING**: Templates promocionales (requieren opt-in del usuario)
 
 ---
 
-## Fase 8: Actualización de config.toml
+## Componentes a Actualizar
 
-**Archivo:** `supabase/config.toml`
+Los siguientes componentes deberán integrarse con el hook `useKapsoWhatsApp`:
 
-Agregar las nuevas funciones:
-
-```toml
-[functions.kapso-send-message]
-verify_jwt = true
-
-[functions.kapso-send-template]
-verify_jwt = true
-
-[functions.kapso-webhook-receiver]
-verify_jwt = false  # Webhooks externos no tienen JWT
-```
+1. `PendingAssignmentModal.tsx` → `servicio_asignado`
+2. `ReassignmentModal.tsx` → `servicio_reasignado`
+3. `ChecklistAlertPanel.tsx` → `alerta_checklist_pendiente`
+4. `ChecklistDetailModal.tsx` → Recordatorios GPS
+5. `InvitationActionsDropdown.tsx` → `custodio_invitacion`
+6. `LiberacionSuccessModal.tsx` → `custodio_invitacion`
+7. `SendSIERCPDialog.tsx` → `siercp_invitacion`
+8. `BulkInvitationWizard.tsx` → Envío masivo
+9. `TicketsList.tsx` → Templates de tickets
+10. `LMSDashboard.tsx` → Recordatorios de cursos
 
 ---
 
-## Fase 9: Plan de Migración
+## Proceso de Aprobación en Meta
 
-### 9.1 Orden de Implementación
-
-**Semana 1: Infraestructura Base**
-1. Configurar secrets en Supabase (KAPSO_API_KEY, KAPSO_PHONE_NUMBER_ID)
-2. Crear migraciones SQL para nuevos campos
-3. Implementar `kapso-send-message` edge function
-4. Implementar `kapso-send-template` edge function
-5. Probar envío de mensajes desde edge function
-
-**Semana 2: Webhook y Bidireccionalidad**
-1. Implementar `kapso-webhook-receiver` edge function
-2. Configurar webhook URL en dashboard de Kapso
-3. Probar recepción de mensajes
-4. Implementar creación automática de tickets
-5. Probar flujo completo de conversación
-
-**Semana 3: Integración de Módulos**
-1. Crear hook `useKapsoWhatsApp`
-2. Actualizar `InvitationActionsDropdown`
-3. Actualizar `PendingAssignmentModal`
-4. Actualizar `ChecklistAlertPanel`
-5. Actualizar `LiberacionSuccessModal`
-
-**Semana 4: Templates y UI**
-1. Crear y enviar templates a aprobación de Meta
-2. Actualizar `WhatsAppManager` con configuración Kapso
-3. Crear UI para ver historial de mensajes
-4. Testing end-to-end de todos los flujos
-5. Documentación y capacitación
-
-### 9.2 Fallback durante Migración
-
-Durante la migración, mantener el sistema `wa.me` como fallback:
-
-```typescript
-const sendWhatsAppWithFallback = async (params) => {
-  try {
-    // Intentar con Kapso
-    await kapso.sendMessage(params);
-  } catch (error) {
-    console.warn('Kapso falló, usando fallback wa.me');
-    // Fallback a wa.me
-    const message = encodeURIComponent(params.text);
-    window.open(`https://wa.me/${params.to}?text=${message}`, '_blank');
-  }
-};
-```
+1. Crear templates en Meta Business Suite
+2. Esperar aprobación (24-48h típico)
+3. Configurar nombres en `DETECTA_TEMPLATE_NAMES`
+4. Probar desde Settings → WhatsApp Kapso
+5. Integrar en componentes
 
 ---
 
-## Resumen de Archivos a Crear/Modificar
+## Próximos Pasos
 
-### Archivos Nuevos (7)
-| Archivo | Propósito |
-|---------|-----------|
-| `supabase/functions/kapso-send-message/index.ts` | Envío de mensajes |
-| `supabase/functions/kapso-send-template/index.ts` | Envío de templates |
-| `supabase/functions/kapso-webhook-receiver/index.ts` | Recepción de mensajes |
-| `supabase/migrations/XXXXXX_kapso_integration.sql` | Cambios en BD |
-| `src/hooks/useKapsoWhatsApp.ts` | Hook centralizado |
-| `src/types/kapso.ts` | Tipos TypeScript |
-| `src/components/settings/KapsoConfig.tsx` | UI de configuración |
-
-### Archivos a Modificar (10)
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/config.toml` | Agregar nuevas funciones |
-| `src/components/admin/InvitationActionsDropdown.tsx` | Usar Kapso |
-| `src/components/planeacion/PendingAssignmentModal.tsx` | Usar Kapso |
-| `src/components/planeacion/ReassignmentModal.tsx` | Usar Kapso |
-| `src/components/liberacion/LiberacionSuccessModal.tsx` | Usar Kapso |
-| `src/components/monitoring/checklist/ChecklistAlertPanel.tsx` | Usar Kapso |
-| `src/components/monitoring/checklist/ChecklistDetailModal.tsx` | Usar Kapso |
-| `src/pages/PerfilesOperativos/components/CustodiosDataTable.tsx` | Usar Kapso |
-| `src/components/leads/approval/SendSIERCPDialog.tsx` | Usar Kapso |
-| `src/components/settings/WhatsAppManager.tsx` | Agregar config Kapso |
-
----
-
-## Verificación Post-Implementación
-
-### Tests a Realizar
-
-1. **Envío de mensaje de texto simple**
-2. **Envío de mensaje con imagen**
-3. **Envío de mensaje interactivo con botones**
-4. **Recepción de mensaje de custodio**
-5. **Click en botón interactivo y procesamiento**
-6. **Creación automática de ticket desde WhatsApp**
-7. **Vinculación de mensajes a ticket existente**
-8. **Envío de template aprobado**
-9. **Tracking de delivery status (delivered/read)**
-10. **Fallback a wa.me si Kapso falla**
-
-### Queries de Verificación
-
-```sql
--- Verificar mensajes enviados
-SELECT * FROM whatsapp_messages 
-WHERE is_from_bot = true 
-ORDER BY created_at DESC 
-LIMIT 10;
-
--- Verificar mensajes recibidos
-SELECT * FROM whatsapp_messages 
-WHERE is_from_bot = false 
-ORDER BY created_at DESC 
-LIMIT 10;
-
--- Verificar tickets creados desde WhatsApp
-SELECT * FROM tickets 
-WHERE source = 'whatsapp' 
-ORDER BY created_at DESC 
-LIMIT 10;
-
--- Verificar confirmaciones de servicio
-SELECT id, custodio_asignado, estado_confirmacion_custodio, fecha_confirmacion 
-FROM servicios_planificados 
-WHERE estado_confirmacion_custodio IS NOT NULL 
-ORDER BY fecha_confirmacion DESC 
-LIMIT 10;
-```
+1. Aprobar este diseño de templates
+2. Crear templates en dashboard de Meta/Kapso
+3. Actualizar `src/types/kapso.ts` con todos los nombres
+4. Extender `useKapsoWhatsApp` con helpers específicos
+5. Migrar cada componente a usar Kapso API
