@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,8 +17,32 @@ import {
   Loader2, 
   Shield, 
   AlertTriangle,
-  UserPlus
+  UserPlus,
+  Lock
 } from 'lucide-react';
+
+// Zod schema for input validation
+const registrationSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(100, 'El nombre no puede exceder 100 caracteres')
+    .regex(/^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]+$/, 'El nombre solo puede contener letras'),
+  email: z
+    .string()
+    .trim()
+    .email('Email inválido')
+    .max(255, 'El email no puede exceder 255 caracteres'),
+  password: z
+    .string()
+    .min(6, 'La contraseña debe tener al menos 6 caracteres')
+    .max(72, 'La contraseña no puede exceder 72 caracteres'), // bcrypt limit
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
+});
 
 export const CustodianSignup = () => {
   const [searchParams] = useSearchParams();
@@ -32,6 +57,7 @@ export const CustodianSignup = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   const { toast } = useToast();
   const { 
@@ -43,7 +69,7 @@ export const CustodianSignup = () => {
     useInvitation 
   } = useInvitationToken(token);
 
-  // Pre-fill form with invitation data
+  // Pre-fill form with invitation data (email is locked from invitation)
   useEffect(() => {
     if (prefillData) {
       if (prefillData.nombre) setName(prefillData.nombre);
@@ -51,22 +77,47 @@ export const CustodianSignup = () => {
     }
   }, [prefillData]);
 
+  // Clear validation errors when inputs change
+  useEffect(() => {
+    setValidationErrors({});
+  }, [name, email, password, confirmPassword]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setValidationErrors({});
     
-    if (password !== confirmPassword) {
+    // Validate with Zod
+    const result = registrationSchema.safeParse({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      confirmPassword,
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setValidationErrors(errors);
+      
+      // Show first error as toast
+      const firstError = result.error.errors[0];
       toast({
-        title: 'Error',
-        description: 'Las contraseñas no coinciden',
+        title: 'Error de validación',
+        description: firstError.message,
         variant: 'destructive',
       });
       return;
     }
 
-    if (password.length < 6) {
+    // Security check: Email must match invitation email
+    if (prefillData?.email && email.trim().toLowerCase() !== prefillData.email.toLowerCase()) {
       toast({
-        title: 'Error',
-        description: 'La contraseña debe tener al menos 6 caracteres',
+        title: 'Email no autorizado',
+        description: 'Debes usar el email asociado a tu invitación.',
         variant: 'destructive',
       });
       return;
@@ -75,20 +126,19 @@ export const CustodianSignup = () => {
     setLoading(true);
     
     try {
-      // Call edge function to create account via Admin API + send email via Resend
-      // This bypasses Supabase's native email rate limits
+      // Call edge function - DO NOT log password
       const { data, error } = await supabase.functions.invoke('create-custodian-account', {
         body: {
-          email,
-          password,
-          nombre: name,
+          email: email.trim().toLowerCase(),
+          password, // Not logged
+          nombre: name.trim(),
           invitationToken: token,
           telefono: prefillData?.telefono || '',
         }
       });
 
       if (error) {
-        console.error('[CustodianSignup] Edge function network error:', error);
+        console.error('[CustodianSignup] Edge function network error');
         toast({
           title: 'Error de Conexión',
           description: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
@@ -99,7 +149,7 @@ export const CustodianSignup = () => {
 
       // Handle response from edge function
       if (data?.error) {
-        console.error('[CustodianSignup] Edge function returned error:', data.error);
+        console.error('[CustodianSignup] Registration failed:', data.error);
         toast({
           title: 'Error en Registro',
           description: data.error,
@@ -108,12 +158,12 @@ export const CustodianSignup = () => {
         return;
       }
 
-      console.log('[CustodianSignup] Success, edge function version:', data?._version);
+      console.log('[CustodianSignup] Success, version:', data?._version);
 
       // Auto-login: user is already confirmed, sign them in directly
       if (data?.success && data?.autoLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password
         });
         
@@ -125,7 +175,7 @@ export const CustodianSignup = () => {
           navigate('/custodian/onboarding');
           return;
         } else {
-          console.error('Auto-login error:', signInError);
+          console.error('[CustodianSignup] Auto-login failed');
           // Account created but auto-login failed - redirect to login
           toast({
             title: 'Cuenta creada',
@@ -139,7 +189,7 @@ export const CustodianSignup = () => {
       // Fallback: show success message
       setRegistrationSuccess(true);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('[CustodianSignup] Unexpected error');
       toast({
         title: 'Error',
         description: 'Ocurrió un error inesperado durante el registro',
@@ -231,7 +281,7 @@ export const CustodianSignup = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+            <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
             <CardTitle className="mt-4">¡Cuenta Creada!</CardTitle>
             <CardDescription>
               Se ha enviado un email de confirmación a tu dirección de correo.
@@ -290,19 +340,42 @@ export const CustodianSignup = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                maxLength={100}
+                className={validationErrors.name ? 'border-destructive' : ''}
+                aria-invalid={!!validationErrors.name}
               />
+              {validationErrors.name && (
+                <p className="text-xs text-destructive">{validationErrors.name}</p>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  maxLength={255}
+                  readOnly={!!prefillData?.email}
+                  className={`${validationErrors.email ? 'border-destructive' : ''} ${prefillData?.email ? 'bg-muted pr-10' : ''}`}
+                  aria-invalid={!!validationErrors.email}
+                />
+                {prefillData?.email && (
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+              {prefillData?.email && (
+                <p className="text-xs text-muted-foreground">
+                  Este email está asociado a tu invitación y no puede modificarse.
+                </p>
+              )}
+              {validationErrors.email && (
+                <p className="text-xs text-destructive">{validationErrors.email}</p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -315,10 +388,17 @@ export const CustodianSignup = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                maxLength={72}
+                className={validationErrors.password ? 'border-destructive' : ''}
+                aria-invalid={!!validationErrors.password}
+                autoComplete="new-password"
               />
               <p className="text-xs text-muted-foreground">
                 Mínimo 6 caracteres
               </p>
+              {validationErrors.password && (
+                <p className="text-xs text-destructive">{validationErrors.password}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -331,7 +411,14 @@ export const CustodianSignup = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
+                maxLength={72}
+                className={validationErrors.confirmPassword ? 'border-destructive' : ''}
+                aria-invalid={!!validationErrors.confirmPassword}
+                autoComplete="new-password"
               />
+              {validationErrors.confirmPassword && (
+                <p className="text-xs text-destructive">{validationErrors.confirmPassword}</p>
+              )}
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
