@@ -177,14 +177,28 @@ export function DocumentUploadStep({
   }, [preview]);
 
   const handleSubmit = async () => {
-    if (!file || !fechaVigencia) return;
+    console.log('[DocumentUploadStep] Submit iniciado:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fechaVigencia,
+      tipoDocumento
+    });
+    
+    if (!file || !fechaVigencia) {
+      console.warn('[DocumentUploadStep] Faltan datos - archivo:', !!file, 'fecha:', !!fechaVigencia);
+      return;
+    }
     
     setUploadStatus('uploading');
     setErrorType(null);
     setErrorMessage(null);
     
+    console.log('[DocumentUploadStep] Llamando onUpload...');
+    
     try {
       await onUpload(file, fechaVigencia);
+      console.log('[DocumentUploadStep] Upload exitoso');
       setUploadStatus('success');
       
       // Limpiar estado después de mostrar éxito
@@ -198,7 +212,7 @@ export function DocumentUploadStep({
         setUploadStatus('idle');
       }, 2000);
     } catch (error) {
-      console.error('[DocumentUpload] Upload failed:', error);
+      console.error('[DocumentUploadStep] Upload failed:', error);
       setUploadStatus('error');
       
       const errorMsg = error instanceof Error ? error.message : '';
