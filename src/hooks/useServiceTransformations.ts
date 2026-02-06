@@ -11,6 +11,7 @@ export function useServiceTransformations() {
     return {
       id: servicio.id,
       id_servicio: servicio.folio,
+      id_interno_cliente: (servicio as any).id_interno_cliente, // Referencia cliente - crítico para facturación
       nombre_cliente: typeof servicio.cliente === 'string' 
         ? servicio.cliente 
         : servicio.cliente?.nombre || '',

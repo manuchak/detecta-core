@@ -364,6 +364,7 @@ export function ScheduledServicesTab() {
       const pendingService = servicioToPending({
         id: service.id,
         folio: service.id_servicio || service.id,
+        id_interno_cliente: service.id_interno_cliente, // Referencia cliente - crítico para facturación
         cliente: service.cliente_nombre || service.nombre_cliente || '',
         origen_texto: service.origen || '',
         destino_texto: service.destino || '',

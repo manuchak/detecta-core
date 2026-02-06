@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 export interface PendingService {
   id: string;
   id_servicio: string;
+  id_interno_cliente?: string; // Referencia cliente - crítico para facturación
   nombre_cliente: string;
   origen: string;
   destino: string;
@@ -53,6 +54,7 @@ export function usePendingServices(selectedDate: Date = new Date()) {
       const pendingServices: PendingService[] = (data || []).map(service => ({
         id: service.id,
         id_servicio: service.id_servicio,
+        id_interno_cliente: service.id_interno_cliente, // Referencia cliente
         nombre_cliente: service.nombre_cliente,
         origen: service.origen,
         destino: service.destino,

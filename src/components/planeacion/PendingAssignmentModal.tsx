@@ -512,19 +512,22 @@ export function PendingAssignmentModal({
 
   const handleEditServiceSave = async (id: string, data: Partial<EditableService>) => {
     try {
+      // Construir payload solo con campos definidos para evitar sobrescribir con undefined → NULL
+      const updatePayload: Record<string, any> = {};
+      
+      if (data.id_servicio !== undefined) updatePayload.id_servicio = data.id_servicio;
+      if (data.id_interno_cliente !== undefined) updatePayload.id_interno_cliente = data.id_interno_cliente;
+      if (data.nombre_cliente !== undefined) updatePayload.nombre_cliente = data.nombre_cliente;
+      if (data.origen !== undefined) updatePayload.origen = data.origen;
+      if (data.destino !== undefined) updatePayload.destino = data.destino;
+      if (data.fecha_hora_cita !== undefined) updatePayload.fecha_hora_cita = data.fecha_hora_cita;
+      if (data.tipo_servicio !== undefined) updatePayload.tipo_servicio = data.tipo_servicio;
+      if (data.requiere_armado !== undefined) updatePayload.requiere_armado = data.requiere_armado;
+      if (data.observaciones !== undefined) updatePayload.observaciones = data.observaciones;
+      
       const { error } = await supabase
         .from('servicios_planificados')
-        .update({
-          id_servicio: data.id_servicio,
-          id_interno_cliente: data.id_interno_cliente,
-          nombre_cliente: data.nombre_cliente,
-          origen: data.origen,
-          destino: data.destino,
-          fecha_hora_cita: data.fecha_hora_cita,
-          tipo_servicio: data.tipo_servicio,
-          requiere_armado: data.requiere_armado,
-          observaciones: data.observaciones
-        })
+        .update(updatePayload)
         .eq('id', id);
       
       if (error) throw error;
