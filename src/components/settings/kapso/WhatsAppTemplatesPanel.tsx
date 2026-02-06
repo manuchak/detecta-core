@@ -16,6 +16,17 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   Search, 
   RefreshCw, 
@@ -31,7 +42,8 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  CircleDot
+  CircleDot,
+  AlertTriangle
 } from 'lucide-react';
 import { useWhatsAppTemplatesAdmin } from '@/hooks/useWhatsAppTemplatesAdmin';
 import { TEMPLATE_CATEGORIES, WhatsAppTemplateRecord, MetaApprovalStatus, TemplateCategoryKey } from '@/types/kapso';
@@ -49,6 +61,9 @@ const categoryIcons: Record<TemplateCategoryKey, React.ReactNode> = {
   supply: <Users className="h-4 w-4" />
 };
 
+const EXPECTED_TEMPLATE_COUNT = 34;
+const VALID_CATEGORIES = ['servicios', 'checklist', 'tickets', 'onboarding', 'siercp', 'lms', 'leads', 'supply'];
+
 export const WhatsAppTemplatesPanel = () => {
   const {
     templates,
@@ -58,10 +73,21 @@ export const WhatsAppTemplatesPanel = () => {
     statusCounts,
     seedTemplates,
     isSeedingTemplates,
+    reseedTemplates,
+    isReseedingTemplates,
     updateStatus,
     sendTest,
     isSendingTest
   } = useWhatsAppTemplatesAdmin();
+
+  // Check if templates use legacy categories
+  const hasLegacyCategories = useMemo(() => {
+    if (templates.length === 0) return false;
+    const templatesWithValidCategories = templates.filter(t => 
+      VALID_CATEGORIES.includes(t.category)
+    );
+    return templatesWithValidCategories.length === 0 || templates.length !== EXPECTED_TEMPLATE_COUNT;
+  }, [templates]);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<MetaApprovalStatus | 'all'>('all');
@@ -153,8 +179,78 @@ export const WhatsAppTemplatesPanel = () => {
     );
   }
 
+  // Show reseed banner if legacy categories detected
+  const LegacyCategoriesBanner = () => {
+    if (!hasLegacyCategories) return null;
+
+    return (
+      <Card className="border-amber-500/50 bg-amber-500/10">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+              <div>
+                <p className="font-medium text-amber-700 dark:text-amber-400">
+                  Esquema de templates desactualizado
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Se detectaron {templates.length} templates con categorías antiguas. 
+                  Reinicializa para usar los 34 templates actuales.
+                </p>
+              </div>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+                  disabled={isReseedingTemplates}
+                >
+                  {isReseedingTemplates ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Reinicializando...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="h-4 w-4 mr-2" />
+                      Reinicializar 34 Templates
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Reinicializar todos los templates?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción eliminará los {templates.length} templates actuales y creará 
+                    los 34 templates del nuevo esquema con las categorías correctas.
+                    <br /><br />
+                    <strong>Esta acción no se puede deshacer.</strong>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => reseedTemplates()}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    Sí, reinicializar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      {/* Legacy Categories Banner */}
+      <LegacyCategoriesBanner />
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <Card className="p-3">

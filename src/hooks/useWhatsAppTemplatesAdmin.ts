@@ -37,27 +37,32 @@ export const useWhatsAppTemplatesAdmin = () => {
     }
   });
 
+  // Helper to generate template seeds
+  const generateTemplateSeeds = () => {
+    return Object.entries(TEMPLATE_CONFIGS).map(([key, config]) => {
+      const templateName = config.name as DetectaTemplateName;
+      const categoryKey = Object.entries(TEMPLATE_CATEGORIES).find(
+        ([_, cat]) => (cat.templates as readonly string[]).includes(templateName)
+      )?.[0] || 'servicios';
+
+      return {
+        name: config.name,
+        content: TEMPLATE_CONTENT[templateName] || '',
+        category: categoryKey,
+        meta_status: 'not_submitted',
+        meta_category: config.category,
+        variable_count: config.variableCount,
+        has_buttons: config.hasButtons,
+        button_count: config.buttonCount || 0,
+        is_active: true
+      };
+    });
+  };
+
   // Seed templates if none exist
   const seedTemplatesMutation = useMutation({
     mutationFn: async () => {
-      const templateSeeds = Object.entries(TEMPLATE_CONFIGS).map(([key, config]) => {
-        const templateName = config.name as DetectaTemplateName;
-        const categoryKey = Object.entries(TEMPLATE_CATEGORIES).find(
-          ([_, cat]) => (cat.templates as readonly string[]).includes(templateName)
-        )?.[0] || 'servicios';
-
-        return {
-          name: config.name,
-          content: TEMPLATE_CONTENT[templateName] || '',
-          category: categoryKey,
-          meta_status: 'not_submitted',
-          meta_category: config.category,
-          variable_count: config.variableCount,
-          has_buttons: config.hasButtons,
-          button_count: config.buttonCount || 0,
-          is_active: true
-        };
-      });
+      const templateSeeds = generateTemplateSeeds();
 
       // Check if templates already exist
       const { data: existing } = await supabase
@@ -86,6 +91,42 @@ export const useWhatsAppTemplatesAdmin = () => {
     onError: (error: Error) => {
       toast({
         title: 'Error al sembrar templates',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Reseed templates (delete all and recreate)
+  const reseedTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      // Delete all existing templates
+      const { error: deleteError } = await supabase
+        .from('whatsapp_templates')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+
+      if (deleteError) throw deleteError;
+
+      // Insert new templates
+      const templateSeeds = generateTemplateSeeds();
+      const { error: insertError } = await supabase
+        .from('whatsapp_templates')
+        .insert(templateSeeds);
+
+      if (insertError) throw insertError;
+      return templateSeeds.length;
+    },
+    onSuccess: (count) => {
+      toast({
+        title: 'Templates reinicializados',
+        description: `Se eliminaron los templates antiguos y se crearon ${count} nuevos templates`
+      });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates-admin'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error al reinicializar templates',
         description: error.message,
         variant: 'destructive'
       });
@@ -234,6 +275,8 @@ export const useWhatsAppTemplatesAdmin = () => {
     statusCounts,
     seedTemplates: seedTemplatesMutation.mutate,
     isSeedingTemplates: seedTemplatesMutation.isPending,
+    reseedTemplates: reseedTemplatesMutation.mutate,
+    isReseedingTemplates: reseedTemplatesMutation.isPending,
     updateStatus: updateStatusMutation.mutate,
     isUpdatingStatus: updateStatusMutation.isPending,
     sendTest: sendTestMutation.mutateAsync,
