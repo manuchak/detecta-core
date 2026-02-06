@@ -232,12 +232,18 @@ serve(async (req) => {
       // Detectar errores específicos de WhatsApp
       const errorMessage = kapsoData.error || kapsoData.message || '';
       
-      // Error de ventana de 24 horas - las credenciales son válidas
+      // Error de ventana de 24 horas - las credenciales son válidas, retornar 200 con flag
       if (errorMessage.includes('24-hour') || errorMessage.includes('template')) {
-        throw new Error(
-          `WHATSAPP_24H_RULE: ${errorMessage}. ` +
-          `Las credenciales son válidas pero se requiere un template para iniciar conversaciones.`
-        );
+        console.log('✅ Credenciales válidas - Error de regla 24h de WhatsApp (esperado para test)');
+        return new Response(JSON.stringify({
+          success: true,
+          credentials_valid: true,
+          message_sent: false,
+          whatsapp_24h_rule: true,
+          info: 'Las credenciales son válidas. Para enviar mensajes se requieren templates aprobados por WhatsApp (regla de 24 horas).'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       
       throw new Error(kapsoData.error?.message || kapsoData.error || `Error de Kapso: ${kapsoResponse.status}`);
