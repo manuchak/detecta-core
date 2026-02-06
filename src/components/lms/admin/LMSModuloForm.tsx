@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles, BookOpen, Clock } from "lucide-react";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { toast } from "sonner";
 
 interface ModuloFormData {
@@ -52,24 +53,38 @@ export function LMSModuloForm({
   onSubmit,
   isLoading = false
 }: LMSModuloFormProps) {
-  const [formData, setFormData] = useState<ModuloFormData>({
-    titulo: "",
-    descripcion: "",
-    orden: nextOrden,
-    activo: true
+  // Light persistence for module form
+  const persistence = useFormPersistence<ModuloFormData>({
+    key: `lms_modulo_${cursoId}_${modulo?.id || 'new'}`,
+    initialData: {
+      titulo: "",
+      descripcion: "",
+      orden: nextOrden,
+      activo: true
+    },
+    level: 'light',
+    isMeaningful: (data) => !!(data.titulo || data.descripcion),
   });
+
+  const [formData, setFormData] = useState<ModuloFormData>(persistence.data);
 
   const { generateCourseMetadata, loading: aiLoading } = useLMSAI();
 
+  // Sync to persistence
+  useEffect(() => {
+    persistence.updateData(formData);
+  }, [formData]);
+
   useEffect(() => {
     if (modulo) {
-      setFormData({
+      const data = {
         titulo: modulo.titulo,
         descripcion: modulo.descripcion || "",
         orden: modulo.orden,
         activo: modulo.activo
-      });
-    } else {
+      };
+      setFormData(data);
+    } else if (open && !persistence.hasDraft) {
       setFormData({
         titulo: "",
         descripcion: "",
@@ -77,7 +92,7 @@ export function LMSModuloForm({
         activo: true
       });
     }
-  }, [modulo, nextOrden, open]);
+  }, [modulo, nextOrden, open, persistence.hasDraft]);
 
   const handleGenerateWithAI = async () => {
     if (!formData.titulo || formData.titulo.length < 3) {
@@ -102,6 +117,7 @@ export function LMSModuloForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit(formData);
+    persistence.clearDraft(true);
   };
 
   const isEditing = !!modulo;

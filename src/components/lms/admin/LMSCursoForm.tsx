@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLMSCrearCurso, useLMSActualizarCurso } from "@/hooks/lms/useLMSAdminCursos";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { DraftRestoreBanner } from "@/components/ui/DraftAutoRestorePrompt";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
 import type { LMSCurso, CursoFormData, LMSCategoria, LMSNivel } from "@/types/lms";
 
@@ -66,6 +69,15 @@ export function LMSCursoForm({ curso, onBack, onSuccess }: LMSCursoFormProps) {
   const actualizarCurso = useLMSActualizarCurso();
   const isEditing = !!curso;
 
+  // Standard persistence for form (only for new courses)
+  const persistence = useFormPersistence<Partial<CursoSchemaType>>({
+    key: curso ? `lms_curso_edit_${curso.id}` : 'lms_curso_new',
+    initialData: {},
+    level: 'standard',
+    ttl: 2 * 60 * 60 * 1000, // 2 hours
+    isMeaningful: (data) => !!(data.titulo || data.codigo || data.descripcion),
+  });
+
   const form = useForm<CursoSchemaType>({
     resolver: zodResolver(cursoSchema),
     defaultValues: {
@@ -83,6 +95,22 @@ export function LMSCursoForm({ curso, onBack, onSuccess }: LMSCursoFormProps) {
       publicado: curso?.publicado || false,
     },
   });
+
+  // Sync form to persistence
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      persistence.updateData(values as Partial<CursoSchemaType>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, persistence.updateData]);
+
+  // Handle restore
+  const handleRestoreDraft = () => {
+    if (persistence.pendingRestore?.data) {
+      form.reset({ ...form.getValues(), ...persistence.pendingRestore.data });
+      persistence.acceptRestore();
+    }
+  };
 
   const isSubmitting = crearCurso.isPending || actualizarCurso.isPending;
 
@@ -108,6 +136,7 @@ export function LMSCursoForm({ curso, onBack, onSuccess }: LMSCursoFormProps) {
       } else {
         await crearCurso.mutateAsync(formData);
       }
+      persistence.clearDraft(true);
       onSuccess?.();
       onBack();
     } catch (error) {
@@ -126,6 +155,18 @@ export function LMSCursoForm({ curso, onBack, onSuccess }: LMSCursoFormProps) {
 
   return (
     <div className="space-y-6">
+      {/* Draft restore banner */}
+      {!isEditing && (
+        <DraftRestoreBanner
+          visible={persistence.showRestorePrompt}
+          savedAt={persistence.pendingRestore?.savedAt ? new Date(persistence.pendingRestore.savedAt) : null}
+          previewText={persistence.pendingRestore?.data?.titulo}
+          moduleName="Curso"
+          onRestore={handleRestoreDraft}
+          onDiscard={persistence.rejectRestore}
+        />
+      )}
+
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />

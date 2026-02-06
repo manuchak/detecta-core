@@ -2,13 +2,15 @@
  * AplicarSancionModal - Modal for applying sanctions to operatives
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { addDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertTriangle, Shield } from 'lucide-react';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +73,14 @@ export function AplicarSancionModal({
   
   const [selectedSancion, setSelectedSancion] = useState<CatalogoSancion | null>(null);
   
+  // Light persistence
+  const persistence = useFormPersistence<Partial<FormData>>({
+    key: `aplicar_sancion_${operativo.id}`,
+    initialData: {},
+    level: 'light',
+    isMeaningful: (data) => !!(data.sancionId || data.notas),
+  });
+  
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -80,6 +90,14 @@ export function AplicarSancionModal({
       notas: '',
     },
   });
+
+  // Sync form to persistence
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      persistence.updateData(values as Partial<FormData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, persistence.updateData]);
 
   const diasSuspension = form.watch('diasSuspension');
   const fechaInicio = new Date();
@@ -106,6 +124,7 @@ export function AplicarSancionModal({
       notas: data.notas,
     }, {
       onSuccess: () => {
+        persistence.clearDraft(true);
         onOpenChange(false);
         form.reset();
         setSelectedSancion(null);

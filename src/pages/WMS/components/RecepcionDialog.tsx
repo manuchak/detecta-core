@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useRecepciones } from '@/hooks/useRecepciones';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { cn } from '@/lib/utils';
 import type { OrdenCompra } from '@/types/wms';
 
@@ -37,12 +38,28 @@ export const RecepcionDialog = ({ open, onOpenChange, ordenes }: RecepcionDialog
   const [selectedOrden, setSelectedOrden] = useState<OrdenCompra | null>(null);
   const { crearRecepcion } = useRecepciones();
 
+  // Standard persistence for form
+  const persistence = useFormPersistence<Partial<RecepcionFormData>>({
+    key: 'wms_recepcion_dialog',
+    initialData: {},
+    level: 'standard',
+    isMeaningful: (data) => !!(data.proveedor_id || data.observaciones),
+  });
+
   const form = useForm<RecepcionFormData>({
     resolver: zodResolver(recepcionSchema),
     defaultValues: {
       observaciones: '',
     },
   });
+
+  // Sync to persistence
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      persistence.updateData(values as Partial<RecepcionFormData>);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, persistence.updateData]);
 
   const onSubmit = async (data: RecepcionFormData) => {
     try {
@@ -55,6 +72,7 @@ export const RecepcionDialog = ({ open, onOpenChange, ordenes }: RecepcionDialog
       };
 
       await crearRecepcion.mutateAsync(recepcionData);
+      persistence.clearDraft(true);
       form.reset();
       setSelectedOrden(null);
       onOpenChange(false);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
 import { Phone, Mail, Users, HandCoins, AlertTriangle, Save } from 'lucide-react';
 import { AgingData, useCreateSeguimiento } from '../../hooks/useCuentasPorCobrar';
 import { useQueryClient } from '@tanstack/react-query';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { toast } from 'sonner';
 
 interface SeguimientoCobranzaModalProps {
@@ -52,16 +53,38 @@ export function SeguimientoCobranzaModal({
   const { createSeguimiento } = useCreateSeguimiento();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [formData, setFormData] = useState({
-    tipo_accion: 'llamada',
-    descripcion: '',
-    contacto_nombre: '',
-    contacto_telefono: '',
-    resultado: '',
-    fecha_promesa_pago: '',
-    monto_prometido: '',
-    proxima_accion: '',
+  // Standard persistence
+  const persistence = useFormPersistence<{
+    tipo_accion: string;
+    descripcion: string;
+    contacto_nombre: string;
+    contacto_telefono: string;
+    resultado: string;
+    fecha_promesa_pago: string;
+    monto_prometido: string;
+    proxima_accion: string;
+  }>({
+    key: `seguimiento_cobranza_${cliente?.cliente_id || 'new'}`,
+    initialData: {
+      tipo_accion: 'llamada',
+      descripcion: '',
+      contacto_nombre: '',
+      contacto_telefono: '',
+      resultado: '',
+      fecha_promesa_pago: '',
+      monto_prometido: '',
+      proxima_accion: '',
+    },
+    level: 'standard',
+    isMeaningful: (data) => !!(data.descripcion || data.contacto_nombre),
   });
+
+  const [formData, setFormData] = useState(persistence.data);
+
+  // Sync to persistence
+  useEffect(() => {
+    persistence.updateData(formData);
+  }, [formData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +108,7 @@ export function SeguimientoCobranzaModal({
 
       toast.success('Seguimiento registrado correctamente');
       queryClient.invalidateQueries({ queryKey: ['cobranza-seguimiento'] });
+      persistence.clearDraft(true);
       onOpenChange(false);
       
       // Reset form
@@ -110,7 +134,9 @@ export function SeguimientoCobranzaModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Registrar Seguimiento de Cobranza</DialogTitle>
+          <DialogTitle>
+            Registrar Seguimiento de Cobranza
+          </DialogTitle>
           <DialogDescription>
             {cliente?.cliente_nombre} - Saldo: ${cliente?.saldo_pendiente?.toLocaleString('es-MX') || 0}
           </DialogDescription>

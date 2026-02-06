@@ -146,13 +146,23 @@ export function DraftAutoRestorePrompt({
 /**
  * Inline variant for embedding in forms/dialogs
  */
+interface DraftRestoreBannerProps {
+  visible: boolean;
+  savedAt: Date | null;
+  previewText?: string;
+  moduleName?: string;
+  onRestore: () => void;
+  onDiscard: () => void;
+}
+
 export function DraftRestoreBanner({
   visible,
   savedAt,
   previewText,
+  moduleName,
   onRestore,
   onDiscard,
-}: Omit<DraftAutoRestorePromptProps, 'moduleName' | 'onDismiss' | 'position' | 'className'>) {
+}: DraftRestoreBannerProps) {
   if (!visible) return null;
 
   const timeAgo = savedAt
@@ -167,7 +177,7 @@ export function DraftRestoreBanner({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-            Borrador encontrado
+            {moduleName || 'Borrador encontrado'}
           </p>
           <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
             Guardado {timeAgo}
@@ -197,6 +207,31 @@ export function DraftRestoreBanner({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Small indicator showing when draft was last saved.
+ * Use in dialog/form headers.
+ */
+interface DraftIndicatorProps {
+  lastSaved: Date | null;
+  className?: string;
+}
+
+export function DraftIndicator({ lastSaved, className }: DraftIndicatorProps) {
+  if (!lastSaved) return null;
+  
+  const timeAgo = formatDistanceToNow(lastSaved, { addSuffix: true, locale: es });
+  
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 text-xs text-muted-foreground font-normal",
+      className
+    )}>
+      <Clock className="h-3 w-3" />
+      <span className="hidden sm:inline">Guardado {timeAgo}</span>
+    </span>
   );
 }
 
