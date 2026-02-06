@@ -46,6 +46,12 @@ export interface FormPersistenceOptions<T extends FieldValues> {
   
   /** Calculate progress score for comparing drafts (robust level only) */
   calculateProgress?: (data: T) => number;
+  
+  /** Generate preview text for draft prompt */
+  getPreviewText?: (data: T) => string;
+  
+  /** Module name for display in restore prompt */
+  moduleName?: string;
 }
 
 export interface FormPersistenceReturn<T> {
@@ -87,9 +93,32 @@ export interface FormPersistenceReturn<T> {
   
   /** Progress score (robust level) */
   progressScore: number;
+  
+  // ==================== NEW: Auto-restore prompt support ====================
+  
+  /** Whether there's a pending restore prompt to show */
+  showRestorePrompt: boolean;
+  
+  /** The pending draft data waiting for user decision */
+  pendingRestore: StoredDraft<T> | null;
+  
+  /** Accept the pending restore - applies the draft data */
+  acceptRestore: () => void;
+  
+  /** Reject the pending restore - clears it and starts fresh */
+  rejectRestore: () => void;
+  
+  /** Dismiss the prompt without action (hides but doesn't clear) */
+  dismissRestorePrompt: () => void;
+  
+  /** Preview text for the draft */
+  previewText: string;
+  
+  /** Module name for display */
+  moduleName: string;
 }
 
-interface StoredDraft<T> {
+export interface StoredDraft<T> {
   data: T;
   savedAt: string;
   draftId?: string;
@@ -101,9 +130,10 @@ interface StoredDraft<T> {
 // CONSTANTS
 // =============================================================================
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2; // Bumped for dual-backup support
 const DEFAULT_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_DEBOUNCE = 800; // ms
+const SESSION_BACKUP_SUFFIX = '_session_backup';
 
 // =============================================================================
 // UTILITY FUNCTIONS
@@ -165,6 +195,8 @@ export function useFormPersistence<T extends FieldValues>(
     form,
     enableUrlParams = level === 'robust',
     calculateProgress = () => 0,
+    getPreviewText = () => '',
+    moduleName = 'Formulario',
   } = options;
 
   // State
@@ -174,6 +206,11 @@ export function useFormPersistence<T extends FieldValues>(
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [progressScore, setProgressScore] = useState(0);
+  
+  // NEW: Auto-restore prompt states
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<StoredDraft<T> | null>(null);
+  const [previewText, setPreviewText] = useState('');
   
   // Refs for avoiding stale closures
   const dataRef = useRef(data);
@@ -188,25 +225,53 @@ export function useFormPersistence<T extends FieldValues>(
   }, [data, calculateProgress]);
 
   // ==========================================================================
-  // STORAGE OPERATIONS
+  // STORAGE OPERATIONS (with dual backup)
   // ==========================================================================
+
+  const getSessionBackupKey = useCallback(() => {
+    return `${key}${SESSION_BACKUP_SUFFIX}`;
+  }, [key]);
+
+  const clearBothStorages = useCallback(() => {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(getSessionBackupKey());
+    } catch (e) {
+      console.warn(`[useFormPersistence] Failed to clear storages for key "${key}":`, e);
+    }
+  }, [key, getSessionBackupKey]);
 
   const loadFromStorage = useCallback((): StoredDraft<T> | null => {
     try {
-      const stored = localStorage.getItem(key);
+      // Try localStorage first (persistent across sessions)
+      let stored = localStorage.getItem(key);
+      
+      // NEW: Fallback to sessionStorage backup (survives navigation within session)
+      if (!stored) {
+        stored = sessionStorage.getItem(getSessionBackupKey());
+        if (stored) {
+          console.log(`[useFormPersistence] Restored from session backup: ${key}`);
+        }
+      }
+      
       if (!stored) return null;
       
       const parsed: StoredDraft<T> = JSON.parse(stored);
       
       // Check version compatibility
       if (parsed.version !== STORAGE_VERSION) {
-        localStorage.removeItem(key);
-        return null;
+        // Try to migrate from v1 to v2
+        if (parsed.version === 1) {
+          parsed.version = STORAGE_VERSION;
+        } else {
+          clearBothStorages();
+          return null;
+        }
       }
       
       // Check TTL
       if (isExpired(parsed.savedAt, ttl)) {
-        localStorage.removeItem(key);
+        clearBothStorages();
         return null;
       }
       
@@ -215,7 +280,7 @@ export function useFormPersistence<T extends FieldValues>(
       console.warn(`[useFormPersistence] Failed to load draft for key "${key}":`, e);
       return null;
     }
-  }, [key, ttl]);
+  }, [key, ttl, getSessionBackupKey, clearBothStorages]);
 
   const saveToStorage = useCallback((dataToSave: T, forceDraftId?: string) => {
     if (!enabled || !isMeaningful(dataToSave)) {
@@ -232,7 +297,11 @@ export function useFormPersistence<T extends FieldValues>(
         version: STORAGE_VERSION,
       };
       
-      localStorage.setItem(key, JSON.stringify(draft));
+      // NEW: Dual backup - save to both localStorage and sessionStorage
+      const draftString = JSON.stringify(draft);
+      localStorage.setItem(key, draftString);
+      sessionStorage.setItem(getSessionBackupKey(), draftString);
+      
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       setHasDraft(true);
@@ -254,14 +323,16 @@ export function useFormPersistence<T extends FieldValues>(
     } catch (e) {
       console.warn(`[useFormPersistence] Failed to save draft for key "${key}":`, e);
     }
-  }, [key, draftId, isMeaningful, onSave, enableUrlParams, level, calculateProgress]);
+  }, [key, draftId, isMeaningful, onSave, enableUrlParams, level, calculateProgress, getSessionBackupKey, enabled]);
 
   const clearFromStorage = useCallback((hard = false) => {
     try {
-      localStorage.removeItem(key);
+      clearBothStorages();
       setHasDraft(false);
       setHasUnsavedChanges(false);
       setLastSaved(null);
+      setPendingRestore(null);
+      setShowRestorePrompt(false);
       
       if (hard) {
         setDraftId(null);
@@ -277,7 +348,7 @@ export function useFormPersistence<T extends FieldValues>(
     } catch (e) {
       console.warn(`[useFormPersistence] Failed to clear draft for key "${key}":`, e);
     }
-  }, [key, enableUrlParams, level]);
+  }, [clearBothStorages, enableUrlParams, level, key]);
 
   // ==========================================================================
   // DEBOUNCED SAVE
@@ -328,6 +399,8 @@ export function useFormPersistence<T extends FieldValues>(
       setLastSaved(new Date(stored.savedAt));
       setHasDraft(true);
       setHasUnsavedChanges(false);
+      setPendingRestore(null);
+      setShowRestorePrompt(false);
       
       // Sync with react-hook-form if provided
       if (form) {
@@ -367,7 +440,46 @@ export function useFormPersistence<T extends FieldValues>(
   }, [hasUnsavedChanges, hasDraft]);
 
   // ==========================================================================
-  // INITIALIZATION
+  // NEW: AUTO-RESTORE PROMPT HANDLERS
+  // ==========================================================================
+
+  const acceptRestore = useCallback(() => {
+    if (!pendingRestore) return;
+    
+    const validatedData = validateConsistency(pendingRestore.data);
+    setDataInternal(validatedData);
+    setDraftId(pendingRestore.draftId || null);
+    setLastSaved(new Date(pendingRestore.savedAt));
+    setHasDraft(true);
+    setHasUnsavedChanges(false);
+    setPendingRestore(null);
+    setShowRestorePrompt(false);
+    
+    // Sync with react-hook-form if provided
+    if (form) {
+      form.reset(validatedData);
+    }
+    
+    onRestore?.(validatedData);
+    console.log(`[useFormPersistence] Draft restored via prompt: ${key}`);
+  }, [pendingRestore, validateConsistency, form, onRestore, key]);
+
+  const rejectRestore = useCallback(() => {
+    clearBothStorages();
+    setPendingRestore(null);
+    setShowRestorePrompt(false);
+    setHasDraft(false);
+    console.log(`[useFormPersistence] Draft rejected via prompt: ${key}`);
+  }, [clearBothStorages, key]);
+
+  const dismissRestorePrompt = useCallback(() => {
+    setShowRestorePrompt(false);
+    // Don't clear pendingRestore - user might want to restore later
+    console.log(`[useFormPersistence] Prompt dismissed: ${key}`);
+  }, [key]);
+
+  // ==========================================================================
+  // INITIALIZATION WITH ORPHAN DRAFT DETECTION
   // ==========================================================================
 
   useEffect(() => {
@@ -377,25 +489,61 @@ export function useFormPersistence<T extends FieldValues>(
     // Check for existing draft
     const stored = loadFromStorage();
     
-    if (stored) {
+    if (stored && isMeaningful(stored.data)) {
       // For robust level with URL params, check if URL draft matches
       if (enableUrlParams && level === 'robust') {
         const urlParams = new URLSearchParams(window.location.search);
         const urlDraftId = urlParams.get('draft');
         
-        if (urlDraftId && stored.draftId && urlDraftId !== stored.draftId) {
-          // URL draft doesn't match stored draft, prefer URL
-          // In a real scenario, you might fetch from server or handle differently
-          console.log('[useFormPersistence] URL draft ID mismatch, using stored draft');
+        // If URL has a draft param that matches, auto-restore
+        if (urlDraftId && stored.draftId === urlDraftId) {
+          const validatedData = validateConsistency(stored.data);
+          setDataInternal(validatedData);
+          setDraftId(stored.draftId || null);
+          setLastSaved(new Date(stored.savedAt));
+          setHasDraft(true);
+          setProgressScore(stored.progressScore || 0);
+          
+          if (form) {
+            form.reset(validatedData);
+          }
+          
+          onRestore?.(validatedData);
+          console.log(`[useFormPersistence] Auto-restored via URL match: ${key}`);
+          return;
+        }
+        
+        // NEW: Orphan draft detection - draft exists but no URL param
+        if (!urlDraftId && stored.draftId) {
+          // Show restore prompt instead of auto-restoring
+          setPendingRestore(stored);
+          setPreviewText(getPreviewText(stored.data));
+          setShowRestorePrompt(true);
+          setHasDraft(true);
+          setLastSaved(new Date(stored.savedAt));
+          console.log(`[useFormPersistence] Orphan draft detected, showing prompt: ${key}`);
+          return;
         }
       }
       
+      // For standard level: show prompt for meaningful drafts
+      if (level === 'standard') {
+        setPendingRestore(stored);
+        setPreviewText(getPreviewText(stored.data));
+        setShowRestorePrompt(true);
+        setHasDraft(true);
+        setLastSaved(new Date(stored.savedAt));
+        console.log(`[useFormPersistence] Draft found (standard), showing prompt: ${key}`);
+        return;
+      }
+      
+      // For light level or if URL matches: auto-restore silently
       setHasDraft(true);
       setLastSaved(new Date(stored.savedAt));
       setDraftId(stored.draftId || null);
       setProgressScore(stored.progressScore || 0);
       
-      // Auto-restore for standard and robust levels
+      // Auto-restore for standard and robust levels (when conditions above don't apply)
       if (level !== 'light') {
         const validatedData = validateConsistency(stored.data);
         setDataInternal(validatedData);
@@ -407,7 +555,7 @@ export function useFormPersistence<T extends FieldValues>(
         onRestore?.(validatedData);
       }
     }
-  }, [loadFromStorage, validateConsistency, form, onRestore, enableUrlParams, level]);
+  }, [loadFromStorage, validateConsistency, form, onRestore, enableUrlParams, level, key, isMeaningful, getPreviewText]);
 
   // ==========================================================================
   // REACT-HOOK-FORM SYNC
@@ -547,6 +695,14 @@ export function useFormPersistence<T extends FieldValues>(
     confirmDiscard,
     draftId,
     progressScore,
+    // NEW: Auto-restore prompt support
+    showRestorePrompt,
+    pendingRestore,
+    acceptRestore,
+    rejectRestore,
+    dismissRestorePrompt,
+    previewText,
+    moduleName,
   };
 }
 

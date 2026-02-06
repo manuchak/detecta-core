@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ServiceCreationSidebar from './ServiceCreationSidebar';
-import { useServiceCreation, ServiceCreationProvider } from './hooks/useServiceCreation';
+import { useServiceCreation, ServiceCreationProvider, getPreviewText } from './hooks/useServiceCreation';
+import { DraftAutoRestorePrompt } from '@/components/ui/DraftAutoRestorePrompt';
 
 // Step components
 import RouteStepPlaceholder from './steps/RouteStep';
@@ -14,7 +15,17 @@ import ConfirmationStepPlaceholder from './steps/ConfirmationStep';
 
 function ServiceCreationContent() {
   const navigate = useNavigate();
-  const { currentStep, formData, completedSteps } = useServiceCreation();
+  const { 
+    currentStep, 
+    formData, 
+    completedSteps,
+    // Orphan draft restore
+    showRestorePrompt,
+    pendingRestore,
+    acceptRestore,
+    rejectRestore,
+    dismissRestorePrompt,
+  } = useServiceCreation();
 
   const renderCurrentStep = () => {
     switch (currentStep) {
@@ -32,6 +43,16 @@ function ServiceCreationContent() {
         return <RouteStepPlaceholder />;
     }
   };
+
+  // Get preview text for restore prompt
+  const previewText = pendingRestore?.formData 
+    ? getPreviewText(pendingRestore.formData) 
+    : '';
+  
+  // Get saved at date for restore prompt
+  const savedAt = pendingRestore?.savedAt 
+    ? new Date(pendingRestore.savedAt) 
+    : null;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-muted/30">
@@ -70,6 +91,17 @@ function ServiceCreationContent() {
           </main>
         </div>
       </div>
+
+      {/* Orphan Draft Restore Prompt */}
+      <DraftAutoRestorePrompt
+        visible={showRestorePrompt}
+        savedAt={savedAt}
+        previewText={previewText}
+        moduleName="Creación de Servicio"
+        onRestore={acceptRestore}
+        onDiscard={rejectRestore}
+        onDismiss={dismissRestorePrompt}
+      />
     </div>
   );
 }

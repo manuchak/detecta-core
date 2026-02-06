@@ -70,6 +70,14 @@ export interface ServiceFormData {
   horaEncuentro: string;
 }
 
+// Draft storage structure for orphan detection
+interface StoredDraft {
+  formData: Partial<ServiceFormData>;
+  completedSteps: StepId[];
+  savedAt: string;
+  version: number;
+}
+
 interface ServiceCreationContextValue {
   currentStep: StepId;
   goToStep: (step: StepId) => void;
@@ -84,11 +92,20 @@ interface ServiceCreationContextValue {
   draftId: string | null;
   clearDraft: () => void;
   isHydrated: boolean;
+  // NEW: Orphan draft restore support
+  showRestorePrompt: boolean;
+  pendingRestore: StoredDraft | null;
+  acceptRestore: () => void;
+  rejectRestore: () => void;
+  dismissRestorePrompt: () => void;
 }
 
 const ServiceCreationContext = createContext<ServiceCreationContextValue | null>(null);
 
 const STEP_ORDER: StepId[] = ['route', 'service', 'custodian', 'armed', 'confirmation'];
+const STORAGE_VERSION = 2; // Bumped for dual-backup support
+const DRAFT_KEY_PREFIX = 'service-draft-';
+const SESSION_BACKUP_SUFFIX = '_session_backup';
 
 const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   cliente: '',
@@ -150,6 +167,69 @@ function calculateProgressScore(data: Partial<ServiceFormData>, completedSteps?:
   return score;
 }
 
+// Check if draft has meaningful data worth saving
+function isMeaningfulDraft(data: Partial<ServiceFormData>): boolean {
+  return Boolean(data.cliente || data.origen || data.destino || data.clienteId);
+}
+
+// Generate preview text for orphan draft prompt
+function getPreviewText(data: Partial<ServiceFormData>): string {
+  if (data.cliente) return data.cliente;
+  if (data.origen && data.destino) return `${data.origen} → ${data.destino}`;
+  if (data.origen) return `Desde: ${data.origen}`;
+  return 'Servicio en progreso';
+}
+
+// Find orphan drafts (drafts without URL match)
+function findOrphanDraft(): { draftId: string; draft: StoredDraft } | null {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(DRAFT_KEY_PREFIX));
+    
+    for (const key of keys) {
+      const draftId = key.replace(DRAFT_KEY_PREFIX, '');
+      const stored = localStorage.getItem(key);
+      
+      if (stored) {
+        const parsed: StoredDraft = JSON.parse(stored);
+        
+        // Check TTL (24 hours)
+        const savedAt = new Date(parsed.savedAt);
+        const now = Date.now();
+        const TTL = 24 * 60 * 60 * 1000;
+        
+        if (now - savedAt.getTime() < TTL && isMeaningfulDraft(parsed.formData)) {
+          return { draftId, draft: parsed };
+        }
+      }
+    }
+    
+    // Also check sessionStorage backup
+    const sessionKeys = Object.keys(sessionStorage).filter(k => 
+      k.startsWith(DRAFT_KEY_PREFIX) && k.endsWith(SESSION_BACKUP_SUFFIX)
+    );
+    
+    for (const key of sessionKeys) {
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        const parsed: StoredDraft = JSON.parse(stored);
+        const draftId = key.replace(DRAFT_KEY_PREFIX, '').replace(SESSION_BACKUP_SUFFIX, '');
+        
+        const savedAt = new Date(parsed.savedAt);
+        const now = Date.now();
+        const TTL = 24 * 60 * 60 * 1000;
+        
+        if (now - savedAt.getTime() < TTL && isMeaningfulDraft(parsed.formData)) {
+          return { draftId, draft: parsed };
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[ServiceCreation] Error finding orphan draft:', e);
+  }
+  
+  return null;
+}
+
 export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -165,6 +245,11 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [draftId, setDraftId] = useState<string | null>(draftIdFromUrl);
   const [isHydrated, setIsHydrated] = useState(false);
+  
+  // NEW: Orphan draft restore states
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<StoredDraft | null>(null);
+  const [pendingDraftId, setPendingDraftId] = useState<string | null>(null);
   
   // Refs to avoid stale closures in event handlers
   const formDataRef = useRef(formData);
@@ -188,21 +273,27 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     setSearchParams(params, { replace: true });
   }, [currentStep, draftId, setSearchParams]);
 
-  // Internal save function (for silent autosave)
+  // Internal save function (for silent autosave) - NOW WITH DUAL BACKUP
   const saveDraftInternal = useCallback((options?: { silent?: boolean }) => {
     const currentFormData = formDataRef.current;
     const currentCompletedSteps = completedStepsRef.current;
     const currentDraftId = draftIdRef.current;
     
     const id = currentDraftId || crypto.randomUUID();
-    const draftData = {
+    const draftData: StoredDraft = {
       formData: currentFormData,
       completedSteps: currentCompletedSteps,
       savedAt: new Date().toISOString(),
+      version: STORAGE_VERSION,
     };
     
     try {
-      localStorage.setItem(`service-draft-${id}`, JSON.stringify(draftData));
+      const draftString = JSON.stringify(draftData);
+      const storageKey = `${DRAFT_KEY_PREFIX}${id}`;
+      
+      // DUAL BACKUP: Save to both localStorage and sessionStorage
+      localStorage.setItem(storageKey, draftString);
+      sessionStorage.setItem(`${storageKey}${SESSION_BACKUP_SUFFIX}`, draftString);
       
       if (!currentDraftId) {
         setDraftId(id);
@@ -220,7 +311,31 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Load from storage with fallback to session backup
+  const loadDraftFromStorage = useCallback((id: string): StoredDraft | null => {
+    try {
+      const storageKey = `${DRAFT_KEY_PREFIX}${id}`;
+      let stored = localStorage.getItem(storageKey);
+      
+      // Fallback to sessionStorage
+      if (!stored) {
+        stored = sessionStorage.getItem(`${storageKey}${SESSION_BACKUP_SUFFIX}`);
+        if (stored) {
+          console.log('[ServiceCreation] Restored from session backup');
+        }
+      }
+      
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error('[ServiceCreation] Error loading draft:', e);
+    }
+    return null;
+  }, []);
+
   // Load draft if draftId exists in URL - with cleanup to prevent race conditions
+  // OR detect orphan drafts
   useEffect(() => {
     let cancelled = false;
     let rafId: number | null = null;
@@ -229,36 +344,41 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       
       if (draftIdFromUrl && !isHydrated) {
-        const savedDraft = localStorage.getItem(`service-draft-${draftIdFromUrl}`);
-        if (savedDraft) {
-          try {
-            const parsed = JSON.parse(savedDraft);
-            const restoredFormData = parsed.formData || INITIAL_FORM_DATA;
-            
-            // Validate state consistency before restoring
-            const validatedFormData = validateFormDataConsistency(restoredFormData);
-            
-            if (!cancelled) {
-              setFormData(validatedFormData);
-              setCompletedSteps(parsed.completedSteps || []);
-              // ✅ Delay hydration flag to next tick to ensure formData has propagated
-              rafId = requestAnimationFrame(() => {
-                if (!cancelled) setIsHydrated(true);
-              });
-            }
-            toast.success('Borrador restaurado');
-          } catch (e) {
-            console.error('Error loading draft:', e);
+        // URL has draft ID - try to load it
+        const parsed = loadDraftFromStorage(draftIdFromUrl);
+        
+        if (parsed) {
+          const restoredFormData = parsed.formData || INITIAL_FORM_DATA;
+          
+          // Validate state consistency before restoring
+          const validatedFormData = validateFormDataConsistency(restoredFormData);
+          
+          if (!cancelled) {
+            setFormData(validatedFormData);
+            setCompletedSteps(parsed.completedSteps || []);
+            // Delay hydration flag to next tick to ensure formData has propagated
             rafId = requestAnimationFrame(() => {
               if (!cancelled) setIsHydrated(true);
             });
           }
+          toast.success('Borrador restaurado');
         } else {
           rafId = requestAnimationFrame(() => {
             if (!cancelled) setIsHydrated(true);
           });
         }
       } else if (!draftIdFromUrl && !cancelled) {
+        // NO URL draft ID - check for orphan drafts
+        const orphan = findOrphanDraft();
+        
+        if (orphan && isMeaningfulDraft(orphan.draft.formData)) {
+          // Found orphan draft - show restore prompt
+          setPendingRestore(orphan.draft);
+          setPendingDraftId(orphan.draftId);
+          setShowRestorePrompt(true);
+          console.log('[ServiceCreation] Orphan draft detected:', orphan.draftId);
+        }
+        
         rafId = requestAnimationFrame(() => {
           if (!cancelled) setIsHydrated(true);
         });
@@ -271,7 +391,44 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [draftIdFromUrl, isHydrated]);
+  }, [draftIdFromUrl, isHydrated, loadDraftFromStorage]);
+
+  // NEW: Accept orphan draft restore
+  const acceptRestore = useCallback(() => {
+    if (!pendingRestore || !pendingDraftId) return;
+    
+    const validatedFormData = validateFormDataConsistency(pendingRestore.formData);
+    setFormData(validatedFormData);
+    setCompletedSteps(pendingRestore.completedSteps || []);
+    setDraftId(pendingDraftId);
+    setPendingRestore(null);
+    setPendingDraftId(null);
+    setShowRestorePrompt(false);
+    
+    toast.success('Borrador restaurado');
+    console.log('[ServiceCreation] Orphan draft accepted:', pendingDraftId);
+  }, [pendingRestore, pendingDraftId]);
+
+  // NEW: Reject orphan draft restore
+  const rejectRestore = useCallback(() => {
+    if (pendingDraftId) {
+      // Clear the orphan draft from storage
+      const storageKey = `${DRAFT_KEY_PREFIX}${pendingDraftId}`;
+      localStorage.removeItem(storageKey);
+      sessionStorage.removeItem(`${storageKey}${SESSION_BACKUP_SUFFIX}`);
+      console.log('[ServiceCreation] Orphan draft rejected and cleared:', pendingDraftId);
+    }
+    
+    setPendingRestore(null);
+    setPendingDraftId(null);
+    setShowRestorePrompt(false);
+  }, [pendingDraftId]);
+
+  // NEW: Dismiss prompt without action
+  const dismissRestorePrompt = useCallback(() => {
+    setShowRestorePrompt(false);
+    // Keep pendingRestore in case user wants to restore later
+  }, []);
 
   // Auto-create draftId on first meaningful change
   const ensureDraftId = useCallback(() => {
@@ -335,40 +492,36 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     const handleVisibilityChange = () => {
       if (!document.hidden && draftIdRef.current) {
         // Tab became visible - check if storage has newer/more complete data
-        const savedDraft = localStorage.getItem(`service-draft-${draftIdRef.current}`);
-        if (savedDraft) {
-          try {
-            const parsed = JSON.parse(savedDraft);
-            const persistedData = parsed.formData || {};
-            const persistedCompleted: StepId[] = parsed.completedSteps || [];
+        const parsed = loadDraftFromStorage(draftIdRef.current);
+        
+        if (parsed) {
+          const persistedData = parsed.formData || {};
+          const persistedCompleted: StepId[] = parsed.completedSteps || [];
+          
+          // Calculate scores including completedSteps
+          const persistedScore = calculateProgressScore(persistedData, persistedCompleted);
+          const localScore = calculateProgressScore(formDataRef.current, completedStepsRef.current);
+          
+          // Check if persisted has steps missing from local memory
+          const missingSteps = persistedCompleted.filter(
+            step => !completedStepsRef.current.includes(step)
+          );
+          
+          // Reconcile if persisted has more progress OR has missing completed steps
+          if (persistedScore > localScore || missingSteps.length > 0) {
+            const validatedFormData = validateFormDataConsistency(persistedData);
+            setFormData(validatedFormData);
             
-            // Calculate scores including completedSteps
-            const persistedScore = calculateProgressScore(persistedData, persistedCompleted);
-            const localScore = calculateProgressScore(formDataRef.current, completedStepsRef.current);
+            // Merge completed steps to preserve any local ones + restore missing
+            const mergedSteps = [...new Set([...completedStepsRef.current, ...persistedCompleted])];
+            setCompletedSteps(mergedSteps);
             
-            // Check if persisted has steps missing from local memory
-            const missingSteps = persistedCompleted.filter(
-              step => !completedStepsRef.current.includes(step)
-            );
-            
-            // Reconcile if persisted has more progress OR has missing completed steps
-            if (persistedScore > localScore || missingSteps.length > 0) {
-              const validatedFormData = validateFormDataConsistency(persistedData);
-              setFormData(validatedFormData);
-              
-              // Merge completed steps to preserve any local ones + restore missing
-              const mergedSteps = [...new Set([...completedStepsRef.current, ...persistedCompleted])];
-              setCompletedSteps(mergedSteps);
-              
-              console.log('[ServiceCreation] Reconciled from storage', {
-                persistedScore,
-                localScore,
-                missingSteps,
-                mergedSteps
-              });
-            }
-          } catch (e) {
-            console.error('Error reconciling draft:', e);
+            console.log('[ServiceCreation] Reconciled from storage', {
+              persistedScore,
+              localScore,
+              missingSteps,
+              mergedSteps
+            });
           }
         }
       }
@@ -376,7 +529,7 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [loadDraftFromStorage]);
 
   const goToStep = useCallback((step: StepId) => {
     // Guard: redirect to confirmation if trying to access armed step without requirement
@@ -444,7 +597,9 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
   // Clear draft from localStorage after successful creation
   const clearDraft = useCallback(() => {
     if (draftIdRef.current) {
-      localStorage.removeItem(`service-draft-${draftIdRef.current}`);
+      const storageKey = `${DRAFT_KEY_PREFIX}${draftIdRef.current}`;
+      localStorage.removeItem(storageKey);
+      sessionStorage.removeItem(`${storageKey}${SESSION_BACKUP_SUFFIX}`);
       setDraftId(null);
       setHasUnsavedChanges(false);
       console.log('[ServiceCreation] Draft cleared after successful creation');
@@ -465,6 +620,12 @@ export function ServiceCreationProvider({ children }: { children: ReactNode }) {
     draftId,
     clearDraft,
     isHydrated,
+    // NEW: Orphan draft restore
+    showRestorePrompt,
+    pendingRestore,
+    acceptRestore,
+    rejectRestore,
+    dismissRestorePrompt,
   };
 
   return (
@@ -505,6 +666,9 @@ function validateFormDataConsistency(data: Partial<ServiceFormData>): Partial<Se
   
   return validated;
 }
+
+// Export preview text function for use in layout
+export { getPreviewText };
 
 export function useServiceCreation() {
   const context = useContext(ServiceCreationContext);

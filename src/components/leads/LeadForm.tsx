@@ -14,8 +14,9 @@ import { LeadEstado } from "@/types/leadTypes";
 import { useLeadsStable as useLeads } from "@/hooks/useLeadsStable";
 import { Lead } from "@/types/leadTypes";
 import { useToast } from "@/components/ui/use-toast";
-import { usePersistedForm } from "@/hooks/usePersistedForm";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useAuth } from "@/contexts/AuthContext";
+import { DraftRestoreBanner } from "@/components/ui/DraftAutoRestorePrompt";
 
 interface LeadFormData {
   nombre: string;
@@ -37,14 +38,18 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // Use persisted form for draft functionality
+  // Use persisted form for draft functionality (migrated to useFormPersistence)
   const {
-    formData,
-    updateFormData,
+    data: formData,
+    updateData: updateFormData,
     hasDraft,
     restoreDraft,
     clearDraft,
-  } = usePersistedForm<LeadFormData>({
+    showRestorePrompt,
+    acceptRestore,
+    rejectRestore,
+    lastSaved,
+  } = useFormPersistence<LeadFormData>({
     key: 'lead_form_draft',
     initialData: {
       nombre: "",
@@ -53,10 +58,13 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
       estado: "nuevo",
       notas: "",
     },
-    saveOnChangeDebounceMs: 1000,
-    isMeaningfulDraft: (data) => {
+    level: 'standard',
+    debounceMs: 1000,
+    isMeaningful: (data) => {
       return !!(data.nombre || data.email || data.telefono);
     },
+    moduleName: 'Formulario de Lead',
+    getPreviewText: (data) => data.nombre || data.email || 'Lead sin nombre',
   });
 
   useEffect(() => {
@@ -72,10 +80,7 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
   }, [editingLead]);
 
   const handleInputChange = (field: string, value: string) => {
-    updateFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    updateFormData({ [field]: value } as Partial<LeadFormData>);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +124,15 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Draft restore banner */}
+      <DraftRestoreBanner
+        visible={showRestorePrompt && !editingLead}
+        savedAt={lastSaved}
+        previewText={formData.nombre || formData.email}
+        onRestore={acceptRestore}
+        onDiscard={rejectRestore}
+      />
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="nombre">Nombre Completo *</Label>
