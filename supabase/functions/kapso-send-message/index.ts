@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const KAPSO_BASE_URL = 'https://api.kapso.ai/meta/whatsapp';
+const KAPSO_BASE_URL = 'https://api.kapso.ai/meta/whatsapp/v24.0';
 
 interface InteractiveButton {
   id: string;
@@ -200,7 +200,7 @@ serve(async (req) => {
     const kapsoResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${KAPSO_API_KEY}`,
+        'X-API-Key': KAPSO_API_KEY,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(messagePayload)
