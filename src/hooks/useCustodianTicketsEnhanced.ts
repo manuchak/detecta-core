@@ -186,21 +186,38 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
       let evidenciaUrls: string[] = [];
       if (evidencias && evidencias.length > 0) {
         for (const file of evidencias) {
-          const fileName = `${ticketNumber}/${Date.now()}-${file.name}`;
+          // Sanitizar nombre de archivo para evitar problemas con caracteres especiales
+          const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const fileName = `${ticketNumber}/${Date.now()}-${sanitizedName}`;
+          
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('ticket-evidencias')
-            .upload(fileName, file);
+            .upload(fileName, file, {
+              contentType: file.type || 'image/jpeg'
+            });
           
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
+            toast({
+              title: 'Advertencia',
+              description: `No se pudo subir: ${file.name}`,
+              variant: 'destructive'
+            });
             continue;
           }
           
-          const { data: urlData } = supabase.storage
+          // Verificar que el archivo existe antes de generar URL
+          const { data: fileCheck } = await supabase.storage
             .from('ticket-evidencias')
-            .getPublicUrl(uploadData.path);
+            .list(ticketNumber, { search: sanitizedName });
           
-          evidenciaUrls.push(urlData.publicUrl);
+          if (fileCheck && fileCheck.length > 0) {
+            const { data: urlData } = supabase.storage
+              .from('ticket-evidencias')
+              .getPublicUrl(uploadData.path);
+            
+            evidenciaUrls.push(urlData.publicUrl);
+          }
         }
       }
 
@@ -267,21 +284,38 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
       let adjuntosUrls: string[] = [];
       if (adjuntos && adjuntos.length > 0) {
         for (const file of adjuntos) {
-          const fileName = `${ticketId}/${Date.now()}-${file.name}`;
+          // Sanitizar nombre de archivo
+          const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+          const fileName = `${ticketId}/${Date.now()}-${sanitizedName}`;
+          
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('ticket-evidencias')
-            .upload(fileName, file);
+            .upload(fileName, file, {
+              contentType: file.type || 'image/jpeg'
+            });
           
           if (uploadError) {
             console.error('Error uploading file:', uploadError);
+            toast({
+              title: 'Advertencia',
+              description: `No se pudo subir: ${file.name}`,
+              variant: 'destructive'
+            });
             continue;
           }
           
-          const { data: urlData } = supabase.storage
+          // Verificar que el archivo existe
+          const { data: fileCheck } = await supabase.storage
             .from('ticket-evidencias')
-            .getPublicUrl(uploadData.path);
+            .list(ticketId, { search: sanitizedName });
           
-          adjuntosUrls.push(urlData.publicUrl);
+          if (fileCheck && fileCheck.length > 0) {
+            const { data: urlData } = supabase.storage
+              .from('ticket-evidencias')
+              .getPublicUrl(uploadData.path);
+            
+            adjuntosUrls.push(urlData.publicUrl);
+          }
         }
       }
 
