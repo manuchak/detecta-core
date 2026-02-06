@@ -15,10 +15,11 @@ export function generateServiceId(): string {
 export function isValidServiceId(id: string): boolean {
   if (!id || typeof id !== 'string') return false;
   
-  // Permitir diferentes formatos: SRV-YYYYMMDD-XXXX, o cualquier string alfanumérico
+  // Formato SRV interno o cualquier formato externo seguro
+  // Denylist: bloquear caracteres peligrosos para inyección
   const validPatterns = [
-    /^SRV-\d{8}-[A-Z0-9]{6}$/,  // SRV-20241225-ABC123
-    /^[a-zA-Z0-9_-]+$/           // Formato libre alfanumérico
+    /^SRV-\d{8}-[A-Z0-9]{6}$/,  // Formato interno: SRV-20241225-ABC123
+    /^[^<>'"`\\;=\s]+$/         // Formato externo: sin caracteres de inyección ni espacios
   ];
   
   return validPatterns.some(pattern => pattern.test(id));
