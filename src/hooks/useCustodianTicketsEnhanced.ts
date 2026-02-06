@@ -247,6 +247,44 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
         description: `Tu ticket ${ticketNumber} ha sido creado exitosamente`
       });
 
+      // 📲 WHATSAPP: Enviar template de ticket creado al custodio
+      // Obtener nombre de la categoría para el mensaje
+      const { data: categoriaData } = await supabase
+        .from('categorias_ticket_custodio')
+        .select('nombre')
+        .eq('id', ticketData.categoria_custodio_id)
+        .single();
+
+      // Enviar template de forma asíncrona (no bloqueante)
+      supabase.functions.invoke('kapso-send-template', {
+        body: {
+          to: custodianPhone,
+          templateName: 'ticket_creado',
+          components: {
+            body: {
+              parameters: [
+                { type: 'text', text: 'Custodio' }, // nombre - no tenemos el nombre aquí
+                { type: 'text', text: ticketNumber },
+                { type: 'text', text: categoriaData?.nombre || 'Soporte General' },
+                { type: 'text', text: '24 horas' } // tiempo_respuesta SLA default
+              ]
+            }
+          },
+          context: {
+            ticket_id: data.id,
+            tipo_notificacion: 'ticket_creado'
+          }
+        }
+      }).then(response => {
+        if (response.error) {
+          console.warn('Error enviando template ticket_creado:', response.error);
+        } else {
+          console.log('Template ticket_creado enviado exitosamente');
+        }
+      }).catch(err => {
+        console.warn('Error enviando template ticket_creado:', err);
+      });
+
       await loadTickets();
       return data;
 

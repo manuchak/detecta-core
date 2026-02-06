@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import { useCustodianInvitations } from '@/hooks/useCustodianInvitations';
+import { useKapsoWhatsApp } from '@/hooks/useKapsoWhatsApp';
 import { 
   MoreHorizontal, 
   Copy, 
@@ -16,7 +17,8 @@ import {
   RefreshCw, 
   Edit2, 
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { EditInvitationEmailModal } from './EditInvitationEmailModal';
 
@@ -36,6 +38,7 @@ interface InvitationActionsDropdownProps {
 export const InvitationActionsDropdown = ({ invitation }: InvitationActionsDropdownProps) => {
   const { toast } = useToast();
   const { getInvitationLink, resendInvitation, renewToken } = useCustodianInvitations();
+  const { sendCustodianInvitation, isSending: isSendingWhatsApp } = useKapsoWhatsApp();
   const [showEditModal, setShowEditModal] = useState(false);
 
   const isExpired = new Date(invitation.expires_at) < new Date();
@@ -98,7 +101,34 @@ export const InvitationActionsDropdown = ({ invitation }: InvitationActionsDropd
     }
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
+    const link = getInvitationLink(invitation.token);
+    
+    // Si tiene teléfono, enviar via Kapso (template oficial)
+    if (invitation.telefono) {
+      try {
+        await sendCustodianInvitation(
+          invitation.telefono,
+          invitation.nombre || 'Custodio',
+          link,
+          invitation.id
+        );
+        toast({
+          title: 'WhatsApp enviado',
+          description: `Invitación enviada a ${invitation.nombre || 'custodio'} via Kapso`,
+        });
+      } catch (error) {
+        // Si Kapso falla, usar fallback manual
+        console.warn('Kapso falló, usando fallback wa.me:', error);
+        openWhatsAppFallback();
+      }
+    } else {
+      // Sin teléfono, abrir wa.me para compartir manualmente
+      openWhatsAppFallback();
+    }
+  };
+
+  const openWhatsAppFallback = () => {
     const link = getInvitationLink(invitation.token);
     const message = encodeURIComponent(
       `¡Hola ${invitation.nombre || ''}! 🎉\n\n` +
@@ -135,8 +165,12 @@ export const InvitationActionsDropdown = ({ invitation }: InvitationActionsDropd
             Copiar link
           </DropdownMenuItem>
           
-          <DropdownMenuItem onClick={handleWhatsApp}>
-            <MessageCircle className="h-4 w-4 mr-2" />
+          <DropdownMenuItem onClick={handleWhatsApp} disabled={isSendingWhatsApp}>
+            {isSendingWhatsApp ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <MessageCircle className="h-4 w-4 mr-2" />
+            )}
             Enviar por WhatsApp
           </DropdownMenuItem>
 
