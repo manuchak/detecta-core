@@ -2,7 +2,8 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v8.0 - Diagnóstico de renderizado: onLoad/onError handlers + fallback visual
+ * v9.0 - Base64 Data URLs para compatibilidad universal en Android WebViews
+ *        Los blob URLs fallan silenciosamente en algunos WebViews
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive, FileImage } from 'lucide-react';
@@ -14,7 +15,26 @@ import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v8';
+const VERSION = 'v9';
+
+/**
+ * v9: Convierte un File a Base64 Data URL
+ * Más compatible que blob URLs en Android WebViews
+ */
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('FileReader no devolvió string'));
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+};
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -77,7 +97,8 @@ export function DocumentUploadStep({
   }, []);
 
   /**
-   * v7: Procesar archivo recibido - SIN COMPRESIÓN para diagnóstico
+   * v9: Procesar archivo usando Base64 (Data URL) en lugar de blob URL
+   * Los blob URLs fallan silenciosamente en algunos Android WebViews
    */
   const processFile = useCallback(async (selectedFile: File) => {
     console.log(`[DocumentUpload] ${VERSION} - Archivo recibido:`, {
@@ -87,9 +108,9 @@ export function DocumentUploadStep({
     });
 
     // Feedback inmediato
-    toast.info('Foto recibida, procesando...', { duration: 2000 });
+    toast.info('Foto recibida, convirtiendo...', { duration: 2000 });
 
-    // Limpiar preview anterior
+    // Limpiar preview anterior (por si acaso era blob URL de versión anterior)
     if (preview && preview.startsWith('blob:')) {
       URL.revokeObjectURL(preview);
     }
@@ -99,21 +120,27 @@ export function DocumentUploadStep({
     setErrorMessage(null);
 
     try {
-      // v8: SIN COMPRESIÓN - usar archivo directo para diagnóstico
-      const url = URL.createObjectURL(selectedFile);
+      // v9: Usar FileReader para convertir a Base64 Data URL
+      console.log(`[DocumentUpload] ${VERSION} - Iniciando conversión a Base64...`);
       
-      console.log(`[DocumentUpload] ${VERSION} - Preview URL creada:`, url.substring(0, 50));
+      const dataUrl = await fileToBase64(selectedFile);
+      
+      console.log(`[DocumentUpload] ${VERSION} - Base64 creado:`, {
+        prefix: dataUrl.substring(0, 50),
+        length: dataUrl.length,
+        isDataUrl: dataUrl.startsWith('data:')
+      });
       
       // Reset imagen failed flag antes de setear nuevo preview
       setImageLoadFailed(false);
       setFile(selectedFile);
-      setPreview(url);
+      setPreview(dataUrl);
       
-      toast.success('Foto lista ✓ - esperando render...', { duration: 2000 });
-      console.log(`[DocumentUpload] ${VERSION} - Estado actualizado: file=${selectedFile.name}, preview=OK, esperando img onLoad`);
+      toast.success('Foto lista ✓', { duration: 2000 });
+      console.log(`[DocumentUpload] ${VERSION} - Estado actualizado con Base64, esperando img onLoad`);
       
     } catch (error) {
-      console.error(`[DocumentUpload] ${VERSION} - Error procesando:`, error);
+      console.error(`[DocumentUpload] ${VERSION} - Error en FileReader:`, error);
       
       if (isQuotaError(error)) {
         setUploadStatus('error');
@@ -122,8 +149,10 @@ export function DocumentUploadStep({
       } else {
         setUploadStatus('error');
         setErrorType('generic');
-        setErrorMessage(error instanceof Error ? error.message : 'Error al procesar la imagen');
+        setErrorMessage(error instanceof Error ? error.message : 'Error al leer la imagen');
       }
+      
+      toast.error('Error al procesar foto');
     }
   }, [preview]);
 
