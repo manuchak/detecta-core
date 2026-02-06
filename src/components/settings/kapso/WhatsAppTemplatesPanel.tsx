@@ -43,12 +43,14 @@ import {
   Clock,
   XCircle,
   CircleDot,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 import { useWhatsAppTemplatesAdmin } from '@/hooks/useWhatsAppTemplatesAdmin';
 import { TEMPLATE_CATEGORIES, WhatsAppTemplateRecord, MetaApprovalStatus, TemplateCategoryKey } from '@/types/kapso';
 import { TemplateCard } from './TemplateCard';
 import { TemplateTestDialog } from './TemplateTestDialog';
+import { TemplateExportDialog } from './TemplateExportDialog';
 
 const categoryIcons: Record<TemplateCategoryKey, React.ReactNode> = {
   servicios: <Truck className="h-4 w-4" />,
@@ -94,6 +96,7 @@ export const WhatsAppTemplatesPanel = () => {
   const [categoryFilter, setCategoryFilter] = useState<TemplateCategoryKey | 'all'>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplateRecord | null>(null);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Filter templates
   const filteredTemplates = useMemo(() => {
@@ -328,6 +331,11 @@ export const WhatsAppTemplatesPanel = () => {
               </SelectContent>
             </Select>
 
+            <Button variant="outline" onClick={() => setExportDialogOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Exportar
+            </Button>
+
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -405,6 +413,12 @@ export const WhatsAppTemplatesPanel = () => {
         template={selectedTemplate}
         onSend={handleSendTest}
         isSending={isSendingTest}
+      />
+
+      {/* Export Dialog */}
+      <TemplateExportDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
       />
     </div>
   );
