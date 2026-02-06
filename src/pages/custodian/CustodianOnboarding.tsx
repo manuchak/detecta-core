@@ -89,7 +89,8 @@ export default function CustodianOnboarding() {
       }
     } catch (error) {
       console.error('Error uploading document:', error);
-      toast.error('Error al subir el documento');
+      // Re-lanzar para que DocumentUploadStep muestre UI de error específica
+      throw error;
     }
   };
 
