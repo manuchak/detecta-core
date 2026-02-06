@@ -1,129 +1,160 @@
 
-# Plan: Resolver Flujo de Registro de Custodios - Conflicto de Roles Duplicados
+
+# Plan: Corregir Flujo de Subida de Fotos para Custodios
 
 ## Resumen del Problema
 
-Cuando un custodio se registra via invitación, termina con **DOS roles** (`pending` + `custodio`), y el sistema devuelve `pending` porque ambos tienen la misma prioridad en la función de rol.
+El sistema actual tiene múltiples fallas en la gestión de fotos de documentos:
 
-### Flujo Actual (Bug)
-
-```text
-1. Edge function crea usuario con email_confirm: true
-2. Supabase dispara trigger handle_email_confirmation
-3. Trigger inserta rol 'pending' en user_roles
-4. Edge function inserta rol 'custodio' en user_roles
-5. Usuario tiene roles: [pending, custodio]
-6. get_current_user_role_secure() → devuelve 'pending' (prioridad 10)
-7. Usuario ve pantalla "Cuenta Pendiente de Activación"
-```
-
-### Usuarios Afectados (Confirmado)
-
-| Email | Roles |
-|-------|-------|
-| sanchezperezcristiandavid96@gmail.com | [pending, custodio] |
-| csjs078208@gmail.com | [pending, custodio] |
-| test-validation-flow@test.com | [pending, custodio] |
+1. **Bucket Privado**: `checklist-evidencias` está configurado como privado pero el código usa `getPublicUrl()` que genera URLs que requieren acceso público
+2. **Sin Feedback Visual**: El usuario ve un preview local pero no hay confirmación real de que la foto se subió correctamente
+3. **Rutas con Caracteres Especiales**: Los teléfonos tienen espacios ("56 4129 6853") que pueden causar problemas en rutas de archivos
+4. **Errores Silenciosos**: Si el upload falla, el usuario no recibe notificación clara
 
 ---
 
 ## Solución Propuesta (3 Cambios)
 
-### Cambio 1: Actualizar Prioridad de Roles en SQL
+### Cambio 1: Hacer el Bucket Público
 
 **Archivo:** Nueva migración SQL
 
-La función `get_current_user_role_secure()` necesita priorizar `custodio` sobre `pending`:
+El bucket `checklist-evidencias` necesita ser público para que las URLs generadas funcionen:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_current_user_role_secure()
-RETURNS text
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  found_role TEXT;
-BEGIN
-  SELECT role INTO found_role 
-  FROM public.user_roles 
-  WHERE user_id = auth.uid()
-    AND is_active = true
-  ORDER BY
-    CASE role
-      WHEN 'owner' THEN 1
-      WHEN 'admin' THEN 2
-      WHEN 'supply_admin' THEN 3
-      WHEN 'planificador' THEN 4
-      WHEN 'coordinador_operaciones' THEN 5
-      WHEN 'supply_lead' THEN 6
-      WHEN 'ejecutivo_ventas' THEN 7
-      WHEN 'instalador' THEN 8
-      WHEN 'custodio' THEN 9        -- NUEVO: Prioridad antes de pending
-      WHEN 'monitoring' THEN 10
-      WHEN 'pending' THEN 98        -- MODIFICADO: Casi última prioridad
-      WHEN 'unverified' THEN 99     -- NUEVO: Última prioridad
-      ELSE 50
-    END
-  LIMIT 1;
-  
-  RETURN COALESCE(found_role, 'unverified');
-END;
-$$;
+UPDATE storage.buckets 
+SET public = true 
+WHERE id = 'checklist-evidencias';
 ```
 
-### Cambio 2: Edge Function - Eliminar Rol Pending al Asignar Custodio
+**Justificación:**
+- Los documentos de custodios necesitan ser visibles en la app móvil y panel de monitoreo
+- Las políticas RLS en `storage.objects` ya controlan quién puede subir/actualizar
+- Otros buckets como `lms-media` y `candidato-documentos` también son públicos
 
-**Archivo:** `supabase/functions/create-custodian-account/index.ts`
+---
 
-Después de asignar el rol `custodio`, eliminar cualquier rol `pending` residual:
+### Cambio 2: Mejorar Hook de Upload con Sanitización y Feedback
+
+**Archivo:** `src/hooks/useCustodianDocuments.ts`
+
+Mejoras a implementar:
+- Sanitizar teléfono para rutas de archivo (remover espacios y caracteres especiales)
+- Agregar validación de respuesta del storage
+- Mejorar mensajes de error específicos
+- Verificar que el archivo realmente existe después del upload
 
 ```typescript
-// Assign custodio role
-const { error: roleErr } = await supabaseAdmin
-  .from('user_roles')
-  .insert({
-    user_id: userData.user.id,
-    role: 'custodio'
-  });
+const updateDocument = useMutation({
+  mutationFn: async ({ tipoDocumento, file, fechaVigencia, numeroDocumento }) => {
+    if (!custodioTelefono) throw new Error('No se encontró número de teléfono');
 
-// NUEVO: Limpiar rol pending si existe (evitar duplicados)
-if (!roleErr) {
-  await supabaseAdmin
-    .from('user_roles')
-    .delete()
-    .eq('user_id', userData.user.id)
-    .eq('role', 'pending');
+    // Sanitizar teléfono para ruta de archivo
+    const sanitizedPhone = custodioTelefono.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+    
+    const fileExt = file.name.split('.').pop() || 'jpg';
+    const fileName = `documentos/${sanitizedPhone}/${tipoDocumento}_${Date.now()}.${fileExt}`;
+
+    // 1. Subir archivo con validación
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('checklist-evidencias')
+      .upload(fileName, file, { 
+        upsert: true,
+        contentType: file.type || 'image/jpeg'
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error(`Error al subir foto: ${uploadError.message}`);
+    }
+
+    // 2. Verificar que el archivo existe
+    const { data: fileCheck } = await supabase.storage
+      .from('checklist-evidencias')
+      .list(`documentos/${sanitizedPhone}`, {
+        search: `${tipoDocumento}_`
+      });
+
+    if (!fileCheck || fileCheck.length === 0) {
+      throw new Error('La foto no se guardó correctamente. Por favor intenta de nuevo.');
+    }
+
+    // 3. Obtener URL pública
+    const { data: urlData } = supabase.storage
+      .from('checklist-evidencias')
+      .getPublicUrl(fileName);
+
+    // 4. Guardar en base de datos
+    const { error: dbError } = await supabase
+      .from('documentos_custodio')
+      .upsert({
+        custodio_telefono: custodioTelefono, // Original con formato
+        tipo_documento: tipoDocumento,
+        numero_documento: numeroDocumento,
+        fecha_vigencia: fechaVigencia,
+        foto_url: urlData.publicUrl,
+        verificado: false,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'custodio_telefono,tipo_documento' });
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error(`Error al guardar registro: ${dbError.message}`);
+    }
+
+    return { url: urlData.publicUrl };
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['custodian-documents', custodioTelefono] });
+    toast.success('¡Documento guardado correctamente!', {
+      description: 'La foto se subió y el registro fue creado.',
+      duration: 4000
+    });
+  },
+  onError: (error) => {
+    console.error('Error updating document:', error);
+    toast.error('Error al guardar documento', {
+      description: error.message || 'Por favor verifica tu conexión e intenta de nuevo.',
+      duration: 5000
+    });
+  },
+});
+```
+
+---
+
+### Cambio 3: Mejorar UI con Estados de Carga y Confirmación
+
+**Archivo:** `src/components/custodian/onboarding/DocumentUploadStep.tsx`
+
+Mejoras visuales:
+- Mostrar spinner durante upload
+- Mostrar confirmación visual después del éxito
+- Mostrar mensaje de error si falla
+- Deshabilitar interacción durante upload
+
+```typescript
+// Estados adicionales
+const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+
+// Antes de llamar onUpload
+setUploadStatus('uploading');
+
+try {
+  await onUpload(file, fechaVigencia);
+  setUploadStatus('success');
   
-  console.log(`[create-custodian-account] Cleaned up pending role for ${email}`);
+  // Mostrar confirmación visual por 2 segundos
+  setTimeout(() => setUploadStatus('idle'), 2000);
+} catch (error) {
+  setUploadStatus('error');
 }
 ```
 
-### Cambio 3: Migración de Limpieza de Datos Existentes
-
-**Archivo:** Nueva migración SQL
-
-Eliminar el rol `pending` de usuarios que ya tienen `custodio`:
-
-```sql
--- Limpiar roles duplicados: usuarios con pending + custodio
-DELETE FROM public.user_roles
-WHERE role = 'pending'
-AND user_id IN (
-  SELECT user_id 
-  FROM public.user_roles 
-  WHERE role = 'custodio'
-);
-
--- Log de limpieza
-DO $$
-DECLARE
-  deleted_count INT;
-BEGIN
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
-  RAISE NOTICE 'Cleaned up % duplicate pending roles from custodians', deleted_count;
-END $$;
-```
+Agregar indicadores visuales:
+- Badge verde con checkmark cuando `uploadStatus === 'success'`
+- Overlay de carga con spinner cuando `uploadStatus === 'uploading'`
+- Mensaje de error con botón de reintentar cuando `uploadStatus === 'error'`
 
 ---
 
@@ -131,52 +162,63 @@ END $$;
 
 | Archivo | Acción | Descripción |
 |---------|--------|-------------|
-| `supabase/migrations/YYYYMMDD_fix_custodian_role_priority.sql` | Crear | Actualizar función de prioridad + limpiar datos |
-| `supabase/functions/create-custodian-account/index.ts` | Modificar | Eliminar rol pending tras asignar custodio |
+| `supabase/migrations/YYYYMMDD_fix_checklist_bucket_public.sql` | Crear | Hacer bucket público |
+| `src/hooks/useCustodianDocuments.ts` | Modificar | Sanitización + validación + mejor feedback |
+| `src/components/custodian/onboarding/DocumentUploadStep.tsx` | Modificar | UI con estados de carga/éxito/error |
 
 ---
 
 ## Flujo Corregido
 
 ```text
-1. Edge function crea usuario con email_confirm: true
-2. Supabase dispara trigger (inserta 'pending')
-3. Edge function inserta 'custodio'
-4. Edge function ELIMINA 'pending' ← NUEVO
-5. Usuario tiene solo rol: [custodio]
-6. get_current_user_role_secure() → devuelve 'custodio'
-7. Usuario accede directamente al portal de custodios
+1. Usuario toma foto → Preview local ✅
+2. Click "Guardar" → UI muestra "Subiendo..." con spinner
+3. Upload a Storage → Bucket PÚBLICO permite acceso
+4. Verificación de archivo → Confirmar que existe
+5. getPublicUrl() → URL válida y accesible
+6. Guardar en BD → Registro con URL funcional
+7. UI muestra "¡Guardado!" con checkmark verde ✅
+8. Al recargar → Imagen carga correctamente ✅
 ```
 
 ---
 
 ## Verificación Post-Implementación
 
-1. **Test de nuevo registro:**
-   - Generar nueva invitación
-   - Completar registro
-   - Verificar que usuario tiene SOLO rol `custodio`
-   - Confirmar redirección a `/custodian/onboarding`
+1. **Test de nuevo upload:**
+   - Tomar foto de documento
+   - Verificar spinner de carga
+   - Confirmar mensaje de éxito
+   - Recargar página y verificar que imagen persiste
 
-2. **Test de usuarios existentes:**
-   - Verificar que Cristian, Jaime y otros solo tienen rol `custodio`
-   - Confirmar que pueden acceder al portal
+2. **Test de error:**
+   - Desconectar internet
+   - Intentar subir foto
+   - Verificar mensaje de error claro
 
 3. **Query de verificación:**
 ```sql
-SELECT user_id, array_agg(role) as roles
-FROM user_roles
-WHERE user_id IN (SELECT user_id FROM user_roles WHERE role = 'custodio')
-GROUP BY user_id
-HAVING COUNT(*) > 1;
--- Debe retornar 0 filas
+-- Verificar bucket es público
+SELECT id, public FROM storage.buckets WHERE id = 'checklist-evidencias';
+-- Esperado: public = true
+
+-- Verificar archivos subidos
+SELECT name, created_at FROM storage.objects 
+WHERE bucket_id = 'checklist-evidencias' 
+ORDER BY created_at DESC LIMIT 5;
+
+-- Verificar registros en BD
+SELECT custodio_telefono, tipo_documento, foto_url 
+FROM documentos_custodio 
+ORDER BY created_at DESC LIMIT 5;
 ```
 
 ---
 
 ## Impacto
 
-- **Riesgo:** Bajo - solo afecta priorización de roles y limpieza de datos redundantes
-- **Usuarios afectados:** ~4 custodios con roles duplicados
-- **Tiempo de implementación:** ~15 minutos
-- **Rollback:** Revertir función de prioridad (no destructivo)
+- **Riesgo:** Bajo - Solo cambia visibilidad del bucket y mejora UX
+- **Usuarios afectados:** Todos los custodios nuevos y existentes
+- **Seguridad:** Las políticas RLS siguen controlando quién puede subir
+- **Retrocompatibilidad:** 100% - URLs existentes seguirán funcionando
+
