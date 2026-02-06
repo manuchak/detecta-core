@@ -29,6 +29,64 @@ interface KapsoWebhookPayload {
   };
 }
 
+// Prefijos de botones soportados - debe coincidir con KAPSO_BUTTON_PREFIXES
+const BUTTON_HANDLERS: Record<string, string> = {
+  // Servicios
+  'CONFIRM_SERVICE_': 'service_confirmation',
+  'REJECT_SERVICE_': 'service_rejection',
+  'ON_THE_WAY_': 'service_on_way',
+  'DELAYED_': 'service_delayed',
+  
+  // Ayuda
+  'NEED_HELP_': 'help_request',
+  
+  // Checklist
+  'CHECKLIST_DONE_': 'checklist_completed',
+  'CHECKLIST_HELP_': 'checklist_help',
+  'RETAKE_PHOTOS_': 'retake_photos',
+  
+  // GPS
+  'CALL_MONITORING_': 'call_monitoring',
+  'GPS_OK_': 'gps_confirmed',
+  'GPS_ISSUE_RESOLVED_': 'gps_resolved',
+  'CONTACT_SUPERVISOR_': 'contact_supervisor',
+  'PROBLEM_RESOLVED_': 'problem_resolved',
+  
+  // Tickets
+  'TICKET_SATISFIED_': 'ticket_satisfied',
+  'TICKET_NOT_RESOLVED_': 'ticket_not_resolved',
+  'TICKET_REOPEN_': 'ticket_reopen',
+  'CSAT_EXCELLENT_': 'csat_excellent',
+  'CSAT_REGULAR_': 'csat_regular',
+  'CSAT_POOR_': 'csat_poor',
+  
+  // Documentos
+  'UPLOAD_DOCUMENTS_': 'upload_documents',
+  'UPDATE_DOCUMENT_': 'update_document',
+  'DOCUMENT_HELP_': 'document_help',
+  
+  // SIERCP
+  'START_EVALUATION_': 'start_evaluation',
+  'EVALUATION_QUESTIONS_': 'evaluation_questions',
+  
+  // LMS
+  'GO_TO_COURSE_': 'go_to_course',
+  'REMIND_LATER_': 'remind_later',
+  'START_QUIZ_': 'start_quiz',
+  'CONTINUE_COURSE_': 'continue_course',
+  
+  // Leads
+  'COMPLETE_REGISTRATION_': 'complete_registration',
+  'MORE_INFO_': 'more_info',
+  'TALK_TO_RECRUITER_': 'talk_to_recruiter',
+  'APPLY_NOW_': 'apply_now',
+  
+  // Supply
+  'CONFIRM_ATTENDANCE_': 'confirm_attendance',
+  'RESCHEDULE_': 'reschedule',
+  'START_ONBOARDING_': 'start_onboarding'
+};
+
 serve(async (req) => {
   // Verificación de webhook (GET request de Kapso/Meta)
   if (req.method === 'GET') {
@@ -248,31 +306,149 @@ async function handleInteractiveResponse(supabase: any, phone: string, reply: { 
   
   const buttonId = reply.id;
   
-  // Procesar según ID del botón
-  if (buttonId.startsWith('CONFIRM_SERVICE_')) {
-    const serviceId = buttonId.replace('CONFIRM_SERVICE_', '');
-    await handleServiceConfirmation(supabase, phone, serviceId, true);
-  } else if (buttonId.startsWith('REJECT_SERVICE_')) {
-    const serviceId = buttonId.replace('REJECT_SERVICE_', '');
-    await handleServiceConfirmation(supabase, phone, serviceId, false);
-  } else if (buttonId.startsWith('CHECKLIST_DONE_')) {
-    const servicioId = buttonId.replace('CHECKLIST_DONE_', '');
-    console.log(`✅ Custodio ${phone} indica checklist completado para ${servicioId}`);
-  } else if (buttonId.startsWith('CHECKLIST_HELP_') || buttonId.startsWith('NEED_HELP_')) {
-    await createHelpTicket(supabase, phone, buttonId);
+  // Encontrar qué handler usar basado en el prefijo
+  let handlerType: string | null = null;
+  let entityId: string | null = null;
+  
+  for (const [prefix, handler] of Object.entries(BUTTON_HANDLERS)) {
+    if (buttonId.startsWith(prefix)) {
+      handlerType = handler;
+      entityId = buttonId.replace(prefix, '');
+      break;
+    }
+  }
+  
+  if (!handlerType || !entityId) {
+    console.log(`⚠️ Botón no reconocido: ${buttonId}`);
+    return;
+  }
+  
+  console.log(`📌 Handler: ${handlerType}, Entity: ${entityId}`);
+  
+  // Procesar según tipo de handler
+  switch (handlerType) {
+    // === SERVICIOS ===
+    case 'service_confirmation':
+      await handleServiceConfirmation(supabase, phone, entityId, 'confirmado');
+      break;
+    case 'service_rejection':
+      await handleServiceConfirmation(supabase, phone, entityId, 'rechazado');
+      break;
+    case 'service_on_way':
+      await handleServiceConfirmation(supabase, phone, entityId, 'en_camino');
+      break;
+    case 'service_delayed':
+      await handleServiceDelay(supabase, phone, entityId);
+      break;
+      
+    // === CHECKLIST ===
+    case 'checklist_completed':
+      console.log(`✅ Custodio ${phone} indica checklist completado para ${entityId}`);
+      break;
+    case 'checklist_help':
+    case 'help_request':
+      await createHelpTicket(supabase, phone, buttonId, 'checklist');
+      break;
+      
+    // === GPS ===
+    case 'call_monitoring':
+      await createHelpTicket(supabase, phone, buttonId, 'monitoreo');
+      break;
+    case 'gps_confirmed':
+    case 'gps_resolved':
+      console.log(`✅ GPS confirmado OK por ${phone} para ${entityId}`);
+      break;
+    case 'contact_supervisor':
+      await createHelpTicket(supabase, phone, buttonId, 'supervisor');
+      break;
+    case 'problem_resolved':
+      console.log(`✅ Problema resuelto por ${phone} para ${entityId}`);
+      break;
+      
+    // === TICKETS ===
+    case 'ticket_satisfied':
+      await handleTicketFeedback(supabase, entityId, 'satisfied');
+      break;
+    case 'ticket_not_resolved':
+      await handleTicketFeedback(supabase, entityId, 'not_resolved');
+      break;
+    case 'ticket_reopen':
+      await handleTicketReopen(supabase, entityId);
+      break;
+    case 'csat_excellent':
+      await handleCSATResponse(supabase, entityId, 5);
+      break;
+    case 'csat_regular':
+      await handleCSATResponse(supabase, entityId, 3);
+      break;
+    case 'csat_poor':
+      await handleCSATResponse(supabase, entityId, 1);
+      break;
+      
+    // === DOCUMENTOS ===
+    case 'upload_documents':
+    case 'update_document':
+      console.log(`📄 Usuario ${phone} quiere subir documentos (${entityId})`);
+      break;
+    case 'document_help':
+      await createHelpTicket(supabase, phone, buttonId, 'documentos');
+      break;
+      
+    // === SIERCP ===
+    case 'start_evaluation':
+      console.log(`📝 Usuario ${phone} iniciará evaluación ${entityId}`);
+      break;
+    case 'evaluation_questions':
+      await createHelpTicket(supabase, phone, buttonId, 'siercp');
+      break;
+      
+    // === LMS ===
+    case 'go_to_course':
+    case 'continue_course':
+    case 'start_quiz':
+      console.log(`📚 Usuario ${phone} accederá a curso/quiz ${entityId}`);
+      break;
+    case 'remind_later':
+      console.log(`⏰ Usuario ${phone} solicita recordatorio para ${entityId}`);
+      break;
+      
+    // === LEADS ===
+    case 'complete_registration':
+    case 'apply_now':
+      console.log(`📝 Lead ${phone} quiere completar registro (${entityId})`);
+      await updateLeadStatus(supabase, entityId, 'interested');
+      break;
+    case 'more_info':
+    case 'talk_to_recruiter':
+      console.log(`📞 Lead ${phone} solicita más información (${entityId})`);
+      await updateLeadStatus(supabase, entityId, 'contact_requested');
+      break;
+      
+    // === SUPPLY ===
+    case 'confirm_attendance':
+      await handleInterviewConfirmation(supabase, entityId, true);
+      break;
+    case 'reschedule':
+      await handleInterviewConfirmation(supabase, entityId, false);
+      break;
+    case 'start_onboarding':
+      console.log(`🚀 Candidato ${entityId} iniciará onboarding`);
+      break;
+      
+    default:
+      console.log(`⚠️ Handler no implementado: ${handlerType}`);
   }
 }
 
-async function handleServiceConfirmation(supabase: any, phone: string, serviceId: string, accepted: boolean) {
-  const updateData = accepted 
-    ? {
-        estado_confirmacion_custodio: 'confirmado',
-        fecha_confirmacion: new Date().toISOString()
-      }
-    : {
-        estado_confirmacion_custodio: 'rechazado',
-        requiere_reasignacion: true
-      };
+async function handleServiceConfirmation(supabase: any, phone: string, serviceId: string, status: string) {
+  const updateData: any = {
+    estado_confirmacion_custodio: status,
+    fecha_confirmacion: new Date().toISOString()
+  };
+  
+  if (status === 'rechazado') {
+    updateData.requiere_reasignacion = true;
+  }
   
   const { error } = await supabase
     .from('servicios_planificados')
@@ -282,11 +458,49 @@ async function handleServiceConfirmation(supabase: any, phone: string, serviceId
   if (error) {
     console.error(`Error actualizando servicio ${serviceId}:`, error);
   } else {
-    console.log(`✅ Servicio ${serviceId} ${accepted ? 'confirmado' : 'rechazado'} por ${phone}`);
+    console.log(`✅ Servicio ${serviceId} actualizado a: ${status} por ${phone}`);
   }
 }
 
-async function createHelpTicket(supabase: any, phone: string, buttonId: string) {
+async function handleServiceDelay(supabase: any, phone: string, serviceId: string) {
+  // Actualizar estado y crear alerta
+  await supabase
+    .from('servicios_planificados')
+    .update({ 
+      estado_confirmacion_custodio: 'retrasado',
+      notas_custodio: 'Custodio reportó retraso via WhatsApp'
+    })
+    .eq('id', serviceId);
+  
+  // Crear ticket de alerta
+  const { data: custodio } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .or(`telefono.eq.${phone},telefono.ilike.%${phone.slice(-10)}%`)
+    .eq('role', 'custodio')
+    .maybeSingle();
+  
+  if (custodio) {
+    await supabase.from('tickets').insert({
+      ticket_number: `TKT-DELAY-${Date.now().toString(36).toUpperCase()}`,
+      customer_phone: phone,
+      customer_name: custodio.full_name,
+      subject: `⚠️ Retraso reportado - Servicio ${serviceId}`,
+      description: `El custodio ${custodio.full_name} reportó retraso para el servicio ${serviceId}`,
+      status: 'abierto',
+      priority: 'alta',
+      category: 'operaciones',
+      source: 'whatsapp',
+      whatsapp_chat_id: phone,
+      custodio_id: custodio.id,
+      tipo_ticket: 'alerta_retraso'
+    });
+  }
+  
+  console.log(`⚠️ Retraso reportado por ${phone} para servicio ${serviceId}`);
+}
+
+async function createHelpTicket(supabase: any, phone: string, buttonId: string, category: string) {
   // Buscar custodio
   const { data: custodio } = await supabase
     .from('profiles')
@@ -303,10 +517,10 @@ async function createHelpTicket(supabase: any, phone: string, buttonId: string) 
       customer_phone: phone,
       customer_name: custodio.full_name,
       subject: `Solicitud de ayuda de ${custodio.full_name}`,
-      description: `El custodio solicitó ayuda via WhatsApp (botón: ${buttonId})`,
+      description: `El custodio solicitó ayuda via WhatsApp (botón: ${buttonId}, categoría: ${category})`,
       status: 'abierto',
       priority: 'alta',
-      category: 'soporte_custodio',
+      category: `soporte_${category}`,
       source: 'whatsapp',
       whatsapp_chat_id: phone,
       custodio_id: custodio.id,
@@ -314,8 +528,77 @@ async function createHelpTicket(supabase: any, phone: string, buttonId: string) 
       tipo_ticket: 'solicitud_ayuda'
     });
     
-    console.log(`✅ Ticket de ayuda creado: ${ticketNumber}`);
+    console.log(`✅ Ticket de ayuda creado: ${ticketNumber} (categoría: ${category})`);
   }
+}
+
+async function handleTicketFeedback(supabase: any, ticketId: string, feedback: string) {
+  await supabase
+    .from('tickets')
+    .update({ 
+      feedback_recibido: feedback,
+      feedback_fecha: new Date().toISOString()
+    })
+    .eq('id', ticketId);
+  
+  console.log(`📊 Feedback recibido para ticket ${ticketId}: ${feedback}`);
+}
+
+async function handleTicketReopen(supabase: any, ticketId: string) {
+  await supabase
+    .from('tickets')
+    .update({ 
+      status: 'reabierto',
+      fecha_reapertura: new Date().toISOString()
+    })
+    .eq('id', ticketId);
+  
+  console.log(`🔄 Ticket ${ticketId} reabierto`);
+}
+
+async function handleCSATResponse(supabase: any, ticketId: string, score: number) {
+  await supabase
+    .from('tickets')
+    .update({ 
+      csat_score: score,
+      csat_fecha: new Date().toISOString()
+    })
+    .eq('id', ticketId);
+  
+  console.log(`⭐ CSAT ${score} para ticket ${ticketId}`);
+}
+
+async function updateLeadStatus(supabase: any, leadId: string, status: string) {
+  // Intentar actualizar en candidatos_custodios
+  const { error } = await supabase
+    .from('candidatos_custodios')
+    .update({ 
+      estado_proceso: status,
+      ultima_interaccion: new Date().toISOString(),
+      canal_respuesta: 'whatsapp'
+    })
+    .eq('id', leadId);
+  
+  if (error) {
+    console.warn(`No se pudo actualizar lead ${leadId}:`, error);
+  } else {
+    console.log(`📈 Lead ${leadId} actualizado a: ${status}`);
+  }
+}
+
+async function handleInterviewConfirmation(supabase: any, candidatoId: string, confirmed: boolean) {
+  const status = confirmed ? 'confirmada' : 'reagendar_solicitado';
+  
+  // Buscar entrevista pendiente del candidato
+  const { data: entrevista, error } = await supabase
+    .from('candidatos_custodios')
+    .update({
+      estado_entrevista: status,
+      fecha_confirmacion_entrevista: new Date().toISOString()
+    })
+    .eq('id', candidatoId);
+  
+  console.log(`📅 Entrevista ${candidatoId}: ${status}`);
 }
 
 async function handleDeliveryStatus(supabase: any, payload: KapsoWebhookPayload, status: string) {
