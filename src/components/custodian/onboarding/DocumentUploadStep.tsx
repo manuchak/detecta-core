@@ -2,7 +2,7 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v2.0 - Agregado compresión de imágenes y manejo de errores de almacenamiento
+ * v4.0 - Debugging robusto para Android: logging inmediato, toast de error, badge de versión
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
@@ -12,7 +12,10 @@ import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { compressImage, needsCompression } from '@/lib/imageUtils';
+import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
+
+const VERSION = 'v4';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -93,9 +96,39 @@ export function DocumentUploadStep({
     };
   }, [preview]);
 
+  // v4: Toast y log al montar para confirmar código actualizado
+  useEffect(() => {
+    console.log(`[DocumentUpload] ${VERSION} montado - tipoDocumento:`, tipoDocumento);
+    toast.info(`DocumentUpload ${VERSION} cargado`, { duration: 3000 });
+  }, []);
+
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // v4: LOG INMEDIATO - antes de cualquier verificación
+    console.log(`[DocumentUpload] ${VERSION} - onChange disparado:`, {
+      hasTarget: !!e.target,
+      hasFiles: !!e.target?.files,
+      filesLength: e.target?.files?.length ?? 0,
+      firstFile: e.target?.files?.[0] ? {
+        name: e.target.files[0].name,
+        size: e.target.files[0].size,
+        type: e.target.files[0].type
+      } : 'NO FILE'
+    });
+
     const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
+    
+    // v4: FEEDBACK VISUAL si no hay archivo (Android issue)
+    if (!selectedFile) {
+      console.warn(`[DocumentUpload] ${VERSION} - NO HAY ARCHIVO - Android issue detectado`);
+      toast.error('No se recibió la foto', {
+        description: 'Intenta tomar la foto de nuevo o reinicia la app',
+        duration: 5000
+      });
+      return;
+    }
+    
+    // v4: Toast de confirmación al recibir archivo
+    toast.info(`Procesando: ${selectedFile.name}`, { duration: 2000 });
 
     // Limpiar preview anterior
     if (preview && preview.startsWith('blob:')) {
@@ -427,7 +460,12 @@ export function DocumentUploadStep({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* v4: Badge de versión visible para confirmar código actualizado */}
+      <div className="absolute -top-2 right-0 bg-primary/10 px-2 py-0.5 rounded text-xs font-mono text-primary">
+        {VERSION}
+      </div>
+      
       {/* Área de captura de foto */}
       <div className="space-y-2">
         <Label>Foto del documento</Label>
