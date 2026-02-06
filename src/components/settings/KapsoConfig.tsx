@@ -47,10 +47,9 @@ export const KapsoConfig = () => {
     setLastTestResult(null);
     
     try {
-      // Probar enviando un mensaje de prueba
       const { data, error } = await supabase.functions.invoke('kapso-send-message', {
         body: {
-          to: '5215512345678', // Número de prueba
+          to: '5215512345678',
           type: 'text',
           text: 'Test de conexión Kapso - Detecta',
           context: {
@@ -60,23 +59,21 @@ export const KapsoConfig = () => {
       });
       
       if (error) {
-        const errorMsg = error.message || String(error);
-        
-        // Si el error es por la regla de 24 horas de WhatsApp, las credenciales son válidas
-        if (errorMsg.includes('WHATSAPP_24H_RULE') || errorMsg.includes('24-hour') || errorMsg.includes('template')) {
-          setConnectionStatus('connected');
-          setLastTestResult(
-            `✅ Conexión exitosa - Credenciales válidas.\n` +
-            `⚠️ Nota: Para enviar mensajes se requieren templates aprobados por WhatsApp (regla de 24 horas).`
-          );
-          toast({
-            title: 'Conexión exitosa',
-            description: 'Las credenciales de Kapso son válidas. Se requieren templates para mensajería.'
-          });
-          return;
-        }
-        
         throw error;
+      }
+      
+      // Verificar si es respuesta de regla 24h (credenciales válidas)
+      if (data.whatsapp_24h_rule || data.credentials_valid) {
+        setConnectionStatus('connected');
+        setLastTestResult(
+          `✅ Conexión exitosa - Credenciales válidas.\n` +
+          `⚠️ ${data.info || 'Para enviar mensajes se requieren templates aprobados por WhatsApp.'}`
+        );
+        toast({
+          title: 'Conexión exitosa',
+          description: 'Las credenciales de Kapso son válidas'
+        });
+        return;
       }
       
       if (data.success) {
@@ -87,47 +84,15 @@ export const KapsoConfig = () => {
           description: 'La integración con Kapso está funcionando correctamente'
         });
       } else {
-        const errorMsg = data.error || 'Error desconocido';
-        
-        // También verificar en la respuesta de data
-        if (errorMsg.includes('WHATSAPP_24H_RULE') || errorMsg.includes('24-hour') || errorMsg.includes('template')) {
-          setConnectionStatus('connected');
-          setLastTestResult(
-            `✅ Conexión exitosa - Credenciales válidas.\n` +
-            `⚠️ Nota: Para enviar mensajes se requieren templates aprobados por WhatsApp.`
-          );
-          toast({
-            title: 'Conexión exitosa',
-            description: 'Las credenciales de Kapso son válidas.'
-          });
-          return;
-        }
-        
-        throw new Error(errorMsg);
+        throw new Error(data.error || 'Error desconocido');
       }
     } catch (error: any) {
       console.error('Error probando conexión:', error);
-      const errorMsg = error.message || String(error);
-      
-      // Última verificación para la regla de 24 horas
-      if (errorMsg.includes('WHATSAPP_24H_RULE') || errorMsg.includes('24-hour') || errorMsg.includes('template')) {
-        setConnectionStatus('connected');
-        setLastTestResult(
-          `✅ Conexión exitosa - Credenciales válidas.\n` +
-          `⚠️ Nota: Para enviar mensajes se requieren templates aprobados por WhatsApp.`
-        );
-        toast({
-          title: 'Conexión exitosa',
-          description: 'Las credenciales de Kapso son válidas.'
-        });
-        return;
-      }
-      
       setConnectionStatus('error');
-      setLastTestResult(`❌ Error: ${errorMsg}`);
+      setLastTestResult(`❌ Error: ${error.message}`);
       toast({
         title: 'Error de conexión',
-        description: errorMsg,
+        description: error.message,
         variant: 'destructive'
       });
     } finally {
