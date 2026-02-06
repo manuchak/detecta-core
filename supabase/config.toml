@@ -143,3 +143,12 @@ verify_jwt = false
 
 [functions.create-custodian-account]
 verify_jwt = false
+
+[functions.kapso-send-message]
+verify_jwt = true
+
+[functions.kapso-send-template]
+verify_jwt = true
+
+[functions.kapso-webhook-receiver]
+verify_jwt = false
