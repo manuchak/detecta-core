@@ -279,7 +279,9 @@ export default function CustodianOnboarding() {
             <CardDescription>{currentStepInfo.description}</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* v8: key prop para estabilizar componente y evitar pérdida de estado */}
             <DocumentUploadStep
+              key={`doc-step-${currentStepInfo.tipo}`}
               tipoDocumento={currentStepInfo.tipo}
               existingDocument={documents.find(d => d.tipo_documento === currentStepInfo.tipo)}
               onUpload={handleDocumentUpload}

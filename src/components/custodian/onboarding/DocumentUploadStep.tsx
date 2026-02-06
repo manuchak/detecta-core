@@ -2,10 +2,10 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v7.0 - Input dinámico (createElement) + Skip compresión para diagnóstico Android
+ * v8.0 - Diagnóstico de renderizado: onLoad/onError handlers + fallback visual
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
+import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive, FileImage } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -55,6 +55,7 @@ export function DocumentUploadStep({
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
 
   const isExpired = existingDocument 
     ? new Date(existingDocument.fecha_vigencia) < new Date()
@@ -98,16 +99,18 @@ export function DocumentUploadStep({
     setErrorMessage(null);
 
     try {
-      // v7: SIN COMPRESIÓN - usar archivo directo para diagnóstico
+      // v8: SIN COMPRESIÓN - usar archivo directo para diagnóstico
       const url = URL.createObjectURL(selectedFile);
       
       console.log(`[DocumentUpload] ${VERSION} - Preview URL creada:`, url.substring(0, 50));
       
+      // Reset imagen failed flag antes de setear nuevo preview
+      setImageLoadFailed(false);
       setFile(selectedFile);
       setPreview(url);
       
-      toast.success('Foto lista ✓', { duration: 2000 });
-      console.log(`[DocumentUpload] ${VERSION} - Estado actualizado: file=${selectedFile.name}, preview=OK`);
+      toast.success('Foto lista ✓ - esperando render...', { duration: 2000 });
+      console.log(`[DocumentUpload] ${VERSION} - Estado actualizado: file=${selectedFile.name}, preview=OK, esperando img onLoad`);
       
     } catch (error) {
       console.error(`[DocumentUpload] ${VERSION} - Error procesando:`, error);
@@ -413,9 +416,17 @@ export function DocumentUploadStep({
     );
   }
 
+  // v8: Log de render para diagnóstico
+  console.log(`[DocumentUpload] ${VERSION} - RENDER:`, {
+    preview: preview ? preview.substring(0, 40) + '...' : null,
+    file: file?.name,
+    uploadStatus,
+    imageLoadFailed
+  });
+
   return (
     <div className="space-y-4 relative">
-      {/* v7: Badge de versión visible */}
+      {/* v8: Badge de versión visible */}
       <div className="absolute -top-2 right-0 bg-primary/10 px-2 py-0.5 rounded text-xs font-mono text-primary">
         {VERSION}
       </div>
@@ -427,11 +438,37 @@ export function DocumentUploadStep({
         {preview ? (
           <div className="relative">
             <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+              {/* v8: Imagen con handlers de diagnóstico */}
               <img 
                 src={preview} 
                 alt="Preview"
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${imageLoadFailed ? 'hidden' : ''}`}
+                onLoad={() => {
+                  console.log(`[DocumentUpload] ${VERSION} - IMG onLoad EXITOSO`);
+                  toast.success('✓ Imagen visible', { duration: 1500 });
+                }}
+                onError={(e) => {
+                  console.error(`[DocumentUpload] ${VERSION} - IMG onError:`, e);
+                  toast.error('Error al mostrar imagen');
+                  setImageLoadFailed(true);
+                }}
               />
+              
+              {/* v8: Fallback visual si imagen falla */}
+              {imageLoadFailed && file && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                  <div className="text-center p-4">
+                    <FileImage className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                    <p className="font-medium text-sm">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                    </p>
+                    <p className="text-xs text-amber-600 mt-2">
+                      Foto capturada pero no se puede mostrar
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
             {(uploadStatus === 'uploading' || isProcessing) && (
               <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
