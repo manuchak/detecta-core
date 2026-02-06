@@ -100,24 +100,34 @@ export function useUploadDocumento() {
       nombreEsperado?: string;
     }) => {
       // 1. Subir archivo a storage
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${candidatoId}/${tipoDocumento}_${Date.now()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('candidato-documentos')
         .upload(fileName, file, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: file.type || 'image/jpeg'
         });
 
       if (uploadError) throw uploadError;
 
-      // 2. Obtener URL pública
+      // 2. Verificar que el archivo existe en storage
+      const { data: fileCheck } = await supabase.storage
+        .from('candidato-documentos')
+        .list(candidatoId, { search: `${tipoDocumento}_` });
+
+      if (!fileCheck || fileCheck.length === 0) {
+        throw new Error('El archivo no se guardó correctamente. Por favor intenta de nuevo.');
+      }
+
+      // 3. Obtener URL pública
       const { data: urlData } = supabase.storage
         .from('candidato-documentos')
         .getPublicUrl(fileName);
 
-      // 3. Crear registro en BD
+      // 4. Crear registro en BD
       const { data: documento, error: insertError } = await supabase
         .from('documentos_candidato')
         .insert({
