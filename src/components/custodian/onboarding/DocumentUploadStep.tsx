@@ -15,7 +15,7 @@ import { compressImage, needsCompression } from '@/lib/imageUtils';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
-type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'generic';
+type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
 
 interface DocumentUploadStepProps {
   tipoDocumento: TipoDocumentoCustodio;
@@ -201,12 +201,17 @@ export function DocumentUploadStep({
       console.error('[DocumentUpload] Upload failed:', error);
       setUploadStatus('error');
       
-      if (isQuotaError(error)) {
+      const errorMsg = error instanceof Error ? error.message : '';
+      
+      if (errorMsg.includes('teléfono no es válido')) {
+        setErrorType('invalid_phone');
+        setErrorMessage('Actualiza tu número de teléfono en tu perfil para continuar');
+      } else if (isQuotaError(error)) {
         setErrorType('storage_low');
         setErrorMessage('No hay espacio para guardar el documento');
       } else {
         setErrorType('upload_failed');
-        setErrorMessage(error instanceof Error ? error.message : 'Error desconocido al subir');
+        setErrorMessage(errorMsg || 'Error desconocido al subir');
       }
     }
   };
@@ -293,6 +298,42 @@ export function DocumentUploadStep({
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Estado de error - Teléfono inválido
+  if (uploadStatus === 'error' && errorType === 'invalid_phone') {
+    return (
+      <div className="space-y-4">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">
+                Teléfono no válido
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                Para subir documentos necesitas un número de teléfono válido registrado en tu perfil.
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                Contacta a soporte para actualizar tu información.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <Button
+          onClick={handleRetry}
+          variant="outline"
+          className="w-full"
+          size="lg"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Reintentar
+        </Button>
       </div>
     );
   }
