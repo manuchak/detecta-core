@@ -1,163 +1,148 @@
 
-# Plan: Soluciones para Manejar 50+ Registros de Custodios sin Resend
+# Plan: Resolver Error de Registro de Custodios de Raíz
 
-## Opciones Disponibles
+## Diagnostico del Problema
 
-| Opción | Complejidad | Tiempo | Requiere Verificación |
-|--------|-------------|--------|----------------------|
-| **A) Auto-confirmar usuarios** | Baja | 5 min | No |
-| **B) SMTP personalizado (SendGrid/AWS SES)** | Media | 30 min | Sí (dominio) |
-| **C) Deshabilitar confirmación global** | Baja | 2 min | No |
+### Hallazgos de la Investigacion
+
+| Elemento | Estado | Problema |
+|----------|--------|----------|
+| Invitacion de Antonio | Token usado por prueba anterior | Necesita reset |
+| Edge function | Funcional pero con bug de columna | `telefono` vs `phone` en profiles |
+| Frontend | Mensajes de error incorrectos | Conflicto con AuthContext |
+| Tabla profiles | Columna `phone` NOT NULL | Falla silenciosamente |
+
+### Causa Raiz del Error "Error al crear la cuenta"
+
+El mensaje "Error al crear la cuenta" viene EXCLUSIVAMENTE de `src/contexts/AuthContext.tsx` linea 369, que se usa en el flujo de registro NORMAL (`/auth/register`), NO en el flujo de custodios.
+
+Posibles escenarios que causaron este error:
+1. Antonio abrio el link de invitacion, pero antes de completar el registro, intento registrarse en la pagina normal
+2. Hubo un cache de toast de un intento anterior
+3. El navegador tenia una sesion anterior que disparo un error del AuthContext
 
 ---
 
-## Opción A: Auto-confirmar Usuarios (RECOMENDADA)
+## Problemas Tecnicos Identificados
 
-### Ventajas
-- **Sin verificación de dominio**: No necesitas Resend ni otro servicio
-- **Acceso inmediato**: Custodios pueden entrar al instante
-- **Seguridad mantenida**: El token de invitación ya valida que fueron invitados
-- **Sin rate limits**: Usa la Admin API que no tiene límites
-
-### Cómo Funciona
-
-```text
-FLUJO ACTUAL (bloqueado por Resend):
-┌─────────┐     ┌──────────────┐     ┌────────┐     ┌─────────────┐
-│ Signup  │────▶│ createUser() │────▶│ Resend │────▶│ Email conf. │
-│ Form    │     │ confirm:false│     │ ❌FALLA│     │ (no llega)  │
-└─────────┘     └──────────────┘     └────────┘     └─────────────┘
-
-FLUJO PROPUESTO (sin dependencias):
-┌─────────┐     ┌──────────────┐     ┌─────────────┐     ┌───────────┐
-│ Signup  │────▶│ createUser() │────▶│ Asignar rol │────▶│ Onboarding│
-│ Form    │     │ confirm:TRUE │     │ de custodio │     │ directo   │
-└─────────┘     └──────────────┘     └─────────────┘     └───────────┘
-```
-
-### Cambios Requeridos
-
-**Archivo 1: `supabase/functions/create-custodian-account/index.ts`**
-
-1. Cambiar `email_confirm: false` → `email_confirm: true` (auto-confirma el email)
-2. Después de crear el usuario, marcar la invitación como usada
-3. Asignar el rol de custodio directamente
-4. Retornar sesión para login automático
+### 1. Bug en Edge Function: Columna Incorrecta
 
 ```typescript
-// Crear usuario AUTO-CONFIRMADO
-const { data: userData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-  email,
-  password,
-  email_confirm: true, // ✅ Auto-confirmar
-  user_metadata: { display_name: nombre, invitation_token: invitationToken }
+// ACTUAL (incorrecto)
+await supabaseAdmin.from('profiles').upsert({
+  telefono: telefono || null  // Columna NO existe
 });
 
-// Marcar invitación como usada
-await supabaseAdmin
-  .from('custodian_invitations')
-  .update({ used_at: new Date().toISOString(), used_by: userData.user.id })
-  .eq('token', invitationToken);
+// CORRECTO
+await supabaseAdmin.from('profiles').upsert({
+  phone: telefono || ''  // Columna real, NOT NULL
+});
+```
 
-// Asignar rol de custodio
-await supabaseAdmin
-  .from('user_profiles')
+La tabla `profiles` tiene:
+- `phone` (text, NOT NULL) - no `telefono`
+- Esto causa error silencioso que no falla el registro pero deja datos incompletos
+
+### 2. Mensajes de Error Genericos
+
+El frontend muestra errores genericos que no ayudan a diagnosticar:
+- "Error de conexion" para cualquier error de fetch
+- "Error al crear la cuenta" viene del AuthContext (flujo equivocado)
+
+### 3. Token de Antonio Invalidado
+
+Mi prueba anterior uso el token de Antonio para crear un usuario de prueba. Necesitamos:
+- Eliminar el usuario test-debug
+- Resetear la invitacion de Antonio
+
+---
+
+## Solucion Propuesta
+
+### Cambio 1: Corregir Edge Function
+
+**Archivo:** `supabase/functions/create-custodian-account/index.ts`
+
+```typescript
+// Cambios:
+// 1. Usar columna correcta 'phone' en lugar de 'telefono'
+// 2. Agregar VERSION para debugging
+// 3. Mejorar mensajes de error con contexto
+
+const VERSION = "v2.0.1";
+
+// En el upsert de profiles:
+const { error: profileErr } = await supabaseAdmin
+  .from('profiles')
   .upsert({
     id: userData.user.id,
     email: email,
     display_name: nombre,
-    role: 'custodio',
-    telefono: telefono
+    phone: telefono || 'Sin telefono'  // Columna correcta, valor por defecto
   });
 
-// Generar sesión para login automático
-const { data: sessionData } = await supabaseAdmin.auth.admin.generateLink({
-  type: 'magiclink',
-  email,
-});
-
-return { success: true, user: userData.user, autoLogin: true };
+// Agregar version en respuesta para debugging:
+return new Response(JSON.stringify({ 
+  success: true, 
+  message: "Cuenta creada exitosamente", 
+  userId: userData.user.id,
+  autoLogin: true,
+  _version: VERSION
+}), ...);
 ```
 
-**Archivo 2: `src/pages/Auth/CustodianSignup.tsx`**
+### Cambio 2: Mejorar Manejo de Errores en Frontend
 
-Modificar para manejar el login automático:
+**Archivo:** `src/pages/Auth/CustodianSignup.tsx`
 
 ```typescript
-if (data?.success && data?.autoLogin) {
-  // Iniciar sesión automáticamente
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password
+// Cambios:
+// 1. Mensajes de error mas especificos
+// 2. Logging mejorado para debugging
+// 3. Capturar version de edge function
+
+const { data, error } = await supabase.functions.invoke('create-custodian-account', {
+  body: { email, password, nombre: name, invitationToken: token, telefono }
+});
+
+if (error) {
+  console.error('[CustodianSignup] Edge function network error:', error);
+  toast({
+    title: 'Error de Conexion',
+    description: 'No se pudo conectar con el servidor. Verifica tu conexion a internet.',
+    variant: 'destructive',
   });
-  
-  if (!signInError) {
-    navigate('/custodian/onboarding');
-    return;
-  }
+  return;
 }
+
+if (data?.error) {
+  console.error('[CustodianSignup] Edge function returned error:', data.error);
+  toast({
+    title: 'Error en Registro',
+    description: data.error,  // Mensaje especifico del servidor
+    variant: 'destructive',
+  });
+  return;
+}
+
+console.log('[CustodianSignup] Success, version:', data?._version);
 ```
 
-### Flujo de Usuario Final
+### Cambio 3: Limpiar Datos de Prueba
 
-1. Custodio abre link de invitación
-2. Llena formulario (nombre, email, contraseña)
-3. Click "Crear cuenta"
-4. **Inmediatamente** es redirigido al onboarding de documentos
-5. No necesita revisar email ni confirmar nada
+Ejecutar en Supabase:
 
----
+```sql
+-- 1. Eliminar usuario de prueba creado accidentalmente
+DELETE FROM user_roles WHERE user_id = '83b5829f-c1a5-46be-a8fb-6a544ff63e73';
+DELETE FROM profiles WHERE id = '83b5829f-c1a5-46be-a8fb-6a544ff63e73';
+-- El usuario en auth.users se elimina via Admin API
 
-## Opción B: SMTP Personalizado (SendGrid/AWS SES)
-
-Si prefieres mantener la confirmación por email, puedes configurar un SMTP en Supabase.
-
-### Pasos
-1. Crear cuenta en SendGrid (gratis hasta 100 emails/día) o AWS SES
-2. Verificar dominio `detecta.app` en el proveedor elegido
-3. Obtener credenciales SMTP
-4. Configurar en Supabase Dashboard → Settings → Auth → SMTP
-
-### Credenciales Requeridas
-- **Host**: `smtp.sendgrid.net` o similar
-- **Port**: 587
-- **Username**: `apikey` (SendGrid) o tu usuario
-- **Password**: Tu API key
-- **Sender email**: `notificaciones@detecta.app`
-
-### Limitación
-- SendGrid también requiere verificar el dominio
-- El proceso es similar a Resend
-
----
-
-## Opción C: Deshabilitar Confirmación Globalmente
-
-### Pasos
-1. Ir a Supabase Dashboard → Authentication → Sign In / Providers
-2. En la sección "Email", desactivar "Confirm email"
-3. Guardar
-
-### Implicaciones
-- **Todos** los usuarios (no solo custodios) podrán registrarse sin confirmar email
-- Menor seguridad para otros flujos de registro
-- No recomendado si tienes otros tipos de usuarios
-
----
-
-## Recomendación Final
-
-**Opción A (Auto-confirmar)** es la mejor porque:
-
-| Criterio | Auto-confirmar | SMTP | Deshabilitar global |
-|----------|----------------|------|---------------------|
-| Sin dependencias externas | ✅ | ❌ | ✅ |
-| Seguridad (invitación requerida) | ✅ | ✅ | ⚠️ |
-| Experiencia de usuario | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ |
-| Tiempo de implementación | 5 min | 30+ min | 2 min |
-| Escalabilidad (50+ custodios) | ✅ | ✅ | ✅ |
-
-El token de invitación ya actúa como verificación de que el custodio fue aprobado por un administrador, así que la confirmación de email es redundante en este flujo.
+-- 2. Resetear invitacion de Antonio
+UPDATE custodian_invitations 
+SET used_at = NULL, used_by = NULL 
+WHERE token = 'f84cbe200ddec13fd4cf1367d6a61eb9f29ab8ed3ae7983f3d32f70b7a379461';
+```
 
 ---
 
@@ -165,12 +150,18 @@ El token de invitación ya actúa como verificación de que el custodio fue apro
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/create-custodian-account/index.ts` | Auto-confirmar + asignar rol + login automático |
-| `src/pages/Auth/CustodianSignup.tsx` | Manejar respuesta de login automático |
+| `supabase/functions/create-custodian-account/index.ts` | Corregir columna `phone`, agregar VERSION, mejorar logs |
+| `src/pages/Auth/CustodianSignup.tsx` | Mensajes de error mas especificos, logging mejorado |
 
 ## Resultado Esperado
 
-- 50+ custodios pueden registrarse sin problemas
-- Acceso inmediato al portal sin esperar emails
-- Sin dependencia de servicios externos de email
-- Seguridad mantenida via tokens de invitación
+1. Antonio podra registrarse exitosamente con su token restaurado
+2. Errores futuros mostraran mensajes especificos del servidor
+3. Logs permitiran diagnosticar problemas rapidamente
+4. Perfil de custodio se creara correctamente con telefono
+
+## Proximos Pasos Post-Implementacion
+
+1. Probar registro con token de Antonio
+2. Verificar que el perfil se crea correctamente
+3. Monitorear logs de edge function para futuros errores
