@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+/**
+ * @deprecated Use `useFormPersistence` from '@/hooks/useFormPersistence' instead.
+ * This hook is maintained for backward compatibility but will be removed in a future version.
+ * 
+ * Migration guide:
+ * - formData → data
+ * - updateFormData → updateData  
+ * - isMeaningfulDraft → isMeaningful
+ * - Add level: 'standard' for equivalent functionality
+ * 
+ * See docs/FORM_PERSISTENCE_GUIDE.md for details.
+ */
+
 // UUID validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
