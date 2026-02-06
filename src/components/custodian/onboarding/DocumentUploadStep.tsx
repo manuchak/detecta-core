@@ -2,20 +2,19 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v6.0 - Timeout de 8s para img.onload + fallback obligatorio a original
+ * v7.0 - Input dinámico (createElement) + Skip compresión para diagnóstico Android
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { compressImage, needsCompression } from '@/lib/imageUtils';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -27,37 +26,12 @@ interface DocumentUploadStepProps {
   isUploading: boolean;
 }
 
-// Verificar si hay espacio disponible en el dispositivo
-async function checkStorageAvailable(): Promise<{
-  available: boolean;
-  spaceLeft?: number;
-}> {
-  try {
-    if (!navigator.storage?.estimate) {
-      return { available: true };
-    }
-    
-    const { usage = 0, quota = 0 } = await navigator.storage.estimate();
-    const spaceLeft = quota - usage;
-    
-    // Requerir al menos 10MB disponibles
-    return {
-      available: spaceLeft > 10 * 1024 * 1024,
-      spaceLeft
-    };
-  } catch {
-    // Si no podemos verificar, asumimos que hay espacio
-    return { available: true };
-  }
-}
-
 // Detectar errores de quota de almacenamiento
 function isQuotaError(error: unknown): boolean {
   if (error instanceof DOMException) {
     return error.name === 'QuotaExceededError' || 
-           error.code === 22; // Legacy quota error code
+           error.code === 22;
   }
-  // También verificar el mensaje de error
   if (error instanceof Error) {
     const msg = error.message.toLowerCase();
     return msg.includes('quota') || 
@@ -80,8 +54,7 @@ export function DocumentUploadStep({
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isExpired = existingDocument 
     ? new Date(existingDocument.fecha_vigencia) < new Date()
@@ -96,39 +69,24 @@ export function DocumentUploadStep({
     };
   }, [preview]);
 
-  // v4: Toast y log al montar para confirmar código actualizado
+  // v7: Toast y log al montar
   useEffect(() => {
     console.log(`[DocumentUpload] ${VERSION} montado - tipoDocumento:`, tipoDocumento);
     toast.info(`DocumentUpload ${VERSION} cargado`, { duration: 3000 });
   }, []);
 
-  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // v4: LOG INMEDIATO - antes de cualquier verificación
-    console.log(`[DocumentUpload] ${VERSION} - onChange disparado:`, {
-      hasTarget: !!e.target,
-      hasFiles: !!e.target?.files,
-      filesLength: e.target?.files?.length ?? 0,
-      firstFile: e.target?.files?.[0] ? {
-        name: e.target.files[0].name,
-        size: e.target.files[0].size,
-        type: e.target.files[0].type
-      } : 'NO FILE'
+  /**
+   * v7: Procesar archivo recibido - SIN COMPRESIÓN para diagnóstico
+   */
+  const processFile = useCallback(async (selectedFile: File) => {
+    console.log(`[DocumentUpload] ${VERSION} - Archivo recibido:`, {
+      name: selectedFile.name,
+      size: selectedFile.size,
+      type: selectedFile.type
     });
 
-    const selectedFile = e.target.files?.[0];
-    
-    // v4: FEEDBACK VISUAL si no hay archivo (Android issue)
-    if (!selectedFile) {
-      console.warn(`[DocumentUpload] ${VERSION} - NO HAY ARCHIVO - Android issue detectado`);
-      toast.error('No se recibió la foto', {
-        description: 'Intenta tomar la foto de nuevo o reinicia la app',
-        duration: 5000
-      });
-      return;
-    }
-    
-    // v4: Toast de confirmación al recibir archivo
-    toast.info(`Procesando: ${selectedFile.name}`, { duration: 2000 });
+    // Feedback inmediato
+    toast.info('Foto recibida, procesando...', { duration: 2000 });
 
     // Limpiar preview anterior
     if (preview && preview.startsWith('blob:')) {
@@ -140,74 +98,19 @@ export function DocumentUploadStep({
     setErrorMessage(null);
 
     try {
-      // 1. Verificar espacio disponible antes de procesar
-      const { available, spaceLeft } = await checkStorageAvailable();
-      if (!available) {
-        console.warn('[DocumentUpload] Espacio insuficiente:', spaceLeft);
-        setUploadStatus('error');
-        setErrorType('storage_low');
-        setErrorMessage(`Solo quedan ${((spaceLeft || 0) / 1024 / 1024).toFixed(1)}MB disponibles`);
-        return;
-      }
-
-      // 2. Comprimir imagen si es necesario (>500KB)
-      let fileToUse = selectedFile;
+      // v7: SIN COMPRESIÓN - usar archivo directo para diagnóstico
+      const url = URL.createObjectURL(selectedFile);
       
-      if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
-        setIsCompressing(true);
-        
-        // v6: Toast más visible ANTES de compresión
-        const fileSizeMB = (selectedFile.size / 1024 / 1024).toFixed(1);
-        toast.info(`📷 Cargando imagen (${fileSizeMB}MB)...`, { duration: 5000 });
-        console.log(`[DocumentUpload] ${VERSION} - Tipo: "${selectedFile.type}", Tamaño: ${selectedFile.size} bytes`);
-        
-        try {
-          const { blob, compressionRatio } = await compressImage(selectedFile, {
-            maxWidth: 1920,
-            maxHeight: 1080,
-            quality: 0.7
-          });
-          
-          fileToUse = new File([blob], selectedFile.name, { type: 'image/jpeg' });
-          console.log(`[DocumentUpload] ${VERSION} - Compresión exitosa: ${compressionRatio.toFixed(0)}% reducción`);
-          toast.success('Imagen comprimida ✓', { duration: 2000 });
-        } catch (compressionError) {
-          // v6: SIEMPRE hacer fallback a original, nunca quedarse colgado
-          console.error(`[DocumentUpload] ${VERSION} - Error de compresión:`, compressionError);
-          
-          const errorMsg = compressionError instanceof Error ? compressionError.message : '';
-          
-          if (isQuotaError(compressionError)) {
-            setUploadStatus('error');
-            setErrorType('storage_low');
-            setErrorMessage('No hay suficiente espacio para procesar la imagen');
-            setIsCompressing(false);
-            return;
-          }
-          
-          // v6: Para CUALQUIER otro error (timeout, img.onload falla, etc.) usar original
-          console.warn(`[DocumentUpload] ${VERSION} - Fallback a archivo original. Error: ${errorMsg}`);
-          toast.warning('Usando foto sin comprimir', { 
-            description: errorMsg.includes('Timeout') ? 'La compresión tardó mucho' : 'Error al procesar',
-            duration: 3000 
-          });
-          fileToUse = selectedFile;
-        }
-        
-        setIsCompressing(false);
-      }
-
-      // 3. Crear preview usando URL.createObjectURL (más eficiente que FileReader)
-      const url = URL.createObjectURL(fileToUse);
-      setFile(fileToUse);
+      console.log(`[DocumentUpload] ${VERSION} - Preview URL creada:`, url.substring(0, 50));
+      
+      setFile(selectedFile);
       setPreview(url);
       
-      console.log(`[DocumentUpload] ${VERSION} - Preview creado:`, url.substring(0, 50));
       toast.success('Foto lista ✓', { duration: 2000 });
+      console.log(`[DocumentUpload] ${VERSION} - Estado actualizado: file=${selectedFile.name}, preview=OK`);
       
     } catch (error) {
-      console.error('[DocumentUpload] Error procesando archivo:', error);
-      setIsCompressing(false);
+      console.error(`[DocumentUpload] ${VERSION} - Error procesando:`, error);
       
       if (isQuotaError(error)) {
         setUploadStatus('error');
@@ -219,10 +122,56 @@ export function DocumentUploadStep({
         setErrorMessage(error instanceof Error ? error.message : 'Error al procesar la imagen');
       }
     }
-    
-    // Resetear input para permitir seleccionar el mismo archivo de nuevo
-    e.target.value = '';
   }, [preview]);
+
+  /**
+   * v7: Handler con input DINÁMICO (patrón de PhotoSlot)
+   * Crea un input nuevo cada vez para evitar desincronización de refs en Android
+   */
+  const handleCameraClick = useCallback(() => {
+    // Feedback inmediato al usuario
+    toast.info('📷 Abriendo cámara...', { duration: 2000 });
+    console.log(`[DocumentUpload] ${VERSION} - Creando input dinámico`);
+
+    setIsProcessing(true);
+
+    // Crear input FRESCO cada vez (no usar ref)
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+
+    // Handler asignado INMEDIATAMENTE antes de click
+    input.onchange = async (e) => {
+      console.log(`[DocumentUpload] ${VERSION} - input.onchange disparado`);
+      
+      const target = e.target as HTMLInputElement;
+      const selectedFile = target.files?.[0];
+
+      if (!selectedFile) {
+        console.warn(`[DocumentUpload] ${VERSION} - NO HAY ARCHIVO en onchange`);
+        toast.error('No se recibió la foto', {
+          description: 'Intenta tomar la foto de nuevo',
+          duration: 5000
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      await processFile(selectedFile);
+      setIsProcessing(false);
+    };
+
+    // Manejar cancelación
+    input.oncancel = () => {
+      console.log(`[DocumentUpload] ${VERSION} - Captura cancelada`);
+      setIsProcessing(false);
+    };
+
+    // Disparar apertura de cámara
+    input.click();
+    console.log(`[DocumentUpload] ${VERSION} - input.click() ejecutado`);
+  }, [processFile]);
 
   const handleSubmit = async () => {
     console.log('[DocumentUploadStep] Submit iniciado:', {
@@ -283,7 +232,6 @@ export function DocumentUploadStep({
     setErrorType(null);
     setErrorMessage(null);
     
-    // Si el error era de almacenamiento, también limpiar el archivo
     if (errorType === 'storage_low') {
       if (preview && preview.startsWith('blob:')) {
         URL.revokeObjectURL(preview);
@@ -324,19 +272,10 @@ export function DocumentUploadStep({
         <Button 
           variant="outline" 
           className="w-full"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={handleCameraClick}
         >
           Actualizar documento
         </Button>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
       </div>
     );
   }
@@ -476,7 +415,7 @@ export function DocumentUploadStep({
 
   return (
     <div className="space-y-4 relative">
-      {/* v4: Badge de versión visible para confirmar código actualizado */}
+      {/* v7: Badge de versión visible */}
       <div className="absolute -top-2 right-0 bg-primary/10 px-2 py-0.5 rounded text-xs font-mono text-primary">
         {VERSION}
       </div>
@@ -484,16 +423,6 @@ export function DocumentUploadStep({
       {/* Área de captura de foto */}
       <div className="space-y-2">
         <Label>Foto del documento</Label>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileSelect}
-          className="hidden"
-          disabled={uploadStatus === 'uploading' || isCompressing}
-        />
         
         {preview ? (
           <div className="relative">
@@ -504,12 +433,12 @@ export function DocumentUploadStep({
                 className="w-full h-full object-cover"
               />
             </div>
-            {(uploadStatus === 'uploading' || isCompressing) && (
+            {(uploadStatus === 'uploading' || isProcessing) && (
               <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-white">
                   <Loader2 className="w-8 h-8 animate-spin" />
                   <span className="text-sm font-medium">
-                    {isCompressing ? 'Comprimiendo...' : 'Subiendo...'}
+                    {isProcessing ? 'Procesando...' : 'Subiendo...'}
                   </span>
                 </div>
               </div>
@@ -518,8 +447,8 @@ export function DocumentUploadStep({
               variant="secondary"
               size="sm"
               className="absolute bottom-2 right-2"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadStatus === 'uploading' || isCompressing}
+              onClick={handleCameraClick}
+              disabled={uploadStatus === 'uploading' || isProcessing}
             >
               <Camera className="w-4 h-4 mr-1" />
               Cambiar
@@ -528,14 +457,14 @@ export function DocumentUploadStep({
         ) : (
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleCameraClick}
             className="w-full aspect-video border-2 border-dashed border-muted-foreground/30 rounded-lg flex flex-col items-center justify-center gap-3 bg-muted/50 hover:bg-muted transition-colors"
-            disabled={uploadStatus === 'uploading' || isCompressing}
+            disabled={uploadStatus === 'uploading' || isProcessing}
           >
-            {isCompressing ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                <p className="font-medium">Procesando imagen...</p>
+                <p className="font-medium">Esperando cámara...</p>
               </>
             ) : (
               <>
@@ -567,7 +496,7 @@ export function DocumentUploadStep({
           onChange={(e) => setFechaVigencia(e.target.value)}
           min={new Date().toISOString().split('T')[0]}
           className="text-base"
-          disabled={uploadStatus === 'uploading' || isCompressing}
+          disabled={uploadStatus === 'uploading' || isProcessing}
         />
         <p className="text-xs text-muted-foreground">
           Indica la fecha de vencimiento del documento
@@ -577,7 +506,7 @@ export function DocumentUploadStep({
       {/* Botón de subir */}
       <Button
         onClick={handleSubmit}
-        disabled={!file || !fechaVigencia || uploadStatus === 'uploading' || isUploading || isCompressing}
+        disabled={!file || !fechaVigencia || uploadStatus === 'uploading' || isUploading || isProcessing}
         className="w-full"
         size="lg"
       >
