@@ -2,7 +2,7 @@
  * Componente de paso individual para subir un documento
  * Incluye captura de foto, fecha de vigencia y estados de carga/éxito/error
  * 
- * v4.0 - Debugging robusto para Android: logging inmediato, toast de error, badge de versión
+ * v5.0 - Timeout en compresión + toasts detallados para debugging Android
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Camera, Calendar, CheckCircle2, Image as ImageIcon, AlertCircle, RefreshCw, Loader2, AlertTriangle, HardDrive } from 'lucide-react';
@@ -15,7 +15,7 @@ import { compressImage, needsCompression } from '@/lib/imageUtils';
 import { toast } from 'sonner';
 import type { DocumentoCustodio, TipoDocumentoCustodio } from '@/types/checklist';
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 type ErrorType = 'storage_low' | 'compression_failed' | 'upload_failed' | 'invalid_phone' | 'generic';
@@ -155,7 +155,8 @@ export function DocumentUploadStep({
       
       if (selectedFile.type.startsWith('image/') && needsCompression(selectedFile)) {
         setIsCompressing(true);
-        console.log(`[DocumentUpload] Comprimiendo imagen: ${(selectedFile.size / 1024).toFixed(0)}KB`);
+        console.log(`[DocumentUpload] ${VERSION} - Comprimiendo imagen: ${(selectedFile.size / 1024).toFixed(0)}KB`);
+        toast.info('Comprimiendo imagen...', { duration: 2000 });
         
         try {
           const { blob, compressionRatio } = await compressImage(selectedFile, {
@@ -165,21 +166,29 @@ export function DocumentUploadStep({
           });
           
           fileToUse = new File([blob], selectedFile.name, { type: 'image/jpeg' });
-          console.log(`[DocumentUpload] Compresión exitosa: ${compressionRatio.toFixed(0)}% reducción`);
+          console.log(`[DocumentUpload] ${VERSION} - Compresión exitosa: ${compressionRatio.toFixed(0)}% reducción`);
+          toast.success('Imagen comprimida ✓', { duration: 1500 });
         } catch (compressionError) {
-          console.error('[DocumentUpload] Error de compresión:', compressionError);
+          console.error(`[DocumentUpload] ${VERSION} - Error de compresión:`, compressionError);
           
-          if (isQuotaError(compressionError)) {
+          // Verificar si es timeout
+          const errorMsg = compressionError instanceof Error ? compressionError.message : '';
+          if (errorMsg.includes('Timeout')) {
+            toast.warning('Compresión tardó mucho, usando original', { duration: 3000 });
+            console.warn(`[DocumentUpload] ${VERSION} - Timeout, usando archivo original`);
+            fileToUse = selectedFile;
+          } else if (isQuotaError(compressionError)) {
             setUploadStatus('error');
             setErrorType('storage_low');
             setErrorMessage('No hay suficiente espacio para procesar la imagen');
             setIsCompressing(false);
             return;
+          } else {
+            // Si falla la compresión pero no es error de quota ni timeout, usar archivo original
+            console.warn(`[DocumentUpload] ${VERSION} - Usando archivo original sin comprimir`);
+            toast.warning('Usando foto original', { duration: 2000 });
+            fileToUse = selectedFile;
           }
-          
-          // Si falla la compresión pero no es error de quota, usar archivo original
-          console.warn('[DocumentUpload] Usando archivo original sin comprimir');
-          fileToUse = selectedFile;
         }
         
         setIsCompressing(false);
@@ -189,6 +198,9 @@ export function DocumentUploadStep({
       const url = URL.createObjectURL(fileToUse);
       setFile(fileToUse);
       setPreview(url);
+      
+      console.log(`[DocumentUpload] ${VERSION} - Preview creado:`, url.substring(0, 50));
+      toast.success('Foto lista ✓', { duration: 2000 });
       
     } catch (error) {
       console.error('[DocumentUpload] Error procesando archivo:', error);
