@@ -17,6 +17,7 @@ import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
+import { useKapsoWhatsApp } from '@/hooks/useKapsoWhatsApp';
 
 // Componentes modulares de CustodianStep (unificados)
 import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/QuickStats';
@@ -54,6 +55,10 @@ export function PendingAssignmentModal({
   const [isAssigning, setIsAssigning] = useState(false);
   const [showContextualEdit, setShowContextualEdit] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
+  
+  // Hook para envío de WhatsApp via Kapso
+  const { sendTemplate, isSending: isSendingWhatsApp } = useKapsoWhatsApp();
+  
   // Helper function to normalize custodio_asignado to string
   const normalizeCustodioName = (custodio: any): string | null => {
     if (!custodio) return null;
@@ -377,6 +382,40 @@ export function PendingAssignmentModal({
       });
 
       setCustodianAssigned(assignmentData);
+
+      // 📲 WHATSAPP: Enviar template de servicio asignado al custodio
+      // Buscar teléfono del custodio seleccionado
+      const selectedCustodio = filteredCustodians.find(c => c.id === assignmentData.custodio_asignado_id);
+      if (selectedCustodio?.telefono) {
+        const fechaServicio = service.fecha_hora_cita 
+          ? format(new Date(service.fecha_hora_cita), "d 'de' MMMM yyyy", { locale: es })
+          : 'Por confirmar';
+        const horaServicio = service.fecha_hora_cita
+          ? format(new Date(service.fecha_hora_cita), 'HH:mm')
+          : 'Por confirmar';
+
+        // Enviar template servicio_asignado de forma asíncrona (no bloqueante)
+        sendTemplate.mutate({
+          to: selectedCustodio.telefono,
+          templateName: 'servicio_asignado',
+          components: {
+            body: {
+              parameters: [
+                { type: 'text', text: assignmentData.custodio_nombre },
+                { type: 'text', text: fechaServicio },
+                { type: 'text', text: horaServicio },
+                { type: 'text', text: service.nombre_cliente || 'Cliente' },
+                { type: 'text', text: service.origen || 'Por confirmar' },
+                { type: 'text', text: service.destino || 'Por confirmar' }
+              ]
+            }
+          },
+          context: {
+            servicio_id: service.id,
+            tipo_notificacion: 'asignacion_servicio'
+          }
+        });
+      }
 
       // Check if service requires armed guard
       if (service.requiere_armado) {
