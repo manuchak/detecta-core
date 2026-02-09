@@ -160,10 +160,10 @@ export default function EsquemasArmadosTab() {
                     <span className="text-xs">Tarifa Base</span>
                   </div>
                   <p className="text-lg font-semibold">
-                    ${esquema.configuracion.tarifa_base_12h.toFixed(2)}
+                    ${(esquema.configuracion?.tarifa_base_12h ?? 0).toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {esquema.configuracion.horas_base_incluidas}h incluidas
+                    {esquema.configuracion?.horas_base_incluidas ?? 0}h incluidas
                   </p>
                 </div>
 
@@ -173,7 +173,7 @@ export default function EsquemasArmadosTab() {
                     <span className="text-xs">Hora Extra</span>
                   </div>
                   <p className="text-lg font-semibold">
-                    ${esquema.configuracion.tarifa_hora_extra.toFixed(2)}
+                    ${(esquema.configuracion?.tarifa_hora_extra ?? 0).toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">por hora adicional</p>
                 </div>
@@ -184,10 +184,10 @@ export default function EsquemasArmadosTab() {
                     <span className="text-xs">Viáticos</span>
                   </div>
                   <p className="text-lg font-semibold">
-                    ${esquema.configuracion.viaticos_diarios.toFixed(2)}
+                    ${(esquema.configuracion?.viaticos_diarios ?? 0).toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {esquema.configuracion.aplica_viaticos_foraneos ? 'Foráneos' : 'No aplica'}
+                    {esquema.configuracion?.aplica_viaticos_foraneos ? 'Foráneos' : 'No aplica'}
                   </p>
                 </div>
 
@@ -197,9 +197,9 @@ export default function EsquemasArmadosTab() {
                   </div>
                   <p className="text-lg font-semibold text-primary">
                     ${(
-                      esquema.configuracion.tarifa_base_12h +
-                      (2 * esquema.configuracion.tarifa_hora_extra) +
-                      (esquema.configuracion.aplica_viaticos_foraneos ? esquema.configuracion.viaticos_diarios : 0)
+                      (esquema.configuracion?.tarifa_base_12h ?? 0) +
+                      (2 * (esquema.configuracion?.tarifa_hora_extra ?? 0)) +
+                      (esquema.configuracion?.aplica_viaticos_foraneos ? (esquema.configuracion?.viaticos_diarios ?? 0) : 0)
                     ).toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">Total foráneo</p>
