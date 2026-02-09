@@ -2,24 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-// Tiered km rates for internal armed guards
-const TARIFAS_KM = [
-  { kmMin: 0, kmMax: 100, tarifaPorKm: 6.0, rango: '0-100 km' },
-  { kmMin: 100, kmMax: 250, tarifaPorKm: 5.5, rango: '101-250 km' },
-  { kmMin: 250, kmMax: 400, tarifaPorKm: 5.0, rango: '251-400 km' },
-  { kmMin: 400, kmMax: Infinity, tarifaPorKm: 4.6, rango: '400+ km' },
-];
-
-function calcularCostoPorKm(km: number): { tarifa: number; costo: number; rango: string } {
-  const tarifaEncontrada = TARIFAS_KM.find(t => km > t.kmMin && km <= t.kmMax) 
-    || TARIFAS_KM[TARIFAS_KM.length - 1];
-  return { 
-    tarifa: tarifaEncontrada.tarifaPorKm, 
-    costo: km * tarifaEncontrada.tarifaPorKm,
-    rango: tarifaEncontrada.rango 
-  };
-}
+import { fetchTarifasKm, calcularCostoPlano, type TarifaKmRango } from '@/utils/tarifasKmUtils';
 
 function normalizarNombre(nombre: string): string {
   return nombre
@@ -61,6 +44,7 @@ export function useArmadoEconomics(nombre: string | undefined) {
     queryKey: ['armado-economics', nombre],
     queryFn: async (): Promise<ArmadoEconomics> => {
       if (!nombre) throw new Error('Nombre requerido');
+      const tarifas = await fetchTarifasKm();
       
       const nombreNormalizado = normalizarNombre(nombre);
       
@@ -134,13 +118,13 @@ export function useArmadoEconomics(nombre: string | undefined) {
       let costoTotalEstimado = 0;
       const rangoCount: Record<string, { servicios: number; km: number; costo: number; tarifa: number }> = {};
       
-      TARIFAS_KM.forEach(t => {
-        rangoCount[t.rango] = { servicios: 0, km: 0, costo: 0, tarifa: t.tarifaPorKm };
+      tarifas.forEach(t => {
+        rangoCount[t.descripcion] = { servicios: 0, km: 0, costo: 0, tarifa: t.tarifa_por_km };
       });
       
       serviciosValidos.forEach(s => {
         const km = s.km_recorridos || 0;
-        const { tarifa, costo, rango } = calcularCostoPorKm(km);
+        const { tarifa, costo, rango } = calcularCostoPlano(km, tarifas);
         costoTotalEstimado += costo;
         
         if (rangoCount[rango]) {
@@ -178,7 +162,7 @@ export function useArmadoEconomics(nombre: string | undefined) {
         const kmMes = serviciosMes.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
         let costoMes = 0;
         serviciosMes.forEach(s => {
-          const { costo } = calcularCostoPorKm(s.km_recorridos || 0);
+          const { costo } = calcularCostoPlano(s.km_recorridos || 0, tarifas);
           costoMes += costo;
         });
         

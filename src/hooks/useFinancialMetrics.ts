@@ -2,32 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, eachDayOfInterval, subDays } from 'date-fns';
 import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
-
-// Tope máximo de km por servicio (ruta más larga: Manzanillo-CDMX ~700km)
-const MAX_KM_POR_SERVICIO = 700;
-
-// Esquema de tarifas escalonadas por km para armados
-const RANGOS_KM = [
-  { km_min: 0, km_max: 100, tarifa: 6.0 },
-  { km_min: 100, km_max: 250, tarifa: 5.5 },
-  { km_min: 250, km_max: 400, tarifa: 5.0 },
-  { km_min: 400, km_max: Infinity, tarifa: 4.6 },
-];
-
-function calcularCostoArmadoPorKm(kmRecorridos: number): number {
-  const km = Math.min(Math.max(kmRecorridos, 0), MAX_KM_POR_SERVICIO);
-  let costoTotal = 0;
-  let kmRestantes = km;
-
-  for (const rango of RANGOS_KM) {
-    if (kmRestantes <= 0) break;
-    const kmEnRango = Math.min(kmRestantes, rango.km_max - rango.km_min);
-    costoTotal += kmEnRango * rango.tarifa;
-    kmRestantes -= kmEnRango;
-  }
-
-  return costoTotal;
-}
+import { fetchTarifasKm, calcularCostoEscalonado, type TarifaKmRango } from '@/utils/tarifasKmUtils';
 
 export interface DailyMargin {
   fecha: string;
@@ -73,13 +48,13 @@ interface CostosDesglosados {
   total: number;
 }
 
-function calcularCostosDesglosados(servicio: ServicioConCostos): CostosDesglosados {
+function calcularCostosDesglosados(servicio: ServicioConCostos, tarifas: TarifaKmRango[]): CostosDesglosados {
   const custodio = parseFloat(String(servicio.costo_custodio || 0));
   const casetas = parseFloat(String(servicio.casetas || 0));
   
   let armado = 0;
   if (servicio.nombre_armado && servicio.km_recorridos && servicio.km_recorridos > 0) {
-    armado = calcularCostoArmadoPorKm(servicio.km_recorridos);
+    armado = calcularCostoEscalonado(servicio.km_recorridos, tarifas);
   }
   
   return { custodio, casetas, armado, total: custodio + casetas + armado };
@@ -90,6 +65,7 @@ export function useFinancialMetrics() {
     queryKey: ['financial-metrics-mtd'],
     queryFn: async () => {
       const now = new Date();
+      const tarifas = await fetchTarifasKm();
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
@@ -119,8 +95,8 @@ export function useFinancialMetrics() {
       const gmvVariacion = gmvAnterior > 0 ? ((gmvMTD - gmvAnterior) / gmvAnterior) * 100 : 0;
 
       // Calculate costs from servicios_custodia (costo_custodio + casetas + costo_armado)
-      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos).total, 0);
-      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos).total, 0);
+      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos, tarifas).total, 0);
+      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos, tarifas).total, 0);
       const costosVariacion = costosAnterior > 0 ? ((costosMTD - costosAnterior) / costosAnterior) * 100 : 0;
 
       // Calculate margin
@@ -149,7 +125,7 @@ export function useFinancialMetrics() {
       (serviciosCurrent || []).forEach(s => {
         const fecha = s.fecha_hora_cita ? format(new Date(s.fecha_hora_cita), 'yyyy-MM-dd') : null;
         if (fecha) {
-          const desglose = calcularCostosDesglosados(s as ServicioConCostos);
+          const desglose = calcularCostosDesglosados(s as ServicioConCostos, tarifas);
           gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
           costosCustodiosByDay[fecha] = (costosCustodiosByDay[fecha] || 0) + desglose.custodio;
           costosCasetasByDay[fecha] = (costosCasetasByDay[fecha] || 0) + desglose.casetas;
