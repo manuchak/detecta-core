@@ -160,39 +160,37 @@ export function QuickEditActions({ service, onEditModeSelect }: QuickEditActions
           <h4 className="apple-text-subtitle">Opciones Adicionales</h4>
           
           <div className="apple-grid-actions">
-            {/* Personnel Changes */}
-            {isComplete && (
-              <>
-                <Button
-                  variant="outline"
-                  className="apple-button-secondary justify-start h-auto p-4"
-                  onClick={() => handleQuickEdit('custodian_only', 'Cambiar custodio asignado')}
-                >
-                  <User className="h-4 w-4 mr-3" />
-                  <div className="text-left">
-                    <div className="apple-text-callout">Cambiar Custodio</div>
-                    <div className="apple-text-caption text-muted-foreground">
-                      Actual: {service.custodio_asignado}
-                    </div>
+            {/* Personnel Changes - visible when personnel is assigned */}
+            {hasCustodio && (
+              <Button
+                variant="outline"
+                className="apple-button-secondary justify-start h-auto p-4"
+                onClick={() => handleQuickEdit('custodian_only', 'Cambiar custodio asignado')}
+              >
+                <User className="h-4 w-4 mr-3" />
+                <div className="text-left">
+                  <div className="apple-text-callout">Cambiar Custodio</div>
+                  <div className="apple-text-caption text-muted-foreground">
+                    Actual: {service.custodio_asignado}
                   </div>
-                </Button>
+                </div>
+              </Button>
+            )}
 
-                {service.requiere_armado && hasArmado && (
-                  <Button
-                    variant="outline"
-                    className="apple-button-secondary justify-start h-auto p-4"
-                    onClick={() => handleQuickEdit('armed_only', 'Cambiar armado asignado')}
-                  >
-                    <Shield className="h-4 w-4 mr-3" />
-                    <div className="text-left">
-                      <div className="apple-text-callout">Cambiar Armado</div>
-                      <div className="apple-text-caption text-muted-foreground">
-                        Actual: {service.armado_asignado}
-                      </div>
-                    </div>
-                  </Button>
-                )}
-              </>
+            {hasArmado && (
+              <Button
+                variant="outline"
+                className="apple-button-secondary justify-start h-auto p-4"
+                onClick={() => handleQuickEdit('armed_only', 'Cambiar armado asignado')}
+              >
+                <Shield className="h-4 w-4 mr-3" />
+                <div className="text-left">
+                  <div className="apple-text-callout">Cambiar Armado</div>
+                  <div className="apple-text-caption text-muted-foreground">
+                    Actual: {service.armado_asignado}
+                  </div>
+                </div>
+              </Button>
             )}
 
             {/* Configuration Changes */}

@@ -116,37 +116,35 @@ export function SmartEditModal({
       });
     }
 
-    // Reassignment options for complete services
-    if (isComplete) {
-      if (hasCustodio) {
-        actions.push({
-          id: 'change_custodian',
-          title: 'Cambiar Custodio',
-          description: `Actual: ${service.custodio_asignado}`,
-          icon: User,
-          color: 'info' as const,
-          priority: 'medium' as const,
-          action: () => {
-            setSelectedAction('change_custodian');
-            setCurrentView('contextual_edit');
-          }
-        });
-      }
+    // Reassignment options - visible when personnel is assigned (independent of isComplete)
+    if (hasCustodio) {
+      actions.push({
+        id: 'change_custodian',
+        title: 'Cambiar Custodio',
+        description: `Actual: ${service.custodio_asignado}`,
+        icon: User,
+        color: 'info' as const,
+        priority: 'medium' as const,
+        action: () => {
+          setSelectedAction('change_custodian');
+          setCurrentView('contextual_edit');
+        }
+      });
+    }
 
-      if (hasArmado) {
-        actions.push({
-          id: 'change_armed',
-          title: 'Cambiar Armado',
-          description: `Actual: ${service.armado_asignado}`,
-          icon: Shield,
-          color: 'info' as const,
-          priority: 'medium' as const,
-          action: () => {
-            setSelectedAction('change_armed');
-            setCurrentView('contextual_edit');
-          }
-        });
-      }
+    if (hasArmado) {
+      actions.push({
+        id: 'change_armed',
+        title: 'Cambiar Armado',
+        description: `Actual: ${service.armado_asignado}`,
+        icon: Shield,
+        color: 'info' as const,
+        priority: 'medium' as const,
+        action: () => {
+          setSelectedAction('change_armed');
+          setCurrentView('contextual_edit');
+        }
+      });
     }
 
     // Configuration changes - Solo si tiene custodio y estado permite cambios
