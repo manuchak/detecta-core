@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Save, Building2, CreditCard, User, AlertTriangle, Store } from 'lucide-react';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon } from 'lucide-react';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
@@ -64,6 +64,11 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
     contacto_facturacion_tel: '',
     prioridad_cobranza: 'normal',
     notas_cobranza: '',
+    horas_cortesia: null,
+    pernocta_tarifa: null,
+    cobra_pernocta: false,
+    tipo_facturacion: 'corte',
+    dias_max_facturacion: null,
   });
 
   useEffect(() => {
@@ -87,6 +92,11 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
         contacto_facturacion_tel: cliente.contacto_facturacion_tel || '',
         prioridad_cobranza: cliente.prioridad_cobranza || 'normal',
         notas_cobranza: cliente.notas_cobranza || '',
+        horas_cortesia: cliente.horas_cortesia,
+        pernocta_tarifa: cliente.pernocta_tarifa,
+        cobra_pernocta: cliente.cobra_pernocta ?? false,
+        tipo_facturacion: cliente.tipo_facturacion || 'corte',
+        dias_max_facturacion: cliente.dias_max_facturacion,
       });
     }
   }, [cliente]);
@@ -141,22 +151,26 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="fiscal" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               {canEditNombreComercial && (
-                <TabsTrigger value="comercialName" className="gap-1.5">
+                <TabsTrigger value="comercialName" className="gap-1.5 text-xs">
                   <Store className="h-3.5 w-3.5" />
                   Nombre
                 </TabsTrigger>
               )}
-              <TabsTrigger value="fiscal" className="gap-1.5">
+              <TabsTrigger value="fiscal" className="gap-1.5 text-xs">
                 <Building2 className="h-3.5 w-3.5" />
-                Datos Fiscales
+                Fiscales
               </TabsTrigger>
-              <TabsTrigger value="comercial" className="gap-1.5">
+              <TabsTrigger value="comercial" className="gap-1.5 text-xs">
                 <CreditCard className="h-3.5 w-3.5" />
-                Condiciones
+                Crédito
               </TabsTrigger>
-              <TabsTrigger value="contacto" className="gap-1.5">
+              <TabsTrigger value="facturacion" className="gap-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5" />
+                Facturación
+              </TabsTrigger>
+              <TabsTrigger value="contacto" className="gap-1.5 text-xs">
                 <User className="h-3.5 w-3.5" />
                 Contacto
               </TabsTrigger>
@@ -359,6 +373,74 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
                   onChange={(e) => setFormData({ ...formData, notas_cobranza: e.target.value })}
                   rows={3}
                 />
+              </div>
+            </TabsContent>
+
+            {/* Configuración Facturación - Fase 1 CFO */}
+            <TabsContent value="facturacion" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Facturación</Label>
+                  <Select
+                    value={formData.tipo_facturacion || 'corte'}
+                    onValueChange={(value) => setFormData({ ...formData, tipo_facturacion: value as 'inmediata' | 'corte' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inmediata">Inmediata (por servicio)</SelectItem>
+                      <SelectItem value="corte">Fecha de Corte (acumulada)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Días Máx. para Facturar</Label>
+                  <Input
+                    type="number"
+                    placeholder="Sin límite"
+                    value={formData.dias_max_facturacion ?? ''}
+                    onChange={(e) => setFormData({ ...formData, dias_max_facturacion: e.target.value ? parseInt(e.target.value) : null })}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Días máx entre fin de servicio y emisión de factura</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Horas de Cortesía</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    placeholder="Ej: 2, 4, 8"
+                    value={formData.horas_cortesia ?? ''}
+                    onChange={(e) => setFormData({ ...formData, horas_cortesia: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Horas de espera sin cobro adicional al cliente</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tarifa de Pernocta</Label>
+                  <Input
+                    type="number"
+                    placeholder="$0.00"
+                    value={formData.pernocta_tarifa ?? ''}
+                    onChange={(e) => setFormData({ ...formData, pernocta_tarifa: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="cobra_pernocta"
+                  checked={formData.cobra_pernocta ?? false}
+                  onChange={(e) => setFormData({ ...formData, cobra_pernocta: e.target.checked })}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <label htmlFor="cobra_pernocta" className="text-sm cursor-pointer">
+                  <span className="font-medium">Cliente paga pernocta</span>
+                  <p className="text-[10px] text-muted-foreground">Si está activo, la pernocta se incluye en la factura del cliente</p>
+                </label>
               </div>
             </TabsContent>
 
