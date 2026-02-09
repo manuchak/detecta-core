@@ -1,74 +1,117 @@
 
 
-# Integrar SIERCP como paso obligatorio antes de Liberacion
+# Plan Integral: Captura Movil de Evidencias + Optimizacion UI Movil para Supply
 
-## Situacion actual
+## Resumen ejecutivo
 
-El flujo actual es:
-```text
-Lead -> Entrevista exitosa -> Aprobar -> Liberar custodio
-```
+Este plan combina dos necesidades del equipo de Supply en una sola iteracion:
+1. **Componente reutilizable de captura de fotos** desde movil (tech del portal custodio)
+2. **Optimizacion de UI movil** en las pantallas que usan las chicas para evaluar candidatos
 
-La opcion "Aplicar SIERCP" existe pero esta escondida en el menu dropdown de "mas acciones" y no es obligatoria. El `SendSIERCPDialog` ya funciona: genera un token, muestra el link copiable, y tiene botones de WhatsApp/Email.
+El resultado: las usuarias de Supply podran abrir la app desde su celular, navegar facilmente entre candidatos y evaluaciones, y capturar evidencia fisica (toxicologico, Midot, etc.) directo con la camara.
 
-## Flujo propuesto
+---
 
-```text
-Lead -> Entrevista exitosa -> Aprobar -> Enviar SIERCP -> [Candidato completa] -> Liberar
-```
+## Parte 1: Componente Reutilizable de Captura Movil
 
-### Que cambia para el usuario
+### Archivos nuevos
 
-1. **Al aprobar un candidato**, en lugar de ver directamente el boton "Liberar", vera un boton **"Enviar SIERCP"** (con icono Brain, color morado)
-2. Al hacer clic se abre el dialog existente `SendSIERCPDialog` donde puede:
-   - Generar el link unico
-   - **Copiar el link** para enviar manualmente (opcion principal mientras WhatsApp no esta 100%)
-   - Enviar por WhatsApp (abre wa.me con mensaje pre-armado)
-   - Enviar por Email (abre mailto)
-3. Una vez que el SIERCP esta **completado**, el boton cambia a **"Liberar"** (flujo actual)
-4. Si el SIERCP esta **pendiente/enviado**, se muestra un badge indicando el estado ("SIERCP Enviado", "SIERCP En progreso")
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/components/shared/EvidenceCapture.tsx` | Componente de captura con camara directa, compresion Canvas, preview Base64, upload a Storage |
+| `src/components/shared/EvidenceThumbnail.tsx` | Thumbnail con acciones: ver en grande, eliminar, reemplazar |
 
-## Cambios tecnicos
+### Comportamiento del componente EvidenceCapture
 
-### 1. `src/components/leads/approval/ImprovedLeadCard.tsx`
+- **En movil**: Muestra boton "Tomar Foto" que usa `document.createElement('input')` dinamico con `capture="environment"` (patron probado del portal custodio que evita problemas en Android WebViews)
+- **En desktop**: Muestra zona de drag-and-drop + boton "Seleccionar archivo"
+- **Compresion**: Canvas API (1920x1080, calidad 0.7) - reduce ~80% del peso
+- **Preview**: Base64 via FileReader (compatible con WebViews)
+- **Upload**: Sube a bucket `candidato-documentos` (ya existe y es publico) con patron Verify-Before-Commit
+- **Props**: `bucket`, `storagePath`, `maxPhotos`, `existingUrls`, `onPhotosChange`, `label`, `captureOnly`
 
-- Agregar query a `siercp_invitations` para el lead actual (usar `useSIERCPInvitations`)
-- Modificar la seccion de botones post-aprobacion (lineas 205-225):
+### Integracion en ToxicologyResultForm
 
-| Condicion | Boton mostrado |
-|-----------|---------------|
-| Aprobado + Sin invitacion SIERCP | "Enviar SIERCP" (abre dialog) |
-| Aprobado + SIERCP enviado/pendiente | Badge de estado + "Ver SIERCP" |
-| Aprobado + SIERCP completado + vinculado | "Liberar" (flujo actual) |
-| Aprobado + SIERCP completado + no vinculado | "Re-vincular" (flujo actual) |
+- Agregar seccion "Evidencia del resultado" con `EvidenceCapture` apuntando a `candidato-documentos/toxicologia/{candidatoId}`
+- Al guardar, incluir las URLs en `archivo_url` del registro (la columna ya existe en `evaluaciones_toxicologicas`)
+- No se necesitan migraciones - el campo `archivo_url` ya existe en la tabla
 
-- Agregar badge visual en la tarjeta mostrando estado SIERCP cuando aplique
+### Integracion en DocumentUploadDialog
 
-### 2. `src/components/leads/approval/SendSIERCPDialog.tsx`
+- Reemplazar el input estatico (`id="file-input"`) con el patron dinamico `createElement` para compatibilidad movil
+- Usar `useIsMobile()` para alternar entre modo camara directa y drag-and-drop
+- Mantener drag-and-drop para desktop
 
-- Enfatizar la opcion de **copiar link** como accion principal (boton mas grande/prominente)
-- Mantener WhatsApp y Email como opciones secundarias
-- Agregar texto explicativo: "Copia el link y envialo manualmente al candidato"
+### Hook useEvaluacionesToxicologicas
 
-### 3. `src/components/leads/approval/LeadCard.tsx` (card legacy)
+- El mutation `useCreateToxicologia` ya acepta `archivo_url` en `CreateToxicologiaData` - no necesita cambios
 
-- Aplicar la misma logica de estados SIERCP para consistencia
+---
 
-### 4. Sin cambios en backend
+## Parte 2: Optimizacion UI Movil
 
-- La tabla `siercp_invitations` ya existe con todos los campos necesarios
-- El hook `useSIERCPInvitations` ya tiene toda la logica de crear, marcar como enviado, cancelar
-- El `getInvitationUrl` ya genera la URL correcta
+### 2.1 CandidateEvaluationPanel - Tabs scrolleables
+
+**Problema**: 10 tabs en `grid-cols-10` = cada tab tiene ~39px en movil, imposible de tocar
+
+**Solucion**:
+- Cambiar `grid grid-cols-10` por `flex overflow-x-auto` con scroll horizontal
+- Cada tab con `min-w-[70px]` para touch target adecuado
+- Labels siempre visibles (abreviados): "Entrevista", "Psico", "Toxico", "Refs", "Riesgo", "Docs", "Contratos", "Capacitacion", "Instalacion", "Historial"
+- Dialog: agregar clases responsivas `w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-6xl` para ser full-screen en movil
+
+### 2.2 ImprovedLeadCard - Layout responsivo
+
+**Problema**: Avatar + nombre + badges + botones de accion compiten por espacio horizontal en <400px
+
+**Solucion**:
+- Mantener layout horizontal en desktop
+- En movil (`<sm`): apilar info arriba, botones abajo como fila con `flex-wrap`
+- Botones de accion con `w-full sm:w-auto` para ser tactiles en movil
+- Email truncado con tooltip en lugar de cortar visualmente
+
+### 2.3 LeadCard (legacy) - Misma optimizacion
+
+- Apilar la seccion de informacion y acciones verticalmente en movil
+- Botones full-width en pantallas < sm
+
+### 2.4 EvaluacionesPage - Vista card en movil
+
+**Problema**: La lista de candidatos es una tabla horizontal que no escala en movil
+
+**Solucion**:
+- Usar `useIsMobile()` para detectar viewport
+- En movil: cards apiladas con nombre, badges de estado y boton "Evaluar"
+- Barra de busqueda full-width en movil
+- Titulo y descripcion con tamano reducido en movil
+
+### 2.5 Formularios tactiles (ToxicologyResultForm, DocumentUploadDialog)
+
+- Radio buttons con padding `p-4` (min 44px touch target)
+- Inputs con `h-12` en movil
+- Botones de accion `w-full` en movil con `h-12`
+- Dialog con `sm:max-w-md` (full-width en movil sin padding excesivo)
+
+---
+
+## Detalle tecnico: Archivos a modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| **NUEVO** `src/components/shared/EvidenceCapture.tsx` | Componente de captura movil con compresion y upload |
+| **NUEVO** `src/components/shared/EvidenceThumbnail.tsx` | Thumbnail con acciones |
+| `src/components/recruitment/CandidateEvaluationPanel.tsx` | Tabs scrolleables + dialog responsive |
+| `src/components/recruitment/toxicology/ToxicologyResultForm.tsx` | Agregar EvidenceCapture + touch targets |
+| `src/components/recruitment/documents/DocumentUploadDialog.tsx` | Patron dinamico createElement + deteccion movil |
+| `src/components/leads/approval/ImprovedLeadCard.tsx` | Layout apilado en movil |
+| `src/components/leads/approval/LeadCard.tsx` | Layout apilado en movil |
+| `src/pages/Leads/EvaluacionesPage.tsx` | Vista card en movil + busqueda responsive |
 
 ## Lo que NO se toca
 
-- El proceso de liberacion (`liberar_custodio_a_planeacion_v2`) no cambia
-- Las evaluaciones psicometricas existentes en perfiles operativos no cambian
-- El flujo de entrevistas y aprobacion no cambia
-- La ruta `/assessment/:token` (donde el candidato hace la prueba) no cambia
+- Backend / migraciones de BD (todo ya existe)
+- Flujo de aprobacion, SIERCP, liberacion
+- Portal custodio y sus componentes de camara
+- Logica de hooks y mutations existentes
+- Bucket de storage (ya existe, ya es publico)
 
-## Resumen de archivos
-
-- **Editar**: `ImprovedLeadCard.tsx` (logica de botones post-aprobacion + hook SIERCP)
-- **Editar**: `SendSIERCPDialog.tsx` (enfatizar opcion copiar link manual)
-- **Editar**: `LeadCard.tsx` (consistencia con card legacy)
