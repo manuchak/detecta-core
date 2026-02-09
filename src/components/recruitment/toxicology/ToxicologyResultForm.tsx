@@ -10,6 +10,7 @@ import { useCreateToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftIndicator } from '@/components/ui/DraftIndicator';
+import { EvidenceCapture } from '@/components/shared/EvidenceCapture';
 
 interface Props {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface ToxicologyFormData {
   fechaMuestra: string;
   sustancias: string;
   notas: string;
+  evidenceUrls: string[];
 }
 
 const initialData: ToxicologyFormData = {
@@ -32,6 +34,7 @@ const initialData: ToxicologyFormData = {
   fechaMuestra: '',
   sustancias: '',
   notas: '',
+  evidenceUrls: [],
 };
 
 export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNombre }: Props) {
@@ -59,6 +62,7 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
       sustancias_detectadas: data.resultado === 'positivo' && data.sustancias 
         ? data.sustancias.split(',').map(s => s.trim()) 
         : undefined,
+      archivo_url: data.evidenceUrls.length > 0 ? data.evidenceUrls[0] : undefined,
       notas: data.notas || undefined,
     });
 
@@ -101,14 +105,14 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
           <div className="space-y-3">
             <Label>Resultado de la prueba *</Label>
             <RadioGroup value={data.resultado} onValueChange={(v) => updateData({ resultado: v as 'negativo' | 'positivo' })}>
-              <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+          <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer min-h-[48px]">
                 <RadioGroupItem value="negativo" id="negativo" />
                 <Label htmlFor="negativo" className="flex-1 cursor-pointer">
                   <span className="font-medium text-emerald-700 dark:text-emerald-400">✅ Negativo</span>
                   <p className="text-xs text-muted-foreground">No se detectaron sustancias</p>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer min-h-[48px]">
                 <RadioGroupItem value="positivo" id="positivo" />
                 <Label htmlFor="positivo" className="flex-1 cursor-pointer">
                   <span className="font-medium text-destructive">❌ Positivo</span>
@@ -171,15 +175,26 @@ export function ToxicologyResultForm({ isOpen, onClose, candidatoId, candidatoNo
               value={data.notas}
               onChange={(e) => updateData({ notas: e.target.value })}
               rows={2}
+              className="sm:h-auto h-12"
             />
           </div>
 
+          {/* Evidence capture */}
+          <EvidenceCapture
+            bucket="candidato-documentos"
+            storagePath={`toxicologia/${candidatoId}`}
+            maxPhotos={3}
+            existingUrls={data.evidenceUrls}
+            onPhotosChange={(urls) => updateData({ evidenceUrls: urls })}
+            label="📸 Evidencia del resultado (opcional)"
+          />
+
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={handleClose}>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto h-12 sm:h-10">
               Cancelar
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button type="submit" disabled={createMutation.isPending} className="w-full sm:w-auto h-12 sm:h-10">
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Registrar
             </Button>

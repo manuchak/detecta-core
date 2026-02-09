@@ -50,7 +50,6 @@ export const ImprovedLeadCard = ({
   const hasSuccessfulCall = lead.has_successful_call || false;
   const isApprovedButUnlinked = lead.final_decision === 'approved' && !lead.candidato_custodio_id;
   
-  // SIERCP invitation state
   const { activeInvitation, isLoading: siercpLoading } = useSIERCPInvitations(
     lead.final_decision === 'approved' ? lead.lead_id : undefined
   );
@@ -78,7 +77,7 @@ export const ImprovedLeadCard = ({
 
   return (
     <div className={cn("apple-card p-4 group border-l-[3px]", priorityBorder)}>
-      {/* Header: Avatar + Info + Status */}
+      {/* Header: Avatar + Info */}
       <div className="flex items-start gap-3">
         <Avatar className="h-10 w-10 shrink-0">
           <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
@@ -87,7 +86,7 @@ export const ImprovedLeadCard = ({
         </Avatar>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <h3 className="font-medium text-sm truncate">{lead.lead_nombre}</h3>
             <LeadAgeBadge createdAt={lead.lead_fecha_creacion} />
             {statusBadge}
@@ -111,25 +110,25 @@ export const ImprovedLeadCard = ({
             )}
           </div>
           
-          {/* Contact info - subtle */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
             {lead.lead_telefono && (
-              <a 
-                href={`tel:${lead.lead_telefono}`} 
-                className="hover:text-foreground transition-colors font-mono"
-              >
+              <a href={`tel:${lead.lead_telefono}`} className="hover:text-foreground transition-colors font-mono">
                 {lead.lead_telefono}
               </a>
             )}
             {lead.lead_email && (
-              <span className="flex items-center gap-1 truncate max-w-[140px]">
-                <Mail className="h-3 w-3 shrink-0" />
-                <span className="truncate">{lead.lead_email}</span>
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 truncate max-w-[140px] sm:max-w-[200px]">
+                    <Mail className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{lead.lead_email}</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{lead.lead_email}</TooltipContent>
+              </Tooltip>
             )}
           </div>
           
-          {/* Contact status - very subtle */}
           <div className="flex items-center gap-2 mt-1.5">
             {hasSuccessfulCall ? (
               <span className="text-xs text-success flex items-center gap-1">
@@ -148,174 +147,158 @@ export const ImprovedLeadCard = ({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Primary CTA */}
-          {!hasSuccessfulCall && (
+        {/* Dropdown - always visible top-right */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={() => onEditLead(lead)}>
+              <Edit className="h-3.5 w-3.5 mr-2" />
+              Editar
+            </DropdownMenuItem>
+            {!hasSuccessfulCall && (
+              <DropdownMenuItem onClick={() => onVapiCall(lead)}>
+                <Bot className="h-3.5 w-3.5 mr-2" />
+                Llamada IA
+              </DropdownMenuItem>
+            )}
+            {callLogs.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onViewCallHistory(lead)}>
+                  <Bot className="h-3.5 w-3.5 mr-2" />
+                  Historial ({callLogs.length})
+                </DropdownMenuItem>
+              </>
+            )}
+            {onMoveToPool && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onMoveToPool(lead)}>
+                  <Archive className="h-3.5 w-3.5 mr-2" />
+                  Mover a Pool
+                </DropdownMenuItem>
+              </>
+            )}
+            {canApplySIERCP && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowSIERCPDialog(true)}>
+                  <Brain className="h-3.5 w-3.5 mr-2 text-chart-3" />
+                  Aplicar SIERCP
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Actions - stacked on mobile */}
+      <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-2 sm:pl-[52px]">
+        {!hasSuccessfulCall && (
+          <Button 
+            size="sm" 
+            onClick={() => onLogCall(lead)} 
+            className="h-10 sm:h-8 px-3 text-xs w-full sm:w-auto"
+          >
+            <Phone className="h-3.5 w-3.5 mr-1.5" />
+            Llamar
+          </Button>
+        )}
+
+        {hasSuccessfulCall && hasMissingInfo && (
+          <Button 
+            size="sm" 
+            variant="outline"
+            onClick={() => onCompleteMissingInfo(lead)} 
+            className="h-10 sm:h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5 w-full sm:w-auto"
+          >
+            Completar
+          </Button>
+        )}
+
+        {!lead.final_decision && hasSuccessfulCall && !hasMissingInfo && (
+          <>
             <Button 
               size="sm" 
-              onClick={() => onLogCall(lead)} 
-              className="h-8 px-3 text-xs"
+              onClick={() => onApproveLead(lead)} 
+              className="h-10 sm:h-8 px-3 text-xs bg-success hover:bg-success/90 flex-1 sm:flex-none"
             >
-              <Phone className="h-3.5 w-3.5 mr-1.5" />
-              Llamar
+              <CheckCircle className="h-3.5 w-3.5 mr-1" />
+              Aprobar
             </Button>
-          )}
-
-          {hasSuccessfulCall && hasMissingInfo && (
             <Button 
               size="sm" 
-              variant="outline"
-              onClick={() => onCompleteMissingInfo(lead)} 
-              className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
+              variant="ghost"
+              onClick={() => onSendToSecondInterview(lead)} 
+              className="h-10 sm:h-8 px-3 text-xs flex-1 sm:flex-none"
             >
-              Completar
+              <ArrowRight className="h-3.5 w-3.5 mr-1" />
+              <span className="sm:hidden">2da</span>
+              <span className="hidden sm:inline">2da Entrevista</span>
             </Button>
-          )}
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={() => onReject(lead)} 
+              className="h-10 sm:h-8 w-10 sm:w-8 p-0 text-destructive hover:text-destructive"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
 
-          {!lead.final_decision && hasSuccessfulCall && !hasMissingInfo && (
-            <>
+        {lead.final_decision === 'approved' && (
+          <>
+            {siercpInProgress && activeInvitation && (
+              <SIERCPStatusBadge status={activeInvitation.status} />
+            )}
+            {!activeInvitation && !siercpLoading && (
               <Button 
                 size="sm" 
-                onClick={() => onApproveLead(lead)} 
-                className="h-8 px-3 text-xs bg-success hover:bg-success/90"
+                onClick={() => setShowSIERCPDialog(true)} 
+                className="h-10 sm:h-8 px-3 text-xs bg-chart-3 hover:bg-chart-3/90 w-full sm:w-auto"
               >
-                <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                Aprobar
+                <Brain className="h-3.5 w-3.5 mr-1.5" />
+                Enviar SIERCP
               </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onSendToSecondInterview(lead)} 
-                    className="h-8 w-8 p-0"
-                  >
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Segunda entrevista</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => onReject(lead)} 
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                  >
-                    <XCircle className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Rechazar</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-
-          {lead.final_decision === 'approved' && (
-            <>
-              {/* SIERCP Status Badge */}
-              {siercpInProgress && activeInvitation && (
-                <SIERCPStatusBadge status={activeInvitation.status} />
-              )}
-
-              {/* No SIERCP yet → show "Enviar SIERCP" */}
-              {!activeInvitation && !siercpLoading && (
+            )}
+            {siercpInProgress && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setShowSIERCPDialog(true)} 
+                className="h-10 sm:h-8 px-3 text-xs border-chart-3/30 text-chart-3 hover:bg-chart-3/5 w-full sm:w-auto"
+              >
+                Ver SIERCP
+              </Button>
+            )}
+            {siercpCompleted && onIniciarLiberacion && (
+              lead.candidato_custodio_id ? (
                 <Button 
                   size="sm" 
-                  onClick={() => setShowSIERCPDialog(true)} 
-                  className="h-8 px-3 text-xs bg-chart-3 hover:bg-chart-3/90"
+                  onClick={() => onIniciarLiberacion(lead)} 
+                  className="h-10 sm:h-8 px-3 text-xs w-full sm:w-auto"
                 >
-                  <Brain className="h-3.5 w-3.5 mr-1.5" />
-                  Enviar SIERCP
+                  <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                  Liberar
                 </Button>
-              )}
-
-              {/* SIERCP in progress → "Ver SIERCP" */}
-              {siercpInProgress && (
+              ) : onRetryVinculacion && (
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => setShowSIERCPDialog(true)} 
-                  className="h-8 px-3 text-xs border-chart-3/30 text-chart-3 hover:bg-chart-3/5"
+                  onClick={() => onRetryVinculacion(lead)} 
+                  className="h-10 sm:h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5 w-full sm:w-auto"
                 >
-                  Ver SIERCP
+                  Re-vincular
                 </Button>
-              )}
-
-              {/* SIERCP completed → show Liberar or Re-vincular */}
-              {siercpCompleted && onIniciarLiberacion && (
-                lead.candidato_custodio_id ? (
-                  <Button 
-                    size="sm" 
-                    onClick={() => onIniciarLiberacion(lead)} 
-                    className="h-8 px-3 text-xs"
-                  >
-                    <Rocket className="h-3.5 w-3.5 mr-1.5" />
-                    Liberar
-                  </Button>
-                ) : onRetryVinculacion && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => onRetryVinculacion(lead)} 
-                    className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
-                  >
-                    Re-vincular
-                  </Button>
-                )
-              )}
-            </>
-          )}
-
-          {/* More actions dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => onEditLead(lead)}>
-                <Edit className="h-3.5 w-3.5 mr-2" />
-                Editar
-              </DropdownMenuItem>
-              {!hasSuccessfulCall && (
-                <DropdownMenuItem onClick={() => onVapiCall(lead)}>
-                  <Bot className="h-3.5 w-3.5 mr-2" />
-                  Llamada IA
-                </DropdownMenuItem>
-              )}
-              {callLogs.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onViewCallHistory(lead)}>
-                    <Bot className="h-3.5 w-3.5 mr-2" />
-                    Historial ({callLogs.length})
-                  </DropdownMenuItem>
-                </>
-              )}
-              {onMoveToPool && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onMoveToPool(lead)}>
-                    <Archive className="h-3.5 w-3.5 mr-2" />
-                    Mover a Pool
-                  </DropdownMenuItem>
-                </>
-              )}
-              {canApplySIERCP && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowSIERCPDialog(true)}>
-                    <Brain className="h-3.5 w-3.5 mr-2 text-chart-3" />
-                    Aplicar SIERCP
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              )
+            )}
+          </>
+        )}
       </div>
 
       {/* SIERCP Dialog */}
