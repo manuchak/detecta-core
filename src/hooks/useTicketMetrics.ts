@@ -74,13 +74,13 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         .from('tickets')
         .select(`
           *,
-          ticket_categorias_custodio!categoria_custodio_id(nombre, color, departamento_responsable)
+          ticket_categorias_custodio!left(nombre, color, departamento_responsable)
         `)
         .gte('created_at', startStr)
         .lte('created_at', endStr + 'T23:59:59');
 
       if (departamento) {
-        query = query.eq('categoria.departamento_responsable', departamento);
+        query = query.eq('ticket_categorias_custodio.departamento_responsable', departamento);
       }
 
       if (agentId) {
