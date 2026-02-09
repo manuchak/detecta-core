@@ -1,52 +1,67 @@
 
+# Reconstruir graficos de Analisis de Tickets desde cero
 
-# Fix: Graficos de "Analisis de Tickets" no cargan datos
+## Problema raiz
 
-## Diagnostico
+El hook `useTicketMetrics` intenta hacer un JOIN a `ticket_categorias_custodio` usando sintaxis PostgREST incorrecta (`!left`). La query falla silenciosamente y retorna datos vacios, causando que ambos graficos muestren "Sin datos disponibles".
 
-El hook `useTicketMetrics.ts` tiene multiples nombres de columna incorrectos que causan que la consulta falle silenciosamente o no procese datos correctamente. Los graficos reciben arrays vacios y muestran areas grises.
+Los 7 tickets existentes (Dic 2025) tienen casi todos `categoria_custodio_id = null`, y la query nunca los recupera correctamente.
 
-**Columnas mal referenciadas:**
+## Estrategia
 
-| Codigo actual | Columna real en BD |
-|---|---|
-| `ticket.estado` | `ticket.status` |
-| `ticket.sla_deadline_resolucion` | `ticket.fecha_sla_resolucion` |
-| `categoria:ticket_categorias_custodio(...)` (alias de join) | `ticket_categorias_custodio!categoria_custodio_id(...)` (FK real) |
+Eliminar el JOIN problematico. Hacer dos queries separadas y unirlas en JavaScript. Esto es mas simple, mas robusto, y no depende de sintaxis especifica de PostgREST.
+
+## Datos reales en BD
+
+- 7 tickets en tabla `tickets` (6 cerrados, 1 resuelto)
+- Columna `categoria_custodio_id` (FK a `ticket_categorias_custodio`) - mayoria son NULL
+- Columna `category` (texto simple) - todos tienen "general"
+- Columna `status` (texto) - valores: "cerrado", "resuelto"
+- Rango: Dic 15-26, 2025
 
 ## Cambios
 
 ### Archivo: `src/hooks/useTicketMetrics.ts`
 
-**1. Corregir el JOIN a categorias (linea 77)**
+Reescribir la funcion `calculateMetrics` para:
 
-```text
--- Antes:
-categoria:ticket_categorias_custodio(nombre, color, departamento_responsable)
-
--- Despues:
-ticket_categorias_custodio!categoria_custodio_id(nombre, color, departamento_responsable)
+1. **Query 1**: Obtener tickets planos sin JOIN
+```typescript
+const { data: tickets } = await supabase
+  .from('tickets')
+  .select('*')
+  .gte('created_at', startStr)
+  .lte('created_at', endStr + 'T23:59:59');
 ```
 
-Y actualizar todas las referencias de `ticket.categoria?.` a `ticket.ticket_categorias_custodio?.` (lineas 160, 161, 167).
+2. **Query 2**: Obtener categorias por separado (solo si hay tickets con categoria)
+```typescript
+const catIds = tickets.filter(t => t.categoria_custodio_id).map(t => t.categoria_custodio_id);
+let categoriesMap = new Map();
+if (catIds.length > 0) {
+  const { data: cats } = await supabase
+    .from('ticket_categorias_custodio')
+    .select('id, nombre, color, departamento_responsable')
+    .in('id', catIds);
+  cats?.forEach(c => categoriesMap.set(c.id, c));
+}
+```
 
-**2. Cambiar `estado` por `status` (6 ocurrencias)**
+3. **Unir en JS**: Reemplazar todas las referencias a `ticket.ticket_categorias_custodio?.` por lookup en el Map:
+```typescript
+const cat = categoriesMap.get(ticket.categoria_custodio_id);
+const catName = cat?.nombre || ticket.category || 'Sin categoria';
+const catColor = cat?.color || '#6B7280';
+const dept = cat?.departamento_responsable || 'Sin asignar';
+```
 
-- Linea 181: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
-- Linea 198: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
-- Linea 252: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
-- Linea 277: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
-- Linea 300: filtro `t.estado` -> `t.status`
-- Linea 301: filtro `t.estado` -> `t.status`
+4. **Mantener todo lo demas igual**: Los calculos de KPI, heatmap, agentes, SLA, CSAT permanecen sin cambios ya que usan campos correctos (`status`, `fecha_sla_resolucion`, `resolved_at`).
 
-**3. Cambiar `sla_deadline_resolucion` por `fecha_sla_resolucion` (3 ocurrencias)**
+### Sin cambios en componentes de renderizado
 
-- Linea 195: `ticket.sla_deadline_resolucion` -> `ticket.fecha_sla_resolucion`
-- Linea 197: `parseISO(ticket.sla_deadline_resolucion)` -> `parseISO(ticket.fecha_sla_resolucion)`
-- Linea 274: `ticket.sla_deadline_resolucion` -> `ticket.fecha_sla_resolucion`
-- Linea 276: `parseISO(ticket.sla_deadline_resolucion)` -> `parseISO(ticket.fecha_sla_resolucion)`
+`TicketDashboardCharts.tsx` ya maneja correctamente el caso vacio y renderiza los datos cuando los recibe. Solo necesitamos arreglar la fuente de datos.
 
-## Resultado
+## Resultado esperado
 
-Los dos graficos ("Tickets por Dia" y "Distribucion por Area") cargaran correctamente con los datos reales de la base de datos.
-
+- Grafico "Tickets por Dia": Mostrara las 7 entradas distribuidas en Dic 2025
+- Grafico "Distribucion por Area": Mostrara la distribucion (mayoria "Sin asignar" ya que la mayoria no tiene categoria asignada, y los que si la tienen mostraran su departamento real)
