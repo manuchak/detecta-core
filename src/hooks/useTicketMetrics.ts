@@ -74,7 +74,7 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         .from('tickets')
         .select(`
           *,
-          categoria:ticket_categorias_custodio(nombre, color, departamento_responsable)
+          ticket_categorias_custodio!categoria_custodio_id(nombre, color, departamento_responsable)
         `)
         .gte('created_at', startStr)
         .lte('created_at', endStr + 'T23:59:59');
@@ -157,14 +157,14 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         heatmap[dayOfWeek][hour]++;
 
         // Category tracking
-        const catName = ticket.categoria?.nombre || 'Sin categoría';
-        const catColor = ticket.categoria?.color || '#6B7280';
+        const catName = ticket.ticket_categorias_custodio?.nombre || 'Sin categoría';
+        const catColor = ticket.ticket_categorias_custodio?.color || '#6B7280';
         const catData = categoryMap.get(catName) || { count: 0, color: catColor };
         catData.count++;
         categoryMap.set(catName, catData);
 
         // Department tracking
-        const dept = ticket.categoria?.departamento_responsable || 'Sin asignar';
+        const dept = ticket.ticket_categorias_custodio?.departamento_responsable || 'Sin asignar';
         const deptData = departmentMap.get(dept) || { count: 0, totalResolution: 0, slaMet: 0, total: 0 };
         deptData.count++;
         deptData.total++;
@@ -178,7 +178,7 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         }
 
         // Resolution time
-        if (ticket.estado === 'resuelto' && ticket.resolved_at) {
+        if (ticket.status === 'resuelto' && ticket.resolved_at) {
           const resolvedAt = parseISO(ticket.resolved_at);
           const resolutionMinutes = differenceInMinutes(resolvedAt, createdAt);
           totalResolutionMinutes += resolutionMinutes;
@@ -192,10 +192,10 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         }
 
         // SLA compliance
-        if (ticket.sla_deadline_resolucion) {
+        if (ticket.fecha_sla_resolucion) {
           slaApplicableCount++;
-          const deadline = parseISO(ticket.sla_deadline_resolucion);
-          if (ticket.estado === 'resuelto' && ticket.resolved_at) {
+          const deadline = parseISO(ticket.fecha_sla_resolucion);
+          if (ticket.status === 'resuelto' && ticket.resolved_at) {
             const resolvedAt = parseISO(ticket.resolved_at);
             if (resolvedAt <= deadline) {
               slaMetCount++;
@@ -249,7 +249,7 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
 
         agentData.assigned++;
 
-        if (ticket.estado === 'resuelto') {
+        if (ticket.status === 'resuelto') {
           agentData.resolved++;
           if (ticket.resolved_at) {
             const resolutionMinutes = differenceInMinutes(
@@ -271,10 +271,10 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
           agentData.responseCount++;
         }
 
-        if (ticket.sla_deadline_resolucion) {
+        if (ticket.fecha_sla_resolucion) {
           agentData.slaTotal++;
-          const deadline = parseISO(ticket.sla_deadline_resolucion);
-          if (ticket.estado === 'resuelto' && ticket.resolved_at) {
+          const deadline = parseISO(ticket.fecha_sla_resolucion);
+          if (ticket.status === 'resuelto' && ticket.resolved_at) {
             if (parseISO(ticket.resolved_at) <= deadline) {
               agentData.slaMet++;
             }
@@ -297,8 +297,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         avgCsat: csatCount > 0 ? totalCsat / csatCount : 0,
         
         totalTickets: tickets?.length || 0,
-        openTickets: (tickets || []).filter(t => t.estado !== 'resuelto' && t.estado !== 'cerrado').length,
-        resolvedTickets: (tickets || []).filter(t => t.estado === 'resuelto' || t.estado === 'cerrado').length,
+        openTickets: (tickets || []).filter(t => t.status !== 'resuelto' && t.status !== 'cerrado').length,
+        resolvedTickets: (tickets || []).filter(t => t.status === 'resuelto' || t.status === 'cerrado').length,
         overdueTickets: overdueCount,
         
         ticketsByDay: Array.from(dayMap.entries())
