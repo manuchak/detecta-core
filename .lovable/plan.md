@@ -1,52 +1,52 @@
 
-# Mostrar nombres completos y referencia de factura en tarjetas de servicios
 
-## Problema actual
+# Fix: Graficos de "Analisis de Tickets" no cargan datos
 
-En las tarjetas de servicios programados (tab "Servicios"), los nombres de custodio y armado se cortan por CSS (`truncate max-w-[120px]`), y la referencia de factura (`id_interno_cliente`) no se muestra.
+## Diagnostico
+
+El hook `useTicketMetrics.ts` tiene multiples nombres de columna incorrectos que causan que la consulta falle silenciosamente o no procese datos correctamente. Los graficos reciben arrays vacios y muestran areas grises.
+
+**Columnas mal referenciadas:**
+
+| Codigo actual | Columna real en BD |
+|---|---|
+| `ticket.estado` | `ticket.status` |
+| `ticket.sla_deadline_resolucion` | `ticket.fecha_sla_resolucion` |
+| `categoria:ticket_categorias_custodio(...)` (alias de join) | `ticket_categorias_custodio!categoria_custodio_id(...)` (FK real) |
 
 ## Cambios
 
-### Archivo: `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx`
+### Archivo: `src/hooks/useTicketMetrics.ts`
 
-**1. Nombre completo del custodio (linea 1046)**
-
-Eliminar `truncate max-w-[120px]` del span del custodio para que se muestre el nombre completo sin cortar.
+**1. Corregir el JOIN a categorias (linea 77)**
 
 ```text
 -- Antes:
-<span className="font-medium text-foreground truncate max-w-[120px]">
+categoria:ticket_categorias_custodio(nombre, color, departamento_responsable)
 
 -- Despues:
-<span className="font-medium text-foreground">
+ticket_categorias_custodio!categoria_custodio_id(nombre, color, departamento_responsable)
 ```
 
-**2. Nombre completo del armado (linea 1069)**
+Y actualizar todas las referencias de `ticket.categoria?.` a `ticket.ticket_categorias_custodio?.` (lineas 160, 161, 167).
 
-El armado ya no tiene truncate, pero por consistencia verificar que se mantenga sin restriccion. Sin cambio necesario aqui.
+**2. Cambiar `estado` por `status` (6 ocurrencias)**
 
-**3. Referencia de factura (`id_interno_cliente`) - nueva seccion**
+- Linea 181: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
+- Linea 198: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
+- Linea 252: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
+- Linea 277: `ticket.estado === 'resuelto'` -> `ticket.status === 'resuelto'`
+- Linea 300: filtro `t.estado` -> `t.status`
+- Linea 301: filtro `t.estado` -> `t.status`
 
-Agregar despues del bloque del armado (Row 3, linea 1072), una fila condicional que muestre la referencia del cliente cuando exista:
+**3. Cambiar `sla_deadline_resolucion` por `fecha_sla_resolucion` (3 ocurrencias)**
 
-```text
-{service.id_interno_cliente && (
-  <div className="flex items-center gap-1 mt-1 pl-2 text-xs">
-    <FileText className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-    <span className="text-muted-foreground">Ref:</span>
-    <span className="font-medium text-foreground">{service.id_interno_cliente}</span>
-  </div>
-)}
-```
+- Linea 195: `ticket.sla_deadline_resolucion` -> `ticket.fecha_sla_resolucion`
+- Linea 197: `parseISO(ticket.sla_deadline_resolucion)` -> `parseISO(ticket.fecha_sla_resolucion)`
+- Linea 274: `ticket.sla_deadline_resolucion` -> `ticket.fecha_sla_resolucion`
+- Linea 276: `parseISO(ticket.sla_deadline_resolucion)` -> `parseISO(ticket.fecha_sla_resolucion)`
 
-**4. Layout Row 2 - permitir wrap**
+## Resultado
 
-Para evitar que la fila 2 se comprima demasiado con nombres largos, cambiar de `flex items-center` a `flex flex-wrap items-center` en la linea 1031, permitiendo que el contenido pase a segunda linea si es necesario en pantallas pequeñas.
+Los dos graficos ("Tickets por Dia" y "Distribucion por Area") cargaran correctamente con los datos reales de la base de datos.
 
-## Resultado visual
-
-Cada tarjeta mostrara:
-- **Fila 1**: Cliente, hora, folio, badges de estado
-- **Fila 2**: Ruta + Custodio completo + Vehiculo (con wrap si necesario)
-- **Fila 3** (si aplica): Nombre completo del armado (Acompanante)
-- **Fila 4** (si aplica): Ref: [referencia de factura]
