@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, Shield, Users, Database, DollarSign, MapPin, AlertTriangle } from 'lucide-react';
@@ -10,7 +11,18 @@ import ArmadosZonasTab from './ArmadosZonasTab';
 import SancionesConfigTab from './SancionesConfigTab';
 
 export function PlanningConfigurationTab() {
-  const [activeTab, setActiveTab] = useState('zonas-custodios');
+  const STORAGE_KEY = 'planeacion_config_tab';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('configTab')
+    || sessionStorage.getItem(STORAGE_KEY)
+    || 'zonas-custodios';
+
+  const handleTabChange = (value: string) => {
+    sessionStorage.setItem(STORAGE_KEY, value);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('configTab', value);
+    setSearchParams(newParams, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
@@ -21,7 +33,7 @@ export function PlanningConfigurationTab() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="zonas-custodios" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
