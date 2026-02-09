@@ -12,7 +12,8 @@ import {
   Users,
   AlertTriangle,
   DollarSign,
-  Building2
+  Building2,
+  HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FACTURACION_FULL_ACCESS_ROLES } from '@/constants/accessControl';
@@ -26,6 +27,7 @@ import { FacturasTab } from './components/Facturas/FacturasTab';
 import { IncidenciasTab } from './components/Incidencias/IncidenciasTab';
 import { GastosExtraTab } from './components/GastosExtraordinarios/GastosExtraTab';
 import { CxPProveedoresTab } from './components/CxPProveedores/CxPProveedoresTab';
+import { ManualFacturacionTab } from './components/Manual/ManualFacturacionTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function FacturacionHub() {
@@ -191,6 +193,10 @@ export default function FacturacionHub() {
               <Building2 className="h-3.5 w-3.5" />
               CxP Proveedores
             </TabsTrigger>
+            <TabsTrigger value="ayuda" className="text-xs h-7 px-3 gap-1.5">
+              <HelpCircle className="h-3.5 w-3.5" />
+              Ayuda
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -232,6 +238,10 @@ export default function FacturacionHub() {
 
         <TabsContent value="cxp" className="flex-1 overflow-auto px-4 py-3">
           <CxPProveedoresTab />
+        </TabsContent>
+
+        <TabsContent value="ayuda" className="flex-1 overflow-auto px-4 py-3">
+          <ManualFacturacionTab />
         </TabsContent>
       </Tabs>
     </div>
