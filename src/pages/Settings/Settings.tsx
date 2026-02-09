@@ -11,12 +11,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 
+const SETTINGS_TAB_KEY = 'settings-active-tab';
+
 const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'ia';
+  const activeTab = searchParams.get('tab') || localStorage.getItem(SETTINGS_TAB_KEY) || 'ia';
   const handleTabChange = (value: string) => {
+    localStorage.setItem(SETTINGS_TAB_KEY, value);
     setSearchParams({ tab: value }, { replace: true });
   };
+
+  // Sync URL if tab came from localStorage
+  React.useEffect(() => {
+    if (!searchParams.get('tab') && activeTab !== 'ia') {
+      setSearchParams({ tab: activeTab }, { replace: true });
+    }
+  }, []);
   const { userRole } = useAuth();
   
   const canAccessSandbox = userRole === 'admin' || userRole === 'owner';
