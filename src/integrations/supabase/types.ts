@@ -14375,6 +14375,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tarifas_km_armados_internos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string
+          id: string
+          km_max: number | null
+          km_min: number
+          orden: number
+          tarifa_por_km: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion: string
+          id?: string
+          km_max?: number | null
+          km_min?: number
+          orden?: number
+          tarifa_por_km: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string
+          id?: string
+          km_max?: number | null
+          km_min?: number
+          orden?: number
+          tarifa_por_km?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ticket_business_hours: {
         Row: {
           created_at: string | null

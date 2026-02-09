@@ -1,26 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ArmadosInternosMetrics } from '../types';
-
-// Tarifas escalonadas por km
-const TARIFAS_KM = [
-  { kmMin: 0, kmMax: 100, tarifaPorKm: 6.0, rango: '0-100 km' },
-  { kmMin: 100, kmMax: 250, tarifaPorKm: 5.5, rango: '101-250 km' },
-  { kmMin: 250, kmMax: 400, tarifaPorKm: 5.0, rango: '251-400 km' },
-  { kmMin: 400, kmMax: Infinity, tarifaPorKm: 4.6, rango: '400+ km' },
-];
-
-function calcularCostoPorKm(km: number): { tarifa: number; costo: number } {
-  const tarifa = TARIFAS_KM.find(t => km > t.kmMin && km <= t.kmMax) 
-    || TARIFAS_KM[TARIFAS_KM.length - 1];
-  return { tarifa: tarifa.tarifaPorKm, costo: km * tarifa.tarifaPorKm };
-}
+import { fetchTarifasKm, calcularCostoPlano, type TarifaKmRango } from '@/utils/tarifasKmUtils';
 
 export function useArmadosInternosMetrics() {
   return useQuery({
     queryKey: ['armados-internos-metrics'],
     queryFn: async (): Promise<ArmadosInternosMetrics> => {
-      // Fetch services with km data (internal providers use km model)
+      const tarifas = await fetchTarifasKm();
       const { data: servicios, error } = await supabase
         .from('servicios_custodia')
         .select('id, km_recorridos, nombre_custodio, created_at, estado')
@@ -54,7 +41,7 @@ export function useArmadosInternosMetrics() {
       // Calculate costs using tiered rates
       let costoTotal = 0;
       registrosValidos.forEach(s => {
-        const { costo } = calcularCostoPorKm(s.km_recorridos || 0);
+        const { costo } = calcularCostoPlano(s.km_recorridos || 0, tarifas);
         costoTotal += costo;
       });
       
@@ -63,19 +50,20 @@ export function useArmadosInternosMetrics() {
         : 0;
 
       // Distribution by km range
-      const distribucionKm = TARIFAS_KM.map(tarifa => {
+      const distribucionKm = tarifas.map(tarifa => {
         const serviciosEnRango = registrosValidos.filter(s => {
           const km = s.km_recorridos || 0;
-          return km > tarifa.kmMin && km <= (tarifa.kmMax === Infinity ? 999999 : tarifa.kmMax);
+          const max = tarifa.km_max ?? Infinity;
+          return km > tarifa.km_min && km <= max;
         });
         const kmEnRango = serviciosEnRango.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
-        const costoEnRango = kmEnRango * tarifa.tarifaPorKm;
+        const costoEnRango = kmEnRango * tarifa.tarifa_por_km;
         
         return {
-          rango: tarifa.rango,
-          kmMin: tarifa.kmMin,
-          kmMax: tarifa.kmMax === Infinity ? 999999 : tarifa.kmMax,
-          tarifaPorKm: tarifa.tarifaPorKm,
+          rango: tarifa.descripcion,
+          kmMin: tarifa.km_min,
+          kmMax: tarifa.km_max ?? 999999,
+          tarifaPorKm: tarifa.tarifa_por_km,
           servicios: serviciosEnRango.length,
           porcentaje: registrosValidos.length > 0 
             ? (serviciosEnRango.length / registrosValidos.length) * 100 
@@ -99,7 +87,7 @@ export function useArmadosInternosMetrics() {
           const kmTotal = servs.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
           let costo = 0;
           servs.forEach(s => {
-            costo += calcularCostoPorKm(s.km_recorridos || 0).costo;
+            costo += calcularCostoPlano(s.km_recorridos || 0, tarifas).costo;
           });
           
           // Calculate unique days

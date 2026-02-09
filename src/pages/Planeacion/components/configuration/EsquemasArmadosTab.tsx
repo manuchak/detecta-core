@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import TarifasKmInternosCard from './TarifasKmInternosCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -102,11 +103,14 @@ export default function EsquemasArmadosTab() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-8">
+      {/* Tarifas Armados Internos (SEICSA) */}
+      <TarifasKmInternosCard />
+
+      {/* Esquemas Proveedores Externos */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Esquemas de Pago - Custodios Armados</h2>
+          <h2 className="text-2xl font-bold">Esquemas de Pago - Proveedores Externos</h2>
           <p className="text-muted-foreground">
             Gestiona los esquemas de pago para proveedores externos
           </p>
