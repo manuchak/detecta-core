@@ -73,10 +73,10 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
               <span className="text-base font-mono text-gray-300 shrink-0 w-14">
                 {hora}
               </span>
-              <span className="text-base text-white truncate flex-1 font-medium">
+              <span className="text-sm text-white flex-1 font-medium">
                 {s.nombre_cliente || 'Sin cliente'}
               </span>
-              <span className="text-sm text-gray-500 truncate max-w-[120px]">
+              <span className="text-sm text-gray-400">
                 {s.custodio_asignado || 'Sin custodio'}
               </span>
             </div>

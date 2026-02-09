@@ -27,9 +27,23 @@ const TVMapDisplay = ({ servicios, className }: TVMapDisplayProps) => {
         style: 'mapbox://styles/mapbox/dark-v11',
         center: [-99.1332, 19.4326],
         zoom: 5.2,
-        interactive: false, // No interaction for TV
+        interactive: false,
         attributionControl: false,
       });
+
+      map.current.on('load', () => {
+        map.current?.resize();
+      });
+
+      // ResizeObserver to recalculate when container changes
+      const observer = new ResizeObserver(() => {
+        map.current?.resize();
+      });
+      observer.observe(mapContainer.current);
+
+      return () => {
+        observer.disconnect();
+      };
     };
     init();
     return () => { map.current?.remove(); };
@@ -70,7 +84,7 @@ const TVMapDisplay = ({ servicios, className }: TVMapDisplayProps) => {
 
   return (
     <div className={`relative rounded-xl overflow-hidden border border-white/10 ${className || ''}`}>
-      <div ref={mapContainer} className="absolute inset-0" />
+      <div ref={mapContainer} className="w-full h-full" />
       {/* Legend overlay */}
       <div className="absolute bottom-3 left-3 flex gap-3 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2">
         {Object.entries(COLORES_ESTADO).map(([key, val]) => (
