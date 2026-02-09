@@ -1,122 +1,88 @@
 
-# Unificar UI de "Cambiar Armado" en todos los flujos de edicion
+# Dashboard de Videowall para Centro de Monitoreo (TV 50")
 
-## Problema actual
+## Objetivo
 
-Hay **3 puntos de entrada** para editar un servicio, y cada uno maneja la opcion de armado de forma diferente:
+Crear una ruta dedicada `/monitoring/tv` con un dashboard optimizado para visualizacion en pantalla de 50 pulgadas, siguiendo mejores practicas de diseno para videowalls en centros de operaciones (NOC/SOC).
 
-| Componente | Donde aparece | "Cambiar Armado" | "Remover Armado" |
-|---|---|---|---|
-| **SmartEditModal** (analysis view) | Click en servicio desde lista | Solo si `isComplete` (linea 136) | Solo si `requiere_armado` (linea 168) - separado de "Cambiar" |
-| **QuickEditActions** | Panel lateral de acciones | Solo si `isComplete && hasArmado` (linea 180) | Siempre si `requiere_armado` (linea 217) - separado de "Cambiar" |
-| **ContextualEditModal** (via useSmartEditSuggestions) | Edicion contextual | Solo aparece como sugerencia secundaria si `hasArmado` | Aparece como sugerencia si `requiere_armado` |
+## Principios de Diseno para Videowall
 
-### Inconsistencias encontradas
+1. **Sin scroll** - Todo visible en una sola pantalla (100vh)
+2. **Tipografia grande** - Minimo 18px para texto, 48-72px para KPIs, legible a 3-5 metros
+3. **Alto contraste** - Fondo oscuro (dark mode forzado) para reducir fatiga visual y brillo en sala
+4. **Sin interaccion** - No botones, no hover states, no modals. Solo lectura pasiva
+5. **Auto-refresh** - Datos se actualizan automaticamente cada 30 segundos
+6. **Densidad informativa** - Maximo de datos utiles sin ruido visual
+7. **Reloj prominente** - Hora actual visible en todo momento
 
-1. **"Cambiar Armado" no aparece cuando mas se necesita**: En SmartEditModal y QuickEditActions, "Cambiar Armado" solo se muestra si el servicio esta `isComplete` (custodio Y armado asignados). Pero el caso de CUSAEM es justamente cuando HAY armado asignado pero necesita cambiarse -- y el servicio podria no estar "completo" por otras razones.
-
-2. **"Remover Armado" aparece sin "Cambiar Armado" al lado**: Cuando un servicio tiene `requiere_armado=true` pero `isComplete=false`, solo se ve "Remover Armado". El planificador no tiene la opcion de cambiar, solo de eliminar.
-
-3. **Falta "Cambiar Armado" como opcion en useSmartEditSuggestions cuando hasArmado y no isComplete**: El hook genera la sugerencia de "Cambiar Armado" (linea 86) correctamente cuando `hasArmado`, pero SmartEditModal filtra por `isComplete` antes de mostrarlo.
-
-## Solucion
-
-Hacer que **"Cambiar Armado" aparezca siempre que haya un armado asignado** (`hasArmado`), independientemente de si el servicio esta completo. Y agruparlo visualmente junto a "Remover Armado".
-
-### Archivo 1: `src/components/planeacion/SmartEditModal.tsx`
-
-**Cambio en lineas 119-150** (seccion de "Reassignment options"):
-
-Actualmente la condicion es `if (isComplete)`. Cambiar a mostrar cada boton segun su propia condicion:
-
-```typescript
-// Cambiar custodio: visible si hay custodio asignado (no requiere isComplete)
-if (hasCustodio) {
-  actions.push({
-    id: 'change_custodian',
-    title: 'Cambiar Custodio',
-    description: `Actual: ${service.custodio_asignado}`,
-    icon: User,
-    color: 'info' as const,
-    priority: 'medium' as const,
-    action: () => { ... }
-  });
-}
-
-// Cambiar armado: visible si hay armado asignado (no requiere isComplete)
-if (hasArmado) {
-  actions.push({
-    id: 'change_armed',
-    title: 'Cambiar Armado',
-    description: `Actual: ${service.armado_asignado}`,
-    icon: Shield,
-    color: 'info' as const,
-    priority: 'medium' as const,
-    action: () => { ... }
-  });
-}
-```
-
-### Archivo 2: `src/components/planeacion/QuickEditActions.tsx`
-
-**Cambio en lineas 163-196** (seccion "Personnel Changes"):
-
-Actualmente envuelto en `{isComplete && (<>...</>)}`. Separar las condiciones:
-
-```typescript
-{/* Cambiar Custodio: visible si hay custodio */}
-{hasCustodio && (
-  <Button variant="outline" className="apple-button-secondary justify-start h-auto p-4"
-    onClick={() => handleQuickEdit('custodian_only', 'Cambiar custodio asignado')}>
-    <User className="h-4 w-4 mr-3" />
-    <div className="text-left">
-      <div className="apple-text-callout">Cambiar Custodio</div>
-      <div className="apple-text-caption text-muted-foreground">
-        Actual: {service.custodio_asignado}
-      </div>
-    </div>
-  </Button>
-)}
-
-{/* Cambiar Armado: visible si hay armado asignado */}
-{hasArmado && (
-  <Button variant="outline" className="apple-button-secondary justify-start h-auto p-4"
-    onClick={() => handleQuickEdit('armed_only', 'Cambiar armado asignado')}>
-    <Shield className="h-4 w-4 mr-3" />
-    <div className="text-left">
-      <div className="apple-text-callout">Cambiar Armado</div>
-      <div className="apple-text-caption text-muted-foreground">
-        Actual: {service.armado_asignado}
-      </div>
-    </div>
-  </Button>
-)}
-```
-
-Esto tambien elimina la duplicacion donde "Cambiar Armado" y "Remover Armado" tenian condiciones diferentes e incongruentes.
-
-### Archivo 3: Sin cambios en `useSmartEditSuggestions.ts`
-
-El hook ya genera correctamente "Cambiar Armado" cuando `hasArmado` (linea 86) y "Cambiar Custodio" cuando `hasCustodio` (linea 79). La logica de sugerencias ya es correcta.
-
-### Archivo 4: Sin cambios en `ContextualEditModal.tsx`
-
-Los handlers `armed_only` y `custodian_only` ya estan correctamente implementados (lineas 107-128) y llaman a `onStartReassignment` correctamente.
-
-## Resultado
-
-En los 3 flujos de edicion, el planificador vera consistentemente:
+## Layout (1920x1080 optimizado)
 
 ```text
-+-----------------------------------------+
-| Accion Prioritaria (si aplica)          |
-+-----------------------------------------+
-| Opciones Adicionales:                   |
-|  [Cambiar Custodio]  <- si hay custodio |
-|  [Cambiar Armado]    <- si hay armado   |
-|  [Remover Armado]    <- si requiere     |
-|  [Editar Informacion]                   |
-+-----------------------------------------+
++------------------------------------------------------------------+
+|  CONTROL DE POSICIONAMIENTO    [Reloj HH:MM:SS]    [Auto 30s]   |
++------------------------------------------------------------------+
+|  [EN SITIO: 12] [PROXIMO: 8] [ASIGNADO: 5] [SIN ASIGNAR: 3]    |
++------------------------------------------------------------------+
+|                                    |                              |
+|                                    |   Lista de servicios         |
+|        MAPA (grande)               |   (scroll automatico)        |
+|        ~65% del ancho              |   Texto grande               |
+|                                    |   Status + cliente + hora    |
+|                                    |                              |
++------------------------------------+------------------------------+
+|   Clima (compacto, 1 fila)         |   Alertas de Ruta (ticker)   |
++------------------------------------+------------------------------+
 ```
 
-Cuando CUSAEM cambie un armado de ultimo minuto, "Cambiar Armado" sera visible sin importar el estado general del servicio.
+## Archivos a crear
+
+### 1. `src/pages/Monitoring/MonitoringTVPage.tsx`
+- Pagina principal del modo TV
+- Forzar tema oscuro via clase `dark` en el contenedor
+- Layout CSS Grid fijo a `100vh` sin scroll
+- Auto-refresh cada 30 segundos usando `refetchInterval` en los hooks existentes
+- Reloj en tiempo real (useEffect con setInterval)
+- Reutiliza los mismos hooks: `useServiciosTurno`, `useWeatherData`, `useIncidentesRRSS`
+
+### 2. `src/components/monitoring/tv/TVSummaryBar.tsx`
+- Barra horizontal con las 4 metricas de posicionamiento
+- Numeros grandes (text-6xl), colores de status (verde/ambar/azul/gris)
+- Fondo semitransparente por tarjeta
+- Animacion de pulso en "Sin Asignar" si > 0
+
+### 3. `src/components/monitoring/tv/TVServicesList.tsx`
+- Lista vertical de servicios sin interaccion
+- Auto-scroll lento (CSS animation o setInterval) cuando hay mas items de los visibles
+- Cada fila: indicador de color + hora + cliente + custodio
+- Texto minimo 16px, filas de ~48px de alto
+- Sin search, sin filtros (modo pasivo)
+
+### 4. `src/components/monitoring/tv/TVMapDisplay.tsx`
+- Wrapper del mapa Mapbox con estilo oscuro (`mapbox://styles/mapbox/dark-v11`)
+- Marcadores mas grandes (48px vs 36px actual)
+- Sin popups de hover (no hay mouse en TV)
+- Leyenda con texto mas grande
+- Sin controles de navegacion (zoom/pan innecesarios)
+
+### 5. `src/components/monitoring/tv/TVWeatherStrip.tsx`
+- Version compacta del WeatherWidget en una sola fila horizontal
+- Solo: ciudad + icono + temperatura
+- Texto 14-16px
+
+### 6. `src/components/monitoring/tv/TVAlertTicker.tsx`
+- Ticker horizontal tipo "noticias" con las alertas de ruta
+- Scroll horizontal continuo (marquee CSS)
+- Badge de severidad + texto resumido
+
+### Cambio en routing
+
+### 7. `src/App.tsx`
+- Agregar ruta `/monitoring/tv` que renderiza `MonitoringTVPage` **sin** el AppShell/Sidebar/TopNav (fullscreen)
+
+## Detalles tecnicos
+
+- **Dark mode forzado**: El contenedor raiz tendra `className="dark"` y usara `bg-gray-950 text-white` independiente del tema global
+- **Sin sidebar**: La ruta se monta fuera del layout principal para ocupar 100% de pantalla
+- **Auto-refresh**: Pasar `refetchInterval: 30000` al hook `useServiciosTurno`
+- **Zoom compensation**: Usar `var(--vh-full)` para altura del contenedor, o `100vh` directamente si la TV no tiene zoom aplicado
+- **Acceso**: Reutilizar el mismo `ProtectedRoute` con roles de monitoring
