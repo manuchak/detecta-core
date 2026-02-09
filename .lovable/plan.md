@@ -1,45 +1,38 @@
 
 
-# Fix: TV Dashboard no ocupa 100% de la pantalla
+# Mejorar visibilidad de horas en la lista lateral del TV Dashboard
 
-## Causa raiz
+## Problema
 
-El archivo `src/index.css` (linea 153) aplica `html { zoom: 0.7 }` globalmente. Esto reduce TODO el contenido al 70% del tamano fisico de la pantalla. Cuando el TV Dashboard usa `h-screen w-screen`, esas medidas CSS se calculan correctamente pero el resultado visual se encoge al 70%, dejando ~30% de espacio blanco a la derecha y abajo.
+El equipo reporta que las horas de salida y los bloques de horarios son dificiles de leer en la pantalla de 50 pulgadas. Causas:
 
-El sistema de compensacion (`--vh-full: calc(100vh * 1.4286)`) existe para otros modulos pero el TV Dashboard no lo usa — y no deberia, porque la solucion correcta es anular el zoom para esta pagina.
+1. **Hora en separador de grupo** (linea 76): `text-[11px]` con `text-gray-500` -- demasiado pequeño y bajo contraste
+2. **Hora en cada fila** (linea 98): `text-sm` (~14px) con `text-gray-400` -- pequeña y gris tenue
+3. **Separador de grupo** tiene fondo casi invisible (`bg-white/[0.03]`) y lineas tenues (`bg-white/10`)
 
-## Solucion
+## Cambios en `src/components/monitoring/tv/TVServicesList.tsx`
 
-### 1. `src/pages/Monitoring/MonitoringTVPage.tsx`
+### 1. Separador de bloque horario (linea 74-80)
 
-Agregar un `useEffect` que al montar la pagina cambie `document.documentElement.style.zoom = '1'` y lo restaure a `'0.7'` al desmontar. Esto asegura que SOLO esta pagina se renderice al 100% del tamano fisico.
+- Aumentar texto de `text-[11px]` a `text-sm` (14px)
+- Cambiar color de `text-gray-500` a `text-gray-300` (mas brillante)
+- Aumentar fondo de `bg-white/[0.03]` a `bg-white/[0.07]` para que el bloque se distinga
+- Cambiar lineas de `bg-white/10` a `bg-white/20` para mayor contraste
+- Agregar `font-semibold` al texto de la hora
 
-```typescript
-// Override global zoom for TV fullscreen
-useEffect(() => {
-  const html = document.documentElement;
-  const original = html.style.zoom;
-  html.style.zoom = '1';
-  return () => { html.style.zoom = original; };
-}, []);
-```
+### 2. Hora en cada fila de servicio (linea 98-100)
 
-### 2. `src/components/monitoring/tv/TVServicesList.tsx`
+- Aumentar de `text-sm` a `text-base` (16px)
+- Cambiar de `text-gray-400` a `text-emerald-400` para que resalte con el color del reloj principal
+- Agregar `font-semibold` para mayor peso visual
 
-Sin cambios adicionales — los nombres ya se muestran completos con el rediseno previo.
+### 3. Header "SERVICIOS" (linea 67)
 
-### 3. `src/components/monitoring/tv/TVMapDisplay.tsx`
+- Aumentar de `text-xs` a `text-sm` para consistencia con los nuevos tamanos
 
-Sin cambios — el ResizeObserver ya recalcula las dimensiones. Al cambiar el zoom a 1, el mapa automaticamente se expandira para llenar el contenedor.
+## Resultado
 
-## Resultado esperado
+- Horas de bloque: 14px, gris claro, fondo distinguible
+- Horas por fila: 16px, verde esmeralda (consistente con el reloj), bold
+- Legible a 3-5 metros de distancia en el videowall
 
-- El dashboard ocupara el 100% de la pantalla de 50 pulgadas
-- El mapa llenara completamente su area asignada (8/12 columnas)
-- La lista de servicios llenara las 4/12 columnas restantes
-- Al volver a otra pagina del sistema, el zoom regresa a 0.7
-- No afecta ningun otro modulo del sistema
-
-## Riesgo
-
-Ninguno. El efecto se limita al ciclo de vida del componente MonitoringTVPage.
