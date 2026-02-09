@@ -4290,6 +4290,137 @@ export type Database = {
         }
         Relationships: []
       }
+      cxp_detalle_servicios: {
+        Row: {
+          asignacion_id: string
+          created_at: string
+          cxp_id: string
+          id: string
+          monto_deduccion: number
+          monto_gasto_extra: number
+          monto_servicio: number
+          notas: string | null
+        }
+        Insert: {
+          asignacion_id: string
+          created_at?: string
+          cxp_id: string
+          id?: string
+          monto_deduccion?: number
+          monto_gasto_extra?: number
+          monto_servicio: number
+          notas?: string | null
+        }
+        Update: {
+          asignacion_id?: string
+          created_at?: string
+          cxp_id?: string
+          id?: string
+          monto_deduccion?: number
+          monto_gasto_extra?: number
+          monto_servicio?: number
+          notas?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cxp_detalle_servicios_asignacion_id_fkey"
+            columns: ["asignacion_id"]
+            isOneToOne: false
+            referencedRelation: "asignacion_armados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cxp_detalle_servicios_cxp_id_fkey"
+            columns: ["cxp_id"]
+            isOneToOne: false
+            referencedRelation: "cxp_proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cxp_proveedores_armados: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string
+          created_by: string | null
+          estado: string
+          factura_proveedor: string | null
+          fecha_aprobacion: string | null
+          fecha_factura_proveedor: string | null
+          fecha_pago: string | null
+          fecha_vencimiento: string | null
+          id: string
+          metodo_pago: string | null
+          monto_deducciones: number
+          monto_gastos_extra: number
+          monto_servicios: number
+          monto_total: number
+          notas: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          proveedor_id: string
+          referencia_pago: string | null
+          total_servicios: number
+          updated_at: string
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          factura_proveedor?: string | null
+          fecha_aprobacion?: string | null
+          fecha_factura_proveedor?: string | null
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto_deducciones?: number
+          monto_gastos_extra?: number
+          monto_servicios?: number
+          monto_total?: number
+          notas?: string | null
+          periodo_fin: string
+          periodo_inicio: string
+          proveedor_id: string
+          referencia_pago?: string | null
+          total_servicios?: number
+          updated_at?: string
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          factura_proveedor?: string | null
+          fecha_aprobacion?: string | null
+          fecha_factura_proveedor?: string | null
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto_deducciones?: number
+          monto_gastos_extra?: number
+          monto_servicios?: number
+          monto_total?: number
+          notas?: string | null
+          periodo_fin?: string
+          periodo_inicio?: string
+          proveedor_id?: string
+          referencia_pago?: string | null
+          total_servicios?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cxp_proveedores_armados_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       desechos_inventario: {
         Row: {
           cantidad: number
@@ -6175,6 +6306,160 @@ export type Database = {
             columns: ["zona_id"]
             isOneToOne: false
             referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gastos_extraordinarios_servicio: {
+        Row: {
+          aprobado_por: string | null
+          cliente: string | null
+          cobrable_cliente: boolean
+          created_at: string
+          descripcion: string
+          estado_reembolso: string
+          evidencia_url: string | null
+          fecha_aprobacion: string | null
+          id: string
+          moneda: string
+          monto: number
+          notas: string | null
+          pagable_custodio: boolean
+          registrado_por: string | null
+          servicio_custodia_id: number | null
+          tipo_gasto: string
+          updated_at: string
+        }
+        Insert: {
+          aprobado_por?: string | null
+          cliente?: string | null
+          cobrable_cliente?: boolean
+          created_at?: string
+          descripcion: string
+          estado_reembolso?: string
+          evidencia_url?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          moneda?: string
+          monto: number
+          notas?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_custodia_id?: number | null
+          tipo_gasto: string
+          updated_at?: string
+        }
+        Update: {
+          aprobado_por?: string | null
+          cliente?: string | null
+          cobrable_cliente?: boolean
+          created_at?: string
+          descripcion?: string
+          estado_reembolso?: string
+          evidencia_url?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_custodia_id?: number | null
+          tipo_gasto?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_extraordinarios_servicio_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_extraordinarios_servicio_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidencias_facturacion: {
+        Row: {
+          asignado_a: string | null
+          cliente: string
+          created_at: string
+          descripcion: string
+          estado: string
+          factura_id: string | null
+          fecha_resolucion: string | null
+          id: string
+          monto_ajustado: number | null
+          monto_original: number | null
+          prioridad: string
+          reportado_por: string | null
+          resolucion: string | null
+          servicio_custodia_id: number | null
+          tipo_incidencia: string
+          updated_at: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          cliente: string
+          created_at?: string
+          descripcion: string
+          estado?: string
+          factura_id?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          monto_ajustado?: number | null
+          monto_original?: number | null
+          prioridad?: string
+          reportado_por?: string | null
+          resolucion?: string | null
+          servicio_custodia_id?: number | null
+          tipo_incidencia: string
+          updated_at?: string
+        }
+        Update: {
+          asignado_a?: string | null
+          cliente?: string
+          created_at?: string
+          descripcion?: string
+          estado?: string
+          factura_id?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          monto_ajustado?: number | null
+          monto_original?: number | null
+          prioridad?: string
+          reportado_por?: string | null
+          resolucion?: string | null
+          servicio_custodia_id?: number | null
+          tipo_incidencia?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidencias_facturacion_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_facturacion_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidencias_facturacion_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
             referencedColumns: ["id"]
           },
         ]
