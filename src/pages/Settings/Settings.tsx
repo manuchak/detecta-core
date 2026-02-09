@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import ApiCredentials from "@/components/settings/ApiCredentials";
 import { PermissionsManager } from "@/components/settings/PermissionsManager";
 import { QuickSkillsPanel } from "@/components/settings/QuickSkillsPanel";
@@ -9,9 +9,14 @@ import { KapsoConfig } from "@/components/settings/KapsoConfig";
 import AIConnectionTest from "@/components/siercp/AIConnectionTest";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSearchParams } from "react-router-dom";
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState("ia");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'ia';
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value }, { replace: true });
+  };
   const { userRole } = useAuth();
   
   const canAccessSandbox = userRole === 'admin' || userRole === 'owner';
@@ -23,8 +28,8 @@ const Settings = () => {
       </div>
       
       <Tabs
-        defaultValue={activeTab}
-        onValueChange={setActiveTab}
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className="mb-6 flex-wrap">
