@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { SendSIERCPDialog } from "./SendSIERCPDialog";
 import { LeadAgeBadge } from "./LeadAgeBadge";
 import { getLeadAge, getPriorityBorderColor } from "@/utils/leadAgeUtils";
+import { useSIERCPInvitations } from "@/hooks/useSIERCPInvitations";
+import { SIERCPStatusBadge } from "@/components/recruitment/siercp/SIERCPStatusBadge";
 
 interface ImprovedLeadCardProps {
   lead: AssignedLead;
@@ -47,6 +49,14 @@ export const ImprovedLeadCard = ({
   const hasMissingInfo = !validation.isValid;
   const hasSuccessfulCall = lead.has_successful_call || false;
   const isApprovedButUnlinked = lead.final_decision === 'approved' && !lead.candidato_custodio_id;
+  
+  // SIERCP invitation state
+  const { activeInvitation, isLoading: siercpLoading } = useSIERCPInvitations(
+    lead.final_decision === 'approved' ? lead.lead_id : undefined
+  );
+  const siercpStatus = activeInvitation?.status;
+  const siercpCompleted = siercpStatus === 'completed';
+  const siercpInProgress = siercpStatus && !siercpCompleted && siercpStatus !== 'cancelled' && siercpStatus !== 'expired';
   const canApplySIERCP = lead.final_decision === 'approved' || lead.current_stage === 'second_interview';
 
   const getStatusBadge = (stage: string, decision: string | null) => {
@@ -202,26 +212,60 @@ export const ImprovedLeadCard = ({
             </>
           )}
 
-          {lead.final_decision === 'approved' && onIniciarLiberacion && (
-            lead.candidato_custodio_id ? (
-              <Button 
-                size="sm" 
-                onClick={() => onIniciarLiberacion(lead)} 
-                className="h-8 px-3 text-xs"
-              >
-                <Rocket className="h-3.5 w-3.5 mr-1.5" />
-                Liberar
-              </Button>
-            ) : onRetryVinculacion && (
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => onRetryVinculacion(lead)} 
-                className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
-              >
-                Re-vincular
-              </Button>
-            )
+          {lead.final_decision === 'approved' && (
+            <>
+              {/* SIERCP Status Badge */}
+              {siercpInProgress && activeInvitation && (
+                <SIERCPStatusBadge status={activeInvitation.status} />
+              )}
+
+              {/* No SIERCP yet → show "Enviar SIERCP" */}
+              {!activeInvitation && !siercpLoading && (
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowSIERCPDialog(true)} 
+                  className="h-8 px-3 text-xs bg-chart-3 hover:bg-chart-3/90"
+                >
+                  <Brain className="h-3.5 w-3.5 mr-1.5" />
+                  Enviar SIERCP
+                </Button>
+              )}
+
+              {/* SIERCP in progress → "Ver SIERCP" */}
+              {siercpInProgress && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowSIERCPDialog(true)} 
+                  className="h-8 px-3 text-xs border-chart-3/30 text-chart-3 hover:bg-chart-3/5"
+                >
+                  Ver SIERCP
+                </Button>
+              )}
+
+              {/* SIERCP completed → show Liberar or Re-vincular */}
+              {siercpCompleted && onIniciarLiberacion && (
+                lead.candidato_custodio_id ? (
+                  <Button 
+                    size="sm" 
+                    onClick={() => onIniciarLiberacion(lead)} 
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                    Liberar
+                  </Button>
+                ) : onRetryVinculacion && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => onRetryVinculacion(lead)} 
+                    className="h-8 px-3 text-xs border-warning/30 text-warning hover:bg-warning/5"
+                  >
+                    Re-vincular
+                  </Button>
+                )
+              )}
+            </>
           )}
 
           {/* More actions dropdown */}

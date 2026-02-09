@@ -163,48 +163,53 @@ export function SendSIERCPDialog({ open, onOpenChange, lead }: SendSIERCPDialogP
                   </Badge>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Input 
-                    value={invitationUrl || ''} 
-                    readOnly 
-                    className="font-mono text-sm"
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={handleCopyLink}
-                  >
-                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
+              {/* Primary action: Copy link */}
+              <Button 
+                onClick={handleCopyLink}
+                className="w-full h-11 text-sm font-medium"
+                variant={copied ? 'outline' : 'default'}
+              >
+                {copied ? <Check className="h-4 w-4 mr-2 text-success" /> : <Copy className="h-4 w-4 mr-2" />}
+                {copied ? 'Enlace copiado' : 'Copiar enlace para enviar manualmente'}
+              </Button>
 
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  Expira: {formatExpiration(activeInvitation.expires_at)}
-                </div>
+              <div className="flex gap-2">
+                <Input 
+                  value={invitationUrl || ''} 
+                  readOnly 
+                  className="font-mono text-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                Expira: {formatExpiration(activeInvitation.expires_at)}
+              </div>
               </div>
 
               <Separator />
 
               <div className="space-y-2">
-                <Label>Enviar por:</Label>
+                <Label className="text-muted-foreground">O enviar directamente por:</Label>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => handleSendVia('whatsapp')}
                     disabled={!lead.lead_telefono}
                   >
-                    <MessageCircle className="h-4 w-4 mr-2 text-green-600" />
+                    <MessageCircle className="h-4 w-4 mr-2 text-success" />
                     WhatsApp
                   </Button>
                   <Button
                     variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => handleSendVia('email')}
                     disabled={!lead.lead_email}
                   >
-                    <Mail className="h-4 w-4 mr-2 text-blue-600" />
+                    <Mail className="h-4 w-4 mr-2 text-primary" />
                     Email
                   </Button>
                 </div>

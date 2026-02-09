@@ -15,7 +15,8 @@ import {
   Calendar,
   MoreHorizontal,
   AlertTriangle,
-  Brain
+  Brain,
+  Rocket
 } from "lucide-react";
 import {
   Tooltip,
@@ -32,6 +33,9 @@ import {
 import { AssignedLead, LeadEstado } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { validateLeadForApproval } from "@/utils/leadValidation";
+import { useSIERCPInvitations } from "@/hooks/useSIERCPInvitations";
+import { SIERCPStatusBadge } from "@/components/recruitment/siercp/SIERCPStatusBadge";
+import { SendSIERCPDialog } from "./SendSIERCPDialog";
 
 interface LeadCardProps {
   lead: AssignedLead;
@@ -45,6 +49,8 @@ interface LeadCardProps {
   onReject: (lead: AssignedLead) => void;
   onCompleteMissingInfo: (lead: AssignedLead) => void;
   onSendSIERCP?: (lead: AssignedLead) => void;
+  onIniciarLiberacion?: (lead: AssignedLead) => void;
+  onRetryVinculacion?: (lead: AssignedLead) => void;
 }
 
 export const LeadCard = ({
@@ -58,10 +64,21 @@ export const LeadCard = ({
   onSendToSecondInterview,
   onReject,
   onCompleteMissingInfo,
-  onSendSIERCP
+  onSendSIERCP,
+  onIniciarLiberacion,
+  onRetryVinculacion
 }: LeadCardProps) => {
+  const [showSIERCPDialog, setShowSIERCPDialog] = useState(false);
   const validation = validateLeadForApproval(lead);
   const hasMissingInfo = !validation.isValid;
+
+  // SIERCP invitation state
+  const { activeInvitation, isLoading: siercpLoading } = useSIERCPInvitations(
+    lead.final_decision === 'approved' ? lead.lead_id : undefined
+  );
+  const siercpStatus = activeInvitation?.status;
+  const siercpCompleted = siercpStatus === 'completed';
+  const siercpInProgress = siercpStatus && !siercpCompleted && siercpStatus !== 'cancelled' && siercpStatus !== 'expired';
 
   const getStatusBadge = (stage: string, decision: string | null) => {
     if (decision === 'approved') {
@@ -92,6 +109,7 @@ export const LeadCard = ({
   };
 
   return (
+    <>
     <Card className={`border-l-4 ${hasMissingInfo ? 'border-l-orange-500' : 'border-l-blue-500'} hover:shadow-md transition-shadow`}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
@@ -236,6 +254,56 @@ export const LeadCard = ({
               </>
             )}
 
+            {/* SIERCP + Liberation flow for approved leads */}
+            {lead.final_decision === 'approved' && (
+              <>
+                {siercpInProgress && activeInvitation && (
+                  <SIERCPStatusBadge status={activeInvitation.status} />
+                )}
+                {!activeInvitation && !siercpLoading && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowSIERCPDialog(true)}
+                    className="h-9 px-4 bg-chart-3 hover:bg-chart-3/90 text-white"
+                  >
+                    <Brain className="h-4 w-4 mr-1" />
+                    Enviar SIERCP
+                  </Button>
+                )}
+                {siercpInProgress && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowSIERCPDialog(true)}
+                    className="h-9 px-4 border-chart-3/30 text-chart-3 hover:bg-chart-3/5"
+                  >
+                    Ver SIERCP
+                  </Button>
+                )}
+                {siercpCompleted && onIniciarLiberacion && (
+                  lead.candidato_custodio_id ? (
+                    <Button
+                      size="sm"
+                      onClick={() => onIniciarLiberacion(lead)}
+                      className="h-9 px-4"
+                    >
+                      <Rocket className="h-4 w-4 mr-1" />
+                      Liberar
+                    </Button>
+                  ) : onRetryVinculacion && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onRetryVinculacion(lead)}
+                      className="h-9 px-4 border-warning/30 text-warning hover:bg-warning/5"
+                    >
+                      Re-vincular
+                    </Button>
+                  )
+                )}
+              </>
+            )}
+
             {/* Menú de acciones adicionales */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -256,13 +324,6 @@ export const LeadCard = ({
                   Entrevista manual
                 </DropdownMenuItem>
                 
-                {onSendSIERCP && lead.final_decision === 'approved' && (
-                  <DropdownMenuItem onClick={() => onSendSIERCP(lead)}>
-                    <Brain className="h-4 w-4 mr-2 text-purple-600" />
-                    Aplicar SIERCP
-                  </DropdownMenuItem>
-                )}
-                
                 {callLogs.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
@@ -278,5 +339,13 @@ export const LeadCard = ({
         </div>
       </CardContent>
     </Card>
+
+    {/* SIERCP Dialog */}
+    <SendSIERCPDialog
+      open={showSIERCPDialog}
+      onOpenChange={setShowSIERCPDialog}
+      lead={lead}
+    />
+    </>
   );
 };
