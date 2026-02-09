@@ -9,7 +9,10 @@ import {
   Calendar,
   Receipt,
   Wallet,
-  Users
+  Users,
+  AlertTriangle,
+  DollarSign,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FACTURACION_FULL_ACCESS_ROLES } from '@/constants/accessControl';
@@ -20,6 +23,9 @@ import { ServiciosConsulta } from './components/ServiciosConsulta';
 import { CuentasPorCobrarTab } from './components/CuentasPorCobrar/CuentasPorCobrarTab';
 import { GestionClientesTab } from './components/GestionClientes/GestionClientesTab';
 import { FacturasTab } from './components/Facturas/FacturasTab';
+import { IncidenciasTab } from './components/Incidencias/IncidenciasTab';
+import { GastosExtraTab } from './components/GastosExtraordinarios/GastosExtraTab';
+import { CxPProveedoresTab } from './components/CxPProveedores/CxPProveedoresTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function FacturacionHub() {
@@ -173,6 +179,18 @@ export default function FacturacionHub() {
               <Receipt className="h-3.5 w-3.5" />
               Facturas
             </TabsTrigger>
+            <TabsTrigger value="incidencias" className="text-xs h-7 px-3 gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Incidencias
+            </TabsTrigger>
+            <TabsTrigger value="gastos-extra" className="text-xs h-7 px-3 gap-1.5">
+              <DollarSign className="h-3.5 w-3.5" />
+              Gastos Extra
+            </TabsTrigger>
+            <TabsTrigger value="cxp" className="text-xs h-7 px-3 gap-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              CxP Proveedores
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -202,6 +220,18 @@ export default function FacturacionHub() {
 
         <TabsContent value="facturas" className="flex-1 overflow-auto px-4 py-3">
           <FacturasTab fechaInicio={fechaInicio} fechaFin={fechaFin} />
+        </TabsContent>
+
+        <TabsContent value="incidencias" className="flex-1 overflow-auto px-4 py-3">
+          <IncidenciasTab />
+        </TabsContent>
+
+        <TabsContent value="gastos-extra" className="flex-1 overflow-auto px-4 py-3">
+          <GastosExtraTab />
+        </TabsContent>
+
+        <TabsContent value="cxp" className="flex-1 overflow-auto px-4 py-3">
+          <CxPProveedoresTab />
         </TabsContent>
       </Tabs>
     </div>
