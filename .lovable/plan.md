@@ -1,54 +1,56 @@
 
+# Fix: Persistencia de Tab Interno en KapsoConfig
 
-# Fix: Persistencia de Tab en Configuracion de Planeacion
+## Problema
 
-## Problema Real
+El componente `KapsoConfig.tsx` (linea 108) usa:
 
-La pagina que pierde el tab NO es `/settings` sino la **Configuracion de Planeacion** dentro del modulo de Planeacion. Hay dos niveles de tabs:
+```
+<Tabs defaultValue="conexion">
+```
 
-- **Nivel 1 (PlanningHub)**: Tabs "Dashboard", "Servicios", "Rutas", "Configuracion" -- YA tiene persistencia via URL (`?tab=config`)
-- **Nivel 2 (PlanningConfigurationTab)**: Tabs "Custodios", "Armados", "Proveedores", **"Esquemas"**, "Sanciones", "Parametros", "Datos" -- usa `useState('zonas-custodios')` SIN persistencia
-
-Cuando el usuario esta trabajando en el tab "Esquemas" llenando formularios de metas, al navegar a otra seccion y regresar, el tab exterior se mantiene en "Configuracion" pero el tab interior se reinicia a "Custodios".
+Esto es un tab **no controlado** sin persistencia. Cada vez que navegas fuera de `/settings?tab=kapso` y regresas, el componente se remonta y el tab interno se reinicia a "Conexion", aunque estuvieras en "Templates" o "Webhook".
 
 ## Solucion
 
-Agregar persistencia al tab interior usando el mismo patron que ya funciona en PlanningHub: un **segundo query param** en la URL (`configTab`) con backup en `sessionStorage`.
-
-La URL resultante sera: `/planeacion?tab=config&configTab=esquemas`
+Convertir los tabs de `KapsoConfig` a **controlados** con persistencia dual (URL query param + sessionStorage), usando el mismo patron ya establecido en Settings y PlanningConfigurationTab.
 
 ## Cambios
 
-### Archivo: `src/pages/Planeacion/components/configuration/PlanningConfigurationTab.tsx`
+### Archivo: `src/components/settings/KapsoConfig.tsx`
 
-1. Recibir `searchParams` y `setSearchParams` como props desde PlanningHub (o usar `useSearchParams` directamente)
-2. Leer el tab activo desde `searchParams.get('configTab')` con fallback a sessionStorage y luego a `'zonas-custodios'`
-3. En `onValueChange`, guardar en sessionStorage y actualizar el query param `configTab`
-4. Preservar los query params existentes (especialmente `tab=config`) al actualizar
+1. Importar `useSearchParams` de `react-router-dom`
+2. Leer el sub-tab activo desde `searchParams.get('kapsoTab')` con fallback a `sessionStorage` y luego `'conexion'`
+3. En `onValueChange`, guardar en sessionStorage y actualizar query param preservando los existentes (`tab=kapso`)
+4. Cambiar `<Tabs defaultValue="conexion">` a `<Tabs value={activeKapsoTab} onValueChange={handleKapsoTabChange}>`
 
-### Archivo: `src/pages/Planeacion/PlanningHub.tsx`
+### Resultado esperado
 
-Sin cambios funcionales necesarios -- el componente hijo usara `useSearchParams` directamente.
+La URL sera: `/settings?tab=kapso&kapsoTab=templates`
 
-## Detalle Tecnico
+Al navegar a Meta y regresar, el tab se mantendra exactamente donde estabas.
+
+### Detalle tecnico
 
 ```text
-// Antes (PlanningConfigurationTab.tsx)
-const [activeTab, setActiveTab] = useState('zonas-custodios');
+// Antes (linea 108)
+<Tabs defaultValue="conexion" className="w-full">
 
 // Despues
+const KAPSO_TAB_KEY = 'kapso-active-tab';
 const [searchParams, setSearchParams] = useSearchParams();
-const activeTab = searchParams.get('configTab')
-  || sessionStorage.getItem('planeacion_config_tab')
-  || 'zonas-custodios';
+const activeKapsoTab = searchParams.get('kapsoTab')
+  || sessionStorage.getItem(KAPSO_TAB_KEY)
+  || 'conexion';
 
-const handleTabChange = (value: string) => {
-  sessionStorage.setItem('planeacion_config_tab', value);
+const handleKapsoTabChange = (value: string) => {
+  sessionStorage.setItem(KAPSO_TAB_KEY, value);
   const newParams = new URLSearchParams(searchParams);
-  newParams.set('configTab', value);
+  newParams.set('kapsoTab', value);
   setSearchParams(newParams, { replace: true });
 };
+
+<Tabs value={activeKapsoTab} onValueChange={handleKapsoTabChange} className="w-full">
 ```
 
-Se usa `new URLSearchParams(searchParams)` para preservar el param `tab=config` del padre. Solo se modifica 1 archivo.
-
+Solo se modifica 1 archivo. No hay dependencias nuevas.
