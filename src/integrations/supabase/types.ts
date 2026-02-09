@@ -10000,6 +10000,7 @@ export type Database = {
       pc_clientes: {
         Row: {
           activo: boolean | null
+          cobra_pernocta: boolean | null
           codigo_postal_fiscal: string | null
           contacto_email: string | null
           contacto_facturacion_email: string | null
@@ -10013,14 +10014,17 @@ export type Database = {
           dia_corte: number | null
           dia_pago: number | null
           dias_credito: number | null
+          dias_max_facturacion: number | null
           direccion_fiscal: string | null
           forma_pago_preferida: string | null
+          horas_cortesia: number | null
           id: string
           limite_credito: number | null
           margen_objetivo_porcentaje: number | null
           nombre: string
           notas: string | null
           notas_cobranza: string | null
+          pernocta_tarifa: number | null
           prioridad_cobranza: string | null
           razon_social: string | null
           regimen_fiscal: string | null
@@ -10029,11 +10033,13 @@ export type Database = {
           sla_minutos_asignacion: number | null
           sla_respuesta_horas: number | null
           tarifas_especiales: boolean | null
+          tipo_facturacion: string | null
           updated_at: string | null
           uso_cfdi_default: string | null
         }
         Insert: {
           activo?: boolean | null
+          cobra_pernocta?: boolean | null
           codigo_postal_fiscal?: string | null
           contacto_email?: string | null
           contacto_facturacion_email?: string | null
@@ -10047,14 +10053,17 @@ export type Database = {
           dia_corte?: number | null
           dia_pago?: number | null
           dias_credito?: number | null
+          dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           forma_pago_preferida?: string | null
+          horas_cortesia?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
           nombre: string
           notas?: string | null
           notas_cobranza?: string | null
+          pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null
           regimen_fiscal?: string | null
@@ -10063,11 +10072,13 @@ export type Database = {
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
+          tipo_facturacion?: string | null
           updated_at?: string | null
           uso_cfdi_default?: string | null
         }
         Update: {
           activo?: boolean | null
+          cobra_pernocta?: boolean | null
           codigo_postal_fiscal?: string | null
           contacto_email?: string | null
           contacto_facturacion_email?: string | null
@@ -10081,14 +10092,17 @@ export type Database = {
           dia_corte?: number | null
           dia_pago?: number | null
           dias_credito?: number | null
+          dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           forma_pago_preferida?: string | null
+          horas_cortesia?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
           nombre?: string
           notas?: string | null
           notas_cobranza?: string | null
+          pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null
           regimen_fiscal?: string | null
@@ -10097,6 +10111,7 @@ export type Database = {
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifas_especiales?: boolean | null
+          tipo_facturacion?: string | null
           updated_at?: string | null
           uso_cfdi_default?: string | null
         }

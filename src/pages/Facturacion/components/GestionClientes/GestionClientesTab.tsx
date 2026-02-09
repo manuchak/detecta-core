@@ -103,11 +103,15 @@ export function GestionClientesTab() {
         'Límite Crédito': c.limite_credito,
         'Saldo Actual': credito?.saldo_actual || 0,
         'Utilización %': credito?.utilizacion_pct || 0,
+        'Tipo Facturación': c.tipo_facturacion || 'corte',
+        'Hrs Cortesía': c.horas_cortesia,
+        'Cobra Pernocta': c.cobra_pernocta ? 'Sí' : 'No',
+        'Tarifa Pernocta': c.pernocta_tarifa,
+        'Días Máx Facturación': c.dias_max_facturacion,
         'Día Corte': c.dia_corte,
         'Día Pago': c.dia_pago,
         'Contacto Facturación': c.contacto_facturacion_nombre,
         'Email Facturación': c.contacto_facturacion_email,
-        'Tel Facturación': c.contacto_facturacion_tel,
         'Prioridad Cobranza': c.prioridad_cobranza,
         'Activo': c.activo ? 'Sí' : 'No',
       };
@@ -214,7 +218,9 @@ export function GestionClientesTab() {
                   <TableHead className="w-[200px]">Cliente</TableHead>
                   <TableHead>RFC</TableHead>
                   <TableHead className="text-center">Días Créd</TableHead>
-                  <TableHead className="text-right">Límite</TableHead>
+                  <TableHead className="text-center">Tipo Fact.</TableHead>
+                  <TableHead className="text-center">Hrs Cortesía</TableHead>
+                  <TableHead className="text-center">Pernocta</TableHead>
                   <TableHead className="w-[140px]">Utilización</TableHead>
                   <TableHead className="text-center">Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
@@ -223,7 +229,7 @@ export function GestionClientesTab() {
               <TableBody>
                 {filteredClientes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       No se encontraron clientes
                     </TableCell>
                   </TableRow>
@@ -260,11 +266,24 @@ export function GestionClientesTab() {
                         <TableCell className="text-center">
                           {cliente.dias_credito || 30}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {cliente.limite_credito 
-                            ? formatCurrency(cliente.limite_credito) 
-                            : <span className="text-muted-foreground text-xs">Sin límite</span>
-                          }
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[10px]">
+                            {cliente.tipo_facturacion === 'inmediata' ? 'Inmediata' : 'Corte'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {cliente.horas_cortesia != null ? (
+                            <span className="text-sm font-medium">{cliente.horas_cortesia}h</span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {cliente.cobra_pernocta ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0 text-[10px]">Sí</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">No</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {cliente.limite_credito ? (

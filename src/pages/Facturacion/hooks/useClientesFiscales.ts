@@ -21,10 +21,16 @@ export interface ClienteFiscal {
   notas_cobranza: string | null;
   activo: boolean | null;
   created_at: string;
+  // Fase 1 - Config financiera CFO
+  horas_cortesia: number | null;
+  pernocta_tarifa: number | null;
+  cobra_pernocta: boolean | null;
+  tipo_facturacion: 'inmediata' | 'corte' | null;
+  dias_max_facturacion: number | null;
 }
 
 export interface ClienteFiscalUpdate {
-  nombre?: string; // Nombre comercial - cambio sensible, afecta vinculaciones
+  nombre?: string;
   razon_social?: string | null;
   rfc?: string | null;
   regimen_fiscal?: string | null;
@@ -40,6 +46,11 @@ export interface ClienteFiscalUpdate {
   contacto_facturacion_tel?: string | null;
   prioridad_cobranza?: string | null;
   notas_cobranza?: string | null;
+  horas_cortesia?: number | null;
+  pernocta_tarifa?: number | null;
+  cobra_pernocta?: boolean | null;
+  tipo_facturacion?: 'inmediata' | 'corte' | null;
+  dias_max_facturacion?: number | null;
 }
 
 export function useClientesFiscales() {
@@ -67,7 +78,12 @@ export function useClientesFiscales() {
           prioridad_cobranza,
           notas_cobranza,
           activo,
-          created_at
+          created_at,
+          horas_cortesia,
+          pernocta_tarifa,
+          cobra_pernocta,
+          tipo_facturacion,
+          dias_max_facturacion
         `)
         .order('nombre');
 
