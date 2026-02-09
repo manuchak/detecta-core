@@ -1,183 +1,80 @@
 
 
-# Plan: Manual de Usuario del Modulo de Facturacion
+# Plan: Configuracion de Pago SEICSA + Tarifas por KM Editables
 
-## Objetivo
+## Problema Actual
 
-Crear un centro de ayuda interactivo e integrado dentro del modulo de Facturacion que permita a los usuarios (equipo de finanzas, coordinadores, CFO) consultar como usar cada funcionalidad sin salir de la aplicacion.
+Las tarifas escalonadas de pago a armados internos (SEICSA) estan **hardcodeadas** en 3 archivos distintos:
 
-## Mejores Practicas Investigadas
+- `src/hooks/useFinancialMetrics.ts` - RANGOS_KM
+- `src/pages/Reportes/hooks/useArmadosInternosMetrics.ts` - TARIFAS_KM  
+- `src/pages/PerfilesOperativos/hooks/useArmadoEconomics.ts`
 
-Basado en estandares de UX para documentacion in-app (Salesforce Help, Notion Help, HelpKit):
+Las tarifas actuales son:
+- 0-100 km: $6.0/km
+- 101-250 km: $5.5/km
+- 251-400 km: $5.0/km
+- 400+ km: $4.6/km
 
-1. **Contextual, no monolitico**: En lugar de un PDF de 30 paginas, secciones organizadas por tab/funcionalidad con busqueda instantanea.
-2. **Accordion/Collapsible**: Estructura de preguntas frecuentes con secciones colapsables para no saturar visualmente.
-3. **Busqueda local**: Filtro en tiempo real que busca dentro de todos los articulos sin llamadas al servidor.
-4. **Iconografia visual**: Cada seccion identificada con el mismo icono que usa en la navegacion principal para generar reconocimiento.
-5. **Flujos paso a paso**: Instrucciones numeradas con descripciones claras de que hacer y donde hacer click.
-6. **Acceso persistente**: Un tab dedicado "Ayuda" en el hub principal, siempre visible.
+No hay forma de editarlas desde la UI, y no estan en base de datos.
 
-## Estructura del Manual
+## Solucion
 
-El manual cubrira las 8 tabs del modulo con la siguiente estructura por seccion:
+### 1. Tabla en base de datos: `tarifas_km_armados_internos`
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  📖 Manual de Usuario — Facturacion y Cobranza              │
-│  ┌───────────────────────────────────────────────┐          │
-│  │ 🔍 Buscar en el manual...                     │          │
-│  └───────────────────────────────────────────────┘          │
-│                                                             │
-│  [Dashboard] [Servicios] [Facturas] [CxC] [Clientes]       │
-│  [Incidencias] [Gastos Extra] [CxP] [Preguntas Frecuentes] │
-│                                                             │
-│  ▼ Dashboard — Panel Principal                              │
-│    ├ Que muestra el dashboard?                              │
-│    ├ Como usar los filtros de fecha?                        │
-│    ├ Que significan los KPIs?                               │
-│    └ Como interpretar las graficas?                         │
-│                                                             │
-│  ▼ Facturas — Generar y Consultar                           │
-│    ├ Como generar una factura?                              │
-│    ├ Que es "Dias sin Facturar"?                            │
-│    ├ Diferencia entre Inmediata y Corte                     │
-│    ├ Donde ingreso la Orden de Compra (OC)?                 │
-│    └ Como ver el detalle de una factura emitida?            │
-│                                                             │
-│  ▼ Preguntas Frecuentes                                     │
-│    ├ Que son las horas de cortesia?                         │
-│    ├ Como se calcula la pernocta?                           │
-│    └ ...                                                    │
-└─────────────────────────────────────────────────────────────┘
-```
+Almacenara los rangos de tarifas por km para que sean editables:
 
-## Contenido Detallado por Seccion
+| Columna | Tipo | Descripcion |
+|---------|------|-------------|
+| id | uuid | PK |
+| km_min | integer | Inicio del rango |
+| km_max | integer | Fin del rango (NULL = sin limite) |
+| tarifa_por_km | numeric | Precio por km |
+| descripcion | text | Ej: "0-100 km" |
+| activo | boolean | Default true |
+| orden | integer | Para ordenar los rangos |
+| created_at / updated_at | timestamp | Audit |
 
-### 1. Dashboard
-- Que muestra: KPIs de servicios, ingresos, concentracion por cliente
-- Filtros rapidos: 7d, 30d, 3m, 6m, 1a, Mes actual
-- Graficas: Barras de ingresos por cliente, Pie de concentracion Top 5
+Se insertaran los 4 rangos actuales como datos iniciales (seed).
 
-### 2. Servicios (Consulta)
-- Como buscar un servicio por folio, cliente o ruta
-- Que datos muestra cada servicio
-- Como abrir el detalle de un servicio (click en la fila)
-- Como registrar detenciones y evidencias de gastos
+### 2. Hook: `useTarifasKmArmados`
 
-### 3. Facturas
-- **Por Facturar**: Como identificar servicios pendientes, alertas de retraso, como generar una factura batch por cliente
-- **Facturas Emitidas**: Como consultar facturas, filtrar por estado, ver detalle de partidas
-- **Generar Factura**: Paso a paso del modal (auto-llenado RFC/email, tipo factura, OC)
+- CRUD para la tabla `tarifas_km_armados_internos`
+- Funcion `calcularCostoPorKm(km)` que lee de la tabla en vez de constantes
+- Cache con React Query (stale 5 min)
 
-### 4. Cuentas por Cobrar (CxC)
-- Que es el aging report
-- Como leer los rangos (0-30, 31-60, 61-90, 90+)
-- Como registrar un pago
+### 3. Nuevo componente: `TarifasKmInternosCard`
 
-### 5. Clientes
-- Como editar datos fiscales (RFC, Regimen, CFDI)
-- Como configurar parametros financieros (horas cortesia, pernocta, tipo facturacion, dias max)
-- Como exportar la lista a Excel
+Una card dentro del tab "Esquemas" de la configuracion de Planeacion que muestre:
+- Titulo "Tarifas SEICSA - Armados Internos (por KM)"
+- Tabla editable con los 4 rangos: km_min, km_max, tarifa
+- Botones para editar cada rango inline
+- Boton para agregar rango adicional
+- Vista previa: simulador que muestra "Para X km, el costo seria $Y"
 
-### 6. Incidencias
-- Que tipos existen (discrepancia monto, rechazo cliente, nota de credito, etc.)
-- Como crear una incidencia
-- Flujo de estados: Abierta → En Revision → Resuelta → Cerrada
-- Como registrar montos original vs ajustado
+### 4. Integracion en EsquemasArmadosTab
 
-### 7. Gastos Extraordinarios
-- Tipos de gasto (caseta extra, hotel, alimentos, reparacion, etc.)
-- Flujo de aprobacion: Pendiente → Aprobado/Rechazado → Reembolsado
-- Flags de cobrable al cliente y pagable al custodio
+Agregar el `TarifasKmInternosCard` arriba o abajo de los esquemas de proveedores externos existentes, separado con un encabezado claro:
+- Seccion 1: "Tarifas Armados Internos (SEICSA) - Por KM"
+- Seccion 2: "Esquemas Proveedores Externos" (lo que ya existe)
 
-### 8. CxP Proveedores Armados
-- Como generar un estado de cuenta por proveedor y periodo
-- Que calcula automaticamente el sistema
-- Flujo de estados: Borrador → Revision → Aprobado → Pagado
+### 5. Refactorizar consumidores
 
-### 9. Preguntas Frecuentes
-- Conceptos clave: Horas cortesia, pernocta, estadias, casetas
-- Diferencia entre factura inmediata y de corte
-- Que hacer si un servicio no aparece en "Por Facturar"
-- Como se calcula el IVA
-- Roles y permisos del modulo
+Actualizar los 3 archivos que tienen las tarifas hardcodeadas para que lean de la tabla via el hook, con fallback a los valores actuales si la tabla esta vacia.
 
-## Implementacion Tecnica
-
-### Archivos a Crear
+## Archivos a Crear
 
 | Archivo | Descripcion |
 |---------|-------------|
-| `src/pages/Facturacion/components/Manual/ManualFacturacionTab.tsx` | Componente principal del manual con busqueda y navegacion por secciones |
-| `src/pages/Facturacion/components/Manual/manualContent.ts` | Datos estructurados del contenido (titulos, descripciones, pasos) |
-| `src/pages/Facturacion/components/Manual/ManualSection.tsx` | Componente reutilizable para cada seccion con accordions |
+| `supabase/migrations/..._tarifas_km_armados.sql` | Tabla + seed data + RLS |
+| `src/hooks/useTarifasKmArmados.ts` | Hook CRUD + calculo |
+| `src/pages/Planeacion/components/configuration/TarifasKmInternosCard.tsx` | UI editable |
 
-### Archivos a Modificar
+## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/pages/Facturacion/FacturacionHub.tsx` | Agregar tab "Ayuda" con icono `HelpCircle` |
-
-### Arquitectura del Componente
-
-```text
-ManualFacturacionTab
-├── Barra de busqueda (filtra todas las secciones en tiempo real)
-├── Chips de navegacion rapida por seccion
-├── ManualSection (por cada modulo)
-│   ├── Icono + Titulo de seccion
-│   ├── Descripcion general
-│   └── Accordion items
-│       ├── Pregunta/Titulo
-│       └── Contenido con pasos numerados, tips, y notas
-└── Seccion FAQ general
-```
-
-### Modelo de Datos (manualContent.ts)
-
-```typescript
-interface ManualArticle {
-  id: string;
-  question: string;
-  answer: string;         // Texto con instrucciones
-  steps?: string[];       // Pasos numerados opcionales
-  tip?: string;           // Tip adicional
-  keywords: string[];     // Para busqueda local
-}
-
-interface ManualSection {
-  id: string;
-  title: string;
-  icon: string;           // Nombre del icono Lucide
-  description: string;
-  articles: ManualArticle[];
-}
-```
-
-### Busqueda Local
-
-La busqueda filtrara en tiempo real comparando el query contra:
-- `question` de cada articulo
-- `answer` de cada articulo
-- `keywords` de cada articulo
-- `title` de cada seccion
-
-Sin necesidad de backend ni API externa. Todo client-side con un simple `.filter()`.
-
-### Diseno Visual
-
-- Usa los mismos componentes UI existentes: `Card`, `Accordion`, `Badge`, `Input`
-- Cada seccion tiene el mismo icono que en la TabsList del hub
-- Tips resaltados con `Alert` component en variante `default`
-- Pasos numerados con circulos de color primary
-- Responsive: funciona en desktop y tablet
-
-## Volumen Estimado
-
-- ~9 secciones con 4-6 articulos cada una
-- ~45 articulos totales
-- ~200 lineas de contenido estructurado en `manualContent.ts`
-- ~150 lineas en `ManualFacturacionTab.tsx`
-- ~60 lineas en `ManualSection.tsx`
-- 1 linea de cambio en `FacturacionHub.tsx` (agregar tab)
-
+| `src/pages/Planeacion/components/configuration/EsquemasArmadosTab.tsx` | Agregar TarifasKmInternosCard |
+| `src/hooks/useFinancialMetrics.ts` | Usar hook en vez de constantes |
+| `src/pages/Reportes/hooks/useArmadosInternosMetrics.ts` | Usar hook en vez de constantes |
+| `src/integrations/supabase/types.ts` | Tipos de la nueva tabla |
