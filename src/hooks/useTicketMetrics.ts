@@ -69,27 +69,41 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch tickets with related data (sin JOIN a profiles)
+      // Query 1: Fetch tickets WITHOUT join
       let query = supabase
         .from('tickets')
-        .select(`
-          *,
-          ticket_categorias_custodio!left(nombre, color, departamento_responsable)
-        `)
+        .select('*')
         .gte('created_at', startStr)
         .lte('created_at', endStr + 'T23:59:59');
-
-      if (departamento) {
-        query = query.eq('ticket_categorias_custodio.departamento_responsable', departamento);
-      }
 
       if (agentId) {
         query = query.eq('assigned_to', agentId);
       }
 
-      const { data: tickets, error: ticketsError } = await query;
+      const { data: rawTickets, error: ticketsError } = await query;
 
       if (ticketsError) throw ticketsError;
+
+      // Query 2: Fetch categories separately
+      const catIds = [...new Set((rawTickets || []).filter(t => t.categoria_custodio_id).map(t => t.categoria_custodio_id))];
+      const categoriesMap = new Map<string, { nombre: string; color: string; departamento_responsable: string }>();
+
+      if (catIds.length > 0) {
+        const { data: cats } = await supabase
+          .from('ticket_categorias_custodio')
+          .select('id, nombre, color, departamento_responsable')
+          .in('id', catIds);
+        (cats || []).forEach(c => categoriesMap.set(c.id, c));
+      }
+
+      // Filter by departamento in JS (since we no longer join)
+      let tickets = rawTickets || [];
+      if (departamento) {
+        tickets = tickets.filter(t => {
+          const cat = categoriesMap.get(t.categoria_custodio_id);
+          return cat?.departamento_responsable === departamento;
+        });
+      }
 
       // Fetch agent names separately
       const agentIds = [...new Set((tickets || []).map(t => t.assigned_to).filter(Boolean))];
@@ -166,14 +180,15 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         heatmap[dayOfWeek][hour]++;
 
         // Category tracking
-        const catName = ticket.ticket_categorias_custodio?.nombre || 'Sin categoría';
-        const catColor = ticket.ticket_categorias_custodio?.color || '#6B7280';
+        const cat = categoriesMap.get(ticket.categoria_custodio_id);
+        const catName = cat?.nombre || ticket.category || 'Sin categoría';
+        const catColor = cat?.color || '#6B7280';
         const catData = categoryMap.get(catName) || { count: 0, color: catColor };
         catData.count++;
         categoryMap.set(catName, catData);
 
         // Department tracking
-        const dept = ticket.ticket_categorias_custodio?.departamento_responsable || 'Sin asignar';
+        const dept = cat?.departamento_responsable || 'Sin asignar';
         const deptData = departmentMap.get(dept) || { count: 0, totalResolution: 0, slaMet: 0, total: 0 };
         deptData.count++;
         deptData.total++;
