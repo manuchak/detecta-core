@@ -4449,6 +4449,75 @@ export type Database = {
           },
         ]
       }
+      detenciones_servicio: {
+        Row: {
+          cobrable_cliente: boolean
+          created_at: string
+          duracion_minutos: number | null
+          hora_fin: string | null
+          hora_inicio: string
+          id: string
+          monto_cobro_cliente: number | null
+          monto_pago_custodio: number | null
+          motivo: string | null
+          pagable_custodio: boolean
+          registrado_por: string | null
+          servicio_id: number
+          tipo_detencion: string
+          ubicacion: string | null
+          updated_at: string
+        }
+        Insert: {
+          cobrable_cliente?: boolean
+          created_at?: string
+          duracion_minutos?: number | null
+          hora_fin?: string | null
+          hora_inicio: string
+          id?: string
+          monto_cobro_cliente?: number | null
+          monto_pago_custodio?: number | null
+          motivo?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_id: number
+          tipo_detencion: string
+          ubicacion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cobrable_cliente?: boolean
+          created_at?: string
+          duracion_minutos?: number | null
+          hora_fin?: string | null
+          hora_inicio?: string
+          id?: string
+          monto_cobro_cliente?: number | null
+          monto_pago_custodio?: number | null
+          motivo?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_id?: number
+          tipo_detencion?: string
+          ubicacion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "detenciones_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "detenciones_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devoluciones_proveedor: {
         Row: {
           created_at: string
@@ -5476,6 +5545,81 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_ticket_agent_workload"
             referencedColumns: ["agent_id"]
+          },
+        ]
+      }
+      evidencias_gastos_servicio: {
+        Row: {
+          archivo_nombre: string | null
+          archivo_url: string | null
+          cobrable_cliente: boolean
+          created_at: string
+          descripcion: string | null
+          fecha_verificacion: string | null
+          id: string
+          moneda: string
+          monto: number
+          notas: string | null
+          pagable_custodio: boolean
+          registrado_por: string | null
+          servicio_id: number
+          tipo_gasto: string
+          updated_at: string
+          verificado: boolean
+          verificado_por: string | null
+        }
+        Insert: {
+          archivo_nombre?: string | null
+          archivo_url?: string | null
+          cobrable_cliente?: boolean
+          created_at?: string
+          descripcion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_id: number
+          tipo_gasto: string
+          updated_at?: string
+          verificado?: boolean
+          verificado_por?: string | null
+        }
+        Update: {
+          archivo_nombre?: string | null
+          archivo_url?: string | null
+          cobrable_cliente?: boolean
+          created_at?: string
+          descripcion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          moneda?: string
+          monto?: number
+          notas?: string | null
+          pagable_custodio?: boolean
+          registrado_por?: string | null
+          servicio_id?: number
+          tipo_gasto?: string
+          updated_at?: string
+          verificado?: boolean
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidencias_gastos_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidencias_gastos_servicio_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
           },
         ]
       }
