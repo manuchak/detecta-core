@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,7 @@ export const CustodianSignup = () => {
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const submittingRef = useRef(false);
   
   const { toast } = useToast();
   const { 
@@ -84,6 +85,8 @@ export const CustodianSignup = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setValidationErrors({});
     
     // Validate with Zod
@@ -103,13 +106,13 @@ export const CustodianSignup = () => {
       });
       setValidationErrors(errors);
       
-      // Show first error as toast
       const firstError = result.error.errors[0];
       toast({
         title: 'Error de validación',
         description: firstError.message,
         variant: 'destructive',
       });
+      submittingRef.current = false;
       return;
     }
 
@@ -120,6 +123,7 @@ export const CustodianSignup = () => {
         description: 'Debes usar el email asociado a tu invitación.',
         variant: 'destructive',
       });
+      submittingRef.current = false;
       return;
     }
 
@@ -138,12 +142,26 @@ export const CustodianSignup = () => {
       });
 
       if (error) {
-        console.error('[CustodianSignup] Edge function network error');
-        toast({
-          title: 'Error de Conexión',
-          description: 'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
-          variant: 'destructive',
-        });
+        let errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+        let errorTitle = 'Error de Conexión';
+
+        try {
+          if ((error as any).context?.body) {
+            const reader = (error as any).context.body.getReader();
+            const { value } = await reader.read();
+            const text = new TextDecoder().decode(value);
+            const parsed = JSON.parse(text);
+            if (parsed?.error) {
+              errorMessage = parsed.error;
+              errorTitle = 'Error en Registro';
+            }
+          }
+        } catch {
+          // If parsing fails, keep the default connection error message
+        }
+
+        console.error('[CustodianSignup] Edge function error:', errorTitle);
+        toast({ title: errorTitle, description: errorMessage, variant: 'destructive' });
         return;
       }
 
@@ -196,6 +214,7 @@ export const CustodianSignup = () => {
         variant: 'destructive',
       });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
