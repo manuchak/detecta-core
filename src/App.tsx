@@ -42,6 +42,7 @@ const AssignRole = lazy(() => import('@/pages/Admin/AssignRole'));
 const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
 const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvitationsPage'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
+const MonitoringTVPage = lazy(() => import('@/pages/Monitoring/MonitoringTVPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
 const TicketDetailPage = lazy(() => import('@/pages/Tickets/TicketDetailPage'));
@@ -493,6 +494,16 @@ function App() {
                   }
                 />
                 
+                {/* TV Videowall - Fullscreen, no layout */}
+                <Route
+                  path="/monitoring/tv"
+                  element={
+                    <ProtectedRoute>
+                      <MonitoringTVPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Monitoring routes */}
                 <Route
                   path="/monitoring"
