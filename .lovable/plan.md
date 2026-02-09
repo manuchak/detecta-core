@@ -1,66 +1,99 @@
 
-# Fix: Persistencia completa del sub-tab Kapso
+# Fix: "Error de Conexión" Falso en Registro de Custodio
 
-## Problema encontrado
+## Diagnostico
 
-Hay un bug en **dos lugares** de `Settings.tsx` donde `setSearchParams({ tab: value })` usa un objeto plano que **reemplaza todos los query params**, eliminando `kapsoTab` de la URL.
+El usuario `daniela.castaneda@detectasecurity.io` **ya existe** en la base de datos (creada 2025-09-30). La edge function correctamente retorna HTTP 400 con el mensaje "Email ya registrado", pero el cliente muestra "Error de Conexion" en vez del mensaje real.
 
-### Lineas afectadas:
+**Causa raiz**: `supabase.functions.invoke()` trata cualquier respuesta HTTP no-2xx como un `error`. El codigo en `CustodianSignup.tsx` linea 140 asume que TODO error = problema de red, sin intentar leer el mensaje real de la respuesta.
 
-1. **Linea 21** - `handleTabChange`: Al hacer click en cualquier tab, borra `kapsoTab`
-2. **Linea 27** - `useEffect` de sincronizacion: Al regresar desde el sidebar (sin params en URL), restaura `tab` desde localStorage pero borra `kapsoTab` de sessionStorage/URL
-
-### Ademas:
-
-El `sessionStorage` de KapsoConfig pierde el valor `kapsoTab` porque cuando `KapsoConfig` se monta, lee `kapsoTab` de la URL (que ya fue borrado por Settings) y obtiene `null`, cayendo al default `'conexion'`.
-
-## Solucion
-
-Cambiar ambos `setSearchParams` en `Settings.tsx` para **preservar los params existentes** usando `new URLSearchParams(searchParams)` en vez de un objeto plano. Tambien guardar y restaurar `kapsoTab` desde `sessionStorage` en el `useEffect`.
+Los logs confirman: 7 intentos, TODOS retornaron HTTP 400 en ~600ms (no timeout, no red).
 
 ## Cambios
 
-### Archivo: `src/pages/Settings/Settings.tsx`
+### 1. `src/pages/Auth/CustodianSignup.tsx` - Manejo correcto de errores
 
-**handleTabChange (linea 19-22):**
+Modificar el bloque `if (error)` (lineas 140-148) para:
+- Intentar extraer el mensaje de error del contexto de la respuesta (el objeto `error` de `invoke` puede contener `context` con la respuesta JSON)
+- Solo mostrar "Error de Conexion" como ultimo recurso si realmente no hay datos de respuesta
+- Agregar un `useRef` para prevenir clicks multiples (el usuario envio 7 requests en 2 minutos)
+
 ```text
-// Antes
-const handleTabChange = (value: string) => {
-  localStorage.setItem(SETTINGS_TAB_KEY, value);
-  setSearchParams({ tab: value }, { replace: true });
-};
+// Antes (lineas 140-148):
+if (error) {
+  console.error('[CustodianSignup] Edge function network error');
+  toast({
+    title: 'Error de Conexión',
+    description: 'No se pudo conectar con el servidor...',
+    variant: 'destructive',
+  });
+  return;
+}
 
-// Despues
-const handleTabChange = (value: string) => {
-  localStorage.setItem(SETTINGS_TAB_KEY, value);
-  const newParams = new URLSearchParams(searchParams);
-  newParams.set('tab', value);
-  setSearchParams(newParams, { replace: true });
-};
-```
+// Despues:
+if (error) {
+  // supabase.functions.invoke returns error for non-2xx responses
+  // Try to extract the actual error message from the response context
+  let errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
+  let errorTitle = 'Error de Conexión';
 
-**useEffect de sincronizacion (linea 25-29):**
-```text
-// Antes
-React.useEffect(() => {
-  if (!searchParams.get('tab') && activeTab !== 'ia') {
-    setSearchParams({ tab: activeTab }, { replace: true });
-  }
-}, []);
-
-// Despues
-React.useEffect(() => {
-  if (!searchParams.get('tab') && activeTab !== 'ia') {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('tab', activeTab);
-    // Restaurar kapsoTab desde sessionStorage si existia
-    const savedKapsoTab = sessionStorage.getItem('kapso-active-tab');
-    if (activeTab === 'kapso' && savedKapsoTab) {
-      newParams.set('kapsoTab', savedKapsoTab);
+  try {
+    // The error.context contains the Response object for non-2xx
+    if (error.context?.body) {
+      const reader = error.context.body.getReader();
+      const { value } = await reader.read();
+      const text = new TextDecoder().decode(value);
+      const parsed = JSON.parse(text);
+      if (parsed?.error) {
+        errorMessage = parsed.error;
+        errorTitle = 'Error en Registro';
+      }
     }
-    setSearchParams(newParams, { replace: true });
+  } catch {
+    // If parsing fails, keep the default connection error message
   }
-}, []);
+
+  console.error('[CustodianSignup] Edge function error:', errorTitle);
+  toast({ title: errorTitle, description: errorMessage, variant: 'destructive' });
+  return;
+}
 ```
 
-Solo se modifica 1 archivo. El resultado es que al navegar a `/settings` desde el sidebar, la URL se reconstruye como `/settings?tab=kapso&kapsoTab=templates` usando los valores guardados.
+### 2. `src/pages/Auth/CustodianSignup.tsx` - Prevenir clicks multiples
+
+Agregar un `useRef` para bloquear envios duplicados mientras una peticion esta en curso:
+
+```text
+const submittingRef = useRef(false);
+
+// Al inicio de handleSubmit:
+if (submittingRef.current) return;
+submittingRef.current = true;
+
+// En el finally:
+submittingRef.current = false;
+```
+
+### 3. `supabase/functions/create-custodian-account/index.ts` - Optimizar busqueda de usuario existente
+
+Reemplazar `listUsers()` (linea 60) que carga TODOS los usuarios, por una busqueda directa por email:
+
+```text
+// Antes (lineas 59-64):
+const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+if (users?.users?.some(u => u.email === email)) { ... }
+
+// Despues:
+const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
+  filter: `email.eq.${email}`,
+  page: 1,
+  perPage: 1
+});
+if (existingUsers?.users?.length > 0) { ... }
+```
+
+## Resultado
+
+- El custodio vera **"Email ya registrado"** en vez de "Error de Conexion"
+- Se previenen multiples envios al servidor con el mismo click
+- La busqueda de usuarios existentes es mas eficiente
