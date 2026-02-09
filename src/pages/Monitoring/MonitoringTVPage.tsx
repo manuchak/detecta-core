@@ -11,6 +11,14 @@ const MonitoringTVPage = () => {
   const [clock, setClock] = useState(new Date());
   const { data, dataUpdatedAt } = useServiciosTurno(12);
 
+  // Override global zoom for TV fullscreen
+  useEffect(() => {
+    const html = document.documentElement;
+    const original = html.style.zoom;
+    html.style.zoom = '1';
+    return () => { html.style.zoom = original; };
+  }, []);
+
   // Real-time clock
   useEffect(() => {
     const interval = setInterval(() => setClock(new Date()), 1000);
