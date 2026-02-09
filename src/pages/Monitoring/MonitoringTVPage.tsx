@@ -55,7 +55,7 @@ const MonitoringTVPage = () => {
       </div>
 
       {/* Main content: Map + Services list */}
-      <div className="flex-1 grid grid-cols-12 gap-3 min-h-0">
+      <div className="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
         <TVMapDisplay servicios={servicios} className="col-span-8 h-full" />
         <div className="col-span-4 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
           <TVServicesList servicios={servicios} />
