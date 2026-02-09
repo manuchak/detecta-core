@@ -1,36 +1,52 @@
 
+# Mostrar nombres completos y referencia de factura en tarjetas de servicios
 
-# Fix: column "telefono" of relation "pc_custodios" does not exist
+## Problema actual
 
-## Problema
+En las tarjetas de servicios programados (tab "Servicios"), los nombres de custodio y armado se cortan por CSS (`truncate max-w-[120px]`), y la referencia de factura (`id_interno_cliente`) no se muestra.
 
-La funcion RPC `liberar_custodio_a_planeacion_v2` usa la columna `telefono` al insertar/actualizar en la tabla `pc_custodios`, pero esa tabla tiene la columna nombrada `tel`.
+## Cambios
 
-Lineas afectadas en la migracion mas reciente:
-- **Linea 90** (INSERT): `nombre, email, telefono, estado, vehiculo_propio`
-- **Linea 100** (UPDATE): `telefono = COALESCE(v_candidato_telefono, telefono)`
+### Archivo: `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx`
 
-## Solucion
+**1. Nombre completo del custodio (linea 1046)**
 
-Crear una nueva migracion SQL que reemplaza la funcion RPC corrigiendo `telefono` por `tel` en las dos referencias a `pc_custodios`. El resto de la funcion permanece igual (la tabla `custodios_operativos` si usa `telefono` correctamente).
-
-### Cambios especificos dentro de la funcion:
+Eliminar `truncate max-w-[120px]` del span del custodio para que se muestre el nombre completo sin cortar.
 
 ```text
--- INSERT (linea 90):
 -- Antes:
-INSERT INTO pc_custodios (nombre, email, telefono, estado, vehiculo_propio)
--- Despues:
-INSERT INTO pc_custodios (nombre, email, tel, estado, vehiculo_propio)
+<span className="font-medium text-foreground truncate max-w-[120px]">
 
--- UPDATE (linea 100):
--- Antes:
-telefono = COALESCE(v_candidato_telefono, telefono),
 -- Despues:
-tel = COALESCE(v_candidato_telefono, tel),
+<span className="font-medium text-foreground">
 ```
 
-### Archivo a crear
+**2. Nombre completo del armado (linea 1069)**
 
-Una nueva migracion SQL que ejecuta `CREATE OR REPLACE FUNCTION` con la version corregida de `liberar_custodio_a_planeacion_v2`, identica a la actual pero con `tel` en lugar de `telefono` para la tabla `pc_custodios`.
+El armado ya no tiene truncate, pero por consistencia verificar que se mantenga sin restriccion. Sin cambio necesario aqui.
 
+**3. Referencia de factura (`id_interno_cliente`) - nueva seccion**
+
+Agregar despues del bloque del armado (Row 3, linea 1072), una fila condicional que muestre la referencia del cliente cuando exista:
+
+```text
+{service.id_interno_cliente && (
+  <div className="flex items-center gap-1 mt-1 pl-2 text-xs">
+    <FileText className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+    <span className="text-muted-foreground">Ref:</span>
+    <span className="font-medium text-foreground">{service.id_interno_cliente}</span>
+  </div>
+)}
+```
+
+**4. Layout Row 2 - permitir wrap**
+
+Para evitar que la fila 2 se comprima demasiado con nombres largos, cambiar de `flex items-center` a `flex flex-wrap items-center` en la linea 1031, permitiendo que el contenido pase a segunda linea si es necesario en pantallas pequeñas.
+
+## Resultado visual
+
+Cada tarjeta mostrara:
+- **Fila 1**: Cliente, hora, folio, badges de estado
+- **Fila 2**: Ruta + Custodio completo + Vehiculo (con wrap si necesario)
+- **Fila 3** (si aplica): Nombre completo del armado (Acompanante)
+- **Fila 4** (si aplica): Ref: [referencia de factura]
