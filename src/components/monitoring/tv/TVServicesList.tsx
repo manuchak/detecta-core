@@ -64,7 +64,7 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="text-sm font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10">
+      <div className="text-base font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10">
         SERVICIOS ({servicios.length})
       </div>
       <div ref={scrollRef} className="flex-1 overflow-hidden">
@@ -73,7 +73,7 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
             {/* Time group separator */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.07]">
               <div className="h-px flex-1 bg-white/20" />
-              <span className="text-lg font-semibold font-mono text-gray-300 tracking-wider shrink-0">
+              <span className="text-[26px] font-semibold font-mono text-gray-300 tracking-wider shrink-0">
                 {hora}
               </span>
               <div className="h-px flex-1 bg-white/20" />
@@ -92,19 +92,19 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
                     className="w-1 shrink-0 rounded-full my-1"
                     style={{ backgroundColor: color.primary }}
                   />
-                  <div className="flex-1 pl-3 py-2 min-w-0">
+                  <div className="flex-1 pl-3 py-3 min-w-0">
                     {/* Line 1: Hour + Client */}
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-semibold font-mono text-emerald-400 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[30px] font-semibold font-mono text-emerald-400 shrink-0">
                         {hora}
                       </span>
-                      <span className="text-sm text-white font-semibold">
+                      <span className="text-lg text-white font-semibold truncate">
                         {s.nombre_cliente || 'Sin cliente'}
                       </span>
                     </div>
                     {/* Line 2: Custodian */}
-                    <div className="pl-[3.25rem]">
-                      <span className="text-xs text-gray-500 truncate block">
+                    <div className="pl-0">
+                      <span className="text-sm text-gray-500 truncate block">
                         {s.custodio_asignado || 'Sin custodio'}
                       </span>
                     </div>
