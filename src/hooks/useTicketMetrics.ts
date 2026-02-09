@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subDays, startOfMonth, endOfMonth, parseISO, differenceInMinutes } from 'date-fns';
+import { format, subDays, subMonths, startOfMonth, endOfMonth, parseISO, differenceInMinutes } from 'date-fns';
 
 export interface TicketMetrics {
   // KPIs principales
@@ -55,7 +55,7 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
   const [error, setError] = useState<string | null>(null);
 
   const {
-    startDate = startOfMonth(new Date()),
+    startDate = startOfMonth(subMonths(new Date(), 3)),
     endDate = new Date(),
     departamento,
     agentId
@@ -106,12 +106,21 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
 
       // Fetch responses for first response time
       const ticketIds = (tickets || []).map(t => t.id);
-      const { data: responses, error: responsesError } = await supabase
-        .from('ticket_respuestas')
-        .select('ticket_id, created_at, es_interno')
-        .in('ticket_id', ticketIds.length > 0 ? ticketIds : ['none'])
-        .eq('es_interno', false)
-        .order('created_at', { ascending: true });
+      
+      let responses: any[] = [];
+      let responsesError: any = null;
+      
+      if (ticketIds.length > 0) {
+        const result = await supabase
+          .from('ticket_respuestas')
+          .select('ticket_id, created_at, es_interno')
+          .in('ticket_id', ticketIds)
+          .eq('es_interno', false)
+          .order('created_at', { ascending: true });
+        
+        responses = result.data || [];
+        responsesError = result.error;
+      }
 
       if (responsesError) {
         console.warn('Error fetching responses:', responsesError);
