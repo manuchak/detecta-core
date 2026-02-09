@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { AssignedLead } from "@/types/leadTypes";
 import { VapiCallLog } from "@/types/vapiTypes";
 import { ImprovedLeadCard } from "./ImprovedLeadCard";
@@ -190,13 +190,13 @@ export const LeadsList = ({
     // ✅ El ordenamiento ya viene del backend (ORDER BY fecha_creacion DESC)
     // No calculamos prioridad en cliente - ahora solo procesamos ~50 leads
 
-    // Notify parent of filtered leads
-    if (onFilteredLeadsChange) {
-      onFilteredLeadsChange(filtered);
-    }
-
     return filtered;
-  }, [leads, searchTerm, activeTab, advancedFilters, onFilteredLeadsChange]);
+  }, [leads, searchTerm, activeTab, advancedFilters]);
+
+  // Notify parent of filtered leads count (outside render cycle)
+  useEffect(() => {
+    onFilteredLeadsChange?.(filteredAndSortedLeads);
+  }, [filteredAndSortedLeads, onFilteredLeadsChange]);
 
   return (
     <div className="space-y-4">
