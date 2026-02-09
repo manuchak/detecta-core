@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +22,21 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { WhatsAppTemplatesPanel } from './kapso/WhatsAppTemplatesPanel';
 
+const KAPSO_TAB_KEY = 'kapso-active-tab';
+
 export const KapsoConfig = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeKapsoTab = searchParams.get('kapsoTab')
+    || sessionStorage.getItem(KAPSO_TAB_KEY)
+    || 'conexion';
+
+  const handleKapsoTabChange = (value: string) => {
+    sessionStorage.setItem(KAPSO_TAB_KEY, value);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('kapsoTab', value);
+    setSearchParams(newParams, { replace: true });
+  };
   const [testing, setTesting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'error'>('unknown');
   const [lastTestResult, setLastTestResult] = useState<string | null>(null);
@@ -105,7 +119,7 @@ export const KapsoConfig = () => {
   };
   
   return (
-    <Tabs defaultValue="conexion" className="w-full">
+    <Tabs value={activeKapsoTab} onValueChange={handleKapsoTabChange} className="w-full">
       <TabsList className="mb-6">
         <TabsTrigger value="conexion" className="gap-2">
           <MessageCircle className="h-4 w-4" />
