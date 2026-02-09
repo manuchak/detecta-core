@@ -64,19 +64,19 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="text-xs font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10">
+      <div className="text-sm font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10">
         SERVICIOS ({servicios.length})
       </div>
       <div ref={scrollRef} className="flex-1 overflow-hidden">
         {horasOrdenadas.map((hora) => (
           <div key={hora}>
             {/* Time group separator */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.03]">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[11px] font-mono text-gray-500 tracking-wider shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.07]">
+              <div className="h-px flex-1 bg-white/20" />
+              <span className="text-sm font-semibold font-mono text-gray-300 tracking-wider shrink-0">
                 {hora}
               </span>
-              <div className="h-px flex-1 bg-white/10" />
+              <div className="h-px flex-1 bg-white/20" />
             </div>
 
             {/* Services in this group */}
@@ -95,7 +95,7 @@ const TVServicesList = ({ servicios }: TVServicesListProps) => {
                   <div className="flex-1 pl-3 py-2 min-w-0">
                     {/* Line 1: Hour + Client */}
                     <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-mono text-gray-400 shrink-0">
+                      <span className="text-base font-semibold font-mono text-emerald-400 shrink-0">
                         {hora}
                       </span>
                       <span className="text-sm text-white font-semibold">
