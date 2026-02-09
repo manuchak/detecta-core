@@ -39,6 +39,7 @@ import { format, addDays } from 'date-fns';
 import { formatCurrency } from '@/utils/formatUtils';
 import { ClienteConServiciosPendientes } from '../../hooks/useServiciosPorFacturar';
 import { useGenerarFactura } from '../../hooks/useGenerarFactura';
+import { useClientesFiscales } from '../../hooks/useClientesFiscales';
 
 interface GenerarFacturaModalProps {
   open: boolean;
@@ -75,6 +76,7 @@ export function GenerarFacturaModal({
   onSuccess,
 }: GenerarFacturaModalProps) {
   const { mutate: generarFactura, isPending } = useGenerarFactura();
+  const { data: clientesFiscales = [] } = useClientesFiscales();
 
   // Form state
   const [clienteRfc, setClienteRfc] = useState('XAXX010101000');
@@ -85,20 +87,28 @@ export function GenerarFacturaModal({
   const [formaPago, setFormaPago] = useState('99');
   const [metodoPago, setMetodoPago] = useState('PPD');
   const [notas, setNotas] = useState('');
+  const [tipoFactura, setTipoFactura] = useState<'inmediata' | 'corte'>('corte');
+  const [ordenCompra, setOrdenCompra] = useState('');
 
-  // Reset form when modal opens
+  // Auto-fill from pc_clientes when modal opens
   useEffect(() => {
     if (open && cliente) {
+      const fiscal = clientesFiscales.find(
+        c => c.nombre.toLowerCase() === cliente.cliente.toLowerCase()
+      );
+
       setFechaEmision(format(new Date(), 'yyyy-MM-dd'));
-      setDiasCredito(DEFAULT_DIAS_CREDITO);
-      setClienteRfc('XAXX010101000');
-      setClienteEmail('');
-      setUsoCfdi('G03');
+      setClienteRfc(fiscal?.rfc || 'XAXX010101000');
+      setClienteEmail(fiscal?.contacto_facturacion_email || '');
+      setDiasCredito(fiscal?.dias_credito || DEFAULT_DIAS_CREDITO);
+      setUsoCfdi(fiscal?.uso_cfdi_default || 'G03');
+      setTipoFactura((fiscal?.tipo_facturacion as 'inmediata' | 'corte') || 'corte');
       setFormaPago('99');
       setMetodoPago('PPD');
       setNotas('');
+      setOrdenCompra('');
     }
-  }, [open, cliente]);
+  }, [open, cliente, clientesFiscales]);
 
   if (!cliente) return null;
 
@@ -125,6 +135,8 @@ export function GenerarFacturaModal({
           formaPago,
           metodoPago,
           notas: notas || undefined,
+          tipoFactura,
+          ordenCompra: ordenCompra || undefined,
         },
         servicios: cliente.serviciosDetalle,
       },
@@ -203,6 +215,29 @@ export function GenerarFacturaModal({
                 <Calendar className="h-4 w-4" />
                 Datos de Facturación
               </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Tipo de Factura</Label>
+                  <Select value={tipoFactura} onValueChange={(v) => setTipoFactura(v as 'inmediata' | 'corte')}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inmediata">Inmediata</SelectItem>
+                      <SelectItem value="corte">Fecha de Corte</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Orden de Compra (OC)</Label>
+                  <Input
+                    value={ordenCompra}
+                    onChange={(e) => setOrdenCompra(e.target.value)}
+                    placeholder="Ej: OC-2026-001"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Fecha de Emisión</Label>

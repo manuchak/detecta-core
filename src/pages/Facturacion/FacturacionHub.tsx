@@ -26,12 +26,12 @@ export default function FacturacionHub() {
   const { userRole } = useAuth();
   const hasFullAccess = FACTURACION_FULL_ACCESS_ROLES.includes(userRole as any);
   
-  // Filtro de fechas - por defecto último mes
+  // Filtro de fechas - por defecto últimos 3 meses para dar visibilidad histórica
   const [fechaInicio, setFechaInicio] = useState(
-    format(startOfMonth(new Date()), 'yyyy-MM-dd')
+    format(subDays(new Date(), 90), 'yyyy-MM-dd')
   );
   const [fechaFin, setFechaFin] = useState(
-    format(endOfMonth(new Date()), 'yyyy-MM-dd')
+    format(new Date(), 'yyyy-MM-dd')
   );
 
   const { data: servicios = [], isLoading, refetch } = useServiciosFacturacion({
@@ -102,6 +102,30 @@ export default function FacturacionHub() {
               onClick={() => handleQuickFilter(30)}
             >
               30d
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickFilter(90)}
+            >
+              3m
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickFilter(180)}
+            >
+              6m
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleQuickFilter(365)}
+            >
+              1a
             </Button>
             <Button 
               variant="outline" 

@@ -5628,8 +5628,10 @@ export type Database = {
           moneda: string | null
           notas: string | null
           numero_factura: string
+          orden_compra: string | null
           subtotal: number
           tipo_cambio: number | null
+          tipo_factura: string | null
           total: number
           updated_at: string | null
           uso_cfdi: string | null
@@ -5654,8 +5656,10 @@ export type Database = {
           moneda?: string | null
           notas?: string | null
           numero_factura: string
+          orden_compra?: string | null
           subtotal?: number
           tipo_cambio?: number | null
+          tipo_factura?: string | null
           total?: number
           updated_at?: string | null
           uso_cfdi?: string | null
@@ -5680,8 +5684,10 @@ export type Database = {
           moneda?: string | null
           notas?: string | null
           numero_factura?: string
+          orden_compra?: string | null
           subtotal?: number
           tipo_cambio?: number | null
+          tipo_factura?: string | null
           total?: number
           updated_at?: string | null
           uso_cfdi?: string | null
