@@ -18,13 +18,21 @@ const Settings = () => {
   const activeTab = searchParams.get('tab') || localStorage.getItem(SETTINGS_TAB_KEY) || 'ia';
   const handleTabChange = (value: string) => {
     localStorage.setItem(SETTINGS_TAB_KEY, value);
-    setSearchParams({ tab: value }, { replace: true });
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', value);
+    setSearchParams(newParams, { replace: true });
   };
 
   // Sync URL if tab came from localStorage
   React.useEffect(() => {
     if (!searchParams.get('tab') && activeTab !== 'ia') {
-      setSearchParams({ tab: activeTab }, { replace: true });
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('tab', activeTab);
+      const savedKapsoTab = sessionStorage.getItem('kapso-active-tab');
+      if (activeTab === 'kapso' && savedKapsoTab) {
+        newParams.set('kapsoTab', savedKapsoTab);
+      }
+      setSearchParams(newParams, { replace: true });
     }
   }, []);
   const { userRole } = useAuth();
