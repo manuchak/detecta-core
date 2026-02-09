@@ -22,7 +22,7 @@ const TVSummaryBar = ({ resumen }: TVSummaryBarProps) => {
         return (
           <div
             key={key}
-            className={`rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm px-4 py-3 flex items-center gap-4 ${
+            className={`rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm px-3 py-2 flex items-center gap-4 ${
               isCritical ? 'animate-pulse border-red-500/50 bg-red-500/10' : ''
             }`}
           >

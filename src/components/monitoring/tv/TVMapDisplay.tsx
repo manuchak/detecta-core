@@ -70,7 +70,7 @@ const TVMapDisplay = ({ servicios, className }: TVMapDisplayProps) => {
 
   return (
     <div className={`relative rounded-xl overflow-hidden border border-white/10 ${className || ''}`}>
-      <div ref={mapContainer} className="w-full h-full" />
+      <div ref={mapContainer} className="absolute inset-0" />
       {/* Legend overlay */}
       <div className="absolute bottom-3 left-3 flex gap-3 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2">
         {Object.entries(COLORES_ESTADO).map(([key, val]) => (
