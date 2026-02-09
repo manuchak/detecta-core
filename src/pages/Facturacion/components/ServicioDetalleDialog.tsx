@@ -12,6 +12,8 @@ import { ServicioFacturacion } from '../hooks/useServiciosFacturacion';
 import { formatCurrency } from '@/utils/formatUtils';
 import { formatCDMXTime } from '@/utils/cdmxTimezone';
 import { formatTiempoRetrasoDisplay, parsePostgresInterval } from '@/utils/timeUtils';
+import { DetencionesSeccion } from './DetencionesSeccion';
+import { EvidenciasGastosSeccion } from './EvidenciasGastosSeccion';
 import {
   FileText,
   MapPin,
@@ -411,6 +413,12 @@ export function ServicioDetalleDialog({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Detenciones / Estadías */}
+            <DetencionesSeccion servicioId={servicio.id} />
+
+            {/* Evidencias de Gastos */}
+            <EvidenciasGastosSeccion servicioId={servicio.id} />
 
             {/* Comentarios */}
             {servicio.comentarios_adicionales && (
