@@ -15,6 +15,8 @@ export interface DatosFactura {
   formaPago?: string;
   metodoPago?: string;
   notas?: string;
+  tipoFactura?: 'inmediata' | 'corte';
+  ordenCompra?: string;
 }
 
 export interface FacturaGenerada {
@@ -100,6 +102,8 @@ export function useGenerarFactura() {
           uso_cfdi: datosFactura.usoCfdi || 'G03',
           forma_pago: datosFactura.formaPago || '99',
           metodo_pago: datosFactura.metodoPago || 'PPD',
+          tipo_factura: datosFactura.tipoFactura || 'corte',
+          orden_compra: datosFactura.ordenCompra || null,
           notas: datosFactura.notas || null,
         })
         .select()

@@ -135,7 +135,7 @@ export function useServiciosFacturacion(filtros: FiltrosFacturacion = {}) {
         query = query.eq('tipo_unidad', filtros.tipoUnidad);
       }
 
-      const { data, error } = await query.limit(1000);
+      const { data, error } = await query.limit(5000);
 
       if (error) throw error;
       return (data || []) as ServicioFacturacion[];

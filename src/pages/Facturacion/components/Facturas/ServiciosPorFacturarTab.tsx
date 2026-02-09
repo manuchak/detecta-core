@@ -22,7 +22,7 @@ import {
   Calendar,
   RefreshCw,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCurrency } from '@/utils/formatUtils';
 import { 
@@ -113,8 +113,33 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
     );
   }
 
+  // Calculate late billing alerts
+  const clientesConRetraso = clientesAgrupados.filter(c => {
+    const oldest = c.serviciosDetalle.reduce((o, s) => {
+      const d = s.fecha_hora_cita?.split('T')[0];
+      return d && d < o ? d : o;
+    }, c.ultimoServicio);
+    return differenceInDays(new Date(), new Date(oldest)) > 15;
+  });
+
   return (
     <div className="space-y-4">
+      {/* Late billing alert */}
+      {clientesConRetraso.length > 0 && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-destructive">
+              {clientesConRetraso.length} cliente(s) con más de 15 días sin facturar
+            </p>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              {clientesConRetraso.map(c => c.cliente).slice(0, 5).join(', ')}
+              {clientesConRetraso.length > 5 && ` y ${clientesConRetraso.length - 5} más`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-4">
         <Card>
@@ -200,6 +225,7 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
                 <TableHead>Cliente</TableHead>
                 <TableHead className="text-right">Servicios</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
+                <TableHead className="text-center">Días sin Facturar</TableHead>
                 <TableHead>Último Servicio</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -207,7 +233,7 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
             <TableBody>
               {clientesAgrupados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={7} className="h-32 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <AlertCircle className="h-8 w-8" />
                       <p>No hay servicios pendientes de facturar</p>
@@ -218,43 +244,65 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
                   </TableCell>
                 </TableRow>
               ) : (
-                clientesAgrupados.map((cliente) => (
-                  <TableRow key={cliente.cliente}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedClientes.has(cliente.cliente)}
-                        onCheckedChange={(checked) =>
-                          handleSelectCliente(cliente.cliente, checked as boolean)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{cliente.cliente}</div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="secondary">{cliente.servicios}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(cliente.montoTotal)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {format(new Date(cliente.ultimoServicio), 'dd MMM yyyy', { locale: es })}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleFacturarCliente(cliente)}
-                      >
-                        <Receipt className="h-3.5 w-3.5 mr-1" />
-                        Facturar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                clientesAgrupados.map((cliente) => {
+                  // Calculate days since oldest unfactured service
+                  const oldestServiceDate = cliente.serviciosDetalle.reduce((oldest, s) => {
+                    const d = s.fecha_hora_cita?.split('T')[0];
+                    return d && d < oldest ? d : oldest;
+                  }, cliente.ultimoServicio);
+                  const diasSinFacturar = differenceInDays(new Date(), new Date(oldestServiceDate));
+                  const isLate = diasSinFacturar > 15;
+                  const isCritical = diasSinFacturar > 30;
+
+                  return (
+                    <TableRow key={cliente.cliente}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedClientes.has(cliente.cliente)}
+                          onCheckedChange={(checked) =>
+                            handleSelectCliente(cliente.cliente, checked as boolean)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{cliente.cliente}</div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{cliente.servicios}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(cliente.montoTotal)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge 
+                          variant={isCritical ? 'destructive' : isLate ? 'outline' : 'secondary'}
+                          className={
+                            isCritical ? '' : 
+                            isLate ? 'border-amber-500 text-amber-700 dark:text-amber-400' : ''
+                          }
+                        >
+                          {diasSinFacturar}d
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {format(new Date(cliente.ultimoServicio), 'dd MMM yyyy', { locale: es })}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleFacturarCliente(cliente)}
+                        >
+                          <Receipt className="h-3.5 w-3.5 mr-1" />
+                          Facturar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
