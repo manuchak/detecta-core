@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CandidatoWithEvaluation {
   id: string;
@@ -40,6 +41,7 @@ interface CandidatoWithEvaluation {
 export default function EvaluacionesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCandidato, setSelectedCandidato] = useState<CandidatoWithEvaluation | null>(null);
+  const isMobile = useIsMobile();
 
   // Fetch candidates with their evaluation data
   const { data: candidatos, isLoading } = useQuery({
@@ -99,14 +101,14 @@ export default function EvaluacionesPage() {
   });
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <FileText className="h-8 w-8" />
-          Evaluaciones de Candidatos
+        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+          <FileText className="h-6 w-6 sm:h-8 sm:w-8" />
+          Evaluaciones
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Gestión de entrevistas estructuradas y evaluación de riesgo
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+          Gestión de entrevistas y evaluación de riesgo
         </p>
       </div>
 
@@ -132,20 +134,20 @@ export default function EvaluacionesPage() {
 
         <TabsContent value="candidates">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Lista de Candidatos</span>
-                <div className="relative w-64">
+            <CardHeader className="pb-3 sm:pb-6">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-base sm:text-lg">Lista de Candidatos</span>
+                <div className="relative w-full sm:w-64">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Buscar candidato..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
+                    className="pl-9 h-12 sm:h-9"
                   />
                 </div>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Selecciona un candidato para ver o realizar evaluaciones
               </CardDescription>
             </CardHeader>
@@ -158,7 +160,46 @@ export default function EvaluacionesPage() {
                 <p className="text-center text-muted-foreground py-12">
                   No se encontraron candidatos
                 </p>
+              ) : isMobile ? (
+                /* Mobile: Card-based layout */
+                <div className="space-y-2">
+                  {candidatos.map((candidato) => (
+                    <div
+                      key={candidato.id}
+                      className="p-3 border rounded-lg active:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => setSelectedCandidato(candidato)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-sm font-semibold text-primary">
+                            {candidato.nombre.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{candidato.nombre}</p>
+                          <p className="text-xs text-muted-foreground truncate">{candidato.email || candidato.telefono || 'Sin contacto'}</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {candidato.latest_interview_rating !== undefined && (
+                          <Badge variant="outline" className="gap-1 text-xs">
+                            <Star className="h-2.5 w-2.5" />
+                            {candidato.latest_interview_rating.toFixed(1)}
+                          </Badge>
+                        )}
+                        {candidato.risk_level && (
+                          <RiskLevelBadge level={candidato.risk_level} score={candidato.risk_score} />
+                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
+                /* Desktop: Row-based layout */
                 <div className="divide-y">
                   {candidatos.map((candidato) => (
                     <div
@@ -179,24 +220,18 @@ export default function EvaluacionesPage() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        {/* Interview Rating */}
                         {candidato.latest_interview_rating !== undefined && (
                           <Badge variant="outline" className="gap-1">
                             <Star className="h-3 w-3" />
                             {candidato.latest_interview_rating.toFixed(1)}
                           </Badge>
                         )}
-
-                        {/* Risk Level */}
                         {candidato.risk_level && (
                           <RiskLevelBadge level={candidato.risk_level} score={candidato.risk_score} />
                         )}
-
-                        {/* Estado */}
                         <Badge variant="secondary">
                           {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
                         </Badge>
-
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
