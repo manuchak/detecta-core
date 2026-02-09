@@ -16,6 +16,7 @@ interface AuthContextType {
   session: Session | null;
   userRole: string | null;
   loading: boolean;
+  roleLoading: boolean;
   permissions: AuthPermissions;
   hasPermission: (permission: keyof AuthPermissions) => boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roleLoading, setRoleLoading] = useState(true);
   const { toast } = useToast();
 
   /**
@@ -213,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(currentSession.user);
           setUserRole(null); // Reset role
+          setRoleLoading(true); // Keep showing spinner until role resolves
           
           // Always fetch role from database securely
           setTimeout(async () => {
@@ -221,11 +224,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const role = await fetchUserRole();
                 if (mounted) {
                   setUserRole(role);
+                  setRoleLoading(false);
                 }
               } catch (error) {
                 console.error('Error fetching user role:', error);
                 if (mounted) {
                   setUserRole('unverified');
+                  setRoleLoading(false);
                 }
               }
             }
@@ -234,6 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
+          setRoleLoading(false);
         }
         
         // Handle auth events
@@ -275,11 +281,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
+        setRoleLoading(true);
         fetchUserRole().then(role => {
           if (mounted) {
             setUserRole(role);
+            setRoleLoading(false);
+          }
+        }).catch(() => {
+          if (mounted) {
+            setUserRole('unverified');
+            setRoleLoading(false);
           }
         });
+      } else {
+        setRoleLoading(false);
       }
       
       setLoading(false);
@@ -459,6 +474,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     userRole,
     loading,
+    roleLoading,
     permissions,
     hasPermission,
     hasRole,
@@ -484,6 +500,7 @@ export const useAuth = () => {
       session: null,
       userRole: null,
       loading: true,
+      roleLoading: true,
       permissions: {
         canViewLeads: false,
         canEditLeads: false,

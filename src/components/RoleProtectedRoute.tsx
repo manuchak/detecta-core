@@ -19,11 +19,11 @@ const RoleProtectedRoute = ({
   fallbackPath = '/home',
   showAccessDenied = true
 }: RoleProtectedRouteProps) => {
-  const { user, userRole, loading, hasRole, hasPermission } = useAuth();
+  const { user, userRole, loading, roleLoading, hasRole, hasPermission } = useAuth();
   const location = useLocation();
 
   // Mostrar loading de manera consistente
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-96">
