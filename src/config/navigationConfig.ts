@@ -28,7 +28,8 @@ import {
   GraduationCap,
   Briefcase,
   ArrowLeftRight,
-  Receipt
+  Receipt,
+  MonitorPlay
 } from 'lucide-react';
 
 // Roles with restricted navigation access (only see specific groups)
@@ -367,6 +368,12 @@ export const navigationModules: NavigationModule[] = [
         label: 'Checklists',
         path: '/monitoring?tab=checklists',
         icon: ClipboardList
+      },
+      {
+        id: 'monitoring_tv',
+        label: 'Modo TV (Videowall)',
+        path: '/monitoring/tv',
+        icon: MonitorPlay
       },
       {
         id: 'incidentes_rrss',
