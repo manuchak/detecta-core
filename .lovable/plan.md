@@ -1,117 +1,65 @@
 
 
-# Plan Integral: Captura Movil de Evidencias + Optimizacion UI Movil para Supply
+# Fix: Race Condition de Autorizacion + setState durante render
 
-## Resumen ejecutivo
+## Problema 1: "Acceso Restringido" falso en /leads/approvals
 
-Este plan combina dos necesidades del equipo de Supply en una sola iteracion:
-1. **Componente reutilizable de captura de fotos** desde movil (tech del portal custodio)
-2. **Optimizacion de UI movil** en las pantallas que usan las chicas para evaluar candidatos
+La causa raiz es una race condition en AuthContext.tsx:
 
-El resultado: las usuarias de Supply podran abrir la app desde su celular, navegar facilmente entre candidatos y evaluaciones, y capturar evidencia fisica (toxicologico, Midot, etc.) directo con la camara.
+```text
+1. Auth state change -> setUserRole(null) 
+2. setLoading(false) (ya se ejecuto antes)
+3. RoleProtectedRoute renderiza: loading=false, userRole=null -> "Acceso Restringido"
+4. setTimeout -> fetchUserRole() -> setUserRole('admin') -> corrige, pero ya flasheo error
+```
 
----
+### Solucion
 
-## Parte 1: Componente Reutilizable de Captura Movil
+Agregar un estado `roleLoading` separado que cubra el fetch del rol. `RoleProtectedRoute` debe considerar ambos flags (`loading || roleLoading`) antes de evaluar permisos.
 
-### Archivos nuevos
+### Cambios en `src/contexts/AuthContext.tsx`
 
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/components/shared/EvidenceCapture.tsx` | Componente de captura con camara directa, compresion Canvas, preview Base64, upload a Storage |
-| `src/components/shared/EvidenceThumbnail.tsx` | Thumbnail con acciones: ver en grande, eliminar, reemplazar |
+- Agregar estado `roleLoading` (boolean, default true)
+- Cuando auth state cambia y hay usuario: `setRoleLoading(true)` antes de resetear el rol
+- Cuando `fetchUserRole` termina (exito o error): `setRoleLoading(false)`
+- Exponer `roleLoading` en el contexto (o combinarlo con `loading` existente)
+- En el initial `getSession`: no hacer `setLoading(false)` hasta que el rol tambien se haya cargado
 
-### Comportamiento del componente EvidenceCapture
+### Cambios en `src/components/RoleProtectedRoute.tsx`
 
-- **En movil**: Muestra boton "Tomar Foto" que usa `document.createElement('input')` dinamico con `capture="environment"` (patron probado del portal custodio que evita problemas en Android WebViews)
-- **En desktop**: Muestra zona de drag-and-drop + boton "Seleccionar archivo"
-- **Compresion**: Canvas API (1920x1080, calidad 0.7) - reduce ~80% del peso
-- **Preview**: Base64 via FileReader (compatible con WebViews)
-- **Upload**: Sube a bucket `candidato-documentos` (ya existe y es publico) con patron Verify-Before-Commit
-- **Props**: `bucket`, `storagePath`, `maxPhotos`, `existingUrls`, `onPhotosChange`, `label`, `captureOnly`
+- Leer `roleLoading` del contexto (o simplemente que `loading` cubra ambos)
+- Mientras el rol este cargando, mostrar el spinner en lugar de "Acceso Restringido"
 
-### Integracion en ToxicologyResultForm
+## Problema 2: setState durante render en LeadsList
 
-- Agregar seccion "Evidencia del resultado" con `EvidenceCapture` apuntando a `candidato-documentos/toxicologia/{candidatoId}`
-- Al guardar, incluir las URLs en `archivo_url` del registro (la columna ya existe en `evaluaciones_toxicologicas`)
-- No se necesitan migraciones - el campo `archivo_url` ya existe en la tabla
+En `src/components/leads/approval/LeadsList.tsx` linea 194, `onFilteredLeadsChange(filtered)` se invoca dentro de `useMemo`, causando el warning "Cannot update a component while rendering".
 
-### Integracion en DocumentUploadDialog
+### Solucion
 
-- Reemplazar el input estatico (`id="file-input"`) con el patron dinamico `createElement` para compatibilidad movil
-- Usar `useIsMobile()` para alternar entre modo camara directa y drag-and-drop
-- Mantener drag-and-drop para desktop
+Mover la llamada a `onFilteredLeadsChange` a un `useEffect` que dependa de `filteredAndSortedLeads`.
 
-### Hook useEvaluacionesToxicologicas
+### Cambios en `src/components/leads/approval/LeadsList.tsx`
 
-- El mutation `useCreateToxicologia` ya acepta `archivo_url` en `CreateToxicologiaData` - no necesita cambios
+- Quitar `onFilteredLeadsChange` del `useMemo`
+- Agregar `useEffect` separado:
+  ```
+  useEffect(() => {
+    onFilteredLeadsChange?.(filteredAndSortedLeads);
+  }, [filteredAndSortedLeads]);
+  ```
 
----
-
-## Parte 2: Optimizacion UI Movil
-
-### 2.1 CandidateEvaluationPanel - Tabs scrolleables
-
-**Problema**: 10 tabs en `grid-cols-10` = cada tab tiene ~39px en movil, imposible de tocar
-
-**Solucion**:
-- Cambiar `grid grid-cols-10` por `flex overflow-x-auto` con scroll horizontal
-- Cada tab con `min-w-[70px]` para touch target adecuado
-- Labels siempre visibles (abreviados): "Entrevista", "Psico", "Toxico", "Refs", "Riesgo", "Docs", "Contratos", "Capacitacion", "Instalacion", "Historial"
-- Dialog: agregar clases responsivas `w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-6xl` para ser full-screen en movil
-
-### 2.2 ImprovedLeadCard - Layout responsivo
-
-**Problema**: Avatar + nombre + badges + botones de accion compiten por espacio horizontal en <400px
-
-**Solucion**:
-- Mantener layout horizontal en desktop
-- En movil (`<sm`): apilar info arriba, botones abajo como fila con `flex-wrap`
-- Botones de accion con `w-full sm:w-auto` para ser tactiles en movil
-- Email truncado con tooltip en lugar de cortar visualmente
-
-### 2.3 LeadCard (legacy) - Misma optimizacion
-
-- Apilar la seccion de informacion y acciones verticalmente en movil
-- Botones full-width en pantallas < sm
-
-### 2.4 EvaluacionesPage - Vista card en movil
-
-**Problema**: La lista de candidatos es una tabla horizontal que no escala en movil
-
-**Solucion**:
-- Usar `useIsMobile()` para detectar viewport
-- En movil: cards apiladas con nombre, badges de estado y boton "Evaluar"
-- Barra de busqueda full-width en movil
-- Titulo y descripcion con tamano reducido en movil
-
-### 2.5 Formularios tactiles (ToxicologyResultForm, DocumentUploadDialog)
-
-- Radio buttons con padding `p-4` (min 44px touch target)
-- Inputs con `h-12` en movil
-- Botones de accion `w-full` en movil con `h-12`
-- Dialog con `sm:max-w-md` (full-width en movil sin padding excesivo)
-
----
-
-## Detalle tecnico: Archivos a modificar
+## Resumen de archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| **NUEVO** `src/components/shared/EvidenceCapture.tsx` | Componente de captura movil con compresion y upload |
-| **NUEVO** `src/components/shared/EvidenceThumbnail.tsx` | Thumbnail con acciones |
-| `src/components/recruitment/CandidateEvaluationPanel.tsx` | Tabs scrolleables + dialog responsive |
-| `src/components/recruitment/toxicology/ToxicologyResultForm.tsx` | Agregar EvidenceCapture + touch targets |
-| `src/components/recruitment/documents/DocumentUploadDialog.tsx` | Patron dinamico createElement + deteccion movil |
-| `src/components/leads/approval/ImprovedLeadCard.tsx` | Layout apilado en movil |
-| `src/components/leads/approval/LeadCard.tsx` | Layout apilado en movil |
-| `src/pages/Leads/EvaluacionesPage.tsx` | Vista card en movil + busqueda responsive |
+| `src/contexts/AuthContext.tsx` | Agregar `roleLoading` para eliminar race condition entre loading y fetch de rol |
+| `src/components/RoleProtectedRoute.tsx` | Respetar `roleLoading` antes de evaluar permisos |
+| `src/components/leads/approval/LeadsList.tsx` | Mover `onFilteredLeadsChange` de `useMemo` a `useEffect` |
 
 ## Lo que NO se toca
 
-- Backend / migraciones de BD (todo ya existe)
-- Flujo de aprobacion, SIERCP, liberacion
-- Portal custodio y sus componentes de camara
-- Logica de hooks y mutations existentes
-- Bucket de storage (ya existe, ya es publico)
+- Logica de permisos y roles (hasRole, hasPermission)
+- Flujo de SIERCP, liberacion, evaluaciones
+- RLS policies ni funciones RPC
+- Ningun otro componente
 
