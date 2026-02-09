@@ -1,47 +1,40 @@
 
+# Persistencia de Tab Activo en Configuracion
 
-# Fix: Error "column 'role' does not exist" en Liberacion
+## Problema
 
-## Causa Raiz
-
-La funcion RPC `liberar_custodio_a_planeacion_v2` en la linea 27 hace:
-
-```sql
-SELECT role INTO v_user_role FROM profiles WHERE id = p_aprobado_por;
-```
-
-Pero la tabla `profiles` **no tiene columna `role`**. Los roles estan en la tabla `user_roles`.
+La pagina `/settings` usa `useState("ia")` para el tab activo. Cada vez que el usuario navega a otra seccion y regresa, el tab se reinicia a "Inteligencia Artificial" en lugar de mantener el ultimo tab visitado (ej: "WhatsApp Kapso").
 
 ## Solucion
 
-Crear una migracion SQL que reemplace la funcion RPC, cambiando la linea 27 de:
+Reemplazar `useState` con persistencia en la URL usando query parameters (`/settings?tab=kapso`). Esto es mas robusto que localStorage porque:
+- Funciona con el boton de "atras" del navegador
+- Se puede compartir el link directo a un tab
+- No requiere limpieza
 
-```sql
-SELECT role INTO v_user_role FROM profiles WHERE id = p_aprobado_por;
+## Cambios
+
+### Archivo: `src/pages/Settings/Settings.tsx`
+
+1. Importar `useSearchParams` de `react-router-dom`
+2. Leer el tab activo desde `searchParams.get('tab')` con fallback a `"ia"`
+3. En `onValueChange`, actualizar el search param en vez de setState
+4. Eliminar el `useState` actual
+
+El resultado es que al navegar a `/settings?tab=kapso` y luego salir/regresar, el tab se mantiene. Tambien al hacer click en un tab, la URL se actualiza automaticamente.
+
+## Detalle tecnico
+
+```
+// Antes
+const [activeTab, setActiveTab] = useState("ia");
+
+// Despues
+const [searchParams, setSearchParams] = useSearchParams();
+const activeTab = searchParams.get('tab') || 'ia';
+const handleTabChange = (value: string) => {
+  setSearchParams({ tab: value }, { replace: true });
+};
 ```
 
-A:
-
-```sql
-SELECT role INTO v_user_role FROM user_roles WHERE user_id = p_aprobado_por AND is_active = true LIMIT 1;
-```
-
-## Implementacion
-
-### Archivo a crear
-
-| Archivo | Descripcion |
-|---------|-------------|
-| `supabase/migrations/..._fix_liberacion_role_column.sql` | `CREATE OR REPLACE FUNCTION` con la correccion |
-
-La migracion reemplazara la funcion completa `liberar_custodio_a_planeacion_v2` con el unico cambio en la linea que consulta el rol, apuntando a `user_roles` en lugar de `profiles`.
-
-### Sin cambios en frontend
-
-El hook `useCustodioLiberacion.ts` ya llama correctamente al RPC. El problema es exclusivamente en la definicion SQL de la funcion.
-
-### Impacto
-
-- Marbelli y cualquier usuario con rol autorizado podra liberar custodios nuevamente
-- No hay cambios de logica, solo la tabla de donde se lee el rol
-
+Solo se modifica un archivo. No hay dependencias nuevas (`react-router-dom` ya esta instalado).
