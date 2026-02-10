@@ -1,52 +1,56 @@
 
+## Fix: RPC liberar_custodio_a_planeacion_v2 no funciona - doble desincronizacion
 
-## Fix: Timezone bug en useServiciosAyer y useServiciosHoy
+### Problema raiz (2 bugs criticos)
 
-### Problema detectado
+**Bug 1 - Tabla incorrecta en la RPC desplegada**: La funcion `liberar_custodio_a_planeacion_v2` desplegada en produccion consulta `custodios_liberacion` (con 's'), pero la tabla real se llama `custodio_liberacion` (sin 's'). Esto causa que CADA llamada falle silenciosamente con "Registro de liberacion no encontrado".
 
-Ambos hooks (`useServiciosAyer.ts` y `useServiciosHoy.ts`) filtran `fecha_hora_cita` usando rangos UTC sin considerar la zona horaria CDMX (-06:00). Esto causa:
+**Bug 2 - Frontend no valida `success: false`**: La RPC usa un patron de "soft errors" donde retorna `{ success: false, error: "mensaje" }` en lugar de lanzar excepciones SQL. Sin embargo, el frontend solo verifica `if (error)` de la respuesta de Supabase (errores de red/SQL), nunca revisa `result.success`. Resultado: el toast de exito se muestra aunque la operacion fallo.
 
-- **Servicios incluidos incorrectamente**: Registros de la noche anterior en CDMX (18:00-23:59) que en UTC ya caen en el dia siguiente
-- **Servicios excluidos incorrectamente**: Registros del dia despues de las 18:00 CDMX que en UTC ya son del dia siguiente
+### Por que Supply ve el toast de exito
 
-Ejemplo concreto para "ayer" (Feb 9 CDMX):
-- El query actual busca UTC `2026-02-09T00:00:00` a `2026-02-09T23:59:59`
-- Incluye 5 servicios que son realmente Feb 8 noche CDMX
-- Excluye 3+ servicios de Feb 9 despues de las 18:00 CDMX
-- Resultado: muestra ~15 incorrectos en vez de los 29-32 reales
-
-### Solucion
-
-Usar `buildCDMXTimestamp` (ya existente en `cdmxTimezone.ts`) para construir los rangos con offset `-06:00`, de modo que PostgreSQL compare correctamente en zona CDMX.
-
-### Cambios
-
-**1. `src/hooks/useServiciosAyer.ts`**
-
-Reemplazar:
-```typescript
-const ayer = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-// query con ${ayer}T00:00:00 y ${ayer}T23:59:59
+```text
+1. Supply presiona "Liberar"
+2. Frontend llama RPC liberar_custodio_a_planeacion_v2
+3. RPC intenta SELECT FROM custodios_liberacion (no existe)
+4. EXCEPTION WHEN OTHERS captura el error
+5. RPC retorna { success: false, error: "..." } como JSON valido
+6. Supabase client: sin error SQL, data = { success: false, ... }
+7. Frontend: if (error) -> NO -> continua como exito
+8. result.candidato_nombre = undefined, result.warnings = undefined
+9. Toast muestra "Custodio Liberado" con datos vacios
+10. Base de datos: sin cambios (custodio sigue en 'pendiente')
 ```
 
-Por:
-```typescript
-import { buildCDMXTimestamp } from '@/utils/cdmxTimezone';
+### Solucion (2 partes)
 
-const ayer = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-const inicio = buildCDMXTimestamp(ayer, '00:00');
-const fin = buildCDMXTimestamp(ayer, '23:59');
-// query con .gte('fecha_hora_cita', inicio).lt('fecha_hora_cita', fin)
+**Parte 1: Corregir la migracion SQL**
+
+Crear nueva migracion que redefine `liberar_custodio_a_planeacion_v2` corrigiendo:
+- Tabla: `custodio_liberacion` (sin 's') en lugar de `custodios_liberacion`
+- Campos de retorno: alinear con lo que el frontend espera (`candidato_nombre`, `candidato_email`, `candidato_telefono`, `custodio_operativo_id`, `warnings`, `tiene_warnings`, `fases_incompletas`, `invitation_token`)
+- Join con tabla `candidatos_custodios` para obtener datos del candidato (ya que `custodio_liberacion` referencia `candidato_id`)
+- Mantener la generacion de invitacion y notificacion
+
+**Parte 2: Agregar validacion de `success` en el frontend**
+
+En `src/hooks/useCustodioLiberacion.ts`, agregar despues de la llamada RPC:
+
+```typescript
+if (!data?.success) {
+  throw new Error(data?.error || 'Error desconocido en la liberacion');
+}
 ```
 
-Esto genera `2026-02-09T00:00:00-06:00` y `2026-02-09T23:59:00-06:00`, que PostgreSQL convierte internamente a UTC para comparar correctamente.
+Esto garantiza que errores de negocio (como tabla no encontrada, ya liberado, etc.) se propaguen correctamente al usuario en lugar de mostrarse como exito.
 
-**2. `src/hooks/useServiciosHoy.ts`**
+### Archivos a modificar
 
-Mismo patron: reemplazar las comparaciones naive por `buildCDMXTimestamp` para el dia actual.
+1. **Nueva migracion SQL** - Redefinir `liberar_custodio_a_planeacion_v2` con tabla correcta y campos de retorno alineados
+2. **`src/hooks/useCustodioLiberacion.ts`** - Agregar validacion `if (!data?.success)` despues de la llamada RPC (linea ~218)
 
-### Detalle tecnico
+### Impacto
 
-`buildCDMXTimestamp('2026-02-09', '00:00')` produce `2026-02-09T00:00:00-06:00`, que PostgreSQL interpreta como `2026-02-09T06:00:00Z`. Esto alinea correctamente el rango del "dia CDMX" con los timestamps UTC almacenados en la base de datos.
-
-No se requieren cambios en la base de datos ni migraciones.
+- Los 2 custodios pendientes (RIVAS y CALDERON) podran ser liberados correctamente
+- Cualquier error futuro de la RPC se mostrara al usuario en lugar de fallar silenciosamente
+- No afecta registros ya liberados (los anteriores usaban una version funcional de la RPC)
