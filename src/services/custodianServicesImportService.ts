@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { parseRobustDate, formatDateParsingResult } from '@/utils/dateUtils';
+import { parseRobustDate, parseRobustDateCDMX, formatDateParsingResult } from '@/utils/dateUtils';
 
 // Helper function to parse interval strings (HH:MM:SS, HH:MM, or minutes as number)
 const parseInterval = (value: any): string | null => {
@@ -182,33 +182,33 @@ const buildUpdateData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     updateData.presentacion = item.presentacion;
   }
   
-  // hora_presentacion (DATE - requiere parsing)
+   // hora_presentacion (TIMESTAMPTZ - CDMX operational time)
   if (hasValidValue(item.hora_presentacion, 'date')) {
-    const horaPresentacionResult = parseRobustDate(item.hora_presentacion);
+    const horaPresentacionResult = parseRobustDateCDMX(item.hora_presentacion);
     if (horaPresentacionResult.success && horaPresentacionResult.isoString) {
       updateData.hora_presentacion = horaPresentacionResult.isoString;
     }
   }
   
-  // hora_finalizacion (DATE - requiere parsing)
+  // hora_finalizacion (TIMESTAMPTZ - CDMX operational time)
   if (hasValidValue(item.hora_finalizacion, 'date')) {
-    const horaFinalizacionResult = parseRobustDate(item.hora_finalizacion);
+    const horaFinalizacionResult = parseRobustDateCDMX(item.hora_finalizacion);
     if (horaFinalizacionResult.success && horaFinalizacionResult.isoString) {
       updateData.hora_finalizacion = horaFinalizacionResult.isoString;
     }
   }
   
-  // hora_arribo (DATE - requiere parsing)
+  // hora_arribo (TIMESTAMPTZ - CDMX operational time)
   if (hasValidValue(item.hora_arribo, 'date')) {
-    const horaArriboResult = parseRobustDate(item.hora_arribo);
+    const horaArriboResult = parseRobustDateCDMX(item.hora_arribo);
     if (horaArriboResult.success && horaArriboResult.isoString) {
       updateData.hora_arribo = horaArriboResult.isoString;
     }
   }
   
-  // hora_inicio_custodia (DATE - requiere parsing)
+  // hora_inicio_custodia (TIMESTAMPTZ - CDMX operational time)
   if (hasValidValue(item.hora_inicio_custodia, 'date')) {
-    const horaInicioResult = parseRobustDate(item.hora_inicio_custodia);
+    const horaInicioResult = parseRobustDateCDMX(item.hora_inicio_custodia);
     if (horaInicioResult.success && horaInicioResult.isoString) {
       updateData.hora_inicio_custodia = horaInicioResult.isoString;
     }
@@ -296,19 +296,19 @@ const buildInsertData = (item: any, fechaCitaResult: any, createdAtResult: any, 
     // --- TIME TRACKING FIELDS (with proper date parsing) ---
     presentacion: item.presentacion || null,
     hora_presentacion: (() => {
-      const result = parseRobustDate(item.hora_presentacion);
+      const result = parseRobustDateCDMX(item.hora_presentacion);
       return result.success && result.isoString ? result.isoString : null;
     })(),
     hora_finalizacion: (() => {
-      const result = parseRobustDate(item.hora_finalizacion);
+      const result = parseRobustDateCDMX(item.hora_finalizacion);
       return result.success && result.isoString ? result.isoString : null;
     })(),
     hora_arribo: (() => {
-      const result = parseRobustDate(item.hora_arribo);
+      const result = parseRobustDateCDMX(item.hora_arribo);
       return result.success && result.isoString ? result.isoString : null;
     })(),
     hora_inicio_custodia: (() => {
-      const result = parseRobustDate(item.hora_inicio_custodia);
+      const result = parseRobustDateCDMX(item.hora_inicio_custodia);
       return result.success && result.isoString ? result.isoString : null;
     })(),
     tiempo_punto_origen: item.tiempo_punto_origen || null,
@@ -406,9 +406,9 @@ export const importCustodianServices = async (
               console.log(`Processing record ${current}:`, item);
 
             // Parse and validate dates using robust parsing
-            const fechaCitaResult = parseRobustDate(item.fecha_hora_cita);
-            const createdAtResult = parseRobustDate(item.created_at);
-            const fechaContratacionResult = parseRobustDate(item.fecha_contratacion);
+            const fechaCitaResult = parseRobustDateCDMX(item.fecha_hora_cita);
+            const createdAtResult = parseRobustDate(item.created_at); // Technical timestamp, not operational
+            const fechaContratacionResult = parseRobustDateCDMX(item.fecha_contratacion);
             
             // Log date parsing results for debugging
             if (item.fecha_hora_cita) {
