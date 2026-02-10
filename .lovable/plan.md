@@ -1,65 +1,71 @@
 
 
-# Fix: Race Condition de Autorizacion + setState durante render
+# Fix: Wizard de Importacion - Bug de Timezone CDMX
 
-## Problema 1: "Acceso Restringido" falso en /leads/approvals
+## Problema raiz
 
-La causa raiz es una race condition en AuthContext.tsx:
+Cuando el CSV contiene una fecha como `2025-02-09 08:30`, la funcion `parseRobustDate()` en `dateUtils.ts` hace:
 
 ```text
-1. Auth state change -> setUserRole(null) 
-2. setLoading(false) (ya se ejecuto antes)
-3. RoleProtectedRoute renderiza: loading=false, userRole=null -> "Acceso Restringido"
-4. setTimeout -> fetchUserRole() -> setUserRole('admin') -> corrige, pero ya flasheo error
+new Date(2025, 1, 9, 8, 30)  -->  interpreta como hora LOCAL del navegador
+.toISOString()                -->  convierte a UTC
 ```
 
-### Solucion
+Esto produce resultados diferentes segun la zona horaria del navegador del usuario. Si el navegador esta en UTC (ej: servidor, VPN, o configuracion de sistema), `08:30` local = `08:30 UTC`, y al convertir a CDMX se vuelve `02:30 CDMX` del mismo dia o incluso del dia anterior.
 
-Agregar un estado `roleLoading` separado que cubra el fetch del rol. `RoleProtectedRoute` debe considerar ambos flags (`loading || roleLoading`) antes de evaluar permisos.
+**El dato del CSV siempre representa hora CDMX** (es dato operativo de Mexico), pero el parser no lo sabe y depende del navegador.
 
-### Cambios en `src/contexts/AuthContext.tsx`
+Los 17 servicios "perdidos" del 9 de febrero quedaron atribuidos al 8 de febrero porque sus horas CDMX, al ser interpretadas como UTC, cayeron en el dia anterior al convertir de vuelta a CDMX para el dashboard.
 
-- Agregar estado `roleLoading` (boolean, default true)
-- Cuando auth state cambia y hay usuario: `setRoleLoading(true)` antes de resetear el rol
-- Cuando `fetchUserRole` termina (exito o error): `setRoleLoading(false)`
-- Exponer `roleLoading` en el contexto (o combinarlo con `loading` existente)
-- En el initial `getSession`: no hacer `setLoading(false)` hasta que el rol tambien se haya cargado
+## Solucion
 
-### Cambios en `src/components/RoleProtectedRoute.tsx`
+### Paso 1: Crear funcion `parseRobustDateCDMX` en `dateUtils.ts`
 
-- Leer `roleLoading` del contexto (o simplemente que `loading` cubra ambos)
-- Mientras el rol este cargando, mostrar el spinner en lugar de "Acceso Restringido"
+Nueva funcion que hace exactamente lo mismo que `parseRobustDate`, pero en lugar de usar `new Date()` (que depende del navegador), construye el ISO string con offset CDMX explicito (`-06:00`):
 
-## Problema 2: setState durante render en LeadsList
+- Input: `"2025-02-09 08:30"` (hora CDMX del CSV)
+- Output: `"2025-02-09T08:30:00-06:00"` (con offset explicito)
+- Supabase interpreta esto correctamente como `2025-02-09T14:30:00Z` en UTC
 
-En `src/components/leads/approval/LeadsList.tsx` linea 194, `onFilteredLeadsChange(filtered)` se invoca dentro de `useMemo`, causando el warning "Cannot update a component while rendering".
+La funcion maneja los mismos formatos que `parseRobustDate` (YYYY-MM-DD HH:MM, DD/MM/YYYY, Excel serial numbers, etc.) pero siempre asume que la hora es CDMX.
 
-### Solucion
+Para fechas sin hora (ej: `"2025-02-09"`), genera `"2025-02-09T12:00:00-06:00"` (mediodia CDMX) para evitar cambios de dia en cualquier conversion.
 
-Mover la llamada a `onFilteredLeadsChange` a un `useEffect` que dependa de `filteredAndSortedLeads`.
+### Paso 2: Usar `parseRobustDateCDMX` en `custodianServicesImportService.ts`
 
-### Cambios en `src/components/leads/approval/LeadsList.tsx`
+Reemplazar las llamadas a `parseRobustDate` para los campos de timestamp operativo:
 
-- Quitar `onFilteredLeadsChange` del `useMemo`
-- Agregar `useEffect` separado:
-  ```
-  useEffect(() => {
-    onFilteredLeadsChange?.(filteredAndSortedLeads);
-  }, [filteredAndSortedLeads]);
-  ```
+| Campo | Cambio |
+|-------|--------|
+| `fecha_hora_cita` | parseRobustDate --> parseRobustDateCDMX |
+| `hora_presentacion` | parseRobustDate --> parseRobustDateCDMX |
+| `hora_arribo` | parseRobustDate --> parseRobustDateCDMX |
+| `hora_inicio_custodia` | parseRobustDate --> parseRobustDateCDMX |
+| `hora_finalizacion` | parseRobustDate --> parseRobustDateCDMX |
+| `created_at` | Mantiene parseRobustDate (es timestamp tecnico, no operativo) |
+| `fecha_contratacion` | parseRobustDate --> parseRobustDateCDMX |
 
-## Resumen de archivos
+Esto aplica tanto en `buildUpdateData` como en `buildInsertData`.
+
+### Paso 3: Corregir los 32 registros existentes del 9 de febrero
+
+Proveer un query SQL de correccion para ejecutar manualmente en Supabase. Este query identifica los registros afectados y ajusta el offset de 6 horas en `fecha_hora_cita` y los demas campos de timestamp.
+
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/contexts/AuthContext.tsx` | Agregar `roleLoading` para eliminar race condition entre loading y fetch de rol |
-| `src/components/RoleProtectedRoute.tsx` | Respetar `roleLoading` antes de evaluar permisos |
-| `src/components/leads/approval/LeadsList.tsx` | Mover `onFilteredLeadsChange` de `useMemo` a `useEffect` |
+| `src/utils/dateUtils.ts` | Agregar `parseRobustDateCDMX()` que construye timestamps con offset `-06:00` |
+| `src/services/custodianServicesImportService.ts` | Usar `parseRobustDateCDMX` para campos operativos en `buildUpdateData` y `buildInsertData` |
 
 ## Lo que NO se toca
 
-- Logica de permisos y roles (hasRole, hasPermission)
-- Flujo de SIERCP, liberacion, evaluaciones
+- `parseRobustDate` original (se mantiene para otros usos no-CDMX)
+- Dashboard, hooks de BI, ni logica de visualizacion
 - RLS policies ni funciones RPC
-- Ningun otro componente
+- Wizard UI (pasos, mapeo de columnas, validacion visual)
+
+## Query de correccion para registros existentes
+
+Despues de aprobar el plan, se proporcionara el query exacto para corregir los 32 registros del 9 de febrero directamente en la base de datos.
 
