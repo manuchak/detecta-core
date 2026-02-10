@@ -218,11 +218,16 @@ export const useCustodioLiberacion = () => {
       
       if (error) {
         console.error('❌ Error RPC liberación:', error);
-        // Mensaje accionable para usuarios con build viejo
         if (error.message?.includes('schema cache') || error.message?.includes('function')) {
           throw new Error('Tu app parece desactualizada. Recarga con Ctrl+Shift+R o abre en modo incógnito.');
         }
         throw error;
+      }
+
+      // ✅ FIX: Validar success del resultado RPC (soft errors)
+      if (!data?.success) {
+        console.error('❌ RPC retornó error de negocio:', data);
+        throw new Error(data?.error || 'Error desconocido en la liberación');
       }
       
       const result = data as {
