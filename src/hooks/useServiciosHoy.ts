@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { buildCDMXTimestamp } from '@/utils/cdmxTimezone';
 
 export interface ServicioPlanificado {
   id: string;
@@ -20,14 +21,15 @@ export const useServiciosHoy = () => {
   return useQuery({
     queryKey: ['servicios-hoy'],
     queryFn: async (): Promise<ServicioPlanificado[]> => {
-      // Usar format() de date-fns para evitar bug de timezone donde toISOString() convierte a UTC
       const hoy = format(new Date(), 'yyyy-MM-dd');
+      const inicio = buildCDMXTimestamp(hoy, '00:00');
+      const fin = buildCDMXTimestamp(hoy, '23:59');
       
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('id, id_servicio, nombre_cliente, origen, destino, fecha_hora_cita, estado_planeacion, custodio_asignado, requiere_armado, armado_asignado, created_at')
-        .gte('fecha_hora_cita', `${hoy}T00:00:00`)
-        .lt('fecha_hora_cita', `${hoy}T23:59:59`)
+        .gte('fecha_hora_cita', inicio)
+        .lt('fecha_hora_cita', fin)
         .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('fecha_hora_cita', { ascending: true });
       
