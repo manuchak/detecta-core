@@ -239,3 +239,128 @@ export const formatDateParsingResult = (result: DateParsingResult): string => {
   
   return message;
 };
+
+/**
+ * CDMX-aware date parser for operational CSV imports.
+ * Instead of using new Date() (browser-dependent), builds ISO strings
+ * with explicit CDMX offset (-06:00) so Supabase stores correct UTC.
+ * 
+ * Input: "2025-02-09 08:30" (CDMX time from CSV)
+ * Output: { isoString: "2025-02-09T08:30:00-06:00" }
+ */
+export const parseRobustDateCDMX = (value: any): DateParsingResult => {
+  const CDMX_OFFSET = '-06:00';
+  
+  const result: DateParsingResult = {
+    success: false,
+    originalValue: value
+  };
+
+  if (!value || value === '' || value === 'N/A' || value === null || value === undefined) {
+    result.success = true;
+    return result;
+  }
+
+  try {
+    // Already an ISO string with offset — pass through
+    if (typeof value === 'string' && value.includes('T') && (value.includes('Z') || value.includes('+'))) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1980) {
+        result.success = true;
+        result.parsedDate = date;
+        result.isoString = value; // Keep original offset
+        result.format = 'ISO String (passthrough)';
+        return result;
+      }
+    }
+
+    if (typeof value === 'string') {
+      // "YYYY-MM-DD HH:MM" or "YYYY-MM-DD HH:MM:SS"
+      const dateTimeMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/);
+      if (dateTimeMatch) {
+        const [, year, month, day, hour, minute, second] = dateTimeMatch;
+        const iso = `${year}-${month}-${day}T${hour}:${minute}:${second || '00'}${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'YYYY-MM-DD HH:MM (CDMX)';
+        return result;
+      }
+
+      // "YYYY-MM-DD" (date only → noon CDMX to avoid day-shift)
+      const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        const [, year, month, day] = dateMatch;
+        const iso = `${year}-${month}-${day}T12:00:00${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'YYYY-MM-DD (CDMX noon)';
+        return result;
+      }
+
+      // "DD-MM-YYYY HH:MM"
+      const ddmmyyyyMatch = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})\s+(\d{1,2}):(\d{2})$/);
+      if (ddmmyyyyMatch) {
+        const [, d, m, y, h, min] = ddmmyyyyMatch;
+        const iso = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${h.padStart(2,'0')}:${min}:00${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'DD-MM-YYYY HH:MM (CDMX)';
+        return result;
+      }
+
+      // "DD/MM/YYYY"
+      const ddslashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (ddslashMatch) {
+        const [, d, m, y] = ddslashMatch;
+        const iso = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'DD/MM/YYYY (CDMX noon)';
+        return result;
+      }
+
+      // "DD/MM/YYYY HH:MM"
+      const ddslashTimeMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (ddslashTimeMatch) {
+        const [, d, m, y, h, min, sec] = ddslashTimeMatch;
+        const iso = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T${h.padStart(2,'0')}:${min}:${sec || '00'}${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'DD/MM/YYYY HH:MM (CDMX)';
+        return result;
+      }
+    }
+
+    // Excel serial numbers
+    if (typeof value === 'number' && value > 25569) {
+      const date = new Date((value - 25569) * 86400 * 1000);
+      if (!isNaN(date.getTime()) && date.getFullYear() > 1980) {
+        // Extract components and rebuild with CDMX offset
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        const h = String(date.getUTCHours()).padStart(2, '0');
+        const min = String(date.getUTCMinutes()).padStart(2, '0');
+        const sec = String(date.getUTCSeconds()).padStart(2, '0');
+        const iso = `${y}-${m}-${d}T${h}:${min}:${sec}${CDMX_OFFSET}`;
+        result.success = true;
+        result.isoString = iso;
+        result.parsedDate = new Date(iso);
+        result.format = 'Excel Serial (CDMX)';
+        return result;
+      }
+    }
+
+    result.error = `Formato de fecha no reconocido (CDMX): "${value}" (tipo: ${typeof value})`;
+    return result;
+
+  } catch (error) {
+    result.error = `Error al parsear fecha CDMX: ${error instanceof Error ? error.message : 'Error desconocido'}`;
+    return result;
+  }
+};
