@@ -1,54 +1,74 @@
 
+## Plan: Corregir visualizacion del Informe SIERCP en pantalla e impresion
 
-## Plan: Corregir el guardado de rutas en la Matriz de Precios
+### Problema raiz
 
-### Problema identificado
+El CSS global en `index.css` tiene esta regla:
 
-Al guardar cambios en el formulario de edicion de rutas (`RouteManagementForm`), el campo "Observaciones" del formulario esta mapeado como `observaciones` pero la columna real en la base de datos se llama `notas`. Cuando el usuario llena este campo o crea una ruta nueva (donde el valor por defecto es `''`), Supabase intenta escribir en una columna que no existe, generando un error de PostgreSQL que impide guardar.
+```css
+@media screen {
+  .print-content {
+    display: none !important;
+  }
+}
+```
 
-Ademas, al editar una ruta existente, el formulario no carga todos los campos disponibles en la base de datos (como `tipo_servicio`, `tipo_viaje`, `clave`, `costo_custodio`, etc.) porque el tipo `MatrizPrecio` que pasa `MatrizPreciosTab` no incluye esas columnas. Esto causa que al guardar, esos campos se sobreescriban con valores vacios o se pierdan.
+El componente `SIERCPPrintableReport` usa la clase `print-content` en su div raiz. Esto hace que **todo el informe sea invisible en pantalla**. El dialog se abre pero el contenido no se ve.
 
-### Cambios necesarios
+Para impresion, el CSS busca `.print-content` como hijo directo de `body`, pero el reporte esta dentro de un portal de Radix Dialog (anidado profundamente en el DOM), por lo que tampoco se muestra al imprimir.
 
-#### 1. RouteManagementForm.tsx - Corregir mapeo de campo `observaciones` a `notas`
+### Solucion
 
-- Renombrar el campo `observaciones` en la interfaz `RouteData` a `notas`
-- Actualizar todas las referencias en el formulario (`formData.observaciones` a `formData.notas`)
-- Actualizar el `handleInputChange` y el `initialFormData`
+#### 1. SIERCPPrintableReport.tsx - Quitar la clase `print-content`
 
-#### 2. MatrizPreciosTab.tsx - Ampliar la query para traer todos los campos editables
+Reemplazar la clase `print-content` por una clase propia `siercp-report` que no tenga el `display: none` en pantalla. El informe debe ser visible dentro del dialog normalmente.
 
-- Cambiar la interfaz `MatrizPrecio` para incluir los campos faltantes: `tipo_servicio`, `tipo_viaje`, `clave`, `costo_custodio`, `costo_maximo_casetas`, `pago_custodio_sin_arma`, `notas`, `es_ruta_reparto`, `puntos_intermedios`
-- Esto asegura que al abrir el formulario de edicion, todos los campos se pre-cargan con los valores actuales de la BD
+#### 2. SIERCPReportDialog.tsx - Mejorar la logica de impresion
 
-#### 3. RouteManagementForm.tsx - Excluir el campo `id` del payload de update
+En vez de usar `window.print()` directamente (que imprime toda la pagina incluyendo el overlay del dialog), implementar una estrategia que:
+- Cree un iframe temporal o una ventana nueva solo con el contenido del reporte
+- O bien, use CSS con `@media print` especifico para el dialog que oculte el overlay y muestre solo el contenido
 
-- Agregar `id` a los campos excluidos en el destructuring de `handleSubmit` para evitar enviar la primary key en el SET clause (buena practica aunque no causa errores actualmente)
+La solucion mas limpia es abrir una ventana nueva con el HTML del reporte para imprimir, asi se evitan conflictos con el dialog y el layout de la app.
 
-### Detalle tecnico
+#### 3. index.css - Agregar estilos de impresion especificos para SIERCP
+
+Agregar reglas `@media print` para la clase `.siercp-report` que aseguren renderizado correcto en la ventana de impresion.
+
+### Cambios por archivo
 
 | Archivo | Cambio |
 |---|---|
-| `RouteManagementForm.tsx` | Renombrar `observaciones` a `notas` en RouteData, initialFormData, y el textarea |
-| `RouteManagementForm.tsx` | Excluir `id` del payload en handleSubmit |
-| `MatrizPreciosTab.tsx` | Agregar campos faltantes a la interfaz `MatrizPrecio` |
+| `src/components/evaluation/SIERCPPrintableReport.tsx` | Cambiar clase `print-content` por `siercp-report` en el div raiz |
+| `src/components/recruitment/psychometrics/SIERCPReportDialog.tsx` | Refactorizar `handlePrint` para abrir una ventana nueva con el HTML del reporte y disparar impresion ahi. Agregar `ref` al contenedor del reporte |
+| `src/index.css` | Agregar estilos `.siercp-report` para pantalla (visible) e impresion (optimizado para A4) |
 
-### Por que falla actualmente
+### Flujo corregido desde la perspectiva del analista de planeacion
+
+```
+1. Analista navega a Pipeline > Evaluaciones > Invitaciones Candidatos
+2. Ve la tabla con candidatos completados (score visible)
+3. Hace click en el icono de "Ver resultado" (ExternalLink) en una fila completada
+4. Se abre el dialog "Informe Profesional SIERCP"
+5. Ve el loading "Generando informe profesional con IA..." (10-15 seg)
+6. El informe aparece completo: score gauge, radar, modulos, factores, recomendaciones
+7. Hace click en "Imprimir / PDF"
+8. Se abre la ventana de impresion del navegador con el informe formateado en A4
+9. Puede guardar como PDF o imprimir directamente
+```
+
+### Detalle tecnico de la impresion
+
+La funcion `handlePrint` se refactorizara para:
 
 ```text
-Flujo actual:
-  1. Usuario abre "Editar ruta"
-  2. Formulario carga datos de MatrizPrecio (faltan campos)
-  3. Usuario edita y hace click en "Guardar"
-  4. handleSubmit envia { ...formData, observaciones: '' } al update
-  5. PostgreSQL rechaza: columna "observaciones" no existe
-  6. Toast: "Error al guardar la ruta"
-
-Flujo corregido:
-  1. Usuario abre "Editar ruta"
-  2. Formulario carga TODOS los campos (incluyendo notas, tipo_servicio, etc.)
-  3. Usuario edita y hace click en "Guardar"
-  4. handleSubmit envia { ...formData, notas: '...' } (sin id, sin generated cols)
-  5. PostgreSQL acepta la actualizacion
-  6. Toast: "Ruta actualizada correctamente"
+1. Obtener el innerHTML del contenedor del reporte via ref
+2. Crear una ventana nueva (window.open)
+3. Escribir un documento HTML completo con:
+   - Los estilos necesarios (Tailwind base + estilos del reporte)
+   - El HTML del reporte
+4. Disparar window.print() en la ventana nueva
+5. Cerrar la ventana despues de imprimir
 ```
+
+Esto es mas robusto que intentar imprimir desde dentro del dialog de Radix, que inyecta overlays, transforms y z-index que interfieren con la impresion.
