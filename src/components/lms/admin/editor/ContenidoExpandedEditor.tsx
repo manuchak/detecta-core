@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, X, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
 import { MediaUploader } from "@/components/lms/admin/wizard/MediaUploader";
-import { VideoScriptGenerator } from "@/components/lms/admin/wizard/VideoScriptGenerator";
+import { VideoScriptGenerator, type VideoScriptData } from "@/components/lms/admin/wizard/VideoScriptGenerator";
 import { InlineQuizEditor, type QuizQuestionOutline } from "@/components/lms/admin/wizard/InlineQuizEditor";
 import { InlineFlashcardEditor, type FlashcardOutline } from "@/components/lms/admin/wizard/InlineFlashcardEditor";
 import { useLMSActualizarContenido } from "@/hooks/lms/useLMSAdminContenidos";
@@ -50,6 +50,10 @@ export function ContenidoExpandedEditor({ contenido, cursoId, cursoTitulo, modul
   const [embedHtml, setEmbedHtml] = useState('');
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestionOutline[]>([]);
   const [flashcards, setFlashcards] = useState<FlashcardOutline[]>([]);
+  const [videoScript, setVideoScript] = useState<VideoScriptData | null>(() => {
+    const data = contenido.contenido as any;
+    return data?.guion_generado || null;
+  });
   const [loadingPreguntas, setLoadingPreguntas] = useState(false);
 
   const actualizarContenido = useLMSActualizarContenido();
@@ -119,7 +123,7 @@ export function ContenidoExpandedEditor({ contenido, cursoId, cursoTitulo, modul
   const buildContenidoData = (): any => {
     switch (contenido.tipo) {
       case 'video':
-        return { ...(contenido.contenido as any), url: videoUrl };
+        return { ...(contenido.contenido as any), url: videoUrl, guion_generado: videoScript || undefined };
       case 'documento':
         return { ...(contenido.contenido as any), url: documentoUrl };
       case 'texto_enriquecido':
@@ -236,6 +240,8 @@ export function ContenidoExpandedEditor({ contenido, cursoId, cursoTitulo, modul
             moduloTitulo={moduloTitulo}
             cursoTitulo={cursoTitulo}
             duracionMin={duracion}
+            initialData={videoScript}
+            onGenerated={setVideoScript}
           />
         </div>
       )}
