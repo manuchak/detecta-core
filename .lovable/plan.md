@@ -1,100 +1,89 @@
 
 
-## Feature: Campo de Enfoque Instruccional en el Generador de Cursos
+## Rediseno: Enfoque Instruccional dentro del Generador IA + Formulario Manual como Plan B
 
-### Pitch para Head de Producto
+### Cambio de jerarquia
 
-**Problema:** El generador de cursos con IA produce contenido generico porque solo recibe el tema. Un head de capacitacion no puede indicar si el curso debe ser practico vs teorico, formal vs coloquial, basado en casos vs basado en conceptos, ni a que nivel de escolaridad apuntar.
+El generador con IA es el camino principal y debe dominar la pantalla. El formulario manual es la valvula de escape para usuarios avanzados o casos donde la IA no sea suficiente.
 
-**Solucion:** Agregar un campo opcional "Enfoque instruccional" donde el responsable de capacitacion describe en lenguaje natural como quiere que se ensenbe el contenido. Esta instruccion se propaga a TODAS las generaciones de IA (textos, quizzes, flashcards, video scripts), logrando coherencia pedagogica de principio a fin.
+### Cambios
 
-**Valor de negocio:**
-- Diferenciador vs Articulate/iSpring: esas plataformas no tienen un campo de contexto pedagogico que permee todo el curso
-- Reduce ciclos de revision: el contenido sale mas alineado desde la primera generacion
-- Empodera al head de capacitacion como disenador instruccional, no solo como "usuario que llena formularios"
+**1. StepIdentidad.tsx - Reorganizar jerarquia visual**
 
-### Cambios tecnicos
+- Mover el separador visual "o configura manualmente" entre el generador IA y el formulario manual
+- Eliminar el campo `enfoque_instruccional` del formulario manual (ya vive dentro del generador IA)
+- Colapsar el formulario manual por defecto usando un `Collapsible` de Radix, con texto "Configuracion manual" que el usuario puede expandir si lo necesita
+- Mover imagen de portada dentro del collapsible manual
 
-**1. AIFullCourseGenerator.tsx** - Agregar campo de texto
+```text
++--------------------------------------------------+
+| [Generador IA - prominente, siempre visible]     |
+|                                                  |
+| Tema del curso *                                 |
+| Enfoque instruccional (opcional)                 |
+| Rol objetivo        | Duracion                   |
+| [ Generar Curso Completo ]                       |
++--------------------------------------------------+
 
-Agregar un `Textarea` opcional debajo del tema con placeholder orientador:
+      --- o configura manualmente (v) ---
 
-```
-Enfoque instruccional (opcional)
-"Describe como quieres que se ensene este contenido: metodologia,
-tono, nivel de profundidad, tipo de ejemplos, etc."
-```
-
-Estado nuevo: `const [enfoque, setEnfoque] = useState("")`
-
-**2. AIFullCourseGenerator.tsx** - Propagar el enfoque a TODAS las llamadas de IA
-
-Actualmente el campo `contexto` se construye asi:
-```
-contexto: `Modulo: ${moduloTitulo}. Curso: ${tema}. Rol: ${rol}`
-```
-
-Se enriqueceria con:
-```
-contexto: `Modulo: ${moduloTitulo}. Curso: ${tema}. Rol: ${rol}. Enfoque instruccional: ${enfoque}`
+  (colapsado por defecto, expandible)
+  +------------------------------------------------+
+  | Codigo *  | Titulo del curso *        [AI btn]  |
+  | Descripcion                                     |
+  | Imagen de portada                               |
+  +------------------------------------------------+
 ```
 
-Esto aplica a las llamadas de:
-- `generate_course_structure` (nuevo param `enfoque`)
-- `generate_rich_text` (via contexto)
-- `generate_quiz_questions` (via contexto)
-- `generate_flashcards` (via contexto)
+**2. AIFullCourseGenerator.tsx - Mantener el enfoque instruccional aqui**
 
-**3. Edge function lms-ai-assistant/index.ts** - Incluir enfoque en los prompts
+El campo de enfoque instruccional ya existe aqui y es donde debe quedarse segun la indicacion del usuario. No se mueve. Solo se propaga el valor al formulario principal cuando se completa la generacion, para que quede persistido.
 
-Para `generate_course_structure`, agregar el enfoque al user prompt:
+Agregar al callback `onComplete` el campo `enfoque_instruccional` para que `StepIdentidad` lo guarde en el form al recibir los resultados.
+
+**3. AIFullCourseGenerator.tsx - Propagar enfoque al form**
+
+Modificar la interfaz `onComplete` para incluir `enfoque_instruccional`:
+
+```typescript
+onComplete(
+  {
+    codigo: metadata.codigo,
+    titulo: tema,
+    descripcion: metadata.descripcion,
+    categoria: metadata.categoria,
+    duracion_estimada_min: totalDuracion || duracion,
+    roles_objetivo: [rol],
+    enfoque_instruccional: enfoque, // nuevo
+  },
+  modulos
+);
 ```
-Tema: "${data.tema}"
-Duracion total: ${data.duracion_min} min
-Enfoque instruccional: "${data.enfoque || 'General'}"
+
+**4. StepIdentidad.tsx - Recibir y guardar enfoque del generador**
+
+En el handler de `onFullCourseGenerated`, guardar el enfoque en el form:
+
+```typescript
+// Dentro del handler que recibe los datos del generador
+form.setValue("enfoque_instruccional", formValues.enfoque_instruccional || "");
 ```
 
-Para las demas acciones, el enfoque ya llega via el campo `contexto` que ya se incluye en los prompts.
+**5. LMSCursoWizard.tsx - Actualizar interfaz de onComplete**
 
-**4. StepIdentidad.tsx** - Guardar el enfoque en el formulario
-
-Agregar un campo `enfoque_instruccional` al schema del formulario para que se persista junto con los demas datos del curso y pueda usarse en futuras re-generaciones o ediciones.
-
-**5. Persistencia** - El campo se guarda automaticamente
-
-Como el enfoque se agrega al form o al state del generador, el sistema de persistencia existente (useFormPersistence con flush-on-unmount) lo captura sin cambios adicionales.
+Agregar `enfoque_instruccional` al tipo que recibe `handleFullCourseGenerated` y guardarlo en el form.
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx` | Agregar textarea de enfoque + propagarlo a todas las llamadas |
-| `supabase/functions/lms-ai-assistant/index.ts` | Incluir enfoque en el user prompt de `generate_course_structure` |
-| `src/components/lms/admin/wizard/StepIdentidad.tsx` | Agregar campo persistente de enfoque instruccional |
+| `src/components/lms/admin/wizard/StepIdentidad.tsx` | Eliminar campo duplicado de enfoque, colapsar formulario manual con Collapsible, agregar separador visual |
+| `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx` | Agregar `enfoque_instruccional` al payload de `onComplete` |
+| `src/components/lms/admin/LMSCursoWizard.tsx` | Actualizar handler para guardar `enfoque_instruccional` del generador en el form |
 
-### UI propuesta
+### Resultado
 
-El campo se ubica entre el "Tema del curso" y la fila de "Rol objetivo / Duracion":
-
-```text
-+--------------------------------------------------+
-| Curso Completo con IA                            |
-|                                                  |
-| Tema del curso *                                 |
-| [Protocolos de seguridad en custodia de valores] |
-|                                                  |
-| Enfoque instruccional (opcional)                 |
-| [Basado en casos reales. Tono directo, sin      |
-|  tecnicismos. Priorizar ejercicios practicos...] |
-|                                                  |
-| Rol objetivo          | Duracion: 60 min         |
-| [Custodio       v]    | ====O============        |
-|                                                  |
-| [ Generar Curso Completo ]                       |
-+--------------------------------------------------+
-```
-
-### Riesgo
-
-Bajo. Es un campo opcional que enriquece el contexto de las llamadas existentes. No cambia la arquitectura del pipeline de generacion.
-
+- El generador IA es lo primero y mas visible que ve el usuario
+- El enfoque instruccional vive SOLO dentro del generador IA (donde tiene sentido contextual)
+- El formulario manual queda colapsado como "plan B", accesible pero sin competir visualmente
+- Al generar el curso, el enfoque se persiste en el formulario para futuras regeneraciones
