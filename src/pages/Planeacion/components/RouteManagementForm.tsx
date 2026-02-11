@@ -33,7 +33,7 @@ interface RouteData {
   porcentaje_utilidad: number;
   fecha_vigencia: string;
   activo: boolean;
-  observaciones?: string;
+  notas?: string;
   clave?: string;
 }
 
@@ -69,7 +69,7 @@ const RouteManagementFormComponent = ({
     porcentaje_utilidad: 0,
     fecha_vigencia: new Date().toISOString().split('T')[0],
     activo: true,
-    observaciones: '',
+    notas: '',
     clave: ''
   });
   
@@ -93,7 +93,7 @@ const RouteManagementFormComponent = ({
     porcentaje_utilidad: 0,
     fecha_vigencia: new Date().toISOString().split('T')[0],
     activo: true,
-    observaciones: '',
+    notas: '',
     clave: ''
   }), []);
 
@@ -177,6 +177,7 @@ const RouteManagementFormComponent = ({
       // We must NOT include it in insert/update - the DB calculates it automatically
       // Formula: valor_bruto - precio_custodio - costo_operativo
       const { 
+        id: _excludedId,
         margen_neto_calculado: _excludedMargin, 
         porcentaje_utilidad: _excludedPercentage,
         ...cleanFormData 
@@ -686,9 +687,9 @@ const RouteManagementFormComponent = ({
                   </Tooltip>
                 </div>
                 <Textarea
-                  id="observaciones"
-                  value={formData.observaciones || ''}
-                  onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                  id="notas"
+                  value={formData.notas || ''}
+                  onChange={(e) => handleInputChange('notas', e.target.value)}
                   placeholder="Ej: Horario específico, restricciones de carga, contacto especial..."
                   rows={3}
                 />
