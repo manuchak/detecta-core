@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAllSIERCPInvitations } from '@/hooks/useSIERCPInvitations';
+import type { SIERCPInvitationWithEvaluation } from '@/hooks/useSIERCPInvitations';
 import { 
   Table, 
   TableBody, 
@@ -25,9 +26,13 @@ import { format, formatDistanceToNow, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
 import type { SIERCPInvitation } from '@/types/siercpInvitationTypes';
+import { SIERCPReportDialog } from '@/components/recruitment/psychometrics/SIERCPReportDialog';
+import type { EvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 
 export function InvitationsTable() {
   const { invitations, isLoading, cancelInvitation, getInvitationUrl } = useAllSIERCPInvitations();
+  const [reportOpen, setReportOpen] = useState(false);
+  const [selectedInvitation, setSelectedInvitation] = useState<SIERCPInvitationWithEvaluation | null>(null);
 
   const handleCopyLink = (token: string) => {
     const url = getInvitationUrl(token);
@@ -95,6 +100,7 @@ export function InvitationsTable() {
   }
 
   return (
+  <>
     <Table>
       <TableHeader>
         <TableRow>
@@ -178,16 +184,13 @@ export function InvitationsTable() {
                     </Button>
                   </>
                 )}
-                {invitation.status === 'completed' && invitation.evaluacion_id && (
+                {invitation.status === 'completed' && invitation.evaluacion && (
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      // TODO: Navigate to result view
-                      toast({
-                        title: 'Ver resultado',
-                        description: 'Funcionalidad próximamente disponible.',
-                      });
+                      setSelectedInvitation(invitation);
+                      setReportOpen(true);
                     }}
                     title="Ver resultado"
                   >
@@ -216,5 +219,15 @@ export function InvitationsTable() {
         ))}
       </TableBody>
     </Table>
+
+    {selectedInvitation?.evaluacion && (
+      <SIERCPReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        evaluation={selectedInvitation.evaluacion as unknown as EvaluacionPsicometrica}
+        candidateName={selectedInvitation.lead_nombre}
+      />
+    )}
+  </>
   );
 }

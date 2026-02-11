@@ -16,7 +16,16 @@ export interface SIERCPInvitationWithEvaluation extends SIERCPInvitation {
   evaluacion?: {
     id: string;
     score_global: number;
+    score_integridad: number | null;
+    score_psicopatia: number | null;
+    score_violencia: number | null;
+    score_agresividad: number | null;
+    score_afrontamiento: number | null;
+    score_veracidad: number | null;
+    score_entrevista: number | null;
     resultado_semaforo?: string;
+    risk_flags?: string[] | null;
+    fecha_evaluacion: string;
   } | null;
 }
 
@@ -169,7 +178,16 @@ export function useAllSIERCPInvitations() {
           evaluacion:evaluacion_id (
             id,
             score_global,
-            resultado_semaforo
+            score_integridad,
+            score_psicopatia,
+            score_violencia,
+            score_agresividad,
+            score_afrontamiento,
+            score_veracidad,
+            score_entrevista,
+            resultado_semaforo,
+            risk_flags,
+            fecha_evaluacion
           )
         `)
         .order('created_at', { ascending: false });
