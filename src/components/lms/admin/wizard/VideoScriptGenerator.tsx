@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -7,25 +7,49 @@ import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { Sparkles, Loader2, Copy, Check, Film, Clock, FileText, Bot, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
+export interface VideoScriptData {
+  script: {
+    introduccion: string;
+    puntos_clave: string[];
+    ejemplos: string[];
+    cierre: string;
+  };
+  prompt_externo: string;
+  notas_produccion: string;
+  duracion_estimada_min: number;
+}
+
 interface VideoScriptGeneratorProps {
   tema: string;
   moduloTitulo?: string;
   cursoTitulo?: string;
   duracionMin?: number;
+  initialData?: VideoScriptData | null;
+  onGenerated?: (data: VideoScriptData) => void;
 }
 
-export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracionMin = 5 }: VideoScriptGeneratorProps) {
+export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracionMin = 5, initialData, onGenerated }: VideoScriptGeneratorProps) {
   const { generateVideoScript, loading } = useLMSAI();
   const [script, setScript] = useState<{
     introduccion: string;
     puntos_clave: string[];
     ejemplos: string[];
     cierre: string;
-  } | null>(null);
-  const [promptExterno, setPromptExterno] = useState("");
-  const [notasProduccion, setNotasProduccion] = useState("");
-  const [duracionEstimada, setDuracionEstimada] = useState(0);
+  } | null>(initialData?.script || null);
+  const [promptExterno, setPromptExterno] = useState(initialData?.prompt_externo || "");
+  const [notasProduccion, setNotasProduccion] = useState(initialData?.notas_produccion || "");
+  const [duracionEstimada, setDuracionEstimada] = useState(initialData?.duracion_estimada_min || 0);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Sync from initialData when it changes (e.g. parent loads from DB)
+  useEffect(() => {
+    if (initialData && !script) {
+      setScript(initialData.script);
+      setPromptExterno(initialData.prompt_externo);
+      setNotasProduccion(initialData.notas_produccion);
+      setDuracionEstimada(initialData.duracion_estimada_min);
+    }
+  }, [initialData]);
 
   const handleGenerate = async () => {
     const result = await generateVideoScript(tema, moduloTitulo, cursoTitulo, duracionMin);
@@ -34,6 +58,13 @@ export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracion
       setPromptExterno(result.prompt_externo);
       setNotasProduccion(result.notas_produccion);
       setDuracionEstimada(result.duracion_estimada_min);
+      const data: VideoScriptData = {
+        script: result.script,
+        prompt_externo: result.prompt_externo,
+        notas_produccion: result.notas_produccion,
+        duracion_estimada_min: result.duracion_estimada_min,
+      };
+      onGenerated?.(data);
       toast.success("Guión generado exitosamente");
     }
   };
