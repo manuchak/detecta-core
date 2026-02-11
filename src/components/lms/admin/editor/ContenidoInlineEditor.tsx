@@ -29,10 +29,12 @@ interface ContenidoInlineEditorProps {
   cursoTitulo?: string;
   moduloTitulo?: string;
   dragHandleProps?: any;
+  defaultEditing?: boolean;
+  onEditingChange?: (editing: boolean) => void;
 }
 
-export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloTitulo, dragHandleProps }: ContenidoInlineEditorProps) {
-  const [showEditor, setShowEditor] = useState(false);
+export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloTitulo, dragHandleProps, defaultEditing, onEditingChange }: ContenidoInlineEditorProps) {
+  const [showEditor, setShowEditor] = useState(defaultEditing ?? false);
   const eliminarContenido = useLMSEliminarContenido();
 
   const handleDelete = () => {
@@ -43,6 +45,9 @@ export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloT
     });
   };
 
+  const handleOpenEditor = () => { setShowEditor(true); onEditingChange?.(true); };
+  const handleCloseEditor = () => { setShowEditor(false); onEditingChange?.(false); };
+
   if (showEditor) {
     return (
       <ContenidoExpandedEditor
@@ -50,7 +55,7 @@ export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloT
         cursoId={cursoId}
         cursoTitulo={cursoTitulo}
         moduloTitulo={moduloTitulo}
-        onClose={() => setShowEditor(false)}
+        onClose={handleCloseEditor}
       />
     );
   }
@@ -67,7 +72,7 @@ export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloT
       <span className="text-xs text-muted-foreground shrink-0">{contenido.duracion_min}m</span>
 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowEditor(true)}>
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleOpenEditor}>
           <Pencil className="w-3 h-3" />
         </Button>
         <AlertDialog>

@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, Settings, Layers, Rocket } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { EditorHeader } from "./editor/EditorHeader";
 import { TabGeneral } from "./editor/TabGeneral";
 import { TabEstructura } from "./editor/TabEstructura";
@@ -19,6 +20,16 @@ interface LMSCursoEditorProps {
 }
 
 export function LMSCursoEditor({ curso, onBack, onSuccess }: LMSCursoEditorProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'general';
+  const handleTabChange = (value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('tab', value);
+    // Clear sub-params when switching tabs
+    newParams.delete('modulo');
+    newParams.delete('contenido');
+    setSearchParams(newParams, { replace: true });
+  };
   const actualizarCurso = useLMSActualizarCurso();
 
   const form = useForm<CursoEditorFormData>({
@@ -76,7 +87,7 @@ export function LMSCursoEditor({ curso, onBack, onSuccess }: LMSCursoEditorProps
 
       <div className="container max-w-5xl py-6">
         <Form {...form}>
-          <Tabs defaultValue="general" className="space-y-4">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList className="w-full justify-start">
               <TabsTrigger value="general" className="gap-1.5">
                 <BookOpen className="w-4 h-4" />
@@ -101,7 +112,24 @@ export function LMSCursoEditor({ curso, onBack, onSuccess }: LMSCursoEditorProps
             </TabsContent>
 
             <TabsContent value="estructura">
-              <TabEstructura cursoId={curso.id} cursoTitulo={curso.titulo} modulos={modulos} />
+              <TabEstructura
+                cursoId={curso.id}
+                cursoTitulo={curso.titulo}
+                modulos={modulos}
+                expandedModuloId={searchParams.get('modulo') || undefined}
+                editingContenidoId={searchParams.get('contenido') || undefined}
+                onModuloChange={(moduloId) => {
+                  const p = new URLSearchParams(searchParams);
+                  if (moduloId) { p.set('modulo', moduloId); } else { p.delete('modulo'); }
+                  p.delete('contenido');
+                  setSearchParams(p, { replace: true });
+                }}
+                onContenidoChange={(contenidoId) => {
+                  const p = new URLSearchParams(searchParams);
+                  if (contenidoId) { p.set('contenido', contenidoId); } else { p.delete('contenido'); }
+                  setSearchParams(p, { replace: true });
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="configuracion">
