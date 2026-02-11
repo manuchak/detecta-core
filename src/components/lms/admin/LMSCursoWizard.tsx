@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Loader2, Sparkles, Cloud, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useLMSCrearCursoCompleto } from "@/hooks/lms/useLMSAdminCursos";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useBlocker } from "react-router-dom";
 import { StepIdentidad } from "./wizard/StepIdentidad";
 import { StepEstructura, type ModuleOutline } from "./wizard/StepEstructura";
 import { StepConfiguracion } from "./wizard/StepConfiguracion";
@@ -14,6 +14,15 @@ import { StepVistaPrevia } from "./wizard/StepVistaPrevia";
 import { cn } from "@/lib/utils";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { DraftRestoreBanner } from "@/components/ui/DraftAutoRestorePrompt";
+import { SavingIndicator } from "@/components/workflow/SavingIndicator";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 const cursoSchema = z.object({
@@ -89,6 +98,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
       modulos: [],
     },
     level: 'robust',
+    debounceMs: 400, // Aggressive autosave for consultative workflow
     ttl: 24 * 60 * 60 * 1000, // 24 hours
     isMeaningful: (data) => !!(data.formValues?.titulo || data.modulos?.length > 0),
   });
@@ -97,7 +107,10 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     data: draftData, 
     updateData, 
     clearDraft, 
+    saveDraft,
     lastSaved,
+    hasUnsavedChanges: unsavedChanges,
+    getTimeSinceSave,
     showRestorePrompt,
     pendingRestore,
     acceptRestore,
@@ -146,6 +159,21 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     updateDataRef.current({ step });
   }, [step]);
 
+  // SPA navigation guard — intercept internal navigation with unsaved changes
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      unsavedChanges &&
+      currentLocation.pathname !== nextLocation.pathname
+  );
+
+  const handleBlockerSaveAndLeave = useCallback(() => {
+    saveDraft();
+    blocker.proceed?.();
+  }, [saveDraft, blocker]);
+
+  const handleBlockerDiscard = useCallback(() => {
+    blocker.proceed?.();
+  }, [blocker]);
   // Update duration when modules change
   const updateDurationFromModules = () => {
     const totalDuration = modulos.reduce((acc, mod) => 
@@ -264,12 +292,11 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
             </div>
             
             {/* Auto-save indicator */}
-            {lastSaved && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Cloud className="w-3 h-3" />
-                <span className="hidden sm:inline">Guardado automáticamente</span>
-              </div>
-            )}
+            <SavingIndicator
+              isSaving={unsavedChanges}
+              lastSaved={lastSaved}
+              getTimeSinceSave={getTimeSinceSave}
+            />
             
             <span className="text-sm text-muted-foreground">
               {step} / {STEPS.length}
@@ -382,6 +409,29 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
             )}
           </Button>
         </div>
+
+        {/* SPA Navigation Guard Dialog */}
+        <AlertDialog open={blocker.state === 'blocked'}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cambios sin guardar</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tienes cambios pendientes en el curso. ¿Qué deseas hacer?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => blocker.reset?.()}>
+                Cancelar
+              </Button>
+              <Button variant="secondary" onClick={handleBlockerDiscard}>
+                Salir sin guardar
+              </Button>
+              <Button onClick={handleBlockerSaveAndLeave}>
+                Guardar y salir
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   );
 }

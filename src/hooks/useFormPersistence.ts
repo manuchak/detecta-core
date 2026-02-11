@@ -666,13 +666,27 @@ export function useFormPersistence<T extends FieldValues>(
   }, [level, loadFromStorage, validateConsistency, form, onRestore, calculateProgress]);
 
   // ==========================================================================
-  // CLEANUP
+  // STABLE REFS FOR CLEANUP (flush-on-unmount)
+  // ==========================================================================
+
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  useEffect(() => { hasUnsavedChangesRef.current = hasUnsavedChanges; }, [hasUnsavedChanges]);
+
+  const saveToStorageRef = useRef(saveToStorage);
+  useEffect(() => { saveToStorageRef.current = saveToStorage; }, [saveToStorage]);
+
+  // ==========================================================================
+  // CLEANUP — flush pending save synchronously before unmount
   // ==========================================================================
 
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        // Flush any pending changes so SPA navigation doesn't lose data
+        if (hasUnsavedChangesRef.current) {
+          saveToStorageRef.current(dataRef.current);
+        }
       }
     };
   }, []);
