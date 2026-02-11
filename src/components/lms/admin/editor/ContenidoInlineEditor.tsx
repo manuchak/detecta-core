@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GripVertical, Pencil, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
@@ -28,14 +30,16 @@ interface ContenidoInlineEditorProps {
   cursoId: string;
   cursoTitulo?: string;
   moduloTitulo?: string;
-  dragHandleProps?: any;
   defaultEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
 }
 
-export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloTitulo, dragHandleProps, defaultEditing, onEditingChange }: ContenidoInlineEditorProps) {
+export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloTitulo, defaultEditing, onEditingChange }: ContenidoInlineEditorProps) {
   const [showEditor, setShowEditor] = useState(defaultEditing ?? false);
   const eliminarContenido = useLMSEliminarContenido();
+
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: contenido.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   const handleDelete = () => {
     eliminarContenido.mutate({
@@ -50,19 +54,21 @@ export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloT
 
   if (showEditor) {
     return (
-      <ContenidoExpandedEditor
-        contenido={contenido}
-        cursoId={cursoId}
-        cursoTitulo={cursoTitulo}
-        moduloTitulo={moduloTitulo}
-        onClose={handleCloseEditor}
-      />
+      <div ref={setNodeRef} style={style}>
+        <ContenidoExpandedEditor
+          contenido={contenido}
+          cursoId={cursoId}
+          cursoTitulo={cursoTitulo}
+          moduloTitulo={moduloTitulo}
+          onClose={handleCloseEditor}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 group transition-colors">
-      <span {...dragHandleProps} className="cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 group transition-colors">
+      <span {...attributes} {...listeners} className="cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
         <GripVertical className="w-3.5 h-3.5" />
       </span>
 

@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Check, BookOpen } from "lucide-react";
 import { ModuloInlineEditor } from "./ModuloInlineEditor";
-import { useLMSCrearModulo } from "@/hooks/lms/useLMSAdminModulos";
+import { useLMSCrearModulo, useLMSReordenarModulos } from "@/hooks/lms/useLMSAdminModulos";
 import type { LMSModulo, LMSContenido } from "@/types/lms";
 
 interface TabEstructuraProps {
@@ -20,8 +22,27 @@ export function TabEstructura({ cursoId, cursoTitulo, modulos, expandedModuloId,
   const [showAddModulo, setShowAddModulo] = useState(false);
   const [newModuloTitle, setNewModuloTitle] = useState('');
   const crearModulo = useLMSCrearModulo();
+  const reordenarModulos = useLMSReordenarModulos();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const modulosActivos = modulos.filter(m => m.activo);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = modulosActivos.findIndex(m => m.id === active.id);
+    const newIndex = modulosActivos.findIndex(m => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(modulosActivos, oldIndex, newIndex);
+    reordenarModulos.mutate({
+      cursoId,
+      modulos: reordered.map((m, idx) => ({ id: m.id, orden: idx + 1 })),
+    });
+  };
 
   const handleAddModulo = () => {
     if (!newModuloTitle.trim()) return;
@@ -51,18 +72,22 @@ export function TabEstructura({ cursoId, cursoTitulo, modulos, expandedModuloId,
         </div>
       )}
 
-      {modulosActivos.map(modulo => (
-        <ModuloInlineEditor
-          key={modulo.id}
-          modulo={modulo}
-          cursoId={cursoId}
-          cursoTitulo={cursoTitulo}
-          defaultOpen={modulo.id === expandedModuloId}
-          editingContenidoId={modulo.id === expandedModuloId ? editingContenidoId : undefined}
-          onExpandChange={(isOpen) => onModuloChange?.(isOpen ? modulo.id : null)}
-          onEditingContenidoChange={onContenidoChange}
-        />
-      ))}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={modulosActivos.map(m => m.id)} strategy={verticalListSortingStrategy}>
+          {modulosActivos.map(modulo => (
+            <ModuloInlineEditor
+              key={modulo.id}
+              modulo={modulo}
+              cursoId={cursoId}
+              cursoTitulo={cursoTitulo}
+              defaultOpen={modulo.id === expandedModuloId}
+              editingContenidoId={modulo.id === expandedModuloId ? editingContenidoId : undefined}
+              onExpandChange={(isOpen) => onModuloChange?.(isOpen ? modulo.id : null)}
+              onEditingContenidoChange={onContenidoChange}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
 
       {/* Add module inline */}
       {showAddModulo ? (
