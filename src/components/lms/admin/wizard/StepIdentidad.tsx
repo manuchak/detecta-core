@@ -13,10 +13,11 @@ import { ImageUploader } from "./ImageUploader";
 import { AIGenerateButton } from "./AIGenerateButton";
 import { AISuggestionCard } from "./AISuggestionCard";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
-
-import { Sparkles } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, Settings2 } from "lucide-react";
 import { AIFullCourseGenerator } from "./AIFullCourseGenerator";
 import type { ModuleOutline } from "./StepEstructura";
+import { cn } from "@/lib/utils";
 
 interface StepIdentidadProps {
   form: UseFormReturn<any>;
@@ -28,6 +29,7 @@ interface StepIdentidadProps {
       categoria: string;
       duracion_estimada_min: number;
       roles_objetivo: string[];
+      enfoque_instruccional?: string;
     },
     modulos: ModuleOutline[]
   ) => void;
@@ -40,6 +42,7 @@ export function StepIdentidad({ form, onFullCourseGenerated }: StepIdentidadProp
     descripcion: string;
     categoria: string;
   } | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   const handleGenerateMetadata = async () => {
     const titulo = form.getValues("titulo");
@@ -66,137 +69,135 @@ export function StepIdentidad({ form, onFullCourseGenerated }: StepIdentidadProp
 
   return (
     <div className="space-y-6">
-      {/* Full Course Generator */}
+      {/* AI Full Course Generator - Primary path */}
       {onFullCourseGenerated && (
         <AIFullCourseGenerator onComplete={onFullCourseGenerated} />
       )}
 
-      {/* Removed redundant AI banner - AIFullCourseGenerator already provides AI guidance */}
+      {/* Separator */}
+      <div className="relative flex items-center py-1">
+        <div className="flex-1 border-t border-border" />
+        <span className="px-4 text-xs text-muted-foreground uppercase tracking-wide">
+          o configura manualmente
+        </span>
+        <div className="flex-1 border-t border-border" />
+      </div>
 
-      <div className="apple-card p-6 space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <FormField
-            control={form.control}
-            name="codigo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Código *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="CURSO-001" 
-                    className="font-mono"
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+      {/* Manual Configuration - Collapsible Plan B */}
+      <Collapsible open={manualOpen} onOpenChange={setManualOpen}>
+        <CollapsibleTrigger className="flex items-center gap-2 w-full group py-1">
+          <Settings2 className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+            Configuración manual
+          </span>
+          <ChevronDown className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+            manualOpen && "rotate-180"
+          )} />
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="mt-4 space-y-5">
+          <div className="apple-card p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <FormField
+                control={form.control}
+                name="codigo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código *</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="CURSO-001" 
+                        className="font-mono"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="titulo"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-3">
+                    <FormLabel>Título del curso *</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input 
+                          placeholder="Ej: Introducción a la Seguridad Vehicular" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <AIGenerateButton
+                        onClick={handleGenerateMetadata}
+                        loading={loading}
+                        disabled={!field.value || field.value.length < 3}
+                        tooltip="Generar código, descripción y categoría"
+                        size="default"
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {suggestion && (
+              <AISuggestionCard
+                title="Sugerencia de IA"
+                onAccept={handleAcceptSuggestion}
+                onReject={() => setSuggestion(null)}
+                onRegenerate={handleGenerateMetadata}
+                loading={loading}
+              >
+                <div className="space-y-2">
+                  <p><strong>Código:</strong> {suggestion.codigo}</p>
+                  <p><strong>Descripción:</strong> {suggestion.descripcion}</p>
+                  <p><strong>Categoría:</strong> {suggestion.categoria}</p>
+                </div>
+              </AISuggestionCard>
             )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="titulo"
-            render={({ field }) => (
-              <FormItem className="md:col-span-3">
-                <FormLabel>Título del curso *</FormLabel>
-                <div className="flex gap-2">
+
+            <FormField
+              control={form.control}
+              name="descripcion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Ej: Introducción a la Seguridad Vehicular" 
-                      {...field} 
+                    <Textarea 
+                      placeholder="¿De qué trata este curso? ¿Qué aprenderán los participantes?"
+                      className="min-h-[100px] resize-none"
+                      {...field}
                     />
                   </FormControl>
-                  <AIGenerateButton
-                    onClick={handleGenerateMetadata}
-                    loading={loading}
-                    disabled={!field.value || field.value.length < 3}
-                    tooltip="Generar código, descripción y categoría"
-                    size="default"
-                  />
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {suggestion && (
-          <AISuggestionCard
-            title="Sugerencia de IA"
-            onAccept={handleAcceptSuggestion}
-            onReject={() => setSuggestion(null)}
-            onRegenerate={handleGenerateMetadata}
-            loading={loading}
-          >
-            <div className="space-y-2">
-              <p><strong>Código:</strong> {suggestion.codigo}</p>
-              <p><strong>Descripción:</strong> {suggestion.descripcion}</p>
-              <p><strong>Categoría:</strong> {suggestion.categoria}</p>
-            </div>
-          </AISuggestionCard>
-        )}
-
-        <FormField
-          control={form.control}
-          name="descripcion"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Descripción</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="¿De qué trata este curso? ¿Qué aprenderán los participantes?"
-                  className="min-h-[100px] resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="enfoque_instruccional"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Enfoque instruccional <span className="text-muted-foreground font-normal">(opcional)</span>
-              </FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Describe cómo quieres que se enseñe este contenido: metodología, tono, nivel de profundidad, tipo de ejemplos... Ej: Basado en casos reales. Tono directo, sin tecnicismos."
-                  className="min-h-[72px] resize-none"
-                  {...field}
-                />
-              </FormControl>
-              <p className="text-xs text-muted-foreground">
-                Esta instrucción se usa como contexto en todas las generaciones de IA del curso
-              </p>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      <div className="apple-card p-6">
-        <FormField
-          control={form.control}
-          name="imagen_portada_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Imagen de portada</FormLabel>
-              <FormControl>
-                <ImageUploader
-                  value={field.value}
-                  onChange={field.onChange}
-                  courseTitle={form.watch("titulo")}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+            <FormField
+              control={form.control}
+              name="imagen_portada_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Imagen de portada</FormLabel>
+                  <FormControl>
+                    <ImageUploader
+                      value={field.value}
+                      onChange={field.onChange}
+                      courseTitle={form.watch("titulo")}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

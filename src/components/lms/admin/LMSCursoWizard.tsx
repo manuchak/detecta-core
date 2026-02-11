@@ -386,6 +386,9 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
                   form.setValue("categoria", formValues.categoria as any);
                   form.setValue("duracion_estimada_min", formValues.duracion_estimada_min);
                   form.setValue("roles_objetivo", formValues.roles_objetivo);
+                  if (formValues.enfoque_instruccional) {
+                    form.setValue("enfoque_instruccional", formValues.enfoque_instruccional);
+                  }
                   setModulos(generatedModulos);
                   setStep(2);
                 }}
