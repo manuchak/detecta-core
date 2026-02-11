@@ -101,7 +101,7 @@ export function LMSCursoEditor({ curso, onBack, onSuccess }: LMSCursoEditorProps
             </TabsContent>
 
             <TabsContent value="estructura">
-              <TabEstructura cursoId={curso.id} modulos={modulos} />
+              <TabEstructura cursoId={curso.id} cursoTitulo={curso.titulo} modulos={modulos} />
             </TabsContent>
 
             <TabsContent value="configuracion">

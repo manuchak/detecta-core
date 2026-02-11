@@ -19,6 +19,7 @@ import type { LMSModulo, LMSContenido, TipoContenido, LMS_TIPOS_CONTENIDO } from
 interface ModuloInlineEditorProps {
   modulo: LMSModulo & { contenidos: LMSContenido[] };
   cursoId: string;
+  cursoTitulo?: string;
   dragHandleProps?: any;
 }
 
@@ -31,7 +32,7 @@ const TIPOS_CONTENIDO: { value: TipoContenido; label: string }[] = [
   { value: 'embed', label: 'Embed externo' },
 ];
 
-export function ModuloInlineEditor({ modulo, cursoId, dragHandleProps }: ModuloInlineEditorProps) {
+export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandleProps }: ModuloInlineEditorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [titulo, setTitulo] = useState(modulo.titulo);
@@ -166,6 +167,8 @@ export function ModuloInlineEditor({ modulo, cursoId, dragHandleProps }: ModuloI
                   key={contenido.id}
                   contenido={contenido}
                   cursoId={cursoId}
+                  cursoTitulo={cursoTitulo}
+                  moduloTitulo={modulo.titulo}
                 />
               ))}
             </div>

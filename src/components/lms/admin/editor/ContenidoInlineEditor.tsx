@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Pencil, Trash2, Check, X, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
-import { useLMSActualizarContenido, useLMSEliminarContenido } from "@/hooks/lms/useLMSAdminContenidos";
+import { GripVertical, Pencil, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
+import { useLMSEliminarContenido } from "@/hooks/lms/useLMSAdminContenidos";
+import { ContenidoExpandedEditor } from "./ContenidoExpandedEditor";
 import type { LMSContenido, TipoContenido } from "@/types/lms";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -26,26 +26,14 @@ const TIPO_LABELS: Record<TipoContenido, string> = {
 interface ContenidoInlineEditorProps {
   contenido: LMSContenido;
   cursoId: string;
+  cursoTitulo?: string;
+  moduloTitulo?: string;
   dragHandleProps?: any;
 }
 
-export function ContenidoInlineEditor({ contenido, cursoId, dragHandleProps }: ContenidoInlineEditorProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [titulo, setTitulo] = useState(contenido.titulo);
-
-  const actualizarContenido = useLMSActualizarContenido();
+export function ContenidoInlineEditor({ contenido, cursoId, cursoTitulo, moduloTitulo, dragHandleProps }: ContenidoInlineEditorProps) {
+  const [showEditor, setShowEditor] = useState(false);
   const eliminarContenido = useLMSEliminarContenido();
-
-  const handleSave = () => {
-    if (!titulo.trim()) return;
-    actualizarContenido.mutate({
-      id: contenido.id,
-      moduloId: contenido.modulo_id,
-      cursoId,
-      data: { ...contenido, titulo },
-    });
-    setIsEditing(false);
-  };
 
   const handleDelete = () => {
     eliminarContenido.mutate({
@@ -55,6 +43,18 @@ export function ContenidoInlineEditor({ contenido, cursoId, dragHandleProps }: C
     });
   };
 
+  if (showEditor) {
+    return (
+      <ContenidoExpandedEditor
+        contenido={contenido}
+        cursoId={cursoId}
+        cursoTitulo={cursoTitulo}
+        moduloTitulo={moduloTitulo}
+        onClose={() => setShowEditor(false)}
+      />
+    );
+  }
+
   return (
     <div className="flex items-center gap-2 py-2 px-3 rounded-md hover:bg-muted/50 group transition-colors">
       <span {...dragHandleProps} className="cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
@@ -62,51 +62,34 @@ export function ContenidoInlineEditor({ contenido, cursoId, dragHandleProps }: C
       </span>
 
       <span className="text-muted-foreground">{TIPO_ICONS[contenido.tipo]}</span>
+      <span className="text-sm flex-1 truncate">{contenido.titulo}</span>
+      <Badge variant="outline" className="text-[10px] h-4 shrink-0">{TIPO_LABELS[contenido.tipo]}</Badge>
+      <span className="text-xs text-muted-foreground shrink-0">{contenido.duracion_min}m</span>
 
-      {isEditing ? (
-        <div className="flex items-center gap-2 flex-1">
-          <Input
-            value={titulo}
-            onChange={e => setTitulo(e.target.value)}
-            className="h-7 text-sm"
-            autoFocus
-            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') { setTitulo(contenido.titulo); setIsEditing(false); } }}
-          />
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSave}><Check className="w-3.5 h-3.5" /></Button>
-          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setTitulo(contenido.titulo); setIsEditing(false); }}><X className="w-3.5 h-3.5" /></Button>
-        </div>
-      ) : (
-        <>
-          <span className="text-sm flex-1 truncate">{contenido.titulo}</span>
-          <Badge variant="outline" className="text-[10px] h-4 shrink-0">{TIPO_LABELS[contenido.tipo]}</Badge>
-          <span className="text-xs text-muted-foreground shrink-0">{contenido.duracion_min}m</span>
-
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setIsEditing(true)}>
-              <Pencil className="w-3 h-3" />
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setShowEditor(true)}>
+          <Pencil className="w-3 h-3" />
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive">
+              <Trash2 className="w-3 h-3" />
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive">
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar contenido?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Se eliminará "{contenido.titulo}". Si hay progreso registrado, se desactivará en lugar de eliminarse.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </>
-      )}
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar contenido?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se eliminará "{contenido.titulo}". Si hay progreso registrado, se desactivará en lugar de eliminarse.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }
