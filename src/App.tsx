@@ -19,6 +19,24 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 import UnifiedLayout from '@/layouts/UnifiedLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 
+// Helper: retry dynamic imports on failure (handles stale Vite HMR cache)
+function lazyWithRetry(factory: () => Promise<any>) {
+  return lazy(() =>
+    factory().catch((err) => {
+      console.warn('Dynamic import failed, retrying with cache bust…', err);
+      // Force a full page reload once to clear stale module URLs
+      const hasReloaded = sessionStorage.getItem('lazy_reload');
+      if (!hasReloaded) {
+        sessionStorage.setItem('lazy_reload', '1');
+        window.location.reload();
+        return new Promise(() => {}); // never resolves — page is reloading
+      }
+      sessionStorage.removeItem('lazy_reload');
+      throw err; // let error boundary handle it
+    })
+  );
+}
+
 // Lazy load pages to reduce initial bundle size and fix build timeout
 const Index = lazy(() => import('@/pages/Index'));
 const Home = lazy(() => import('@/pages/Home/Home'));
@@ -99,7 +117,7 @@ const LMSAdmin = lazy(() => import('@/pages/LMS/LMSAdmin'));
 const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado'));
 const LMSReportes = lazy(() => import('@/pages/LMS/LMSReportes'));
 const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
-const LMSAdminCursoEditar = lazy(() => import('@/pages/LMS/LMSAdminCursoEditar'));
+const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoEditar'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
