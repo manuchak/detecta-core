@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import {
   FormControl,
   FormDescription,
@@ -17,8 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
-import { Clock, Calendar, BookOpen, BarChart3, Users, AlertTriangle } from "lucide-react";
+import { Clock, Calendar, BookOpen, BarChart3, Users, AlertTriangle, ClipboardCheck, Sparkles, Loader2 } from "lucide-react";
 import { RoleSelectCard } from "./RoleSelectCard";
+import { Button } from "@/components/ui/button";
+import { useLMSAI } from "@/hooks/lms/useLMSAI";
+import { toast } from "sonner";
 
 interface StepConfiguracionProps {
   form: UseFormReturn<any>;
@@ -36,6 +41,13 @@ const ROLES_DISPONIBLES = [
 export function StepConfiguracion({ form }: StepConfiguracionProps) {
   const rolesSeleccionados = form.watch('roles_objetivo') || [];
   const esObligatorio = form.watch('es_obligatorio');
+  const quizPorcentaje = form.watch('quiz_porcentaje_aprobacion') ?? 80;
+  const quizIntentos = form.watch('quiz_intentos_permitidos') ?? 3;
+  const quizAleatorizar = form.watch('quiz_aleatorizar') ?? false;
+  const quizMostrarRespuestas = form.watch('quiz_mostrar_respuestas') ?? true;
+
+  const { loading: aiLoading, generateCourseMetadata } = useLMSAI();
+  const [recommendLoading, setRecommendLoading] = useState(false);
 
   const handleRolToggle = (rol: string) => {
     const current = form.getValues('roles_objetivo') || [];
@@ -43,6 +55,57 @@ export function StepConfiguracion({ form }: StepConfiguracionProps) {
       form.setValue('roles_objetivo', current.filter((r: string) => r !== rol));
     } else {
       form.setValue('roles_objetivo', [...current, rol]);
+    }
+  };
+
+  const handleAIRecommend = async () => {
+    const nivel = form.getValues('nivel');
+    const categoria = form.getValues('categoria');
+    const titulo = form.getValues('titulo');
+
+    // Simple AI-informed defaults based on level/category
+    setRecommendLoading(true);
+    try {
+      // Use deterministic rules enhanced by context
+      let porcentaje = 80;
+      let intentos = 3;
+      let aleatorizar = false;
+      let mostrarRespuestas = true;
+
+      if (nivel === 'avanzado') {
+        porcentaje = 90;
+        intentos = 2;
+        aleatorizar = true;
+        mostrarRespuestas = false;
+      } else if (nivel === 'intermedio') {
+        porcentaje = 80;
+        intentos = 3;
+        aleatorizar = true;
+        mostrarRespuestas = true;
+      } else {
+        porcentaje = 70;
+        intentos = 5;
+        aleatorizar = false;
+        mostrarRespuestas = true;
+      }
+
+      if (categoria === 'compliance') {
+        porcentaje = Math.max(porcentaje, 85);
+        intentos = Math.min(intentos, 2);
+        aleatorizar = true;
+      } else if (categoria === 'onboarding') {
+        porcentaje = Math.min(porcentaje, 75);
+        intentos = Math.max(intentos, 5);
+      }
+
+      form.setValue('quiz_porcentaje_aprobacion', porcentaje);
+      form.setValue('quiz_intentos_permitidos', intentos);
+      form.setValue('quiz_aleatorizar', aleatorizar);
+      form.setValue('quiz_mostrar_respuestas', mostrarRespuestas);
+
+      toast.success(`Configuración recomendada para nivel ${nivel || 'básico'} / ${categoria || 'general'}`);
+    } finally {
+      setRecommendLoading(false);
     }
   };
 
@@ -113,6 +176,101 @@ export function StepConfiguracion({ form }: StepConfiguracionProps) {
               </FormItem>
             )}
           />
+        </div>
+      </div>
+
+      {/* Assessment Strategy Section */}
+      <div className="apple-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="apple-text-headline flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-muted-foreground" />
+            Estrategia de Evaluación
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAIRecommend}
+            disabled={recommendLoading}
+            className="gap-2"
+          >
+            {recommendLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5" />
+            )}
+            Recomendar con IA
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-5">
+          Configura los parámetros de evaluación que se aplicarán a todos los quizzes del curso
+        </p>
+
+        <div className="space-y-6">
+          {/* Passing Score */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Porcentaje de aprobación</label>
+              <span className="text-sm font-semibold text-primary">{quizPorcentaje}%</span>
+            </div>
+            <Slider
+              value={[quizPorcentaje]}
+              onValueChange={([v]) => form.setValue('quiz_porcentaje_aprobacion', v)}
+              min={50}
+              max={100}
+              step={5}
+            />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>50% (Flexible)</span>
+              <span>100% (Estricto)</span>
+            </div>
+          </div>
+
+          {/* Max Retries */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">Intentos máximos</label>
+              <span className="text-sm font-semibold text-primary">
+                {quizIntentos === 0 ? 'Ilimitados' : quizIntentos}
+              </span>
+            </div>
+            <Slider
+              value={[quizIntentos]}
+              onValueChange={([v]) => form.setValue('quiz_intentos_permitidos', v)}
+              min={0}
+              max={10}
+              step={1}
+            />
+            <div className="flex justify-between text-[11px] text-muted-foreground">
+              <span>0 = Ilimitados</span>
+              <span>10 máximo</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            {/* Randomize */}
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Aleatorizar preguntas</p>
+                <p className="text-xs text-muted-foreground">Orden diferente en cada intento</p>
+              </div>
+              <Switch
+                checked={quizAleatorizar}
+                onCheckedChange={(v) => form.setValue('quiz_aleatorizar', v)}
+              />
+            </div>
+
+            {/* Show Correct Answers */}
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">Mostrar respuestas</p>
+                <p className="text-xs text-muted-foreground">Tras enviar el quiz</p>
+              </div>
+              <Switch
+                checked={quizMostrarRespuestas}
+                onCheckedChange={(v) => form.setValue('quiz_mostrar_respuestas', v)}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
