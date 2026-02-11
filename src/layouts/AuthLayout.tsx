@@ -3,15 +3,15 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getTargetRouteForRole } from '@/constants/accessControl';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, userRole, loading } = useAuth();
 
-  // Show loading skeleton while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -28,9 +28,10 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
     );
   }
 
-  // If user is already authenticated, redirect to home instead of dashboard
-  if (user) {
-    return <Navigate to="/home" replace />;
+  // If user is authenticated, redirect to their role-specific route
+  if (user && userRole) {
+    const target = getTargetRouteForRole(userRole);
+    return <Navigate to={target} replace />;
   }
 
   return (

@@ -835,7 +835,7 @@ function App() {
                 />
 
 {/* Custodian Portal Routes */}
-                <Route path="/custodian" element={<CustodianPortal />}>
+                <Route path="/custodian" element={<ProtectedRoute><CustodianPortal /></ProtectedRoute>}>
                   <Route index element={<CustodianDashboard />} />
                   <Route path="services" element={<CustodianServicesPage />} />
                   <Route path="vehicle" element={<CustodianVehiclePage />} />

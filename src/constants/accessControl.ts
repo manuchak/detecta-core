@@ -158,3 +158,31 @@ export type DataCorrectionRole = typeof DATA_CORRECTION_ROLES[number];
 export type FacturacionRole = typeof FACTURACION_ROLES[number];
 export type FacturacionFullAccessRole = typeof FACTURACION_FULL_ACCESS_ROLES[number];
 export type NombreComercialEditRole = typeof NOMBRE_COMERCIAL_EDIT_ROLES[number];
+
+/**
+ * Determina la ruta de destino basada en el rol del usuario.
+ * Centralizado aquí para que AuthLayout, SmartHomeRedirect y useSmartAuthRedirect
+ * compartan la misma lógica sin duplicación.
+ */
+export function getTargetRouteForRole(role: string): string {
+  switch (role) {
+    case 'custodio':
+      return '/custodian';
+    case 'instalador':
+      return '/installers/portal';
+    case 'planificador':
+      return '/planeacion';
+    case 'ejecutivo_ventas':
+    case 'supply_lead':
+    case 'supply':
+      return '/leads';
+    case 'admin':
+    case 'owner':
+    case 'supply_admin':
+    case 'coordinador_operaciones':
+    case 'bi':
+      return '/home';
+    default:
+      return '/home';
+  }
+}
