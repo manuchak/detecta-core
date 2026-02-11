@@ -43,7 +43,7 @@ export function CourseCard({ curso, onStartCourse, onEnroll, isEnrolling }: Cour
 
   return (
     <Card className={cn(
-      "group overflow-hidden transition-all duration-200 hover:shadow-lg",
+      "group overflow-hidden transition-all duration-200 hover:shadow-lg flex flex-col h-full",
       "border border-border/50 bg-card",
       isUrgent && "ring-2 ring-yellow-400",
       isOverdue && "ring-2 ring-red-400"
@@ -83,7 +83,7 @@ export function CourseCard({ curso, onStartCourse, onEnroll, isEnrolling }: Cour
         </Badge>
       </div>
 
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-4 flex flex-col flex-1 space-y-3">
         {/* Título y categoría */}
         <div>
           {curso.categoria && (
@@ -138,7 +138,7 @@ export function CourseCard({ curso, onStartCourse, onEnroll, isEnrolling }: Cour
         )}
 
         {/* Botón de acción */}
-        <div className="pt-2">
+        <div className="pt-2 mt-auto">
           {isEnrolled ? (
             <Button 
               className="w-full"

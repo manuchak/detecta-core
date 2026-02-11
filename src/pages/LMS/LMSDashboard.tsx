@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CourseCard } from "@/components/lms/CourseCard";
+import { CategoryProgressSummary } from "@/components/lms/CategoryProgressSummary";
+import { CoursesByCategory } from "@/components/lms/CoursesByCategory";
 import { GamificacionWidget } from "@/components/lms/gamificacion/GamificacionWidget";
 import { BadgesGrid } from "@/components/lms/gamificacion/BadgesGrid";
 import { MisCertificados } from "@/components/lms/certificados/MisCertificados";
@@ -22,6 +24,7 @@ export default function LMSDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState<string>("all");
   const [nivelFilter, setNivelFilter] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const { data: cursos, isLoading, error } = useLMSCursosDisponibles();
   const { data: onboardingStatus } = useLMSOnboardingStatus();
@@ -186,46 +189,44 @@ export default function LMSDashboard() {
 
           {/* Mis Cursos (en progreso) */}
           <TabsContent value="mis-cursos" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Widget de gamificación en sidebar */}
-              <div className="lg:col-span-1">
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-40 rounded-lg" />
+                <Skeleton className="h-60 rounded-lg" />
+              </div>
+            ) : (cursos?.filter(c => c.inscripcion_id).length || 0) === 0 ? (
+              <div className="text-center py-12 bg-muted/30 rounded-lg">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  No tienes cursos en progreso
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  Explora el catálogo y comienza a aprender
+                </p>
+                <Button onClick={() => document.querySelector('[value="catalogo"]')?.dispatchEvent(new Event('click'))}>
+                  Ver Catálogo
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Resumen de progreso por categoría */}
+                <CategoryProgressSummary
+                  cursos={cursos || []}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                />
+
+                {/* Cursos agrupados por categoría */}
+                <CoursesByCategory
+                  cursos={cursos?.filter(c => c.inscripcion_id) || []}
+                  onStartCourse={handleStartCourse}
+                  filterCategory={selectedCategory}
+                />
+
+                {/* Gamificación */}
                 <GamificacionWidget />
-              </div>
-              
-              {/* Cursos en progreso */}
-              <div className="lg:col-span-3">
-                {isLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-80 rounded-lg" />
-                    ))}
-                  </div>
-                ) : cursosEnProgreso.length === 0 ? (
-                  <div className="text-center py-12 bg-muted/30 rounded-lg">
-                    <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">
-                      No tienes cursos en progreso
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Explora el catálogo y comienza a aprender
-                    </p>
-                    <Button onClick={() => document.querySelector('[value="catalogo"]')?.dispatchEvent(new Event('click'))}>
-                      Ver Catálogo
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {cursosEnProgreso.map(curso => (
-                      <CourseCard
-                        key={curso.id}
-                        curso={curso}
-                        onStartCourse={handleStartCourse}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+              </>
+            )}
           </TabsContent>
 
           {/* Catálogo */}
