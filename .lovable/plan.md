@@ -1,124 +1,101 @@
 
+## Plan: Reportes Profesionales SIERCP para el Equipo de Supply
 
-## Plan: Mejorar catalogo de errores de autenticacion
+### Problema
+Las chicas de supply aplican evaluaciones psicometricas a candidatos y solo ven una tarjeta basica con scores numericos (`PsychometricResultCard`). No tienen acceso al reporte profesional con IA que ya existe en el sistema (radar chart, factores de riesgo/proteccion, recomendaciones, conclusion profesional).
 
-### Problema raiz encontrado
+### Solucion
+Agregar un boton "Ver Informe Profesional" en la tarjeta de resultados que genere (o muestre si ya existe) el reporte completo usando la edge function `generate-siercp-report` y los componentes visuales que ya tenemos (`SIERCPPrintableReport`, `SIERCPScoreGauge`, `SIERCPRadarProfile`, `SIERCPDecisionBadge`).
 
-Los logs de la edge function revelan el error real:
+### Arquitectura actual (lo que ya existe)
 
-```
-TypeError: supabaseAdmin.auth.admin.getUserByEmail is not a function
-```
+| Componente | Estado |
+|---|---|
+| Edge function `generate-siercp-report` | Funcional, usa Lovable AI Gateway |
+| Hook `useSIERCPReport` | Funcional, invoca la edge function |
+| `SIERCPPrintableReport` | Componente completo con cover, radar, modulos, riesgo/proteccion |
+| `SIERCPScoreGauge`, `SIERCPRadarProfile`, `SIERCPDecisionBadge` | Componentes visuales listos |
+| Estilos de impresion | Ya configurados en `index.css` |
 
-La funcion `getUserByEmail` no existe en la version de `@supabase/supabase-js@2` usada en el edge function. Esto causa que TODOS los intentos de registro de custodio fallen con el generico "Error interno", que es lo que se ve en la imagen.
+Todo lo necesario ya esta construido, solo falta conectarlo al flujo de recruitment.
 
 ### Cambios propuestos
 
-#### 1. Corregir la edge function `create-custodian-account` (causa raiz)
+#### 1. Crear componente `SIERCPReportDialog` (nuevo archivo)
 
-**Archivo:** `supabase/functions/create-custodian-account/index.ts`
+**Archivo:** `src/components/recruitment/psychometrics/SIERCPReportDialog.tsx`
 
-- Reemplazar `supabaseAdmin.auth.admin.getUserByEmail(email)` por `supabaseAdmin.auth.admin.listUsers()` con filtro por email, que si es una funcion valida
-- Mejorar el catch general para incluir el tipo de error en el mensaje, en lugar de solo "Error interno"
-- Subir la version a v3.1.0
+Un dialog/modal que:
+- Recibe la evaluacion (`EvaluacionPsicometrica`) y nombre del candidato
+- Al abrirse, llama a `useSIERCPReport.generateReport()` con los scores de la evaluacion
+- Muestra un spinner mientras genera
+- Renderiza `SIERCPPrintableReport` con el resultado
+- Incluye boton "Imprimir / Exportar PDF" que usa `window.print()` con el filename dinamico
 
-Cambio especifico en linea 60:
-```typescript
-// ANTES (no funciona):
-const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+El componente traduce los scores de `evaluaciones_psicometricas` al formato que espera la edge function:
 
-// DESPUES (correcto):
-const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ 
-  filter: { email: email } 
-});
-// Tomar el primer resultado si existe
-// Ajustar la logica posterior para usar users[0] en lugar de existingUser.user
+```
+score_integridad -> { name: "Integridad Moral", score: X, maxScore: 100, percentage: X }
+score_psicopatia -> { name: "Indicadores de Psicopatia", ... }
+score_violencia -> { name: "Tendencia a la Violencia", ... }
+etc.
 ```
 
-Mejorar el catch generico (linea 203-206):
-```typescript
-// ANTES:
-return new Response(JSON.stringify({ error: "Error interno" }), ...);
+#### 2. Agregar boton "Ver Informe" en `PsychometricResultCard`
 
-// DESPUES:
-const errorMsg = error instanceof Error ? error.message : "Error interno del servidor";
-console.error(`[create-custodian-account] Error:`, errorMsg);
-return new Response(JSON.stringify({ 
-  error: "Error interno del servidor. Por favor intenta de nuevo o contacta a soporte.",
-  code: "INTERNAL_ERROR"
-}), ...);
+**Archivo:** `src/components/recruitment/psychometrics/PsychometricResultCard.tsx`
+
+- Agregar boton `FileText` + "Generar Informe Profesional" debajo de los scores
+- Al hacer click, abre el `SIERCPReportDialog`
+- Solo visible cuando hay score_global (evaluacion completada)
+
+#### 3. Guardar el reporte generado en la evaluacion (opcional pero recomendado)
+
+**Archivo:** `src/hooks/useEvaluacionesPsicometricas.ts`
+
+- Agregar mutation `useSaveAIReport` que guarde el JSON del reporte en un campo de la evaluacion para no tener que regenerarlo cada vez
+- Esto requiere verificar si `evaluaciones_psicometricas` tiene columna para el reporte
+
+### Detalle tecnico
+
+**Nuevo archivo `SIERCPReportDialog.tsx`:**
+
+```text
+Dialog (fullscreen on mobile, max-w-5xl on desktop)
+  |-- Estado: loading | report | error
+  |-- Al abrir: 
+  |     1. Mapear scores de EvaluacionPsicometrica al formato ModuleScore[]
+  |     2. Llamar generateReport() con los datos mapeados
+  |     3. Mostrar SIERCPPrintableReport cuando este listo
+  |-- Toolbar:
+  |     - Boton "Imprimir/PDF" -> window.print() con filename dinamico
+  |     - Boton "Cerrar"
 ```
 
-#### 2. Mejorar catalogo de errores en el frontend del registro de custodio
+**Mapeo de scores (evaluaciones_psicometricas -> edge function):**
 
-**Archivo:** `src/pages/Auth/CustodianSignup.tsx`
-
-Mejorar el manejo de errores (lineas 161-183) para mapear errores especificos a mensajes amigables:
-
-```typescript
-// Catalogo de errores para registro de custodio
-const errorCatalog: Record<string, { title: string; message: string }> = {
-  'Invitacion invalida o expirada': {
-    title: 'Invitacion No Valida',
-    message: 'Tu enlace de invitacion ha expirado o ya fue utilizado. Solicita una nueva invitacion a tu coordinador.'
-  },
-  'Ya tienes una cuenta activa como custodio': {
-    title: 'Cuenta Existente',
-    message: 'Ya tienes una cuenta de custodio activa. Usa "Iniciar sesion" con tu email y contrasena.'
-  },
-  'Campos requeridos faltantes': {
-    title: 'Datos Incompletos',
-    message: 'Por favor completa todos los campos del formulario.'
-  },
-  'Contrasena debe tener minimo 6 caracteres': {
-    title: 'Contrasena Muy Corta',
-    message: 'La contrasena debe tener al menos 6 caracteres.'
-  },
-  'Error interno': {
-    title: 'Error del Servidor',
-    message: 'Hubo un problema en el servidor. Por favor intenta de nuevo en unos minutos. Si el problema persiste, contacta a soporte.'
-  },
-};
+```text
+score_integridad    -> "Integridad Moral"
+score_psicopatia    -> "Indicadores de Psicopatia"
+score_violencia     -> "Tendencia a la Violencia"  
+score_agresividad   -> "Control de Impulsos"
+score_afrontamiento -> "Afrontamiento al Estres"
+score_veracidad     -> "Escala de Veracidad"
+score_entrevista    -> "Entrevista Estructurada"
 ```
 
-Usar este catalogo para traducir errores del edge function a mensajes claros con acciones especificas para el usuario.
-
-#### 3. Mejorar catalogo de errores en AuthContext (login y registro general)
-
-**Archivo:** `src/contexts/AuthContext.tsx`
-
-Ampliar los errores manejados en `signIn` (lineas 320-328):
-
-| Error de Supabase | Mensaje actual | Mensaje mejorado |
-|---|---|---|
-| `Invalid login credentials` | Credenciales incorrectas... | Credenciales incorrectas. Verifica tu email y contrasena. Si olvidaste tu contrasena, usa "Olvide mi contrasena". |
-| `Email not confirmed` | Debes confirmar tu email... | (sin cambio, ya es claro) |
-| `too_many_requests` | Demasiados intentos... | Demasiados intentos. Espera 5 minutos antes de intentar de nuevo. |
-| `User not found` | (no manejado) | No existe una cuenta con este email. Verifica que sea correcto o crea una nueva cuenta. |
-| `user_banned` | (no manejado) | Tu cuenta ha sido suspendida. Contacta a soporte para mas informacion. |
-| `network`/`fetch` | (no manejado) | Sin conexion a internet. Verifica tu conexion e intenta de nuevo. |
-
-Ampliar errores en `signUp` (lineas 384-392):
-
-| Error de Supabase | Mensaje actual | Mensaje mejorado |
-|---|---|---|
-| `User already registered` | Este email ya esta registrado... | Este email ya esta registrado. Si ya tienes cuenta, inicia sesion. Si olvidaste tu contrasena, usa "Olvide mi contrasena". |
-| `Password should be at least` | (sin cambio) | (sin cambio) |
-| `Signup is disabled` | (sin cambio) | (sin cambio) |
-| `invalid_email` | (no manejado) | El formato del email no es valido. Verifica que este escrito correctamente. |
-| `weak_password` | (no manejado) | La contrasena es muy debil. Usa al menos 6 caracteres combinando letras y numeros. |
-
-### Resumen de archivos a modificar
+### Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| `supabase/functions/create-custodian-account/index.ts` | Corregir `getUserByEmail` (causa raiz del "Error interno"), mejorar catch generico |
-| `src/pages/Auth/CustodianSignup.tsx` | Agregar catalogo de errores con mensajes accionables |
-| `src/contexts/AuthContext.tsx` | Ampliar manejo de errores en signIn y signUp con mas casos |
+| `src/components/recruitment/psychometrics/SIERCPReportDialog.tsx` | **Nuevo** - Dialog con generacion de reporte AI y vista imprimible |
+| `src/components/recruitment/psychometrics/PsychometricResultCard.tsx` | Agregar boton "Generar Informe Profesional" que abre el dialog |
 
 ### Resultado esperado
 
-1. El registro de custodio vuelve a funcionar (se corrige el error de `getUserByEmail`)
-2. Cuando ocurra un error, el usuario vera un mensaje claro con la accion que debe tomar
-3. No mas mensajes genericos de "Error interno" sin guia
-
+1. Supply abre el perfil de un candidato -> tab Evaluaciones -> Psicometrica
+2. Ve la tarjeta de resultados actual con scores
+3. Hace click en "Generar Informe Profesional"
+4. Se abre un dialog que genera el reporte con IA (10-15 segundos)
+5. Ve el reporte completo profesional: radar chart, analisis por modulo, factores de riesgo/proteccion, recomendaciones, conclusion
+6. Puede imprimir/exportar a PDF directamente desde el dialog
