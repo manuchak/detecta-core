@@ -16272,6 +16272,22 @@ export type Database = {
           status: string
         }[]
       }
+      complete_siercp_assessment: {
+        Args: {
+          p_interpretacion: string
+          p_resultado_semaforo: string
+          p_score_afrontamiento: number
+          p_score_agresividad: number
+          p_score_entrevista: number
+          p_score_global: number
+          p_score_integridad: number
+          p_score_psicopatia: number
+          p_score_veracidad: number
+          p_score_violencia: number
+          p_token: string
+        }
+        Returns: string
+      }
       convertir_lead_a_armado_operativo: {
         Args: { p_lead_id: string }
         Returns: string
