@@ -83,7 +83,7 @@ export function CourseCard({ curso, onStartCourse, onEnroll, isEnrolling }: Cour
         </Badge>
       </div>
 
-      <CardContent className="p-4 flex flex-col flex-1 space-y-3">
+      <CardContent className="p-4 flex flex-col flex-1 gap-3">
         {/* Título y categoría */}
         <div>
           {curso.categoria && (
