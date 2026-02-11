@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "v2.2.0"; // Optimized user lookup + better error context
+const VERSION = "v2.3.0"; // Fix: getUserByEmail instead of broken listUsers filter
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,13 +56,10 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Check existing user (filtered search, not full list)
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
-      filter: `email.eq.${email}`,
-      page: 1,
-      perPage: 1
-    });
-    if (existingUsers?.users?.length > 0) {
+    // Check existing user by direct email lookup
+    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+    console.log(`[create-custodian-account] Email check: ${existingUser?.user ? 'EXISTS' : 'available'}`);
+    if (existingUser?.user) {
       return new Response(JSON.stringify({ error: "Email ya registrado" }), 
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
