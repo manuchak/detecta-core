@@ -1,73 +1,43 @@
 
 
-## Fix: Race Condition en Persistencia que Pierde Modulos Generados
+## Fix: Loop Infinito de "Guardando..." en Formularios Vacios
 
-### Causa raiz
+### Problema
 
-En `useFormPersistence.ts`, la funcion `updateData` lee de `dataRef.current` para hacer el merge:
+Cuando el formulario del wizard esta vacio (sin titulo ni modulos), el indicador "Guardando..." se queda en loop infinito. La causa:
 
-```typescript
-const updateData = useCallback((updates: Partial<T>) => {
-    const newData = { ...dataRef.current, ...updates };
-    setDataInternal(newData);
-    scheduleSave(newData);
-}, [scheduleSave]);
-```
+1. Los efectos de sincronizacion (`step`, `modulos`, `formValues`) disparan `scheduleSave`
+2. `scheduleSave` pone `hasUnsavedChanges = true` inmediatamente
+3. Cuando el debounce expira, `saveToStorage` verifica `isMeaningful(data)` y retorna `false` (datos vacios)
+4. `saveToStorage` sale sin ejecutar `setHasUnsavedChanges(false)`
+5. El indicador muestra "Guardando..." indefinidamente
 
-Pero `dataRef` solo se actualiza en un `useEffect` (asincrono):
+### Sobre el curso generado
 
-```typescript
-useEffect(() => {
-    dataRef.current = data;  // se ejecuta DESPUES del render
-}, [data]);
-```
-
-Cuando la generacion AI termina, tres updates ocurren casi simultaneamente:
-
-```text
-updateData({ modulos: [3 modulos...] })   --> dataRef = { modulos: [], step: 1 } --> merge = { modulos: [...], step: 1 }
-updateData({ step: 2 })                   --> dataRef = { modulos: [], step: 1 } --> merge = { modulos: [], step: 2 }  <-- BUG
-```
-
-La segunda llamada lee el ref viejo (modulos: []) y sobreescribe los modulos. El debounce cancela la primera save y solo ejecuta la ultima, que tiene modulos vacios.
+El curso que se genero con IA fue victima de la race condition que se corrigio en el commit anterior. El borrador en localStorage ya perdio los modulos antes del fix. La solucion es limpiar el borrador corrupto y regenerar el curso -- el fix ya aplicado evitara que vuelva a ocurrir.
 
 ### Solucion
 
-Actualizar `dataRef.current` de forma **sincrona** dentro de `updateData`, antes del `setDataInternal`:
+En `saveToStorage`, cuando `isMeaningful` retorna `false`, resetear el flag `hasUnsavedChanges` antes de salir:
 
 ```typescript
-const updateData = useCallback((updates: Partial<T>) => {
-    const newData = { ...dataRef.current, ...updates };
-    dataRef.current = newData;  // sync update - prevents race conditions
-    setDataInternal(newData);
-    scheduleSave(newData);
-}, [scheduleSave]);
-```
-
-Lo mismo para `setData`:
-
-```typescript
-const setData = useCallback((newData: T) => {
-    dataRef.current = newData;  // sync update
-    setDataInternal(newData);
-    scheduleSave(newData);
-}, [scheduleSave]);
+const saveToStorage = useCallback((dataToSave: T, forceDraftId?: string) => {
+    if (!enabled || !isMeaningful(dataToSave)) {
+      setHasUnsavedChanges(false); // <-- NUEVO: reset flag para datos no significativos
+      return;
+    }
+    // ... resto igual
 ```
 
 ### Archivo a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useFormPersistence.ts` | Agregar `dataRef.current = newData` sincrono en `updateData` y `setData` (2 lineas) |
+| `src/hooks/useFormPersistence.ts` | Agregar `setHasUnsavedChanges(false)` en el early return de `saveToStorage` cuando `isMeaningful` es false (1 linea) |
 
 ### Resultado
 
-Los tres updates consecutivos ahora se acumulan correctamente:
-
-```text
-updateData({ modulos: [...] })  --> dataRef sincronizado = { modulos: [...], step: 1 }
-updateData({ step: 2 })        --> dataRef sincronizado = { modulos: [...], step: 2 }  <-- correcto
-```
-
-La estructura generada por IA se persiste correctamente y se muestra al regresar al paso 2.
+- Formularios vacios: el indicador no muestra "Guardando..." -- muestra nada (correcto, no hay nada que guardar)
+- Formularios con datos: el flujo sigue funcionando igual (save exitoso pone `hasUnsavedChanges=false`)
+- Para el curso perdido: limpiar el borrador y regenerar con IA, esta vez los modulos se persistiran correctamente gracias al fix de `dataRef` sincrono
 
