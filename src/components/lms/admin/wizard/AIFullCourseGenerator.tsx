@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Wand2, Loader2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Sparkles, Wand2, Loader2, CheckCircle2, AlertCircle, X, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ModuleOutline, ContentOutline } from "../wizard/StepEstructura";
@@ -109,6 +109,12 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [completedData, setCompletedData] = useState<{
+    modulos: number;
+    contenidos: number;
+    duracion: number;
+  } | null>(null);
+  const completedPayloadRef = useRef<{ formValues: Parameters<typeof onComplete>[0]; modulos: ModuleOutline[] } | null>(null);
 
   const updateProgress = (step: number, totalSteps: number, label: string) => {
     setProgress({
@@ -291,8 +297,9 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
         0
       );
 
-      onComplete(
-        {
+      // Store payload and show success state instead of calling onComplete immediately
+      completedPayloadRef.current = {
+        formValues: {
           codigo: metadata.codigo,
           titulo: tema,
           descripcion: metadata.descripcion,
@@ -301,10 +308,13 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
           roles_objetivo: [rol],
           enfoque_instruccional: enfoque || undefined,
         },
-        modulos
-      );
-
-      toast.success(`Curso generado: ${modulos.length} módulos, ${totalContentTasks} contenidos`);
+        modulos,
+      };
+      setCompletedData({
+        modulos: modulos.length,
+        contenidos: totalContentTasks,
+        duracion: totalDuracion || duracion,
+      });
     } catch (err) {
       console.error("[FullCourse] Fatal error:", err);
       setError("Error inesperado al generar el curso. Intenta de nuevo.");
@@ -339,7 +349,51 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
 
       {/* Form or Progress */}
       <div className="p-5 space-y-4">
-        {!loading && !progress?.percent ? (
+    {completedData ? (
+          /* Success Summary View */
+          <div className="space-y-5 py-4">
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="p-3 rounded-full bg-green-500/10">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <h4 className="font-semibold text-lg">¡Curso generado exitosamente!</h4>
+            </div>
+            
+            <div className="flex items-center justify-center gap-6 py-3 px-4 bg-muted/50 rounded-lg">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">{completedData.modulos}</p>
+                <p className="text-xs text-muted-foreground">módulos</p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">{completedData.contenidos}</p>
+                <p className="text-xs text-muted-foreground">contenidos</p>
+              </div>
+              <div className="w-px h-8 bg-border" />
+              <div className="text-center">
+                <p className="text-2xl font-bold text-primary">{completedData.duracion}</p>
+                <p className="text-xs text-muted-foreground">min</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              Textos, quizzes y flashcards fueron generados dentro de cada contenido
+            </p>
+
+            <Button
+              onClick={() => {
+                if (completedPayloadRef.current) {
+                  onComplete(completedPayloadRef.current.formValues, completedPayloadRef.current.modulos);
+                }
+              }}
+              className="w-full gap-2"
+              size="lg"
+            >
+              Revisar estructura
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        ) : !loading && !progress?.percent ? (
           <>
             {/* Topic Input */}
             <div className="space-y-1.5">

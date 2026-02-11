@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { CourseOutlineBuilder } from "./CourseOutlineBuilder";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
-import { Sparkles, Layers, Clock, BookOpen } from "lucide-react";
+import { Sparkles, Layers, Clock, BookOpen, CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
 
 export interface ModuleOutline {
@@ -37,9 +37,11 @@ interface StepEstructuraProps {
   form: UseFormReturn<any>;
   modulos: ModuleOutline[];
   onModulosChange: (modulos: ModuleOutline[]) => void;
+  fromAIGeneration?: boolean;
+  onDismissAIBanner?: () => void;
 }
 
-export function StepEstructura({ form, modulos, onModulosChange }: StepEstructuraProps) {
+export function StepEstructura({ form, modulos, onModulosChange, fromAIGeneration, onDismissAIBanner }: StepEstructuraProps) {
   const { loading, generateCourseStructure } = useLMSAI();
   const [hasGeneratedOnce, setHasGeneratedOnce] = useState(false);
 
@@ -82,8 +84,41 @@ export function StepEstructura({ form, modulos, onModulosChange }: StepEstructur
     }
   };
 
+  // Auto-dismiss AI banner after 10 seconds
+  const [showAIBanner, setShowAIBanner] = useState(fromAIGeneration);
+  useEffect(() => {
+    if (!fromAIGeneration) return;
+    setShowAIBanner(true);
+    const timer = setTimeout(() => {
+      setShowAIBanner(false);
+      onDismissAIBanner?.();
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [fromAIGeneration, onDismissAIBanner]);
+
+  const dismissAIBanner = () => {
+    setShowAIBanner(false);
+    onDismissAIBanner?.();
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Generated Orientation Banner */}
+      {showAIBanner && (
+        <div className="flex items-start gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium text-sm">Curso generado con IA</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Revisa la estructura y edita lo que necesites. Los textos, quizzes y flashcards ya fueron generados dentro de cada contenido.
+            </p>
+          </div>
+          <button onClick={dismissAIBanner} className="text-muted-foreground hover:text-foreground p-1">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* AI Generation Banner */}
       <div className="flex items-center justify-between p-4 bg-primary/5 border border-primary/20 rounded-xl">
         <div className="flex items-center gap-3">
