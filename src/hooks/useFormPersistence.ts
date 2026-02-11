@@ -372,11 +372,13 @@ export function useFormPersistence<T extends FieldValues>(
 
   const updateData = useCallback((updates: Partial<T>) => {
     const newData = { ...dataRef.current, ...updates };
+    dataRef.current = newData;  // sync update - prevents race conditions
     setDataInternal(newData);
     scheduleSave(newData);
   }, [scheduleSave]);
 
   const setData = useCallback((newData: T) => {
+    dataRef.current = newData;  // sync update - prevents race conditions
     setDataInternal(newData);
     scheduleSave(newData);
   }, [scheduleSave]);
