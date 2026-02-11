@@ -1,59 +1,54 @@
 
 
-## Plan: Habilitar reordenamiento drag-and-drop en el editor de estructura
+## Plan: Corregir el guardado de rutas en la Matriz de Precios
 
-### Problema
-Los iconos de "grip" (6 puntos) en modulos y contenidos son solo visuales. No hay ningun contexto de drag-and-drop configurado en la pestana Estructura del editor de cursos, por lo que arrastrar no hace nada.
+### Problema identificado
 
-### Buena noticia
-Los hooks de backend ya existen:
-- `useLMSReordenarModulos` - actualiza el orden de modulos en la BD
-- `useLMSReordenarContenidos` - actualiza el orden de contenidos en la BD
+Al guardar cambios en el formulario de edicion de rutas (`RouteManagementForm`), el campo "Observaciones" del formulario esta mapeado como `observaciones` pero la columna real en la base de datos se llama `notas`. Cuando el usuario llena este campo o crea una ruta nueva (donde el valor por defecto es `''`), Supabase intenta escribir en una columna que no existe, generando un error de PostgreSQL que impide guardar.
 
-Solo falta conectar la UI.
+Ademas, al editar una ruta existente, el formulario no carga todos los campos disponibles en la base de datos (como `tipo_servicio`, `tipo_viaje`, `clave`, `costo_custodio`, etc.) porque el tipo `MatrizPrecio` que pasa `MatrizPreciosTab` no incluye esas columnas. Esto causa que al guardar, esos campos se sobreescriban con valores vacios o se pierdan.
 
-### Cambios
+### Cambios necesarios
 
-#### 1. TabEstructura.tsx - DnD para modulos
-- Importar `DndContext`, `SortableContext`, `useSensor`, `closestCenter` de `@dnd-kit`
-- Envolver la lista de modulos en un `DndContext` + `SortableContext`
-- Al soltar (onDragEnd), llamar a `useLMSReordenarModulos` para persistir el nuevo orden
-- Hacer cada `ModuloInlineEditor` sortable pasandole las props de drag handle
+#### 1. RouteManagementForm.tsx - Corregir mapeo de campo `observaciones` a `notas`
 
-#### 2. ModuloInlineEditor.tsx - Hacer sortable + DnD para contenidos
-- Usar `useSortable` del `@dnd-kit/sortable` para hacer el modulo arrastrable
-- Pasar `attributes` y `listeners` al icono GripVertical existente
-- Envolver la lista de contenidos en su propio `DndContext` + `SortableContext`
-- Al soltar contenidos, llamar a `useLMSReordenarContenidos`
+- Renombrar el campo `observaciones` en la interfaz `RouteData` a `notas`
+- Actualizar todas las referencias en el formulario (`formData.observaciones` a `formData.notas`)
+- Actualizar el `handleInputChange` y el `initialFormData`
 
-#### 3. ContenidoInlineEditor.tsx - Hacer sortable
-- Usar `useSortable` para hacer cada contenido arrastrable
-- Aplicar `transform`/`transition` del sortable al elemento
-- Conectar `attributes` y `listeners` al icono GripVertical existente
+#### 2. MatrizPreciosTab.tsx - Ampliar la query para traer todos los campos editables
+
+- Cambiar la interfaz `MatrizPrecio` para incluir los campos faltantes: `tipo_servicio`, `tipo_viaje`, `clave`, `costo_custodio`, `costo_maximo_casetas`, `pago_custodio_sin_arma`, `notas`, `es_ruta_reparto`, `puntos_intermedios`
+- Esto asegura que al abrir el formulario de edicion, todos los campos se pre-cargan con los valores actuales de la BD
+
+#### 3. RouteManagementForm.tsx - Excluir el campo `id` del payload de update
+
+- Agregar `id` a los campos excluidos en el destructuring de `handleSubmit` para evitar enviar la primary key en el SET clause (buena practica aunque no causa errores actualmente)
 
 ### Detalle tecnico
 
-La arquitectura sigue exactamente el patron ya implementado en `CourseOutlineBuilder.tsx` (wizard):
-
-```text
-TabEstructura
-  DndContext (modulos)
-    SortableContext (modulos)
-      ModuloInlineEditor (useSortable)
-        DndContext (contenidos)
-          SortableContext (contenidos)
-            ContenidoInlineEditor (useSortable)
-```
-
-- Sensor: `PointerSensor` con `activationConstraint: { distance: 8 }` para evitar conflictos con clicks
-- Estrategia: `verticalListSortingStrategy`
-- Persistencia: llamada al hook de reorden en `onDragEnd`
-
-### Archivos a modificar
-
 | Archivo | Cambio |
 |---|---|
-| `src/components/lms/admin/editor/TabEstructura.tsx` | Agregar DndContext/SortableContext para modulos, llamar useLMSReordenarModulos |
-| `src/components/lms/admin/editor/ModuloInlineEditor.tsx` | useSortable para el modulo + DndContext/SortableContext para contenidos |
-| `src/components/lms/admin/editor/ContenidoInlineEditor.tsx` | useSortable para cada contenido |
+| `RouteManagementForm.tsx` | Renombrar `observaciones` a `notas` en RouteData, initialFormData, y el textarea |
+| `RouteManagementForm.tsx` | Excluir `id` del payload en handleSubmit |
+| `MatrizPreciosTab.tsx` | Agregar campos faltantes a la interfaz `MatrizPrecio` |
 
+### Por que falla actualmente
+
+```text
+Flujo actual:
+  1. Usuario abre "Editar ruta"
+  2. Formulario carga datos de MatrizPrecio (faltan campos)
+  3. Usuario edita y hace click en "Guardar"
+  4. handleSubmit envia { ...formData, observaciones: '' } al update
+  5. PostgreSQL rechaza: columna "observaciones" no existe
+  6. Toast: "Error al guardar la ruta"
+
+Flujo corregido:
+  1. Usuario abre "Editar ruta"
+  2. Formulario carga TODOS los campos (incluyendo notas, tipo_servicio, etc.)
+  3. Usuario edita y hace click en "Guardar"
+  4. handleSubmit envia { ...formData, notas: '...' } (sin id, sin generated cols)
+  5. PostgreSQL acepta la actualizacion
+  6. Toast: "Ruta actualizada correctamente"
+```
