@@ -1,89 +1,88 @@
 
 
-## Rediseno: Enfoque Instruccional dentro del Generador IA + Formulario Manual como Plan B
+## Fix: Post-Generacion -- Transicion Clara al Contenido Generado
 
-### Cambio de jerarquia
+### Problema
 
-El generador con IA es el camino principal y debe dominar la pantalla. El formulario manual es la valvula de escape para usuarios avanzados o casos donde la IA no sea suficiente.
+Despues de que la IA genera el curso completo, ocurre lo siguiente:
+1. El toast "Curso generado: 3 modulos, 5 contenidos" aparece brevemente en la esquina inferior
+2. `setStep(2)` avanza al paso "Estructura" automaticamente
+3. Pero la transicion es tan rapida y silenciosa que el usuario NO se da cuenta de que cambio de paso
+4. El usuario queda desorientado: no sabe que se creo, donde esta, ni como editar el contenido
 
-### Cambios
+### Solucion
 
-**1. StepIdentidad.tsx - Reorganizar jerarquia visual**
+Mejorar la transicion post-generacion con dos cambios:
 
-- Mover el separador visual "o configura manualmente" entre el generador IA y el formulario manual
-- Eliminar el campo `enfoque_instruccional` del formulario manual (ya vive dentro del generador IA)
-- Colapsar el formulario manual por defecto usando un `Collapsible` de Radix, con texto "Configuracion manual" que el usuario puede expandir si lo necesita
-- Mover imagen de portada dentro del collapsible manual
+**A. Mostrar estado de exito en el generador antes de avanzar**
+
+En lugar de llamar `setStep(2)` inmediatamente en el `onComplete`, agregar un breve estado de exito (1.5s) dentro del `AIFullCourseGenerator` que muestre un resumen visual de lo generado ANTES de disparar el avance. Esto da al usuario un momento para procesar que la generacion termino.
 
 ```text
 +--------------------------------------------------+
-| [Generador IA - prominente, siempre visible]     |
+| [check verde] Curso generado exitosamente        |
 |                                                  |
-| Tema del curso *                                 |
-| Enfoque instruccional (opcional)                 |
-| Rol objetivo        | Duracion                   |
-| [ Generar Curso Completo ]                       |
+| 3 modulos  |  5 contenidos  |  45 min            |
+|                                                  |
+| [ Revisar estructura --> ]                       |
 +--------------------------------------------------+
-
-      --- o configura manualmente (v) ---
-
-  (colapsado por defecto, expandible)
-  +------------------------------------------------+
-  | Codigo *  | Titulo del curso *        [AI btn]  |
-  | Descripcion                                     |
-  | Imagen de portada                               |
-  +------------------------------------------------+
 ```
 
-**2. AIFullCourseGenerator.tsx - Mantener el enfoque instruccional aqui**
+**B. Banner de exito en StepEstructura**
 
-El campo de enfoque instruccional ya existe aqui y es donde debe quedarse segun la indicacion del usuario. No se mueve. Solo se propaga el valor al formulario principal cuando se completa la generacion, para que quede persistido.
+Agregar un banner temporal en el paso 2 que confirme al usuario que esta viendo el contenido recien generado y que puede editarlo. Esto se controla con un prop `fromAIGeneration` o estado en el wizard.
 
-Agregar al callback `onComplete` el campo `enfoque_instruccional` para que `StepIdentidad` lo guarde en el form al recibir los resultados.
-
-**3. AIFullCourseGenerator.tsx - Propagar enfoque al form**
-
-Modificar la interfaz `onComplete` para incluir `enfoque_instruccional`:
-
-```typescript
-onComplete(
-  {
-    codigo: metadata.codigo,
-    titulo: tema,
-    descripcion: metadata.descripcion,
-    categoria: metadata.categoria,
-    duracion_estimada_min: totalDuracion || duracion,
-    roles_objetivo: [rol],
-    enfoque_instruccional: enfoque, // nuevo
-  },
-  modulos
-);
+```text
++--------------------------------------------------+
+| [sparkles] Curso generado con IA                 |
+| Revisa la estructura y edita lo que necesites.   |
+| Los textos, quizzes y flashcards ya fueron       |
+| generados dentro de cada contenido.              |
++--------------------------------------------------+
 ```
 
-**4. StepIdentidad.tsx - Recibir y guardar enfoque del generador**
-
-En el handler de `onFullCourseGenerated`, guardar el enfoque en el form:
-
-```typescript
-// Dentro del handler que recibe los datos del generador
-form.setValue("enfoque_instruccional", formValues.enfoque_instruccional || "");
-```
-
-**5. LMSCursoWizard.tsx - Actualizar interfaz de onComplete**
-
-Agregar `enfoque_instruccional` al tipo que recibe `handleFullCourseGenerated` y guardarlo en el form.
-
-### Archivos a modificar
+### Cambios tecnicos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/lms/admin/wizard/StepIdentidad.tsx` | Eliminar campo duplicado de enfoque, colapsar formulario manual con Collapsible, agregar separador visual |
-| `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx` | Agregar `enfoque_instruccional` al payload de `onComplete` |
-| `src/components/lms/admin/LMSCursoWizard.tsx` | Actualizar handler para guardar `enfoque_instruccional` del generador en el form |
+| `AIFullCourseGenerator.tsx` | Agregar estado `completed` con resumen visual y boton "Revisar estructura" que dispara `onComplete` |
+| `LMSCursoWizard.tsx` | Agregar flag `aiGenerated` para pasar a StepEstructura |
+| `StepEstructura.tsx` | Recibir prop `fromAIGeneration` y mostrar banner de orientacion temporal |
 
-### Resultado
+### Detalle de cambios
 
-- El generador IA es lo primero y mas visible que ve el usuario
-- El enfoque instruccional vive SOLO dentro del generador IA (donde tiene sentido contextual)
-- El formulario manual queda colapsado como "plan B", accesible pero sin competir visualmente
-- Al generar el curso, el enfoque se persiste en el formulario para futuras regeneraciones
+**1. AIFullCourseGenerator.tsx**
+
+Nuevo estado `completed` con los datos generados almacenados temporalmente:
+
+```typescript
+const [completedData, setCompletedData] = useState<{
+  modulos: number;
+  contenidos: number;
+  duracion: number;
+} | null>(null);
+```
+
+Cuando la generacion termina, en lugar de llamar `onComplete` inmediatamente:
+- Guardar los datos generados en un ref
+- Mostrar la vista de exito con el resumen
+- El boton "Revisar estructura" llama a `onComplete` con los datos almacenados
+
+La vista de progreso actual (linea 430-468) se extiende con un tercer estado: completado.
+
+**2. LMSCursoWizard.tsx**
+
+Agregar `const [aiGenerated, setAiGenerated] = useState(false)` que se activa en el callback de `onFullCourseGenerated` justo antes de `setStep(2)`.
+
+**3. StepEstructura.tsx**
+
+Recibir `fromAIGeneration?: boolean` como prop. Si es true, mostrar un banner de orientacion arriba del builder con un boton para descartarlo. El banner se oculta automaticamente despues de 10 segundos o al hacer clic en "Entendido".
+
+### Resultado esperado
+
+El flujo post-generacion sera:
+1. Barra de progreso llega a 100% con "Curso generado!"
+2. Se muestra resumen: "3 modulos, 5 contenidos, 45 min" con boton prominente "Revisar estructura"
+3. Al hacer clic, avanza al paso 2 con un banner que dice "Revisa y edita la estructura generada por IA"
+4. El usuario ve inmediatamente los modulos y contenidos editables
+
