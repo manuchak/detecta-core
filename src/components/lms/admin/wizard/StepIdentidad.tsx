@@ -15,12 +15,25 @@ import { AISuggestionCard } from "./AISuggestionCard";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
 
 import { Sparkles } from "lucide-react";
+import { AIFullCourseGenerator } from "./AIFullCourseGenerator";
+import type { ModuleOutline } from "./StepEstructura";
 
 interface StepIdentidadProps {
   form: UseFormReturn<any>;
+  onFullCourseGenerated?: (
+    formValues: {
+      codigo: string;
+      titulo: string;
+      descripcion: string;
+      categoria: string;
+      duracion_estimada_min: number;
+      roles_objetivo: string[];
+    },
+    modulos: ModuleOutline[]
+  ) => void;
 }
 
-export function StepIdentidad({ form }: StepIdentidadProps) {
+export function StepIdentidad({ form, onFullCourseGenerated }: StepIdentidadProps) {
   const { loading, generateCourseMetadata } = useLMSAI();
   const [suggestion, setSuggestion] = useState<{
     codigo: string;
@@ -53,6 +66,11 @@ export function StepIdentidad({ form }: StepIdentidadProps) {
 
   return (
     <div className="space-y-6">
+      {/* Full Course Generator */}
+      {onFullCourseGenerated && (
+        <AIFullCourseGenerator onComplete={onFullCourseGenerated} />
+      )}
+
       {/* Banner de AI */}
       <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl">
         <div className="p-2 rounded-lg bg-primary/10">
