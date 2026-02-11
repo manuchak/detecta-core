@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -124,23 +124,27 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     rejectRestore();
   };
 
+  // Stable ref for updateData to avoid infinite render loops
+  const updateDataRef = useRef(updateData);
+  useEffect(() => { updateDataRef.current = updateData; });
+
   // Sync form changes to draft
   useEffect(() => {
     const subscription = form.watch((values) => {
-      updateData({ formValues: values as CursoSchemaType });
+      updateDataRef.current({ formValues: values as CursoSchemaType });
     });
     return () => subscription.unsubscribe();
-  }, [form, updateData]);
+  }, [form]);
 
   // Sync modulos to draft
   useEffect(() => {
-    updateData({ modulos });
-  }, [modulos, updateData]);
+    updateDataRef.current({ modulos });
+  }, [modulos]);
 
   // Sync step to draft
   useEffect(() => {
-    updateData({ step });
-  }, [step, updateData]);
+    updateDataRef.current({ step });
+  }, [step]);
 
   // Update duration when modules change
   const updateDurationFromModules = () => {
