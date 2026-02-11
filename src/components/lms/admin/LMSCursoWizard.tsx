@@ -291,7 +291,21 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
         {/* Form content */}
         <Form {...form}>
           <form onSubmit={(e) => e.preventDefault()}>
-            {step === 1 && <StepIdentidad form={form} />}
+            {step === 1 && (
+              <StepIdentidad 
+                form={form} 
+                onFullCourseGenerated={(formValues, generatedModulos) => {
+                  form.setValue("codigo", formValues.codigo);
+                  form.setValue("titulo", formValues.titulo);
+                  form.setValue("descripcion", formValues.descripcion);
+                  form.setValue("categoria", formValues.categoria as any);
+                  form.setValue("duracion_estimada_min", formValues.duracion_estimada_min);
+                  form.setValue("roles_objetivo", formValues.roles_objetivo);
+                  setModulos(generatedModulos);
+                  setStep(2);
+                }}
+              />
+            )}
             {step === 2 && (
               <StepEstructura 
                 form={form} 
