@@ -318,13 +318,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Sign in error:', error);
         
         let errorMessage = "Error al iniciar sesión";
+        const msg = error.message || '';
         
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = "Credenciales incorrectas. Verifica tu email y contraseña.";
-        } else if (error.message.includes('Email not confirmed')) {
+        if (msg.includes('Invalid login credentials')) {
+          errorMessage = "Credenciales incorrectas. Verifica tu email y contraseña. Si olvidaste tu contraseña, usa \"Olvidé mi contraseña\".";
+        } else if (msg.includes('Email not confirmed')) {
           errorMessage = "Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.";
-        } else if (error.message.includes('too_many_requests')) {
-          errorMessage = "Demasiados intentos de inicio de sesión. Intenta de nuevo más tarde.";
+        } else if (msg.includes('too_many_requests')) {
+          errorMessage = "Demasiados intentos. Espera 5 minutos antes de intentar de nuevo.";
+        } else if (msg.includes('User not found')) {
+          errorMessage = "No existe una cuenta con este email. Verifica que sea correcto o crea una nueva cuenta.";
+        } else if (msg.includes('user_banned')) {
+          errorMessage = "Tu cuenta ha sido suspendida. Contacta a soporte para más información.";
+        } else if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch')) {
+          errorMessage = "Sin conexión a internet. Verifica tu conexión e intenta de nuevo.";
         }
         
         toast({
@@ -382,13 +389,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Sign up error:', error);
         
         let errorMessage = "Error al crear la cuenta";
+        const msg = error.message || '';
         
-        if (error.message.includes('User already registered')) {
-          errorMessage = "Este email ya está registrado. Intenta iniciar sesión.";
-        } else if (error.message.includes('Password should be at least')) {
+        if (msg.includes('User already registered')) {
+          errorMessage = "Este email ya está registrado. Si ya tienes cuenta, inicia sesión. Si olvidaste tu contraseña, usa \"Olvidé mi contraseña\".";
+        } else if (msg.includes('Password should be at least')) {
           errorMessage = "La contraseña debe tener al menos 6 caracteres.";
-        } else if (error.message.includes('Signup is disabled')) {
+        } else if (msg.includes('Signup is disabled')) {
           errorMessage = "El registro está temporalmente deshabilitado.";
+        } else if (msg.includes('invalid') && msg.includes('email')) {
+          errorMessage = "El formato del email no es válido. Verifica que esté escrito correctamente.";
+        } else if (msg.includes('weak_password')) {
+          errorMessage = "La contraseña es muy débil. Usa al menos 6 caracteres combinando letras y números.";
+        } else if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed to fetch')) {
+          errorMessage = "Sin conexión a internet. Verifica tu conexión e intenta de nuevo.";
         }
         
         toast({
