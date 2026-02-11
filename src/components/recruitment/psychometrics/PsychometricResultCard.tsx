@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Clock, User, AlertTriangle } from 'lucide-react';
+import { Clock, User, AlertTriangle, FileText } from 'lucide-react';
 import { SemaforoBadge } from './SemaforoBadge';
+import { SIERCPReportDialog } from './SIERCPReportDialog';
 import type { EvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -10,6 +13,7 @@ import { es } from 'date-fns/locale';
 interface Props {
   evaluation: EvaluacionPsicometrica;
   isLatest?: boolean;
+  candidateName?: string;
 }
 
 const moduleLabels: Record<string, string> = {
@@ -22,7 +26,8 @@ const moduleLabels: Record<string, string> = {
   score_entrevista: 'Entrevista',
 };
 
-export function PsychometricResultCard({ evaluation, isLatest }: Props) {
+export function PsychometricResultCard({ evaluation, isLatest, candidateName }: Props) {
+  const [reportOpen, setReportOpen] = useState(false);
   const modules = [
     { key: 'score_integridad', value: evaluation.score_integridad },
     { key: 'score_psicopatia', value: evaluation.score_psicopatia },
@@ -119,12 +124,31 @@ export function PsychometricResultCard({ evaluation, isLatest }: Props) {
           </div>
         )}
 
+        {/* Generar Informe Profesional */}
+        {evaluation.score_global != null && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setReportOpen(true)}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Generar Informe Profesional
+          </Button>
+        )}
+
         {/* Evaluador */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
           <User className="h-3 w-3" />
           Evaluado por: {evaluation.evaluador?.display_name || 'Usuario'}
         </div>
       </CardContent>
+
+      <SIERCPReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        evaluation={evaluation}
+        candidateName={candidateName}
+      />
     </Card>
   );
 }
