@@ -67,7 +67,7 @@ export function PsychometricEvaluationTab({ candidatoId, candidatoNombre }: Prop
         <div className="space-y-4">
           {/* Última evaluación destacada */}
           {latestEval && (
-            <PsychometricResultCard evaluation={latestEval} isLatest />
+            <PsychometricResultCard evaluation={latestEval} isLatest candidateName={candidatoNombre} />
           )}
 
           {/* Panel de aval si es coordinador y hay evaluación ámbar pendiente */}
