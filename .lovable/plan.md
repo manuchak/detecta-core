@@ -1,75 +1,48 @@
 
+## Fix: Check constraint violation en liberacion de custodios
 
-## Limpieza de registros para re-registro de custodios
+### Problema
 
-### Estado actual
-
-| Email | auth.users | profiles | user_roles | Invitaciones |
-|-------|-----------|----------|------------|-------------|
-| jesuseloy70@gmail.com | Existe (sin confirmar) | Existe | Sin rol | 2 sin usar |
-| mumartinez3345@gmail.com | No existe | No existe | N/A | 1 sin usar |
-
-### Acciones necesarias
-
-**1. jesuseloy70@gmail.com** - Eliminar usuario fantasma
-
-Eliminar el usuario de `auth.users` (CASCADE eliminara automaticamente el perfil). Esto permitira que se registre correctamente via su link de invitacion.
+La RPC `liberar_custodio_a_planeacion_v2` (linea 176) hace:
 
 ```sql
--- Eliminar perfil (por si CASCADE no aplica en el trigger)
-DELETE FROM profiles WHERE id = '1a627f0b-766f-4484-8133-e5bd2e84f6a4';
+UPDATE candidatos_custodios SET estado_proceso = 'liberado' ...
 ```
 
-Ademas, eliminar el usuario de `auth.users` usando la API admin del edge function o directamente desde el dashboard de Supabase (Authentication > Users).
+Pero el check constraint `candidatos_custodios_estado_proceso_check` solo permite estos valores:
 
-Conservar solo 1 de las 2 invitaciones duplicadas y eliminar la otra:
+- `lead`, `entrevista`, `documentacion`, `aprobado`, `en_liberacion`, `activo`, `rechazado`, `inactivo`
+
+El valor `'liberado'` NO esta en la lista, causando el error que Supply ve en pantalla.
+
+### Solucion
+
+Crear una nueva migracion SQL que redefine la RPC cambiando `'liberado'` por `'activo'` en la linea que actualiza `candidatos_custodios.estado_proceso`. Este es el estado correcto: cuando un custodio se libera a planeacion, pasa a estar "activo".
+
+### Cambio especifico
+
+En la funcion `liberar_custodio_a_planeacion_v2`, seccion 8 ("Update candidato status"):
+
+**Antes:**
 ```sql
-DELETE FROM custodian_invitations WHERE id = '7b9f3d37-7f22-4095-94ca-bde6bdef08cf';
+UPDATE candidatos_custodios
+SET estado_proceso = 'liberado', updated_at = NOW()
+WHERE id = v_lib.candidato_id;
 ```
 
-**2. mumartinez3345@gmail.com** - Solo fix del edge function
-
-Este email no tiene registros que limpiar. El problema es que la edge function `create-custodian-account` usa `listUsers({ filter: ... })` con un filtro que no funciona correctamente en la API de GoTrue, generando falsos positivos.
-
-Fix en `supabase/functions/create-custodian-account/index.ts`: Reemplazar la busqueda filtrada por una busqueda directa usando `getUserByEmail`:
-
-```typescript
-// ANTES (buggy - filter no funciona bien):
-const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
-  filter: `email.eq.${email}`,
-  page: 1, perPage: 1
-});
-if (existingUsers?.users?.length > 0) { ... }
-
-// DESPUES (correcto):
-const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(email);
-// O mejor aun, usar listUsers sin filter y buscar:
-const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
-const exists = users.find(u => u.email === email);
+**Despues:**
+```sql
+UPDATE candidatos_custodios
+SET estado_proceso = 'activo', updated_at = NOW()
+WHERE id = v_lib.candidato_id;
 ```
 
-La solucion mas robusta es intentar crear el usuario directamente y manejar el error de duplicado:
+### Archivo a crear
 
-```typescript
-// Eliminar la verificacion previa y dejar que createUser falle naturalmente
-// si el email ya existe, Supabase retorna error especifico
-const { data: userData, error: createErr } = await supabaseAdmin.auth.admin.createUser({ ... });
-if (createErr?.message?.includes('already been registered')) {
-  return Response({ error: "Email ya registrado" }, ...);
-}
-```
+1. **Nueva migracion SQL** - Redefinir `liberar_custodio_a_planeacion_v2` con el valor corregido
 
-**3. Eliminar invitacion duplicada de jesuseloy70**
+### Impacto
 
-Solo conservar la invitacion mas reciente para evitar confusion.
-
-### Archivos a modificar
-
-1. **SQL (datos)** - Eliminar perfil y usuario fantasma de jesuseloy70
-2. **SQL (datos)** - Eliminar invitacion duplicada
-3. **Dashboard Supabase** - Eliminar usuario `1a627f0b-766f-4484-8133-e5bd2e84f6a4` de Authentication > Users
-4. **`supabase/functions/create-custodian-account/index.ts`** - Eliminar la verificacion previa de email duplicado y dejar que `createUser` maneje el error nativamente
-
-### Resultado esperado
-
-Ambos custodios podran usar su link de invitacion (`/auth/registro-custodio?token=...`) y completar el registro correctamente. El fix del edge function previene falsos positivos futuros de "Email ya registrado".
+- Fix directo del error que Supply reporta
+- No requiere cambios en frontend
+- Los custodios pendientes (RIVAS, CALDERON y cualquier otro) podran liberarse correctamente
