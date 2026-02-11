@@ -1,88 +1,193 @@
 
 
-## Fase 4: Generacion Completa de Curso con Un Click
+## Evaluacion UX/UI - Motor de Diseno Instruccional con IA (Fases 1-6)
 
-### Resumen
+### Perspectiva: Product Designer evaluando coherencia, usabilidad y friccion
 
-Agregar un modo "Curso Completo con IA" al inicio del wizard que, a partir de un tema, rol objetivo y duracion, encadena multiples llamadas de IA para generar todo el curso: metadata, estructura con modulos, contenido de texto enriquecido para cada contenido de tipo texto, y preguntas para cada quiz. El usuario ve un indicador de progreso paso a paso y al finalizar puede revisar y editar todo en el wizard normal.
+---
 
-### Flujo del usuario
+### 1. MAPA DE EXPERIENCIA DEL USUARIO
+
+El wizard tiene 4 pasos: Identidad, Estructura, Configuracion, Vista Previa. Los features de IA se distribuyen asi:
 
 ```text
-+----------------------------------------------+
-|  Generador de Curso Completo con IA          |
-|                                               |
-|  Tema: [____________________________]        |
-|  Rol:  [Custodio v]  Duracion: [60 min]      |
-|                                               |
-|  [ Generar Curso Completo ]                  |
-+----------------------------------------------+
-         |
-         v  (secuencial con progreso)
-  1. Generando metadata...        [====      ]
-  2. Generando estructura...      [======    ]
-  3. Generando contenido 1/4...   [========  ]
-  4. Generando quiz 1/2...        [========= ]
-  5. Listo!                       [==========]
+PASO 1 (Identidad)                   PASO 2 (Estructura)                 PASO 3 (Config)
++----------------------------+       +----------------------------+       +----------------------------+
+| [Curso Completo con IA]   |       | [Generar estructura IA]    |       | Clasificacion              |
+|  tema + rol + duracion     |       | Banner + boton             |       | Estrategia Evaluacion      |
+|                            |       |                            |       |  - Slider aprobacion       |
+| [Banner IA disponible]    |       | Stats bar (modulos/min)    |       |  - Slider intentos         |
+|                            |       |                            |       |  - Toggle aleatorizar      |
+| Codigo + Titulo + IA btn  |       | ModuleOutlineCard x N      |       |  - Toggle respuestas       |
+| Sugerencia IA (aceptar)   |       |  > Objetivos aprendizaje   |       |  - [Recomendar con IA]     |
+|                            |       |  > ContentOutlineItem x N  |       |                            |
+| Descripcion               |       |    > ContentEditor         |       | Audiencia (roles)          |
+| Imagen portada             |       |      > InlineQuizEditor   |       | Plazos                     |
++----------------------------+       |      > InlineFlashcardEditor      +----------------------------+
+                                     |      > VideoScriptGenerator|
+                                     |    > QuickContentCreator   |
+                                     +----------------------------+
 ```
 
-Al completar: se llenan todos los campos del form y se avanza automaticamente al paso 2 (Estructura) para que el usuario revise.
+---
 
-### Cambios tecnicos
+### 2. HALLAZGOS POSITIVOS (Lo que funciona bien)
 
-**1. Nuevo archivo: `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx`**
+**A. Progresion clara del wizard**
+- La barra de progreso y los step indicators dan orientacion constante
+- El auto-save con indicador "Guardado automaticamente" genera confianza
+- DraftRestoreBanner para recuperar sesiones interrumpidas es excelente
 
-Componente con:
-- Input de tema (texto libre)
-- Select de rol objetivo (reutiliza ROLES_DISPONIBLES)
-- Slider/input de duracion estimada (30-180 min)
-- Boton "Generar Curso Completo"
-- Barra de progreso con label del paso actual
-- Logica de orquestacion que encadena llamadas:
-  1. `generateCourseMetadata(tema)` - llena codigo, descripcion, categoria
-  2. `generateCourseStructure(tema, duracion)` - genera modulos
-  3. Para cada contenido tipo `texto_enriquecido`: `generateRichText(titulo, contexto_modulo)`
-  4. Para cada contenido tipo `quiz`: `generateQuizQuestions(titulo_modulo, 5, contexto)`
-  5. Para cada contenido tipo `interactivo`: `generateFlashcards(titulo_modulo, 6, contexto)`
-- Manejo de errores parciales: si falla un paso de contenido, continua con los demas
-- Timeout extendido a 45s por llamada individual (el total puede tomar 2-3 min)
+**B. Patron consistente de IA**
+- Todos los botones de IA usan el mismo patron visual: icono Sparkles + "Generar con IA"
+- El componente AISuggestionCard permite aceptar/rechazar/regenerar de forma uniforme
+- Los loading states son claros con spinners y textos descriptivos
 
-Props: `onComplete: (formValues, modulos) => void` - callback para pasar los datos generados al wizard padre
+**C. Jerarquia visual en Step 2**
+- Los ModuleOutlineCard con drag-and-drop, expand/collapse y stats inline son intuitivos
+- Los tipos de contenido tienen color-coding consistente (rojo=video, azul=doc, verde=texto, morado=quiz, naranja=interactivo)
+- La QuickContentCreator con seleccion de tipo en grid de 5 es eficiente
 
-**2. Modificar: `src/components/lms/admin/LMSCursoWizard.tsx`**
+**D. Full Course Generator (Fase 4)**
+- El indicador de progreso paso a paso con porcentaje es excelente para operaciones largas
+- La tolerancia a fallos parciales evita frustacion: si falla un quiz, continua con el siguiente
+- El auto-avance a Step 2 tras completar da un flujo natural de "revisar lo generado"
 
-- Pasar `onModulosChange={setModulos}` y un callback `onFullCourseGenerated` a `StepIdentidad`
-- El callback recibe los valores del form y los modulos, los aplica y avanza a step 2
+---
 
-**3. Modificar: `src/components/lms/admin/wizard/StepIdentidad.tsx`**
+### 3. PROBLEMAS DE UX IDENTIFICADOS
 
-- Recibir nuevas props: `onFullCourseGenerated: (formValues, modulos) => void`
-- Renderizar `AIFullCourseGenerator` como primera seccion (antes del banner actual de IA)
-- Cuando el generador completa, llama `onFullCourseGenerated` con los datos
+**CRITICO: Sobrecarga de IA en Step 1**
 
-**4. Modificar: `src/hooks/lms/useLMSAI.ts`**
+Step 1 (Identidad) tiene DOS mecanismos de IA compitiendo por atencion:
+1. `AIFullCourseGenerator` (genera TODO el curso)
+2. Banner "Asistente IA" + boton "Generar con IA" junto al titulo (genera solo metadata)
 
-- Hacer `invokeAI` configurable con timeout custom (para llamadas largas)
-- No se necesita una funcion `generateFullCourse` nueva en el hook; la orquestacion vive en el componente usando las funciones existentes
+Problema: Un usuario nuevo no sabe cual usar. Si usa el Full Course Generator, el banner de metadata queda redundante. Si empieza llenando manualmente y luego ve el Full Generator, podria perder lo escrito.
 
-### Detalles de implementacion del generador
+Recomendacion: Hacer el Full Generator colapsable por defecto, o usar un patroon de "eleccion de camino" al inicio: "Quieres crear desde cero o generar con IA?" Dos cards grandes lado a lado.
 
-El componente `AIFullCourseGenerator` usa multiples instancias de `useLMSAI` internamente? No, ya que `loading` es compartido. En su lugar, el componente manejara su propio estado de progreso y llamara directamente a `supabase.functions.invoke` o reutilizara las funciones del hook con un wrapper que no bloquee el loading global.
+---
 
-Solucion: crear un hook local `useFullCourseGeneration` dentro del componente que:
-- Tiene su propio `loading` y `progress` state
-- Reutiliza la misma logica de `invokeAI` pero con timeout de 45s
-- Expone `{ generate, loading, progress, currentStep }` 
+**ALTO: Falta de contexto en editores inline**
 
-Estructura del `progress`:
-```text
-{ step: number, totalSteps: number, label: string, percent: number }
+En `ContentEditor.tsx` lineas 227-232 y 235-242, los editores de quiz y flashcards se renderizan con props vacias:
+```
+moduloTitulo=""
+cursoTitulo=""
 ```
 
-### Archivos a crear
-- `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx`
+Esto significa que cuando el usuario genera preguntas de quiz o flashcards desde el ContentEditor, la IA NO recibe contexto del modulo ni del curso. Las preguntas generadas seran genericas ("Seguridad y custodia" como fallback). El mismo problema no existe en QuickContentCreator que si pasa `moduloTitulo` y `cursoTitulo`.
 
-### Archivos a modificar  
-- `src/components/lms/admin/LMSCursoWizard.tsx` (pasar callback a StepIdentidad)
-- `src/components/lms/admin/wizard/StepIdentidad.tsx` (renderizar generador, recibir callback)
-- `src/hooks/lms/useLMSAI.ts` (parametro timeout opcional en invokeAI)
+Recomendacion: Pasar el contexto real del modulo y curso al ContentEditor. Requiere propagarlo desde ModuleOutlineCard -> ContentOutlineItem -> ContentEditor.
+
+---
+
+**ALTO: VideoScriptGenerator tiene el mismo problema de contexto**
+
+En ContentEditor linea 177-180:
+```
+cursoTitulo=""
+moduloTitulo=""
+```
+
+El generador de guion de video no recibe contexto, produciendo scripts desconectados del curso.
+
+---
+
+**MEDIO: "Cancelar" en Full Course Generator no cancela realmente**
+
+El `handleCancel` en AIFullCourseGenerator solo cambia estados locales (`setLoading(false)`), pero no cancela la promesa de `supabase.functions.invoke` que sigue ejecutandose en background. El usuario ve que "se cancelo" pero las llamadas siguen corriendo y podrían generar errores silenciosos.
+
+Recomendacion: Implementar AbortController para cancelar las llamadas fetch realmente, o al minimo ignorar resultados post-cancelacion con un ref `isCancelled`.
+
+---
+
+**MEDIO: No hay preview del contenido generado por IA**
+
+Cuando el Full Course Generator termina, avanza a Step 2 donde el usuario ve modulos colapsados. Para revisar el contenido generado (texto HTML, preguntas de quiz, flashcards), debe hacer click en cada modulo, luego en cada contenido, luego en "editar". Son 3 niveles de profundidad para verificar lo que la IA genero.
+
+Recomendacion: Tras la generacion completa, expandir automaticamente los modulos y mostrar un resumen rapido de lo generado: "3 modulos, 8 textos, 2 quizzes (10 preguntas), 12 flashcards".
+
+---
+
+**MEDIO: Slider de duracion en Full Generator no muestra granularidad**
+
+El slider va de 30-180 min con step de 15, pero no hay marcas visuales ni labels intermedios. El usuario solo ve "60 min" como valor actual. Para una Training Manager no tecnica, no es claro que significa "60 min" en terminos de estructura (cuantos modulos saldran, cuantos videos).
+
+Recomendacion: Agregar una estimacion dinamica debajo: "~3-4 modulos, ~8-12 contenidos" basada en la duracion seleccionada.
+
+---
+
+**MEDIO: Evaluacion Strategy sin conexion visible con quizzes reales**
+
+La seccion de "Estrategia de Evaluacion" en Step 3 configura sliders para porcentaje, intentos, etc., pero no hay indicacion visual de cuantos quizzes existen en el curso ni si estas configuraciones se aplicaran a algo real. Si el curso no tiene quizzes, esta seccion entera es irrelevante pero se muestra igual.
+
+Recomendacion: Mostrar un badge "Se aplicara a X quizzes" contando los contenidos tipo quiz en los modulos. Si hay 0 quizzes, mostrar un aviso sutil.
+
+---
+
+**BAJO: Inconsistencia en tamanos de texto y spacing**
+
+- InlineQuizEditor usa `text-[10px]` y `text-[11px]` extensivamente (lineas 177, 180, 223)
+- InlineFlashcardEditor usa `text-xs` consistentemente
+- VideoScriptGenerator usa `text-[10px]` para sub-labels
+- StepConfiguracion usa `text-[11px]` para slider labels
+
+Esto crea una inconsistencia visual micro que, en conjunto, da sensacion de "no pulido".
+
+Recomendacion: Estandarizar en `text-xs` (12px) como minimo legible y `text-[11px]` solo para hints muy secundarios.
+
+---
+
+**BAJO: Emojis en VideoScriptGenerator**
+
+Lineas 107, 129, 154 usan emojis (nota_de_prensa, robot, clipboard) mientras el resto del sistema usa iconos Lucide consistentemente. Esto rompe el lenguaje visual "Apple-inspired" del sistema.
+
+Recomendacion: Reemplazar emojis con iconos Lucide semanticos (FileText, Bot, ClipboardList).
+
+---
+
+### 4. OPORTUNIDADES DE MEJORA UX
+
+**A. Flujo de "Camino Guiado" vs "Experto"**
+
+Actualmente todos los usuarios ven el mismo wizard. Una Training Manager que crea su primer curso necesita guidance; una que crea el curso 20 necesita velocidad.
+
+Propuesta: Al inicio del wizard, ofrecer dos caminos:
+- "Rapido con IA" - Full Course Generator prominente, genera todo y va directo a revision
+- "Paso a paso" - El wizard actual con los formularios manuales y IA opcional
+
+---
+
+**B. Feedback loop de calidad**
+
+No hay forma de que la Training Manager indique si la generacion fue buena o mala. Despues de aceptar una sugerencia, se pierde la oportunidad de mejorar el prompt.
+
+Propuesta: Agregar un micro-feedback despues de generaciones IA (thumbs up/down) que se logge para analisis.
+
+---
+
+**C. Template Library**
+
+El Full Course Generator siempre empieza de cero. Para cursos comunes (onboarding, compliance vehicular), deberia haber templates pre-armados que la Training Manager pueda elegir y personalizar.
+
+---
+
+### 5. RESUMEN DE PRIORIDADES
+
+| # | Problema | Severidad | Esfuerzo | Accion |
+|---|---|---|---|---|
+| 1 | Props vacias en ContentEditor (moduloTitulo, cursoTitulo) | ALTO | Bajo | Propagar contexto desde ModuleOutlineCard |
+| 2 | Props vacias en VideoScriptGenerator dentro de ContentEditor | ALTO | Bajo | Misma propagacion de contexto |
+| 3 | Sobrecarga de IA en Step 1 | CRITICO UX | Medio | Redisenar como eleccion de camino |
+| 4 | Cancel no cancela realmente | MEDIO | Bajo | AbortController o ref guard |
+| 5 | Sin preview post-generacion | MEDIO | Medio | Auto-expand + summary card |
+| 6 | Assessment sin conexion a quizzes reales | MEDIO | Bajo | Badge conteo dinamico |
+| 7 | Emojis en VideoScriptGenerator | BAJO | Bajo | Reemplazar con Lucide icons |
+| 8 | Inconsistencia text sizes | BAJO | Bajo | Estandarizar a text-xs minimo |
+
+### Recomendacion inmediata
+
+Resolver primero los items 1-2 (contexto vacio en editores) porque afectan directamente la calidad de la IA, que es el core value de toda la feature. Luego abordar item 3 (sobrecarga Step 1) para mejorar el first-time experience.
+
