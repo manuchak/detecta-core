@@ -1,45 +1,30 @@
 
-## Plan: Aumentar limite de video a 150MB
 
-### Cambios necesarios
+## Plan: Actualizar límite del bucket lms-media a 150MB
 
-Hay **2 puntos** donde se debe actualizar el limite:
+### Problema
+El frontend ya permite archivos de hasta 150MB, pero el bucket `lms-media` en Supabase tiene un limite de 100MB (104,857,600 bytes). El video de 111MB es rechazado a nivel de storage.
 
-#### 1. Frontend - MediaUploader (limite visual y validacion)
+### Solucion
+Un solo cambio: actualizar el `file_size_limit` del bucket `lms-media` en la base de datos de produccion.
 
-**Archivo:** `src/components/lms/admin/wizard/MediaUploader.tsx` (linea 25)
+### Cambio necesario
 
-Cambiar el maxSize de video de 100MB a 150MB:
+**Migracion SQL** que ejecute:
 
+```sql
+UPDATE storage.buckets 
+SET file_size_limit = 157286400  -- 150MB en bytes
+WHERE id = 'lms-media';
 ```
-// Antes:
-maxSize: 100 * 1024 * 1024, // 100MB
 
-// Despues:
-maxSize: 150 * 1024 * 1024, // 150MB
-```
-
-Esto actualiza tanto la validacion del archivo como el texto mostrado en la UI ("Max 150MB").
-
-#### 2. Supabase Storage - Limite del bucket
-
-**Archivo:** `supabase/config.toml` (linea 30)
-
-El limite actual del storage es `50MiB`, que bloquea cualquier archivo mayor a 50MB a nivel de servidor. Se debe aumentar a 150MB:
-
-```
-// Antes:
-file_size_limit = "50MiB"
-
-// Despues:
-file_size_limit = "150MiB"
-```
+157,286,400 = 150 * 1024 * 1024
 
 ### Resumen
 
-| Archivo | Cambio |
-|---|---|
-| `src/components/lms/admin/wizard/MediaUploader.tsx` | maxSize: 100MB a 150MB |
-| `supabase/config.toml` | file_size_limit: 50MiB a 150MiB |
+| Que | Antes | Despues |
+|---|---|---|
+| Bucket `lms-media` file_size_limit | 100MB | 150MB |
 
-Dos cambios simples y el video de 111MB podra subirse sin problema.
+Un solo cambio en una migracion SQL. El frontend ya esta configurado correctamente en 150MB.
+
