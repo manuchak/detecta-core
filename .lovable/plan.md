@@ -1,77 +1,88 @@
 
 
-## Rediseno del Editor de Cursos LMS: De Formulario Plano a Editor Profesional con Tabs
+## Mejora del Editor de Contenidos + Integración de Evaluaciones
 
-### Diagnostico del Estado Actual
+### Problema Actual
 
-El editor actual (`LMSCursoForm.tsx`) tiene varios problemas criticos de UX:
+1. **ContenidoInlineEditor** solo permite editar el titulo del contenido. No hay forma de editar la URL de un video, el texto enriquecido, las preguntas de un quiz, ni ningun otro campo especifico del tipo de contenido.
 
-1. **Formulario plano y largo**: 3 Cards apilados (Informacion General, Configuracion, Estado) que requieren scroll extenso
-2. **Flujo fragmentado**: Para editar modulos/contenidos hay que salir al detalle (`LMSCursoDetalle`) -- son dos paginas separadas que deberian ser una sola experiencia
-3. **Dialogs modales para todo**: Crear/editar modulos y contenidos abre dialogs que bloquean el contexto
-4. **Sin reutilizacion del wizard**: El wizard de creacion tiene mejor UX pero el editor no comparte nada de esa logica
-5. **Cero feedback visual**: No hay preview, no hay indicadores de completitud, no hay asistencia AI
+2. **Las evaluaciones (quizzes)** ya existen en el sistema como un tipo de contenido (`quiz`) dentro de los modulos. Las preguntas se almacenan en la tabla `lms_preguntas` y se referencian por IDs en el campo `contenido.preguntas_ids`. Se crearon durante el wizard de creacion usando el `InlineQuizEditor`. Sin embargo, desde el editor de curso no hay forma de ver ni editar esas preguntas.
 
-### Solucion: Editor Unificado con Tabs
+### Solucion
 
-Transformar `LMSCursoEditar` en un editor profesional tipo Teachable/Thinkific con navegacion por tabs:
+Agregar un editor expandible al `ContenidoInlineEditor` que, al hacer clic en el icono de edicion, muestre un panel inline con los campos especificos segun el tipo de contenido -- reutilizando los componentes del wizard (`MediaUploader`, `InlineQuizEditor`, `InlineFlashcardEditor`, `VideoScriptGenerator`).
 
 ```text
-+--------------------------------------------------+
-|  <- Supply Chain (LOG-SUPP-004)    [Guardar] [v]  |
-|  Borrador | Intermedio | 60 min                   |
-+--------------------------------------------------+
-|  [General]  [Estructura]  [Config]  [Publicacion] |
-+--------------------------------------------------+
-|                                                    |
-|   Tab activo renderiza su contenido                |
-|                                                    |
-+--------------------------------------------------+
+Antes:
+  [>] Los 5 Puntos de Dolor    Video  5m  [Pencil] [Trash]
+  (clic en Pencil -> solo cambia titulo)
+
+Despues:
+  [>] Los 5 Puntos de Dolor    Video  5m  [Pencil] [Trash]
+  (clic en Pencil -> expande panel completo):
+  +-----------------------------------------------+
+  |  [Video icon] Video - Editando contenido       |
+  |                                                |
+  |  Titulo: [Los 5 Puntos de Dolor...          ]  |
+  |  Duracion: [5] min                             |
+  |                                                |
+  |  Video: [URL o subir archivo]                  |
+  |  [Generar guion con IA]                        |
+  |                                                |
+  |              [Cancelar]  [Guardar]             |
+  +-----------------------------------------------+
 ```
 
-### Tabs Propuestos
+Para quizzes, el panel mostrara el `InlineQuizEditor` cargando las preguntas existentes desde `lms_preguntas`:
 
-**Tab 1 - General**: Codigo, titulo, descripcion, imagen de portada, categoria, nivel -- con AI assist para descripcion (reutilizando `AIGenerateButton`)
-
-**Tab 2 - Estructura**: Vista completa de modulos y contenidos con edicion inline expandible (sin modals). Drag-and-drop para reordenar. Boton "+ Modulo" y "+ Contenido" que expanden formularios inline debajo del ultimo elemento
-
-**Tab 3 - Configuracion**: Duracion, plazo, roles objetivo, obligatorio -- agrupados en secciones compactas con switches
-
-**Tab 4 - Publicacion**: Estado (activo/publicado), preview card de como se vera el curso para los usuarios, y boton de publicar con checklist de prerequisitos
-
-### Cambios Clave de UX
-
-1. **Header sticky con contexto**: Titulo + codigo + badges de estado siempre visibles
-2. **Edicion inline de estructura**: Los modulos se expanden in-place para editar titulo/descripcion, y cada contenido se edita con un panel lateral o inline accordion -- eliminando los dialogs modales
-3. **AI en el editor**: Reutilizar los botones de generacion AI del wizard (descripcion, quiz, texto)
-4. **Auto-save**: Reutilizar `useFormPersistence` con indicador visual de guardado
-5. **Indicadores de completitud**: Cada tab muestra un checkmark o warning si falta informacion requerida
+```text
+  [?] Evaluacion Final          Quiz  10m  [Pencil] [Trash]
+  (clic en Pencil -> expande):
+  +-----------------------------------------------+
+  |  [Quiz icon] Quiz - Editando contenido         |
+  |                                                |
+  |  Preguntas (3):                                |
+  |  1. Cual es el punto critico...  [Edit][Del]   |
+  |  2. Que significa OTIF?          [Edit][Del]   |
+  |  3. Selecciona los KPIs...       [Edit][Del]   |
+  |                                                |
+  |  [+ Agregar pregunta]  [Generar con IA]        |
+  |                                                |
+  |              [Cancelar]  [Guardar]             |
+  +-----------------------------------------------+
+```
 
 ### Archivos a Crear/Modificar
 
 | Archivo | Accion | Descripcion |
 |---------|--------|-------------|
-| `src/components/lms/admin/LMSCursoEditor.tsx` | **Crear** | Componente principal del editor con tabs (reemplaza LMSCursoForm) |
-| `src/components/lms/admin/editor/TabGeneral.tsx` | **Crear** | Tab de informacion general con AI assist |
-| `src/components/lms/admin/editor/TabEstructura.tsx` | **Crear** | Tab de estructura con edicion inline de modulos/contenidos |
-| `src/components/lms/admin/editor/TabConfiguracion.tsx` | **Crear** | Tab de configuracion (roles, plazos, obligatoriedad) |
-| `src/components/lms/admin/editor/TabPublicacion.tsx` | **Crear** | Tab de publicacion con preview y checklist |
-| `src/components/lms/admin/editor/ModuloInlineEditor.tsx` | **Crear** | Editor inline de modulo (titulo, descripcion, contenidos) |
-| `src/components/lms/admin/editor/ContenidoInlineEditor.tsx` | **Crear** | Editor inline de contenido dentro de cada modulo |
-| `src/components/lms/admin/editor/EditorHeader.tsx` | **Crear** | Header sticky con titulo, badges y accion guardar |
-| `src/pages/LMS/LMSAdminCursoEditar.tsx` | **Modificar** | Usar LMSCursoEditor en lugar de LMSCursoForm |
-| `src/components/lms/admin/LMSCursoForm.tsx` | **Deprecar** | Reemplazado por LMSCursoEditor |
+| `src/components/lms/admin/editor/ContenidoInlineEditor.tsx` | **Reescribir** | Agregar estado expandido con editor completo segun tipo de contenido |
+| `src/components/lms/admin/editor/ContenidoExpandedEditor.tsx` | **Crear** | Panel expandido que adapta `ContentEditor` del wizard para trabajar con `LMSContenido` (datos de DB) en lugar de `ContentOutline` (estado del wizard) |
+| `src/hooks/lms/useLMSAdminPreguntas.ts` | **Sin cambios** | Ya existe `fetchPreguntasByIds` para cargar preguntas -- se reutiliza |
 
 ### Detalle Tecnico
 
-- **Tabs**: Usar `@radix-ui/react-tabs` (ya instalado) con `TabsList` horizontal
-- **Inline editing de estructura**: Cada `ModuloInlineEditor` es un `Collapsible` que al expandirse muestra el formulario de edicion + lista de contenidos. Los contenidos usan el mismo patron accordion
-- **Persistencia**: `useFormPersistence` nivel `standard` con key `lms_curso_edit_{cursoId}`
-- **Mutaciones**: Reutilizar hooks existentes (`useLMSActualizarCurso`, `useLMSCrearModulo`, etc.) pero llamarlos desde los editores inline
-- **AI**: Reutilizar `useLMSAI` y componentes `AIGenerateButton`/`AISuggestionCard` del wizard
-- **Drag-and-drop**: Reutilizar `@dnd-kit` (ya instalado) para reordenar modulos y contenidos
+**ContenidoExpandedEditor** sera un componente nuevo que:
+- Recibe un `LMSContenido` (registro de BD) en lugar de `ContentOutline` (estado del wizard)
+- Segun `contenido.tipo`, renderiza los campos apropiados:
+  - `video`: `MediaUploader` + `VideoScriptGenerator` (reutilizados del wizard)
+  - `documento`: `MediaUploader` (reutilizado del wizard)
+  - `texto_enriquecido`: `Textarea` con boton "Generar con IA" usando `useLMSAI`
+  - `quiz`: `InlineQuizEditor` (reutilizado) + carga inicial de preguntas via `fetchPreguntasByIds(contenido.contenido.preguntas_ids)`
+  - `interactivo`: `InlineFlashcardEditor` (reutilizado)
+  - `embed`: Campo de HTML para iframe
+- Al guardar, llama a `useLMSActualizarContenido` con los datos actualizados
+- Para quizzes, tambien llama a `useLMSCrearPreguntas` para persistir preguntas nuevas/modificadas en `lms_preguntas`
 
-### Resultado Esperado
+**ContenidoInlineEditor** se modifica para:
+- Agregar estado `showEditor` (boolean)
+- Al hacer clic en Pencil, en lugar de entrar en modo edicion de titulo, expandir el `ContenidoExpandedEditor` debajo
+- El editor expandido reemplaza toda la fila mientras esta abierto
 
-El usuario puede gestionar todo un curso (metadata, estructura, contenidos, publicacion) desde una sola pagina con tabs, sin navegar a otras rutas ni abrir modales. La experiencia es comparable a editores modernos como Teachable, Thinkific o Notion.
+### Resultado
+
+- Edicion completa de cualquier tipo de contenido desde la misma pagina del editor de cursos
+- Las evaluaciones (quizzes) se pueden ver, editar y agregar preguntas sin salir del editor
+- Se reutilizan los componentes del wizard sin duplicar logica
+- El flujo es consistente: tanto en creacion (wizard) como en edicion (editor) se usa la misma experiencia
 
