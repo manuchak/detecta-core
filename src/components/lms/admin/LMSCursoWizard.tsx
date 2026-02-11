@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Loader2, Sparkles, CheckCircle } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useLMSCrearCursoCompleto } from "@/hooks/lms/useLMSAdminCursos";
-import { useNavigate, useBlocker } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { StepIdentidad } from "./wizard/StepIdentidad";
 import { StepEstructura, type ModuleOutline } from "./wizard/StepEstructura";
 import { StepConfiguracion } from "./wizard/StepConfiguracion";
@@ -159,21 +159,31 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     updateDataRef.current({ step });
   }, [step]);
 
-  // SPA navigation guard — intercept internal navigation with unsaved changes
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      unsavedChanges &&
-      currentLocation.pathname !== nextLocation.pathname
-  );
+  // SPA navigation guard — show confirmation dialog when leaving with unsaved changes
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const pendingLeaveAction = useRef<(() => void) | null>(null);
 
-  const handleBlockerSaveAndLeave = useCallback(() => {
+  const confirmLeaveOrStay = useCallback((leaveAction: () => void) => {
+    if (unsavedChanges) {
+      pendingLeaveAction.current = leaveAction;
+      setShowLeaveDialog(true);
+    } else {
+      leaveAction();
+    }
+  }, [unsavedChanges]);
+
+  const handleLeaveDialogSave = useCallback(() => {
     saveDraft();
-    blocker.proceed?.();
-  }, [saveDraft, blocker]);
+    setShowLeaveDialog(false);
+    pendingLeaveAction.current?.();
+    pendingLeaveAction.current = null;
+  }, [saveDraft]);
 
-  const handleBlockerDiscard = useCallback(() => {
-    blocker.proceed?.();
-  }, [blocker]);
+  const handleLeaveDialogDiscard = useCallback(() => {
+    setShowLeaveDialog(false);
+    pendingLeaveAction.current?.();
+    pendingLeaveAction.current = null;
+  }, []);
   // Update duration when modules change
   const updateDurationFromModules = () => {
     const totalDuration = modulos.reduce((acc, mod) => 
@@ -215,7 +225,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
     if (step > 1) {
       setStep(step - 1);
     } else {
-      onBack();
+      confirmLeaveOrStay(onBack);
     }
   };
 
@@ -411,7 +421,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
         </div>
 
         {/* SPA Navigation Guard Dialog */}
-        <AlertDialog open={blocker.state === 'blocked'}>
+        <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Cambios sin guardar</AlertDialogTitle>
@@ -420,13 +430,13 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => blocker.reset?.()}>
+              <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>
                 Cancelar
               </Button>
-              <Button variant="secondary" onClick={handleBlockerDiscard}>
+              <Button variant="secondary" onClick={handleLeaveDialogDiscard}>
                 Salir sin guardar
               </Button>
-              <Button onClick={handleBlockerSaveAndLeave}>
+              <Button onClick={handleLeaveDialogSave}>
                 Guardar y salir
               </Button>
             </AlertDialogFooter>
