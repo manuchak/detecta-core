@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,18 @@ function getPriority(curso: CursoDisponible): number {
   return 4;
 }
 
+function hasUrgentCourses(cursos: CursoDisponible[]): boolean {
+  return cursos.some(c => {
+    if (c.inscripcion_estado === 'completado') return false;
+    if (c.inscripcion_estado === 'vencido') return true;
+    if (c.inscripcion_fecha_limite) {
+      const dias = differenceInDays(parseISO(c.inscripcion_fecha_limite), new Date());
+      return dias < 0;
+    }
+    return false;
+  });
+}
+
 interface CategoryGroup {
   key: string;
   label: string;
@@ -38,6 +50,7 @@ interface CategoryGroup {
   completados: number;
   total: number;
   allDone: boolean;
+  hasUrgent: boolean;
 }
 
 export function CoursesByCategory({ cursos, onStartCourse, onEnroll, isEnrolling, filterCategory }: CoursesByCategoryProps) {
@@ -58,7 +71,6 @@ export function CoursesByCategory({ cursos, onStartCourse, onEnroll, isEnrolling
     orderedKeys.forEach(key => {
       const items = map.get(key);
       if (!items || items.length === 0) return;
-      // Sort by priority
       items.sort((a, b) => getPriority(a) - getPriority(b));
       const completados = items.filter(c => c.inscripcion_estado === 'completado').length;
       const catInfo = LMS_CATEGORIAS.find(c => c.value === key);
@@ -69,20 +81,19 @@ export function CoursesByCategory({ cursos, onStartCourse, onEnroll, isEnrolling
         completados,
         total: items.length,
         allDone: completados === items.length,
+        hasUrgent: hasUrgentCourses(items),
       });
     });
 
-    // Put categories with pending work first
     result.sort((a, b) => (a.allDone ? 1 : 0) - (b.allDone ? 1 : 0));
     return result;
   }, [cursos, filterCategory]);
 
-  // Track open/closed state; default open for incomplete categories
   const [openStates, setOpenStates] = useState<Record<string, boolean>>({});
 
   const isOpen = (key: string, allDone: boolean) => {
     if (key in openStates) return openStates[key];
-    return !allDone; // default open if not all done
+    return !allDone;
   };
 
   const toggle = (key: string) => {
@@ -91,13 +102,13 @@ export function CoursesByCategory({ cursos, onStartCourse, onEnroll, isEnrolling
 
   if (groups.length === 0) return null;
 
-  // If only one group, don't wrap in collapsible
   if (groups.length === 1) {
     const g = groups[0];
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold">{g.label}</h3>
+          {g.hasUrgent && <AlertTriangle className="h-4 w-4 text-destructive" />}
           <Badge variant="outline" className="text-xs">{g.completados}/{g.total}</Badge>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -121,9 +132,11 @@ export function CoursesByCategory({ cursos, onStartCourse, onEnroll, isEnrolling
               <div className={cn(
                 "flex items-center gap-3 p-3 rounded-lg transition-colors",
                 "hover:bg-muted/50 border border-border/50",
-                g.allDone && "opacity-70"
+                g.allDone && "opacity-70",
+                g.hasUrgent && "border-destructive/50 bg-destructive/5"
               )}>
                 {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                {g.hasUrgent && <AlertTriangle className="h-4 w-4 text-destructive" />}
                 <span className="font-semibold text-sm">{g.label}</span>
                 <Badge variant="outline" className="text-xs">{g.completados}/{g.total}</Badge>
                 <Progress value={pct} className="h-1.5 flex-1 max-w-[120px]" />

@@ -104,34 +104,13 @@ export default function LMSDashboard() {
       </div>
 
       <div className="container mx-auto px-6 py-8 space-y-8">
-        {/* Alerta de cursos obligatorios pendientes */}
-        {cursosObligatoriosPendientes.length > 0 && (
-          <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-              Tienes <strong>{cursosObligatoriosPendientes.length}</strong> curso(s) obligatorio(s) pendiente(s).
-              Completa estos cursos antes de la fecha límite.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Cursos obligatorios pendientes */}
-        {cursosObligatoriosPendientes.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              <h2 className="text-lg font-semibold text-foreground">Cursos Obligatorios Pendientes</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {cursosObligatoriosPendientes.map(curso => (
-                <CourseCard
-                  key={curso.id}
-                  curso={curso}
-                  onStartCourse={handleStartCourse}
-                />
-              ))}
-            </div>
-          </section>
+        {/* Resumen de progreso por categoría - SIEMPRE VISIBLE arriba de tabs */}
+        {!isLoading && (cursos?.filter(c => c.inscripcion_id).length || 0) > 0 && (
+          <CategoryProgressSummary
+            cursos={cursos || []}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+          />
         )}
 
         {/* Tabs principales */}
@@ -209,13 +188,6 @@ export default function LMSDashboard() {
               </div>
             ) : (
               <>
-                {/* Resumen de progreso por categoría */}
-                <CategoryProgressSummary
-                  cursos={cursos || []}
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                />
-
                 {/* Cursos agrupados por categoría */}
                 <CoursesByCategory
                   cursos={cursos?.filter(c => c.inscripcion_id) || []}
