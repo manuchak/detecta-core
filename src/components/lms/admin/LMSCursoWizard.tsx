@@ -83,13 +83,28 @@ const defaultFormValues: CursoSchemaType = {
   quiz_mostrar_respuestas: true,
 };
 
+// Synchronous read of draft from localStorage before first render
+function getInitialDraftData(): WizardDraftData | null {
+  try {
+    const stored = localStorage.getItem('lms_curso_wizard');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (parsed.version !== 2) return null;
+    const savedAt = new Date(parsed.savedAt).getTime();
+    if (Date.now() - savedAt > 24 * 60 * 60 * 1000) return null;
+    return parsed.data as WizardDraftData;
+  } catch { return null; }
+}
+
 export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
-  const [step, setStep] = useState(1);
-  const [modulos, setModulos] = useState<ModuleOutline[]>([]);
+  // Read draft BEFORE first render to avoid flash of empty step 1
+  const initialDraft = useRef(getInitialDraftData());
+
+  const [step, setStep] = useState(initialDraft.current?.step || 1);
+  const [modulos, setModulos] = useState<ModuleOutline[]>(initialDraft.current?.modulos || []);
   const navigate = useNavigate();
   const crearCurso = useLMSCrearCursoCompleto();
 
-  // Enhanced persistence hook (robust level for multi-step wizard)
   const persistence = useFormPersistence<WizardDraftData>({
     key: 'lms_curso_wizard',
     initialData: {
@@ -98,8 +113,8 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
       modulos: [],
     },
     level: 'robust',
-    debounceMs: 400, // Aggressive autosave for consultative workflow
-    ttl: 24 * 60 * 60 * 1000, // 24 hours
+    debounceMs: 400,
+    ttl: 24 * 60 * 60 * 1000,
     isMeaningful: (data) => !!(data.formValues?.titulo || data.modulos?.length > 0),
   });
 
@@ -119,8 +134,20 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
 
   const form = useForm<CursoSchemaType>({
     resolver: zodResolver(cursoSchema),
-    defaultValues: defaultFormValues,
+    defaultValues: initialDraft.current?.formValues || defaultFormValues,
   });
+
+  // Auto-restore from persistence when draftData loads (fallback for URL match)
+  const hasAutoRestored = useRef(!!initialDraft.current);
+  useEffect(() => {
+    if (hasAutoRestored.current) return;
+    if (draftData?.formValues?.titulo && draftData.step > 1) {
+      form.reset(draftData.formValues);
+      setStep(draftData.step);
+      setModulos(draftData.modulos || []);
+      hasAutoRestored.current = true;
+    }
+  }, [draftData, form]);
 
   // Restore draft when accepted
   const handleRestoreDraft = () => {
