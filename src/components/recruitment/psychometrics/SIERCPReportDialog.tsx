@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,7 @@ const scoreMapping: { key: keyof EvaluacionPsicometrica; name: string }[] = [
 
 export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateName }: Props) {
   const { loading, report, error, generateReport, clearReport } = useSIERCPReport();
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open && !report && !loading) {
@@ -59,11 +60,54 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
   };
 
   const handlePrint = () => {
+    if (!reportRef.current) return;
+    
     const name = candidateName || 'Candidato';
     const date = format(new Date(evaluation.fecha_evaluacion), 'yyyy-MM-dd');
-    document.title = `Informe_SIERCP_${name.replace(/\s+/g, '_')}_${date}`;
-    window.print();
-    document.title = 'Detecta Core';
+    const title = `Informe_SIERCP_${name.replace(/\s+/g, '_')}_${date}`;
+    
+    // Collect all stylesheets from current document
+    const styleSheets = Array.from(document.styleSheets);
+    let cssText = '';
+    styleSheets.forEach(sheet => {
+      try {
+        const rules = Array.from(sheet.cssRules);
+        rules.forEach(rule => { cssText += rule.cssText + '\n'; });
+      } catch {
+        // Cross-origin sheets - include via link
+        if (sheet.href) {
+          cssText += `@import url("${sheet.href}");\n`;
+        }
+      }
+    });
+    
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>${cssText}</style>
+          <style>
+            body { margin: 0; padding: 20px; background: white; }
+            .siercp-report { display: block !important; }
+            @media print {
+              @page { size: A4 portrait; margin: 15mm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>${reportRef.current.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    
+    // Wait for styles to load then print
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   const handleRetry = () => {
@@ -122,7 +166,9 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
         )}
 
         {report && !loading && (
-          <SIERCPPrintableReport report={report} candidateName={candidateName} />
+          <div ref={reportRef}>
+            <SIERCPPrintableReport report={report} candidateName={candidateName} />
+          </div>
         )}
       </DialogContent>
     </Dialog>
