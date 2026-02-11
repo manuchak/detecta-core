@@ -102,6 +102,7 @@ function mapTipoContenido(tipo: string): ContentOutline["tipo"] {
 
 export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps) {
   const [tema, setTema] = useState("");
+  const [enfoque, setEnfoque] = useState("");
   const [rol, setRol] = useState("custodio");
   const [duracion, setDuracion] = useState(60);
   const [loading, setLoading] = useState(false);
@@ -152,7 +153,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
           descripcion: string;
           contenidos: { titulo: string; tipo: string; duracion_min: number }[];
         }[];
-      }>("generate_course_structure", { tema, duracion_min: duracion });
+      }>("generate_course_structure", { tema, duracion_min: duracion, enfoque: enfoque || undefined });
 
       if (!structure?.modulos?.length) {
         setError("No se pudo generar la estructura. Intenta de nuevo.");
@@ -204,7 +205,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
         try {
           const result = await invokeAI<{ html: string }>("generate_rich_text", {
             tema: item.titulo,
-            contexto: `Módulo: ${item.moduloTitulo}. Curso: ${tema}. Rol objetivo: ${rol}`,
+            contexto: `Módulo: ${item.moduloTitulo}. Curso: ${tema}. Rol objetivo: ${rol}${enfoque ? `. Enfoque instruccional: ${enfoque}` : ''}`,
             longitud: "media",
           });
           if (result?.html) {
@@ -234,7 +235,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
           }>("generate_quiz_questions", {
             tema: item.moduloTitulo,
             cantidad: 5,
-            contexto: `Curso: ${tema}. Contenido: ${item.titulo}. Rol: ${rol}`,
+            contexto: `Curso: ${tema}. Contenido: ${item.titulo}. Rol: ${rol}${enfoque ? `. Enfoque instruccional: ${enfoque}` : ''}`,
           });
           if (result?.questions) {
             modulos[item.moduleIdx].contenidos[item.contentIdx].contenido = {
@@ -264,7 +265,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
           }>("generate_flashcards", {
             tema: item.moduloTitulo,
             cantidad: 6,
-            contexto: `Curso: ${tema}. Contenido: ${item.titulo}. Rol: ${rol}`,
+            contexto: `Curso: ${tema}. Contenido: ${item.titulo}. Rol: ${rol}${enfoque ? `. Enfoque instruccional: ${enfoque}` : ''}`,
           });
           if (result?.cards) {
             modulos[item.moduleIdx].contenidos[item.contentIdx].contenido = {
@@ -308,7 +309,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
     } finally {
       setLoading(false);
     }
-  }, [tema, rol, duracion, onComplete]);
+  }, [tema, enfoque, rol, duracion, onComplete]);
 
   const cancelledRef = useRef(false);
 
@@ -347,6 +348,23 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
                 placeholder="Ej: Protocolos de seguridad en custodia de valores"
                 className="bg-background"
               />
+            </div>
+
+            {/* Enfoque Instruccional */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Enfoque instruccional <span className="text-muted-foreground font-normal">(opcional)</span>
+              </label>
+              <textarea
+                value={enfoque}
+                onChange={(e) => setEnfoque(e.target.value)}
+                placeholder="Describe cómo quieres que se enseñe: metodología, tono, nivel de profundidad, tipo de ejemplos... Ej: Basado en casos reales. Tono directo, sin tecnicismos. Priorizar ejercicios prácticos."
+                className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none"
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esta instrucción guiará todo el contenido generado: textos, quizzes, flashcards y guiones de video
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

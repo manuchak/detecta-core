@@ -212,7 +212,7 @@ La imagen debe ser:
         userPrompt = `Título del curso: "${data.titulo}"`;
         break;
       case "generate_course_structure":
-        userPrompt = `Tema: "${data.tema}"\nDuración total estimada: ${data.duracion_min} minutos\nNúmero de módulos sugeridos: ${data.num_modulos || 3}`;
+        userPrompt = `Tema: "${data.tema}"\nDuración total estimada: ${data.duracion_min} minutos\nNúmero de módulos sugeridos: ${data.num_modulos || 3}\nEnfoque instruccional: "${data.enfoque || 'General'}"`;
         break;
       case "generate_quiz_questions":
         userPrompt = `Tema: "${data.tema}"\nContexto del módulo: "${data.contexto || ''}"\nNúmero de preguntas: ${data.cantidad || 5}`;
