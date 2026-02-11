@@ -104,6 +104,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
 
   const [step, setStep] = useState(initialDraft.current?.step || 1);
   const [modulos, setModulos] = useState<ModuleOutline[]>(initialDraft.current?.modulos || []);
+  const [aiGenerated, setAiGenerated] = useState(false);
   const navigate = useNavigate();
   const crearCurso = useLMSCrearCursoCompleto();
 
@@ -390,6 +391,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
                     form.setValue("enfoque_instruccional", formValues.enfoque_instruccional);
                   }
                   setModulos(generatedModulos);
+                  setAiGenerated(true);
                   setStep(2);
                 }}
               />
@@ -398,7 +400,9 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
               <StepEstructura 
                 form={form} 
                 modulos={modulos} 
-                onModulosChange={setModulos} 
+                onModulosChange={setModulos}
+                fromAIGeneration={aiGenerated}
+                onDismissAIBanner={() => setAiGenerated(false)}
               />
             )}
             {step === 3 && (
