@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "v2.3.0"; // Fix: getUserByEmail instead of broken listUsers filter
+const VERSION = "v3.0.0"; // Rescue logic for existing users with pending role
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    console.log(`[create-custodian-account] Processing: ${email}`);
+    console.log(`[create-custodian-account] ${VERSION} Processing: ${email}`);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -59,16 +59,82 @@ const handler = async (req: Request): Promise<Response> => {
     // Check existing user by direct email lookup
     const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
     console.log(`[create-custodian-account] Email check: ${existingUser?.user ? 'EXISTS' : 'available'}`);
+
+    // ===== RESCUE PATH: User already exists =====
     if (existingUser?.user) {
-      return new Response(JSON.stringify({ error: "Email ya registrado" }), 
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      const userId = existingUser.user.id;
+
+      // Check current roles
+      const { data: roles } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      const roleList = (roles || []).map((r: { role: string }) => r.role);
+      console.log(`[create-custodian-account] Existing user roles: ${roleList.join(', ')}`);
+
+      // If already custodio, tell them to log in
+      if (roleList.includes('custodio')) {
+        return new Response(JSON.stringify({ 
+          error: "Ya tienes una cuenta activa como custodio. Por favor inicia sesión." 
+        }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+
+      // RESCUE: User exists with pending (or no custodio role) + valid invitation
+      console.log(`[create-custodian-account] RESCUE PATH: upgrading user ${userId} to custodio`);
+
+      // Assign custodio role
+      const { error: roleErr } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: userId, role: 'custodio' });
+
+      if (roleErr) {
+        console.error(`[create-custodian-account] Error assigning custodio role:`, roleErr);
+      }
+
+      // Remove pending role
+      await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', 'pending');
+
+      // Mark invitation as used
+      await supabaseAdmin
+        .from('custodian_invitations')
+        .update({ used_at: new Date().toISOString(), used_by: userId })
+        .eq('token', invitationToken);
+
+      // Update profile with name/phone if missing
+      await supabaseAdmin
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: email,
+          display_name: nombre,
+          phone: telefono || 'Sin telefono'
+        });
+
+      // Update password to what they provided
+      await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+
+      console.log(`[create-custodian-account] ${VERSION} RESCUE complete for ${email}`);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: "Cuenta activada como custodio exitosamente",
+        userId: userId,
+        autoLogin: true,
+        rescued: true,
+        _version: VERSION
+      }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Create user with AUTO-CONFIRM (no email verification needed)
+    // ===== NORMAL PATH: Create new user =====
     const { data: userData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm - invitation token already validates the user
+      email_confirm: true,
       user_metadata: { display_name: nombre, invitation_token: invitationToken, phone: telefono || '' }
     });
 
@@ -93,50 +159,38 @@ const handler = async (req: Request): Promise<Response> => {
       console.error(`[create-custodian-account] Error marking invitation as used:`, updateInvErr);
     }
 
-    // Assign custodio role in user_roles table (security best practice)
+    // Assign custodio role
     const { error: roleErr } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: userData.user.id,
-        role: 'custodio'
-      });
+      .insert({ user_id: userData.user.id, role: 'custodio' });
 
     if (roleErr) {
       console.error(`[create-custodian-account] Error assigning role:`, roleErr);
-      // Don't fail the whole operation - the user is created
     } else {
-      // Clean up 'pending' role if it exists (inserted by email_confirmation trigger)
-      // This prevents duplicate roles and ensures custodio role takes precedence
-      const { error: cleanupErr } = await supabaseAdmin
+      // Clean up pending role if it exists
+      await supabaseAdmin
         .from('user_roles')
         .delete()
         .eq('user_id', userData.user.id)
         .eq('role', 'pending');
-      
-      if (cleanupErr) {
-        console.error(`[create-custodian-account] Error cleaning up pending role:`, cleanupErr);
-      } else {
-        console.log(`[create-custodian-account] Cleaned up pending role for ${email}`);
-      }
+      console.log(`[create-custodian-account] Cleaned up pending role for ${email}`);
     }
 
-    // Create/update profile - use 'phone' column (NOT 'telefono')
+    // Create/update profile
     const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .upsert({
         id: userData.user.id,
         email: email,
         display_name: nombre,
-        phone: telefono || 'Sin telefono'  // Correct column name, with default value
+        phone: telefono || 'Sin telefono'
       });
 
     if (profileErr) {
       console.error(`[create-custodian-account] Error creating profile:`, profileErr);
-    } else {
-      console.log(`[create-custodian-account] Profile created successfully for ${email}`);
     }
 
-    console.log(`[create-custodian-account] ${VERSION} Account ready for ${email} - autoLogin enabled`);
+    console.log(`[create-custodian-account] ${VERSION} Account ready for ${email}`);
     
     return new Response(JSON.stringify({ 
       success: true, 
