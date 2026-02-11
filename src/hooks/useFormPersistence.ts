@@ -284,6 +284,7 @@ export function useFormPersistence<T extends FieldValues>(
 
   const saveToStorage = useCallback((dataToSave: T, forceDraftId?: string) => {
     if (!enabled || !isMeaningful(dataToSave)) {
+      setHasUnsavedChanges(false);
       return;
     }
     
