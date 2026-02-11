@@ -1,199 +1,88 @@
 
 
-## AI-Powered Instructional Design Engine - Feasibility Analysis and Implementation Plan
+## Fase 4: Generacion Completa de Curso con Un Click
 
-### Context and Stakeholder
+### Resumen
 
-The primary user is a **Training Manager** responsible for building the entire instructional design of an organization spanning from security guards (custodios) to administrative staff. She needs to create dozens of courses across multiple categories with limited time and instructional design expertise. The AI must act as her **co-designer**, not just a content generator.
+Agregar un modo "Curso Completo con IA" al inicio del wizard que, a partir de un tema, rol objetivo y duracion, encadena multiples llamadas de IA para generar todo el curso: metadata, estructura con modulos, contenido de texto enriquecido para cada contenido de tipo texto, y preguntas para cada quiz. El usuario ve un indicador de progreso paso a paso y al finalizar puede revisar y editar todo en el wizard normal.
 
-### Current State Assessment
+### Flujo del usuario
 
-The wizard already has AI integration via `lms-ai-assistant` edge function with 6 actions:
+```text
++----------------------------------------------+
+|  Generador de Curso Completo con IA          |
+|                                               |
+|  Tema: [____________________________]        |
+|  Rol:  [Custodio v]  Duracion: [60 min]      |
+|                                               |
+|  [ Generar Curso Completo ]                  |
++----------------------------------------------+
+         |
+         v  (secuencial con progreso)
+  1. Generando metadata...        [====      ]
+  2. Generando estructura...      [======    ]
+  3. Generando contenido 1/4...   [========  ]
+  4. Generando quiz 1/2...        [========= ]
+  5. Listo!                       [==========]
+```
 
-| Capability | Status | Gap |
-|---|---|---|
-| Metadata generation (code, description, category) | Working | Minimal |
-| Course structure generation (modules + contents) | Working | No learning objectives, no assessment strategy |
-| Quiz question generation | Working but **deferred** | Cannot create questions inline in wizard; placeholder says "after course creation" |
-| Flashcard generation | Working but **deferred** | Same deferral issue |
-| Rich text content generation | Working inline | Basic prompt, no instructional context |
-| Cover image generation | Working | OK |
-| Video script/prompt generation | **Missing** | No way to help create video content |
-| Learning objectives | **Missing** | No objectives per module or course |
-| Assessment strategy | **Missing** | No config for passing scores, retries, weighting |
-| Competency mapping | **Missing** | No link between courses and competencies |
-| Full course generation from a single prompt | **Missing** | User must go step by step |
+Al completar: se llenan todos los campos del form y se avanza automaticamente al paso 2 (Estructura) para que el usuario revise.
 
-### Proposed Enhancements (Prioritized by Impact)
+### Cambios tecnicos
 
----
+**1. Nuevo archivo: `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx`**
 
-#### Phase 1: Inline Quiz Editor with AI (HIGH IMPACT)
+Componente con:
+- Input de tema (texto libre)
+- Select de rol objetivo (reutiliza ROLES_DISPONIBLES)
+- Slider/input de duracion estimada (30-180 min)
+- Boton "Generar Curso Completo"
+- Barra de progreso con label del paso actual
+- Logica de orquestacion que encadena llamadas:
+  1. `generateCourseMetadata(tema)` - llena codigo, descripcion, categoria
+  2. `generateCourseStructure(tema, duracion)` - genera modulos
+  3. Para cada contenido tipo `texto_enriquecido`: `generateRichText(titulo, contexto_modulo)`
+  4. Para cada contenido tipo `quiz`: `generateQuizQuestions(titulo_modulo, 5, contexto)`
+  5. Para cada contenido tipo `interactivo`: `generateFlashcards(titulo_modulo, 6, contexto)`
+- Manejo de errores parciales: si falla un paso de contenido, continua con los demas
+- Timeout extendido a 45s por llamada individual (el total puede tomar 2-3 min)
 
-**Problem**: The quiz content type shows a placeholder "Editor completo disponible despues" - the training manager cannot build quizzes during course creation.
+Props: `onComplete: (formValues, modulos) => void` - callback para pasar los datos generados al wizard padre
 
-**Solution**: Embed a full quiz editor directly in the `ContentEditor` and `QuickContentCreator` components for `quiz` type content. AI generates questions based on the module context.
+**2. Modificar: `src/components/lms/admin/LMSCursoWizard.tsx`**
 
-**Changes**:
-- New component `src/components/lms/admin/wizard/InlineQuizEditor.tsx`
-  - Renders generated questions with edit capability
-  - Each question shows: question text, options (with correct/incorrect toggles), explanation
-  - "Generate with AI" button that uses module title + course title as context
-  - Add/remove/reorder questions manually
-  - Store questions in `ContentOutline.contenido.preguntas` array
-- Modify `ContentEditor.tsx`: Replace quiz placeholder (lines 200-211) with `InlineQuizEditor`
-- Modify `QuickContentCreator.tsx`: Replace quiz placeholder (lines 271-282) with `InlineQuizEditor`
-- Modify `StepEstructura.tsx`: Update `ContentOutline` type to include `preguntas` in contenido
+- Pasar `onModulosChange={setModulos}` y un callback `onFullCourseGenerated` a `StepIdentidad`
+- El callback recibe los valores del form y los modulos, los aplica y avanza a step 2
 
-**Feasibility**: HIGH - AI quiz generation already works in the backend. Only UI integration is missing.
+**3. Modificar: `src/components/lms/admin/wizard/StepIdentidad.tsx`**
 
----
+- Recibir nuevas props: `onFullCourseGenerated: (formValues, modulos) => void`
+- Renderizar `AIFullCourseGenerator` como primera seccion (antes del banner actual de IA)
+- Cuando el generador completa, llama `onFullCourseGenerated` con los datos
 
-#### Phase 2: Learning Objectives Generator (HIGH IMPACT)
+**4. Modificar: `src/hooks/lms/useLMSAI.ts`**
 
-**Problem**: No learning objectives defined anywhere. A training manager needs clear objectives per module to validate instructional alignment.
+- Hacer `invokeAI` configurable con timeout custom (para llamadas largas)
+- No se necesita una funcion `generateFullCourse` nueva en el hook; la orquestacion vive en el componente usando las funciones existentes
 
-**Solution**: Add a learning objectives field to each module, with AI auto-generation.
+### Detalles de implementacion del generador
 
-**Changes**:
-- Modify `StepEstructura.tsx`: Add `objetivos` field to `ModuleOutline` type
-- Modify `ModuleOutlineCard.tsx`: Add an expandable "Objectives" section below the module title
-  - Shows 3-5 bullet point objectives
-  - "Generate with AI" button that creates objectives based on module title and contents
-- Add new action `generate_learning_objectives` to `lms-ai-assistant/index.ts`
-  - Input: module title, course title, content titles
-  - Output: array of objective strings using Bloom's taxonomy verbs
-- Modify `useLMSAI.ts`: Add `generateLearningObjectives` function
+El componente `AIFullCourseGenerator` usa multiples instancias de `useLMSAI` internamente? No, ya que `loading` es compartido. En su lugar, el componente manejara su propio estado de progreso y llamara directamente a `supabase.functions.invoke` o reutilizara las funciones del hook con un wrapper que no bloquee el loading global.
 
-**Feasibility**: HIGH - Simple text generation, same pattern as existing actions.
+Solucion: crear un hook local `useFullCourseGeneration` dentro del componente que:
+- Tiene su propio `loading` y `progress` state
+- Reutiliza la misma logica de `invokeAI` pero con timeout de 45s
+- Expone `{ generate, loading, progress, currentStep }` 
 
----
+Estructura del `progress`:
+```text
+{ step: number, totalSteps: number, label: string, percent: number }
+```
 
-#### Phase 3: AI Video Script and Prompt Generator (MEDIUM IMPACT)
-
-**Problem**: Videos are the most common content type but the platform cannot create them. The training manager needs guidance on what the video should contain.
-
-**Solution**: When adding a video content item, offer an AI-generated **video script** and a **prompt for external video tools** (like Synthesia, HeyGen, or Runway).
-
-**Changes**:
-- New component `src/components/lms/admin/wizard/VideoScriptGenerator.tsx`
-  - Generates a structured video script: intro, key points, examples, conclusion
-  - Generates a ready-to-paste prompt for AI video tools (Synthesia, HeyGen, etc.)
-  - Shows estimated duration based on word count
-  - Copy-to-clipboard buttons for both outputs
-- Modify `ContentEditor.tsx`: Add "Generate Script" button next to video URL input
-- Modify `QuickContentCreator.tsx`: Same addition for video type
-- Add new action `generate_video_script` to `lms-ai-assistant/index.ts`
-  - Input: topic, module context, target duration, target audience (role)
-  - Output: `{ script: string, externalPrompt: string, estimatedDuration: number }`
-- Modify `useLMSAI.ts`: Add `generateVideoScript` function
-
-**Feasibility**: HIGH for script generation. Video creation itself requires external tools, but providing the script and prompt is fully feasible.
-
----
-
-#### Phase 4: One-Click Full Course Generation (HIGH IMPACT)
-
-**Problem**: The training manager must navigate 4 wizard steps to create a course. For someone building 20+ courses, this is slow.
-
-**Solution**: Add a "Generate Full Course" mode at the beginning of the wizard that creates everything from a single descriptive prompt.
-
-**Changes**:
-- New component `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx`
-  - A prominent card at the top of Step 1 (Identidad)
-  - Input: course topic (text), target role (select), estimated duration (slider)
-  - On click: chains multiple AI calls sequentially:
-    1. `generate_course_metadata` -> fills code, description, category, level
-    2. `generate_course_structure` -> fills modules with contents
-    3. For each text content: `generate_rich_text`
-    4. For each quiz content: `generate_quiz_questions`
-    5. `generate_image` -> generates cover
-  - Shows progress indicator ("Generating metadata... Generating structure... Generating content 1/5...")
-  - After completion, user can review and edit everything in the normal wizard flow
-- Modify `StepIdentidad.tsx`: Add `AIFullCourseGenerator` above the manual form
-- Add new action `generate_full_course` to `lms-ai-assistant/index.ts` that handles the orchestration in a single call (more efficient than multiple round trips)
-- Modify `useLMSAI.ts`: Add `generateFullCourse` function
-
-**Feasibility**: HIGH - All individual pieces exist. The orchestration is new but straightforward. Timeout may need to be extended to 60s for the edge function.
-
----
-
-#### Phase 5: Assessment Strategy Configuration (MEDIUM IMPACT)
-
-**Problem**: No way to configure passing scores, retry limits, or question randomization during course creation. Currently hardcoded to 80% (`QUIZ_MIN_SCORE`).
-
-**Solution**: Add assessment configuration to Step 3 (Configuracion).
-
-**Changes**:
-- Modify `StepConfiguracion.tsx`: Add new "Assessment" section with:
-  - Passing score slider (60-100%, default 80%)
-  - Max retry attempts (1-unlimited)
-  - Question randomization toggle
-  - Time limit per quiz toggle + minutes input
-  - AI recommendation button: suggests settings based on course level and category
-- Modify wizard schema in `LMSCursoWizard.tsx`: Add assessment fields to `cursoSchema`
-- Store in course metadata (requires DB column or JSON field)
-
-**Feasibility**: MEDIUM - UI is straightforward, but requires schema changes in the database to store these settings per course.
-
----
-
-#### Phase 6: Inline Flashcard Editor (MEDIUM IMPACT)
-
-**Problem**: Same deferral issue as quizzes - flashcards show "Configuracion avanzada disponible despues".
-
-**Solution**: Embed flashcard editor in the `interactivo` content type.
-
-**Changes**:
-- New component `src/components/lms/admin/wizard/InlineFlashcardEditor.tsx`
-  - Grid of front/back card pairs
-  - "Generate with AI" fills cards from module context
-  - Manual add/edit/delete/reorder
-- Modify `ContentEditor.tsx`: Replace interactivo placeholder (lines 213-224) with `InlineFlashcardEditor`
-- Modify `QuickContentCreator.tsx`: Replace interactivo placeholder (lines 284-295)
-
-**Feasibility**: HIGH - Backend already supports flashcard generation.
-
----
-
-### Implementation Order and Effort
-
-| Phase | Feature | Files to Create | Files to Modify | Effort | Priority |
-|---|---|---|---|---|---|
-| 1 | Inline Quiz Editor | 1 | 3 | Medium | P0 |
-| 2 | Learning Objectives | 0 | 4 | Small | P0 |
-| 3 | Video Script Generator | 1 | 4 | Medium | P1 |
-| 4 | Full Course Generation | 1 | 3 | Large | P1 |
-| 5 | Assessment Config | 0 | 3 | Medium | P2 |
-| 6 | Inline Flashcard Editor | 1 | 3 | Medium | P2 |
-
-### Technical Notes
-
-- All AI calls use the existing `lms-ai-assistant` edge function with `LOVABLE_API_KEY` (already configured)
-- Current model: `google/gemini-2.5-flash` for text, `google/gemini-2.5-flash-image-preview` for images
-- For Phase 4 (full course), consider upgrading to `google/gemini-3-flash-preview` for better structured output
-- Current timeout is 25s per call; Phase 4 may need 60s or sequential calls with progress
-- No external API keys needed; everything runs through Lovable AI Gateway
-
-### Files Summary
-
-**New files (4)**:
-- `src/components/lms/admin/wizard/InlineQuizEditor.tsx`
-- `src/components/lms/admin/wizard/VideoScriptGenerator.tsx`
+### Archivos a crear
 - `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx`
-- `src/components/lms/admin/wizard/InlineFlashcardEditor.tsx`
 
-**Modified files (6)**:
-- `supabase/functions/lms-ai-assistant/index.ts` (new actions: learning objectives, video script, full course)
-- `src/hooks/lms/useLMSAI.ts` (new functions for each action)
-- `src/components/lms/admin/wizard/ContentEditor.tsx` (replace quiz/interactivo placeholders)
-- `src/components/lms/admin/wizard/QuickContentCreator.tsx` (replace quiz/interactivo placeholders)
-- `src/components/lms/admin/wizard/ModuleOutlineCard.tsx` (learning objectives section)
-- `src/components/lms/admin/wizard/StepEstructura.tsx` (updated types)
-- `src/components/lms/admin/wizard/StepIdentidad.tsx` (full course generator)
-- `src/components/lms/admin/wizard/StepConfiguracion.tsx` (assessment config)
-
-### Recommended Approach
-
-Given the scope, I recommend implementing **Phases 1-3 first** (Inline Quiz, Learning Objectives, Video Script) as they deliver the most value for the training manager immediately. Phase 4 (Full Course Generation) is the "wow" feature but depends on the foundation from Phases 1-3.
-
+### Archivos a modificar  
+- `src/components/lms/admin/LMSCursoWizard.tsx` (pasar callback a StepIdentidad)
+- `src/components/lms/admin/wizard/StepIdentidad.tsx` (renderizar generador, recibir callback)
+- `src/hooks/lms/useLMSAI.ts` (parametro timeout opcional en invokeAI)
