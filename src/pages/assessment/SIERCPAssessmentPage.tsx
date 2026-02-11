@@ -28,7 +28,7 @@ const moduleConfig = {
 
 export default function SIERCPAssessmentPage() {
   const { token } = useParams<{ token: string }>();
-  const { validation, isLoading, updateStatus, linkEvaluation } = useSIERCPToken(token);
+  const { validation, isLoading, updateStatus } = useSIERCPToken(token);
   
   const [consentGiven, setConsentGiven] = useState(false);
   const [testStarted, setTestStarted] = useState(false);
@@ -139,78 +139,61 @@ export default function SIERCPAssessmentPage() {
   }, [responses, getQuestionsForModule]);
 
   const handleComplete = async () => {
-    console.log('[SIERCP-Assessment] 🚀 Completando evaluación...');
+    console.log('[SIERCP-Assessment] 🚀 Completando evaluación via RPC...');
     console.log('[SIERCP-Assessment] 📊 Total respuestas capturadas:', responses.length);
     
     try {
-      // Usar cálculo LOCAL con las respuestas del componente
       const results = calculateLocalResults();
       console.log('[SIERCP-Assessment] ✅ Resultados calculados:', results);
       
-      // Determinar resultado semáforo
       const getResultadoSemaforo = (score: number): string => {
         if (score >= 88) return 'verde';
         if (score >= 75) return 'amarillo';
         if (score >= 60) return 'naranja';
         return 'rojo';
       };
-      
-      const evaluacionData = {
-        candidato_id: validation?.invitation?.candidato_custodio_id || null,
-        evaluador_id: null, // Sistema automático
-        score_integridad: results.integridad,
-        score_psicopatia: results.psicopatia,
-        score_violencia: results.violencia,
-        score_agresividad: results.agresividad,
-        score_afrontamiento: results.afrontamiento,
-        score_veracidad: results.veracidad,
-        score_entrevista: results.entrevista,
-        score_global: results.globalScore,
-        interpretacion_clinica: `Evaluación SIERCP completada. Score global: ${results.globalScore}/100`,
-        resultado_semaforo: getResultadoSemaforo(results.globalScore),
-        estado: 'completado'
-      };
-      
-      console.log('[SIERCP-Assessment] 💾 Insertando en evaluaciones_psicometricas:', evaluacionData);
 
-      // Insertar en evaluaciones_psicometricas
-      const { data: evaluacion, error: insertError } = await supabase
-        .from('evaluaciones_psicometricas')
-        .insert(evaluacionData)
-        .select()
-        .single();
+      // Single atomic RPC call - handles insert + invitation update
+      const { data: evaluacionId, error: rpcError } = await supabase
+        .rpc('complete_siercp_assessment', {
+          p_token: token,
+          p_score_integridad: results.integridad,
+          p_score_psicopatia: results.psicopatia,
+          p_score_violencia: results.violencia,
+          p_score_agresividad: results.agresividad,
+          p_score_afrontamiento: results.afrontamiento,
+          p_score_veracidad: results.veracidad,
+          p_score_entrevista: results.entrevista,
+          p_score_global: results.globalScore,
+          p_resultado_semaforo: getResultadoSemaforo(results.globalScore),
+          p_interpretacion: `Evaluación SIERCP completada. Score global: ${results.globalScore}/100`
+        });
 
-      if (insertError) {
-        console.error('[SIERCP-Assessment] ❌ Error insertando evaluación:', insertError);
+      if (rpcError) {
+        console.error('[SIERCP-Assessment] ❌ Error RPC:', rpcError);
         toast({
-          title: 'Error al guardar',
-          description: `Error: ${insertError.message}`,
+          title: 'Error al guardar evaluación',
+          description: rpcError.message || 'No se pudo guardar la evaluación. Intenta de nuevo.',
           variant: 'destructive'
         });
-      } else if (evaluacion) {
-        console.log('[SIERCP-Assessment] ✅ Evaluación guardada con ID:', evaluacion.id);
-        // Vincular la evaluación a la invitación
-        await linkEvaluation(evaluacion.id);
-        console.log('[SIERCP-Assessment] 🔗 Evaluación vinculada a invitación');
-        
-        toast({
-          title: '✅ Evaluación guardada',
-          description: 'Tus resultados han sido registrados correctamente.'
-        });
+        return; // DO NOT mark as completed if save failed
       }
-      
+
+      console.log('[SIERCP-Assessment] ✅ Evaluación guardada con ID:', evaluacionId);
       setIsCompleted(true);
-      await updateStatus('completed');
+      toast({
+        title: '✅ Evaluación guardada',
+        description: 'Tus resultados han sido registrados correctamente.'
+      });
       
     } catch (error) {
       console.error('[SIERCP-Assessment] ❌ Error general:', error);
       toast({
         title: 'Error',
-        description: 'Hubo un problema, pero tu evaluación fue registrada.',
+        description: 'Hubo un problema al guardar tu evaluación. Por favor intenta de nuevo.',
         variant: 'destructive'
       });
-      setIsCompleted(true);
-      await updateStatus('completed');
+      // DO NOT setIsCompleted(true) - let user retry
     }
   };
 
