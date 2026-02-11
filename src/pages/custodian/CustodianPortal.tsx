@@ -17,31 +17,18 @@ const CustodianPortal = () => {
     );
   }
 
-  // Redirect if not authenticated
+  // ProtectedRoute already handles unauthenticated users,
+  // but keep as safety net for direct access
   if (!user) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  // Check if user has custodio role or is admin
+  // If role doesn't match, redirect silently (no flash of "Acceso Denegado")
   if (!['custodio', 'admin', 'owner'].includes(userRole)) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="bg-destructive/10 text-destructive rounded-lg p-4 mb-4">
-            <h2 className="text-lg font-semibold mb-2">Acceso Denegado</h2>
-            <p className="text-sm">
-              No tienes permisos para acceder al portal de custodios. 
-              Contacta al administrador si crees que esto es un error.
-            </p>
-          </div>
-          <Navigate to="/" replace />
-        </div>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
-  // Wrap with OnboardingGuard to ensure custodian has completed document registration
-  // Admin/Owner bypass the guard (they don't need documents)
+  // Wrap with OnboardingGuard for custodians
   if (userRole === 'custodio') {
     return (
       <OnboardingGuard>
