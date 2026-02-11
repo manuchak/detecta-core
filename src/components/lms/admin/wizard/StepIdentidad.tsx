@@ -153,6 +153,29 @@ export function StepIdentidad({ form, onFullCourseGenerated }: StepIdentidadProp
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="enfoque_instruccional"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Enfoque instruccional <span className="text-muted-foreground font-normal">(opcional)</span>
+              </FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Describe cómo quieres que se enseñe este contenido: metodología, tono, nivel de profundidad, tipo de ejemplos... Ej: Basado en casos reales. Tono directo, sin tecnicismos."
+                  className="min-h-[72px] resize-none"
+                  {...field}
+                />
+              </FormControl>
+              <p className="text-xs text-muted-foreground">
+                Esta instrucción se usa como contexto en todas las generaciones de IA del curso
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       <div className="apple-card p-6">
