@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Play, FileText, AlignLeft, HelpCircle, Sparkles, X, Check, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaUploader } from "./MediaUploader";
+import { VideoScriptGenerator } from "./VideoScriptGenerator";
+import { InlineQuizEditor, type QuizQuestionOutline } from "./InlineQuizEditor";
+import { InlineFlashcardEditor, type FlashcardOutline } from "./InlineFlashcardEditor";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { toast } from "sonner";
 import type { ContentOutline } from "./StepEstructura";
@@ -35,6 +38,8 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
   const [videoUrl, setVideoUrl] = useState("");
   const [documentoUrl, setDocumentoUrl] = useState("");
   const [textoHtml, setTextoHtml] = useState("");
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestionOutline[]>([]);
+  const [flashcards, setFlashcards] = useState<FlashcardOutline[]>([]);
   
   const { generateRichText, loading: aiLoading } = useLMSAI();
 
@@ -82,11 +87,14 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
         break;
       case 'quiz':
         content.contenido = {
-          preguntas_count: 0,
+          preguntas: quizQuestions,
+          preguntas_count: quizQuestions.length,
         };
         break;
       case 'interactivo':
-        content.contenido = {};
+        content.contenido = {
+          flashcards,
+        };
         break;
     }
 
@@ -101,6 +109,8 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
     setVideoUrl("");
     setDocumentoUrl("");
     setTextoHtml("");
+    setQuizQuestions([]);
+    setFlashcards([]);
   };
 
   const handleGenerateText = async () => {
@@ -217,14 +227,22 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
       {/* Content-specific fields */}
       <div className="space-y-2">
         {selectedType === 'video' && (
-          <>
-            <Label className="text-xs">Video</Label>
-            <MediaUploader
-              type="video"
-              value={videoUrl}
-              onChange={setVideoUrl}
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Video</Label>
+              <MediaUploader
+                type="video"
+                value={videoUrl}
+                onChange={setVideoUrl}
+              />
+            </div>
+            <VideoScriptGenerator
+              tema={titulo || moduloTitulo || ""}
+              moduloTitulo={moduloTitulo}
+              cursoTitulo={cursoTitulo}
+              duracionMin={duracion}
             />
-          </>
+          </div>
         )}
 
         {selectedType === 'documento' && (
@@ -269,29 +287,21 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
         )}
 
         {selectedType === 'quiz' && (
-          <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg text-center border border-purple-200/50">
-            <HelpCircle className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-            <p className="text-sm font-medium text-purple-700 dark:text-purple-300">Editor de Quiz</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">
-              Las preguntas se configuran después de agregar el contenido
-            </p>
-            <Badge variant="outline" className="text-purple-600 border-purple-300">
-              Se habilitará al guardar el curso
-            </Badge>
-          </div>
+          <InlineQuizEditor
+            questions={quizQuestions}
+            onChange={setQuizQuestions}
+            moduloTitulo={moduloTitulo}
+            cursoTitulo={cursoTitulo}
+          />
         )}
 
         {selectedType === 'interactivo' && (
-          <div className="p-4 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg text-center border border-orange-200/50">
-            <Sparkles className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-            <p className="text-sm font-medium text-orange-700 dark:text-orange-300">Contenido Interactivo</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-3">
-              Configura flashcards, videos interactivos y más después de crear el curso
-            </p>
-            <Badge variant="outline" className="text-orange-600 border-orange-300">
-              Configuración avanzada disponible después
-            </Badge>
-          </div>
+          <InlineFlashcardEditor
+            cards={flashcards}
+            onChange={setFlashcards}
+            moduloTitulo={moduloTitulo}
+            cursoTitulo={cursoTitulo}
+          />
         )}
       </div>
 

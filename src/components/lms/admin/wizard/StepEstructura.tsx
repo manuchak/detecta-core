@@ -11,6 +11,7 @@ export interface ModuleOutline {
   titulo: string;
   descripcion?: string;
   orden: number;
+  objetivos?: string[];
   contenidos: ContentOutline[];
 }
 
@@ -26,6 +27,8 @@ export interface ContentOutline {
     html?: string;
     preguntas_count?: number;
     preguntas_ids?: string[];
+    preguntas?: import("./InlineQuizEditor").QuizQuestionOutline[];
+    flashcards?: import("./InlineFlashcardEditor").FlashcardOutline[];
     thumbnail_url?: string;
   };
 }

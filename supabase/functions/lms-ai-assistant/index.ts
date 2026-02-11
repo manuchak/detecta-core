@@ -2,15 +2,25 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type AIAction =
+  | "generate_course_metadata"
+  | "generate_course_structure"
+  | "generate_quiz_questions"
+  | "generate_flashcards"
+  | "generate_rich_text"
+  | "generate_image"
+  | "generate_learning_objectives"
+  | "generate_video_script";
+
 interface AIRequest {
-  action: "generate_course_metadata" | "generate_course_structure" | "generate_quiz_questions" | "generate_flashcards" | "generate_rich_text" | "generate_image";
+  action: AIAction;
   data: Record<string, unknown>;
 }
 
-const SYSTEM_PROMPTS = {
+const SYSTEM_PROMPTS: Record<string, string> = {
   generate_course_metadata: `Eres un experto en diseño instruccional para empresas de seguridad y custodia vehicular.
 Dado un título de curso, genera:
 1. Un código corto (formato: XXX-YYY-NNN, ej: SEG-CUST-001)
@@ -72,7 +82,40 @@ Genera contenido HTML bien estructurado con encabezados, párrafos, listas y én
 El contenido debe ser claro, profesional y orientado al aprendizaje.
 
 Responde SOLO en formato JSON válido:
-{"html": "<h2>...</h2><p>...</p>..."}`
+{"html": "<h2>...</h2><p>...</p>..."}`,
+
+  generate_learning_objectives: `Eres un experto en diseño instruccional con conocimiento profundo de la taxonomía de Bloom.
+Genera objetivos de aprendizaje claros, medibles y alineados con el contenido del módulo.
+Cada objetivo debe comenzar con un verbo de acción de la taxonomía de Bloom (Conocer, Comprender, Aplicar, Analizar, Evaluar, Crear).
+Los objetivos deben ser específicos al contexto de empresas de seguridad y custodia vehicular.
+
+Responde SOLO en formato JSON válido:
+{
+  "objetivos": [
+    "Al finalizar este módulo, el participante será capaz de..."
+  ]
+}`,
+
+  generate_video_script: `Eres un experto en producción de contenido educativo audiovisual para empresas de seguridad.
+Genera un guión de video estructurado y profesional con:
+1. Introducción (gancho + presentación del tema)
+2. Desarrollo (puntos clave con ejemplos prácticos)
+3. Cierre (resumen + llamado a la acción)
+
+También genera un prompt optimizado para herramientas de IA de generación de video (como Synthesia, HeyGen, Runway) que pueda usarse para crear el video.
+
+Responde SOLO en formato JSON válido:
+{
+  "script": {
+    "introduccion": "...",
+    "puntos_clave": ["...", "..."],
+    "ejemplos": ["...", "..."],
+    "cierre": "..."
+  },
+  "prompt_externo": "...",
+  "duracion_estimada_min": N,
+  "notas_produccion": "..."
+}`,
 };
 
 serve(async (req) => {
@@ -180,6 +223,12 @@ La imagen debe ser:
       case "generate_rich_text":
         userPrompt = `Tema: "${data.tema}"\nContexto del módulo: "${data.contexto || ''}"\nExtensión aproximada: ${data.longitud || 'media'} (corta: 1 párrafo, media: 2-3 párrafos, larga: 4+ párrafos)`;
         break;
+      case "generate_learning_objectives":
+        userPrompt = `Módulo: "${data.modulo_titulo}"\nCurso: "${data.curso_titulo || ''}"\nContenidos del módulo: ${JSON.stringify(data.contenidos || [])}\nNúmero de objetivos: ${data.cantidad || 4}`;
+        break;
+      case "generate_video_script":
+        userPrompt = `Tema del video: "${data.tema}"\nContexto del módulo: "${data.modulo_titulo || ''}"\nCurso: "${data.curso_titulo || ''}"\nDuración objetivo: ${data.duracion_min || 5} minutos\nAudiencia objetivo: ${data.audiencia || 'Personal operativo de seguridad y custodia vehicular'}`;
+        break;
     }
 
     const controller = new AbortController();
@@ -192,7 +241,7 @@ La imagen debe ser:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: SYSTEM_PROMPTS[action] },
           { role: "user", content: userPrompt },
