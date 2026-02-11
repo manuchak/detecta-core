@@ -1,104 +1,100 @@
 
 
-## Fix: Auto-restore del wizard al volver de otra pestana/sitio
+## Feature: Campo de Enfoque Instruccional en el Generador de Cursos
 
-### Causa raiz
+### Pitch para Head de Producto
 
-El wizard tiene su propio estado independiente (`step`, `modulos`, `form`) que siempre inicia en valores vacios. La persistencia guarda correctamente los datos, pero el wizard nunca los lee al montar. El unico camino de restauracion es hacer clic en el banner, pero el usuario ya ve el paso 1 vacio y asume que perdio todo.
+**Problema:** El generador de cursos con IA produce contenido generico porque solo recibe el tema. Un head de capacitacion no puede indicar si el curso debe ser practico vs teorico, formal vs coloquial, basado en casos vs basado en conceptos, ni a que nivel de escolaridad apuntar.
 
-```text
-FLUJO ACTUAL (roto):
-1. User en Step 2 con modulos y datos
-2. Navega a Synthesia (copia prompt)
-3. Regresa → componente se re-monta
-4. useState(1), useState([]), defaultFormValues → ve Step 1 vacio
-5. Banner de restauracion aparece arriba (pero user ya entro en panico)
-6. Si hace clic "Restaurar" → funciona, pero UX es terrible
+**Solucion:** Agregar un campo opcional "Enfoque instruccional" donde el responsable de capacitacion describe en lenguaje natural como quiere que se ensenbe el contenido. Esta instruccion se propaga a TODAS las generaciones de IA (textos, quizzes, flashcards, video scripts), logrando coherencia pedagogica de principio a fin.
+
+**Valor de negocio:**
+- Diferenciador vs Articulate/iSpring: esas plataformas no tienen un campo de contexto pedagogico que permee todo el curso
+- Reduce ciclos de revision: el contenido sale mas alineado desde la primera generacion
+- Empodera al head de capacitacion como disenador instruccional, no solo como "usuario que llena formularios"
+
+### Cambios tecnicos
+
+**1. AIFullCourseGenerator.tsx** - Agregar campo de texto
+
+Agregar un `Textarea` opcional debajo del tema con placeholder orientador:
+
+```
+Enfoque instruccional (opcional)
+"Describe como quieres que se ensene este contenido: metodologia,
+tono, nivel de profundidad, tipo de ejemplos, etc."
 ```
 
-### Solucion
+Estado nuevo: `const [enfoque, setEnfoque] = useState("")`
 
-Cambiar la inicializacion del wizard para que lea del draft guardado ANTES de renderizar. Asi, cuando el usuario regresa, ve exactamente donde estaba.
+**2. AIFullCourseGenerator.tsx** - Propagar el enfoque a TODAS las llamadas de IA
 
-```text
-FLUJO CORREGIDO:
-1. User en Step 2 con modulos y datos
-2. Navega a Synthesia
-3. Regresa → componente se re-monta
-4. useFormPersistence carga draft → step=2, modulos=[...], form=filled
-5. Usuario ve Step 2 exactamente como lo dejo
-6. No necesita interaccion manual para restaurar
+Actualmente el campo `contexto` se construye asi:
+```
+contexto: `Modulo: ${moduloTitulo}. Curso: ${tema}. Rol: ${rol}`
 ```
 
-### Cambios en LMSCursoWizard.tsx
-
-**1. Leer el draft en la inicializacion del estado**
-
-En lugar de `useState(1)` y `useState([])`, inicializar desde localStorage directamente (lectura sincrona) para evitar el flash de "step 1 vacio":
-
-```typescript
-// Lectura sincrona del draft al montar (antes del primer render)
-function getInitialDraftData(): WizardDraftData | null {
-  try {
-    const stored = localStorage.getItem('lms_curso_wizard');
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    if (parsed.version !== 2) return null;
-    // Check TTL
-    const savedAt = new Date(parsed.savedAt).getTime();
-    if (Date.now() - savedAt > 24 * 60 * 60 * 1000) return null;
-    return parsed.data as WizardDraftData;
-  } catch { return null; }
-}
-
-// Dentro del componente:
-const initialDraft = useRef(getInitialDraftData());
-
-const [step, setStep] = useState(initialDraft.current?.step || 1);
-const [modulos, setModulos] = useState<ModuleOutline[]>(initialDraft.current?.modulos || []);
-
-const form = useForm<CursoSchemaType>({
-  resolver: zodResolver(cursoSchema),
-  defaultValues: initialDraft.current?.formValues || defaultFormValues,
-});
+Se enriqueceria con:
+```
+contexto: `Modulo: ${moduloTitulo}. Curso: ${tema}. Rol: ${rol}. Enfoque instruccional: ${enfoque}`
 ```
 
-**2. Tambien sincronizar cuando `acceptRestore` se ejecuta desde el banner**
+Esto aplica a las llamadas de:
+- `generate_course_structure` (nuevo param `enfoque`)
+- `generate_rich_text` (via contexto)
+- `generate_quiz_questions` (via contexto)
+- `generate_flashcards` (via contexto)
 
-La funcion `handleRestoreDraft` ya existe y funciona correctamente para el caso del banner. No necesita cambios.
+**3. Edge function lms-ai-assistant/index.ts** - Incluir enfoque en los prompts
 
-**3. Auto-restore silencioso cuando URL tiene draft param que coincide**
-
-Modificar el `handleRestoreDraft` para que tambien se ejecute automaticamente cuando `useFormPersistence` detecta un draft con URL match (sin mostrar banner). Para esto, agregar un `useEffect` que observe cuando `draftData` cambia con datos validos y el wizard aun esta en estado inicial:
-
-```typescript
-// Auto-sync cuando persistence carga datos (URL match case)
-const hasAutoRestored = useRef(false);
-useEffect(() => {
-  if (hasAutoRestored.current) return;
-  if (draftData.formValues?.titulo && draftData.step > 1) {
-    form.reset(draftData.formValues);
-    setStep(draftData.step);
-    setModulos(draftData.modulos || []);
-    hasAutoRestored.current = true;
-  }
-}, [draftData]);
+Para `generate_course_structure`, agregar el enfoque al user prompt:
+```
+Tema: "${data.tema}"
+Duracion total: ${data.duracion_min} min
+Enfoque instruccional: "${data.enfoque || 'General'}"
 ```
 
-### Archivo a modificar
+Para las demas acciones, el enfoque ya llega via el campo `contexto` que ya se incluye en los prompts.
+
+**4. StepIdentidad.tsx** - Guardar el enfoque en el formulario
+
+Agregar un campo `enfoque_instruccional` al schema del formulario para que se persista junto con los demas datos del curso y pueda usarse en futuras re-generaciones o ediciones.
+
+**5. Persistencia** - El campo se guarda automaticamente
+
+Como el enfoque se agrega al form o al state del generador, el sistema de persistencia existente (useFormPersistence con flush-on-unmount) lo captura sin cambios adicionales.
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/lms/admin/LMSCursoWizard.tsx` | Inicializacion sincrona desde localStorage + auto-sync desde persistence data |
+| `src/components/lms/admin/wizard/AIFullCourseGenerator.tsx` | Agregar textarea de enfoque + propagarlo a todas las llamadas |
+| `supabase/functions/lms-ai-assistant/index.ts` | Incluir enfoque en el user prompt de `generate_course_structure` |
+| `src/components/lms/admin/wizard/StepIdentidad.tsx` | Agregar campo persistente de enfoque instruccional |
 
-### Resultado esperado
+### UI propuesta
 
-- El usuario crea un curso, va al paso 2, copia un prompt de video
-- Navega a Synthesia en otra pestana o en la misma
-- Al regresar al wizard, ve EXACTAMENTE el paso 2 con todos sus datos
-- No necesita hacer clic en ningun banner ni tomar ninguna accion
-- El indicador "Guardado hace X" confirma que sus datos estan seguros
+El campo se ubica entre el "Tema del curso" y la fila de "Rol objetivo / Duracion":
+
+```text
++--------------------------------------------------+
+| Curso Completo con IA                            |
+|                                                  |
+| Tema del curso *                                 |
+| [Protocolos de seguridad en custodia de valores] |
+|                                                  |
+| Enfoque instruccional (opcional)                 |
+| [Basado en casos reales. Tono directo, sin      |
+|  tecnicismos. Priorizar ejercicios practicos...] |
+|                                                  |
+| Rol objetivo          | Duracion: 60 min         |
+| [Custodio       v]    | ====O============        |
+|                                                  |
+| [ Generar Curso Completo ]                       |
++--------------------------------------------------+
+```
 
 ### Riesgo
 
-Bajo. Solo cambia la inicializacion del estado del wizard. La logica de persistencia subyacente no se modifica.
+Bajo. Es un campo opcional que enriquece el contexto de las llamadas existentes. No cambia la arquitectura del pipeline de generacion.
+
