@@ -18,7 +18,9 @@ import {
   Shield, 
   AlertTriangle,
   UserPlus,
-  Lock
+  Lock,
+  LogOut,
+  User
 } from 'lucide-react';
 
 // Zod schema for input validation
@@ -59,6 +61,9 @@ export const CustodianSignup = () => {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const submittingRef = useRef(false);
+  const [activeSession, setActiveSession] = useState<{ email: string } | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   
   const { toast } = useToast();
   const { 
@@ -69,6 +74,18 @@ export const CustodianSignup = () => {
     prefillData,
     useInvitation 
   } = useInvitationToken(token);
+
+  // Check for active session
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setActiveSession({ email: session.user.email || '' });
+      }
+      setCheckingSession(false);
+    };
+    checkSession();
+  }, []);
 
   // Pre-fill form with invitation data (email is locked from invitation)
   useEffect(() => {
@@ -218,6 +235,71 @@ export const CustodianSignup = () => {
       setLoading(false);
     }
   };
+
+  const handleLogoutAndContinue = async () => {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    setActiveSession(null);
+    setLoggingOut(false);
+  };
+
+  // Checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Active session detected
+  if (activeSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+              <User className="h-6 w-6 text-amber-500" />
+            </div>
+            <CardTitle className="mt-4">Sesión Activa Detectada</CardTitle>
+            <CardDescription>
+              Ya tienes una sesión iniciada como <strong>{activeSession.email}</strong>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Para registrar una nueva cuenta de custodio, primero debes cerrar tu sesión actual.
+                Si ya eres custodio, puedes ir directamente a tu portal.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              onClick={handleLogoutAndContinue} 
+              className="w-full" 
+              variant="default"
+              disabled={loggingOut}
+            >
+              {loggingOut ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="mr-2 h-4 w-4" />
+              )}
+              Cerrar sesión y continuar registro
+            </Button>
+            <Button 
+              onClick={() => navigate('/custodian')} 
+              className="w-full" 
+              variant="outline"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Ir a mi portal de custodio
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // No token provided
   if (!token) {
