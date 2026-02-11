@@ -1,56 +1,77 @@
 
 
-## Fix: Falso Positivo "Email ya registrado" en Registro de Custodios
+## Rediseno del Editor de Cursos LMS: De Formulario Plano a Editor Profesional con Tabs
 
-### Problema diagnosticado
+### Diagnostico del Estado Actual
 
-El custodio **Ignacio Villegas Sanchez** (nashcrash230@gmail.com) no puede registrarse. La edge function `create-custodian-account` retorna 400.
+El editor actual (`LMSCursoForm.tsx`) tiene varios problemas criticos de UX:
 
-**Causa raiz**: En la linea 60-64, se usa `listUsers` con un parametro `filter` que NO funciona en la GoTrue Admin API de Supabase:
+1. **Formulario plano y largo**: 3 Cards apilados (Informacion General, Configuracion, Estado) que requieren scroll extenso
+2. **Flujo fragmentado**: Para editar modulos/contenidos hay que salir al detalle (`LMSCursoDetalle`) -- son dos paginas separadas que deberian ser una sola experiencia
+3. **Dialogs modales para todo**: Crear/editar modulos y contenidos abre dialogs que bloquean el contexto
+4. **Sin reutilizacion del wizard**: El wizard de creacion tiene mejor UX pero el editor no comparte nada de esa logica
+5. **Cero feedback visual**: No hay preview, no hay indicadores de completitud, no hay asistencia AI
 
-```typescript
-const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
-  filter: `email.eq.${email}`,  // <-- NO es syntax valida de GoTrue
-  page: 1,
-  perPage: 1
-});
+### Solucion: Editor Unificado con Tabs
+
+Transformar `LMSCursoEditar` en un editor profesional tipo Teachable/Thinkific con navegacion por tabs:
+
+```text
++--------------------------------------------------+
+|  <- Supply Chain (LOG-SUPP-004)    [Guardar] [v]  |
+|  Borrador | Intermedio | 60 min                   |
++--------------------------------------------------+
+|  [General]  [Estructura]  [Config]  [Publicacion] |
++--------------------------------------------------+
+|                                                    |
+|   Tab activo renderiza su contenido                |
+|                                                    |
++--------------------------------------------------+
 ```
 
-El filtro es ignorado silenciosamente, y `listUsers` retorna el primer usuario de la base de datos (cualquier usuario). Como hay 51 usuarios, `existingUsers.users.length > 0` siempre es `true`, y TODOS los registros nuevos son rechazados con "Email ya registrado".
+### Tabs Propuestos
 
-### Solucion
+**Tab 1 - General**: Codigo, titulo, descripcion, imagen de portada, categoria, nivel -- con AI assist para descripcion (reutilizando `AIGenerateButton`)
 
-Reemplazar `listUsers` con el metodo correcto: `getUserByEmail`, que es un lookup directo por email.
+**Tab 2 - Estructura**: Vista completa de modulos y contenidos con edicion inline expandible (sin modals). Drag-and-drop para reordenar. Boton "+ Modulo" y "+ Contenido" que expanden formularios inline debajo del ultimo elemento
 
-```typescript
-// ANTES (roto):
-const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
-  filter: `email.eq.${email}`,
-  page: 1,
-  perPage: 1
-});
-if (existingUsers?.users?.length > 0) { ... }
+**Tab 3 - Configuracion**: Duracion, plazo, roles objetivo, obligatorio -- agrupados en secciones compactas con switches
 
-// DESPUES (correcto):
-const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-if (existingUser?.user) { ... }
-```
+**Tab 4 - Publicacion**: Estado (activo/publicado), preview card de como se vera el curso para los usuarios, y boton de publicar con checklist de prerequisitos
 
-Tambien agregar un log para facilitar debugging futuro:
+### Cambios Clave de UX
 
-```typescript
-console.log(`[create-custodian-account] Email check: ${existingUser?.user ? 'EXISTS' : 'available'}`);
-```
+1. **Header sticky con contexto**: Titulo + codigo + badges de estado siempre visibles
+2. **Edicion inline de estructura**: Los modulos se expanden in-place para editar titulo/descripcion, y cada contenido se edita con un panel lateral o inline accordion -- eliminando los dialogs modales
+3. **AI en el editor**: Reutilizar los botones de generacion AI del wizard (descripcion, quiz, texto)
+4. **Auto-save**: Reutilizar `useFormPersistence` con indicador visual de guardado
+5. **Indicadores de completitud**: Cada tab muestra un checkmark o warning si falta informacion requerida
 
-### Archivo a modificar
+### Archivos a Crear/Modificar
 
-| Archivo | Cambio |
-|---------|--------|
-| `supabase/functions/create-custodian-account/index.ts` | Reemplazar `listUsers` con `getUserByEmail` (lineas 59-68) y actualizar version a v2.3.0 |
+| Archivo | Accion | Descripcion |
+|---------|--------|-------------|
+| `src/components/lms/admin/LMSCursoEditor.tsx` | **Crear** | Componente principal del editor con tabs (reemplaza LMSCursoForm) |
+| `src/components/lms/admin/editor/TabGeneral.tsx` | **Crear** | Tab de informacion general con AI assist |
+| `src/components/lms/admin/editor/TabEstructura.tsx` | **Crear** | Tab de estructura con edicion inline de modulos/contenidos |
+| `src/components/lms/admin/editor/TabConfiguracion.tsx` | **Crear** | Tab de configuracion (roles, plazos, obligatoriedad) |
+| `src/components/lms/admin/editor/TabPublicacion.tsx` | **Crear** | Tab de publicacion con preview y checklist |
+| `src/components/lms/admin/editor/ModuloInlineEditor.tsx` | **Crear** | Editor inline de modulo (titulo, descripcion, contenidos) |
+| `src/components/lms/admin/editor/ContenidoInlineEditor.tsx` | **Crear** | Editor inline de contenido dentro de cada modulo |
+| `src/components/lms/admin/editor/EditorHeader.tsx` | **Crear** | Header sticky con titulo, badges y accion guardar |
+| `src/pages/LMS/LMSAdminCursoEditar.tsx` | **Modificar** | Usar LMSCursoEditor en lugar de LMSCursoForm |
+| `src/components/lms/admin/LMSCursoForm.tsx` | **Deprecar** | Reemplazado por LMSCursoEditor |
 
-### Resultado
+### Detalle Tecnico
 
-- Custodios con email nuevo podran registrarse correctamente
-- Custodios con email duplicado seguiran recibiendo error "Email ya registrado" (correcto)
-- Se requiere redesplegar la edge function despues del cambio
+- **Tabs**: Usar `@radix-ui/react-tabs` (ya instalado) con `TabsList` horizontal
+- **Inline editing de estructura**: Cada `ModuloInlineEditor` es un `Collapsible` que al expandirse muestra el formulario de edicion + lista de contenidos. Los contenidos usan el mismo patron accordion
+- **Persistencia**: `useFormPersistence` nivel `standard` con key `lms_curso_edit_{cursoId}`
+- **Mutaciones**: Reutilizar hooks existentes (`useLMSActualizarCurso`, `useLMSCrearModulo`, etc.) pero llamarlos desde los editores inline
+- **AI**: Reutilizar `useLMSAI` y componentes `AIGenerateButton`/`AISuggestionCard` del wizard
+- **Drag-and-drop**: Reutilizar `@dnd-kit` (ya instalado) para reordenar modulos y contenidos
+
+### Resultado Esperado
+
+El usuario puede gestionar todo un curso (metadata, estructura, contenidos, publicacion) desde una sola pagina con tabs, sin navegar a otras rutas ni abrir modales. La experiencia es comparable a editores modernos como Teachable, Thinkific o Notion.
 
