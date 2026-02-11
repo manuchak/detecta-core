@@ -33,6 +33,15 @@ interface MatrizPrecio {
   porcentaje_utilidad: number;
   fecha_vigencia: string;
   activo: boolean;
+  tipo_servicio?: string;
+  tipo_viaje?: string;
+  clave?: string;
+  costo_custodio?: number;
+  costo_maximo_casetas?: number;
+  pago_custodio_sin_arma?: number;
+  notas?: string;
+  es_ruta_reparto?: boolean;
+  puntos_intermedios?: string;
 }
 
 type ActivityFilter = 'all' | '60' | '90' | '120' | '120+';
