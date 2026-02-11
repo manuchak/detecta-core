@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, BookOpen, CheckCircle2, Play } from "lucide-react";
 import type { CursoDisponible, LMSCategoria } from "@/types/lms";
 import { LMS_CATEGORIAS } from "@/types/lms";
 
@@ -22,16 +22,23 @@ interface CategoryStats {
 }
 
 export function CategoryProgressSummary({ cursos, selectedCategory, onSelectCategory }: CategoryProgressSummaryProps) {
+  const inscritos = cursos.filter(c => c.inscripcion_id);
+
+  const globalMetrics = useMemo(() => {
+    const total = inscritos.length;
+    const completados = inscritos.filter(c => c.inscripcion_estado === 'completado').length;
+    const enProgreso = inscritos.filter(c => c.inscripcion_estado === 'en_progreso').length;
+    return { total, completados, enProgreso };
+  }, [inscritos]);
+
   const stats = useMemo(() => {
     const grouped = new Map<string, { total: number; completados: number }>();
 
-    // Initialize all categories
     LMS_CATEGORIAS.forEach(cat => {
       grouped.set(cat.value, { total: 0, completados: 0 });
     });
 
-    // Only count enrolled courses
-    cursos.filter(c => c.inscripcion_id).forEach(curso => {
+    inscritos.forEach(curso => {
       const cat = curso.categoria || 'sin_categoria';
       if (!grouped.has(cat)) {
         grouped.set(cat, { total: 0, completados: 0 });
@@ -43,7 +50,7 @@ export function CategoryProgressSummary({ cursos, selectedCategory, onSelectCate
 
     const result: CategoryStats[] = [];
     grouped.forEach((val, key) => {
-      if (val.total === 0) return; // skip empty categories
+      if (val.total === 0) return;
       const catInfo = LMS_CATEGORIAS.find(c => c.value === key);
       result.push({
         key,
@@ -55,7 +62,7 @@ export function CategoryProgressSummary({ cursos, selectedCategory, onSelectCate
     });
 
     return result;
-  }, [cursos]);
+  }, [inscritos]);
 
   if (stats.length === 0) return null;
 
@@ -67,9 +74,34 @@ export function CategoryProgressSummary({ cursos, selectedCategory, onSelectCate
           Progreso por Categoría
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
+        {/* Métricas globales */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-lg font-bold text-foreground leading-none">{globalMetrics.total}</p>
+              <p className="text-xs text-muted-foreground">Inscritos</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+            <Play className="h-4 w-4 text-yellow-600" />
+            <div>
+              <p className="text-lg font-bold text-foreground leading-none">{globalMetrics.enProgreso}</p>
+              <p className="text-xs text-muted-foreground">En Progreso</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <div>
+              <p className="text-lg font-bold text-foreground leading-none">{globalMetrics.completados}</p>
+              <p className="text-xs text-muted-foreground">Completados</p>
+            </div>
+          </div>
+        </div>
+
         {/* Chips de filtro */}
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-2">
           <Badge
             variant={selectedCategory === null ? "default" : "outline"}
             className="cursor-pointer"
