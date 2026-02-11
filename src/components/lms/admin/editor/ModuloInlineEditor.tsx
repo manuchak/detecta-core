@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -7,20 +10,19 @@ import { ChevronDown, ChevronRight, GripVertical, Plus, Pencil, Trash2, Check, X
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ContenidoInlineEditor } from "./ContenidoInlineEditor";
 import { useLMSActualizarModulo, useLMSEliminarModulo } from "@/hooks/lms/useLMSAdminModulos";
-import { useLMSCrearContenido } from "@/hooks/lms/useLMSAdminContenidos";
+import { useLMSCrearContenido, useLMSReordenarContenidos } from "@/hooks/lms/useLMSAdminContenidos";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { LMSModulo, LMSContenido, TipoContenido, LMS_TIPOS_CONTENIDO } from "@/types/lms";
+import type { LMSModulo, LMSContenido, TipoContenido } from "@/types/lms";
 
 interface ModuloInlineEditorProps {
   modulo: LMSModulo & { contenidos: LMSContenido[] };
   cursoId: string;
   cursoTitulo?: string;
-  dragHandleProps?: any;
   defaultOpen?: boolean;
   editingContenidoId?: string;
   onExpandChange?: (isOpen: boolean) => void;
@@ -36,7 +38,7 @@ const TIPOS_CONTENIDO: { value: TipoContenido; label: string }[] = [
   { value: 'embed', label: 'Embed externo' },
 ];
 
-export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandleProps, defaultOpen, editingContenidoId, onExpandChange, onEditingContenidoChange }: ModuloInlineEditorProps) {
+export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, editingContenidoId, onExpandChange, onEditingContenidoChange }: ModuloInlineEditorProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [titulo, setTitulo] = useState(modulo.titulo);
@@ -48,8 +50,33 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandlePro
   const actualizarModulo = useLMSActualizarModulo();
   const eliminarModulo = useLMSEliminarModulo();
   const crearContenido = useLMSCrearContenido();
+  const reordenarContenidos = useLMSReordenarContenidos();
+
+  // Sortable for this module
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: modulo.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  // DnD sensors for contents
+  const contentSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const contenidosActivos = (modulo.contenidos || []).filter(c => c.activo);
+
+  const handleContentDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = contenidosActivos.findIndex(c => c.id === active.id);
+    const newIndex = contenidosActivos.findIndex(c => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(contenidosActivos, oldIndex, newIndex);
+    reordenarContenidos.mutate({
+      moduloId: modulo.id,
+      cursoId,
+      contenidos: reordered.map((c, idx) => ({ id: c.id, orden: idx + 1 })),
+    });
+  };
 
   const handleSaveModulo = () => {
     if (!titulo.trim()) return;
@@ -82,146 +109,152 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandlePro
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={(open) => { setIsOpen(open); onExpandChange?.(open); }}>
-      <div className="rounded-lg border bg-card overflow-hidden">
-        {/* Module header */}
-        <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors">
-          <span {...dragHandleProps} className="cursor-grab text-muted-foreground">
-            <GripVertical className="w-4 h-4" />
-          </span>
+    <div ref={setNodeRef} style={style}>
+      <Collapsible open={isOpen} onOpenChange={(open) => { setIsOpen(open); onExpandChange?.(open); }}>
+        <div className="rounded-lg border bg-card overflow-hidden">
+          {/* Module header */}
+          <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors">
+            <span {...attributes} {...listeners} className="cursor-grab text-muted-foreground">
+              <GripVertical className="w-4 h-4" />
+            </span>
 
-          <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left">
-            {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
-            
-            {isEditing ? (
-              <div className="flex flex-col gap-2 flex-1" onClick={e => e.stopPropagation()}>
-                <Input
-                  value={titulo}
-                  onChange={e => setTitulo(e.target.value)}
-                  className="h-8 text-sm font-medium"
-                  autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') handleSaveModulo(); if (e.key === 'Escape') { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); } }}
-                />
-                <Textarea
-                  value={descripcion}
-                  onChange={e => setDescripcion(e.target.value)}
-                  placeholder="Descripción del módulo (opcional)"
-                  className="min-h-[60px] text-sm"
-                />
-                <div className="flex gap-1">
-                  <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleSaveModulo}>
-                    <Check className="w-3 h-3 mr-1" /> Guardar
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); }}>
-                    <X className="w-3 h-3 mr-1" /> Cancelar
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex-1 min-w-0">
-                <span className="font-medium text-sm truncate block">{modulo.titulo}</span>
-                {modulo.descripcion && (
-                  <span className="text-xs text-muted-foreground truncate block">{modulo.descripcion}</span>
-                )}
-              </div>
-            )}
-          </CollapsibleTrigger>
-
-          {!isEditing && (
-            <div className="flex items-center gap-1 shrink-0">
-              <Badge variant="secondary" className="text-[10px] h-5">
-                {contenidosActivos.length} contenido{contenidosActivos.length !== 1 ? 's' : ''}
-              </Badge>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setIsEditing(true); setIsOpen(true); }}>
-                <Pencil className="w-3.5 h-3.5" />
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={e => e.stopPropagation()}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Eliminar módulo?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Se eliminará "{modulo.titulo}" y todos sus contenidos. Si hay progreso registrado, se desactivará.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteModulo}>Eliminar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          )}
-        </div>
-
-        {/* Collapsible contents */}
-        <CollapsibleContent>
-          <div className="border-t px-3 pb-3">
-            {/* Content list */}
-            <div className="mt-2 space-y-0.5">
-              {contenidosActivos.length === 0 && (
-                <p className="text-xs text-muted-foreground py-3 text-center">Sin contenidos aún</p>
-              )}
-              {contenidosActivos.map(contenido => (
-                <ContenidoInlineEditor
-                  key={contenido.id}
-                  contenido={contenido}
-                  cursoId={cursoId}
-                  cursoTitulo={cursoTitulo}
-                  moduloTitulo={modulo.titulo}
-                  defaultEditing={contenido.id === editingContenidoId}
-                  onEditingChange={(editing) => onEditingContenidoChange?.(editing ? contenido.id : null)}
-                />
-              ))}
-            </div>
-
-            {/* Add content inline */}
-            {showAddContent ? (
-              <div className="mt-3 p-3 rounded-md border border-dashed space-y-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left">
+              {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+              
+              {isEditing ? (
+                <div className="flex flex-col gap-2 flex-1" onClick={e => e.stopPropagation()}>
                   <Input
-                    placeholder="Título del contenido"
-                    value={newContentTitle}
-                    onChange={e => setNewContentTitle(e.target.value)}
-                    className="h-8 text-sm"
+                    value={titulo}
+                    onChange={e => setTitulo(e.target.value)}
+                    className="h-8 text-sm font-medium"
                     autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddContent(); if (e.key === 'Escape') setShowAddContent(false); }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveModulo(); if (e.key === 'Escape') { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); } }}
                   />
-                  <Select value={newContentType} onValueChange={v => setNewContentType(v as TipoContenido)}>
-                    <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_CONTENIDO.map(t => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Textarea
+                    value={descripcion}
+                    onChange={e => setDescripcion(e.target.value)}
+                    placeholder="Descripción del módulo (opcional)"
+                    className="min-h-[60px] text-sm"
+                  />
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleSaveModulo}>
+                      <Check className="w-3 h-3 mr-1" /> Guardar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); }}>
+                      <X className="w-3 h-3 mr-1" /> Cancelar
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button size="sm" className="h-7 text-xs" onClick={handleAddContent} disabled={!newContentTitle.trim() || crearContenido.isPending}>
-                    <Check className="w-3 h-3 mr-1" /> Agregar
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddContent(false)}>
-                    Cancelar
-                  </Button>
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm truncate block">{modulo.titulo}</span>
+                  {modulo.descripcion && (
+                    <span className="text-xs text-muted-foreground truncate block">{modulo.descripcion}</span>
+                  )}
                 </div>
+              )}
+            </CollapsibleTrigger>
+
+            {!isEditing && (
+              <div className="flex items-center gap-1 shrink-0">
+                <Badge variant="secondary" className="text-[10px] h-5">
+                  {contenidosActivos.length} contenido{contenidosActivos.length !== 1 ? 's' : ''}
+                </Badge>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setIsEditing(true); setIsOpen(true); }}>
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={e => e.stopPropagation()}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar módulo?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminará "{modulo.titulo}" y todos sus contenidos. Si hay progreso registrado, se desactivará.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteModulo}>Eliminar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 w-full h-8 text-xs text-muted-foreground hover:text-foreground border border-dashed"
-                onClick={() => setShowAddContent(true)}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" /> Agregar contenido
-              </Button>
             )}
           </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+
+          {/* Collapsible contents */}
+          <CollapsibleContent>
+            <div className="border-t px-3 pb-3">
+              {/* Content list with DnD */}
+              <div className="mt-2 space-y-0.5">
+                {contenidosActivos.length === 0 && (
+                  <p className="text-xs text-muted-foreground py-3 text-center">Sin contenidos aún</p>
+                )}
+                <DndContext sensors={contentSensors} collisionDetection={closestCenter} onDragEnd={handleContentDragEnd}>
+                  <SortableContext items={contenidosActivos.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                    {contenidosActivos.map(contenido => (
+                      <ContenidoInlineEditor
+                        key={contenido.id}
+                        contenido={contenido}
+                        cursoId={cursoId}
+                        cursoTitulo={cursoTitulo}
+                        moduloTitulo={modulo.titulo}
+                        defaultEditing={contenido.id === editingContenidoId}
+                        onEditingChange={(editing) => onEditingContenidoChange?.(editing ? contenido.id : null)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              {/* Add content inline */}
+              {showAddContent ? (
+                <div className="mt-3 p-3 rounded-md border border-dashed space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Título del contenido"
+                      value={newContentTitle}
+                      onChange={e => setNewContentTitle(e.target.value)}
+                      className="h-8 text-sm"
+                      autoFocus
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddContent(); if (e.key === 'Escape') setShowAddContent(false); }}
+                    />
+                    <Select value={newContentType} onValueChange={v => setNewContentType(v as TipoContenido)}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TIPOS_CONTENIDO.map(t => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button size="sm" className="h-7 text-xs" onClick={handleAddContent} disabled={!newContentTitle.trim() || crearContenido.isPending}>
+                      <Check className="w-3 h-3 mr-1" /> Agregar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowAddContent(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 w-full h-8 text-xs text-muted-foreground hover:text-foreground border border-dashed"
+                  onClick={() => setShowAddContent(true)}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Agregar contenido
+                </Button>
+              )}
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    </div>
   );
 }
