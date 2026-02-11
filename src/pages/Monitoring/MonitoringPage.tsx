@@ -19,6 +19,9 @@ import {
   ChecklistAlertPanel,
 } from "@/components/monitoring/checklist";
 import type { ServicioConChecklist, FiltroChecklist } from "@/types/checklist";
+import AdoptionDashboard from "@/components/monitoring/adoption/AdoptionDashboard";
+import AdoptionTable from "@/components/monitoring/adoption/AdoptionTable";
+import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigital";
 
 const MonitoringPage = () => {
   const [searchParams] = useSearchParams();
@@ -29,14 +32,13 @@ const MonitoringPage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl === 'checklists' ? 'checklists' : 'posicionamiento'
+    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : 'posicionamiento'
   );
   
   // Sync tab with URL param
   useEffect(() => {
-    if (tabFromUrl === 'checklists') {
-      setActiveTab('checklists');
-    }
+    if (tabFromUrl === 'checklists') setActiveTab('checklists');
+    if (tabFromUrl === 'adopcion') setActiveTab('adopcion');
   }, [tabFromUrl]);
   
   // Checklist state
@@ -44,6 +46,7 @@ const MonitoringPage = () => {
   const [servicioChecklistSeleccionado, setServicioChecklistSeleccionado] = 
     useState<ServicioConChecklist | null>(null);
   const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
+  const [filtroAdopcion, setFiltroAdopcion] = useState<FiltroAdopcion>("todos");
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
   const { 
@@ -51,6 +54,11 @@ const MonitoringPage = () => {
     isLoading: isLoadingChecklists,
     refetch: refetchChecklists 
   } = useChecklistMonitoreo(timeWindow);
+  const {
+    data: adopcionData,
+    isLoading: isLoadingAdopcion,
+    refetch: refetchAdopcion,
+  } = useAdopcionDigital();
   
   const servicios = data?.servicios || [];
   const resumen = data?.resumen || {
@@ -70,6 +78,9 @@ const MonitoringPage = () => {
     total: 0,
   };
 
+  const custodiasAdopcion = adopcionData?.custodios || [];
+  const resumenAdopcion = adopcionData?.resumen || { total: 0, conCuenta: 0, conRol: 0, sinCuenta: 0 };
+
   // Hook de alertas en tiempo real
   useServiciosTurnoRealtime(servicios);
 
@@ -81,6 +92,7 @@ const MonitoringPage = () => {
   const handleRefresh = () => {
     refetch();
     refetchChecklists();
+    refetchAdopcion();
   };
 
   const handleVerChecklistDetalle = (servicio: ServicioConChecklist) => {
@@ -123,6 +135,7 @@ const MonitoringPage = () => {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="adopcion">Adopción Digital</TabsTrigger>
         </TabsList>
 
         {/* Tab: Posicionamiento */}
@@ -200,6 +213,21 @@ const MonitoringPage = () => {
               />
             </div>
           </div>
+        </TabsContent>
+
+        {/* Tab: Adopción Digital */}
+        <TabsContent value="adopcion" className="space-y-6 mt-0">
+          <AdoptionDashboard
+            resumen={resumenAdopcion}
+            isLoading={isLoadingAdopcion}
+            filtroActivo={filtroAdopcion}
+            onFiltroChange={setFiltroAdopcion}
+          />
+          <AdoptionTable
+            custodios={custodiasAdopcion}
+            isLoading={isLoadingAdopcion}
+            filtro={filtroAdopcion}
+          />
         </TabsContent>
       </Tabs>
 
