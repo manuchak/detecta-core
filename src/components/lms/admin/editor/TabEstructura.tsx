@@ -8,10 +8,11 @@ import type { LMSModulo, LMSContenido } from "@/types/lms";
 
 interface TabEstructuraProps {
   cursoId: string;
+  cursoTitulo?: string;
   modulos: (LMSModulo & { contenidos: LMSContenido[] })[];
 }
 
-export function TabEstructura({ cursoId, modulos }: TabEstructuraProps) {
+export function TabEstructura({ cursoId, cursoTitulo, modulos }: TabEstructuraProps) {
   const [showAddModulo, setShowAddModulo] = useState(false);
   const [newModuloTitle, setNewModuloTitle] = useState('');
   const crearModulo = useLMSCrearModulo();
@@ -51,6 +52,7 @@ export function TabEstructura({ cursoId, modulos }: TabEstructuraProps) {
           key={modulo.id}
           modulo={modulo}
           cursoId={cursoId}
+          cursoTitulo={cursoTitulo}
         />
       ))}
 
