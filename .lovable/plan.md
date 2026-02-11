@@ -1,54 +1,79 @@
 
 
-## Persistencia del Guion de Video Generado por IA
+## Diagnostico y Correccion: Custodio Bloqueado con Rol "pending"
 
-### Problema
+### Causa Raiz
 
-`VideoScriptGenerator` almacena el guion generado en `useState` local. Al navegar a HeyGen y regresar, el componente se remonta, el estado se pierde, y el usuario debe regenerar el guion gastando creditos de IA innecesariamente.
+El custodio **Sergio Montano Gonzalez** (xmen_wolworian@hotmail.com) se registro a traves de la ruta generica `/auth/register` en lugar del enlace de invitacion `/auth/registro-custodio?token=...`. Esto causo:
 
-### Solucion
+1. El trigger `handle_email_confirmation` le asigno el rol `pending` (comportamiento normal para registro generico)
+2. La edge function `create-custodian-account` nunca se ejecuto, por lo que el rol `custodio` nunca fue asignado
+3. La invitacion quedo sin usar (`used_at: null`, `used_by: null`)
+4. Hoy se genero una segunda invitacion, pero al intentar usarla, la edge function rechaza con "Email ya registrado"
 
-Guardar el guion generado dentro del campo JSON `contenido.contenido` del video en la base de datos, junto con la URL del video. Cuando el componente se monte, cargar el guion desde los datos existentes.
+**Evidencia en BD:**
+- `user_roles`: Solo tiene `pending` (sin `custodio`)
+- `custodian_invitations`: Dos invitaciones, ambas con `used_at: null`
 
-### Cambios
+### Problemas Estructurales Identificados
+
+| # | Problema | Impacto |
+|---|---------|---------|
+| 1 | La ruta `/auth/register` no bloquea emails con invitaciones pendientes | Custodios pueden registrarse por la ruta equivocada |
+| 2 | `getTargetRouteForRole('pending')` redirige a `/home` | Usuarios pending ven "Acceso Restringido" en todas las rutas admin |
+| 3 | No existe mecanismo de recuperacion cuando un custodio se registra mal | Admin debe intervenir manualmente en la BD |
+| 4 | Edge function no tiene ruta de "rescate" para usuarios existentes con invitacion valida | Segunda invitacion falla con "Email ya registrado" sin solucion |
+
+### Plan de Correccion (4 cambios)
+
+**Cambio 1: Correccion inmediata en BD (datos del usuario afectado)**
+
+Ejecutar manualmente en Cloud View > Run SQL (Live):
+
+```text
+-- Asignar rol custodio al usuario existente
+INSERT INTO user_roles (user_id, role) 
+VALUES ('b3b71e9a-3496-44fa-bf17-1334e29c8d8a', 'custodio')
+ON CONFLICT (user_id, role) DO NOTHING;
+
+-- Eliminar rol pending
+DELETE FROM user_roles 
+WHERE user_id = 'b3b71e9a-3496-44fa-bf17-1334e29c8d8a' AND role = 'pending';
+
+-- Marcar invitacion como usada
+UPDATE custodian_invitations 
+SET used_at = NOW(), used_by = 'b3b71e9a-3496-44fa-bf17-1334e29c8d8a'
+WHERE id = 'fc8644cc-7b3c-40b1-ab23-d11954dce25f';
+```
+
+**Cambio 2: Edge function - Ruta de rescate para usuarios existentes**
+
+Modificar `create-custodian-account/index.ts` para que cuando detecte "Email ya registrado", en lugar de solo rechazar, verifique si el usuario tiene una invitacion valida y le asigne el rol `custodio`:
+
+- Si el usuario existe Y tiene rol `pending` Y la invitacion es valida: asignar `custodio`, borrar `pending`, marcar invitacion como usada, retornar `autoLogin: true`
+- Si el usuario existe Y ya tiene rol `custodio`: retornar error amigable "Ya tienes una cuenta activa, inicia sesion"
+
+**Cambio 3: Redireccion inteligente para rol `pending`**
+
+Modificar `getTargetRouteForRole` en `src/constants/accessControl.ts`:
+- `pending` debe redirigir a `/auth/pending-activation` en lugar de `/home`
+- Esto previene que usuarios pending vean "Acceso Restringido" y les da un mensaje claro
+
+**Cambio 4: Bloquear registro generico para emails con invitacion**
+
+Modificar la pagina de registro generico (`SignUp`) para que al intentar registrarse con un email que tiene una invitacion pendiente, muestre un mensaje: "Este email tiene una invitacion de custodio pendiente. Usa el enlace de invitacion que te enviaron."
+
+### Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `VideoScriptGenerator.tsx` | Agregar prop `initialData` para cargar guion existente y callback `onGenerated` para notificar al padre cuando se genera un guion |
-| `ContenidoExpandedEditor.tsx` | Pasar el guion existente desde `contenido.contenido` al `VideoScriptGenerator` e incluir el guion en `buildContenidoData()` para que se persista al guardar |
+| `supabase/functions/create-custodian-account/index.ts` | Agregar logica de rescate para usuarios existentes con invitacion valida |
+| `src/constants/accessControl.ts` | `pending` redirige a `/auth/pending-activation` |
+| `src/pages/Auth/SignUp.tsx` | Validar email contra invitaciones pendientes antes de permitir registro |
 
-### Detalle Tecnico
+### Resultado Esperado
 
-**VideoScriptGenerator.tsx**:
-- Nueva prop `initialData` con la estructura `{ script, prompt_externo, notas_produccion, duracion_estimada_min }`
-- Nueva prop `onGenerated(data)` callback que se invoca cuando la IA genera un guion
-- En `useEffect` inicial, si `initialData` existe, poblar el estado local sin llamar a la IA
-- En `handleGenerate`, ademas de setear el estado local, llamar `onGenerated(data)` para que el padre lo capture
-
-**ContenidoExpandedEditor.tsx**:
-- Nuevo estado `videoScript` inicializado desde `contenido.contenido.guion_generado`
-- Pasar `initialData={videoScript}` y `onGenerated={(data) => setVideoScript(data)}` al `VideoScriptGenerator`
-- En `buildContenidoData()` para tipo `video`, incluir `guion_generado: videoScript` en el JSON
-
-**Estructura del JSON guardado en BD**:
-```text
-contenido.contenido = {
-  url: "https://youtube.com/...",
-  guion_generado: {
-    script: { introduccion, puntos_clave, ejemplos, cierre },
-    prompt_externo: "...",
-    notas_produccion: "...",
-    duracion_estimada_min: 7
-  }
-}
-```
-
-### Flujo Resultante
-
-1. Usuario abre editor de video y genera guion con IA
-2. El guion se guarda en estado local Y se marca como parte de los datos del contenido
-3. Usuario hace clic en "Guardar" -- el guion se persiste en BD dentro del JSON del video
-4. Usuario copia el prompt, va a HeyGen, regresa
-5. El editor se remonta, carga `contenido.contenido.guion_generado`, y el `VideoScriptGenerator` muestra el guion sin necesidad de regenerar
-6. El boton "Regenerar" sigue disponible si el usuario quiere un nuevo guion
-
+1. Sergio Montano puede acceder al portal custodio inmediatamente (despues del fix manual en BD)
+2. Futuros custodios que se registren por la ruta equivocada pueden recuperarse usando su invitacion
+3. Usuarios con rol `pending` ven una pagina informativa en lugar de "Acceso Restringido"
+4. El registro generico advierte a usuarios con invitaciones pendientes
