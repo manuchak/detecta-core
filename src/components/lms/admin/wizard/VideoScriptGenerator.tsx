@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
-import { Sparkles, Loader2, Copy, Check, Film, Clock, FileText } from "lucide-react";
+import { Sparkles, Loader2, Copy, Check, Film, Clock, FileText, Bot, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 interface VideoScriptGeneratorProps {
@@ -81,8 +81,8 @@ export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracion
         <div className="flex items-center gap-2">
           <Film className="w-4 h-4 text-red-500" />
           <span className="text-sm font-medium">Guión Generado</span>
-          <Badge variant="secondary" className="text-[10px] gap-1">
-            <Clock className="w-2.5 h-2.5" /> ~{duracionEstimada} min
+          <Badge variant="secondary" className="text-xs gap-1">
+            <Clock className="w-3 h-3" /> ~{duracionEstimada} min
           </Badge>
         </div>
         <div className="flex gap-1">
@@ -104,12 +104,12 @@ export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracion
       <div className="space-y-2">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium">📝 Guión completo</Label>
+            <Label className="text-xs font-medium flex items-center gap-1"><FileText className="w-3 h-3" /> Guión completo</Label>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-5 text-[10px] gap-1"
+              className="h-5 text-xs gap-1"
               onClick={() => copyToClipboard(fullScript, "script")}
             >
               {copiedField === "script" ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
@@ -126,12 +126,12 @@ export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracion
 
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium">🤖 Prompt para IA de Video</Label>
+            <Label className="text-xs font-medium flex items-center gap-1"><Bot className="w-3 h-3" /> Prompt para IA de Video</Label>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-5 text-[10px] gap-1"
+              className="h-5 text-xs gap-1"
               onClick={() => copyToClipboard(promptExterno, "prompt")}
             >
               {copiedField === "prompt" ? <Check className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
@@ -144,14 +144,14 @@ export function VideoScriptGenerator({ tema, moduloTitulo, cursoTitulo, duracion
             rows={3}
             className="text-xs resize-none bg-background"
           />
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Usa este prompt en Synthesia, HeyGen, Runway u otra herramienta de generación de video
           </p>
         </div>
 
         {notasProduccion && (
           <div className="p-2 bg-background rounded border">
-            <Label className="text-xs font-medium">📋 Notas de producción</Label>
+            <Label className="text-xs font-medium flex items-center gap-1"><ClipboardList className="w-3 h-3" /> Notas de producción</Label>
             <p className="text-xs text-muted-foreground mt-1">{notasProduccion}</p>
           </div>
         )}

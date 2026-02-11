@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { LMS_CATEGORIAS, LMS_NIVELES } from "@/types/lms";
 import { Clock, Calendar, BookOpen, BarChart3, Users, AlertTriangle, ClipboardCheck, Sparkles, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { RoleSelectCard } from "./RoleSelectCard";
 import { Button } from "@/components/ui/button";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 
 interface StepConfiguracionProps {
   form: UseFormReturn<any>;
+  quizCount?: number;
 }
 
 const ROLES_DISPONIBLES = [
@@ -38,7 +40,7 @@ const ROLES_DISPONIBLES = [
   { value: 'monitor', label: 'Monitores', description: 'Supervisión en campo' },
 ];
 
-export function StepConfiguracion({ form }: StepConfiguracionProps) {
+export function StepConfiguracion({ form, quizCount = 0 }: StepConfiguracionProps) {
   const rolesSeleccionados = form.watch('roles_objetivo') || [];
   const esObligatorio = form.watch('es_obligatorio');
   const quizPorcentaje = form.watch('quiz_porcentaje_aprobacion') ?? 80;
@@ -203,6 +205,11 @@ export function StepConfiguracion({ form }: StepConfiguracionProps) {
         </div>
         <p className="text-sm text-muted-foreground mb-5">
           Configura los parámetros de evaluación que se aplicarán a todos los quizzes del curso
+          {quizCount > 0 ? (
+            <Badge variant="secondary" className="ml-2 text-xs">{quizCount} quiz{quizCount !== 1 ? 'zes' : ''}</Badge>
+          ) : (
+            <span className="ml-1 text-amber-600">(sin quizzes aún)</span>
+          )}
         </p>
 
         <div className="space-y-6">
@@ -219,7 +226,7 @@ export function StepConfiguracion({ form }: StepConfiguracionProps) {
               max={100}
               step={5}
             />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>50% (Flexible)</span>
               <span>100% (Estricto)</span>
             </div>
@@ -240,7 +247,7 @@ export function StepConfiguracion({ form }: StepConfiguracionProps) {
               max={10}
               step={1}
             />
-            <div className="flex justify-between text-[11px] text-muted-foreground">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span>0 = Ilimitados</span>
               <span>10 máximo</span>
             </div>

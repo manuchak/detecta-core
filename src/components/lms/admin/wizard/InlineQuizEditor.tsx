@@ -174,10 +174,10 @@ export function InlineQuizEditor({ questions, onChange, moduloTitulo, cursoTitul
                   {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
                   <span className="text-xs font-medium text-muted-foreground w-5">{idx + 1}.</span>
                   <span className="text-sm flex-1 truncate">{q.question || "Pregunta sin título"}</span>
-                  <Badge variant="outline" className="text-[10px] shrink-0">
+                  <Badge variant="outline" className="text-xs shrink-0">
                     {q.type === "single" ? "Única" : "Múltiple"}
                   </Badge>
-                  <span className="text-[10px] text-muted-foreground shrink-0">{correctCount} correcta{correctCount !== 1 ? "s" : ""}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{correctCount} correcta{correctCount !== 1 ? "s" : ""}</span>
                   <Button
                     type="button"
                     variant="ghost"
