@@ -1,43 +1,56 @@
 
 
-## Fix: Loop Infinito de "Guardando..." en Formularios Vacios
+## Fix: Falso Positivo "Email ya registrado" en Registro de Custodios
 
-### Problema
+### Problema diagnosticado
 
-Cuando el formulario del wizard esta vacio (sin titulo ni modulos), el indicador "Guardando..." se queda en loop infinito. La causa:
+El custodio **Ignacio Villegas Sanchez** (nashcrash230@gmail.com) no puede registrarse. La edge function `create-custodian-account` retorna 400.
 
-1. Los efectos de sincronizacion (`step`, `modulos`, `formValues`) disparan `scheduleSave`
-2. `scheduleSave` pone `hasUnsavedChanges = true` inmediatamente
-3. Cuando el debounce expira, `saveToStorage` verifica `isMeaningful(data)` y retorna `false` (datos vacios)
-4. `saveToStorage` sale sin ejecutar `setHasUnsavedChanges(false)`
-5. El indicador muestra "Guardando..." indefinidamente
+**Causa raiz**: En la linea 60-64, se usa `listUsers` con un parametro `filter` que NO funciona en la GoTrue Admin API de Supabase:
 
-### Sobre el curso generado
+```typescript
+const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
+  filter: `email.eq.${email}`,  // <-- NO es syntax valida de GoTrue
+  page: 1,
+  perPage: 1
+});
+```
 
-El curso que se genero con IA fue victima de la race condition que se corrigio en el commit anterior. El borrador en localStorage ya perdio los modulos antes del fix. La solucion es limpiar el borrador corrupto y regenerar el curso -- el fix ya aplicado evitara que vuelva a ocurrir.
+El filtro es ignorado silenciosamente, y `listUsers` retorna el primer usuario de la base de datos (cualquier usuario). Como hay 51 usuarios, `existingUsers.users.length > 0` siempre es `true`, y TODOS los registros nuevos son rechazados con "Email ya registrado".
 
 ### Solucion
 
-En `saveToStorage`, cuando `isMeaningful` retorna `false`, resetear el flag `hasUnsavedChanges` antes de salir:
+Reemplazar `listUsers` con el metodo correcto: `getUserByEmail`, que es un lookup directo por email.
 
 ```typescript
-const saveToStorage = useCallback((dataToSave: T, forceDraftId?: string) => {
-    if (!enabled || !isMeaningful(dataToSave)) {
-      setHasUnsavedChanges(false); // <-- NUEVO: reset flag para datos no significativos
-      return;
-    }
-    // ... resto igual
+// ANTES (roto):
+const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({
+  filter: `email.eq.${email}`,
+  page: 1,
+  perPage: 1
+});
+if (existingUsers?.users?.length > 0) { ... }
+
+// DESPUES (correcto):
+const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+if (existingUser?.user) { ... }
+```
+
+Tambien agregar un log para facilitar debugging futuro:
+
+```typescript
+console.log(`[create-custodian-account] Email check: ${existingUser?.user ? 'EXISTS' : 'available'}`);
 ```
 
 ### Archivo a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useFormPersistence.ts` | Agregar `setHasUnsavedChanges(false)` en el early return de `saveToStorage` cuando `isMeaningful` es false (1 linea) |
+| `supabase/functions/create-custodian-account/index.ts` | Reemplazar `listUsers` con `getUserByEmail` (lineas 59-68) y actualizar version a v2.3.0 |
 
 ### Resultado
 
-- Formularios vacios: el indicador no muestra "Guardando..." -- muestra nada (correcto, no hay nada que guardar)
-- Formularios con datos: el flujo sigue funcionando igual (save exitoso pone `hasUnsavedChanges=false`)
-- Para el curso perdido: limpiar el borrador y regenerar con IA, esta vez los modulos se persistiran correctamente gracias al fix de `dataRef` sincrono
+- Custodios con email nuevo podran registrarse correctamente
+- Custodios con email duplicado seguiran recibiendo error "Email ya registrado" (correcto)
+- Se requiere redesplegar la edge function despues del cambio
 
