@@ -166,6 +166,8 @@ export type NombreComercialEditRole = typeof NOMBRE_COMERCIAL_EDIT_ROLES[number]
  */
 export function getTargetRouteForRole(role: string): string {
   switch (role) {
+    case 'pending':
+      return '/auth/pending-activation';
     case 'custodio':
       return '/custodian';
     case 'instalador':

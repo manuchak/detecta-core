@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, Eye, EyeOff } from "lucide-react";
+import { CheckCircle, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SignUp = () => {
   const [name, setName] = useState("");
@@ -19,6 +20,7 @@ export const SignUp = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [invitationWarning, setInvitationWarning] = useState(false);
   const { toast } = useToast();
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -83,6 +85,21 @@ export const SignUp = () => {
     setLoading(true);
     
     try {
+      // Check if email has a pending custodian invitation
+      const { data: pendingInvitation } = await supabase
+        .from('custodian_invitations')
+        .select('id')
+        .eq('email', email.toLowerCase().trim())
+        .is('used_at', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingInvitation) {
+        setInvitationWarning(true);
+        setLoading(false);
+        return;
+      }
+
       await signUp(email, password, name);
       setRegistrationSuccess(true);
     } catch (error) {
@@ -92,6 +109,47 @@ export const SignUp = () => {
       setLoading(false);
     }
   };
+
+  if (invitationWarning) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <Card>
+            <CardHeader className="text-center">
+              <AlertTriangle className="mx-auto h-12 w-12 text-amber-500" />
+              <CardTitle className="text-2xl">Invitación Pendiente</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  El email <strong>{email}</strong> tiene una invitación de custodio pendiente. 
+                  Por favor utiliza el enlace de invitación que te enviaron por correo para completar tu registro correctamente.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-3">
+                <Button 
+                  variant="outline"
+                  onClick={() => { setInvitationWarning(false); setEmail(''); }}
+                  className="w-full"
+                >
+                  Usar otro email
+                </Button>
+                
+                <Button 
+                  onClick={() => navigate("/auth/login")}
+                  className="w-full"
+                >
+                  Ir al inicio de sesión
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (registrationSuccess) {
     return (
