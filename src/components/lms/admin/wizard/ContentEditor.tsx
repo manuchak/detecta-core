@@ -41,9 +41,11 @@ interface ContentEditorProps {
   contenido: ContentOutline;
   onUpdate: (updates: Partial<ContentOutline>) => void;
   onClose: () => void;
+  moduloTitulo?: string;
+  cursoTitulo?: string;
 }
 
-export function ContentEditor({ contenido, onUpdate, onClose }: ContentEditorProps) {
+export function ContentEditor({ contenido, onUpdate, onClose, moduloTitulo, cursoTitulo }: ContentEditorProps) {
   const [titulo, setTitulo] = useState(contenido.titulo);
   const [duracion, setDuracion] = useState(contenido.duracion_min);
   const [url, setUrl] = useState(contenido.contenido?.url || "");
@@ -175,8 +177,8 @@ export function ContentEditor({ contenido, onUpdate, onClose }: ContentEditorPro
           </div>
           <VideoScriptGenerator
             tema={titulo}
-            cursoTitulo=""
-            moduloTitulo=""
+            cursoTitulo={cursoTitulo}
+            moduloTitulo={moduloTitulo}
             duracionMin={duracion}
           />
         </div>
@@ -227,8 +229,8 @@ export function ContentEditor({ contenido, onUpdate, onClose }: ContentEditorPro
         <InlineQuizEditor
           questions={quizQuestions}
           onChange={setQuizQuestions}
-          moduloTitulo=""
-          cursoTitulo=""
+          moduloTitulo={moduloTitulo}
+          cursoTitulo={cursoTitulo}
         />
       )}
 
@@ -236,8 +238,8 @@ export function ContentEditor({ contenido, onUpdate, onClose }: ContentEditorPro
         <InlineFlashcardEditor
           cards={flashcards}
           onChange={setFlashcards}
-          moduloTitulo=""
-          cursoTitulo=""
+          moduloTitulo={moduloTitulo}
+          cursoTitulo={cursoTitulo}
         />
       )}
 

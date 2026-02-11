@@ -29,9 +29,11 @@ interface ContentOutlineItemProps {
   contenido: ContentOutline;
   onUpdate: (updates: Partial<ContentOutline>) => void;
   onDelete: () => void;
+  moduloTitulo?: string;
+  cursoTitulo?: string;
 }
 
-export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOutlineItemProps) {
+export function ContentOutlineItem({ contenido, onUpdate, onDelete, moduloTitulo, cursoTitulo }: ContentOutlineItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   
@@ -94,6 +96,8 @@ export function ContentOutlineItem({ contenido, onUpdate, onDelete }: ContentOut
         contenido={contenido}
         onUpdate={onUpdate}
         onClose={() => setShowEditor(false)}
+        moduloTitulo={moduloTitulo}
+        cursoTitulo={cursoTitulo}
       />
     );
   }

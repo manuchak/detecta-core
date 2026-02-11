@@ -328,7 +328,12 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
                 onModulosChange={setModulos} 
               />
             )}
-            {step === 3 && <StepConfiguracion form={form} />}
+            {step === 3 && (
+              <StepConfiguracion 
+                form={form} 
+                quizCount={modulos.reduce((acc, m) => acc + m.contenidos.filter(c => c.tipo === 'quiz').length, 0)}
+              />
+            )}
             {step === 4 && (
               <StepVistaPrevia 
                 form={form} 

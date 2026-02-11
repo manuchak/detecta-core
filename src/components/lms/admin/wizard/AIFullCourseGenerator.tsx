@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -125,6 +125,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
 
     setLoading(true);
     setError(null);
+    cancelledRef.current = false;
     setProgress({ step: 0, totalSteps: 1, label: "Iniciando...", percent: 0 });
 
     try {
@@ -197,6 +198,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
 
       // Step 3+: Generate text content
       for (const item of textContents) {
+        if (cancelledRef.current) return;
         currentStep++;
         updateProgress(currentStep, totalSteps, `Generando texto: ${item.titulo.substring(0, 40)}...`);
         try {
@@ -218,6 +220,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
 
       // Generate quiz questions
       for (const item of quizContents) {
+        if (cancelledRef.current) return;
         currentStep++;
         updateProgress(currentStep, totalSteps, `Generando quiz: ${item.moduloTitulo.substring(0, 40)}...`);
         try {
@@ -252,6 +255,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
 
       // Generate flashcards
       for (const item of flashcardContents) {
+        if (cancelledRef.current) return;
         currentStep++;
         updateProgress(currentStep, totalSteps, `Generando flashcards: ${item.moduloTitulo.substring(0, 40)}...`);
         try {
@@ -306,7 +310,10 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
     }
   }, [tema, rol, duracion, onComplete]);
 
+  const cancelledRef = useRef(false);
+
   const handleCancel = () => {
+    cancelledRef.current = true;
     setLoading(false);
     setProgress(null);
     setError(null);
@@ -373,6 +380,9 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
                   step={15}
                   className="mt-2"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  ~{Math.max(2, Math.round(duracion / 30))} módulos, ~{Math.max(4, Math.round(duracion / 8))} contenidos
+                </p>
               </div>
             </div>
 
@@ -393,7 +403,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
               Generar Curso Completo
             </Button>
 
-            <p className="text-[11px] text-muted-foreground text-center">
+            <p className="text-xs text-muted-foreground text-center">
               La generación puede tomar 1-3 minutos dependiendo de la complejidad
             </p>
           </>

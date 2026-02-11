@@ -71,18 +71,7 @@ export function StepIdentidad({ form, onFullCourseGenerated }: StepIdentidadProp
         <AIFullCourseGenerator onComplete={onFullCourseGenerated} />
       )}
 
-      {/* Banner de AI */}
-      <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl">
-        <div className="p-2 rounded-lg bg-primary/10">
-          <Sparkles className="h-5 w-5 text-primary" />
-        </div>
-        <div className="flex-1">
-          <p className="font-medium text-sm">Asistente de IA disponible</p>
-          <p className="text-xs text-muted-foreground">
-            Escribe el título y presiona "Generar con IA" para autocompletar código, descripción y categoría
-          </p>
-        </div>
-      </div>
+      {/* Removed redundant AI banner - AIFullCourseGenerator already provides AI guidance */}
 
       <div className="apple-card p-6 space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -195,7 +195,7 @@ export function ModuleOutlineCard({
               <Target className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-xs font-medium flex-1">Objetivos de aprendizaje</span>
               {modulo.objetivos && modulo.objetivos.length > 0 && (
-                <span className="text-[10px] text-muted-foreground">{modulo.objetivos.length} objetivos</span>
+                <span className="text-xs text-muted-foreground">{modulo.objetivos.length} objetivos</span>
               )}
               {showObjectives ? <ChevronDown className="w-3 h-3 text-muted-foreground" /> : <ChevronRight className="w-3 h-3 text-muted-foreground" />}
             </button>
@@ -203,12 +203,12 @@ export function ModuleOutlineCard({
               <div className="px-2.5 pb-2.5 space-y-2 border-t">
                 {(!modulo.objetivos || modulo.objetivos.length === 0) ? (
                   <div className="text-center py-2">
-                    <p className="text-[10px] text-muted-foreground mb-1.5">Sin objetivos definidos</p>
+                    <p className="text-xs text-muted-foreground mb-1.5">Sin objetivos definidos</p>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-6 text-[10px] gap-1"
+                      className="h-6 text-xs gap-1"
                       onClick={handleGenerateObjectives}
                       disabled={aiLoading}
                     >
@@ -220,7 +220,7 @@ export function ModuleOutlineCard({
                   <>
                     <ul className="space-y-1 mt-1.5">
                       {modulo.objetivos.map((obj, i) => (
-                        <li key={i} className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                           <span className="text-primary mt-0.5">•</span>
                           <span>{obj}</span>
                         </li>
@@ -230,7 +230,7 @@ export function ModuleOutlineCard({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-5 text-[10px] gap-1"
+                      className="h-5 text-xs gap-1"
                       onClick={handleGenerateObjectives}
                       disabled={aiLoading}
                     >
@@ -266,6 +266,8 @@ export function ModuleOutlineCard({
                       contenido={contenido}
                       onUpdate={(updates) => onUpdateContent(contenido.id, updates)}
                       onDelete={() => onDeleteContent(contenido.id)}
+                      moduloTitulo={modulo.titulo}
+                      cursoTitulo={cursoTitulo}
                     />
                   ))}
                 </div>
