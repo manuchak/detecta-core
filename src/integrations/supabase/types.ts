@@ -16748,6 +16748,22 @@ export type Database = {
           role: string
         }[]
       }
+      get_custodian_adoption_status: {
+        Args: never
+        Returns: {
+          display_name: string
+          email: string
+          estado: string
+          id: string
+          nombre: string
+          profile_id: string
+          telefono: string
+          tiene_cuenta: boolean
+          tiene_rol_custodio: boolean
+          ultimo_checklist: string
+          ultimo_ticket: string
+        }[]
+      }
       get_custodian_full_stats: {
         Args: { p_custodio_id: string }
         Returns: {
@@ -18038,6 +18054,7 @@ export type Database = {
         Returns: boolean
       }
       normalize_name: { Args: { input_name: string }; Returns: string }
+      normalize_phone: { Args: { phone: string }; Returns: string }
       obtener_deficit_dinamico_nacional: {
         Args: { p_fecha_desde?: string; p_fecha_hasta?: string }
         Returns: {
