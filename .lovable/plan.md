@@ -1,88 +1,73 @@
 
 
-## Fix: Post-Generacion -- Transicion Clara al Contenido Generado
+## Fix: Race Condition en Persistencia que Pierde Modulos Generados
 
-### Problema
+### Causa raiz
 
-Despues de que la IA genera el curso completo, ocurre lo siguiente:
-1. El toast "Curso generado: 3 modulos, 5 contenidos" aparece brevemente en la esquina inferior
-2. `setStep(2)` avanza al paso "Estructura" automaticamente
-3. Pero la transicion es tan rapida y silenciosa que el usuario NO se da cuenta de que cambio de paso
-4. El usuario queda desorientado: no sabe que se creo, donde esta, ni como editar el contenido
+En `useFormPersistence.ts`, la funcion `updateData` lee de `dataRef.current` para hacer el merge:
+
+```typescript
+const updateData = useCallback((updates: Partial<T>) => {
+    const newData = { ...dataRef.current, ...updates };
+    setDataInternal(newData);
+    scheduleSave(newData);
+}, [scheduleSave]);
+```
+
+Pero `dataRef` solo se actualiza en un `useEffect` (asincrono):
+
+```typescript
+useEffect(() => {
+    dataRef.current = data;  // se ejecuta DESPUES del render
+}, [data]);
+```
+
+Cuando la generacion AI termina, tres updates ocurren casi simultaneamente:
+
+```text
+updateData({ modulos: [3 modulos...] })   --> dataRef = { modulos: [], step: 1 } --> merge = { modulos: [...], step: 1 }
+updateData({ step: 2 })                   --> dataRef = { modulos: [], step: 1 } --> merge = { modulos: [], step: 2 }  <-- BUG
+```
+
+La segunda llamada lee el ref viejo (modulos: []) y sobreescribe los modulos. El debounce cancela la primera save y solo ejecuta la ultima, que tiene modulos vacios.
 
 ### Solucion
 
-Mejorar la transicion post-generacion con dos cambios:
+Actualizar `dataRef.current` de forma **sincrona** dentro de `updateData`, antes del `setDataInternal`:
 
-**A. Mostrar estado de exito en el generador antes de avanzar**
-
-En lugar de llamar `setStep(2)` inmediatamente en el `onComplete`, agregar un breve estado de exito (1.5s) dentro del `AIFullCourseGenerator` que muestre un resumen visual de lo generado ANTES de disparar el avance. Esto da al usuario un momento para procesar que la generacion termino.
-
-```text
-+--------------------------------------------------+
-| [check verde] Curso generado exitosamente        |
-|                                                  |
-| 3 modulos  |  5 contenidos  |  45 min            |
-|                                                  |
-| [ Revisar estructura --> ]                       |
-+--------------------------------------------------+
+```typescript
+const updateData = useCallback((updates: Partial<T>) => {
+    const newData = { ...dataRef.current, ...updates };
+    dataRef.current = newData;  // sync update - prevents race conditions
+    setDataInternal(newData);
+    scheduleSave(newData);
+}, [scheduleSave]);
 ```
 
-**B. Banner de exito en StepEstructura**
+Lo mismo para `setData`:
 
-Agregar un banner temporal en el paso 2 que confirme al usuario que esta viendo el contenido recien generado y que puede editarlo. Esto se controla con un prop `fromAIGeneration` o estado en el wizard.
-
-```text
-+--------------------------------------------------+
-| [sparkles] Curso generado con IA                 |
-| Revisa la estructura y edita lo que necesites.   |
-| Los textos, quizzes y flashcards ya fueron       |
-| generados dentro de cada contenido.              |
-+--------------------------------------------------+
+```typescript
+const setData = useCallback((newData: T) => {
+    dataRef.current = newData;  // sync update
+    setDataInternal(newData);
+    scheduleSave(newData);
+}, [scheduleSave]);
 ```
 
-### Cambios tecnicos
+### Archivo a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `AIFullCourseGenerator.tsx` | Agregar estado `completed` con resumen visual y boton "Revisar estructura" que dispara `onComplete` |
-| `LMSCursoWizard.tsx` | Agregar flag `aiGenerated` para pasar a StepEstructura |
-| `StepEstructura.tsx` | Recibir prop `fromAIGeneration` y mostrar banner de orientacion temporal |
+| `src/hooks/useFormPersistence.ts` | Agregar `dataRef.current = newData` sincrono en `updateData` y `setData` (2 lineas) |
 
-### Detalle de cambios
+### Resultado
 
-**1. AIFullCourseGenerator.tsx**
+Los tres updates consecutivos ahora se acumulan correctamente:
 
-Nuevo estado `completed` con los datos generados almacenados temporalmente:
-
-```typescript
-const [completedData, setCompletedData] = useState<{
-  modulos: number;
-  contenidos: number;
-  duracion: number;
-} | null>(null);
+```text
+updateData({ modulos: [...] })  --> dataRef sincronizado = { modulos: [...], step: 1 }
+updateData({ step: 2 })        --> dataRef sincronizado = { modulos: [...], step: 2 }  <-- correcto
 ```
 
-Cuando la generacion termina, en lugar de llamar `onComplete` inmediatamente:
-- Guardar los datos generados en un ref
-- Mostrar la vista de exito con el resumen
-- El boton "Revisar estructura" llama a `onComplete` con los datos almacenados
-
-La vista de progreso actual (linea 430-468) se extiende con un tercer estado: completado.
-
-**2. LMSCursoWizard.tsx**
-
-Agregar `const [aiGenerated, setAiGenerated] = useState(false)` que se activa en el callback de `onFullCourseGenerated` justo antes de `setStep(2)`.
-
-**3. StepEstructura.tsx**
-
-Recibir `fromAIGeneration?: boolean` como prop. Si es true, mostrar un banner de orientacion arriba del builder con un boton para descartarlo. El banner se oculta automaticamente despues de 10 segundos o al hacer clic en "Entendido".
-
-### Resultado esperado
-
-El flujo post-generacion sera:
-1. Barra de progreso llega a 100% con "Curso generado!"
-2. Se muestra resumen: "3 modulos, 5 contenidos, 45 min" con boton prominente "Revisar estructura"
-3. Al hacer clic, avanza al paso 2 con un banner que dice "Revisa y edita la estructura generada por IA"
-4. El usuario ve inmediatamente los modulos y contenidos editables
+La estructura generada por IA se persiste correctamente y se muestra al regresar al paso 2.
 
