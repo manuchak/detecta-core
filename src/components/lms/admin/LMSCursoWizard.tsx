@@ -29,6 +29,11 @@ const cursoSchema = z.object({
   plazo_dias_default: z.coerce.number().min(1).max(365),
   activo: z.boolean(),
   publicado: z.boolean(),
+  // Assessment strategy (transient - applied to quiz content on creation)
+  quiz_porcentaje_aprobacion: z.coerce.number().min(50).max(100).optional(),
+  quiz_intentos_permitidos: z.coerce.number().min(0).max(10).optional(),
+  quiz_aleatorizar: z.boolean().optional(),
+  quiz_mostrar_respuestas: z.boolean().optional(),
 });
 
 type CursoSchemaType = z.infer<typeof cursoSchema>;
@@ -63,6 +68,10 @@ const defaultFormValues: CursoSchemaType = {
   plazo_dias_default: 30,
   activo: true,
   publicado: false,
+  quiz_porcentaje_aprobacion: 80,
+  quiz_intentos_permitidos: 3,
+  quiz_aleatorizar: false,
+  quiz_mostrar_respuestas: true,
 };
 
 export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
@@ -203,6 +212,12 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
           publicado: data.publicado,
         },
         modulos,
+        assessmentConfig: {
+          puntuacion_minima: data.quiz_porcentaje_aprobacion ?? 80,
+          intentos_permitidos: data.quiz_intentos_permitidos ?? 3,
+          aleatorizar: data.quiz_aleatorizar ?? false,
+          mostrar_respuestas_correctas: data.quiz_mostrar_respuestas ?? true,
+        },
       });
       
       // Clear draft on successful creation

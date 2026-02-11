@@ -24,9 +24,17 @@ interface ModuleOutlineData {
   contenidos: ContentOutlineData[];
 }
 
+interface AssessmentConfig {
+  puntuacion_minima: number;
+  intentos_permitidos: number;
+  aleatorizar: boolean;
+  mostrar_respuestas_correctas: boolean;
+}
+
 interface CursoCompletoData {
   curso: CursoFormData;
   modulos: ModuleOutlineData[];
+  assessmentConfig?: AssessmentConfig;
 }
 
 // =====================================================
@@ -146,7 +154,7 @@ export const useLMSCrearCursoCompleto = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ curso, modulos }: CursoCompletoData) => {
+    mutationFn: async ({ curso, modulos, assessmentConfig }: CursoCompletoData) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
 
@@ -194,8 +202,9 @@ export const useLMSCrearCursoCompleto = () => {
 
         // 4. Crear contenidos del módulo
         for (const contenido of modulo.contenidos) {
-          const contenidoData = getDefaultContenidoData(contenido.tipo);
-          
+          const contenidoData = contenido.contenido 
+            ? mergeContenidoWithAssessment(contenido.tipo, contenido.contenido, assessmentConfig)
+            : getDefaultContenidoData(contenido.tipo, assessmentConfig);
           const { error: contenidoError } = await supabase
             .from('lms_contenidos')
             .insert({
@@ -229,7 +238,7 @@ export const useLMSCrearCursoCompleto = () => {
 };
 
 // Helper to get default content data based on type
-function getDefaultContenidoData(tipo: string): any {
+function getDefaultContenidoData(tipo: string, assessmentConfig?: AssessmentConfig): any {
   switch (tipo) {
     case 'video':
       return { url: '', provider: 'youtube' };
@@ -238,12 +247,32 @@ function getDefaultContenidoData(tipo: string): any {
     case 'texto_enriquecido':
       return { html: '<p>Contenido pendiente de editar</p>' };
     case 'quiz':
-      return { preguntas_ids: [], puntuacion_minima: 70, intentos_permitidos: 3, mostrar_respuestas_correctas: true };
+      return { 
+        preguntas_ids: [], 
+        puntuacion_minima: assessmentConfig?.puntuacion_minima ?? 70, 
+        intentos_permitidos: assessmentConfig?.intentos_permitidos ?? 3, 
+        mostrar_respuestas_correctas: assessmentConfig?.mostrar_respuestas_correctas ?? true,
+        aleatorizar: assessmentConfig?.aleatorizar ?? false,
+      };
     case 'interactivo':
       return { tipo: 'flashcards', data: { cards: [] } };
     default:
       return { html: '' };
   }
+}
+
+// Merge existing content data with assessment config for quiz types
+function mergeContenidoWithAssessment(tipo: string, contenido: any, assessmentConfig?: AssessmentConfig): any {
+  if (tipo === 'quiz' && assessmentConfig) {
+    return {
+      ...contenido,
+      puntuacion_minima: assessmentConfig.puntuacion_minima,
+      intentos_permitidos: assessmentConfig.intentos_permitidos,
+      mostrar_respuestas_correctas: assessmentConfig.mostrar_respuestas_correctas,
+      aleatorizar: assessmentConfig.aleatorizar,
+    };
+  }
+  return contenido;
 }
 
 // Actualizar curso
