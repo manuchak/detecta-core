@@ -22,7 +22,7 @@ const TYPE_CONFIG = {
   video: {
     icon: FileVideo,
     accept: ".mp4,.webm,.mov",
-    maxSize: 100 * 1024 * 1024, // 100MB
+    maxSize: 150 * 1024 * 1024, // 150MB
     label: "Video",
     placeholder: "https://youtube.com/watch?v=... o https://vimeo.com/...",
     hint: "Soporta YouTube, Vimeo y enlaces directos a MP4",
