@@ -1,113 +1,104 @@
 
 
-## Mejoras de Persistencia para el Wizard de Creacion de Cursos LMS
+## Fix: Auto-restore del wizard al volver de otra pestana/sitio
 
-### Contexto del problema
+### Causa raiz
 
-La Training Manager construye cursos consultando materiales en otras pestanas del navegador (documentos, videos, plataformas de contenido). Cuando navega fuera del wizard --ya sea por navegacion interna de la app (SPA) o por cerrar/refrescar la pestana-- puede perder trabajo parcial.
+El wizard tiene su propio estado independiente (`step`, `modulos`, `form`) que siempre inicia en valores vacios. La persistencia guarda correctamente los datos, pero el wizard nunca los lee al montar. El unico camino de restauracion es hacer clic en el banner, pero el usuario ya ve el paso 1 vacio y asume que perdio todo.
 
-### Que ya funciona bien
-
-La infraestructura actual (`useFormPersistence` nivel `robust`) ya cubre:
-- Guardado automatico con debounce de 800ms
-- Backup dual en localStorage + sessionStorage
-- Flush inmediato al ocultar la pestana (`visibilitychange`)
-- Flush al cerrar pestana (`pagehide`)
-- Advertencia al cerrar navegador (`beforeunload`)
-- Deteccion de borradores huerfanos con prompt de restauracion
-- Reconciliacion al volver a la pestana (compara progreso)
-
-### Gaps identificados
-
-**Gap 1: Navegacion SPA sin proteccion**
-Cuando el usuario navega a otra ruta dentro de la app (ej: clic en sidebar, boton "atras"), el componente se desmonta. Si el debounce de 800ms no ha terminado, se pierde el ultimo cambio. Ademas, no hay confirmacion antes de salir -- el usuario simplemente pierde la pagina.
-
-**Gap 2: Flush en unmount no existe**
-El cleanup del `useEffect` solo limpia el timeout, pero nunca ejecuta el save pendiente. Si hay datos no guardados al desmontar, se pierden.
-
-**Gap 3: El indicador de guardado no es visible al usuario**
-Aunque `lastSaved` y `hasUnsavedChanges` estan disponibles, el wizard no muestra ningun indicador visual de que el trabajo se esta guardando automaticamente. Esto genera ansiedad en una Training Manager que esta consultando otras herramientas.
-
-### Solucion propuesta
-
-#### 1. Flush al desmontar el componente (useFormPersistence.ts)
-
-Agregar un save sincrono en el cleanup del hook para que cualquier dato pendiente se guarde al desmontar:
-
-```typescript
-// En la seccion CLEANUP (linea 672-678)
-useEffect(() => {
-  return () => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      // Flush pending save synchronously before unmount
-      if (hasUnsavedChangesRef.current) {
-        saveToStorageRef.current(dataRef.current);
-      }
-    }
-  };
-}, []);
+```text
+FLUJO ACTUAL (roto):
+1. User en Step 2 con modulos y datos
+2. Navega a Synthesia (copia prompt)
+3. Regresa → componente se re-monta
+4. useState(1), useState([]), defaultFormValues → ve Step 1 vacio
+5. Banner de restauracion aparece arriba (pero user ya entro en panico)
+6. Si hace clic "Restaurar" → funciona, pero UX es terrible
 ```
 
-Esto requiere agregar `hasUnsavedChangesRef` y `saveToStorageRef` como refs estables (mismo patron que ya usamos en el wizard con `updateDataRef`).
+### Solucion
 
-#### 2. Guardia de navegacion SPA (LMSCursoWizard.tsx)
+Cambiar la inicializacion del wizard para que lea del draft guardado ANTES de renderizar. Asi, cuando el usuario regresa, ve exactamente donde estaba.
 
-Usar `useBlocker` de react-router-dom v6 para interceptar navegacion interna y mostrar un dialogo de confirmacion:
-
-```typescript
-import { useBlocker } from 'react-router-dom';
-
-// Dentro del wizard:
-const blocker = useBlocker(
-  ({ currentLocation, nextLocation }) =>
-    persistence.hasUnsavedChanges &&
-    currentLocation.pathname !== nextLocation.pathname
-);
-
-// Renderizar dialogo de confirmacion cuando blocker.state === 'blocked'
+```text
+FLUJO CORREGIDO:
+1. User en Step 2 con modulos y datos
+2. Navega a Synthesia
+3. Regresa → componente se re-monta
+4. useFormPersistence carga draft → step=2, modulos=[...], form=filled
+5. Usuario ve Step 2 exactamente como lo dejo
+6. No necesita interaccion manual para restaurar
 ```
 
-Esto mostraria un AlertDialog preguntando "Tienes cambios sin guardar. Quieres guardar el borrador antes de salir?" con opciones:
-- **Guardar y salir**: flush + navegar
-- **Salir sin guardar**: descartar + navegar
-- **Cancelar**: quedarse en el wizard
+### Cambios en LMSCursoWizard.tsx
 
-#### 3. Indicador visual de auto-guardado (LMSCursoWizard.tsx)
+**1. Leer el draft en la inicializacion del estado**
 
-Agregar el componente `SavingIndicator` (que ya existe en el proyecto) en el header del wizard, mostrando:
-- Spinner "Guardando..." cuando hay cambios pendientes
-- Check verde "Guardado hace X minutos" tras guardar
-
-Esto le da confianza a la Training Manager de que puede salir a consultar otros materiales sin perder nada.
-
-#### 4. Reducir debounce para el wizard (LMSCursoWizard.tsx)
-
-Cambiar el debounce de 800ms (default) a 400ms especificamente para el wizard de cursos. La creacion de cursos involucra campos de texto largos donde 800ms puede significar perder la ultima oracion escrita:
+En lugar de `useState(1)` y `useState([])`, inicializar desde localStorage directamente (lectura sincrona) para evitar el flash de "step 1 vacio":
 
 ```typescript
-useFormPersistence<WizardDraftData>({
-  key: 'lms_curso_wizard',
-  debounceMs: 400, // Mas agresivo para workflow consultivo
-  // ...rest
+// Lectura sincrona del draft al montar (antes del primer render)
+function getInitialDraftData(): WizardDraftData | null {
+  try {
+    const stored = localStorage.getItem('lms_curso_wizard');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored);
+    if (parsed.version !== 2) return null;
+    // Check TTL
+    const savedAt = new Date(parsed.savedAt).getTime();
+    if (Date.now() - savedAt > 24 * 60 * 60 * 1000) return null;
+    return parsed.data as WizardDraftData;
+  } catch { return null; }
+}
+
+// Dentro del componente:
+const initialDraft = useRef(getInitialDraftData());
+
+const [step, setStep] = useState(initialDraft.current?.step || 1);
+const [modulos, setModulos] = useState<ModuleOutline[]>(initialDraft.current?.modulos || []);
+
+const form = useForm<CursoSchemaType>({
+  resolver: zodResolver(cursoSchema),
+  defaultValues: initialDraft.current?.formValues || defaultFormValues,
 });
 ```
 
-### Archivos a modificar
+**2. Tambien sincronizar cuando `acceptRestore` se ejecuta desde el banner**
+
+La funcion `handleRestoreDraft` ya existe y funciona correctamente para el caso del banner. No necesita cambios.
+
+**3. Auto-restore silencioso cuando URL tiene draft param que coincide**
+
+Modificar el `handleRestoreDraft` para que tambien se ejecute automaticamente cuando `useFormPersistence` detecta un draft con URL match (sin mostrar banner). Para esto, agregar un `useEffect` que observe cuando `draftData` cambia con datos validos y el wizard aun esta en estado inicial:
+
+```typescript
+// Auto-sync cuando persistence carga datos (URL match case)
+const hasAutoRestored = useRef(false);
+useEffect(() => {
+  if (hasAutoRestored.current) return;
+  if (draftData.formValues?.titulo && draftData.step > 1) {
+    form.reset(draftData.formValues);
+    setStep(draftData.step);
+    setModulos(draftData.modulos || []);
+    hasAutoRestored.current = true;
+  }
+}, [draftData]);
+```
+
+### Archivo a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useFormPersistence.ts` | Agregar flush-on-unmount con refs estables |
-| `src/components/lms/admin/LMSCursoWizard.tsx` | Agregar `useBlocker`, `SavingIndicator`, y reducir debounce |
+| `src/components/lms/admin/LMSCursoWizard.tsx` | Inicializacion sincrona desde localStorage + auto-sync desde persistence data |
 
 ### Resultado esperado
 
-La Training Manager puede:
-1. Escribir en el wizard y cambiar a otra pestana -- se guarda en menos de 400ms
-2. Navegar a otra seccion de la app -- ve un dialogo de confirmacion primero
-3. Cerrar el navegador accidentalmente -- al volver, ve el prompt de restauracion
-4. Ver en todo momento el estado "Guardado hace X" para sentirse segura de consultar otras herramientas
+- El usuario crea un curso, va al paso 2, copia un prompt de video
+- Navega a Synthesia en otra pestana o en la misma
+- Al regresar al wizard, ve EXACTAMENTE el paso 2 con todos sus datos
+- No necesita hacer clic en ningun banner ni tomar ninguna accion
+- El indicador "Guardado hace X" confirma que sus datos estan seguros
 
 ### Riesgo
 
-Bajo. Los cambios son aditivos y no modifican la logica de persistencia existente. El `useBlocker` es API estable de react-router-dom v6.
+Bajo. Solo cambia la inicializacion del estado del wizard. La logica de persistencia subyacente no se modifica.
