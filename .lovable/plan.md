@@ -1,53 +1,45 @@
 
-## Plan: Conectar boton "Ver resultado" al Informe Profesional SIERCP
+## Plan: Aumentar limite de video a 150MB
 
-### Problema
-El boton "Ver resultado" en la tabla de Invitaciones Candidatos (ruta `/leads/evaluaciones`, tab SIERCP > Invitaciones Candidatos) muestra un toast placeholder "Funcionalidad proximamente disponible" en lugar de abrir el reporte profesional.
+### Cambios necesarios
 
-### Causa
-Lineas 185-191 de `InvitationsTable.tsx` tienen un TODO con un toast en lugar de funcionalidad real.
+Hay **2 puntos** donde se debe actualizar el limite:
 
-### Solucion
+#### 1. Frontend - MediaUploader (limite visual y validacion)
 
-#### 1. Expandir datos de evaluacion en la query de invitaciones
+**Archivo:** `src/components/lms/admin/wizard/MediaUploader.tsx` (linea 25)
 
-**Archivo:** `src/hooks/useSIERCPInvitations.ts`
-
-Ampliar el select de la evaluacion para incluir todos los scores necesarios para el reporte:
+Cambiar el maxSize de video de 100MB a 150MB:
 
 ```
-evaluacion:evaluacion_id (
-  id,
-  score_global,
-  score_integridad,
-  score_psicopatia,
-  score_violencia,
-  score_agresividad,
-  score_afrontamiento,
-  score_veracidad,
-  score_entrevista,
-  resultado_semaforo,
-  risk_flags,
-  fecha_evaluacion
-)
+// Antes:
+maxSize: 100 * 1024 * 1024, // 100MB
+
+// Despues:
+maxSize: 150 * 1024 * 1024, // 150MB
 ```
 
-#### 2. Integrar SIERCPReportDialog en InvitationsTable
+Esto actualiza tanto la validacion del archivo como el texto mostrado en la UI ("Max 150MB").
 
-**Archivo:** `src/components/recruitment/siercp/InvitationsTable.tsx`
+#### 2. Supabase Storage - Limite del bucket
 
-- Agregar estado local para controlar el dialog y la invitacion seleccionada
-- Reemplazar el toast placeholder (lineas 185-191) por logica que abra el `SIERCPReportDialog`
-- Pasar los datos de la evaluacion completa y el nombre del candidato al dialog
-- Construir un objeto `EvaluacionPsicometrica` compatible a partir de los datos de la invitacion
+**Archivo:** `supabase/config.toml` (linea 30)
 
-### Archivos a modificar
+El limite actual del storage es `50MiB`, que bloquea cualquier archivo mayor a 50MB a nivel de servidor. Se debe aumentar a 150MB:
+
+```
+// Antes:
+file_size_limit = "50MiB"
+
+// Despues:
+file_size_limit = "150MiB"
+```
+
+### Resumen
 
 | Archivo | Cambio |
 |---|---|
-| `src/hooks/useSIERCPInvitations.ts` | Expandir select de evaluacion con todos los scores |
-| `src/components/recruitment/siercp/InvitationsTable.tsx` | Reemplazar toast placeholder con apertura de SIERCPReportDialog |
+| `src/components/lms/admin/wizard/MediaUploader.tsx` | maxSize: 100MB a 150MB |
+| `supabase/config.toml` | file_size_limit: 50MiB a 150MiB |
 
-### Resultado esperado
-
-Al hacer click en el icono de "Ver resultado" en una invitacion completada, se abre el dialog con el informe profesional generado por IA, con radar chart, analisis por modulo, factores de riesgo/proteccion y opcion de imprimir/exportar PDF.
+Dos cambios simples y el video de 111MB podra subirse sin problema.
