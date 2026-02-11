@@ -158,9 +158,41 @@ export const CustodianSignup = () => {
         }
       });
 
+      // Error catalog for user-friendly messages
+      const errorCatalog: Record<string, { title: string; message: string }> = {
+        'Invitación inválida o expirada': {
+          title: 'Invitación No Válida',
+          message: 'Tu enlace de invitación ha expirado o ya fue utilizado. Solicita una nueva invitación a tu coordinador.'
+        },
+        'Ya tienes una cuenta activa como custodio': {
+          title: 'Cuenta Existente',
+          message: 'Ya tienes una cuenta de custodio activa. Usa "Iniciar sesión" con tu email y contraseña.'
+        },
+        'Campos requeridos faltantes': {
+          title: 'Datos Incompletos',
+          message: 'Por favor completa todos los campos del formulario.'
+        },
+        'Contraseña debe tener mínimo 6 caracteres': {
+          title: 'Contraseña Muy Corta',
+          message: 'La contraseña debe tener al menos 6 caracteres.'
+        },
+      };
+
+      const matchError = (msg: string): { title: string; message: string } => {
+        for (const [key, val] of Object.entries(errorCatalog)) {
+          if (msg.includes(key)) return val;
+        }
+        if (msg.includes('Error interno')) {
+          return {
+            title: 'Error del Servidor',
+            message: 'Hubo un problema en el servidor. Por favor intenta de nuevo en unos minutos. Si el problema persiste, contacta a soporte.'
+          };
+        }
+        return { title: 'Error en Registro', message: msg };
+      };
+
       if (error) {
-        let errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
-        let errorTitle = 'Error de Conexión';
+        let rawError = 'No se pudo conectar con el servidor. Verifica tu conexión a internet.';
 
         try {
           if ((error as any).context?.body) {
@@ -168,28 +200,23 @@ export const CustodianSignup = () => {
             const { value } = await reader.read();
             const text = new TextDecoder().decode(value);
             const parsed = JSON.parse(text);
-            if (parsed?.error) {
-              errorMessage = parsed.error;
-              errorTitle = 'Error en Registro';
-            }
+            if (parsed?.error) rawError = parsed.error;
           }
         } catch {
-          // If parsing fails, keep the default connection error message
+          // Keep default connection error
         }
 
-        console.error('[CustodianSignup] Edge function error:', errorTitle);
-        toast({ title: errorTitle, description: errorMessage, variant: 'destructive' });
+        const matched = matchError(rawError);
+        console.error('[CustodianSignup] Edge function error:', matched.title);
+        toast({ title: matched.title, description: matched.message, variant: 'destructive' });
         return;
       }
 
       // Handle response from edge function
       if (data?.error) {
+        const matched = matchError(data.error);
         console.error('[CustodianSignup] Registration failed:', data.error);
-        toast({
-          title: 'Error en Registro',
-          description: data.error,
-          variant: 'destructive',
-        });
+        toast({ title: matched.title, description: matched.message, variant: 'destructive' });
         return;
       }
 

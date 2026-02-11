@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "v3.0.0"; // Rescue logic for existing users with pending role
+const VERSION = "v3.1.0"; // Fix getUserByEmail + improved error catalog
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,13 +56,14 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Check existing user by direct email lookup
-    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-    console.log(`[create-custodian-account] Email check: ${existingUser?.user ? 'EXISTS' : 'available'}`);
+    // Check existing user by listing users with email filter
+    const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = listData?.users?.find((u: any) => u.email === email) || null;
+    console.log(`[create-custodian-account] Email check: ${existingUser ? 'EXISTS' : 'available'}`);
 
     // ===== RESCUE PATH: User already exists =====
-    if (existingUser?.user) {
-      const userId = existingUser.user.id;
+    if (existingUser) {
+      const userId = existingUser.id;
 
       // Check current roles
       const { data: roles } = await supabaseAdmin
@@ -201,9 +202,12 @@ const handler = async (req: Request): Promise<Response> => {
     }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } });
 
   } catch (error) {
-    console.error(`[create-custodian-account] Error:`, error);
-    return new Response(JSON.stringify({ error: "Error interno" }), 
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    const errorMsg = error instanceof Error ? error.message : "Error desconocido";
+    console.error(`[create-custodian-account] Error:`, errorMsg);
+    return new Response(JSON.stringify({ 
+      error: "Error interno del servidor. Por favor intenta de nuevo o contacta a soporte.",
+      code: "INTERNAL_ERROR"
+    }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
   }
 };
 
