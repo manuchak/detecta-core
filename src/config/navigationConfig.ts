@@ -1,4 +1,5 @@
 import { 
+  ShieldCheck,
   LayoutDashboard,
   Users, 
   UserCheck,
@@ -368,6 +369,12 @@ export const navigationModules: NavigationModule[] = [
         label: 'Checklists',
         path: '/monitoring?tab=checklists',
         icon: ClipboardList
+      },
+      {
+        id: 'monitoring_adoption',
+        label: 'Adopción Digital',
+        path: '/monitoring?tab=adopcion',
+        icon: ShieldCheck
       },
       {
         id: 'monitoring_tv',
