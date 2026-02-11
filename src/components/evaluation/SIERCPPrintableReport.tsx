@@ -61,7 +61,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
   const filenameDate = format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="print-content bg-white max-w-4xl mx-auto" id="siercp-detailed-report">
+    <div className="siercp-report bg-white max-w-4xl mx-auto" id="siercp-detailed-report">
       {/* ============================================= */}
       {/* COVER / HERO SECTION (Page 1)                */}
       {/* ============================================= */}
