@@ -21,6 +21,10 @@ interface ModuloInlineEditorProps {
   cursoId: string;
   cursoTitulo?: string;
   dragHandleProps?: any;
+  defaultOpen?: boolean;
+  editingContenidoId?: string;
+  onExpandChange?: (isOpen: boolean) => void;
+  onEditingContenidoChange?: (contenidoId: string | null) => void;
 }
 
 const TIPOS_CONTENIDO: { value: TipoContenido; label: string }[] = [
@@ -32,8 +36,8 @@ const TIPOS_CONTENIDO: { value: TipoContenido; label: string }[] = [
   { value: 'embed', label: 'Embed externo' },
 ];
 
-export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandleProps }: ModuloInlineEditorProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandleProps, defaultOpen, editingContenidoId, onExpandChange, onEditingContenidoChange }: ModuloInlineEditorProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [titulo, setTitulo] = useState(modulo.titulo);
   const [descripcion, setDescripcion] = useState(modulo.descripcion || '');
@@ -78,7 +82,7 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandlePro
   };
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={(open) => { setIsOpen(open); onExpandChange?.(open); }}>
       <div className="rounded-lg border bg-card overflow-hidden">
         {/* Module header */}
         <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors">
@@ -169,6 +173,8 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, dragHandlePro
                   cursoId={cursoId}
                   cursoTitulo={cursoTitulo}
                   moduloTitulo={modulo.titulo}
+                  defaultEditing={contenido.id === editingContenidoId}
+                  onEditingChange={(editing) => onEditingContenidoChange?.(editing ? contenido.id : null)}
                 />
               ))}
             </div>

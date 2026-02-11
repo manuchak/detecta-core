@@ -10,9 +10,13 @@ interface TabEstructuraProps {
   cursoId: string;
   cursoTitulo?: string;
   modulos: (LMSModulo & { contenidos: LMSContenido[] })[];
+  expandedModuloId?: string;
+  editingContenidoId?: string;
+  onModuloChange?: (moduloId: string | null) => void;
+  onContenidoChange?: (contenidoId: string | null) => void;
 }
 
-export function TabEstructura({ cursoId, cursoTitulo, modulos }: TabEstructuraProps) {
+export function TabEstructura({ cursoId, cursoTitulo, modulos, expandedModuloId, editingContenidoId, onModuloChange, onContenidoChange }: TabEstructuraProps) {
   const [showAddModulo, setShowAddModulo] = useState(false);
   const [newModuloTitle, setNewModuloTitle] = useState('');
   const crearModulo = useLMSCrearModulo();
@@ -53,6 +57,10 @@ export function TabEstructura({ cursoId, cursoTitulo, modulos }: TabEstructuraPr
           modulo={modulo}
           cursoId={cursoId}
           cursoTitulo={cursoTitulo}
+          defaultOpen={modulo.id === expandedModuloId}
+          editingContenidoId={modulo.id === expandedModuloId ? editingContenidoId : undefined}
+          onExpandChange={(isOpen) => onModuloChange?.(isOpen ? modulo.id : null)}
+          onEditingContenidoChange={onContenidoChange}
         />
       ))}
 
