@@ -1,88 +1,52 @@
 
 
-## Mejora del Editor de Contenidos + Integración de Evaluaciones
+## Persistencia de Navegacion en el Editor de Cursos
 
-### Problema Actual
+### Problema
 
-1. **ContenidoInlineEditor** solo permite editar el titulo del contenido. No hay forma de editar la URL de un video, el texto enriquecido, las preguntas de un quiz, ni ningun otro campo especifico del tipo de contenido.
-
-2. **Las evaluaciones (quizzes)** ya existen en el sistema como un tipo de contenido (`quiz`) dentro de los modulos. Las preguntas se almacenan en la tabla `lms_preguntas` y se referencian por IDs en el campo `contenido.preguntas_ids`. Se crearon durante el wizard de creacion usando el `InlineQuizEditor`. Sin embargo, desde el editor de curso no hay forma de ver ni editar esas preguntas.
+El editor usa `defaultValue="general"` en los Tabs, lo que significa que cada vez que el componente se monta (al regresar de copiar un prompt, cambiar de ventana, etc.), se pierde el contexto y el usuario vuelve al tab "General". Ademas, el estado de los modulos expandidos y el contenido abierto para edicion tambien se pierden.
 
 ### Solucion
 
-Agregar un editor expandible al `ContenidoInlineEditor` que, al hacer clic en el icono de edicion, muestre un panel inline con los campos especificos segun el tipo de contenido -- reutilizando los componentes del wizard (`MediaUploader`, `InlineQuizEditor`, `InlineFlashcardEditor`, `VideoScriptGenerator`).
+Aplicar el **estandar de persistencia de tabs anidados** ya establecido en el proyecto (`useSearchParams`) a 3 niveles:
 
-```text
-Antes:
-  [>] Los 5 Puntos de Dolor    Video  5m  [Pencil] [Trash]
-  (clic en Pencil -> solo cambia titulo)
+1. **Tab activo** -- persistido en URL: `?tab=estructura`
+2. **Modulo expandido** -- persistido en URL: `?tab=estructura&modulo=uuid`
+3. **Contenido en edicion** -- persistido en URL: `?tab=estructura&modulo=uuid&contenido=uuid`
 
-Despues:
-  [>] Los 5 Puntos de Dolor    Video  5m  [Pencil] [Trash]
-  (clic en Pencil -> expande panel completo):
-  +-----------------------------------------------+
-  |  [Video icon] Video - Editando contenido       |
-  |                                                |
-  |  Titulo: [Los 5 Puntos de Dolor...          ]  |
-  |  Duracion: [5] min                             |
-  |                                                |
-  |  Video: [URL o subir archivo]                  |
-  |  [Generar guion con IA]                        |
-  |                                                |
-  |              [Cancelar]  [Guardar]             |
-  +-----------------------------------------------+
-```
+Al regresar a la pagina, el editor restaura automaticamente el tab, expande el modulo correcto y abre el editor del contenido donde se quedo el usuario.
 
-Para quizzes, el panel mostrara el `InlineQuizEditor` cargando las preguntas existentes desde `lms_preguntas`:
+### Cambios
 
-```text
-  [?] Evaluacion Final          Quiz  10m  [Pencil] [Trash]
-  (clic en Pencil -> expande):
-  +-----------------------------------------------+
-  |  [Quiz icon] Quiz - Editando contenido         |
-  |                                                |
-  |  Preguntas (3):                                |
-  |  1. Cual es el punto critico...  [Edit][Del]   |
-  |  2. Que significa OTIF?          [Edit][Del]   |
-  |  3. Selecciona los KPIs...       [Edit][Del]   |
-  |                                                |
-  |  [+ Agregar pregunta]  [Generar con IA]        |
-  |                                                |
-  |              [Cancelar]  [Guardar]             |
-  +-----------------------------------------------+
-```
-
-### Archivos a Crear/Modificar
-
-| Archivo | Accion | Descripcion |
-|---------|--------|-------------|
-| `src/components/lms/admin/editor/ContenidoInlineEditor.tsx` | **Reescribir** | Agregar estado expandido con editor completo segun tipo de contenido |
-| `src/components/lms/admin/editor/ContenidoExpandedEditor.tsx` | **Crear** | Panel expandido que adapta `ContentEditor` del wizard para trabajar con `LMSContenido` (datos de DB) en lugar de `ContentOutline` (estado del wizard) |
-| `src/hooks/lms/useLMSAdminPreguntas.ts` | **Sin cambios** | Ya existe `fetchPreguntasByIds` para cargar preguntas -- se reutiliza |
+| Archivo | Cambio |
+|---------|--------|
+| `LMSCursoEditor.tsx` | Reemplazar `defaultValue="general"` con estado controlado via `useSearchParams` (`value`/`onValueChange`) |
+| `TabEstructura.tsx` | Recibir props `expandedModuloId`/`editingContenidoId` desde URL params y pasarlos a los modulos |
+| `ModuloInlineEditor.tsx` | Inicializar `isOpen` desde prop `defaultOpen` y sincronizar cambios a URL via callback `onExpandChange` |
+| `ContenidoInlineEditor.tsx` | Inicializar `showEditor` desde prop `defaultEditing` y sincronizar a URL via callback `onEditingChange` |
 
 ### Detalle Tecnico
 
-**ContenidoExpandedEditor** sera un componente nuevo que:
-- Recibe un `LMSContenido` (registro de BD) en lugar de `ContentOutline` (estado del wizard)
-- Segun `contenido.tipo`, renderiza los campos apropiados:
-  - `video`: `MediaUploader` + `VideoScriptGenerator` (reutilizados del wizard)
-  - `documento`: `MediaUploader` (reutilizado del wizard)
-  - `texto_enriquecido`: `Textarea` con boton "Generar con IA" usando `useLMSAI`
-  - `quiz`: `InlineQuizEditor` (reutilizado) + carga inicial de preguntas via `fetchPreguntasByIds(contenido.contenido.preguntas_ids)`
-  - `interactivo`: `InlineFlashcardEditor` (reutilizado)
-  - `embed`: Campo de HTML para iframe
-- Al guardar, llama a `useLMSActualizarContenido` con los datos actualizados
-- Para quizzes, tambien llama a `useLMSCrearPreguntas` para persistir preguntas nuevas/modificadas en `lms_preguntas`
+**LMSCursoEditor.tsx**:
+- Usar `useSearchParams` para leer/escribir `?tab=`
+- Pasar `searchParams` y `setSearchParams` al `TabEstructura` para que gestione `&modulo=` y `&contenido=`
 
-**ContenidoInlineEditor** se modifica para:
-- Agregar estado `showEditor` (boolean)
-- Al hacer clic en Pencil, en lugar de entrar en modo edicion de titulo, expandir el `ContenidoExpandedEditor` debajo
-- El editor expandido reemplaza toda la fila mientras esta abierto
+**TabEstructura.tsx**:
+- Leer `modulo` y `contenido` de searchParams
+- Pasar `defaultOpen={modulo.id === expandedModuloId}` a cada `ModuloInlineEditor`
+- Cuando un modulo se expande/colapsa, actualizar `?modulo=`
+
+**ModuloInlineEditor.tsx**:
+- Recibir `defaultOpen` y `onExpandChange(id, isOpen)`
+- Cuando un contenido entra/sale de edicion, llamar `onEditingChange(contenidoId)`
+
+**ContenidoInlineEditor.tsx**:
+- Recibir `defaultEditing` prop para inicializar `showEditor`
+- Al abrir/cerrar editor, llamar `onEditingChange`
 
 ### Resultado
 
-- Edicion completa de cualquier tipo de contenido desde la misma pagina del editor de cursos
-- Las evaluaciones (quizzes) se pueden ver, editar y agregar preguntas sin salir del editor
-- Se reutilizan los componentes del wizard sin duplicar logica
-- El flujo es consistente: tanto en creacion (wizard) como en edicion (editor) se usa la misma experiencia
+- El usuario copia un prompt de video, regresa a la pagina, y aterriza exactamente en Estructura > Modulo X > Contenido Y abierto
+- La URL es compartible/bookmarkeable: `/lms/admin/cursos/abc/editar?tab=estructura&modulo=123&contenido=456`
+- Consistente con el patron usado en Settings, Planning Hub y WhatsApp Kapso
 
