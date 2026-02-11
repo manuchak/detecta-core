@@ -40,6 +40,7 @@ interface AIFullCourseGeneratorProps {
       categoria: string;
       duracion_estimada_min: number;
       roles_objetivo: string[];
+      enfoque_instruccional?: string;
     },
     modulos: ModuleOutline[]
   ) => void;
@@ -298,6 +299,7 @@ export function AIFullCourseGenerator({ onComplete }: AIFullCourseGeneratorProps
           categoria: metadata.categoria,
           duracion_estimada_min: totalDuracion || duracion,
           roles_objetivo: [rol],
+          enfoque_instruccional: enfoque || undefined,
         },
         modulos
       );
