@@ -45,6 +45,7 @@ export default function EvaluacionesPage() {
   const activeTab = searchParams.get('tab') || 'dashboard';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCandidato, setSelectedCandidato] = useState<CandidatoWithEvaluation | null>(null);
+  const [tipoOperativo, setTipoOperativo] = useState<'custodios' | 'armados'>('custodios');
   const isMobile = useIsMobile();
 
   const handleTabChange = useCallback((value: string) => {
@@ -57,10 +58,11 @@ export default function EvaluacionesPage() {
 
   // Fetch candidates with their evaluation data
   const { data: candidatos, isLoading } = useQuery({
-    queryKey: ['candidatos-with-evaluations', searchTerm],
+    queryKey: ['candidatos-with-evaluations', searchTerm, tipoOperativo],
     queryFn: async () => {
+      const tableName = tipoOperativo === 'custodios' ? 'candidatos_custodios' : 'candidatos_armados';
       let query = supabase
-        .from('candidatos_custodios')
+        .from(tableName)
         .select(`
           id,
           nombre,
@@ -126,20 +128,49 @@ export default function EvaluacionesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="candidates" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Candidatos
-          </TabsTrigger>
-          <TabsTrigger value="siercp" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            SIERCP
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <TabsList>
+            <TabsTrigger value="dashboard" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="candidates" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Candidatos
+            </TabsTrigger>
+            <TabsTrigger value="siercp" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              SIERCP
+            </TabsTrigger>
+          </TabsList>
+
+          {activeTab === 'candidates' && (
+            <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-0.5 border border-border/50">
+              <button
+                type="button"
+                onClick={() => setTipoOperativo('custodios')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  tipoOperativo === 'custodios'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Custodios
+              </button>
+              <button
+                type="button"
+                onClick={() => setTipoOperativo('armados')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  tipoOperativo === 'armados'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Armados
+              </button>
+            </div>
+          )}
+        </div>
 
         <TabsContent value="dashboard">
           <InterviewMetricsDashboard />

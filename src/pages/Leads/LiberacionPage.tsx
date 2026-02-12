@@ -7,7 +7,7 @@ import { Search, Loader2 } from 'lucide-react';
 import LiberacionStats from '@/components/liberacion/LiberacionStats';
 import LiberacionTable from '@/components/liberacion/LiberacionTable';
 import LiberacionChecklistModal from '@/components/liberacion/LiberacionChecklistModal';
-import { CustodioLiberacion } from '@/types/liberacion';
+import { CustodioLiberacion, TipoOperativo } from '@/types/liberacion';
 import { SupplyPipelineBreadcrumb } from '@/components/leads/supply/SupplyPipelineBreadcrumb';
 
 const LiberacionPage = () => {
@@ -16,12 +16,14 @@ const LiberacionPage = () => {
   const [selectedTab, setSelectedTab] = useState('en_proceso');
   const [selectedLiberacion, setSelectedLiberacion] = useState<CustodioLiberacion | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tipoOperativo, setTipoOperativo] = useState<TipoOperativo>('custodio');
 
   // Filtrar liberaciones por tab
   const getFilteredLiberaciones = () => {
     if (!liberaciones) return [];
 
-    let filtered = liberaciones;
+    // Filter by tipo_operativo first
+    let filtered = liberaciones.filter(l => (l.tipo_operativo || 'custodio') === tipoOperativo);
 
     // Filtrar por estado según tab
     switch (selectedTab) {
@@ -90,9 +92,35 @@ const LiberacionPage = () => {
       {/* Main Content */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Pipeline de Liberación</CardTitle>
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CardTitle>Pipeline de Liberación</CardTitle>
+              <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-0.5 border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setTipoOperativo('custodio')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    tipoOperativo === 'custodio'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Custodios
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoOperativo('armado')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    tipoOperativo === 'armado'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Armados
+                </button>
+              </div>
+            </div>
+            <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre o teléfono..."
@@ -107,13 +135,13 @@ const LiberacionPage = () => {
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="en_proceso">
-                En Proceso ({liberaciones?.filter(l => !['liberado', 'rechazado'].includes(l.estado_liberacion)).length || 0})
+                En Proceso ({liberaciones?.filter(l => (l.tipo_operativo || 'custodio') === tipoOperativo && !['liberado', 'rechazado'].includes(l.estado_liberacion)).length || 0})
               </TabsTrigger>
               <TabsTrigger value="pendientes_gps">
-                Pendientes GPS ({liberaciones?.filter(l => !l.instalacion_gps_completado && l.estado_liberacion !== 'liberado').length || 0})
+                Pendientes GPS ({liberaciones?.filter(l => (l.tipo_operativo || 'custodio') === tipoOperativo && !l.instalacion_gps_completado && l.estado_liberacion !== 'liberado').length || 0})
               </TabsTrigger>
               <TabsTrigger value="completados">
-                Completados ({liberaciones?.filter(l => l.estado_liberacion === 'liberado').length || 0})
+                Completados ({liberaciones?.filter(l => (l.tipo_operativo || 'custodio') === tipoOperativo && l.estado_liberacion === 'liberado').length || 0})
               </TabsTrigger>
             </TabsList>
 
