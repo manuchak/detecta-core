@@ -39,9 +39,9 @@ function lazyWithRetry(factory: () => Promise<any>) {
 }
 
 // Lazy load pages to reduce initial bundle size and fix build timeout
-const Index = lazy(() => import('@/pages/Index'));
-const Home = lazy(() => import('@/pages/Home/Home'));
-const HomeRobust = lazy(() => import('@/pages/Home/HomeRobust'));
+const Index = lazyWithRetry(() => import('@/pages/Index'));
+const Home = lazyWithRetry(() => import('@/pages/Home/Home'));
+const HomeRobust = lazyWithRetry(() => import('@/pages/Home/HomeRobust'));
 const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'));
 const ExecutiveDashboard = lazy(() => import('@/pages/Dashboard/ExecutiveDashboard'));
 const KPIDashboard = lazy(() => import('@/pages/Dashboard/KPIDashboard'));
