@@ -1,67 +1,76 @@
 
-## Plan: Corregir impresion SIERCP y persistir navegacion en Evaluaciones
 
-### Problema 1: Impresion del informe
+## Plan: Optimizar peso y paginacion del PDF SIERCP
 
-El `handlePrint` actual usa `reportRef.current.innerHTML` para copiar el contenido del reporte a una ventana nueva. Esto tiene dos problemas:
-- Los graficos SVG del `SIERCPRadarProfile` (Recharts) y `SIERCPScoreGauge` se copian como SVG inline, pero pierden los estilos computados y las transformaciones CSS (como `transform: rotate(-90deg)` del gauge)
-- La recopilacion de CSS via `document.styleSheets` falla silenciosamente con hojas de estilo cross-origin (fuentes, CDNs), resultando en estilos incompletos
-- El resultado es un informe impreso con graficos rotos o invisibles
+### Problemas identificados
 
-**Solucion**: Usar `html2canvas` (ya instalado en el proyecto) para renderizar el reporte completo como imagen, y luego usar `jsPDF` (tambien instalado) para generar un PDF limpio. Esto captura los SVGs exactamente como se ven en pantalla.
+**1. Tamaño excesivo (43 MB)**
+- `html2canvas` con `scale: 2` genera un canvas enorme
+- `canvas.toDataURL('image/png')` produce datos PNG sin compresion significativa
+- Se usa el mismo canvas gigante para todas las paginas (la imagen completa se repite en cada `addImage`)
 
-Alternativa mas ligera: Mejorar la estrategia de ventana nueva asegurando que los SVGs se serialicen correctamente con `XMLSerializer` y que los estilos inline se preserven. Ademas, agregar un pequeno delay para que la ventana nueva renderice los estilos antes de imprimir.
+**2. Cortes de parrafos**
+- El metodo actual renderiza TODO el informe como una sola imagen grande
+- Luego la corta en franjas de altura fija sin respetar limites de seccion
+- El resultado son parrafos, tablas y graficos cortados a mitad
 
-Se implementara la alternativa ligera con estas mejoras:
-- Serializar los SVGs con `XMLSerializer` en vez de confiar solo en `innerHTML`
-- Copiar los estilos computados criticos inline en los SVGs
-- Agregar un fallback con `html2canvas + jsPDF` como boton secundario "Descargar PDF"
+### Solucion: Renderizado por secciones
 
-### Problema 2: Scroll al inicio con cada cambio de pagina
+En vez de capturar todo el reporte como una imagen unica y rebanarla, se capturara cada seccion logica del informe por separado. Luego se colocaran en el PDF respetando los limites de pagina: si una seccion no cabe en el espacio restante, se mueve a la siguiente pagina.
 
-El proyecto no tiene un componente `ScrollToTop` en el Router. Cada navegacion entre rutas mantiene la posicion de scroll previa o salta de forma inconsistente.
+### Cambios
 
-**Solucion**: Agregar un componente `ScrollToTop` dentro del `Router` en `App.tsx` que haga `window.scrollTo(0, 0)` en cada cambio de `pathname`.
+#### 1. SIERCPPrintableReport.tsx - Marcar secciones con data attributes
 
-### Problema 3: Tabs se reinician al navegar
+Agregar `data-pdf-section` a cada bloque logico del informe para que el exportador pueda identificarlos:
+- Hero/Cover
+- Radar + Resumen Ejecutivo
+- Analisis por Modulo (cada tarjeta como sub-seccion)
+- Factores de Riesgo
+- Factores de Proteccion
+- Recomendaciones
+- Areas de Seguimiento
+- Conclusion
+- Disclaimer
 
-La pagina de Evaluaciones usa `useState` para los tabs (tanto el tab principal Dashboard/Candidatos/SIERCP como el sub-tab dentro de SIERCP). Al navegar a otra seccion y volver, siempre se muestra "Dashboard" en vez de "SIERCP > Evaluaciones Candidatos".
+#### 2. SIERCPReportDialog.tsx - Reescribir handleDownloadPDF
 
-**Solucion**: Migrar ambos niveles de tabs a `useSearchParams` siguiendo el patron ya establecido en el proyecto (LMS, Settings, WhatsApp Kapso). Los parametros seran `?tab=siercp&siercpTab=invitations`.
+Nuevo algoritmo:
+1. Buscar todos los elementos con `[data-pdf-section]` dentro del reporte
+2. Para cada seccion, renderizar con `html2canvas` usando `scale: 1.5` (suficiente calidad, menos peso)
+3. Convertir a JPEG en vez de PNG (`canvas.toDataURL('image/jpeg', 0.85)`) - reduce 5-10x el tamaño
+4. Colocar cada imagen en el PDF: si no cabe en el espacio restante de la pagina actual, crear nueva pagina
+5. Resultado: secciones completas sin cortes, archivo de 1-3 MB
 
-### Cambios por archivo
+```
+Flujo por seccion:
+  for each section in reportSections:
+    canvas = html2canvas(section, { scale: 1.5 })
+    imgData = canvas.toDataURL('image/jpeg', 0.85)
+    sectionHeight = (canvas.height * usableWidth) / canvas.width
+    
+    if (currentY + sectionHeight > pageBottom):
+      pdf.addPage()
+      currentY = marginTop
+    
+    pdf.addImage(imgData, 'JPEG', marginLeft, currentY, usableWidth, sectionHeight)
+    currentY += sectionHeight + gap
+```
 
-| Archivo | Accion | Descripcion |
+### Impacto esperado
+
+| Metrica | Antes | Despues |
 |---|---|---|
-| `src/components/global/ScrollToTop.tsx` | Crear | Componente que hace scroll al inicio en cada navegacion (no en POP/back) |
-| `src/App.tsx` | Modificar | Agregar `ScrollToTop` dentro del Router, junto a `LastRouteRestorer` |
-| `src/pages/Leads/EvaluacionesPage.tsx` | Modificar | Cambiar `useState` del tab principal por `useSearchParams` con parametro `?tab=` |
-| `src/components/recruitment/siercp/SIERCPResultsPanel.tsx` | Modificar | Cambiar `useState` del sub-tab por `useSearchParams` con parametro `?siercpTab=` |
-| `src/components/recruitment/psychometrics/SIERCPReportDialog.tsx` | Modificar | Mejorar `handlePrint`: serializar SVGs correctamente, copiar estilos computados, agregar fallback robusto |
+| Tamaño archivo | ~43 MB | ~1-3 MB |
+| Cortes de parrafo | Frecuentes | Ninguno |
+| Formato imagen | PNG sin comprimir | JPEG 85% |
+| Escala canvas | 2x | 1.5x |
+| Metodo de paginacion | Rebanado ciego | Por seccion logica |
 
-### Detalle tecnico: Impresion mejorada
+### Archivos a modificar
 
-```text
-handlePrint mejorado:
-1. Clonar el nodo del reporte (cloneNode(true))
-2. Para cada SVG en el clon:
-   a. Copiar estilos computados como atributos inline
-   b. Serializar con XMLSerializer
-3. Recopilar CSS de las hojas de estilo (con try/catch por hoja)
-4. Agregar estilos especificos para impresion del SIERCP
-5. Escribir en ventana nueva con onload -> print()
-```
+| Archivo | Cambio |
+|---|---|
+| `src/components/evaluation/SIERCPPrintableReport.tsx` | Agregar `data-pdf-section` a cada bloque logico |
+| `src/components/recruitment/psychometrics/SIERCPReportDialog.tsx` | Reescribir `handleDownloadPDF` con renderizado por secciones y JPEG |
 
-### Detalle tecnico: Persistencia de tabs
-
-```text
-EvaluacionesPage:
-  URL: /leads/evaluaciones?tab=siercp
-  Valores: dashboard | candidates | siercp (default: dashboard)
-
-SIERCPResultsPanel:
-  URL: /leads/evaluaciones?tab=siercp&siercpTab=invitations
-  Valores: invitations | calibration (default: invitations)
-  
-Al cambiar el tab principal, se limpia siercpTab del URL
-```
