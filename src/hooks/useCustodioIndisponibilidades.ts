@@ -87,6 +87,7 @@ export const useCustodioIndisponibilidades = () => {
       queryClient.invalidateQueries({ queryKey: ['custodio-indisponibilidades'] });
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
       queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
       toast.success('Indisponibilidad registrada correctamente');
     },
     onError: (error) => {
