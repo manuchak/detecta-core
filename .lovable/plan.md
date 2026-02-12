@@ -1,55 +1,36 @@
 
-## Mostrar gadgets asignados en las tarjetas de servicios (CompactServiceCard)
+## Fix: Error al verificar documentos - tipo de dato incorrecto
 
-### Problema
+### Causa raiz
 
-Cuando el equipo de planeacion carga servicios con gadgets (GPS portatil, candado satelital, GPS con caja imantada), esa informacion no se muestra en las tarjetas de la vista de servicios del dia. Los planificadores necesitan ver rapidamente que gadgets tiene asignado cada servicio sin tener que abrir el detalle.
+La columna `verificado_por` en la tabla `documentos_custodio` es de tipo **UUID**, pero el codigo en `DocumentacionTab.tsx` envia el string `'supply@detecta.mx'` (un email). PostgreSQL rechaza esto con error `22P02: invalid input syntax for type uuid`.
 
 ### Solucion
 
-Agregar una fila condicional en la tarjeta compacta que muestre los gadgets asignados con iconos y etiquetas compactas (badges), visible solo cuando el servicio tiene gadgets.
+Cambiar el valor enviado de un email hardcodeado al UUID del usuario autenticado (`auth.uid()`), obtenido via Supabase auth.
 
 ### Cambios
 
-**1. Base de datos: Actualizar RPC `get_real_planned_services_summary`**
+**1. `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx`**
 
-Agregar `gadgets_cantidades` al JSON que devuelve la funcion para que el frontend reciba la informacion.
+- Obtener el usuario autenticado al inicio del componente usando `supabase.auth.getUser()` o el contexto de auth existente
+- En `handleVerify` (linea 107), reemplazar `'supply@detecta.mx'` por el `user.id` del usuario logueado
 
-Linea a agregar en el `jsonb_build_object`:
-```sql
-'gadgets_cantidades', COALESCE(sp.gadgets_cantidades, '[]'::jsonb)
-```
-
-**2. Frontend: `src/hooks/useScheduledServices.ts`**
-
-Agregar el campo `gadgets_cantidades` al tipo `ScheduledService`:
+Cambio especifico:
 ```typescript
-gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
+// Antes:
+verificadoPor: 'supply@detecta.mx' // TODO: Use actual user email
+
+// Despues:
+verificadoPor: user?.id || ''  // UUID del usuario autenticado
 ```
 
-**3. Frontend: `src/components/planeacion/CompactServiceCard.tsx`**
+- Agregar import y uso del hook de auth (ej: `useStableAuth` o `supabase.auth.getUser()`) para obtener el ID
 
-Agregar una nueva fila condicional (Row 4) despues de la fila de armado que muestre los gadgets asignados como badges compactos:
+**2. Display del verificador (linea 196-200)**
 
-- Icono `Cpu` para GPS, `Lock` para candados
-- Etiquetas cortas: "GPS", "GPS Imantado", "Candado"
-- Cantidad si es mayor a 1 (ej: "2x GPS")
-- Solo se muestra si el servicio tiene gadgets (array no vacio)
+Actualmente muestra `doc.verificado_por` directamente, que ahora sera un UUID. Se podria resolver el nombre desde profiles, pero como cambio minimo se puede mostrar "Verificado" sin el UUID crudo, o hacer un lookup ligero. Por ahora, mostrar solo "Verificado" con la fecha es suficiente para no bloquear la funcionalidad.
 
-Ejemplo visual en la tarjeta:
-```text
-MERCED  00:00  EMEDEHE-243    En sitio
-SAN LORENZO, CUAUTI... -> ANTONIO RAMON MARTINEZ ROJAS
-  GPS Portatil  Candado Satelital          <-- nueva fila
-```
+### Resultado
 
-### Detalle tecnico
-
-Mapa de etiquetas para los tipos de gadget:
-| Tipo DB | Etiqueta corta | Icono |
-|---|---|---|
-| `gps_portatil` | GPS | Cpu |
-| `gps_portatil_caja_imantada` | GPS Imantado | Cpu |
-| `candado_satelital` | Candado | Lock |
-
-Los badges usaran estilo compacto con fondo semitransparente (`bg-cyan-100/60 text-cyan-700`) para diferenciarse visualmente de los badges de estado existentes.
+El boton "Verificar" enviara el UUID correcto y la operacion se completara sin error.
