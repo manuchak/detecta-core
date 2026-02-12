@@ -5397,6 +5397,76 @@ export type Database = {
           },
         ]
       }
+      evaluaciones_midot: {
+        Row: {
+          candidato_id: string
+          created_at: string
+          evaluador_id: string
+          fecha_evaluacion: string
+          id: string
+          notas: string | null
+          reporte_pdf_url: string | null
+          resultado_semaforo: string
+          score_global: number | null
+          score_honestidad: number | null
+          score_integridad: number | null
+          score_lealtad: number | null
+          updated_at: string
+        }
+        Insert: {
+          candidato_id: string
+          created_at?: string
+          evaluador_id: string
+          fecha_evaluacion?: string
+          id?: string
+          notas?: string | null
+          reporte_pdf_url?: string | null
+          resultado_semaforo?: string
+          score_global?: number | null
+          score_honestidad?: number | null
+          score_integridad?: number | null
+          score_lealtad?: number | null
+          updated_at?: string
+        }
+        Update: {
+          candidato_id?: string
+          created_at?: string
+          evaluador_id?: string
+          fecha_evaluacion?: string
+          id?: string
+          notas?: string | null
+          reporte_pdf_url?: string | null
+          resultado_semaforo?: string
+          score_global?: number | null
+          score_honestidad?: number | null
+          score_integridad?: number | null
+          score_lealtad?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
       evaluaciones_normas: {
         Row: {
           created_at: string
