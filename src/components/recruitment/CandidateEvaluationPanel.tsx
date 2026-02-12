@@ -9,6 +9,8 @@ import { RiskChecklistForm, RiskLevelBadge } from './risk/RiskChecklistForm';
 import { CandidateStateTimeline, CandidateStateProgress } from './state/CandidateStateTimeline';
 import { PsychometricEvaluationTab } from './psychometrics/PsychometricEvaluationTab';
 import { SemaforoBadge } from './psychometrics/SemaforoBadge';
+import { MidotEvaluationTab } from './midot/MidotEvaluationTab';
+import { MidotBadge } from './midot/MidotBadge';
 import { ToxicologyTab } from './toxicology/ToxicologyTab';
 import { ToxicologyBadge } from './toxicology/ToxicologyBadge';
 import { ReferencesTab } from './references/ReferencesTab';
@@ -24,6 +26,7 @@ import { InstallationProgressBadge } from '@/components/leads/evaluaciones/Insta
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
+import { useLatestMidot } from '@/hooks/useEvaluacionesMidot';
 import { useLatestToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
 import { 
   MessageSquare, 
@@ -40,7 +43,8 @@ import {
   FileText,
   FileSignature,
   GraduationCap,
-  Cpu
+  Cpu,
+  ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -59,6 +63,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { data: riskChecklist, isLoading: loadingRisk } = useRiskChecklist(candidatoId);
   const { data: latestPsicometrico } = useLatestEvaluacionPsicometrica(candidatoId);
   const { data: latestToxicologia } = useLatestToxicologia(candidatoId);
+  const latestMidot = useLatestMidot(candidatoId);
 
   const latestInterview = interviews?.[0];
 
@@ -101,6 +106,11 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
               <TestTube className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Toxico</span>
               {latestToxicologia && <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" />}
+            </TabsTrigger>
+            <TabsTrigger value="midot" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Midot</span>
+              {latestMidot && <MidotBadge resultado={latestMidot.resultado_semaforo} size="sm" />}
             </TabsTrigger>
             <TabsTrigger value="references" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
               <Users className="h-3.5 w-3.5" />
@@ -201,6 +211,10 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
           <TabsContent value="references" className="mt-4">
             <ReferencesTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+          </TabsContent>
+
+          <TabsContent value="midot" className="mt-4">
+            <MidotEvaluationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
           </TabsContent>
 
           <TabsContent value="risk" className="mt-4">
