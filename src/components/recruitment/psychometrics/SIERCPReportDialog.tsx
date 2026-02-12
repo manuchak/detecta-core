@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ function buildModuleScores(evaluation: EvaluacionPsicometrica) {
 export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateName }: Props) {
   const { loading, report, error, generateReport, saveReport, loadReport, clearReport } = useSIERCPReport();
   const reportRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +71,9 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
     // Save to DB after successful generation
     if (generated) {
       await saveReport(evaluation.id, generated);
+      queryClient.invalidateQueries({ queryKey: ['siercp-invitations-all'] });
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones-psicometricas'] });
+      queryClient.invalidateQueries({ queryKey: ['evaluacion-psicometrica-latest'] });
     }
   };
 
@@ -84,6 +89,9 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
 
     if (generated) {
       await saveReport(evaluation.id, generated);
+      queryClient.invalidateQueries({ queryKey: ['siercp-invitations-all'] });
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones-psicometricas'] });
+      queryClient.invalidateQueries({ queryKey: ['evaluacion-psicometrica-latest'] });
     }
   };
 
