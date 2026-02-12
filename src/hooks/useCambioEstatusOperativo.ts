@@ -113,7 +113,13 @@ export function useCambioEstatusOperativo() {
       queryClient.invalidateQueries({ queryKey: ['custodios'] });
       queryClient.invalidateQueries({ queryKey: ['armados'] });
       queryClient.invalidateQueries({ queryKey: ['operative-profile'] });
-      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
+
+      // Refresh materialized view so it reflects the status change
+      supabase.rpc('refresh_custodios_operativos_disponibles').then(({ error }) => {
+        if (error) console.warn('Error refreshing materialized view:', error);
+      });
 
       toast.success(
         estatusNuevo === 'activo'
