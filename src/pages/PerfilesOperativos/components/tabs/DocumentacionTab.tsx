@@ -189,8 +189,8 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Subido: {format(new Date(doc.created_at), "d MMM yyyy", { locale: es })}
-                              {doc.fecha_vencimiento && (
-                                <> • Vence: {format(new Date(doc.fecha_vencimiento), "d MMM yyyy", { locale: es })}</>
+                              {doc.fecha_vigencia && (
+                                <> • Vence: {format(new Date(doc.fecha_vigencia), "d MMM yyyy", { locale: es })}</>
                               )}
                             </p>
                             {doc.verificado && doc.verificado_por && (
@@ -208,7 +208,7 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap justify-end">
-                          {getVencimientoBadge(doc.fecha_vencimiento)}
+                          {getVencimientoBadge(doc.fecha_vigencia)}
                           {doc.verificado ? (
                             <Badge className="bg-green-500/10 text-green-500">
                               <ShieldCheck className="h-3 w-3 mr-1" />Verificado
@@ -218,9 +218,9 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
                               <Clock className="h-3 w-3 mr-1" />Pendiente
                             </Badge>
                           )}
-                          {doc.archivo_url && (
+                          {doc.foto_url && (
                             <Button variant="ghost" size="sm" asChild>
-                              <a href={doc.archivo_url} target="_blank" rel="noopener noreferrer">
+                              <a href={doc.foto_url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-4 w-4" />
                               </a>
                             </Button>

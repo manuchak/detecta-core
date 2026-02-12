@@ -5,8 +5,10 @@ export interface CustodianDocument {
   id: string;
   custodio_telefono: string;
   tipo_documento: string;
-  archivo_url: string | null;
-  fecha_vencimiento: string | null;
+  numero_documento: string | null;
+  fecha_emision: string | null;
+  fecha_vigencia: string | null;
+  foto_url: string | null;
   verificado: boolean;
   verificado_por: string | null;
   fecha_verificacion: string | null;
@@ -22,10 +24,7 @@ export function useCustodianDocsForProfile(telefono: string | null) {
       if (!telefono) return [];
       
       const { data, error } = await supabase
-        .from('documentos_custodio')
-        .select('*')
-        .eq('custodio_telefono', telefono)
-        .order('updated_at', { ascending: false });
+        .rpc('get_documentos_custodio_by_phone', { p_telefono: telefono });
       
       if (error) {
         console.error('Error fetching custodian documents:', error);
@@ -47,8 +46,8 @@ export function useCustodianDocStats(telefono: string | null) {
     verificados: documents?.filter(d => d.verificado).length || 0,
     pendientes: documents?.filter(d => !d.verificado).length || 0,
     porVencer: documents?.filter(d => {
-      if (!d.fecha_vencimiento) return false;
-      const vencimiento = new Date(d.fecha_vencimiento);
+      if (!d.fecha_vigencia) return false;
+      const vencimiento = new Date(d.fecha_vigencia);
       const hoy = new Date();
       const diasRestantes = Math.ceil((vencimiento.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
       return diasRestantes > 0 && diasRestantes <= 30;

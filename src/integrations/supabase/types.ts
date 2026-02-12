@@ -16966,6 +16966,30 @@ export type Database = {
           vehiculo_propio: boolean
         }[]
       }
+      get_documentos_custodio_by_phone: {
+        Args: { p_telefono: string }
+        Returns: {
+          created_at: string | null
+          custodio_telefono: string
+          fecha_emision: string | null
+          fecha_verificacion: string | null
+          fecha_vigencia: string
+          foto_url: string | null
+          id: string
+          notas: string | null
+          numero_documento: string | null
+          tipo_documento: string
+          updated_at: string | null
+          verificado: boolean | null
+          verificado_por: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "documentos_custodio"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_estados_safe: {
         Args: never
         Returns: {
