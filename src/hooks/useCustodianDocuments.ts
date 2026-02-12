@@ -5,10 +5,11 @@
  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
  import { toast } from 'sonner';
- import type {
-   DocumentoCustodio,
-   TipoDocumentoCustodio,
- } from '@/types/checklist';
+import type {
+  DocumentoCustodio,
+  TipoDocumentoCustodio,
+} from '@/types/checklist';
+import { compressImage, needsCompression } from '@/lib/imageUtils';
  
  export function useCustodianDocuments(custodioTelefono: string | undefined) {
    const queryClient = useQueryClient();
@@ -72,12 +73,27 @@
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `documentos/${sanitizedPhone}/${tipoDocumento}_${Date.now()}.${fileExt}`;
 
+      // Comprimir imagen si es necesario (mismo patrón que useServiceChecklist)
+      let fileToUpload: File | Blob = file;
+      let uploadContentType = file.type || 'image/jpeg';
+
+      if (needsCompression(file)) {
+        try {
+          const result = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.7 });
+          fileToUpload = result.blob;
+          uploadContentType = 'image/jpeg';
+          console.log(`[useCustodianDocuments] Comprimido: ${(file.size / 1024).toFixed(0)}KB -> ${(result.compressedSize / 1024).toFixed(0)}KB`);
+        } catch (compressionError) {
+          console.warn('[useCustodianDocuments] Compresión falló, usando archivo original:', compressionError);
+        }
+      }
+
       // 1. Subir archivo con validación
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('checklist-evidencias')
-        .upload(fileName, file, { 
+        .upload(fileName, fileToUpload, { 
           upsert: true,
-          contentType: file.type || 'image/jpeg'
+          contentType: uploadContentType
         });
 
       if (uploadError) {
