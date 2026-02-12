@@ -80,10 +80,11 @@ export function useProfileTrends(
       }
 
       // 1. Servicios planificados (existing)
+      const fallbackPuntualidad = new Map<string, string>();
       if (custodioId) {
         const { data: planificados } = await supabase
           .from('servicios_planificados')
-          .select('id, estado_planeacion, fecha_hora_cita')
+          .select('id, estado_planeacion, fecha_hora_cita, hora_inicio_real, id_servicio')
           .eq('custodio_id', custodioId)
           .gte('fecha_hora_cita', rangeStart)
           .lte('fecha_hora_cita', rangeEnd);
@@ -97,15 +98,19 @@ export function useProfileTrends(
             bucket.serviciosAsignados++;
             if (s.estado_planeacion === 'confirmado') bucket.serviciosConfirmados++;
             if (s.estado_planeacion === 'cancelado') bucket.serviciosCancelados++;
+            // Build fallback map
+            if (s.id_servicio && s.hora_inicio_real) {
+              fallbackPuntualidad.set(s.id_servicio, s.hora_inicio_real);
+            }
           }
         }
       }
 
-      // 2. Servicios custodia (existing + punctuality)
+      // 2. Servicios custodia (existing + punctuality with fallback)
       if (nombre) {
         const { data: ejecutados } = await supabase
           .from('servicios_custodia')
-          .select('id, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado')
+          .select('id, id_servicio, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado')
           .ilike('nombre_custodio', `%${nombre}%`)
           .gte('fecha_hora_cita', rangeStart)
           .lte('fecha_hora_cita', rangeEnd);
@@ -124,10 +129,11 @@ export function useProfileTrends(
               bucket.serviciosFinalizados++;
             }
 
-            // Punctuality calculation
-            if (s.hora_presentacion && s.fecha_hora_cita) {
+            // Punctuality: primary = hora_presentacion, fallback = hora_inicio_real from planificados
+            const arrivalTime = s.hora_presentacion || (s.id_servicio ? fallbackPuntualidad.get(s.id_servicio) : null);
+            if (arrivalTime && s.fecha_hora_cita) {
               const cita = new Date(s.fecha_hora_cita).getTime();
-              const presentacion = new Date(s.hora_presentacion).getTime();
+              const presentacion = new Date(arrivalTime).getTime();
               const diffMin = (presentacion - cita) / 60000;
               bucket.puntualidadTotal++;
               if (diffMin <= 0) {
