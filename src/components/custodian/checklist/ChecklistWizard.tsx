@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -55,6 +56,7 @@ export function ChecklistWizard({
   onComplete
 }: ChecklistWizardProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showExitDialog, setShowExitDialog] = useState(false);
 
   // Form persistence for wizard state
@@ -112,6 +114,7 @@ export function ChecklistWizard({
     saveChecklist(undefined, {
       onSuccess: () => {
         persistence.clearDraft(true);
+        queryClient.invalidateQueries({ queryKey: ['next-service'] });
         toast.success('¡Checklist completado!');
         if (onComplete) {
           onComplete();
@@ -120,7 +123,7 @@ export function ChecklistWizard({
         }
       }
     });
-  }, [saveChecklist, onComplete, navigate, persistence]);
+  }, [saveChecklist, onComplete, navigate, persistence, queryClient]);
 
   const handleExit = useCallback(() => {
     setShowExitDialog(true);

@@ -135,7 +135,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
       };
     },
     enabled: !!custodianPhone,
-    staleTime: 60000, // 1 minuto
+    staleTime: 10000, // 10 segundos
   });
 
   return {
