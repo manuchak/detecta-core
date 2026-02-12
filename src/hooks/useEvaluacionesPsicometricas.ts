@@ -26,6 +26,7 @@ export interface EvaluacionPsicometrica {
   fecha_aval: string | null;
   estado: string;
   fecha_evaluacion: string;
+  ai_report: Record<string, any> | null;
   created_at: string;
   updated_at: string;
   evaluador?: { display_name: string };

@@ -1,0 +1,1 @@
+ALTER TABLE evaluaciones_psicometricas ADD COLUMN ai_report JSONB DEFAULT NULL;

@@ -5469,6 +5469,7 @@ export type Database = {
       }
       evaluaciones_psicometricas: {
         Row: {
+          ai_report: Json | null
           aval_coordinacion_id: string | null
           aval_decision: string | null
           aval_notas: string | null
@@ -5495,6 +5496,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          ai_report?: Json | null
           aval_coordinacion_id?: string | null
           aval_decision?: string | null
           aval_notas?: string | null
@@ -5521,6 +5523,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          ai_report?: Json | null
           aval_coordinacion_id?: string | null
           aval_decision?: string | null
           aval_notas?: string | null
