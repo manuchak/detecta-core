@@ -21,6 +21,7 @@ import { useCustodianDocsForProfile, useCustodianDocStats, CustodianDocument } f
 import { useVerifyDocument } from '../../hooks/useVerifyDocument';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useState } from 'react';
+import { useStableAuth } from '@/hooks/useStableAuth';
 import { ChevronDown } from 'lucide-react';
 
 interface DocumentacionTabProps {
@@ -34,6 +35,7 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
   const { data: custodianDocs, isLoading: loadingCustodian } = useCustodianDocsForProfile(telefono);
   const { stats: custodianStats } = useCustodianDocStats(telefono);
   const verifyMutation = useVerifyDocument(telefono);
+  const { user } = useStableAuth();
   
   const [custodianOpen, setCustodianOpen] = useState(true);
   const [recruitmentOpen, setRecruitmentOpen] = useState(true);
@@ -104,7 +106,7 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
     verifyMutation.mutate({
       docId: doc.id,
       verificado,
-      verificadoPor: 'supply@detecta.mx' // TODO: Use actual user email
+      verificadoPor: user?.id || ''
     });
   };
 
@@ -196,7 +198,7 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
                             {doc.verificado && doc.verificado_por && (
                               <p className="text-xs text-green-600 flex items-center gap-1">
                                 <UserCheck className="h-3 w-3" />
-                                Verificado por {doc.verificado_por} 
+                                Verificado 
                                 {doc.fecha_verificacion && (
                                   <> el {format(new Date(doc.fecha_verificacion), "d MMM yyyy", { locale: es })}</>
                                 )}
