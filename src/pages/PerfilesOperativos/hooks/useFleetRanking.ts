@@ -28,7 +28,7 @@ export function useFleetRanking(nombre: string | undefined) {
 
       const { data, error } = await supabase
         .from('servicios_custodia')
-        .select('nombre_custodio, estado, precio_venta, hora_presentacion, fecha_hora_cita')
+        .select('nombre_custodio, estado, costo_custodio, hora_presentacion, fecha_hora_cita')
         .gte('fecha_hora_cita', since.toISOString());
 
       if (error) throw error;
@@ -44,7 +44,7 @@ export function useFleetRanking(nombre: string | undefined) {
 
         const isCompleted = ['Finalizado', 'completado', 'Completado', 'finalizado'].includes(r.estado || '');
         if (isCompleted) byName[n].completados++;
-        byName[n].revenue += (r.precio_venta as number) || 0;
+        byName[n].revenue += (r.costo_custodio as number) || 0;
 
         // Punctuality when both timestamps exist
         if (r.hora_presentacion && r.fecha_hora_cita) {
