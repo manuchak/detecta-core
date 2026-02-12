@@ -1,47 +1,54 @@
 
 
-## Fix: Error al verificar documentos desde Perfil Operativo
+## Fix: Checklist completado no se refleja al volver al dashboard
 
-### Causa raiz
+### Problema
 
-La tabla `documentos_custodio` tiene dos politicas RLS:
+Cuando el custodio completa el checklist y regresa al dashboard, la tarjeta de "Proximo servicio" sigue mostrando "Iniciar Checklist Pre-Servicio" en lugar de "Checklist completado". Esto ocurre porque:
 
-1. **"Custodios gestionan documentos propios"** - permite ALL pero solo para el custodio dueno del documento
-2. **"Staff ve todos los documentos"** - permite solo **SELECT** para roles admin/owner/planeacion/monitoreo/coordinador
-
-Cuando un admin hace clic en "Verificar", el UPDATE es bloqueado por RLS porque no existe una politica que permita UPDATE para staff. Supabase devuelve 0 filas afectadas, y el `.single()` falla con error PGRST116.
+1. El wizard llama `navigate('/custodian')` al completar, pero no invalida el cache de React Query
+2. `useNextService` tiene `staleTime: 60000` (1 minuto), asi que usa datos en cache donde `checklistStatus` sigue siendo `null`
+3. Solo despues de 1 minuto (o pull-to-refresh manual) se actualiza correctamente
 
 ### Solucion
 
-Agregar una politica RLS de UPDATE para staff en `documentos_custodio`. Esto permite que los roles administrativos puedan marcar documentos como verificados.
+Invalidar el cache de `next-service` inmediatamente al completar el checklist, para que al llegar al dashboard se haga un fetch fresco.
 
 ### Cambios
 
-| Donde | Que |
-|---|---|
-| Base de datos (SQL) | Crear politica RLS: `"Staff actualiza documentos"` que permita UPDATE para roles admin, owner, planeacion, monitoreo, coordinador |
+**1. `src/components/custodian/checklist/ChecklistWizard.tsx`**
 
-SQL a ejecutar:
+- Importar `useQueryClient` de TanStack React Query
+- En `handleSubmit`, antes de navegar, invalidar la query `['next-service']` para forzar un refetch cuando el dashboard se monte
 
-```sql
-CREATE POLICY "Staff actualiza documentos" 
-ON public.documentos_custodio
-FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles 
-    WHERE user_roles.user_id = auth.uid() 
-    AND user_roles.role = ANY (ARRAY['admin', 'owner', 'planeacion', 'monitoreo', 'coordinador'])
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM user_roles 
-    WHERE user_roles.user_id = auth.uid() 
-    AND user_roles.role = ANY (ARRAY['admin', 'owner', 'planeacion', 'monitoreo', 'coordinador'])
-  )
-);
+```text
+handleSubmit flow actual:
+  saveChecklist -> clearDraft -> toast -> navigate('/custodian')
+
+handleSubmit flow nuevo:
+  saveChecklist -> clearDraft -> invalidateQueries(['next-service']) -> toast -> navigate('/custodian')
 ```
 
-No se requieren cambios en codigo frontend. El hook `useVerifyDocument.ts` esta correcto, solo necesita que la BD permita el UPDATE.
+**2. `src/hooks/useNextService.ts`**
+
+- Reducir `staleTime` de 60000ms a 10000ms (10 segundos) para que las invalidaciones surtan efecto mas rapido
+- Esto es un cambio menor de seguridad; la invalidacion explicita es el fix principal
+
+### Detalle tecnico
+
+En ChecklistWizard.tsx, agregar:
+
+```typescript
+const queryClient = useQueryClient();
+
+// En handleSubmit onSuccess:
+onSuccess: () => {
+  persistence.clearDraft(true);
+  queryClient.invalidateQueries({ queryKey: ['next-service'] });
+  toast.success('Checklist completado!');
+  onComplete ? onComplete() : navigate('/custodian');
+}
+```
+
+No se requieren cambios en NextServiceCard.tsx ni en MobileDashboardLayout.tsx. La logica de renderizado condicional (linea 106-127 de NextServiceCard) ya maneja correctamente el estado `checklistCompleted`, solo necesita recibir el dato actualizado.
 
