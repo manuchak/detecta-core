@@ -71,6 +71,30 @@ export function useOperativeRating(
     enabled: !!custodioId,
   });
 
+  // Real-time 15d service classification
+  const servicios15dQuery = useQuery({
+    queryKey: ['operative-rating-servicios15d', nombre],
+    queryFn: async () => {
+      if (!nombre) return { locales: 0, foraneos: 0 };
+      const since = new Date();
+      since.setDate(since.getDate() - 15);
+      const { data, error } = await supabase
+        .from('servicios_custodia')
+        .select('km_recorridos')
+        .ilike('nombre_custodio', `%${nombre}%`)
+        .gte('fecha_hora_cita', since.toISOString())
+        .in('estado', ['Finalizado', 'completado', 'Completado', 'finalizado']);
+      if (error) throw error;
+      let locales = 0, foraneos = 0;
+      for (const r of data || []) {
+        if (r.km_recorridos != null && r.km_recorridos >= 100) foraneos++;
+        else locales++;
+      }
+      return { locales, foraneos };
+    },
+    enabled: !!nombre,
+  });
+
   // Revenue 90d for this custodio
   const revenueQuery = useQuery({
     queryKey: ['operative-rating-revenue', nombre],
@@ -116,7 +140,7 @@ export function useOperativeRating(
     staleTime: 1000 * 60 * 10, // 10min cache
   });
 
-  const isLoading = perfLoading || profileQuery.isLoading || revenueQuery.isLoading || percentilesQuery.isLoading;
+  const isLoading = perfLoading || profileQuery.isLoading || revenueQuery.isLoading || percentilesQuery.isLoading || servicios15dQuery.isLoading;
 
   // Calculate dimensions
   const profileData = profileQuery.data;
@@ -152,15 +176,15 @@ export function useOperativeRating(
     scoreRev = Math.round(Math.min(100, scoreRev));
   }
 
-  // 4. Versatilidad
+  // 4. Versatilidad (real-time from servicios_custodia)
   let scoreVers = 40;
-  const locales = profileData?.servicios_locales_15d || 0;
-  const foraneos = profileData?.servicios_foraneos_15d || 0;
+  const locales = servicios15dQuery.data?.locales || 0;
+  const foraneos = servicios15dQuery.data?.foraneos || 0;
   const maxServ = Math.max(locales, foraneos);
   const minServ = Math.min(locales, foraneos);
   if (maxServ > 0) {
-    const ratio = minServ / maxServ; // 0-1
-    scoreVers = Math.round(40 + ratio * 60); // 40-100
+    const ratio = minServ / maxServ;
+    scoreVers = Math.round(40 + ratio * 60);
   }
   if (profileData?.preferencia_tipo_servicio === 'indistinto') {
     scoreVers = Math.min(100, scoreVers + 10);
