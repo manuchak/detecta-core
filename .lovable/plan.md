@@ -1,40 +1,47 @@
 
 
-## Persistencia de pestana activa en Perfil Operativo
+## Fix: Error al verificar documentos desde Perfil Operativo
 
-### Problema
+### Causa raiz
 
-Cuando trabajas en la pestana "Docs" (u otra) y abres una imagen o navegas fuera, al regresar el perfil se remonta y vuelve a "Informacion" porque la pestana activa no se guarda en la URL.
+La tabla `documentos_custodio` tiene dos politicas RLS:
+
+1. **"Custodios gestionan documentos propios"** - permite ALL pero solo para el custodio dueno del documento
+2. **"Staff ve todos los documentos"** - permite solo **SELECT** para roles admin/owner/planeacion/monitoreo/coordinador
+
+Cuando un admin hace clic en "Verificar", el UPDATE es bloqueado por RLS porque no existe una politica que permita UPDATE para staff. Supabase devuelve 0 filas afectadas, y el `.single()` falla con error PGRST116.
 
 ### Solucion
 
-Aplicar el mismo patron de persistencia por URL que ya existe en otros modulos (Settings, Planning Hub, WhatsApp Kapso, etc.): usar `useSearchParams` para sincronizar la pestana activa con el parametro `?tab=` de la URL.
+Agregar una politica RLS de UPDATE para staff en `documentos_custodio`. Esto permite que los roles administrativos puedan marcar documentos como verificados.
 
-### Cambio
+### Cambios
 
-**Archivo: `src/pages/PerfilesOperativos/PerfilForense.tsx`**
+| Donde | Que |
+|---|---|
+| Base de datos (SQL) | Crear politica RLS: `"Staff actualiza documentos"` que permita UPDATE para roles admin, owner, planeacion, monitoreo, coordinador |
 
-1. Importar `useSearchParams` (ya se importa `useLocation` de react-router-dom)
-2. Leer el parametro `tab` de la URL, con fallback a `"info"`
-3. Cambiar `Tabs` de `defaultValue` a `value` controlado
-4. Agregar `onValueChange` que actualice el searchParam `tab`
+SQL a ejecutar:
 
-Resultado: la URL pasara de `/perfiles-operativos/custodio/61f...` a `/perfiles-operativos/custodio/61f...?tab=documentacion` y al regresar de ver una imagen, la pestana se restaurara automaticamente.
-
-### Detalle tecnico
-
-```typescript
-// Agregar useSearchParams
-const [searchParams, setSearchParams] = useSearchParams();
-const activeTab = searchParams.get('tab') || 'info';
-
-const handleTabChange = (value: string) => {
-  setSearchParams({ tab: value }, { replace: true });
-};
-
-// Cambiar Tabs
-<Tabs value={activeTab} onValueChange={handleTabChange}>
+```sql
+CREATE POLICY "Staff actualiza documentos" 
+ON public.documentos_custodio
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_roles.user_id = auth.uid() 
+    AND user_roles.role = ANY (ARRAY['admin', 'owner', 'planeacion', 'monitoreo', 'coordinador'])
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_roles.user_id = auth.uid() 
+    AND user_roles.role = ANY (ARRAY['admin', 'owner', 'planeacion', 'monitoreo', 'coordinador'])
+  )
+);
 ```
 
-No se requieren cambios en ningun otro archivo. El patron es identico al ya establecido en el proyecto.
+No se requieren cambios en codigo frontend. El hook `useVerifyDocument.ts` esta correcto, solo necesita que la BD permita el UPDATE.
 
