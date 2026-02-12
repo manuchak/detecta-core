@@ -23,6 +23,7 @@ import { ArmadoEvaluacionesTab } from './components/tabs/ArmadoEvaluacionesTab';
 import { DocumentacionTab } from './components/tabs/DocumentacionTab';
 import { CapacitacionTab } from './components/tabs/CapacitacionTab';
 import { HistoricoTab } from './components/tabs/HistoricoTab';
+import { CumplimientoTab } from './components/tabs/CumplimientoTab';
 import { useOperativeProfile, type OperativeProfileFull } from './hooks/useOperativeProfile';
 
 export default function PerfilForense() {
@@ -163,7 +164,11 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="cumplimiento">
-          <PlaceholderTab icon={Shield} title="Cumplimiento y Vencimientos" />
+          <CumplimientoTab 
+            custodioId={id!} 
+            telefono={profile.telefono || null}
+            nombre={profile.nombre}
+          />
         </TabsContent>
         
         <TabsContent value="historico">
