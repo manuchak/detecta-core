@@ -8,6 +8,7 @@ import LiberacionStats from '@/components/liberacion/LiberacionStats';
 import LiberacionTable from '@/components/liberacion/LiberacionTable';
 import LiberacionChecklistModal from '@/components/liberacion/LiberacionChecklistModal';
 import { CustodioLiberacion } from '@/types/liberacion';
+import { SupplyPipelineBreadcrumb } from '@/components/leads/supply/SupplyPipelineBreadcrumb';
 
 const LiberacionPage = () => {
   const { liberaciones, isLoading } = useCustodioLiberacion();
@@ -72,6 +73,9 @@ const LiberacionPage = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Pipeline Breadcrumb */}
+      <SupplyPipelineBreadcrumb />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Liberación de Custodios</h1>
