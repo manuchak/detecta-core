@@ -386,7 +386,8 @@ export const useCustodioLiberacion = () => {
       vehiculo = 100; // No aplica
     }
     
-    const gps = liberacion.instalacion_gps_completado ? 100 : 0;
+    // GPS: completado = 100, pendiente (diferido) = 100 (no bloquea), else 0
+    const gps = liberacion.instalacion_gps_completado ? 100 : (liberacion.gps_pendiente ? 100 : 0);
     
     // Total calculado SIN psicométricos (4 componentes en lugar de 5)
     const total = Math.round(

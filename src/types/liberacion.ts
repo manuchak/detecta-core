@@ -61,6 +61,9 @@ export interface CustodioLiberacion {
   fecha_instalacion_gps?: string;
   instalador_id?: string;
   notas_gps?: string;
+  gps_pendiente: boolean;
+  motivo_gps_pendiente?: string;
+  fecha_programacion_gps?: string;
   
   // Aprobación
   aprobado_por_supply?: string;
