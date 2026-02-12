@@ -1,71 +1,48 @@
 
 
-## Mejoras de UI/UX para Custodios con Dificultad Tecnologica
+## Fix: Agregar compresion de imagenes al flujo de documentos del custodio
 
-### Problemas identificados en el flujo actual
+### Diagnostico
 
-**Registro (`CustodianSignup.tsx`)**
-1. Los campos de contrasena usan `type="password"` sin opcion de mostrar/ocultar - los mayores cometen errores de escritura sin poder verificar
-2. El placeholder `"••••••••"` no comunica nada util
-3. El texto "Minimo 6 caracteres" es muy pequeno (`text-xs`) y facil de ignorar
-4. No hay indicador visual de fortaleza de contrasena mientras escriben
-5. Los mensajes de error de validacion son pequenos y tecnicos
-6. El formulario tiene 4 campos + boton, lo cual puede sentirse abrumador
+La compresion de imagenes funciona correctamente para las **fotos del checklist** (vehiculo) - estas llegan a 111-278 KB como se esperaba. El problema esta en las **fotos de documentos** (licencia, circulacion, seguro) que se suben SIN compresion:
 
-**Login (`Login.tsx`)**
-1. El boton de mostrar contrasena es muy pequeno (7x7 px) - dificil de tocar en movil
-2. El link "Olvidaste tu contrasena?" es gris claro (`text-muted-foreground`) y pequeno - casi invisible
-3. No hay indicacion clara de que hacer cuando la contrasena es incorrecta vs cuenta no existe
-4. El mensaje "Por favor completa todos los campos" es generico
+| Tipo | Tamano promedio | Compresion? |
+|---|---|---|
+| Fotos vehiculo (checklist) | 111-278 KB | SI - via `useServiceChecklist.ts` |
+| Fotos documentos (onboarding) | 2.3-5.2 MB | NO - `useCustodianDocuments.ts` sube raw |
 
-**Ambos flujos**
-1. Los inputs tienen tamano estandar - demasiado pequenos para dedos de personas mayores
-2. No hay confirmacion visual clara de lo que estan escribiendo
-3. Los textos de ayuda son muy pequenos
+La funcion `compressImage()` en `imageUtils.ts` esta probada y funciona bien (v6 con timeouts y fallbacks). Simplemente no se invoca en el flujo de documentos.
 
-### Cambios propuestos
+### Solucion
 
-**1. Login.tsx - Hacerlo mas accesible**
+**Archivo unico: `src/hooks/useCustodianDocuments.ts`**
 
-- Aumentar tamano de inputs: agregar clase `h-12 text-base` para targets tactiles mas grandes
-- Boton mostrar contrasena mas grande: cambiar de `h-7 w-7` a `h-10 w-10` con icono mas grande
-- Link "Olvidaste tu contrasena?" mas visible: cambiar a `text-base text-primary font-medium` con mas padding
-- Agregar texto de ayuda debajo del campo email: "Usa el email con el que te registraste"
-- Boton de login mas grande: agregar `h-12 text-base font-semibold`
-- Mensajes de error mas descriptivos y grandes con iconos
+Agregar compresion antes del upload en la `mutationFn`, reutilizando las mismas utilidades que ya usa el checklist:
 
-**2. CustodianSignup.tsx - Simplificar y agrandar**
+1. Importar `compressImage` y `needsCompression` de `@/lib/imageUtils`
+2. Antes de la linea de upload (linea 76), agregar bloque de compresion:
+   - Si `needsCompression(file)` (>500KB), comprimir con `compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.7 })`
+   - Usar el blob comprimido para el upload
+   - Si la compresion falla, usar el archivo original (fallback seguro - misma logica que el checklist)
+3. Actualizar el `contentType` del upload para usar `image/jpeg` cuando se comprime
 
-- Agregar boton mostrar/ocultar contrasena (igual que Login) en ambos campos de password
-- Aumentar tamano de todos los inputs: `h-12 text-base`
-- Cambiar placeholder de contrasena de `"••••••••"` a `"Escribe tu contraseña"`
-- Hacer el texto de ayuda "Minimo 6 caracteres" mas grande: `text-sm` con icono informativo
-- Agregar indicador visual simple de contrasena: checkmark verde cuando cumple minimo 6 caracteres
-- Boton de registro mas grande: `h-12 text-base font-semibold`
-- Agregar un mensaje de bienvenida mas calido arriba del formulario
-- Titulo del CardDescription mas claro: "Llena estos datos para crear tu cuenta. Si necesitas ayuda, contacta a tu coordinador."
+### Riesgo y mitigacion
 
-**3. ResendConfirmationForm.tsx - Mas claro**
+- **Riesgo CERO de romper funcionalidad existente**: el patron es identico al que ya funciona en `useServiceChecklist.ts` (lineas 159-172)
+- Fallback al archivo original si la compresion falla por cualquier razon
+- No se modifica ningun otro archivo ni flujo
+- La compresion usa Canvas API nativa del navegador, sin dependencias adicionales
 
-- Aumentar tamano de texto explicativo
-- Agregar instrucciones mas claras en lenguaje coloquial
-- Boton mas grande y visible
+### Resultado esperado
 
-### Detalles tecnicos
+Las fotos de documentos bajaran de ~3 MB a ~400-500 KB (reduccion del 80%), igual que las fotos del checklist. Esto reduce:
+- Tiempo de upload (critico en redes moviles lentas)
+- Consumo de storage en Supabase
+- Riesgo de timeouts durante la subida
 
-**Archivos a modificar:**
+### Archivo afectado
 
-| Archivo | Cambios |
+| Archivo | Cambio |
 |---|---|
-| `src/pages/Auth/Login.tsx` | Inputs h-12, boton eye mas grande, link forgot-password mas visible, boton submit h-12, textos de ayuda |
-| `src/pages/Auth/CustodianSignup.tsx` | Toggle password visibility en ambos campos, inputs h-12, placeholders descriptivos, indicador de requisito cumplido, boton h-12, copy mas calido |
-| `src/components/auth/ResendConfirmationForm.tsx` | Textos mas grandes, instrucciones en lenguaje coloquial |
-
-**Principios de diseno aplicados:**
-- Targets tactiles minimo 48px (h-12 = 48px)
-- Texto base minimo 16px (`text-base`) para evitar zoom en iOS
-- Contraste alto en elementos interactivos
-- Lenguaje coloquial y directo, sin jerga tecnica
-- Feedback visual inmediato (checkmarks, colores)
-- Opcion de ver contrasena en todos los campos de password
+| `src/hooks/useCustodianDocuments.ts` | Agregar compresion antes de upload (~10 lineas nuevas) |
 
