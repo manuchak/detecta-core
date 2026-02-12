@@ -238,18 +238,19 @@ export function PendingAssignmentModal({
     
     try {
       const fechaFin = data.dias 
-        ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString()
         : null;
       
       const { error } = await supabase
         .from('custodio_indisponibilidades')
         .insert({
           custodio_id: unavailabilityCustodian.id,
-          tipo: data.tipo,
-          motivo: data.motivo || null,
-          fecha_inicio: new Date().toISOString().split('T')[0],
-          fecha_fin: fechaFin,
-          activo: true
+          tipo_indisponibilidad: data.tipo,
+          motivo: data.motivo || 'Sin especificar',
+          fecha_inicio: new Date().toISOString(),
+          fecha_fin_estimada: fechaFin,
+          estado: 'activo',
+          severidad: 'media'
         });
       
       if (error) throw error;
