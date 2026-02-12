@@ -1,83 +1,99 @@
 
 
-## Diagnostico: Custodios inactivos aparecen como disponibles en asignacion
+## Plan: Corregir invalidaciones de cache post-indisponibilidad en todos los flujos
 
-### Hallazgos del analisis
+### Diagnostico
 
-Se analizaron los 3 flujos de asignacion de Planeacion y se encontraron **2 problemas** que causan que custodios marcados como inactivos por Supply sigan apareciendo:
-
----
-
-### Problema 1: Cache key mismatch (invalidacion rota)
-
-Cuando Supply cambia el estatus de un custodio via `useCambioEstatusOperativo`, el hook intenta invalidar el cache:
-
-```text
-Invalida:  ['custodios-con-proximidad']
-Query real: ['custodios-con-proximidad-equitativo', ...]
-```
-
-El prefijo **no coincide**, por lo tanto React Query nunca invalida la cache de los flujos de asignacion. Los 3 flujos afectados (ServiceCreation, PendingAssignment, Reassignment) usan `useCustodiosConProximidad` con la key `custodios-con-proximidad-equitativo`.
-
-Ademas, `staleTime` es de 2 minutos y `refetchOnWindowFocus` esta deshabilitado, lo que agrava el problema: si un planificador tiene el modal abierto, los datos no se refrescan.
-
-**Fix**: Corregir la key de invalidacion en `useCambioEstatusOperativo.ts`:
-
-```typescript
-// Antes (no matchea)
-queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
-
-// Despues (matchea correctamente)
-queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
-```
+Se encontraron 2 inconsistencias que pueden causar bugs de asignacion al propagar a produccion:
 
 ---
 
-### Problema 2: Vista materializada desactualizada
+### Problema 1: Modales con insert directo sin invalidacion de cache
 
-El hook `useCustodios` (usado en TrackingDashboard y vistas de configuracion) lee de la vista materializada `custodios_operativos_disponibles`. Esta vista es un **snapshot estatico** que solo se refresca en eventos especificos (liberacion de custodios). 
+`PendingAssignmentModal` y `ReassignmentModal` hacen `supabase.from('custodio_indisponibilidades').insert()` directamente, sin usar el hook `useCustodioIndisponibilidades`. Esto significa que despues de registrar una indisponibilidad, **no se invalida ningun cache** y el custodio sigue apareciendo como disponible en la misma lista.
 
-Cuando Supply cambia `estado = 'inactivo'`, la vista materializada **no se refresca**, asi que sigue mostrando al custodio como disponible hasta el proximo refresh manual.
-
-**Fix**: Agregar `REFRESH MATERIALIZED VIEW CONCURRENTLY custodios_operativos_disponibles` como parte del flujo de cambio de estatus. Esto se puede hacer con un trigger en `custodios_operativos` o invocando el refresh desde el hook despues de la mutacion.
-
----
-
-### Resumen de cambios por archivo
-
-| Archivo | Cambio | Impacto |
+| Flujo | Metodo de insert | Invalida cache? |
 |---|---|---|
-| `src/hooks/useCambioEstatusOperativo.ts` | Corregir query key de invalidacion de `'custodios-con-proximidad'` a `'custodios-con-proximidad-equitativo'` | Los 3 flujos de asignacion veran datos frescos |
-| `src/hooks/useCambioEstatusOperativo.ts` | Agregar invalidacion de `'custodios-operativos-disponibles'` (materializada) | TrackingDashboard y config views |
-| `src/hooks/useCambioEstatusOperativo.ts` | Llamar `supabase.rpc('refresh_custodios_operativos_disponibles')` despues de cambio de estatus | Vista materializada actualizada en tiempo real |
+| CustodianStep (crear servicio) | `crearIndisponibilidad.mutateAsync()` (hook) | Si (parcial) |
+| PendingAssignmentModal | `supabase.from().insert()` directo | No |
+| ReassignmentModal | `supabase.from().insert()` directo | No |
 
-### Detalle tecnico del cambio
+**Fix**: Agregar invalidaciones manuales despues del insert exitoso en ambos modales, o idealmente refactorizar para usar el hook compartido. La solucion mas segura y con menor riesgo de regresion es agregar las invalidaciones inline.
 
-En `useCambioEstatusOperativo.ts`, reemplazar el bloque de invalidaciones (~lineas 107-116):
+---
+
+### Problema 2: Hook `useCustodioIndisponibilidades` no invalida la query de asignacion
+
+El `onSuccess` del mutation `crearIndisponibilidad` invalida:
+- `custodio-indisponibilidades` 
+- `custodios`
+- `custodios-operativos-disponibles`
+
+Pero **no invalida** `custodios-con-proximidad-equitativo`, que es la query key usada por los 3 flujos de asignacion. Esto significa que incluso en CustodianStep (que usa el hook), la lista de custodios no se refresca automaticamente.
+
+**Fix**: Agregar `custodios-con-proximidad-equitativo` al `onSuccess` del hook.
+
+---
+
+### Resumen de tipos en tipoMapping
+
+Los 3 flujos mapean los mismos 5 tipos. La tabla acepta 7 valores. No es un bug bloqueante porque el fallback es `'otro'`, pero conviene agregar los 2 faltantes para completitud:
+
+| Valor UI | Valor DB | Mapeado? |
+|---|---|---|
+| emergencia_familiar | familiar | Si |
+| falla_mecanica | falla_mecanica | Si |
+| enfermedad | enfermedad | Si |
+| capacitacion | capacitacion | Si |
+| otro | otro | Si |
+| personal | personal | No (cae a 'otro') |
+| mantenimiento | mantenimiento | No (cae a 'otro') |
+
+---
+
+### Cambios por archivo
+
+| Archivo | Cambio | Riesgo |
+|---|---|---|
+| `src/hooks/useCustodioIndisponibilidades.ts` (~linea 87-89) | Agregar invalidacion de `custodios-con-proximidad-equitativo` en `onSuccess` de `crearIndisponibilidad` | Bajo |
+| `src/components/planeacion/PendingAssignmentModal.tsx` (~linea 267-274) | Agregar invalidaciones de cache despues del insert exitoso | Bajo |
+| `src/components/planeacion/ReassignmentModal.tsx` (~linea 284-291) | Agregar invalidaciones de cache despues del insert exitoso | Bajo |
+
+### Detalle tecnico
+
+**1. useCustodioIndisponibilidades.ts** - Agregar al `onSuccess` de `crearIndisponibilidad`:
 
 ```typescript
-// Antes
-await queryClient.refetchQueries({ queryKey: ['operative-profiles'] });
-queryClient.invalidateQueries({ queryKey: ['custodios'] });
-queryClient.invalidateQueries({ queryKey: ['armados'] });
-queryClient.invalidateQueries({ queryKey: ['operative-profile'] });
-queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad'] });
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ['custodio-indisponibilidades'] });
+  queryClient.invalidateQueries({ queryKey: ['custodios'] });
+  queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
+  queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
+  toast.success('Indisponibilidad registrada correctamente');
+},
+```
 
-// Despues
-await queryClient.refetchQueries({ queryKey: ['operative-profiles'] });
-queryClient.invalidateQueries({ queryKey: ['custodios'] });
-queryClient.invalidateQueries({ queryKey: ['armados'] });
-queryClient.invalidateQueries({ queryKey: ['operative-profile'] });
+**2. PendingAssignmentModal.tsx y ReassignmentModal.tsx** - Agregar despues de `if (error) throw error`:
+
+```typescript
+if (error) throw error;
+
+// Invalidate caches so custodian lists refresh
+queryClient.invalidateQueries({ queryKey: ['custodio-indisponibilidades'] });
 queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
 queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
-
-// Refresh materialized view so it reflects the status change
-supabase.rpc('refresh_custodios_operativos_disponibles').then(({ error }) => {
-  if (error) console.warn('Error refreshing materialized view:', error);
-});
 ```
 
-### Nota importante
+(Nota: ambos modales ya tienen acceso a `queryClient` via `useQueryClient`)
 
-La invalidacion de cache solo afecta al **mismo navegador**. Si Supply cambia el estatus en su maquina, el planificador en otra maquina vera los datos actualizados hasta que su `staleTime` de 2 minutos expire o reabra el modal. El RPC `get_custodios_activos_disponibles` ya filtra correctamente por `estado = 'activo'`, asi que al re-fetchear los datos seran correctos. El cambio propuesto asegura que al menos dentro del mismo equipo (si alguien con ambos roles opera), la invalidacion sea inmediata, y que la vista materializada este al dia para cualquier consulta subsecuente.
+### Validacion pre-deploy
+
+Despues de aplicar estos cambios, el estado de invalidacion queda:
+
+| Flujo | Invalida indisponibilidades | Invalida proximidad-equitativo | Invalida mat. view |
+|---|---|---|---|
+| CustodianStep (via hook) | Si | Si (nuevo) | Si |
+| PendingAssignmentModal | Si (nuevo) | Si (nuevo) | Si (nuevo) |
+| ReassignmentModal | Si (nuevo) | Si (nuevo) | Si (nuevo) |
+| CambioEstatus (Supply) | N/A | Si (fix anterior) | Si (fix anterior) |
 
