@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const VERSION = "v3.1.0"; // Fix getUserByEmail + improved error catalog
+const VERSION = "v3.2.0"; // Fix email_confirm in rescue path
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -117,7 +117,7 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
       // Update password to what they provided
-      await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+      await supabaseAdmin.auth.admin.updateUserById(userId, { password, email_confirm: true });
 
       console.log(`[create-custodian-account] ${VERSION} RESCUE complete for ${email}`);
 
