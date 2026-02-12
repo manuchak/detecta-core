@@ -20,7 +20,10 @@ import {
   UserPlus,
   Lock,
   LogOut,
-  User
+  User,
+  Eye,
+  EyeOff,
+  Info
 } from 'lucide-react';
 
 // Zod schema for input validation
@@ -57,6 +60,8 @@ export const CustodianSignup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -452,15 +457,15 @@ export const CustodianSignup = () => {
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="mt-4">Registro de Custodio</CardTitle>
-          <CardDescription>
-            Crea tu cuenta para acceder al portal de custodios de Detecta
+          <CardTitle className="mt-4 text-2xl">Registro de Custodio</CardTitle>
+          <CardDescription className="text-base">
+            Llena estos datos para crear tu cuenta. Si necesitas ayuda, contacta a tu coordinador.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nombre Completo</Label>
+              <Label htmlFor="name" className="text-base">Nombre Completo</Label>
               <Input
                 id="name"
                 type="text"
@@ -469,16 +474,16 @@ export const CustodianSignup = () => {
                 onChange={(e) => setName(e.target.value)}
                 required
                 maxLength={100}
-                className={validationErrors.name ? 'border-destructive' : ''}
+                className={`h-12 text-base ${validationErrors.name ? 'border-destructive' : ''}`}
                 aria-invalid={!!validationErrors.name}
               />
               {validationErrors.name && (
-                <p className="text-xs text-destructive">{validationErrors.name}</p>
+                <p className="text-sm text-destructive font-medium">{validationErrors.name}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-base">Email</Label>
               <div className="relative">
                 <Input
                   id="email"
@@ -489,83 +494,116 @@ export const CustodianSignup = () => {
                   required
                   maxLength={255}
                   readOnly={!!prefillData?.email}
-                  className={`${validationErrors.email ? 'border-destructive' : ''} ${prefillData?.email ? 'bg-muted pr-10' : ''}`}
+                  className={`h-12 text-base ${validationErrors.email ? 'border-destructive' : ''} ${prefillData?.email ? 'bg-muted pr-10' : ''}`}
                   aria-invalid={!!validationErrors.email}
                 />
                 {prefillData?.email && (
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 )}
               </div>
               {prefillData?.email && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Este email está asociado a tu invitación y no puede modificarse.
                 </p>
               )}
               {validationErrors.email && (
-                <p className="text-xs text-destructive">{validationErrors.email}</p>
+                <p className="text-sm text-destructive font-medium">{validationErrors.email}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                maxLength={72}
-                className={validationErrors.password ? 'border-destructive' : ''}
-                aria-invalid={!!validationErrors.password}
-                autoComplete="new-password"
-              />
-              <p className="text-xs text-muted-foreground">
-                Mínimo 6 caracteres
-              </p>
+              <Label htmlFor="password" className="text-base">Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Escribe tu contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={72}
+                  className={`h-12 text-base pr-14 ${validationErrors.password ? 'border-destructive' : ''}`}
+                  aria-invalid={!!validationErrors.password}
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </Button>
+              </div>
+              <div className={`flex items-center gap-1.5 text-sm ${password.length >= 6 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {password.length >= 6 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : (
+                  <Info className="h-4 w-4" />
+                )}
+                <span>Mínimo 6 caracteres</span>
+              </div>
               {validationErrors.password && (
-                <p className="text-xs text-destructive">{validationErrors.password}</p>
+                <p className="text-sm text-destructive font-medium">{validationErrors.password}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                maxLength={72}
-                className={validationErrors.confirmPassword ? 'border-destructive' : ''}
-                aria-invalid={!!validationErrors.confirmPassword}
-                autoComplete="new-password"
-              />
+              <Label htmlFor="confirmPassword" className="text-base">Confirmar Contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Repite tu contraseña"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={72}
+                  className={`h-12 text-base pr-14 ${validationErrors.confirmPassword ? 'border-destructive' : ''}`}
+                  aria-invalid={!!validationErrors.confirmPassword}
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </Button>
+              </div>
+              {confirmPassword && confirmPassword === password && (
+                <div className="flex items-center gap-1.5 text-sm text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>Las contraseñas coinciden</span>
+                </div>
+              )}
               {validationErrors.confirmPassword && (
-                <p className="text-xs text-destructive">{validationErrors.confirmPassword}</p>
+                <p className="text-sm text-destructive font-medium">{validationErrors.confirmPassword}</p>
               )}
             </div>
             
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Creando cuenta...
                 </>
               ) : (
                 <>
-                  <UserPlus className="mr-2 h-4 w-4" />
+                  <UserPlus className="mr-2 h-5 w-5" />
                   Crear cuenta
                 </>
               )}
             </Button>
             
-            <div className="text-center text-sm">
+            <div className="text-center text-base pt-2">
               <span className="text-muted-foreground">¿Ya tienes una cuenta?</span>{' '}
-              <Link to="/auth/login" className="text-primary hover:underline">
+              <Link to="/auth/login" className="text-primary hover:underline font-medium">
                 Iniciar sesión
               </Link>
             </div>

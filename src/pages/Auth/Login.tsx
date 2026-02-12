@@ -64,14 +64,14 @@ export const Login = () => {
         <h2 className="text-2xl font-bold tracking-tight">
           Iniciar Sesión
         </h2>
-        <p className="text-sm text-muted-foreground mt-2">
-          Ingresa tus credenciales para acceder
+        <p className="text-base text-muted-foreground mt-2">
+          Ingresa tus datos para entrar a tu cuenta
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-base">Email</Label>
           <Input
             id="email"
             type="email"
@@ -80,51 +80,56 @@ export const Login = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             disabled={loading}
+            className="h-12 text-base"
           />
+          <p className="text-sm text-muted-foreground">
+            Usa el email con el que te registraste
+          </p>
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="password">Contraseña</Label>
+          <Label htmlFor="password" className="text-base">Contraseña</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Tu contraseña"
+              placeholder="Escribe tu contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={loading}
+              className="h-12 text-base pr-14"
             />
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-10 w-10 p-0"
               onClick={() => setShowPassword(!showPassword)}
               disabled={loading}
             >
               {showPassword ? (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-5 w-5" />
               ) : (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-5 w-5" />
               )}
             </Button>
           </div>
         </div>
         
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
           {loading ? "Iniciando sesión..." : "Iniciar sesión"}
         </Button>
         
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3 pt-2">
           <Link 
             to="/auth/forgot-password" 
-            className="text-sm text-muted-foreground hover:underline"
+            className="block text-base text-primary font-medium hover:underline py-2"
           >
             ¿Olvidaste tu contraseña?
           </Link>
           
-          <div className="text-sm">
+          <div className="text-base">
             <span className="text-muted-foreground">¿No tienes una cuenta?</span>{" "}
             <Link 
               to="/auth/register" 
