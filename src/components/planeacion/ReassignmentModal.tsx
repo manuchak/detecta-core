@@ -258,12 +258,23 @@ export function ReassignmentModal({
         ? new Date(Date.now() + data.dias * 24 * 60 * 60 * 1000).toISOString()
         : null;
       
+      // Map UI types to DB-compatible values
+      const tipoMapping: Record<string, string> = {
+        'emergencia_familiar': 'familiar',
+        'falla_mecanica': 'falla_mecanica',
+        'enfermedad': 'enfermedad',
+        'capacitacion': 'capacitacion',
+        'otro': 'otro',
+      };
+      const tipoDb = tipoMapping[data.tipo] || 'otro';
+      const motivoDb = data.motivo?.trim() || tipoDb;
+
       const { error } = await supabase
         .from('custodio_indisponibilidades')
         .insert({
           custodio_id: unavailabilityCustodian.id,
-          tipo_indisponibilidad: data.tipo,
-          motivo: data.motivo || 'Sin especificar',
+          tipo_indisponibilidad: tipoDb,
+          motivo: motivoDb,
           fecha_inicio: new Date().toISOString(),
           fecha_fin_estimada: fechaFin,
           estado: 'activo',
