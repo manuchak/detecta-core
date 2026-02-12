@@ -24,6 +24,7 @@ import { DocumentacionTab } from './components/tabs/DocumentacionTab';
 import { CapacitacionTab } from './components/tabs/CapacitacionTab';
 import { HistoricoTab } from './components/tabs/HistoricoTab';
 import { CumplimientoTab } from './components/tabs/CumplimientoTab';
+import { CalificacionesTab } from './components/tabs/CalificacionesTab';
 import { useOperativeProfile, type OperativeProfileFull } from './hooks/useOperativeProfile';
 
 export default function PerfilForense() {
@@ -180,7 +181,12 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="calificaciones">
-          <PlaceholderTab icon={Star} title="Calificaciones de Servicios" />
+          <CalificacionesTab
+            custodioId={id!}
+            nombre={profile.nombre}
+            telefono={profile.telefono || null}
+            profile={custodioProfile || undefined}
+          />
         </TabsContent>
         
         <TabsContent value="notas">
