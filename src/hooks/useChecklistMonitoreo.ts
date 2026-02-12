@@ -4,7 +4,9 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { differenceInMinutes } from 'date-fns';
+import { differenceInMinutes, startOfWeek, format } from 'date-fns';
+import { TIMEZONE_CDMX, CDMX_OFFSET } from '@/utils/cdmxTimezone';
+import type { FiltrosChecklist, PresetFiltro } from '@/components/monitoring/checklist/ChecklistFilters';
 import type {
   ServicioConChecklist,
   ResumenChecklists,
@@ -98,13 +100,63 @@ function determinarEstadoChecklist(
   return 'pendiente';
 }
 
-export function useChecklistMonitoreo(timeWindow: number = 8) {
+export interface ChecklistMonitoreoParams {
+  timeWindow: number;
+  filtros?: FiltrosChecklist;
+}
+
+function calcularRangoFechas(
+  timeWindow: number,
+  filtros?: FiltrosChecklist
+): { desde: Date; hasta: Date } {
+  const ahora = new Date();
+
+  if (!filtros || filtros.preset === 'turno_actual') {
+    return {
+      desde: new Date(ahora.getTime() - timeWindow * 60 * 60 * 1000),
+      hasta: new Date(ahora.getTime() + timeWindow * 60 * 60 * 1000),
+    };
+  }
+
+  if (filtros.preset === 'esta_semana') {
+    const lunes = startOfWeek(ahora, { weekStartsOn: 1 });
+    const horaDesde = filtros.horaDesde || '00:00';
+    const horaHasta = filtros.horaHasta || '23:59';
+    return {
+      desde: new Date(`${format(lunes, 'yyyy-MM-dd')}T${horaDesde}:00${CDMX_OFFSET}`),
+      hasta: new Date(`${format(ahora, 'yyyy-MM-dd')}T${horaHasta}:59${CDMX_OFFSET}`),
+    };
+  }
+
+  // hoy, ayer, personalizado — all use fechaSeleccionada
+  const fecha = filtros.fechaSeleccionada || ahora;
+  const fechaStr = format(fecha, 'yyyy-MM-dd');
+  const horaDesde = filtros.horaDesde || '00:00';
+  const horaHasta = filtros.horaHasta || '23:59';
+
+  return {
+    desde: new Date(`${fechaStr}T${horaDesde}:00${CDMX_OFFSET}`),
+    hasta: new Date(`${fechaStr}T${horaHasta}:59${CDMX_OFFSET}`),
+  };
+}
+
+export function useChecklistMonitoreo(params: ChecklistMonitoreoParams | number = 8) {
+  const { timeWindow, filtros } = typeof params === 'number'
+    ? { timeWindow: params, filtros: undefined }
+    : params;
+
   return useQuery({
-    queryKey: ['checklist-monitoreo', timeWindow],
+    queryKey: [
+      'checklist-monitoreo',
+      timeWindow,
+      filtros?.preset,
+      filtros?.fechaSeleccionada?.toISOString(),
+      filtros?.horaDesde,
+      filtros?.horaHasta,
+    ],
     queryFn: async () => {
       const ahora = new Date();
-      const desde = new Date(ahora.getTime() - timeWindow * 60 * 60 * 1000);
-      const hasta = new Date(ahora.getTime() + timeWindow * 60 * 60 * 1000);
+      const { desde, hasta } = calcularRangoFechas(timeWindow, filtros);
 
       // Obtener servicios con checklist (LEFT JOIN simulado)
       const { data: servicios, error: svcError } = await supabase

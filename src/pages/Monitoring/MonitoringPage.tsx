@@ -17,7 +17,9 @@ import {
   ChecklistServicesTable,
   ChecklistDetailModal,
   ChecklistAlertPanel,
+  ChecklistFilters,
 } from "@/components/monitoring/checklist";
+import type { FiltrosChecklist } from "@/components/monitoring/checklist/ChecklistFilters";
 import type { ServicioConChecklist, FiltroChecklist } from "@/types/checklist";
 import AdoptionDashboard from "@/components/monitoring/adoption/AdoptionDashboard";
 import AdoptionTable from "@/components/monitoring/adoption/AdoptionTable";
@@ -43,6 +45,7 @@ const MonitoringPage = () => {
   
   // Checklist state
   const [filtroChecklist, setFiltroChecklist] = useState<FiltroChecklist>("todos");
+  const [filtrosAvanzados, setFiltrosAvanzados] = useState<FiltrosChecklist>({ preset: 'turno_actual' });
   const [servicioChecklistSeleccionado, setServicioChecklistSeleccionado] = 
     useState<ServicioConChecklist | null>(null);
   const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
@@ -53,7 +56,7 @@ const MonitoringPage = () => {
     data: checklistData, 
     isLoading: isLoadingChecklists,
     refetch: refetchChecklists 
-  } = useChecklistMonitoreo(timeWindow);
+  } = useChecklistMonitoreo({ timeWindow, filtros: filtrosAvanzados });
   const {
     data: adopcionData,
     isLoading: isLoadingAdopcion,
@@ -190,6 +193,14 @@ const MonitoringPage = () => {
             isLoading={isLoadingChecklists}
             filtroActivo={filtroChecklist}
             onFiltroChange={setFiltroChecklist}
+            timeWindow={timeWindow}
+            filtrosAvanzados={filtrosAvanzados}
+          />
+
+          {/* Filtros avanzados */}
+          <ChecklistFilters
+            filtros={filtrosAvanzados}
+            onFiltrosChange={setFiltrosAvanzados}
             timeWindow={timeWindow}
           />
 

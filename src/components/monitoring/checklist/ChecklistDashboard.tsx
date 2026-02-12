@@ -11,8 +11,11 @@ import {
   XCircle,
   ClipboardCheck
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import type { ResumenChecklists, FiltroChecklist } from '@/types/checklist';
+import type { FiltrosChecklist } from './ChecklistFilters';
 
 interface ChecklistDashboardProps {
   resumen: ResumenChecklists;
@@ -20,6 +23,7 @@ interface ChecklistDashboardProps {
   filtroActivo: FiltroChecklist;
   onFiltroChange: (filtro: FiltroChecklist) => void;
   timeWindow: number;
+  filtrosAvanzados?: FiltrosChecklist;
 }
 
 interface MetricCardProps {
@@ -65,20 +69,40 @@ function MetricCard({
   );
 }
 
+function getTituloPeriodo(filtros?: FiltrosChecklist, timeWindow?: number): string {
+  if (!filtros || filtros.preset === 'turno_actual') return 'Checklists del Turno';
+  if (filtros.preset === 'hoy') return 'Checklists de Hoy';
+  if (filtros.preset === 'ayer') return 'Checklists de Ayer';
+  if (filtros.preset === 'esta_semana') return 'Checklists de la Semana';
+  if (filtros.fechaSeleccionada) {
+    return `Checklists del ${format(filtros.fechaSeleccionada, "d 'de' MMMM yyyy", { locale: es })}`;
+  }
+  return 'Checklists del Turno';
+}
+
+function getSubtituloPeriodo(filtros?: FiltrosChecklist, timeWindow?: number): string | null {
+  if (!filtros || filtros.preset === 'turno_actual') return `±${timeWindow}h`;
+  if (filtros.horaDesde && filtros.horaHasta) return `${filtros.horaDesde} - ${filtros.horaHasta}`;
+  return null;
+}
+
 export function ChecklistDashboard({
   resumen,
   isLoading,
   filtroActivo,
   onFiltroChange,
   timeWindow,
+  filtrosAvanzados,
 }: ChecklistDashboardProps) {
+  const titulo = getTituloPeriodo(filtrosAvanzados, timeWindow);
+  const subtitulo = getSubtituloPeriodo(filtrosAvanzados, timeWindow);
   if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Checklists del Turno</h2>
-          <Badge variant="outline">±{timeWindow}h</Badge>
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          {subtitulo && <Badge variant="outline">{subtitulo}</Badge>}
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -138,8 +162,8 @@ export function ChecklistDashboard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Checklists del Turno</h2>
-          <Badge variant="outline">±{timeWindow}h</Badge>
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          {subtitulo && <Badge variant="outline">{subtitulo}</Badge>}
         </div>
         <button
           className={cn(
