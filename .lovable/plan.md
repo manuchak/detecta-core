@@ -1,79 +1,112 @@
 
 
-## Sistema de filtrado robusto para Checklists en Monitoreo
+## Sistema de Rating Operativo - Pestana Calificaciones
 
-### Problema actual
+### Concepto
 
-El modulo de checklists solo permite filtrar por estado (completos, pendientes, sin checklist, alertas) y busqueda por texto. El equipo de monitoreo necesita filtrar por horarios y fechas para validar checklists de turnos especificos, dias anteriores o rangos horarios concretos.
+Un sistema de rating compuesto (1-5 estrellas) que evalua al custodio en 5 dimensiones operativas. El rating se calcula automaticamente a partir de datos existentes, pero la arquitectura esta disenada para que en el futuro los clientes puedan agregar su propia dimension de calificacion.
 
-### Solucion
+### Modelo de Rating (5 dimensiones)
 
-Agregar una barra de filtros avanzados encima de la tabla de servicios con:
+| Dimension | Peso | Fuente de datos | Logica |
+|---|---|---|---|
+| **Performance** | 25% | `useProfilePerformance.scoreGlobal` | Score global existente (puntualidad + confiabilidad + checklist + docs + volumen) mapeado a 1-5 estrellas |
+| **Disponibilidad** | 20% | `custodios_operativos.disponibilidad` + dias sin actividad | Disponible + activo reciente = 5, suspendido/inactivo >30d = 1 |
+| **Revenue** | 20% | `servicios_custodia.costo_custodio` | Ingresos generados en 90 dias, normalizado vs percentiles de la flota |
+| **Versatilidad** | 15% | `servicios_locales_15d` + `servicios_foraneos_15d` + `preferencia_tipo_servicio` | Mix local/foraneo equilibrado = 5 estrellas. Solo un tipo = 3. Preferencia "indistinto" = bonus |
+| **Calificacion Cliente** | 20% | Placeholder (futuro) | Columna reservada. Por ahora muestra "Sin datos" con badge "Proximamente" |
 
-1. **Selector de fecha** - Para consultar checklists de dias especificos (no solo el turno actual)
-2. **Filtro de rango horario** - Para acotar servicios por hora de cita (ej: solo los de 06:00-12:00)
-3. **Presets rapidos** - Botones de acceso rapido: "Turno actual", "Hoy completo", "Ayer", "Esta semana"
+**Escala**: Cada dimension produce un score 0-100 que se mapea a estrellas (0-20=1, 21-40=2, 41-60=3, 61-80=4, 81-100=5).
+
+**Rating General**: Promedio ponderado de las 5 dimensiones = valor que se persiste en `custodios_operativos.rating_promedio`.
 
 ### Cambios tecnicos
 
-**1. Modificar `src/hooks/useChecklistMonitoreo.ts`**
+**1. Nuevo hook: `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts`**
 
-Actualmente el hook calcula `desde` y `hasta` basandose solo en `timeWindow` (horas antes/despues de ahora). Se modificara para aceptar parametros opcionales de fecha y rango horario:
+Recibe `custodioId`, `nombre`, `telefono` y calcula las 5 dimensiones:
 
-```typescript
-interface ChecklistMonitoreoParams {
-  timeWindow: number;
-  fechaSeleccionada?: Date;      // null = hoy/turno actual
-  horaDesde?: string;            // "06:00"
-  horaHasta?: string;            // "18:00"
-}
-```
+- **Performance**: Reutiliza `useProfilePerformance` y extrae `scoreGlobal`
+- **Disponibilidad**: Query a `custodios_operativos` (disponibilidad, estado, fecha_ultimo_servicio)
+- **Revenue**: Query a `servicios_custodia` de los ultimos 90 dias con `costo_custodio`, calcula total y lo compara contra el P50 y P90 de la flota (query adicional de percentiles)
+- **Versatilidad**: Lee `servicios_locales_15d`, `servicios_foraneos_15d`, `preferencia_tipo_servicio` de `custodios_operativos`. Formula: ratio = min(local, foraneo) / max(local, foraneo). Ratio 1.0 = 100, ratio 0 = 40. Bonus +10 si preferencia = "indistinto"
+- **Cliente**: Retorna null (futuro)
 
-Cuando se proporciona `fechaSeleccionada`, se usara esa fecha como base en vez de `new Date()`. Los filtros de hora se aplicaran sobre `fecha_hora_cita` usando la zona CDMX.
+Calcula el rating compuesto y opcionalmente actualiza `rating_promedio` en la tabla.
 
-**2. Nuevo componente: `src/components/monitoring/checklist/ChecklistFilters.tsx`**
+**2. Nuevo componente: `src/pages/PerfilesOperativos/components/tabs/CalificacionesTab.tsx`**
 
-Barra de filtros con:
-- DatePicker (usando el componente Shadcn existente) para seleccionar fecha
-- Dos selectores de hora (desde/hasta) con opciones cada 1 hora (00:00 a 23:00)
-- Presets rapidos como botones/chips:
-  - "Turno actual" (ventana +-timeWindow, comportamiento actual)
-  - "Hoy completo" (00:00 - 23:59 del dia)
-  - "Ayer" (00:00 - 23:59 del dia anterior)
-  - "Esta semana" (lunes a hoy)
-- Boton "Limpiar filtros" para resetear todo
-
-**3. Modificar `src/pages/Monitoring/MonitoringPage.tsx`**
-
-- Agregar estados para los nuevos filtros (fecha, hora desde, hora hasta)
-- Pasar los filtros al hook `useChecklistMonitoreo`
-- Renderizar `ChecklistFilters` entre el `ChecklistDashboard` y la tabla
-- Actualizar el `queryKey` del hook para incluir los nuevos parametros
-
-**4. Actualizar `src/components/monitoring/checklist/ChecklistDashboard.tsx`**
-
-- Mostrar la fecha/rango seleccionado en el encabezado para que el equipo sepa que periodo estan viendo (ej: "Checklists del 10 Feb 2026" en vez de "Checklists del Turno")
-
-### Flujo de usuario
+Estructura visual:
 
 ```text
-[Turno actual] [Hoy] [Ayer] [Esta semana]    [Fecha: 10/02/2026]  [06:00] - [18:00]  [Limpiar]
++------------------------------------------+
+|  RATING GENERAL    ★★★★☆  4.2 / 5.0     |
+|  "Operativo Destacado"                    |
++------------------------------------------+
+
++----------+ +----------+ +----------+
+| Perf 4.5 | | Disp 4.0 | | Rev 3.8  |
+| ★★★★★   | | ★★★★☆   | | ★★★★☆   |
+| 25%      | | 20%      | | 20%      |
++----------+ +----------+ +----------+
++----------+ +----------+
+| Vers 3.5 | | Cliente  |
+| ★★★★☆   | | Prox.    |
+| 15%      | | 20%      |
++----------+ +----------+
+
++------------------------------------------+
+| Desglose detallado por dimension         |
+| - Performance: tabla con sub-scores      |
+| - Revenue: ingresos 90d vs flota         |
+| - Versatilidad: mix local/foraneo visual |
++------------------------------------------+
+
++------------------------------------------+
+| Historico de rating (futuro placeholder) |
++------------------------------------------+
 ```
 
-1. Por defecto: comportamiento actual (turno +-8h)
-2. Click en "Hoy": muestra todos los servicios del dia completo
-3. Seleccionar fecha: cambia la consulta a ese dia
-4. Ajustar horas: filtra solo servicios en ese rango horario
-5. "Limpiar": vuelve al comportamiento por defecto (turno actual)
+Componentes internos:
+- `RatingOverviewCard`: Rating general grande con estrellas y etiqueta textual (Excelente/Destacado/Estandar/En desarrollo/Critico)
+- `DimensionCard`: Card por cada dimension con estrellas, score numerico, peso, y detalle
+- `RevenueComparison`: Barra de posicion del custodio vs P25/P50/P75/P90 de la flota
+- `VersatilidadChart`: Mini donut mostrando mix local vs foraneo
+- Seccion "Calificacion del Cliente" con badge "Proximamente" y texto explicativo de la futura integracion
+
+**3. Modificar `src/pages/PerfilesOperativos/PerfilForense.tsx`**
+
+- Importar `CalificacionesTab`
+- Reemplazar `PlaceholderTab` por:
+```typescript
+<CalificacionesTab
+  custodioId={id!}
+  nombre={profile.nombre}
+  telefono={profile.telefono || null}
+  profile={custodioProfile || undefined}
+/>
+```
+
+### Etiquetas de rating
+
+| Rango | Etiqueta | Color |
+|---|---|---|
+| 4.5 - 5.0 | Excelente | Verde |
+| 3.5 - 4.4 | Destacado | Azul |
+| 2.5 - 3.4 | Estandar | Amarillo |
+| 1.5 - 2.4 | En desarrollo | Naranja |
+| 1.0 - 1.4 | Critico | Rojo |
+
+### Preparacion para calificacion de clientes (futuro)
+
+La dimension "Calificacion Cliente" aparecera con un diseno distinto (borde punteado, icono de candado) indicando que es una dimension pendiente. El texto explicara: "Esta dimension se activara cuando los clientes puedan calificar el servicio desde su portal". Mientras tanto, el rating general se calcula solo con las 4 dimensiones activas (los pesos se redistribuyen: Performance 30%, Disponibilidad 25%, Revenue 25%, Versatilidad 20%).
 
 ### Archivos afectados
 
 | Archivo | Accion |
 |---|---|
-| `src/components/monitoring/checklist/ChecklistFilters.tsx` | Crear - Componente de filtros |
-| `src/hooks/useChecklistMonitoreo.ts` | Modificar - Aceptar params de fecha/hora |
-| `src/pages/Monitoring/MonitoringPage.tsx` | Modificar - Estado de filtros y renderizado |
-| `src/components/monitoring/checklist/ChecklistDashboard.tsx` | Modificar - Titulo dinamico |
-| `src/components/monitoring/checklist/index.ts` | Modificar - Exportar ChecklistFilters |
+| `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts` | Crear |
+| `src/pages/PerfilesOperativos/components/tabs/CalificacionesTab.tsx` | Crear |
+| `src/pages/PerfilesOperativos/PerfilForense.tsx` | Modificar - integrar CalificacionesTab |
 
-No se requieren cambios en base de datos. La consulta existente a `servicios_planificados` con `.gte()` y `.lte()` sobre `fecha_hora_cita` ya soporta cualquier rango de fechas.
+Sin migraciones de base de datos. Se reutiliza la columna `rating_promedio` existente en `custodios_operativos`.
