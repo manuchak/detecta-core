@@ -20,6 +20,7 @@ import {
   Map,
   ClipboardCheck,
   BookOpen,
+  Rocket,
   LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -256,6 +257,14 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
         // Aprobaciones disponibles para supply_admin/lead, coordinadores, ejecutivos y admins
         ...(hasSkill('leads_approval') || isAdminUser || ['supply_admin', 'supply_lead', 'coordinador_operaciones', 'ejecutivo_ventas', 'admin', 'owner'].includes(userRole || '') ? [
           { title: "Aprobaciones", path: "/leads/approvals", icon: CheckCircle2 }
+        ] : []),
+        // Evaluaciones - supply team y admins
+        ...(isAdminUser || ['supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones', 'admin', 'owner'].includes(userRole || '') ? [
+          { title: "Evaluaciones", path: "/leads/evaluaciones", icon: ClipboardCheck }
+        ] : []),
+        // Liberación - supply leads y admins
+        ...(isAdminUser || ['supply_admin', 'supply_lead', 'coordinador_operaciones', 'admin', 'owner'].includes(userRole || '') ? [
+          { title: "Liberación", path: "/leads/liberacion", icon: Rocket }
         ] : []),
         // Estrategia Nacional - solo para coordinadores y administradores
         ...(userRole === 'admin' || userRole === 'owner' || userRole === 'manager' || userRole === 'coordinador_operaciones' ? [

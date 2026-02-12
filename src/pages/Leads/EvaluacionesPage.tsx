@@ -24,6 +24,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { SupplyPipelineBreadcrumb } from '@/components/leads/supply/SupplyPipelineBreadcrumb';
 
 interface CandidatoWithEvaluation {
   id: string;
@@ -113,6 +114,7 @@ export default function EvaluacionesPage() {
 
   return (
     <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-6 space-y-4 sm:space-y-6">
+      <SupplyPipelineBreadcrumb />
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
           <FileText className="h-6 w-6 sm:h-8 sm:w-8" />

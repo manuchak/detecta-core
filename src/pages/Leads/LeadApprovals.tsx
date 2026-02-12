@@ -26,6 +26,7 @@ import { MoveToPoolDialog } from "@/components/leads/pool/MoveToPoolDialog";
 import { SessionRecoveryDialog } from "@/components/leads/approval/SessionRecoveryDialog";
 import { InterruptedInterviewDialog } from "@/components/leads/approval/InterruptedInterviewDialog";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
+import { SupplyPipelineBreadcrumb } from "@/components/leads/supply/SupplyPipelineBreadcrumb";
 import { LeadsPagination } from "@/components/leads/approval/LeadsPagination";
 import { useSandbox, useAuth } from "@/hooks";
 import { supabase } from "@/integrations/supabase/client";
@@ -440,6 +441,7 @@ export const LeadApprovals = () => {
     return (
       <TooltipProvider>
         <div className="space-y-6 p-6">
+        <SupplyPipelineBreadcrumb />
         <SandboxBanner dataCount={assignedLeads.length} />
         
         {/* Header - Lean con Filtros */}
