@@ -1,68 +1,39 @@
 
 
-## Tendencias Mensuales de Performance - Progreso mes a mes
+## Fix: KM e Ingresos en ceros en Tendencias
 
-### Objetivo
+### Causa raiz
 
-Expandir las tendencias temporales para mostrar la evolucion mensual de las 5 dimensiones de rendimiento: puntualidad (a tiempo vs retrasos), rechazos, checklists, ademas de los servicios y KM que ya existen.
+En `useProfileTrends.ts` linea 108, la query selecciona `estado_servicio` pero la columna real en `servicios_custodia` se llama `estado`. Esto causa que toda la query de Supabase falle con error 400 (columna inexistente), y el codigo al verificar `if (ejecutados)` simplemente salta todo el bloque. Resultado: km, ingresos y puntualidad quedan en 0 para todos los meses.
 
-### Cambios
+### Solucion
 
-**1. `src/pages/PerfilesOperativos/hooks/useProfileTrends.ts`**
+Cambiar `estado_servicio` por `estado` en el select de la query, y actualizar la referencia en la linea de comparacion.
 
-Agregar queries mensuales para:
-- **Puntualidad**: query a `servicios_custodia` con `hora_presentacion` y `fecha_hora_cita` por mes, calcular a_tiempo / retraso_leve / retraso_grave
-- **Rechazos**: query a `custodio_rechazos` por `fecha_rechazo` en cada mes
-- **Checklists**: query a `checklist_servicio` por mes (usando `custodio_telefono`)
+### Cambio por archivo
 
-Nuevos campos en `MonthlyTrendData`:
+| Archivo | Cambio |
+|---|---|
+| `src/pages/PerfilesOperativos/hooks/useProfileTrends.ts` | Linea 108: cambiar `estado_servicio` a `estado` en el `.select()`. Linea 123: cambiar `s.estado_servicio` a `s.estado`. Comparar con `'Finalizado'` (mayuscula inicial, segun los datos reales de la BD). |
+
+### Detalle del cambio
+
 ```typescript
-interface MonthlyTrendData {
-  // ... campos existentes ...
-  puntualidadATiempo: number;
-  puntualidadRetrasoLeve: number;
-  puntualidadRetrasoGrave: number;
-  puntualidadTotal: number;
-  scorePuntualidad: number;
-  rechazos: number;
-  checklistsCompletados: number;
-  serviciosFinalizados: number;
-  scoreChecklist: number;
-}
+// Linea 108: ANTES
+.select('id, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado_servicio')
+
+// Linea 108: DESPUES
+.select('id, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado')
+
+// Linea 123: ANTES
+if (s.estado_servicio === 'finalizado') {
+
+// Linea 123: DESPUES
+if (s.estado?.toLowerCase() === 'finalizado') {
 ```
 
-Se necesita recibir `telefono` como parametro adicional para la query de checklists.
+### Impacto
 
-**2. `src/pages/PerfilesOperativos/components/tabs/TrendCharts.tsx`**
-
-Agregar 3 graficas nuevas:
-
-- **Evolucion de Puntualidad** (BarChart apilado): barras verde/amarillo/rojo por mes mostrando a_tiempo, retraso_leve, retraso_grave. Linea superpuesta con % puntualidad.
-- **Rechazos por Mes** (BarChart simple): barras rojas con count de rechazos. Meses en 0 se muestran como barra vacia (bueno).
-- **Cumplimiento Checklist** (AreaChart): linea con % de servicios finalizados que tienen checklist completado.
-
-Reorganizar el orden de graficas: Puntualidad primero, luego Rechazos, luego Checklists, luego Servicios (existente), luego KM e Ingresos (existentes).
-
-**3. `src/pages/PerfilesOperativos/components/tabs/PerformanceServiciosTab.tsx`**
-
-Pasar `telefono` (profile.telefono) al componente `TrendCharts` para que pueda hacer la query de checklists.
-
-### Detalle tecnico
-
-Para evitar N+1 queries por mes, la estrategia es:
-1. Hacer UNA query por tabla que traiga todos los registros del custodio de los ultimos 6 meses
-2. Agrupar en cliente por mes usando `date-fns`
-
-Esto reduce de ~18 queries (6 meses x 3 tablas nuevas) a solo 3 queries adicionales:
-- `servicios_custodia` con `hora_presentacion` (ya se trae, solo agregar campos)
-- `custodio_rechazos` filtrado por fecha ultimos 6 meses
-- `checklist_servicio` filtrado por fecha ultimos 6 meses
-
-### Impacto visual esperado
-
-El perfil de Alvaro Toriz mostrara:
-- Puntualidad: tendencia mes a mes de como ha mejorado o empeorado su porcentaje de llegada a tiempo
-- Rechazos: historial de 0 rechazos por mes (indicador positivo)
-- Checklists: 0% consistente (revelando un problema sistematico, no puntual)
-- Los graficos existentes de servicios, KM e ingresos se mantienen
-
+- Los 6 meses de datos de Alvaro Toriz (87 servicios, 12,275 km, $137,307 en ingresos) se mostraran correctamente en las graficas
+- La puntualidad mensual tambien aparecera (79 servicios con datos de hora_presentacion)
+- Afecta a todos los perfiles operativos, no solo a Alvaro
