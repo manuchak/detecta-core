@@ -1,55 +1,82 @@
 
 
-## Fix: Calcular Versatilidad en tiempo real desde servicios_custodia
+## Sistema de Notas Internas para Perfiles Operativos
 
-### Problema detectado
+### Objetivo
 
-Los campos denormalizados `servicios_locales_15d` y `servicios_foraneos_15d` en `custodios_operativos` estan en **0** para este custodio, pero en realidad tiene **4 servicios en los ultimos 15 dias**:
+Reemplazar el placeholder actual en la pestana "Notas" con un sistema completo de notas internas donde el equipo puede registrar observaciones, incidencias, acuerdos y cualquier anotacion relevante sobre cada operativo.
 
-| Fecha | km_recorridos | Clasificacion |
+### Requiere tabla nueva en base de datos
+
+No existe una tabla de notas. Se creara `notas_operativos` con la siguiente estructura:
+
+| Columna | Tipo | Descripcion |
 |---|---|---|
-| 2026-02-10 | 71 km | Local (<100km) |
-| 2026-02-03 | 8 km | Local |
-| 2026-02-02 | 103 km | Foraneo (>=100km) |
-| 2026-01-30 | 69 km | Local |
+| id | uuid (PK) | ID unico |
+| operativo_id | text | ID del custodio o armado |
+| operativo_tipo | text | 'custodio' o 'armado' |
+| contenido | text | Texto de la nota |
+| categoria | text | 'general', 'incidencia', 'acuerdo', 'seguimiento' |
+| prioridad | text | 'baja', 'media', 'alta' |
+| autor_id | uuid | FK a auth.users |
+| autor_nombre | text | Nombre del autor (para display rapido) |
+| is_pinned | boolean | Si esta fijada arriba |
+| created_at | timestamptz | Fecha de creacion |
+| updated_at | timestamptz | Ultima edicion |
 
-La funcion batch `actualizar_todas_metricas_15d` no ha corrido o no actualizo este registro. El hook `useOperativeRating` depende de estos campos denormalizados, lo cual produce datos incorrectos en Versatilidad (score 50, "Sin servicios") y afecta el rating general.
+RLS habilitado: lectura y escritura para usuarios autenticados.
 
-### Solucion
+### Archivos a crear/modificar
 
-Modificar `useOperativeRating.ts` para calcular los servicios locales/foraneos de 15 dias en **tiempo real** desde `servicios_custodia`, en vez de leer los campos denormalizados.
+**1. Crear `src/pages/PerfilesOperativos/hooks/useNotasOperativo.ts`**
 
-### Cambio tecnico
+Hook con:
+- Query para listar notas del operativo, ordenadas por pinned desc + created_at desc
+- Mutation para crear nota nueva
+- Mutation para editar nota
+- Mutation para eliminar nota
+- Mutation para toggle pin
 
-**Archivo: `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts`**
+**2. Crear `src/pages/PerfilesOperativos/components/tabs/NotasTab.tsx`**
 
-1. Agregar una nueva query que consulte `servicios_custodia` de los ultimos 15 dias filtrada por `nombre_custodio`, clasificando cada servicio como local (<100km) o foraneo (>=100km) usando `km_recorridos`
-2. Reemplazar las referencias a `profileData.servicios_locales_15d` y `profileData.servicios_foraneos_15d` con los valores calculados en tiempo real
-3. Actualizar la variable `serviciosLocales` y `serviciosForaneos` en el return del rating para reflejar los datos reales
-4. Agregar esta query al array de `isLoading`
+Componente completo con:
+- Boton "Nueva Nota" que abre un formulario inline o dialog
+- Formulario: textarea para contenido, selector de categoria (chips: General, Incidencia, Acuerdo, Seguimiento), selector de prioridad (Baja/Media/Alta)
+- Lista de notas existentes como cards con:
+  - Icono de pin (notas fijadas arriba con fondo destacado)
+  - Badge de categoria con color
+  - Indicador de prioridad (punto de color: verde/amarillo/rojo)
+  - Contenido de la nota
+  - Pie: autor + fecha relativa ("hace 2 horas")
+  - Menu de acciones: Editar, Fijar/Desfijar, Eliminar (con confirmacion)
+- Filtros simples: por categoria y busqueda por texto
+- Estado vacio amigable cuando no hay notas
 
-La query seria:
+**3. Modificar `src/pages/PerfilesOperativos/PerfilForense.tsx`**
 
-```sql
-SELECT km_recorridos 
-FROM servicios_custodia 
-WHERE nombre_custodio ILIKE '%NOMBRE%' 
-  AND fecha_hora_cita >= (now - 15 days)
-  AND estado IN ('Finalizado', 'completado', 'Completado', 'finalizado')
+- Importar `NotasTab`
+- Reemplazar `PlaceholderTab` en la pestana "notas" por:
+```typescript
+<NotasTab 
+  operativoId={id!} 
+  operativoTipo={tipo} 
+/>
 ```
+- Eliminar `PlaceholderTab` ya que no se usa en ninguna otra pestana
 
-Y la clasificacion en JS:
-- `km_recorridos < 100` o NULL = local
-- `km_recorridos >= 100` = foraneo
+### Flujo de usuario
 
-### Resultado esperado
+1. El usuario entra a la pestana "Notas" de un perfil operativo
+2. Ve la lista de notas existentes (o un estado vacio invitando a crear la primera)
+3. Click en "Nueva Nota" abre un formulario
+4. Escribe la nota, selecciona categoria y prioridad
+5. Guarda y la nota aparece en la lista con su nombre como autor
+6. Puede fijar notas importantes, editarlas o eliminarlas
 
-Para este custodio, la seccion Versatilidad mostraria:
-- Locales: 3
-- Foraneos: 1
-- Score de versatilidad calculado correctamente (~67 en vez de 50)
-- Rating general ajustado con el nuevo score
+### Detalle tecnico
 
-### Archivo afectado
+- Las fechas se muestran con `date-fns` en formato relativo (formatDistanceToNow)
+- El autor se toma de `useStableAuth` (user.email / user.user_metadata.display_name)
+- Categorias con colores: General (gris), Incidencia (rojo), Acuerdo (verde), Seguimiento (azul)
+- El sistema funciona tanto para custodios como para armados (campo `operativo_tipo`)
 
-Solo `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts` - una query nueva y reemplazo de 2 variables.
