@@ -1,82 +1,82 @@
 
 
-## Sistema de Notas Internas para Perfiles Operativos
+## Actualizar Ficha de Custodio con Rating, Score y Ranking General
 
-### Objetivo
+### Concepto
 
-Reemplazar el placeholder actual en la pestana "Notas" con un sistema completo de notas internas donde el equipo puede registrar observaciones, incidencias, acuerdos y cualquier anotacion relevante sobre cada operativo.
+Enriquecer la ficha/header del perfil operativo con las metricas calculadas del sistema de rating, y agregar un **Ranking General** que posiciona al custodio dentro de toda la flota basado en su performance de los ultimos 30 dias. El ranking incentiva la excelencia al mostrar su posicion competitiva.
 
-### Requiere tabla nueva en base de datos
+### Ranking General - Logica
 
-No existe una tabla de notas. Se creara `notas_operativos` con la siguiente estructura:
+El ranking se calcula comparando el `scoreGlobal` de performance (puntualidad + confiabilidad + checklist + docs + volumen) de los ultimos 30 dias de **todos** los custodios activos. Cada custodio recibe una posicion (#1, #2, ... #N).
 
-| Columna | Tipo | Descripcion |
-|---|---|---|
-| id | uuid (PK) | ID unico |
-| operativo_id | text | ID del custodio o armado |
-| operativo_tipo | text | 'custodio' o 'armado' |
-| contenido | text | Texto de la nota |
-| categoria | text | 'general', 'incidencia', 'acuerdo', 'seguimiento' |
-| prioridad | text | 'baja', 'media', 'alta' |
-| autor_id | uuid | FK a auth.users |
-| autor_nombre | text | Nombre del autor (para display rapido) |
-| is_pinned | boolean | Si esta fijada arriba |
-| created_at | timestamptz | Fecha de creacion |
-| updated_at | timestamptz | Ultima edicion |
+**Fuente de datos**: Query a `servicios_custodia` de los ultimos 30 dias, agrupando por `nombre_custodio` y calculando un score simplificado por cada uno. El custodio actual se ubica dentro de esa lista ordenada.
 
-RLS habilitado: lectura y escritura para usuarios autenticados.
+**Visualizacion en header**:
+- Medalla con posicion: `#3 de 85` (ranking / total flota activa)
+- Color por percentil: Top 10% = dorado, Top 25% = plata, Top 50% = bronce, resto = gris
+
+### Cambios en la ficha (PerfilHeader)
+
+La fila de "quick stats" actual muestra:
+
+```text
+★ 3.6  |  ⏱ 87 servicios  |  ↗ Score: 6
+```
+
+Se actualizara a mostrar metricas **calculadas en tiempo real**:
+
+```text
+★ 4.2 Destacado  |  🏆 #3/85  |  ⏱ 87 servicios  |  ↗ Score: 72
+```
+
+Donde:
+- **Rating**: Viene de `useOperativeRating.ratingGeneral` + label (Excelente/Destacado/etc)
+- **Ranking**: Posicion en la flota (#N/Total) con icono de medalla coloreado
+- **Servicios**: Se mantiene de `profile.numero_servicios`
+- **Score**: Se reemplaza con `useOperativeRating.scoreGeneral` (0-100) en vez del campo estatico
 
 ### Archivos a crear/modificar
 
-**1. Crear `src/pages/PerfilesOperativos/hooks/useNotasOperativo.ts`**
+**1. Crear `src/pages/PerfilesOperativos/hooks/useFleetRanking.ts`**
 
-Hook con:
-- Query para listar notas del operativo, ordenadas por pinned desc + created_at desc
-- Mutation para crear nota nueva
-- Mutation para editar nota
-- Mutation para eliminar nota
-- Mutation para toggle pin
+Nuevo hook que:
+- Consulta `servicios_custodia` de los ultimos 30 dias para todos los custodios
+- Calcula un score simplificado por custodio (basado en: total servicios completados, puntualidad cuando hay datos, revenue)
+- Ordena de mayor a menor y determina la posicion del custodio actual
+- Retorna: `{ posicion, totalFlota, percentil, tier }` donde tier es 'gold'/'silver'/'bronze'/'standard'
 
-**2. Crear `src/pages/PerfilesOperativos/components/tabs/NotasTab.tsx`**
+La query agrupara por nombre_custodio y calculara:
+- Servicios completados en 30d
+- Revenue total en 30d
+- Puntualidad promedio (cuando hay hora_presentacion y fecha_hora_cita)
+- Score compuesto simple para ordenamiento
 
-Componente completo con:
-- Boton "Nueva Nota" que abre un formulario inline o dialog
-- Formulario: textarea para contenido, selector de categoria (chips: General, Incidencia, Acuerdo, Seguimiento), selector de prioridad (Baja/Media/Alta)
-- Lista de notas existentes como cards con:
-  - Icono de pin (notas fijadas arriba con fondo destacado)
-  - Badge de categoria con color
-  - Indicador de prioridad (punto de color: verde/amarillo/rojo)
-  - Contenido de la nota
-  - Pie: autor + fecha relativa ("hace 2 horas")
-  - Menu de acciones: Editar, Fijar/Desfijar, Eliminar (con confirmacion)
-- Filtros simples: por categoria y busqueda por texto
-- Estado vacio amigable cuando no hay notas
+**2. Modificar `src/pages/PerfilesOperativos/components/PerfilHeader.tsx`**
 
-**3. Modificar `src/pages/PerfilesOperativos/PerfilForense.tsx`**
+- Importar `useOperativeRating` y `useFleetRanking`
+- Reemplazar la seccion de "quick stats" (lineas 144-175) para usar las metricas calculadas:
+  - Rating con estrellas + label textual en vez de `profile.rating_promedio`
+  - Badge de Ranking con posicion y medalla coloreada
+  - Score general del rating (0-100) en vez de `profile.score_total`
+  - Mantener servicios y vehiculo/licencia como estan
+- Solo se activa para tipo 'custodio' (los armados mantienen el comportamiento actual)
 
-- Importar `NotasTab`
-- Reemplazar `PlaceholderTab` en la pestana "notas" por:
-```typescript
-<NotasTab 
-  operativoId={id!} 
-  operativoTipo={tipo} 
-/>
-```
-- Eliminar `PlaceholderTab` ya que no se usa en ninguna otra pestana
+### Detalle visual del ranking
 
-### Flujo de usuario
+| Percentil | Tier | Icono | Color fondo |
+|---|---|---|---|
+| Top 10% | Gold | Trophy | amber-500 |
+| Top 25% | Silver | Medal | slate-400 |
+| Top 50% | Bronze | Award | orange-700 |
+| Resto | Standard | Hash | gray-500 |
 
-1. El usuario entra a la pestana "Notas" de un perfil operativo
-2. Ve la lista de notas existentes (o un estado vacio invitando a crear la primera)
-3. Click en "Nueva Nota" abre un formulario
-4. Escribe la nota, selecciona categoria y prioridad
-5. Guarda y la nota aparece en la lista con su nombre como autor
-6. Puede fijar notas importantes, editarlas o eliminarlas
+### Archivos afectados
 
-### Detalle tecnico
+| Archivo | Accion |
+|---|---|
+| `src/pages/PerfilesOperativos/hooks/useFleetRanking.ts` | Crear |
+| `src/pages/PerfilesOperativos/components/PerfilHeader.tsx` | Modificar - enriquecer quick stats |
 
-- Las fechas se muestran con `date-fns` en formato relativo (formatDistanceToNow)
-- El autor se toma de `useStableAuth` (user.email / user.user_metadata.display_name)
-- Categorias con colores: General (gris), Incidencia (rojo), Acuerdo (verde), Seguimiento (azul)
-- El sistema funciona tanto para custodios como para armados (campo `operativo_tipo`)
+Sin cambios de base de datos. Todo se calcula en tiempo real desde datos existentes.
 
