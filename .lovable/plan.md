@@ -1,112 +1,55 @@
 
 
-## Sistema de Rating Operativo - Pestana Calificaciones
+## Fix: Calcular Versatilidad en tiempo real desde servicios_custodia
 
-### Concepto
+### Problema detectado
 
-Un sistema de rating compuesto (1-5 estrellas) que evalua al custodio en 5 dimensiones operativas. El rating se calcula automaticamente a partir de datos existentes, pero la arquitectura esta disenada para que en el futuro los clientes puedan agregar su propia dimension de calificacion.
+Los campos denormalizados `servicios_locales_15d` y `servicios_foraneos_15d` en `custodios_operativos` estan en **0** para este custodio, pero en realidad tiene **4 servicios en los ultimos 15 dias**:
 
-### Modelo de Rating (5 dimensiones)
-
-| Dimension | Peso | Fuente de datos | Logica |
-|---|---|---|---|
-| **Performance** | 25% | `useProfilePerformance.scoreGlobal` | Score global existente (puntualidad + confiabilidad + checklist + docs + volumen) mapeado a 1-5 estrellas |
-| **Disponibilidad** | 20% | `custodios_operativos.disponibilidad` + dias sin actividad | Disponible + activo reciente = 5, suspendido/inactivo >30d = 1 |
-| **Revenue** | 20% | `servicios_custodia.costo_custodio` | Ingresos generados en 90 dias, normalizado vs percentiles de la flota |
-| **Versatilidad** | 15% | `servicios_locales_15d` + `servicios_foraneos_15d` + `preferencia_tipo_servicio` | Mix local/foraneo equilibrado = 5 estrellas. Solo un tipo = 3. Preferencia "indistinto" = bonus |
-| **Calificacion Cliente** | 20% | Placeholder (futuro) | Columna reservada. Por ahora muestra "Sin datos" con badge "Proximamente" |
-
-**Escala**: Cada dimension produce un score 0-100 que se mapea a estrellas (0-20=1, 21-40=2, 41-60=3, 61-80=4, 81-100=5).
-
-**Rating General**: Promedio ponderado de las 5 dimensiones = valor que se persiste en `custodios_operativos.rating_promedio`.
-
-### Cambios tecnicos
-
-**1. Nuevo hook: `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts`**
-
-Recibe `custodioId`, `nombre`, `telefono` y calcula las 5 dimensiones:
-
-- **Performance**: Reutiliza `useProfilePerformance` y extrae `scoreGlobal`
-- **Disponibilidad**: Query a `custodios_operativos` (disponibilidad, estado, fecha_ultimo_servicio)
-- **Revenue**: Query a `servicios_custodia` de los ultimos 90 dias con `costo_custodio`, calcula total y lo compara contra el P50 y P90 de la flota (query adicional de percentiles)
-- **Versatilidad**: Lee `servicios_locales_15d`, `servicios_foraneos_15d`, `preferencia_tipo_servicio` de `custodios_operativos`. Formula: ratio = min(local, foraneo) / max(local, foraneo). Ratio 1.0 = 100, ratio 0 = 40. Bonus +10 si preferencia = "indistinto"
-- **Cliente**: Retorna null (futuro)
-
-Calcula el rating compuesto y opcionalmente actualiza `rating_promedio` en la tabla.
-
-**2. Nuevo componente: `src/pages/PerfilesOperativos/components/tabs/CalificacionesTab.tsx`**
-
-Estructura visual:
-
-```text
-+------------------------------------------+
-|  RATING GENERAL    ★★★★☆  4.2 / 5.0     |
-|  "Operativo Destacado"                    |
-+------------------------------------------+
-
-+----------+ +----------+ +----------+
-| Perf 4.5 | | Disp 4.0 | | Rev 3.8  |
-| ★★★★★   | | ★★★★☆   | | ★★★★☆   |
-| 25%      | | 20%      | | 20%      |
-+----------+ +----------+ +----------+
-+----------+ +----------+
-| Vers 3.5 | | Cliente  |
-| ★★★★☆   | | Prox.    |
-| 15%      | | 20%      |
-+----------+ +----------+
-
-+------------------------------------------+
-| Desglose detallado por dimension         |
-| - Performance: tabla con sub-scores      |
-| - Revenue: ingresos 90d vs flota         |
-| - Versatilidad: mix local/foraneo visual |
-+------------------------------------------+
-
-+------------------------------------------+
-| Historico de rating (futuro placeholder) |
-+------------------------------------------+
-```
-
-Componentes internos:
-- `RatingOverviewCard`: Rating general grande con estrellas y etiqueta textual (Excelente/Destacado/Estandar/En desarrollo/Critico)
-- `DimensionCard`: Card por cada dimension con estrellas, score numerico, peso, y detalle
-- `RevenueComparison`: Barra de posicion del custodio vs P25/P50/P75/P90 de la flota
-- `VersatilidadChart`: Mini donut mostrando mix local vs foraneo
-- Seccion "Calificacion del Cliente" con badge "Proximamente" y texto explicativo de la futura integracion
-
-**3. Modificar `src/pages/PerfilesOperativos/PerfilForense.tsx`**
-
-- Importar `CalificacionesTab`
-- Reemplazar `PlaceholderTab` por:
-```typescript
-<CalificacionesTab
-  custodioId={id!}
-  nombre={profile.nombre}
-  telefono={profile.telefono || null}
-  profile={custodioProfile || undefined}
-/>
-```
-
-### Etiquetas de rating
-
-| Rango | Etiqueta | Color |
+| Fecha | km_recorridos | Clasificacion |
 |---|---|---|
-| 4.5 - 5.0 | Excelente | Verde |
-| 3.5 - 4.4 | Destacado | Azul |
-| 2.5 - 3.4 | Estandar | Amarillo |
-| 1.5 - 2.4 | En desarrollo | Naranja |
-| 1.0 - 1.4 | Critico | Rojo |
+| 2026-02-10 | 71 km | Local (<100km) |
+| 2026-02-03 | 8 km | Local |
+| 2026-02-02 | 103 km | Foraneo (>=100km) |
+| 2026-01-30 | 69 km | Local |
 
-### Preparacion para calificacion de clientes (futuro)
+La funcion batch `actualizar_todas_metricas_15d` no ha corrido o no actualizo este registro. El hook `useOperativeRating` depende de estos campos denormalizados, lo cual produce datos incorrectos en Versatilidad (score 50, "Sin servicios") y afecta el rating general.
 
-La dimension "Calificacion Cliente" aparecera con un diseno distinto (borde punteado, icono de candado) indicando que es una dimension pendiente. El texto explicara: "Esta dimension se activara cuando los clientes puedan calificar el servicio desde su portal". Mientras tanto, el rating general se calcula solo con las 4 dimensiones activas (los pesos se redistribuyen: Performance 30%, Disponibilidad 25%, Revenue 25%, Versatilidad 20%).
+### Solucion
 
-### Archivos afectados
+Modificar `useOperativeRating.ts` para calcular los servicios locales/foraneos de 15 dias en **tiempo real** desde `servicios_custodia`, en vez de leer los campos denormalizados.
 
-| Archivo | Accion |
-|---|---|
-| `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts` | Crear |
-| `src/pages/PerfilesOperativos/components/tabs/CalificacionesTab.tsx` | Crear |
-| `src/pages/PerfilesOperativos/PerfilForense.tsx` | Modificar - integrar CalificacionesTab |
+### Cambio tecnico
 
-Sin migraciones de base de datos. Se reutiliza la columna `rating_promedio` existente en `custodios_operativos`.
+**Archivo: `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts`**
+
+1. Agregar una nueva query que consulte `servicios_custodia` de los ultimos 15 dias filtrada por `nombre_custodio`, clasificando cada servicio como local (<100km) o foraneo (>=100km) usando `km_recorridos`
+2. Reemplazar las referencias a `profileData.servicios_locales_15d` y `profileData.servicios_foraneos_15d` con los valores calculados en tiempo real
+3. Actualizar la variable `serviciosLocales` y `serviciosForaneos` en el return del rating para reflejar los datos reales
+4. Agregar esta query al array de `isLoading`
+
+La query seria:
+
+```sql
+SELECT km_recorridos 
+FROM servicios_custodia 
+WHERE nombre_custodio ILIKE '%NOMBRE%' 
+  AND fecha_hora_cita >= (now - 15 days)
+  AND estado IN ('Finalizado', 'completado', 'Completado', 'finalizado')
+```
+
+Y la clasificacion en JS:
+- `km_recorridos < 100` o NULL = local
+- `km_recorridos >= 100` = foraneo
+
+### Resultado esperado
+
+Para este custodio, la seccion Versatilidad mostraria:
+- Locales: 3
+- Foraneos: 1
+- Score de versatilidad calculado correctamente (~67 en vez de 50)
+- Rating general ajustado con el nuevo score
+
+### Archivo afectado
+
+Solo `src/pages/PerfilesOperativos/hooks/useOperativeRating.ts` - una query nueva y reemplazo de 2 variables.
