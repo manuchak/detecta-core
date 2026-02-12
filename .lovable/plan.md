@@ -1,61 +1,61 @@
 
 
-## Plan: Corregir inserciones de indisponibilidad en modales de planeacion
+## Plan: Corregir mapeo de tipo_indisponibilidad en modales de asignacion
 
 ### Causa raiz
 
-Los modales `PendingAssignmentModal` y `ReassignmentModal` usan nombres de columna incorrectos al insertar en la tabla `custodio_indisponibilidades`:
+La UI (`ReportUnavailabilityCard`) envia `emergencia_familiar` como valor de `tipo`, pero la tabla `custodio_indisponibilidades` tiene un CHECK constraint que solo acepta: `falla_mecanica`, `enfermedad`, `familiar`, `personal`, `mantenimiento`, `capacitacion`, `otro`.
 
-| Columna usada (incorrecta) | Columna real en la tabla |
-|---|---|
-| `tipo` | `tipo_indisponibilidad` |
-| `fecha_fin` | `fecha_fin_estimada` |
-| `activo` | `estado` (valor: `'activo'`) |
-| _(faltante)_ | `severidad` (default requerido) |
+El flujo de **creacion de servicio** (CustodianStep) ya tiene un mapeo correcto:
+```
+'emergencia_familiar' -> 'familiar'
+```
 
-El insert falla silenciosamente con un error de Supabase porque las columnas no existen, y el toast muestra "Error al registrar indisponibilidad".
+Pero los modales **PendingAssignmentModal** y **ReassignmentModal** pasan `data.tipo` directamente sin mapear, lo que causa el error de CHECK constraint cuando el planificador selecciona "Emergencia familiar".
 
 ### Solucion
 
-Corregir los payloads de insert en ambos archivos para alinearlos con el esquema real de la tabla, siguiendo el patron ya correcto en `useCustodioIndisponibilidades.ts`.
+Agregar el mismo mapeo de tipos que ya existe en CustodianStep a los dos modales afectados.
 
 ### Cambios
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/planeacion/PendingAssignmentModal.tsx` (~linea 244-253) | Corregir nombres de columna en el insert |
-| `src/components/planeacion/ReassignmentModal.tsx` (~linea 261-270) | Corregir nombres de columna en el insert |
+| `src/components/planeacion/PendingAssignmentModal.tsx` (~linea 236-254) | Agregar mapeo de `emergencia_familiar` a `familiar` antes del insert |
+| `src/components/planeacion/ReassignmentModal.tsx` (~linea 253-271) | Agregar mapeo identico |
 
 ### Detalle del cambio (identico en ambos archivos)
 
-Antes:
+Agregar antes del insert:
 ```typescript
-.insert({
-  custodio_id: unavailabilityCustodian.id,
-  tipo: data.tipo,
-  motivo: data.motivo || null,
-  fecha_inicio: new Date().toISOString().split('T')[0],
-  fecha_fin: fechaFin,
-  activo: true
-})
+// Map UI types to DB-compatible values
+const tipoMapping: Record<string, string> = {
+  'emergencia_familiar': 'familiar',
+  'falla_mecanica': 'falla_mecanica',
+  'enfermedad': 'enfermedad',
+  'capacitacion': 'capacitacion',
+  'otro': 'otro',
+};
+const tipoDb = tipoMapping[data.tipo] || 'otro';
+const motivoDb = data.motivo?.trim() || tipoDb;
 ```
 
-Despues:
+Y cambiar en el insert:
 ```typescript
-.insert({
-  custodio_id: unavailabilityCustodian.id,
-  tipo_indisponibilidad: data.tipo,
-  motivo: data.motivo || 'Sin especificar',
-  fecha_inicio: new Date().toISOString(),
-  fecha_fin_estimada: fechaFin ? new Date(fechaFin).toISOString() : null,
-  estado: 'activo',
-  severidad: 'media'
-})
+tipo_indisponibilidad: tipoDb,  // en vez de data.tipo
+motivo: motivoDb,               // en vez de data.motivo || 'Sin especificar'
 ```
 
-Notas:
-- `motivo` es NOT NULL en la tabla, asi que se usa un fallback `'Sin especificar'` en vez de `null`
-- `fecha_inicio` cambia a timestamp completo (la columna es `timestamp with time zone`, no `date`)
-- `fecha_fin_estimada` tambien se convierte a ISO timestamp
-- `severidad` se agrega con valor default `'media'`
+### Verificacion de acceso por rol
 
+- **RLS**: La politica `usuarios_autenticados_pueden_insertar_indisponibilidad` permite INSERT a cualquier usuario autenticado (with_check: true). Planificadores y coordinadores estan cubiertos.
+- **Columnas**: El fix anterior ya corrigio los nombres de columna. Este cambio solo agrega el mapeo de valores faltante.
+- **CustodianStep**: Ya funciona correctamente con el mapeo existente.
+
+### Resumen del estado por punto de entrada
+
+| Punto de entrada | Mapeo de tipo | Columnas correctas | Estado |
+|---|---|---|---|
+| Crear servicio (CustodianStep) | Ya tiene mapeo | Ya correctas | Funciona |
+| Asignacion pendiente (PendingAssignmentModal) | Falta mapeo | Corregidas en commit anterior | Este fix |
+| Reasignacion (ReassignmentModal) | Falta mapeo | Corregidas en commit anterior | Este fix |
