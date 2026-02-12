@@ -99,6 +99,25 @@ export const useSIERCPReport = () => {
     }
   };
 
+  const saveReport = async (evaluacionId: string, reportData: SIERCPReport) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('evaluaciones_psicometricas')
+        .update({ ai_report: reportData as any })
+        .eq('id', evaluacionId);
+
+      if (updateError) {
+        console.error('Error saving report:', updateError);
+      }
+    } catch (err) {
+      console.error('Error saving report to DB:', err);
+    }
+  };
+
+  const loadReport = (savedReport: Record<string, any>) => {
+    setReport(savedReport as unknown as SIERCPReport);
+  };
+
   const clearReport = () => {
     setReport(null);
     setError(null);
@@ -109,6 +128,8 @@ export const useSIERCPReport = () => {
     report,
     error,
     generateReport,
+    saveReport,
+    loadReport,
     clearReport
   };
 };

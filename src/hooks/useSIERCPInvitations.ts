@@ -26,6 +26,7 @@ export interface SIERCPInvitationWithEvaluation extends SIERCPInvitation {
     resultado_semaforo?: string;
     risk_flags?: string[] | null;
     fecha_evaluacion: string;
+    ai_report?: Record<string, any> | null;
   } | null;
 }
 
@@ -187,7 +188,8 @@ export function useAllSIERCPInvitations() {
             score_entrevista,
             resultado_semaforo,
             risk_flags,
-            fecha_evaluacion
+            fecha_evaluacion,
+            ai_report
           )
         `)
         .order('created_at', { ascending: false });

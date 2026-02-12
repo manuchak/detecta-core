@@ -15,7 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SIERCPStatusBadge } from './SIERCPStatusBadge';
 import { 
   Copy, 
-  ExternalLink, 
+  ExternalLink,
+  Eye, 
   RotateCcw, 
   XCircle,
   Mail,
@@ -192,9 +193,13 @@ export function InvitationsTable() {
                       setSelectedInvitation(invitation);
                       setReportOpen(true);
                     }}
-                    title="Ver resultado"
+                    title={invitation.evaluacion.ai_report ? 'Ver informe guardado' : 'Generar informe'}
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    {invitation.evaluacion.ai_report ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4" />
+                    )}
                   </Button>
                 )}
                 {invitation.status === 'expired' && (
