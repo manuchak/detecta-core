@@ -10,6 +10,7 @@ import { SandboxProvider, useSandbox } from '@/contexts/SandboxContext';
 import { SandboxRouteGuard } from '@/components/sandbox/SandboxRouteGuard';
 import { lazy, Suspense, useEffect } from 'react';
 import { LastRouteRestorer } from '@/components/global/LastRouteRestorer';
+import { ScrollToTop } from '@/components/global/ScrollToTop';
 import { GlobalResumeCTA } from '@/components/global/GlobalResumeCTA';
 import { SIERCP_ALLOWED_ROLES, FIELD_OPERATOR_ROLES } from '@/constants/accessControl';
 import RoleBlockedRoute from '@/components/RoleBlockedRoute';
@@ -194,6 +195,7 @@ function App() {
             <SandboxRoleSync>
               <DraftResumeProvider>
                 <Router>
+                <ScrollToTop />
                 <LastRouteRestorer />
                 <SandboxRouteGuard>
                   <div className="min-h-screen bg-background">
