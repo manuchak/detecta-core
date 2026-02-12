@@ -1,4 +1,4 @@
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -30,6 +30,12 @@ export default function PerfilForense() {
   const location = useLocation();
   const tipo = location.pathname.includes('/armado/') ? 'armado' : 'custodio';
   
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'info';
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value }, { replace: true });
+  };
+
   const { data: profile, isLoading, isError } = useOperativeProfile(id, tipo);
 
   if (isLoading) {
@@ -74,7 +80,7 @@ export default function PerfilForense() {
     <div className="p-6 space-y-6">
       <PerfilHeader profile={profile} tipo={tipo} isLoading={isLoading} />
       
-      <Tabs defaultValue="info" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="flex flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="info" className="flex items-center gap-1.5">
             <User className="h-4 w-4" />
