@@ -29,7 +29,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { 
-  Search, Eye, Phone, MapPin, Star, Filter, X,
+  Search, Eye, Phone, MapPin, Star, Filter, X, ArrowUpDown,
   MoreHorizontal, UserX, Home, Plane, CircleDot, MessageCircle,
   Edit, Trash2, Trophy, Medal, Award
 } from 'lucide-react';
@@ -91,6 +91,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [activityFilter, setActivityFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('nombre');
   const [showEstatusModal, setShowEstatusModal] = useState(false);
   const [selectedCustodio, setSelectedCustodio] = useState<CustodioProfile | null>(null);
   
@@ -111,7 +112,7 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
   
   // Filter data
   const filteredData = useMemo(() => {
-    return data.filter(custodio => {
+    const filtered = data.filter(custodio => {
       const matchesSearch = !searchTerm || 
         custodio.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         custodio.telefono?.includes(searchTerm) ||
@@ -122,19 +123,38 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       
       return matchesSearch && matchesZona && matchesActivity;
     });
-  }, [data, searchTerm, zonaFilter, activityFilter]);
+
+    // Sort
+    if (sortBy === 'ranking' && rankingMap) {
+      filtered.sort((a, b) => {
+        const ra = rankingMap.get(a.nombre.toLowerCase());
+        const rb = rankingMap.get(b.nombre.toLowerCase());
+        if (!ra && !rb) return 0;
+        if (!ra) return 1;
+        if (!rb) return -1;
+        return ra.posicion - rb.posicion;
+      });
+    } else if (sortBy === 'servicios') {
+      filtered.sort((a, b) => (b.numero_servicios || 0) - (a.numero_servicios || 0));
+    } else {
+      filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
+
+    return filtered;
+  }, [data, searchTerm, zonaFilter, activityFilter, sortBy, rankingMap]);
 
   // Selected custodios based on current filtered view
   const selectedCustodios = useMemo(() => {
     return filteredData.filter(c => selectedIds.has(c.id));
   }, [filteredData, selectedIds]);
   
-  const hasFilters = searchTerm || zonaFilter !== 'all' || activityFilter !== 'all';
+  const hasFilters = searchTerm || zonaFilter !== 'all' || activityFilter !== 'all' || sortBy !== 'nombre';
   
   const clearFilters = () => {
     setSearchTerm('');
     setZonaFilter('all');
     setActivityFilter('all');
+    setSortBy('nombre');
   };
 
   // Selection handlers
@@ -499,6 +519,18 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
               <SelectItem value="moderado">Moderado (31-60d)</SelectItem>
               <SelectItem value="inactivo">Inactivo (61-90d)</SelectItem>
               <SelectItem value="sin_actividad">Sin actividad (+90d)</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[160px]">
+              <ArrowUpDown className="h-4 w-4 mr-1" />
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="nombre">Nombre A-Z</SelectItem>
+              <SelectItem value="ranking">Mejor ranking</SelectItem>
+              <SelectItem value="servicios">Más servicios</SelectItem>
             </SelectContent>
           </Select>
         </div>
