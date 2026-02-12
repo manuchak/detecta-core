@@ -41,6 +41,7 @@ export interface ScheduledService {
   posicionamiento_falso?: boolean;
   cobro_posicionamiento?: boolean;
   motivo_posicionamiento_falso?: string;
+  gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
 }
 
 export interface ScheduledServicesSummary {

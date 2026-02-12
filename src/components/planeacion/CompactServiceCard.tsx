@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   MapPin, User, Shield, CheckCircle2, AlertCircle, 
-  Clock, MapPinCheck, Calendar, CircleDot, History, Car
+  Clock, MapPinCheck, Calendar, CircleDot, History, Car,
+  Cpu, Lock
 } from 'lucide-react';
 import { CancelServiceButton } from './CancelServiceButton';
 import { QuickCommentButton } from './QuickCommentButton';
@@ -125,6 +126,12 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
     priority: 3
   };
 }
+
+const gadgetDisplayConfig: Record<string, { label: string; icon: typeof Cpu }> = {
+  gps_portatil: { label: 'GPS', icon: Cpu },
+  gps_portatil_caja_imantada: { label: 'GPS Imantado', icon: Cpu },
+  candado_satelital: { label: 'Candado', icon: Lock },
+};
 
 export function CompactServiceCard({
   service,
@@ -319,6 +326,27 @@ export function CompactServiceCard({
           <Shield className="w-3 h-3 text-amber-600 flex-shrink-0" />
           <span className="font-medium text-foreground">{service.armado_nombre}</span>
           <span className="text-muted-foreground/60 italic">(Acompañante)</span>
+        </div>
+      )}
+      
+      {/* Row 4 (conditional): Gadgets */}
+      {service.gadgets_cantidades && service.gadgets_cantidades.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-1 pl-2 flex-wrap">
+          {service.gadgets_cantidades.map((g, idx) => {
+            const config = gadgetDisplayConfig[g.tipo];
+            if (!config) return null;
+            const Icon = config.icon;
+            return (
+              <Badge
+                key={idx}
+                variant="outline"
+                className="bg-cyan-100/60 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border-cyan-200/60 text-[10px] px-1.5 py-0.5 gap-0.5"
+              >
+                <Icon className="w-2.5 h-2.5" />
+                {g.cantidad > 1 ? `${g.cantidad}x ` : ''}{config.label}
+              </Badge>
+            );
+          })}
         </div>
       )}
     </div>
