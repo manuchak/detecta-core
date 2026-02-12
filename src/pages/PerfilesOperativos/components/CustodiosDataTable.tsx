@@ -31,8 +31,10 @@ import {
 import { 
   Search, Eye, Phone, MapPin, Star, Filter, X,
   MoreHorizontal, UserX, Home, Plane, CircleDot, MessageCircle,
-  Edit, Trash2
+  Edit, Trash2, Trophy, Medal, Award
 } from 'lucide-react';
+import { useFleetRankingBatch, RankingEntry } from '../hooks/useFleetRankingBatch';
+import { RankingTier } from '../hooks/useFleetRanking';
 import { CustodioProfile } from '../hooks/useOperativeProfiles';
 import { CambioEstatusModal } from '@/components/operatives/CambioEstatusModal';
 import { QuickEditSheet, PreferenciaTipoServicio } from './QuickEditSheet';
@@ -85,6 +87,7 @@ const PREFERENCIA_ICONS: Record<PreferenciaTipoServicio, { icon: typeof Home; la
 export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: rankingMap } = useFleetRankingBatch();
   const [searchTerm, setSearchTerm] = useState('');
   const [zonaFilter, setZonaFilter] = useState<string>('all');
   const [activityFilter, setActivityFilter] = useState<string>('all');
@@ -325,16 +328,36 @@ export function CustodiosDataTable({ data, onRefresh }: CustodiosDataTableProps)
       },
     },
     {
-      accessorKey: 'rating_promedio',
-      header: 'Rating',
+      id: 'ranking',
+      header: 'Ranking',
       cell: ({ row }) => {
-        const rating = row.getValue('rating_promedio') as number | null;
-        if (rating === null) return <span className="text-muted-foreground">—</span>;
+        const nombre = row.original.nombre;
+        const entry = rankingMap?.get(nombre.toLowerCase());
+        if (!entry) return <span className="text-muted-foreground text-xs">—</span>;
+
+        const tierConfig: Record<RankingTier, { icon: typeof Trophy; color: string; label: string }> = {
+          gold: { icon: Trophy, color: 'text-amber-500', label: 'Top 10%' },
+          silver: { icon: Medal, color: 'text-slate-400', label: 'Top 25%' },
+          bronze: { icon: Award, color: 'text-orange-600', label: 'Top 50%' },
+          standard: { icon: Award, color: 'text-muted-foreground', label: '' },
+        };
+        const tc = tierConfig[entry.tier];
+        const Icon = tc.icon;
+
         return (
-          <div className="flex items-center gap-1 justify-center">
-            <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-            <span className="font-medium">{rating.toFixed(1)}</span>
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <div className="flex items-center gap-1 justify-center">
+                  <Icon className={cn('h-3.5 w-3.5', tc.color)} />
+                  <span className={cn('font-medium text-sm', tc.color)}>#{entry.posicion}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Posición #{entry.posicion} de {entry.totalFlota} — Top {entry.percentil}% — Score: {entry.score}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       },
     },
