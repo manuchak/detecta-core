@@ -1,54 +1,55 @@
 
-
-## Fix: Checklist completado no se refleja al volver al dashboard
+## Mostrar gadgets asignados en las tarjetas de servicios (CompactServiceCard)
 
 ### Problema
 
-Cuando el custodio completa el checklist y regresa al dashboard, la tarjeta de "Proximo servicio" sigue mostrando "Iniciar Checklist Pre-Servicio" en lugar de "Checklist completado". Esto ocurre porque:
-
-1. El wizard llama `navigate('/custodian')` al completar, pero no invalida el cache de React Query
-2. `useNextService` tiene `staleTime: 60000` (1 minuto), asi que usa datos en cache donde `checklistStatus` sigue siendo `null`
-3. Solo despues de 1 minuto (o pull-to-refresh manual) se actualiza correctamente
+Cuando el equipo de planeacion carga servicios con gadgets (GPS portatil, candado satelital, GPS con caja imantada), esa informacion no se muestra en las tarjetas de la vista de servicios del dia. Los planificadores necesitan ver rapidamente que gadgets tiene asignado cada servicio sin tener que abrir el detalle.
 
 ### Solucion
 
-Invalidar el cache de `next-service` inmediatamente al completar el checklist, para que al llegar al dashboard se haga un fetch fresco.
+Agregar una fila condicional en la tarjeta compacta que muestre los gadgets asignados con iconos y etiquetas compactas (badges), visible solo cuando el servicio tiene gadgets.
 
 ### Cambios
 
-**1. `src/components/custodian/checklist/ChecklistWizard.tsx`**
+**1. Base de datos: Actualizar RPC `get_real_planned_services_summary`**
 
-- Importar `useQueryClient` de TanStack React Query
-- En `handleSubmit`, antes de navegar, invalidar la query `['next-service']` para forzar un refetch cuando el dashboard se monte
+Agregar `gadgets_cantidades` al JSON que devuelve la funcion para que el frontend reciba la informacion.
 
-```text
-handleSubmit flow actual:
-  saveChecklist -> clearDraft -> toast -> navigate('/custodian')
-
-handleSubmit flow nuevo:
-  saveChecklist -> clearDraft -> invalidateQueries(['next-service']) -> toast -> navigate('/custodian')
+Linea a agregar en el `jsonb_build_object`:
+```sql
+'gadgets_cantidades', COALESCE(sp.gadgets_cantidades, '[]'::jsonb)
 ```
 
-**2. `src/hooks/useNextService.ts`**
+**2. Frontend: `src/hooks/useScheduledServices.ts`**
 
-- Reducir `staleTime` de 60000ms a 10000ms (10 segundos) para que las invalidaciones surtan efecto mas rapido
-- Esto es un cambio menor de seguridad; la invalidacion explicita es el fix principal
+Agregar el campo `gadgets_cantidades` al tipo `ScheduledService`:
+```typescript
+gadgets_cantidades?: Array<{ tipo: string; cantidad: number }>;
+```
+
+**3. Frontend: `src/components/planeacion/CompactServiceCard.tsx`**
+
+Agregar una nueva fila condicional (Row 4) despues de la fila de armado que muestre los gadgets asignados como badges compactos:
+
+- Icono `Cpu` para GPS, `Lock` para candados
+- Etiquetas cortas: "GPS", "GPS Imantado", "Candado"
+- Cantidad si es mayor a 1 (ej: "2x GPS")
+- Solo se muestra si el servicio tiene gadgets (array no vacio)
+
+Ejemplo visual en la tarjeta:
+```text
+MERCED  00:00  EMEDEHE-243    En sitio
+SAN LORENZO, CUAUTI... -> ANTONIO RAMON MARTINEZ ROJAS
+  GPS Portatil  Candado Satelital          <-- nueva fila
+```
 
 ### Detalle tecnico
 
-En ChecklistWizard.tsx, agregar:
+Mapa de etiquetas para los tipos de gadget:
+| Tipo DB | Etiqueta corta | Icono |
+|---|---|---|
+| `gps_portatil` | GPS | Cpu |
+| `gps_portatil_caja_imantada` | GPS Imantado | Cpu |
+| `candado_satelital` | Candado | Lock |
 
-```typescript
-const queryClient = useQueryClient();
-
-// En handleSubmit onSuccess:
-onSuccess: () => {
-  persistence.clearDraft(true);
-  queryClient.invalidateQueries({ queryKey: ['next-service'] });
-  toast.success('Checklist completado!');
-  onComplete ? onComplete() : navigate('/custodian');
-}
-```
-
-No se requieren cambios en NextServiceCard.tsx ni en MobileDashboardLayout.tsx. La logica de renderizado condicional (linea 106-127 de NextServiceCard) ya maneja correctamente el estado `checklistCompleted`, solo necesita recibir el dato actualizado.
-
+Los badges usaran estilo compacto con fondo semitransparente (`bg-cyan-100/60 text-cyan-700`) para diferenciarse visualmente de los badges de estado existentes.
