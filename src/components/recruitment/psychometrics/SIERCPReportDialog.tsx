@@ -197,35 +197,81 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
     setPdfLoading(true);
     
     try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 10;
       const usableWidth = pageWidth - margin * 2;
-      const imgHeight = (canvas.height * usableWidth) / canvas.width;
-      
-      let yOffset = margin;
-      let remainingHeight = imgHeight;
-      
-      // Multi-page support
-      while (remainingHeight > 0) {
-        const sliceHeight = Math.min(remainingHeight, pageHeight - margin * 2);
-        pdf.addImage(imgData, 'PNG', margin, yOffset - (imgHeight - remainingHeight), usableWidth, imgHeight);
-        remainingHeight -= sliceHeight;
-        if (remainingHeight > 0) {
+      const pageBottom = pageHeight - margin;
+      const gap = 2; // mm between sections
+      let currentY = margin;
+      let isFirstPage = true;
+
+      // Find all marked sections; fall back to the whole report if none found
+      const sections = reportRef.current.querySelectorAll<HTMLElement>('[data-pdf-section]');
+      const elements: HTMLElement[] = sections.length > 0
+        ? Array.from(sections)
+        : [reportRef.current];
+
+      for (const section of elements) {
+        // Inline SVG styles before capture
+        inlineSvgStyles(section);
+
+        const canvas = await html2canvas(section, {
+          scale: 1.5,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        const sectionHeight = (canvas.height * usableWidth) / canvas.width;
+
+        // If section doesn't fit on current page, start a new one
+        if (!isFirstPage && currentY + sectionHeight > pageBottom) {
           pdf.addPage();
-          yOffset = margin;
+          currentY = margin;
         }
+
+        // If a single section is taller than the whole page, split it
+        if (sectionHeight > pageBottom - margin) {
+          let srcY = 0;
+          let remaining = canvas.height;
+          const availableMm = pageBottom - currentY;
+          const pxPerMm = canvas.width / usableWidth;
+
+          while (remaining > 0) {
+            const sliceMm = Math.min(availableMm, remaining / pxPerMm);
+            const slicePx = Math.round(sliceMm * pxPerMm);
+
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = slicePx;
+            const ctx = sliceCanvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+              const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.85);
+              pdf.addImage(sliceData, 'JPEG', margin, currentY, usableWidth, sliceMm);
+            }
+
+            srcY += slicePx;
+            remaining -= slicePx;
+
+            if (remaining > 0) {
+              pdf.addPage();
+              currentY = margin;
+            } else {
+              currentY += sliceMm + gap;
+            }
+          }
+        } else {
+          pdf.addImage(imgData, 'JPEG', margin, currentY, usableWidth, sectionHeight);
+          currentY += sectionHeight + gap;
+        }
+
+        isFirstPage = false;
       }
-      
+
       pdf.save(`${getReportTitle()}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);

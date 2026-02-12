@@ -65,7 +65,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
       {/* ============================================= */}
       {/* COVER / HERO SECTION (Page 1)                */}
       {/* ============================================= */}
-      <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-8 rounded-t-xl print-section-hero print-avoid-break">
+      <div data-pdf-section="hero" className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-8 rounded-t-xl print-section-hero print-avoid-break">
         {/* Header bar */}
         <div className="flex justify-between items-center mb-6 pb-3 border-b border-white/20">
           <div>
@@ -132,7 +132,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
       <div className="p-6 space-y-6">
         
         {/* Radar + Executive Summary - Print optimized */}
-        <div className="grid grid-cols-5 gap-4 print-avoid-break">
+        <div data-pdf-section="radar-summary" className="grid grid-cols-5 gap-4 print-avoid-break">
           {/* Radar Chart - Fixed size for print */}
           <div className="col-span-2 border border-gray-200 rounded-xl p-3 bg-gray-50/50 print-avoid-break">
             <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -165,7 +165,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Module Cards Grid - Page 2 */}
-        <div className="print-section-analysis print-avoid-break">
+        <div data-pdf-section="module-analysis" className="print-section-analysis print-avoid-break">
           <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
             <Eye className="h-5 w-5 text-blue-600" />
             Análisis por Módulo
@@ -207,7 +207,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Risk & Protection Factors */}
-        <div className="grid grid-cols-2 gap-6 print-avoid-break">
+        <div data-pdf-section="risk-protection" className="grid grid-cols-2 gap-6 print-avoid-break">
           {/* Risk Factors */}
           <div className="border-2 border-red-200 rounded-xl p-5 bg-gradient-to-br from-red-50 to-white print-avoid-break">
             <h3 className="font-bold text-red-800 flex items-center gap-2 mb-4 text-base">
@@ -255,7 +255,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         </div>
 
         {/* Recommendations */}
-        <div className="border border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50/50 to-white print-avoid-break">
+        <div data-pdf-section="recommendations" className="border border-blue-200 rounded-xl p-5 bg-gradient-to-br from-blue-50/50 to-white print-avoid-break">
           <h3 className="font-bold text-blue-800 flex items-center gap-2 mb-4 text-base">
             <Lightbulb className="h-5 w-5" />
             Recomendaciones
@@ -277,7 +277,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
 
         {/* Follow-up Areas */}
         {report.areas_seguimiento?.length > 0 && (
-          <div className="border border-amber-200 rounded-xl p-5 bg-gradient-to-br from-amber-50/50 to-white">
+          <div data-pdf-section="follow-up" className="border border-amber-200 rounded-xl p-5 bg-gradient-to-br from-amber-50/50 to-white">
             <h3 className="font-bold text-amber-800 flex items-center gap-2 mb-4 text-base">
               <Target className="h-5 w-5" />
               Áreas de Seguimiento Post-Contratación
@@ -296,7 +296,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         {/* ============================================= */}
         {/* CONCLUSION & DECISION SEAL (Page 3)          */}
         {/* ============================================= */}
-        <div className="border-2 border-gray-300 rounded-xl p-5 bg-gradient-to-br from-slate-50 to-white print-section-conclusion print-avoid-break">
+        <div data-pdf-section="conclusion" className="border-2 border-gray-300 rounded-xl p-5 bg-gradient-to-br from-slate-50 to-white print-section-conclusion print-avoid-break">
           <h3 className="font-bold text-gray-800 mb-3 text-base">Conclusión Profesional</h3>
           <p className="text-gray-700 leading-relaxed mb-4 text-sm">
             {report.conclusion_profesional}
@@ -314,7 +314,7 @@ export const SIERCPPrintableReport: React.FC<SIERCPPrintableReportProps> = ({
         {/* ============================================= */}
         {/* FOOTER / DISCLAIMER                          */}
         {/* ============================================= */}
-        <div className="text-xs text-gray-500 border-t-2 border-gray-200 pt-4 mt-6">
+        <div data-pdf-section="disclaimer" className="text-xs text-gray-500 border-t-2 border-gray-200 pt-4 mt-6">
           <p className="font-semibold text-gray-600 mb-1 text-[11px]">AVISO LEGAL</p>
           <p className="leading-relaxed text-[10px]">
             Este informe es generado con asistencia de inteligencia artificial y debe ser interpretado 
