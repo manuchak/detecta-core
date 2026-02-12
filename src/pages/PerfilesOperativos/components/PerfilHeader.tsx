@@ -10,10 +10,16 @@ import {
   Shield, 
   Car,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Trophy,
+  Medal,
+  Award,
+  Hash
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { OperativeProfileFull, ArmadoProfileFull } from '../hooks/useOperativeProfile';
+import { useOperativeRating } from '../hooks/useOperativeRating';
+import { useFleetRanking, type RankingTier } from '../hooks/useFleetRanking';
 
 interface PerfilHeaderProps {
   profile: OperativeProfileFull | ArmadoProfileFull | null | undefined;
@@ -21,8 +27,25 @@ interface PerfilHeaderProps {
   isLoading?: boolean;
 }
 
+const TIER_CONFIG: Record<RankingTier, { icon: typeof Trophy; color: string; bg: string }> = {
+  gold:     { icon: Trophy, color: 'text-amber-500',  bg: 'bg-amber-500/10' },
+  silver:   { icon: Medal,  color: 'text-slate-400',  bg: 'bg-slate-400/10' },
+  bronze:   { icon: Award,  color: 'text-orange-700', bg: 'bg-orange-700/10' },
+  standard: { icon: Hash,   color: 'text-muted-foreground', bg: 'bg-muted' },
+};
+
 export function PerfilHeader({ profile, tipo, isLoading }: PerfilHeaderProps) {
   const navigate = useNavigate();
+  const isCustodio = tipo === 'custodio';
+  const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
+
+  // Always call hooks - they handle undefined internally
+  const { rating, isLoading: ratingLoading } = useOperativeRating(
+    isCustodio ? custodioProfile?.id : undefined,
+    isCustodio ? profile?.nombre : undefined,
+    isCustodio ? (profile as OperativeProfileFull)?.telefono : undefined
+  );
+  const { data: ranking } = useFleetRanking(isCustodio ? profile?.nombre : undefined);
 
   if (isLoading) {
     return (
@@ -75,8 +98,6 @@ export function PerfilHeader({ profile, tipo, isLoading }: PerfilHeaderProps) {
     }
   };
 
-  const isCustodio = tipo === 'custodio';
-  const custodioProfile = isCustodio ? profile as OperativeProfileFull : null;
   const armadoProfile = !isCustodio ? profile as ArmadoProfileFull : null;
 
   return (
@@ -142,24 +163,53 @@ export function PerfilHeader({ profile, tipo, isLoading }: PerfilHeaderProps) {
 
           {/* Quick stats */}
           <div className="flex flex-wrap gap-4 pt-2">
-            {profile.rating_promedio && (
+            {/* Rating - real-time for custodios, static for armados */}
+            {isCustodio && !ratingLoading && rating ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 rounded-lg">
+                <Star className="h-4 w-4 text-amber-500" fill="currentColor" />
+                <span className="font-medium">{rating.ratingGeneral.toFixed(1)}</span>
+                <span className={`text-xs font-medium ${rating.labelColor}`}>{rating.label}</span>
+              </div>
+            ) : !isCustodio && profile.rating_promedio ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 rounded-lg">
                 <Star className="h-4 w-4 text-amber-500" />
                 <span className="font-medium">{profile.rating_promedio.toFixed(1)}</span>
               </div>
-            )}
+            ) : null}
+
+            {/* Ranking - only custodios */}
+            {isCustodio && ranking && (() => {
+              const tierCfg = TIER_CONFIG[ranking.tier];
+              const TierIcon = tierCfg.icon;
+              return (
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 ${tierCfg.bg} rounded-lg`}>
+                  <TierIcon className={`h-4 w-4 ${tierCfg.color}`} />
+                  <span className="font-medium">#{ranking.posicion}</span>
+                  <span className="text-xs text-muted-foreground">de {ranking.totalFlota}</span>
+                </div>
+              );
+            })()}
+
             {profile.numero_servicios != null && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 rounded-lg">
                 <Clock className="h-4 w-4 text-blue-500" />
                 <span className="font-medium">{profile.numero_servicios} servicios</span>
               </div>
             )}
-            {profile.score_total != null && (
+
+            {/* Score - real-time for custodios, static for armados */}
+            {isCustodio && !ratingLoading && rating ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <span className="font-medium">Score: {rating.scoreGeneral}</span>
+              </div>
+            ) : !isCustodio && profile.score_total != null ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 rounded-lg">
                 <TrendingUp className="h-4 w-4 text-green-500" />
                 <span className="font-medium">Score: {profile.score_total.toFixed(0)}</span>
               </div>
-            )}
+            ) : null}
+
             {isCustodio && custodioProfile?.vehiculo_propio && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-lg">
                 <Car className="h-4 w-4 text-purple-500" />
