@@ -22,7 +22,7 @@ export function PsychometricEvaluationTab({ candidatoId, candidatoNombre }: Prop
   const { data: evaluaciones, isLoading } = useEvaluacionesPsicometricas(candidatoId);
   const { userRole } = useAuth();
   
-  const isCoordinador = userRole === 'coordinador_operaciones' || userRole === 'admin' || userRole === 'owner';
+  const isCoordinador = userRole === 'coordinador_operaciones' || userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin';
   const latestEval = evaluaciones?.[0];
 
   if (isLoading) {
