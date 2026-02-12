@@ -265,6 +265,11 @@ export function PendingAssignmentModal({
         });
       
       if (error) throw error;
+
+      // Invalidate caches so custodian lists refresh
+      queryClient.invalidateQueries({ queryKey: ['custodio-indisponibilidades'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
       
       toast.success('Indisponibilidad registrada', {
         description: `${unavailabilityCustodian.nombre} marcado como no disponible`

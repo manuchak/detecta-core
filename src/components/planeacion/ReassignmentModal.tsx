@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RefreshCw, User, Shield, AlertTriangle, X, Trash2, Building2, MapPin, Clock, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProveedoresArmados } from '@/hooks/useProveedoresArmados';
 import { useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
@@ -73,6 +73,7 @@ export function ReassignmentModal({
   onRemove,
   isLoading = false
 }: ReassignmentModalProps) {
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string>('');
   const [selectedName, setSelectedName] = useState<string>('');
   const [reason, setReason] = useState<string>('');
@@ -282,6 +283,11 @@ export function ReassignmentModal({
         });
       
       if (error) throw error;
+
+      // Invalidate caches so custodian lists refresh
+      queryClient.invalidateQueries({ queryKey: ['custodio-indisponibilidades'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
       
       toast.success('Indisponibilidad registrada', {
         description: `${unavailabilityCustodian.nombre} marcado como no disponible`
