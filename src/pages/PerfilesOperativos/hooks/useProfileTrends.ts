@@ -105,7 +105,7 @@ export function useProfileTrends(
       if (nombre) {
         const { data: ejecutados } = await supabase
           .from('servicios_custodia')
-          .select('id, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado_servicio')
+          .select('id, km_recorridos, km_teorico, costo_custodio, fecha_hora_cita, hora_presentacion, estado')
           .ilike('nombre_custodio', `%${nombre}%`)
           .gte('fecha_hora_cita', rangeStart)
           .lte('fecha_hora_cita', rangeEnd);
@@ -120,7 +120,7 @@ export function useProfileTrends(
             bucket.kmRecorridos += (s.km_recorridos || s.km_teorico || 0);
             bucket.ingresos += (s.costo_custodio || 0);
 
-            if (s.estado_servicio === 'finalizado') {
+            if (s.estado?.toLowerCase() === 'finalizado') {
               bucket.serviciosFinalizados++;
             }
 
