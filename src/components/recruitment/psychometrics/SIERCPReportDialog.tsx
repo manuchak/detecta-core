@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -7,11 +7,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Printer, AlertCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Printer, AlertCircle, RefreshCw, Download } from 'lucide-react';
 import { useSIERCPReport } from '@/hooks/useSIERCPReport';
 import { SIERCPPrintableReport } from '@/components/evaluation/SIERCPPrintableReport';
 import type { EvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 import { format } from 'date-fns';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface Props {
   open: boolean;
@@ -41,6 +43,7 @@ function buildModuleScores(evaluation: EvaluacionPsicometrica) {
 
 export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateName }: Props) {
   const { loading, report, error, generateReport, saveReport, loadReport, clearReport } = useSIERCPReport();
+  const [pdfLoading, setPdfLoading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -100,19 +103,56 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
     clearReport();
   };
 
+  const getReportTitle = () => {
+    const name = candidateName || 'Candidato';
+    const date = format(new Date(evaluation.fecha_evaluacion), 'yyyy-MM-dd');
+    return `Informe_SIERCP_${name.replace(/\s+/g, '_')}_${date}`;
+  };
+
+  /** Inline SVG computed styles so they survive cloning to a new window */
+  const inlineSvgStyles = (container: HTMLElement) => {
+    const svgs = container.querySelectorAll('svg');
+    svgs.forEach(svg => {
+      // Serialize each SVG properly
+      const computed = window.getComputedStyle(svg);
+      svg.setAttribute('width', computed.width);
+      svg.setAttribute('height', computed.height);
+      
+      // Inline styles on all SVG children
+      const elements = svg.querySelectorAll('*');
+      elements.forEach(el => {
+        const cs = window.getComputedStyle(el);
+        const important = ['fill', 'stroke', 'stroke-width', 'opacity', 'transform', 
+          'font-size', 'font-family', 'font-weight', 'text-anchor', 'dominant-baseline',
+          'color', 'stop-color', 'stop-opacity', 'stroke-dasharray', 'stroke-linecap'];
+        important.forEach(prop => {
+          const val = cs.getPropertyValue(prop);
+          if (val && val !== 'none' && val !== 'normal' && val !== '0') {
+            (el as HTMLElement).style.setProperty(prop, val);
+          }
+        });
+      });
+    });
+  };
+
   const handlePrint = () => {
     if (!reportRef.current) return;
     
-    const name = candidateName || 'Candidato';
-    const date = format(new Date(evaluation.fecha_evaluacion), 'yyyy-MM-dd');
-    const title = `Informe_SIERCP_${name.replace(/\s+/g, '_')}_${date}`;
+    const title = getReportTitle();
     
-    const styleSheets = Array.from(document.styleSheets);
+    // Clone the report node
+    const clone = reportRef.current.cloneNode(true) as HTMLElement;
+    
+    // Inline SVG computed styles on the ORIGINAL (computed styles only exist there)
+    // then re-clone
+    inlineSvgStyles(reportRef.current);
+    const styledClone = reportRef.current.cloneNode(true) as HTMLElement;
+    
+    // Collect CSS from stylesheets
     let cssText = '';
-    styleSheets.forEach(sheet => {
+    Array.from(document.styleSheets).forEach(sheet => {
       try {
-        const rules = Array.from(sheet.cssRules);
-        rules.forEach(rule => { cssText += rule.cssText + '\n'; });
+        Array.from(sheet.cssRules).forEach(rule => { cssText += rule.cssText + '\n'; });
       } catch {
         if (sheet.href) {
           cssText += `@import url("${sheet.href}");\n`;
@@ -130,22 +170,68 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
           <title>${title}</title>
           <style>${cssText}</style>
           <style>
-            body { margin: 0; padding: 20px; background: white; }
+            body { margin: 0; padding: 20px; background: white; color: black; }
             .siercp-report { display: block !important; }
+            svg { max-width: 100%; }
             @media print {
-              @page { size: A4 portrait; margin: 15mm; }
-              body { padding: 0; }
+              @page { size: A4 portrait; margin: 12mm; }
+              body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
-        <body>${reportRef.current.innerHTML}</body>
+        <body>${styledClone.innerHTML}</body>
       </html>
     `);
     printWindow.document.close();
     
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    // Wait for fonts/styles to load before printing
+    printWindow.onload = () => {
+      setTimeout(() => { printWindow.print(); }, 600);
+    };
+    // Fallback if onload doesn't fire
+    setTimeout(() => { printWindow.print(); }, 1200);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!reportRef.current) return;
+    setPdfLoading(true);
+    
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableWidth = pageWidth - margin * 2;
+      const imgHeight = (canvas.height * usableWidth) / canvas.width;
+      
+      let yOffset = margin;
+      let remainingHeight = imgHeight;
+      
+      // Multi-page support
+      while (remainingHeight > 0) {
+        const sliceHeight = Math.min(remainingHeight, pageHeight - margin * 2);
+        pdf.addImage(imgData, 'PNG', margin, yOffset - (imgHeight - remainingHeight), usableWidth, imgHeight);
+        remainingHeight -= sliceHeight;
+        if (remainingHeight > 0) {
+          pdf.addPage();
+          yOffset = margin;
+        }
+      }
+      
+      pdf.save(`${getReportTitle()}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -163,7 +249,11 @@ export function SIERCPReportDialog({ open, onOpenChange, evaluation, candidateNa
                   </Button>
                   <Button size="sm" variant="outline" onClick={handlePrint}>
                     <Printer className="h-4 w-4 mr-1" />
-                    Imprimir / PDF
+                    Imprimir
+                  </Button>
+                  <Button size="sm" variant="default" onClick={handleDownloadPDF} disabled={pdfLoading}>
+                    {pdfLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+                    Descargar PDF
                   </Button>
                 </>
               )}

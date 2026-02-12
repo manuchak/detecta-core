@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -17,8 +19,16 @@ import {
 } from 'lucide-react';
 
 export function SIERCPResultsPanel() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSubTab = searchParams.get('siercpTab') || 'invitations';
   const { allResults, loading: loadingResults } = useSIERCPResults();
   const { invitations, isLoading: loadingInvitations } = useAllSIERCPInvitations();
+
+  const handleSubTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('siercpTab', value);
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Calculate metrics
   const calibrationCount = allResults?.length || 0;
@@ -59,7 +69,7 @@ export function SIERCPResultsPanel() {
       </div>
 
       {/* Sub-tabs - Invitations first */}
-      <Tabs defaultValue="invitations" className="space-y-4">
+      <Tabs value={activeSubTab} onValueChange={handleSubTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="invitations" className="gap-2">
             <Users className="h-4 w-4" />

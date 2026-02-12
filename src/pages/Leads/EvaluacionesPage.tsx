@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,9 +40,19 @@ interface CandidatoWithEvaluation {
 }
 
 export default function EvaluacionesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'dashboard';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCandidato, setSelectedCandidato] = useState<CandidatoWithEvaluation | null>(null);
   const isMobile = useIsMobile();
+
+  const handleTabChange = useCallback((value: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', value);
+    // Clean sub-tab params when switching main tab
+    params.delete('siercpTab');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Fetch candidates with their evaluation data
   const { data: candidatos, isLoading } = useQuery({
@@ -112,7 +123,7 @@ export default function EvaluacionesPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="dashboard" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
