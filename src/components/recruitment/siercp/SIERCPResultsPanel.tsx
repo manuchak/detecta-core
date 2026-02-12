@@ -34,7 +34,7 @@ export function SIERCPResultsPanel() {
   return (
     <div className="space-y-6">
       {/* Metrics Row */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
           title="Total Completadas"
           value={totalCompleted}
@@ -50,13 +50,6 @@ export function SIERCPResultsPanel() {
           loading={loadingInvitations}
         />
         <MetricCard
-          title="Calibración Interna"
-          value={calibrationCount}
-          icon={FlaskConical}
-          variant="default"
-          loading={loadingResults}
-        />
-        <MetricCard
           title="Invitaciones Enviadas"
           value={invitationsCount}
           icon={Mail}
@@ -65,9 +58,18 @@ export function SIERCPResultsPanel() {
         />
       </div>
 
-      {/* Sub-tabs */}
-      <Tabs defaultValue="calibration" className="space-y-4">
+      {/* Sub-tabs - Invitations first */}
+      <Tabs defaultValue="invitations" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="invitations" className="gap-2">
+            <Users className="h-4 w-4" />
+            Evaluaciones Candidatos
+            {pendingInvitations > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500/20 text-blue-600 rounded">
+                {pendingInvitations}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="calibration" className="gap-2">
             <FlaskConical className="h-4 w-4" />
             Calibración Interna
@@ -77,16 +79,24 @@ export function SIERCPResultsPanel() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="invitations" className="gap-2">
-            <Users className="h-4 w-4" />
-            Invitaciones Candidatos
-            {pendingInvitations > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-500/20 text-blue-600 rounded">
-                {pendingInvitations}
-              </span>
-            )}
-          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="invitations">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-blue-600" />
+                Evaluaciones de Candidatos
+              </CardTitle>
+              <CardDescription>
+                Estado de las evaluaciones SIERCP enviadas a candidatos externos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InvitationsTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="calibration">
           <Card>
@@ -101,23 +111,6 @@ export function SIERCPResultsPanel() {
             </CardHeader>
             <CardContent>
               <CalibrationResultsTable />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="invitations">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-blue-600" />
-                Invitaciones a Candidatos
-              </CardTitle>
-              <CardDescription>
-                Estado de las evaluaciones SIERCP enviadas a candidatos externos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InvitationsTable />
             </CardContent>
           </Card>
         </TabsContent>
