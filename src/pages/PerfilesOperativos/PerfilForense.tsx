@@ -25,6 +25,7 @@ import { CapacitacionTab } from './components/tabs/CapacitacionTab';
 import { HistoricoTab } from './components/tabs/HistoricoTab';
 import { CumplimientoTab } from './components/tabs/CumplimientoTab';
 import { CalificacionesTab } from './components/tabs/CalificacionesTab';
+import { NotasTab } from './components/tabs/NotasTab';
 import { useOperativeProfile, type OperativeProfileFull } from './hooks/useOperativeProfile';
 
 export default function PerfilForense() {
@@ -67,16 +68,6 @@ export default function PerfilForense() {
 
   const custodioProfile = tipo === 'custodio' ? profile as OperativeProfileFull : null;
   const candidatoId = custodioProfile?.pc_custodio_id || null;
-
-  const PlaceholderTab = ({ icon: Icon, title }: { icon: any; title: string }) => (
-    <Card>
-      <CardContent className="text-center py-12 text-muted-foreground">
-        <Icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>{title} en desarrollo</p>
-        <p className="text-sm mt-2">Esta sección estará disponible próximamente</p>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="p-6 space-y-6">
@@ -190,7 +181,7 @@ export default function PerfilForense() {
         </TabsContent>
         
         <TabsContent value="notas">
-          <PlaceholderTab icon={StickyNote} title="Notas Internas" />
+          <NotasTab operativoId={id!} operativoTipo={tipo} />
         </TabsContent>
       </Tabs>
     </div>
