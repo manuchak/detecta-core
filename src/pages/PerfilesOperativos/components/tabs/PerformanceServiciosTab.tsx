@@ -267,7 +267,7 @@ export function PerformanceServiciosTab({ custodioId, nombre, profile }: Perform
         {/* Tendencias */}
         <div className="pt-2">
           <h3 className="text-lg font-semibold mb-4">Tendencias Temporales</h3>
-          <TrendCharts custodioId={custodioId} nombre={nombre} />
+          <TrendCharts custodioId={custodioId} nombre={nombre} telefono={telefono} />
         </div>
       </div>
     </TooltipProvider>
