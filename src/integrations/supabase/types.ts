@@ -9921,6 +9921,48 @@ export type Database = {
         }
         Relationships: []
       }
+      notas_operativos: {
+        Row: {
+          autor_id: string
+          autor_nombre: string
+          categoria: string
+          contenido: string
+          created_at: string
+          id: string
+          is_pinned: boolean
+          operativo_id: string
+          operativo_tipo: string
+          prioridad: string
+          updated_at: string
+        }
+        Insert: {
+          autor_id: string
+          autor_nombre?: string
+          categoria?: string
+          contenido: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          operativo_id: string
+          operativo_tipo: string
+          prioridad?: string
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string
+          autor_nombre?: string
+          categoria?: string
+          contenido?: string
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          operativo_id?: string
+          operativo_tipo?: string
+          prioridad?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operativo_estatus_historial: {
         Row: {
           creado_por: string | null
