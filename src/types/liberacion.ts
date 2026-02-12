@@ -9,11 +9,13 @@ export type EstadoLiberacion =
   | 'liberado'
   | 'rechazado';
 
+export type TipoOperativo = 'custodio' | 'armado';
+
 export interface CustodioLiberacion {
   id: string;
   candidato_id: string;
   estado_liberacion: EstadoLiberacion;
-  
+  tipo_operativo: TipoOperativo;
   // Documentación
   documentacion_ine: boolean;
   documentacion_licencia: boolean;

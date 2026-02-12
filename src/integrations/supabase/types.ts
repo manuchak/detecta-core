@@ -1719,6 +1719,97 @@ export type Database = {
           },
         ]
       }
+      candidatos_armados: {
+        Row: {
+          calificacion_inicial: number | null
+          created_at: string
+          email: string | null
+          estado_detallado: string | null
+          estado_proceso: string | null
+          experiencia_seguridad: boolean | null
+          fecha_vencimiento_licencia: string | null
+          fuente_reclutamiento: string | null
+          id: string
+          is_test: boolean | null
+          lead_id: string | null
+          licencia_portacion: string | null
+          nombre: string
+          notas_recruiter: string | null
+          proveedor_id: string | null
+          telefono: string | null
+          tipo_armado: string
+          updated_at: string
+          vehiculo_propio: boolean | null
+          zona_preferida_id: string | null
+        }
+        Insert: {
+          calificacion_inicial?: number | null
+          created_at?: string
+          email?: string | null
+          estado_detallado?: string | null
+          estado_proceso?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_vencimiento_licencia?: string | null
+          fuente_reclutamiento?: string | null
+          id?: string
+          is_test?: boolean | null
+          lead_id?: string | null
+          licencia_portacion?: string | null
+          nombre: string
+          notas_recruiter?: string | null
+          proveedor_id?: string | null
+          telefono?: string | null
+          tipo_armado?: string
+          updated_at?: string
+          vehiculo_propio?: boolean | null
+          zona_preferida_id?: string | null
+        }
+        Update: {
+          calificacion_inicial?: number | null
+          created_at?: string
+          email?: string | null
+          estado_detallado?: string | null
+          estado_proceso?: string | null
+          experiencia_seguridad?: boolean | null
+          fecha_vencimiento_licencia?: string | null
+          fuente_reclutamiento?: string | null
+          id?: string
+          is_test?: boolean | null
+          lead_id?: string | null
+          licencia_portacion?: string | null
+          nombre?: string
+          notas_recruiter?: string | null
+          proveedor_id?: string | null
+          telefono?: string | null
+          tipo_armado?: string
+          updated_at?: string
+          vehiculo_propio?: boolean | null
+          zona_preferida_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidatos_armados_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidatos_armados_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores_armados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidatos_armados_zona_preferida_id_fkey"
+            columns: ["zona_preferida_id"]
+            isOneToOne: false
+            referencedRelation: "zonas_operacion_nacional"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidatos_custodios: {
         Row: {
           calificacion_inicial: number | null
@@ -3470,6 +3561,7 @@ export type Database = {
           psicometricos_completado: boolean | null
           psicometricos_puntaje: number | null
           psicometricos_resultado: string | null
+          tipo_operativo: string
           toxicologicos_archivo_url: string | null
           toxicologicos_completado: boolean | null
           toxicologicos_resultado: string | null
@@ -3523,6 +3615,7 @@ export type Database = {
           psicometricos_completado?: boolean | null
           psicometricos_puntaje?: number | null
           psicometricos_resultado?: string | null
+          tipo_operativo?: string
           toxicologicos_archivo_url?: string | null
           toxicologicos_completado?: boolean | null
           toxicologicos_resultado?: string | null
@@ -3576,6 +3669,7 @@ export type Database = {
           psicometricos_completado?: boolean | null
           psicometricos_puntaje?: number | null
           psicometricos_resultado?: string | null
+          tipo_operativo?: string
           toxicologicos_archivo_url?: string | null
           toxicologicos_completado?: boolean | null
           toxicologicos_resultado?: string | null
