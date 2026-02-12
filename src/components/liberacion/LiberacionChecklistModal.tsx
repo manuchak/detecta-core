@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle2, Rocket, User, Car, Pencil, Database, Save } from 'lucide-react';
+import { Loader2, CheckCircle2, Rocket, User, Car, Pencil, Database, Save, XCircle, AlertTriangle, Info } from 'lucide-react';
 import { CustodioLiberacion } from '@/types/liberacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import LiberacionProgressBar from './LiberacionProgressBar';
@@ -386,22 +386,81 @@ const LiberacionChecklistModal = ({
     }
   };
 
+  // ============ GATE SYSTEM ============
+  const gates = useMemo(() => {
+    const red: string[] = [];
+    const yellow: string[] = [];
+    const green: string[] = [];
+
+    // RED gates (block liberation)
+    if (liberacion.toxicologicos_completado && liberacion.toxicologicos_resultado === 'positivo') {
+      red.push('Toxicológico positivo');
+    }
+    if (!liberacion.documentacion_ine) {
+      red.push('INE faltante');
+    }
+    if (!liberacion.documentacion_licencia) {
+      red.push('Licencia faltante');
+    }
+
+    // YELLOW gates (allow with justification)
+    if (!liberacion.psicometricos_completado) {
+      yellow.push('Psicométricos no completados');
+    } else if (liberacion.psicometricos_resultado === 'condicional') {
+      yellow.push('Psicométricos condicionales');
+    }
+    if (!liberacion.toxicologicos_completado) {
+      yellow.push('Toxicológicos no completados');
+    }
+    if (!liberacion.documentacion_antecedentes) {
+      yellow.push('Antecedentes penales faltantes');
+    }
+    if (!liberacion.documentacion_domicilio) {
+      yellow.push('Comprobante domicilio faltante');
+    }
+
+    // GREEN gates (informative, no block)
+    if (liberacion.gps_pendiente || !liberacion.instalacion_gps_completado) {
+      green.push('GPS pendiente');
+    }
+    if (!liberacion.documentacion_rfc) {
+      green.push('RFC faltante');
+    }
+    if (!liberacion.documentacion_curp) {
+      green.push('CURP faltante');
+    }
+
+    const canLiberate = red.length === 0;
+    return { red, yellow, green, canLiberate };
+  }, [liberacion]);
+
   const handleLiberar = async () => {
-    // MODO FLEXIBLE: No validar progreso, liberar siempre
-    // Los warnings se mostrarán automáticamente en el diálogo
-    
+    if (!gates.canLiberate) {
+      toast({
+        title: 'No se puede liberar',
+        description: `Hay ${gates.red.length} bloqueo(s) crítico(s) que deben resolverse primero.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const result = await liberarCustodio.mutateAsync({ 
         liberacion_id: liberacion.id,
-        forzar: true // Modo flexible por defecto
+        forzar: gates.yellow.length > 0 // Force only if there are yellow warnings
       });
       
-      // Si hay warnings, mostrar diálogo de warnings primero
-      if (result.tiene_warnings && result.warnings.length > 0) {
-        setCurrentWarnings(result.warnings);
+      // Combine frontend yellow warnings with backend warnings
+      const allWarnings = [
+        ...gates.yellow.map(w => `⚠️ ${w}`),
+        ...gates.green.map(w => `ℹ️ ${w}`),
+        ...(result.warnings || [])
+      ];
+      
+      if (allWarnings.length > 0) {
+        setCurrentWarnings(allWarnings);
         setShowWarnings(true);
-        // Guardar datos para el modal de éxito
         setSuccessData({
           candidato_nombre: result.candidato_nombre,
           candidato_email: result.candidato_email,
@@ -411,8 +470,7 @@ const LiberacionChecklistModal = ({
         });
         setIsSaving(false);
       } else {
-        // Sin warnings - mostrar modal de éxito directamente
-        clearDraft(true); // Limpiar borrador al liberar exitosamente
+        clearDraft(true);
         setSuccessData({
           candidato_nombre: result.candidato_nombre,
           candidato_email: result.candidato_email,
@@ -449,7 +507,7 @@ const LiberacionChecklistModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Checklist de Liberación
@@ -465,7 +523,7 @@ const LiberacionChecklistModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Progreso General */}
           <LiberacionProgressBar progress={progress} />
 
@@ -1028,27 +1086,55 @@ const LiberacionChecklistModal = ({
           </Accordion>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+        {/* Gate Summary */}
+        {(gates.red.length > 0 || gates.yellow.length > 0) && (
+          <div className="space-y-2 px-1">
+            {gates.red.length > 0 && (
+              <div className="flex items-start gap-2 p-2.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-red-700 dark:text-red-300">
+                  <span className="font-semibold">Bloqueos:</span>{' '}
+                  {gates.red.join(' · ')}
+                </div>
+              </div>
+            )}
+            {gates.yellow.length > 0 && (
+              <div className="flex items-start gap-2 p-2.5 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                  <span className="font-semibold">Advertencias:</span>{' '}
+                  {gates.yellow.join(' · ')}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 bg-background border-t pt-3 pb-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:justify-end mt-auto shrink-0">
+          <Button variant="outline" onClick={onClose} disabled={isSaving} className="sm:order-1">
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving} className="sm:order-2">
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar Cambios
           </Button>
           <Button
             onClick={handleLiberar}
-            disabled={isSaving}
-            className="bg-green-600 hover:bg-green-700"
+            disabled={isSaving || !gates.canLiberate}
+            className={`sm:order-3 ${gates.canLiberate ? 'bg-green-600 hover:bg-green-700' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
           >
             {isSaving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Rocket className="mr-2 h-4 w-4" />
             )}
-            Liberar a Planificación
+            {gates.canLiberate 
+              ? (gates.yellow.length > 0 ? 'Liberar con advertencias' : 'Liberar a Planificación')
+              : 'Resolver bloqueos primero'
+            }
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
 
       {/* Dialog de advertencias */}
