@@ -3541,15 +3541,18 @@ export type Database = {
           fecha_documentacion_completa: string | null
           fecha_instalacion_gps: string | null
           fecha_liberacion: string | null
+          fecha_programacion_gps: string | null
           fecha_psicometricos: string | null
           fecha_toxicologicos: string | null
           fecha_vehiculo_completo: string | null
           gps_imei: string | null
           gps_numero_linea: string | null
+          gps_pendiente: boolean
           id: string
           instalacion_gps_completado: boolean | null
           instalador_id: string | null
           liberado_por: string | null
+          motivo_gps_pendiente: string | null
           notas_documentacion: string | null
           notas_gps: string | null
           notas_liberacion: string | null
@@ -3595,15 +3598,18 @@ export type Database = {
           fecha_documentacion_completa?: string | null
           fecha_instalacion_gps?: string | null
           fecha_liberacion?: string | null
+          fecha_programacion_gps?: string | null
           fecha_psicometricos?: string | null
           fecha_toxicologicos?: string | null
           fecha_vehiculo_completo?: string | null
           gps_imei?: string | null
           gps_numero_linea?: string | null
+          gps_pendiente?: boolean
           id?: string
           instalacion_gps_completado?: boolean | null
           instalador_id?: string | null
           liberado_por?: string | null
+          motivo_gps_pendiente?: string | null
           notas_documentacion?: string | null
           notas_gps?: string | null
           notas_liberacion?: string | null
@@ -3649,15 +3655,18 @@ export type Database = {
           fecha_documentacion_completa?: string | null
           fecha_instalacion_gps?: string | null
           fecha_liberacion?: string | null
+          fecha_programacion_gps?: string | null
           fecha_psicometricos?: string | null
           fecha_toxicologicos?: string | null
           fecha_vehiculo_completo?: string | null
           gps_imei?: string | null
           gps_numero_linea?: string | null
+          gps_pendiente?: boolean
           id?: string
           instalacion_gps_completado?: boolean | null
           instalador_id?: string | null
           liberado_por?: string | null
+          motivo_gps_pendiente?: string | null
           notas_documentacion?: string | null
           notas_gps?: string | null
           notas_liberacion?: string | null

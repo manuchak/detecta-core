@@ -904,26 +904,39 @@ const LiberacionChecklistModal = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* 5. GPS */}
+            {/* 5. GPS - FLEXIBLE */}
             <AccordionItem value="gps">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
                   {progress.gps === 100 ? (
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  ) : liberacion.gps_pendiente ? (
+                    <AlertCircle className="h-5 w-5 text-amber-500" />
                   ) : (
                     <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
                   )}
-                  <span>5. GPS ({progress.gps}%)</span>
+                  <span>5. GPS ({progress.gps === 100 ? '100%' : liberacion.gps_pendiente ? 'Diferido' : '0%'})</span>
+                  {liberacion.gps_pendiente && (
+                    <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200">
+                      Pendiente post-entrenamiento
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">
+                {/* Option 1: GPS installed */}
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="instalacion_gps_completado"
                     checked={liberacion.instalacion_gps_completado}
-                    onCheckedChange={(checked) => 
-                      handleCheckboxChange('instalacion_gps_completado', checked as boolean)
-                    }
+                    onCheckedChange={(checked) => {
+                      handleCheckboxChange('instalacion_gps_completado', checked as boolean);
+                      if (checked) {
+                        handleCheckboxChange('gps_pendiente' as keyof CustodioLiberacion, false);
+                        handleInputChange('motivo_gps_pendiente', null);
+                        handleInputChange('fecha_programacion_gps', null);
+                      }
+                    }}
                   />
                   <Label htmlFor="instalacion_gps_completado">Instalación completada</Label>
                 </div>
@@ -955,6 +968,60 @@ const LiberacionChecklistModal = ({
                       />
                     </div>
                   </>
+                )}
+
+                {/* Option 2: Defer GPS */}
+                {!liberacion.instalacion_gps_completado && (
+                  <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-800 space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="gps_pendiente"
+                        checked={liberacion.gps_pendiente}
+                        onCheckedChange={(checked) => {
+                          handleCheckboxChange('gps_pendiente' as keyof CustodioLiberacion, checked as boolean);
+                          if (checked) {
+                            handleInputChange('motivo_gps_pendiente', 'entrenamiento');
+                          } else {
+                            handleInputChange('motivo_gps_pendiente', null);
+                            handleInputChange('fecha_programacion_gps', null);
+                          }
+                        }}
+                      />
+                      <Label htmlFor="gps_pendiente" className="text-amber-800 dark:text-amber-300 font-medium">
+                        GPS pendiente — se programará post-entrenamiento
+                      </Label>
+                    </div>
+
+                    {liberacion.gps_pendiente && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                        <div>
+                          <Label>Motivo</Label>
+                          <Select
+                            value={liberacion.motivo_gps_pendiente || 'entrenamiento'}
+                            onValueChange={(value) => handleInputChange('motivo_gps_pendiente', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="entrenamiento">En entrenamiento</SelectItem>
+                              <SelectItem value="sin_vehiculo_asignado">Sin vehículo asignado aún</SelectItem>
+                              <SelectItem value="pendiente_instalador">Pendiente instalador</SelectItem>
+                              <SelectItem value="otro">Otro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Fecha programación GPS</Label>
+                          <Input
+                            type="date"
+                            value={liberacion.fecha_programacion_gps || ''}
+                            onChange={(e) => handleInputChange('fecha_programacion_gps', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </AccordionContent>
             </AccordionItem>
