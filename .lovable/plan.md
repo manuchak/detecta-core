@@ -1,36 +1,63 @@
 
-## Fix: Error al verificar documentos - tipo de dato incorrecto
+## Desarrollar la pestana de Cumplimiento
 
-### Causa raiz
+### Objetivo
 
-La columna `verificado_por` en la tabla `documentos_custodio` es de tipo **UUID**, pero el codigo en `DocumentacionTab.tsx` envia el string `'supply@detecta.mx'` (un email). PostgreSQL rechaza esto con error `22P02: invalid input syntax for type uuid`.
+Reemplazar el placeholder actual con una vista integral que consolide el estado de cumplimiento del operativo, reuniendo informacion de documentacion, sanciones y checklists en un solo lugar para toma de decisiones rapidas.
 
-### Solucion
+### Estructura de la pestana
 
-Cambiar el valor enviado de un email hardcodeado al UUID del usuario autenticado (`auth.uid()`), obtenido via Supabase auth.
+La pestana tendra 4 secciones:
 
-### Cambios
+**1. Resumen de Cumplimiento (cards de metricas)**
+- Score general de cumplimiento (semaforo verde/amarillo/rojo)
+- Documentos vigentes vs vencidos vs por vencer
+- Sanciones activas
+- Checklists completados vs pendientes
 
-**1. `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx`**
+**2. Documentos y Vigencias**
+- Tabla compacta con cada documento del custodio mostrando: tipo, fecha de vigencia, estado (vigente/por vencer/vencido), verificado si/no
+- Codigo de colores: verde (vigente >30 dias), ambar (por vencer <=30 dias), rojo (vencido)
+- Los 3 documentos obligatorios (licencia, tarjeta circulacion, poliza seguro) se marcan visualmente si faltan
 
-- Obtener el usuario autenticado al inicio del componente usando `supabase.auth.getUser()` o el contexto de auth existente
-- En `handleVerify` (linea 107), reemplazar `'supply@detecta.mx'` por el `user.id` del usuario logueado
+**3. Sanciones**
+- Lista de sanciones aplicadas al operativo (activas primero, luego historicas)
+- Cada sancion muestra: tipo/categoria, fecha inicio-fin, dias suspension, estado (activa/cumplida/revocada)
+- Badge de alerta si hay sanciones activas
 
-Cambio especifico:
+**4. Cumplimiento de Checklists**
+- Tasa de cumplimiento (servicios con checklist / servicios completados)
+- Ultimos 10 checklists con fecha y estado
+- Alerta si la tasa es baja (<50%)
+
+### Cambios tecnicos
+
+**Archivo nuevo: `src/pages/PerfilesOperativos/components/tabs/CumplimientoTab.tsx`**
+- Componente que recibe `custodioId`, `telefono`, `nombre` como props
+- Reutiliza hooks existentes:
+  - `useCustodianDocsForProfile(telefono)` para documentos y vigencias
+  - `useSancionesAplicadas({ operativoId: custodioId })` del hook `useSanciones.ts`
+  - Query directa a `checklist_servicio` filtrada por `custodio_telefono`
+- Calcula un score de cumplimiento simple: (docs vigentes + sin sanciones activas + tasa checklist) / 3
+
+**Archivo modificado: `src/pages/PerfilesOperativos/PerfilForense.tsx`**
+- Importar `CumplimientoTab`
+- Reemplazar el `PlaceholderTab` en `TabsContent value="cumplimiento"` por:
 ```typescript
-// Antes:
-verificadoPor: 'supply@detecta.mx' // TODO: Use actual user email
-
-// Despues:
-verificadoPor: user?.id || ''  // UUID del usuario autenticado
+<CumplimientoTab 
+  custodioId={id!} 
+  telefono={profile.telefono || null}
+  nombre={profile.nombre}
+/>
 ```
 
-- Agregar import y uso del hook de auth (ej: `useStableAuth` o `supabase.auth.getUser()`) para obtener el ID
+### Datos utilizados (sin cambios en DB)
 
-**2. Display del verificador (linea 196-200)**
+| Fuente | Hook/Query | Datos |
+|---|---|---|
+| documentos_custodio | `useCustodianDocsForProfile` | tipo, vigencia, verificado |
+| sanciones_aplicadas + catalogo | `useSancionesAplicadas` | tipo, fechas, estado, categoria |
+| checklist_servicio | Query directa | conteo por custodio_telefono |
+| servicios_custodia | `useProfilePerformance` (parcial) | servicios completados para tasa |
 
-Actualmente muestra `doc.verificado_por` directamente, que ahora sera un UUID. Se podria resolver el nombre desde profiles, pero como cambio minimo se puede mostrar "Verificado" sin el UUID crudo, o hacer un lookup ligero. Por ahora, mostrar solo "Verificado" con la fecha es suficiente para no bloquear la funcionalidad.
-
-### Resultado
-
-El boton "Verificar" enviara el UUID correcto y la operacion se completara sin error.
+No se requieren migraciones de base de datos ni nuevos RPCs. Toda la informacion ya existe en tablas y hooks disponibles.
