@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertTriangle, MapPin, Clock, Heart, FileX, X } from 'lucide-react';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Calendar, X, ChevronLeft, User, Car, Settings, MapPin, DollarSign, MessageCircle } from 'lucide-react';
+import { REJECTION_CATEGORIES } from '@/constants/rejectionCategories';
 
 interface RejectionTypificationDialogProps {
   isOpen: boolean;
@@ -16,44 +17,14 @@ interface RejectionTypificationDialogProps {
   guardName: string;
 }
 
-const rejectionReasons = [
-  {
-    id: 'ocupado_otro_servicio',
-    label: 'Ocupado con otro servicio',
-    icon: Clock,
-    description: 'Ya tiene un servicio programado en el mismo horario'
-  },
-  {
-    id: 'fuera_de_zona',
-    label: 'Fuera de zona de cobertura',
-    icon: MapPin,
-    description: 'La zona del servicio está fuera de su área de trabajo'
-  },
-  {
-    id: 'problema_personal',
-    label: 'Problema personal/familiar',
-    icon: Heart,
-    description: 'Situación personal que impide realizar el servicio'
-  },
-  {
-    id: 'indisponible_fisicamente',
-    label: 'Indisponible físicamente',
-    icon: AlertTriangle,
-    description: 'Condición física que impide realizar el servicio'
-  },
-  {
-    id: 'documentos_vencidos',
-    label: 'Documentación vencida',
-    icon: FileX,
-    description: 'Licencia de portación u otros documentos vencidos'
-  },
-  {
-    id: 'no_disponible',
-    label: 'No disponible - sin especificar',
-    icon: X,
-    description: 'No especificó motivo o no contestó'
-  }
-];
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  'disponibilidad_personal': User,
+  'problemas_vehiculo': Car,
+  'preferencias_servicio': Settings,
+  'limitaciones_geograficas': MapPin,
+  'problemas_economicos': DollarSign,
+  'comunicacion_otros': MessageCircle,
+};
 
 const unavailabilityOptions = [
   { days: 1, label: '1 día' },
@@ -69,36 +40,53 @@ export function RejectionTypificationDialog({
   onConfirm,
   guardName
 }: RejectionTypificationDialogProps) {
-  const [selectedReason, setSelectedReason] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [observations, setObservations] = useState('');
   const [markAsUnavailable, setMarkAsUnavailable] = useState(false);
   const [unavailabilityDays, setUnavailabilityDays] = useState<number>();
 
+  const canMarkUnavailable = useMemo(() => {
+    if (!selectedCategory || !selectedReason) return false;
+    const category = REJECTION_CATEGORIES[selectedCategory];
+    return category?.requiresUnavailability?.includes(selectedReason) || false;
+  }, [selectedCategory, selectedReason]);
+
   const handleConfirm = () => {
-    if (!selectedReason) return;
-    
-    // Validar que si markAsUnavailable está activo, unavailabilityDays tenga un valor
-    if (markAsUnavailable && !unavailabilityDays) {
-      return;
-    }
-    
-    const reason = rejectionReasons.find(r => r.id === selectedReason)?.label || selectedReason;
-    const fullReason = observations ? `${reason}. Obs: ${observations}` : reason;
-    
+    if (!selectedCategory || !selectedReason) return;
+    if (markAsUnavailable && !unavailabilityDays) return;
+
+    const categoryLabel = REJECTION_CATEGORIES[selectedCategory].label;
+    const fullReason = observations
+      ? `${categoryLabel}: ${selectedReason}. Obs: ${observations}`
+      : `${categoryLabel}: ${selectedReason}`;
+
     onConfirm(fullReason, markAsUnavailable ? unavailabilityDays : undefined);
-    
-    // Reset form
-    setSelectedReason('');
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setSelectedCategory(null);
+    setSelectedReason(null);
     setObservations('');
     setMarkAsUnavailable(false);
     setUnavailabilityDays(undefined);
   };
 
-  const selectedReasonData = rejectionReasons.find(r => r.id === selectedReason);
-  const canMarkUnavailable = ['problema_personal', 'indisponible_fisicamente', 'documentos_vencidos'].includes(selectedReason);
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setSelectedReason(null);
+    setMarkAsUnavailable(false);
+    setUnavailabilityDays(undefined);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg z-[70]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -107,42 +95,80 @@ export function RejectionTypificationDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Reason Selection */}
-          <div className="space-y-3">
-            <Label>Motivo del Rechazo</Label>
-            <Select value={selectedReason} onValueChange={setSelectedReason}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el motivo del rechazo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {rejectionReasons.map((reason) => {
-                  const Icon = reason.icon;
+        <div className="space-y-4">
+          {/* Step 1: Category selection */}
+          {!selectedCategory && (
+            <div className="space-y-3">
+              <Label>Selecciona la categoría del rechazo</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(REJECTION_CATEGORIES).map(([catId, category]) => {
+                  const Icon = CATEGORY_ICONS[catId] || MessageCircle;
                   return (
-                    <SelectItem key={reason.id} value={reason.id}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span>{reason.label}</span>
-                      </div>
-                    </SelectItem>
+                    <Button
+                      key={catId}
+                      variant="outline"
+                      className="h-auto p-3 flex flex-col items-center gap-1.5 text-center hover:border-primary"
+                      onClick={() => setSelectedCategory(catId)}
+                    >
+                      <Icon className="h-5 w-5" style={{ color: category.color }} />
+                      <span className="text-xs font-medium leading-tight">{category.label}</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {category.reasons.length}
+                      </Badge>
+                    </Button>
                   );
                 })}
-              </SelectContent>
-            </Select>
-            
-            {selectedReasonData && (
-              <Card className="border-muted">
-                <CardContent className="p-3">
-                  <p className="text-sm text-muted-foreground">
-                    {selectedReasonData.description}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Reason selection within category */}
+          {selectedCategory && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={handleBackToCategories} className="h-7 px-2">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Label className="flex items-center gap-2">
+                  {(() => {
+                    const Icon = CATEGORY_ICONS[selectedCategory] || MessageCircle;
+                    return <Icon className="h-4 w-4" style={{ color: REJECTION_CATEGORIES[selectedCategory].color }} />;
+                  })()}
+                  {REJECTION_CATEGORIES[selectedCategory].label}
+                </Label>
+              </div>
+
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1.5">
+                  {REJECTION_CATEGORIES[selectedCategory].reasons.map((reason) => {
+                    const isUnavailabilityReason = REJECTION_CATEGORIES[selectedCategory].requiresUnavailability?.includes(reason);
+                    return (
+                      <Button
+                        key={reason}
+                        variant={selectedReason === reason ? "default" : "outline"}
+                        className="w-full justify-start text-left h-auto py-2 px-3"
+                        onClick={() => {
+                          setSelectedReason(reason);
+                          setMarkAsUnavailable(false);
+                          setUnavailabilityDays(undefined);
+                        }}
+                      >
+                        <span className="text-sm">{reason}</span>
+                        {isUnavailabilityReason && (
+                          <Badge variant="outline" className="ml-auto text-[10px] px-1.5 border-orange-300 text-orange-600">
+                            Indisponibilidad
+                          </Badge>
+                        )}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
 
           {/* Unavailability Option */}
-          {canMarkUnavailable && (
+          {canMarkUnavailable && selectedReason && (
             <Card className="border-orange-200 bg-orange-50/50">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
@@ -176,7 +202,7 @@ export function RejectionTypificationDialog({
                         </Button>
                       ))}
                     </div>
-                    
+
                     {unavailabilityDays && (
                       <div className="mt-2">
                         <Badge variant="secondary" className="text-xs">
@@ -191,32 +217,30 @@ export function RejectionTypificationDialog({
           )}
 
           {/* Observations */}
-          <div className="space-y-2">
-            <Label>Observaciones Adicionales (Opcional)</Label>
-            <Textarea
-              placeholder="Detalles adicionales sobre el rechazo..."
-              value={observations}
-              onChange={(e) => setObservations(e.target.value)}
-              className="min-h-20 resize-none"
-              maxLength={300}
-            />
-            <div className="text-xs text-muted-foreground text-right">
-              {observations.length}/300
+          {selectedReason && (
+            <div className="space-y-2">
+              <Label>Observaciones Adicionales (Opcional)</Label>
+              <Textarea
+                placeholder="Detalles adicionales sobre el rechazo..."
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                className="min-h-20 resize-none"
+                maxLength={300}
+              />
+              <div className="text-xs text-muted-foreground text-right">
+                {observations.length}/300
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={!selectedReason}
+              disabled={!selectedReason || (markAsUnavailable && !unavailabilityDays)}
               className="flex-1"
               variant="destructive"
             >
