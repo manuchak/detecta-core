@@ -38,7 +38,7 @@ export const useSIERCPResults = () => {
   const [loadingAll, setLoadingAll] = useState(false);
   const [errorAllResults, setErrorAllResults] = useState<string | null>(null);
 
-  const isAdmin = userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin';
+  const isAdmin = userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin' || userRole === 'supply_lead';
 
   useEffect(() => {
     if (user) {

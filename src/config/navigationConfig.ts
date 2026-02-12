@@ -170,7 +170,7 @@ export const navigationModules: NavigationModule[] = [
         id: 'leads_evaluaciones',
         label: 'Evaluaciones',
         path: '/leads/evaluaciones',
-        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones'],
+        roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones'],
         icon: CheckCircle2
       },
       {

@@ -409,7 +409,7 @@ function App() {
                   path="/leads/evaluaciones"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'coordinador_operaciones']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'coordinador_operaciones']}>
                         <UnifiedLayout>
                           <EvaluacionesPage />
                         </UnifiedLayout>
