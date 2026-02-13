@@ -190,9 +190,12 @@ import { compressImage, needsCompression } from '@/lib/imageUtils';
              : result.distancia <= GEO_CONFIG.TOLERANCIA_METROS
                ? 'ok'
                : 'fuera_rango';
-       } else if (!coords) {
-         validacion = 'sin_gps';
-       }
+        } else if (!coords) {
+          validacion = 'sin_gps';
+        } else {
+          // GPS captured but no origin to compare - mark as ok
+          validacion = 'ok';
+        }
  
        const photoId = crypto.randomUUID();
        const newFoto: FotoValidada = {

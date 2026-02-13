@@ -10,6 +10,8 @@ interface CustodianService {
   estado: string;
   tipo_servicio: string;
   source: 'planificado' | 'legacy';
+  origen_lat: number | null;
+  origen_lng: number | null;
 }
 
 interface NextServiceResult {
@@ -43,7 +45,9 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           destino,
           fecha_hora_cita,
           estado_planeacion,
-          tipo_servicio
+          tipo_servicio,
+          origen_lat,
+          origen_lng
         `)
         .eq('custodio_telefono', normalizedPhone)
         .gte('fecha_hora_cita', todayISO)
@@ -65,7 +69,9 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           destino,
           fecha_hora_cita,
           estado,
-          tipo_servicio
+          tipo_servicio,
+          origen_lat,
+          origen_lng
         `)
         .or(`telefono.eq.${normalizedPhone},telefono_operador.eq.${normalizedPhone}`)
         .gte('fecha_hora_cita', todayISO)
@@ -91,7 +97,9 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           fecha_hora_cita: p.fecha_hora_cita,
           estado: p.estado_planeacion || 'asignado',
           tipo_servicio: p.tipo_servicio || 'custodia',
-          source: 'planificado'
+          source: 'planificado',
+          origen_lat: p.origen_lat ?? null,
+          origen_lng: p.origen_lng ?? null
         });
       }
       
@@ -106,7 +114,9 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           fecha_hora_cita: l.fecha_hora_cita,
           estado: l.estado || 'pendiente',
           tipo_servicio: l.tipo_servicio || 'custodia',
-          source: 'legacy'
+          source: 'legacy',
+          origen_lat: l.origen_lat ?? null,
+          origen_lng: l.origen_lng ?? null
         });
       }
 
