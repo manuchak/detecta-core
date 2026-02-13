@@ -1,96 +1,124 @@
 
 
-## Fix: Mejorar UI del visor de fotos y persistencia del detalle de checklist
+## Mejora UI: Visor de Fotos y Detalle de Checklist
 
-### Problemas identificados
+### Problema 1: Foto desborda el lightbox
 
-**1. Doble boton "X"**
-El componente `DialogContent` (dialog.tsx linea 47) incluye un boton de cierre automatico de Radix. Ademas, el `PhotoLightbox` agrega su propio boton X (linea 154-160). Resultado: dos iconos de cierre superpuestos.
+La imagen se sale del cuadro porque el contenedor flex (`flex-1`) no tiene `min-h-0`. Sin esto, flexbox no puede reducir el hijo por debajo de su contenido intrinseco, causando overflow.
 
-**2. Foto desborda el marco**
-El `DialogContent` tiene un `style={{ zoom: 1.428571 }}` global (dialog.tsx linea 43). Cuando el lightbox usa `max-w-4xl h-[90vh]`, el zoom lo escala mas alla del viewport, causando que la imagen se salga del cuadro y requiera scroll.
+Ademas, el boton X automatico de Radix (`absolute right-4 top-4` en dialog.tsx) se posiciona encima del boton "Ver en mapa" en el header del lightbox.
 
-**3. Thumbnails y metadatos cortados**
-El mismo problema de zoom hace que el footer con thumbnails quede fuera del area visible.
+**Solucion - PhotoLightbox.tsx:**
+- Agregar `min-h-0` al contenedor de imagen para que flex lo constraina correctamente
+- Ocultar el boton X de Radix con `[&>button:last-child]:hidden` en el DialogContent y agregar un boton X propio posicionado correctamente en el header
 
-**4. Perdida de contexto al cerrar**
-El estado `servicioChecklistSeleccionado` y `isChecklistDetailOpen` son variables locales en `MonitoringPage`. No hay persistencia en URL ni proteccion contra perdida de contexto. Al cerrar el lightbox, el detail modal se mantiene. Pero al cerrar el detail modal por error o navegar, se pierde el servicio seleccionado sin forma de regresar.
+### Problema 2: ChecklistDetailModal requiere demasiado scroll
 
-### Solucion
+Actualmente el modal apila verticalmente: Info + Fotos + Inspeccion + Equipamiento + Observaciones + Firma. Esto obliga a hacer scroll extenso para revisar todo el checklist, lo cual es problematico en un proceso critico de seguridad.
 
-| Problema | Archivo | Cambio |
-|---|---|---|
-| Doble X | `PhotoLightbox.tsx` | Eliminar el boton X manual (lineas 154-160) ya que `DialogContent` ya incluye uno |
-| Foto desborda | `PhotoLightbox.tsx` | Anular el zoom heredado con `style={{ zoom: 1 }}` en el DialogContent del lightbox |
-| Persistencia | `MonitoringPage.tsx` | Guardar el `servicioId` del checklist seleccionado en `useSearchParams` (patron `?tab=checklists&checklistId=XXX`). Al recargar o regresar, re-seleccionar automaticamente el servicio |
+**Solucion - Redisenar con Tabs:**
+
+Reemplazar el scroll vertical con un layout de tabs horizontales que muestre una seccion a la vez:
+
+```text
++--------------------------------------------------+
+| MONTE ROSAS SPORTS          Checklist Completo  X |
+| Folio: MOTSMRS-522                                |
+|---------------------------------------------------|
+| Cita: 13 feb 05:00  |  Custodio: CRISTHIAN A.    |
+| Ruta: LAZARO C. -> TULTITLAN                      |
+|---------------------------------------------------|
+| [Fotos]  [Inspeccion]  [Observaciones]            |
+|---------------------------------------------------|
+|                                                    |
+|   (contenido del tab activo sin scroll)            |
+|                                                    |
++--------------------------------------------------+
+```
+
+| Tab | Contenido |
+|---|---|
+| Fotos | Galeria 2x2 con thumbnails clickeables + alertas |
+| Inspeccion | Grid de items vehiculares + combustible + equipamiento (combinados en una sola vista compacta) |
+| Observaciones | Texto de observaciones + firma del custodio + metadata de fecha |
+
+Beneficios:
+- Elimina el scroll vertical completo
+- Cada seccion ocupa el espacio disponible sin desbordar
+- El operador puede saltar directamente a la seccion que necesita revisar
+- El header con info del servicio permanece siempre visible
+
+### Archivos a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/monitoring/checklist/PhotoLightbox.tsx` | Agregar `min-h-0` al contenedor de imagen, ocultar X de Radix y agregar X propio en el header |
+| `src/components/monitoring/checklist/ChecklistDetailModal.tsx` | Redisenar con Tabs (usando Radix Tabs ya instalado) en lugar de scroll vertical. Mantener header fijo con info del servicio, contenido por tabs debajo |
 
 ### Detalle tecnico
 
-**1. PhotoLightbox - Eliminar X duplicado y corregir zoom**
+**PhotoLightbox - Fix overflow y X:**
 
 ```typescript
-// Agregar style={{ zoom: 1 }} para anular el zoom global de DialogContent
 <DialogContent 
-  className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur"
+  className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur [&>button:last-child]:hidden"
   style={{ zoom: 1 }}
 >
-  <div className="relative h-full flex flex-col" ...>
-    {/* Header - ELIMINAR el boton X manual, ya que DialogContent lo incluye */}
+  <div className="relative h-full flex flex-col">
+    {/* Header con X propio */}
     <div className="flex items-center justify-between p-4 border-b">
       <div className="flex items-center gap-3">
-        {/* ...label y badge... */}
+        {/* label + badge */}
       </div>
       <div className="flex items-center gap-2">
-        {/* Solo dejar "Ver en mapa", quitar el Button con X */}
+        {/* "Ver en mapa" button */}
+        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+          <X className="h-5 w-5" />
+        </Button>
       </div>
     </div>
-    {/* resto sin cambios */}
+    
+    {/* Image container - min-h-0 es la clave */}
+    <div className="flex-1 min-h-0 relative flex items-center justify-center p-4">
+      <img className="max-h-full max-w-full object-contain" />
+    </div>
+    
+    {/* Footer con thumbnails */}
   </div>
 </DialogContent>
 ```
 
-**2. MonitoringPage - Persistencia del checklist seleccionado en URL**
+**ChecklistDetailModal - Tabs layout:**
 
 ```typescript
-// Al seleccionar un checklist, guardar en URL
-const handleChecklistSelect = (servicio: ServicioConChecklist) => {
-  setServicioChecklistSeleccionado(servicio);
-  setIsChecklistDetailOpen(true);
-  setSearchParams(prev => {
-    prev.set('checklistId', servicio.servicioId);
-    return prev;
-  });
-};
-
-// Al cerrar, limpiar de URL
-const handleChecklistDetailClose = (open: boolean) => {
-  setIsChecklistDetailOpen(open);
-  if (!open) {
-    setSearchParams(prev => {
-      prev.delete('checklistId');
-      return prev;
-    });
-  }
-};
-
-// Al cargar, restaurar seleccion desde URL
-useEffect(() => {
-  const checklistId = searchParams.get('checklistId');
-  if (checklistId && serviciosChecklist.length > 0) {
-    const found = serviciosChecklist.find(s => s.servicioId === checklistId);
-    if (found) {
-      setServicioChecklistSeleccionado(found);
-      setIsChecklistDetailOpen(true);
-    }
-  }
-}, [serviciosChecklist]);
+<DialogContent className="max-w-3xl h-[85vh] p-0 flex flex-col">
+  {/* Header fijo - siempre visible */}
+  <div className="p-6 pb-4 border-b shrink-0">
+    {/* Nombre, folio, badge estado */}
+    {/* Info servicio: cita, custodio, ruta */}
+    {/* Alertas (si hay) */}
+  </div>
+  
+  {/* Tabs - ocupan el resto del espacio */}
+  <Tabs defaultValue="fotos" className="flex-1 min-h-0 flex flex-col">
+    <TabsList className="mx-6 shrink-0">
+      <TabsTrigger value="fotos">Fotos</TabsTrigger>
+      <TabsTrigger value="inspeccion">Inspeccion</TabsTrigger>
+      <TabsTrigger value="observaciones">Observaciones</TabsTrigger>
+    </TabsList>
+    
+    <TabsContent value="fotos" className="flex-1 min-h-0 overflow-auto p-6">
+      {/* Galeria 2x2 */}
+    </TabsContent>
+    
+    <TabsContent value="inspeccion" className="flex-1 min-h-0 overflow-auto p-6">
+      {/* Items vehiculares + combustible + equipamiento */}
+    </TabsContent>
+    
+    <TabsContent value="observaciones" className="flex-1 min-h-0 overflow-auto p-6">
+      {/* Observaciones + firma + metadata */}
+    </TabsContent>
+  </Tabs>
+</DialogContent>
 ```
-
-### Resultado esperado
-
-- Una sola X de cierre en el visor de fotos
-- La foto se muestra correctamente dentro del marco sin desbordar
-- Los thumbnails y el contador son visibles sin scroll
-- Si el usuario cierra el lightbox, regresa al detalle del checklist (ya funciona asi)
-- Si el usuario refresca la pagina o regresa por navegacion, el detalle del checklist se restaura automaticamente desde la URL
 
