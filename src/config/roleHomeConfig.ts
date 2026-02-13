@@ -21,6 +21,7 @@ export type UserRole =
   | 'jefe_seguridad'
   | 'analista_seguridad'
   | 'soporte'
+  | 'customer_success'
   | 'pending'
   | 'unverified';
 
@@ -438,6 +439,12 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       { type: 'completionRate', label: 'Resueltos', isContext: true }
     ],
     modules: ['tickets', 'monitoring', 'services', 'settings']
+  },
+
+  // Customer Success
+  customer_success: {
+    redirect: '/customer-success',
+    modules: ['settings']
   },
 
   // Custodio - Redirige a portal dedicado

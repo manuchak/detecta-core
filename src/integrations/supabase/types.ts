@@ -3269,6 +3269,296 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_capa: {
+        Row: {
+          accion_correctiva: string | null
+          accion_inmediata: string | null
+          accion_preventiva: string | null
+          analisis_causa_raiz: string | null
+          cliente_id: string
+          created_at: string
+          descripcion_no_conformidad: string
+          eficacia_verificada: boolean | null
+          estado: string
+          fecha_implementacion: string | null
+          fecha_verificacion: string | null
+          id: string
+          numero_capa: string
+          queja_id: string | null
+          responsable_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          accion_correctiva?: string | null
+          accion_inmediata?: string | null
+          accion_preventiva?: string | null
+          analisis_causa_raiz?: string | null
+          cliente_id: string
+          created_at?: string
+          descripcion_no_conformidad: string
+          eficacia_verificada?: boolean | null
+          estado?: string
+          fecha_implementacion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          numero_capa: string
+          queja_id?: string | null
+          responsable_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          accion_correctiva?: string | null
+          accion_inmediata?: string | null
+          accion_preventiva?: string | null
+          analisis_causa_raiz?: string | null
+          cliente_id?: string
+          created_at?: string
+          descripcion_no_conformidad?: string
+          eficacia_verificada?: boolean | null
+          estado?: string
+          fecha_implementacion?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          numero_capa?: string
+          queja_id?: string | null
+          responsable_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_capa_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_capa_queja_id_fkey"
+            columns: ["queja_id"]
+            isOneToOne: false
+            referencedRelation: "cs_quejas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_health_scores: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          csat_promedio: number | null
+          id: string
+          notas: string | null
+          periodo: string
+          quejas_abiertas: number | null
+          quejas_cerradas_mes: number | null
+          riesgo_churn: string | null
+          score: number | null
+          servicios_mes: number | null
+          touchpoints_mes: number | null
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          csat_promedio?: number | null
+          id?: string
+          notas?: string | null
+          periodo: string
+          quejas_abiertas?: number | null
+          quejas_cerradas_mes?: number | null
+          riesgo_churn?: string | null
+          score?: number | null
+          servicios_mes?: number | null
+          touchpoints_mes?: number | null
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          csat_promedio?: number | null
+          id?: string
+          notas?: string | null
+          periodo?: string
+          quejas_abiertas?: number | null
+          quejas_cerradas_mes?: number | null
+          riesgo_churn?: string | null
+          score?: number | null
+          servicios_mes?: number | null
+          touchpoints_mes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_health_scores_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_quejas: {
+        Row: {
+          accion_correctiva: string | null
+          accion_preventiva: string | null
+          asignado_a: string | null
+          calificacion_cierre: number | null
+          canal_entrada: string
+          capa_id: string | null
+          causa_raiz: string | null
+          cliente_id: string
+          created_at: string
+          created_by: string | null
+          descripcion: string
+          ejecutivo_cuenta: string | null
+          estado: string
+          evidencia_urls: string[] | null
+          fecha_compromiso: string | null
+          fecha_resolucion: string | null
+          id: string
+          numero_queja: string
+          primera_respuesta_at: string | null
+          requiere_capa: boolean | null
+          servicio_id: string | null
+          severidad: string
+          sla_resolucion_horas: number | null
+          sla_respuesta_horas: number | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          accion_correctiva?: string | null
+          accion_preventiva?: string | null
+          asignado_a?: string | null
+          calificacion_cierre?: number | null
+          canal_entrada: string
+          capa_id?: string | null
+          causa_raiz?: string | null
+          cliente_id: string
+          created_at?: string
+          created_by?: string | null
+          descripcion: string
+          ejecutivo_cuenta?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          fecha_compromiso?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          numero_queja: string
+          primera_respuesta_at?: string | null
+          requiere_capa?: boolean | null
+          servicio_id?: string | null
+          severidad?: string
+          sla_resolucion_horas?: number | null
+          sla_respuesta_horas?: number | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          accion_correctiva?: string | null
+          accion_preventiva?: string | null
+          asignado_a?: string | null
+          calificacion_cierre?: number | null
+          canal_entrada?: string
+          capa_id?: string | null
+          causa_raiz?: string | null
+          cliente_id?: string
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string
+          ejecutivo_cuenta?: string | null
+          estado?: string
+          evidencia_urls?: string[] | null
+          fecha_compromiso?: string | null
+          fecha_resolucion?: string | null
+          id?: string
+          numero_queja?: string
+          primera_respuesta_at?: string | null
+          requiere_capa?: boolean | null
+          servicio_id?: string | null
+          severidad?: string
+          sla_resolucion_horas?: number | null
+          sla_respuesta_horas?: number | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_quejas_capa_id_fkey"
+            columns: ["capa_id"]
+            isOneToOne: false
+            referencedRelation: "cs_capa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_quejas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_touchpoints: {
+        Row: {
+          cliente_id: string
+          contacto_nombre: string | null
+          created_at: string
+          created_by: string | null
+          direccion: string
+          duracion_minutos: number | null
+          fecha_siguiente_accion: string | null
+          id: string
+          queja_id: string | null
+          resumen: string
+          siguiente_accion: string | null
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          contacto_nombre?: string | null
+          created_at?: string
+          created_by?: string | null
+          direccion?: string
+          duracion_minutos?: number | null
+          fecha_siguiente_accion?: string | null
+          id?: string
+          queja_id?: string | null
+          resumen: string
+          siguiente_accion?: string | null
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string
+          contacto_nombre?: string | null
+          created_at?: string
+          created_by?: string | null
+          direccion?: string
+          duracion_minutos?: number | null
+          fecha_siguiente_accion?: string | null
+          id?: string
+          queja_id?: string | null
+          resumen?: string
+          siguiente_accion?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_touchpoints_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_touchpoints_queja_id_fkey"
+            columns: ["queja_id"]
+            isOneToOne: false
+            referencedRelation: "cs_quejas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custodian_invitations: {
         Row: {
           batch_id: string | null
