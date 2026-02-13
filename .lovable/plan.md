@@ -1,46 +1,52 @@
 
+## Fix: Corregir JOIN entre checklists y servicios planificados
 
-## Fix: Filtrar alertas de evaluaciones para excluir datos legacy
+### Problema raiz
 
-### Problema
+La tabla `checklist_servicio` almacena en `servicio_id` el identificador textual del servicio (ej: `YOCOYTM-273`), pero el hook de monitoreo busca por el UUID de `servicios_planificados.id`. Nunca hay coincidencia, asi que todos los servicios aparecen como "Sin Checklist" aunque los custodios si los completaron.
 
-El hook `useSupplyPipelineAlerts` consulta `candidatos_custodios` sin filtro de fecha, incluyendo registros historicos antiguos que generan 250 warnings falsos. Estos candidatos existian antes de que el sistema de evaluaciones se implementara y no representan trabajo pendiente real.
+| Tabla | Campo | Valor ejemplo |
+|---|---|---|
+| `servicios_planificados` | `id` (UUID) | `4e43d036-035e-4de7-a3ba-...` |
+| `servicios_planificados` | `id_servicio` (texto) | `YOCOYTM-273` |
+| `checklist_servicio` | `servicio_id` | `YOCOYTM-273` (texto) |
+
+El hook usa `servicios_planificados.id` (UUID) para buscar en `checklist_servicio.servicio_id` (texto) = 0 resultados.
 
 ### Solucion
 
-Agregar un filtro de `created_at` de 30 dias al query de alertas de evaluaciones. Esto:
-- Excluye datos legacy pre-existentes
-- Mantiene la deteccion de candidatos genuinamente estancados (7/15/30 dias sin actividad)
-- Se alinea con el cutoff operativo del pipeline
-
-Se usa 30 dias (no 7) porque las alertas necesitan detectar candidatos que llevan tiempo sin avanzar -- un candidato creado hace 20 dias sin movimiento SI es una alerta valida, pero uno creado hace 6 meses no lo es.
+Cambiar el hook `useChecklistMonitoreo.ts` para hacer el match usando `id_servicio` (texto) en vez de `id` (UUID).
 
 ### Cambios
 
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useSupplyPipelineAlerts.ts` linea 43-45 | Agregar `.gte('created_at', cutoff30d)` al query de `candidatos_custodios` |
+**Archivo: `src/hooks/useChecklistMonitoreo.ts`**
 
-### Detalle tecnico
+1. Linea 183: Cambiar el mapeo de IDs para usar `id_servicio` en vez de `id`:
+   ```typescript
+   // ANTES
+   const servicioIds = servicios?.map((s) => s.id) || [];
 
-```typescript
-// ANTES (sin filtro de fecha)
-supabase
-  .from('candidatos_custodios')
-  .select('id, nombre, updated_at')
-  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
+   // DESPUES
+   const servicioIds = servicios?.map((s) => s.id_servicio).filter(Boolean) || [];
+   ```
 
-// DESPUES (con cutoff de 30 dias)
-const cutoff30d = new Date();
-cutoff30d.setDate(cutoff30d.getDate() - 30);
+2. Linea 199: Actualizar el Map para usar `id_servicio` como clave del lookup:
+   ```typescript
+   // ANTES (key = UUID)
+   const checklistMap = new Map(checklists?.map((c) => [c.servicio_id, c]) || []);
 
-supabase
-  .from('candidatos_custodios')
-  .select('id, nombre, updated_at')
-  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
-  .gte('created_at', cutoff30d.toISOString())
-```
+   // DESPUES (sin cambio en esta linea, pero el .get() de linea 204 debe usar id_servicio)
+   ```
+
+3. Linea 204: Cambiar la busqueda en el map para usar `svc.id_servicio`:
+   ```typescript
+   // ANTES
+   const checklist = checklistMap.get(svc.id);
+
+   // DESPUES
+   const checklist = checklistMap.get(svc.id_servicio);
+   ```
 
 ### Resultado esperado
 
-El badge de warning en "Evaluaciones" bajara de 250 a solo los candidatos recientes (ultimos 30 dias) que genuinamente estan estancados en el proceso.
+Los checklists completados por custodios se vincularan correctamente con los servicios planificados. Las tarjetas de resumen (Completos, Pendientes, Sin Checklist) mostraran los numeros reales en lugar de marcar todo como "Sin Checklist".
