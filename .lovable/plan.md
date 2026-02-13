@@ -1,61 +1,49 @@
 
-## Fix: Incluir `servicios_planificados` en todos los hooks de Customer Success
+## Fix: Columna incorrecta en queries a `servicios_planificados`
 
-### Problema
+### Problema raiz
 
-Los 3 hooks principales de CS solo consultan `servicios_custodia` (tabla legacy), ignorando `servicios_planificados` donde se crean los servicios nuevos. Resultado: **66 clientes con actividad reciente son invisibles** para CS, mostrando 33 en lugar de los 62+ reales.
+La tabla `servicios_planificados` no tiene columna `cobro_cliente` -- se llama `cobro_posicionamiento`. Los 3 hooks de CS hacen `select('nombre_cliente, cobro_cliente, fecha_hora_cita')` contra esa tabla, lo que retorna un error HTTP 400:
 
-### Hooks afectados
+```
+"column servicios_planificados.cobro_cliente does not exist"
+```
 
-| Hook | Impacto |
-|------|---------|
-| `useCSCartera` | Cartera muestra 33 clientes "con servicio" en vez de ~62 |
-| `useCSClientesConQuejas` | Lista de clientes y riesgo subestimado |
-| `useCSRetentionMetrics` | NRR, Churn Rate y tendencia 6 meses incorrectos |
+Como el codigo hace `if (planRes.error) throw planRes.error`, toda la query falla y la tabla muestra 0 clientes.
 
 ### Solucion
 
-Aplicar el mismo patron usado en `useCustodianServices`: consultar ambas tablas en paralelo, unificar por `nombre_cliente` normalizado, y deduplicar.
+Cambiar `cobro_cliente` a `cobro_posicionamiento` en los 3 archivos, y mapear el valor al alias `cobro_cliente` en el codigo para mantener compatibilidad con la logica existente.
 
 ### Cambios por archivo
 
-**1. `src/hooks/useCSCartera.ts`**
-- Agregar query paralelo a `servicios_planificados` (campos: `nombre_cliente`, `cobro_cliente`, `fecha_hora_cita`)
-- Combinar resultados de ambas tablas en un solo array `servicios` antes del `.map()`
-- Deduplicar por combinacion de `nombre_cliente + fecha_hora_cita` para evitar contar doble
+**1. `src/hooks/useCSCartera.ts` (linea 48)**
+- Cambiar: `select('nombre_cliente, cobro_cliente, fecha_hora_cita')`
+- A: `select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita')`
+- En la logica de GMV, usar `cobro_posicionamiento` para los registros de planificados (o unificar con un map previo)
 
-**2. `src/hooks/useCSHealthScores.ts` (funcion `useCSClientesConQuejas`)**
-- Mismo patron: agregar fetch paralelo de `servicios_planificados`
-- Unificar array de servicios antes de calcular metricas por cliente
-- Esto corrige: dias sin contacto, servicios recientes, GMV tendencia, y nivel de riesgo
+**2. `src/hooks/useCSHealthScores.ts` (linea 50)**
+- Mismo cambio: `cobro_cliente` a `cobro_posicionamiento`
 
-**3. `src/hooks/useCSRetentionMetrics.ts`**
-- Agregar fetch paralelo de `servicios_planificados`
-- Combinar antes de calcular: NRR (GMV mes actual vs anterior), Churn Rate (clientes sin servicio 60d+), tendencia 6 meses, y dias promedio sin contacto
+**3. `src/hooks/useCSRetentionMetrics.ts` (linea 35)**
+- Mismo cambio: `cobro_cliente` a `cobro_posicionamiento`
 
-### Patron de unificacion (comun a los 3)
+### Estrategia de unificacion
+
+Despues de hacer fetch de `servicios_planificados`, mapear los resultados para normalizar el nombre del campo:
 
 ```text
-// Fetch ambas tablas en paralelo
-const [legacyRes, planRes] = await Promise.all([
-  supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
-  supabase.from('servicios_planificados').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
-]);
-
-// Unificar y deduplicar
-const allServicios = [...(legacyRes.data || []), ...(planRes.data || [])];
-const seen = new Set();
-const servicios = allServicios.filter(s => {
-  const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
-  if (seen.has(key)) return false;
-  seen.add(key);
-  return true;
-});
+const planData = (planRes.data || []).map(s => ({
+  nombre_cliente: s.nombre_cliente,
+  cobro_cliente: s.cobro_posicionamiento,
+  fecha_hora_cita: s.fecha_hora_cita,
+}));
 ```
 
-### Resultado esperado
+Esto mantiene toda la logica downstream (calculo de GMV, NRR, etc.) sin cambios adicionales.
 
-- Cartera mostrara los ~62 clientes activos con servicio reciente (en lugar de 33)
-- KPIs de Panorama (NRR, Churn, dias sin contacto) reflejaran actividad real
-- Segmentos "Sin servicio 90d+" y "En Riesgo" se reduciran al considerar servicios planificados
-- Sin cambios en la UI, solo datos mas completos
+### Resultado
+
+- La query dejara de fallar con error 400
+- Los ~62+ clientes activos apareceran en la tabla de Cartera
+- Las metricas de Panorama (NRR, Churn, CSAT) tambien se corregiranm porque usan los mismos hooks
