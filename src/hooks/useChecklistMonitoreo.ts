@@ -180,7 +180,7 @@ export function useChecklistMonitoreo(params: ChecklistMonitoreoParams | number 
       if (svcError) throw svcError;
 
       // Obtener checklists para estos servicios
-      const servicioIds = servicios?.map((s) => s.id) || [];
+      const servicioIds = servicios?.map((s) => s.id_servicio).filter(Boolean) || [];
       const { data: checklists, error: chkError } = await supabase
         .from('checklist_servicio')
         .select('*')
@@ -201,7 +201,7 @@ export function useChecklistMonitoreo(params: ChecklistMonitoreoParams | number 
       // Procesar y enriquecer datos
       const serviciosEnriquecidos: ServicioConChecklist[] = (servicios || []).map(
         (svc) => {
-          const checklist = checklistMap.get(svc.id);
+          const checklist = checklistMap.get(svc.id_servicio);
           const fotosValidadas = (checklist?.fotos_validadas as FotoValidada[]) || [];
           const itemsInspeccion = checklist?.items_inspeccion as ItemsInspeccion | null;
           const minutosParaCita = differenceInMinutes(
