@@ -85,8 +85,7 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
             current_stage,
             analyst_id,
             phone_interview_completed
-          ),
-          assigned_profile:profiles!asignado_a(display_name)
+          )
         `, { count: 'exact' });
 
       // Aplicar filtros en el backend
@@ -137,10 +136,22 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
       if (fetchError) throw fetchError;
 
       if (mounted.current) {
-        // Convertir datos de la DB al tipo Lead
+        // Cargar nombres de analistas por separado (no hay FK leads->profiles)
+        const analystIds = [...new Set((data || []).filter(l => l.asignado_a).map(l => l.asignado_a))];
+        let analystMap = new Map<string, string>();
+        if (analystIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', analystIds);
+          profiles?.forEach(p => analystMap.set(p.id, p.display_name));
+        }
+
+        // Convertir datos de la DB al tipo Lead con assigned_profile
         const typedLeads: Lead[] = (data || []).map(lead => ({
           ...lead,
-          estado: lead.estado as LeadEstado
+          estado: lead.estado as LeadEstado,
+          assigned_profile: lead.asignado_a ? { display_name: analystMap.get(lead.asignado_a) || null } : null
         }));
         const totalCountData = count || 0;
         
