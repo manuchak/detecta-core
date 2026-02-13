@@ -114,7 +114,7 @@ export function PhotoLightbox({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur">
+      <DialogContent className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur" style={{ zoom: 1 }}>
         <div
           className="relative h-full flex flex-col"
           onTouchStart={handleTouchStart}
@@ -151,13 +151,6 @@ export function PhotoLightbox({
                   <ExternalLink className="h-3 w-3" />
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onOpenChange(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
             </div>
           </div>
 

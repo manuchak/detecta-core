@@ -26,7 +26,7 @@ import AdoptionTable from "@/components/monitoring/adoption/AdoptionTable";
 import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigital";
 
 const MonitoringPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -101,7 +101,33 @@ const MonitoringPage = () => {
   const handleVerChecklistDetalle = (servicio: ServicioConChecklist) => {
     setServicioChecklistSeleccionado(servicio);
     setIsChecklistDetailOpen(true);
+    setSearchParams(prev => {
+      prev.set('checklistId', servicio.servicioId);
+      return prev;
+    });
   };
+
+  const handleChecklistDetailClose = (open: boolean) => {
+    setIsChecklistDetailOpen(open);
+    if (!open) {
+      setSearchParams(prev => {
+        prev.delete('checklistId');
+        return prev;
+      });
+    }
+  };
+
+  // Restaurar checklist seleccionado desde URL
+  useEffect(() => {
+    const checklistId = searchParams.get('checklistId');
+    if (checklistId && serviciosChecklist.length > 0 && !isChecklistDetailOpen) {
+      const found = serviciosChecklist.find(s => s.servicioId === checklistId);
+      if (found) {
+        setServicioChecklistSeleccionado(found);
+        setIsChecklistDetailOpen(true);
+      }
+    }
+  }, [serviciosChecklist]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -253,7 +279,7 @@ const MonitoringPage = () => {
       <ChecklistDetailModal
         servicio={servicioChecklistSeleccionado}
         open={isChecklistDetailOpen}
-        onOpenChange={setIsChecklistDetailOpen}
+        onOpenChange={handleChecklistDetailClose}
       />
     </div>
   );
