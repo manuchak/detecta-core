@@ -1,49 +1,46 @@
 
 
-## Cambiar cutoff de 15 dias a 7 dias en pipeline de Candidatos
+## Fix: Filtrar alertas de evaluaciones para excluir datos legacy
 
-### Contexto
+### Problema
 
-Actualmente hay **dos lugares** donde se aplica el cutoff de 15 dias para leads:
+El hook `useSupplyPipelineAlerts` consulta `candidatos_custodios` sin filtro de fecha, incluyendo registros historicos antiguos que generan 250 warnings falsos. Estos candidatos existian antes de que el sistema de evaluaciones se implementara y no representan trabajo pendiente real.
 
-1. **Hook frontend**: `src/hooks/useSupplyPipelineCounts.ts` (linea 17) - usado por el breadcrumb del pipeline
-2. **RPC en base de datos**: funcion `get_leads_counts()` - usada por los conteos de tabs (Por Contactar, En Proceso, etc.)
+### Solucion
 
-Ambos deben cambiarse a 7 dias para que los numeros sean consistentes.
+Agregar un filtro de `created_at` de 30 dias al query de alertas de evaluaciones. Esto:
+- Excluye datos legacy pre-existentes
+- Mantiene la deteccion de candidatos genuinamente estancados (7/15/30 dias sin actividad)
+- Se alinea con el cutoff operativo del pipeline
+
+Se usa 30 dias (no 7) porque las alertas necesitan detectar candidatos que llevan tiempo sin avanzar -- un candidato creado hace 20 dias sin movimiento SI es una alerta valida, pero uno creado hace 6 meses no lo es.
 
 ### Cambios
 
-| Recurso | Cambio |
+| Archivo | Cambio |
 |---|---|
-| `src/hooks/useSupplyPipelineCounts.ts` linea 17 | `cutoff.setDate(cutoff.getDate() - 15)` a `cutoff.setDate(cutoff.getDate() - 7)` |
-| RPC `get_leads_counts()` (migracion SQL) | `interval '15 days'` a `interval '7 days'` |
+| `src/hooks/useSupplyPipelineAlerts.ts` linea 43-45 | Agregar `.gte('created_at', cutoff30d)` al query de `candidatos_custodios` |
 
-### Migracion SQL
+### Detalle tecnico
 
-```sql
-CREATE OR REPLACE FUNCTION get_leads_counts()
-RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER
-AS $$
-DECLARE
-  result jsonb;
-  cutoff timestamptz := now() - interval '7 days';
-BEGIN
-  SELECT jsonb_build_object(
-    'total', COUNT(*),
-    'approved', COUNT(*) FILTER (WHERE estado = 'aprobado'),
-    'pending', COUNT(*) FILTER (WHERE estado NOT IN ('aprobado', 'rechazado', 'inactivo', 'custodio_activo') OR estado IS NULL),
-    'rejected', COUNT(*) FILTER (WHERE estado = 'rechazado'),
-    'uncontacted', COUNT(*) FILTER (WHERE asignado_a IS NULL AND estado NOT IN ('rechazado', 'inactivo', 'custodio_activo'))
-  ) INTO result
-  FROM leads
-  WHERE created_at >= cutoff;
+```typescript
+// ANTES (sin filtro de fecha)
+supabase
+  .from('candidatos_custodios')
+  .select('id, nombre, updated_at')
+  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
 
-  RETURN result;
-END;
-$$;
+// DESPUES (con cutoff de 30 dias)
+const cutoff30d = new Date();
+cutoff30d.setDate(cutoff30d.getDate() - 30);
+
+supabase
+  .from('candidatos_custodios')
+  .select('id, nombre, updated_at')
+  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
+  .gte('created_at', cutoff30d.toISOString())
 ```
 
 ### Resultado esperado
 
-Los conteos del breadcrumb y las tabs mostraran solo leads de los ultimos 7 dias, alineandose con la carga de trabajo operativa real (~33-40 leads en vez de 135).
+El badge de warning en "Evaluaciones" bajara de 250 a solo los candidatos recientes (ultimos 30 dias) que genuinamente estan estancados en el proceso.
