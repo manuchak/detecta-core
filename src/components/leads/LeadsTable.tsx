@@ -742,7 +742,7 @@ export const LeadsTable = ({
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-100">Asignado</span>
-                        <span className="text-xs text-emerald-700 dark:text-emerald-300">ID: {lead.asignado_a?.slice(-8)}</span>
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300">{(lead as any).assigned_profile?.display_name || lead.asignado_a?.slice(-8)}</span>
                       </div>
                     </div>
                   ) : (
