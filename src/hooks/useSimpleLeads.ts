@@ -1,4 +1,5 @@
 // @ts-nocheck
+// cache-bust: 2026-02-13T00:00:00Z
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
