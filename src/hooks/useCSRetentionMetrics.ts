@@ -3,12 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export interface RetentionMetrics {
-  nrr: number | null; // Net Retention Rate %
-  churnRate: number; // % clientes sin servicios en 60+ días
+  nrr: number | null;
+  churnRate: number;
   csatPromedio: number | null;
   healthScoreGlobal: number | null;
   diasPromedioSinContacto: number;
-  pctLealesPlus: number; // % clientes Leal+Promotor+Embajador
+  pctLealesPlus: number;
   tendencia: { mes: string; activos: number; nuevos: number; churned: number }[];
 }
 
@@ -35,7 +35,7 @@ export function useCSRetentionMetrics() {
         .gte('fecha_hora_cita', format(subMonths(now, 6), 'yyyy-MM-dd'));
       if (sErr) throw sErr;
 
-      // NRR: GMV current month / GMV previous month (existing clients only)
+      // NRR
       const gmvMesActual = (servicios || [])
         .filter(s => {
           const d = s.fecha_hora_cita;
@@ -74,7 +74,7 @@ export function useCSRetentionMetrics() {
         ? conCsat.reduce((s, q) => s + (q.calificacion_cierre || 0), 0) / conCsat.length
         : null;
 
-      // Días promedio sin contacto
+      // Días promedio sin contacto — using MAX(ultimo_servicio, ultimo_touchpoint)
       const { data: touchpoints, error: tErr } = await supabase
         .from('cs_touchpoints')
         .select('cliente_id, created_at');
@@ -82,10 +82,35 @@ export function useCSRetentionMetrics() {
 
       const nowMs = Date.now();
       const diasPorCliente = (clientes || []).map(c => {
+        const nombreNorm = c.nombre?.toLowerCase().trim();
+
+        // Last service date for this client
+        const clienteServicios = (servicios || []).filter(
+          s => s.nombre_cliente?.toLowerCase().trim() === nombreNorm
+        );
+        const lastServiceDate = clienteServicios
+          .map(s => s.fecha_hora_cita)
+          .filter(Boolean)
+          .sort()
+          .pop();
+
+        // Last touchpoint
         const cTps = (touchpoints || []).filter(t => t.cliente_id === c.id);
-        if (!cTps.length) return 999;
-        const last = cTps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-        return Math.floor((nowMs - new Date(last.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        const lastTpDate = cTps.length
+          ? cTps.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
+          : null;
+
+        // Use most recent of either
+        let lastContact: number | null = null;
+        if (lastServiceDate) lastContact = new Date(lastServiceDate).getTime();
+        if (lastTpDate) {
+          const tpTime = new Date(lastTpDate).getTime();
+          lastContact = lastContact ? Math.max(lastContact, tpTime) : tpTime;
+        }
+
+        return lastContact
+          ? Math.floor((nowMs - lastContact) / (1000 * 60 * 60 * 24))
+          : 999;
       });
       const diasPromedioSinContacto = diasPorCliente.length
         ? Math.round(diasPorCliente.reduce((a, b) => a + b, 0) / diasPorCliente.length)
@@ -107,7 +132,7 @@ export function useCSRetentionMetrics() {
         tendencia.push({
           mes: format(mes, 'MMM yy'),
           activos: clientesMes.size,
-          nuevos: 0, // Would need historical data
+          nuevos: 0,
           churned: 0,
         });
       }
@@ -116,9 +141,9 @@ export function useCSRetentionMetrics() {
         nrr,
         churnRate,
         csatPromedio,
-        healthScoreGlobal: null, // Calculated from loyalty funnel
+        healthScoreGlobal: null,
         diasPromedioSinContacto,
-        pctLealesPlus: 0, // Calculated from loyalty funnel in component
+        pctLealesPlus: 0,
         tendencia,
       } as RetentionMetrics;
     },
