@@ -30,7 +30,8 @@ import {
   Briefcase,
   ArrowLeftRight,
   Receipt,
-  MonitorPlay
+  MonitorPlay,
+  HeartHandshake
 } from 'lucide-react';
 
 // Roles with restricted navigation access (only see specific groups)
@@ -52,6 +53,7 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'supply', label: 'Supply & Talento', icon: Users },
   { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
   { id: 'facturacion', label: 'Facturación', icon: Receipt },
+  { id: 'customer-success', label: 'Customer Success', icon: HeartHandshake },
   { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
   { id: 'capacitacion', label: 'Capacitación', icon: GraduationCap },
   { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
@@ -346,6 +348,54 @@ export const navigationModules: NavigationModule[] = [
         label: 'Servicios',
         path: '/facturacion?tab=servicios',
         icon: FileText
+      }
+    ]
+  },
+
+  // ===== CUSTOMER SUCCESS GROUP =====
+  {
+    id: 'customer-success',
+    label: 'Customer Success',
+    icon: HeartHandshake,
+    path: '/customer-success',
+    group: 'customer-success',
+    roles: ['admin', 'owner', 'customer_success', 'ejecutivo_ventas', 'coordinador_operaciones'],
+    children: [
+      {
+        id: 'cs_dashboard',
+        label: 'Dashboard',
+        path: '/customer-success',
+        icon: LayoutDashboard
+      },
+      {
+        id: 'cs_retencion',
+        label: 'Retención',
+        path: '/customer-success?tab=retencion',
+        icon: TrendingUp
+      },
+      {
+        id: 'cs_quejas',
+        label: 'Quejas',
+        path: '/customer-success?tab=quejas',
+        icon: ClipboardList
+      },
+      {
+        id: 'cs_clientes',
+        label: 'Clientes',
+        path: '/customer-success?tab=clientes',
+        icon: Users
+      },
+      {
+        id: 'cs_capa',
+        label: 'CAPA',
+        path: '/customer-success?tab=capa',
+        icon: CheckCircle2
+      },
+      {
+        id: 'cs_mejora',
+        label: 'Mejora Continua',
+        path: '/customer-success?tab=mejora',
+        icon: BarChart3
       }
     ]
   },
