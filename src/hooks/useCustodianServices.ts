@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { normalizePhone } from '@/lib/phoneUtils';
 
 interface CustodianService {
   id_servicio: string;
@@ -57,8 +58,8 @@ export const useCustodianServices = (custodianPhone?: string) => {
         return;
       }
 
-      // Normalizar teléfono (quitar espacios y guiones)
-      const normalizedPhone = custodianPhone.replace(/[\s-]/g, '');
+      // Normalizar teléfono usando utilidad centralizada
+      const normalizedPhone = normalizePhone(custodianPhone);
 
       // Fetch services by phone number
       const { data: servicesData, error: servicesError } = await supabase

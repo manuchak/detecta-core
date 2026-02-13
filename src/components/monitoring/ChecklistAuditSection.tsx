@@ -21,8 +21,9 @@
  import { Badge } from '@/components/ui/badge';
  import { Button } from '@/components/ui/button';
  import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
- import { cn } from '@/lib/utils';
- import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { normalizePhone } from '@/lib/phoneUtils';
+import { format } from 'date-fns';
  import { es } from 'date-fns/locale';
  import { 
    ChecklistServicio, 
@@ -52,8 +53,8 @@
          .select('*')
          .eq('servicio_id', servicioId);
        
-       if (custodioTelefono) {
-         query = query.eq('custodio_telefono', custodioTelefono);
+      if (custodioTelefono) {
+          query = query.eq('custodio_telefono', normalizePhone(custodioTelefono));
        }
        
        const { data, error } = await query.maybeSingle();

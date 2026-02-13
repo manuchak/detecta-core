@@ -10,8 +10,10 @@ import type {
   TipoDocumentoCustodio,
 } from '@/types/checklist';
 import { compressImage, needsCompression } from '@/lib/imageUtils';
- 
- export function useCustodianDocuments(custodioTelefono: string | undefined) {
+import { normalizePhone } from '@/lib/phoneUtils';
+
+export function useCustodianDocuments(rawTelefono: string | undefined) {
+  const custodioTelefono = rawTelefono ? normalizePhone(rawTelefono) : undefined;
    const queryClient = useQueryClient();
  
     const query = useQuery({

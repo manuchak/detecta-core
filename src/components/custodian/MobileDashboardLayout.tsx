@@ -10,6 +10,7 @@ import { useCustodioIndisponibilidades } from "@/hooks/useCustodioIndisponibilid
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserRole } from "@/utils/authHelpers";
+import { normalizePhone } from "@/lib/phoneUtils";
 import DashboardHeroAlert from "./DashboardHeroAlert";
 import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
@@ -62,11 +63,11 @@ const MobileDashboardLayout = () => {
 
   // Helper function to find custodio by phone
   const findCustodioByPhone = useCallback(async (phone: string): Promise<string | null> => {
-    const cleanPhone = phone.replace(/\s/g, '');
+    const cleanPhone = normalizePhone(phone);
     const { data } = await supabase
       .from('custodios_operativos')
       .select('id')
-      .or(`telefono.eq.${cleanPhone},telefono.ilike.%${cleanPhone.slice(-10)}%`)
+      .or(`telefono.eq.${cleanPhone},telefono.ilike.%${cleanPhone}%`)
       .limit(1)
       .maybeSingle();
     

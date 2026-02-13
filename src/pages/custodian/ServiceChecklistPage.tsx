@@ -6,8 +6,9 @@
  import { useState, useEffect } from 'react';
  import { useQuery } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
- import { useAuth } from '@/contexts/AuthContext';
- import { ChecklistWizard } from '@/components/custodian/checklist/ChecklistWizard';
+import { useAuth } from '@/contexts/AuthContext';
+import { ChecklistWizard } from '@/components/custodian/checklist/ChecklistWizard';
+import { normalizePhone } from '@/lib/phoneUtils';
  import { Button } from '@/components/ui/button';
  import { AlertCircle, ArrowLeft } from 'lucide-react';
  
@@ -85,7 +86,7 @@
    return (
      <ChecklistWizard
        servicioId={serviceId}
-       custodioTelefono={userProfile.phone}
+       custodioTelefono={normalizePhone(userProfile.phone)}
        origenCoords={origenCoords}
        onComplete={() => navigate('/custodian')}
      />
