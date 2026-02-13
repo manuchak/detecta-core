@@ -50,13 +50,11 @@ function calculateStage(client: {
   meses_activo: number;
   servicios_90d: number;
 }): LoyaltyStage {
-  // En Riesgo: quejas >= 2 OR (sin contacto > 60 AND sin servicio > 60)
+  // En Riesgo: quejas >= 2 OR (sin contacto > 60d Y sin servicios en 90d)
   const sinActividadReciente = client.dias_sin_contacto > 60;
-  if (client.quejas_abiertas >= 2 || (sinActividadReciente && !client.ultimo_servicio)) {
+  if (client.quejas_abiertas >= 2 || (sinActividadReciente && client.servicios_90d === 0)) {
     return 'en_riesgo';
   }
-  // Also at risk if literally no activity in 60+ days
-  if (sinActividadReciente) return 'en_riesgo';
 
   // Embajador: manual flag + all promotor criteria
   if (
