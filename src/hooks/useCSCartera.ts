@@ -42,20 +42,29 @@ export function useCSCartera() {
       const now = Date.now();
       const cutoff90d = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
-      const [clientesRes, serviciosRes, quejasRes, touchpointsRes] = await Promise.all([
+      const [clientesRes, legacyRes, planRes, quejasRes, touchpointsRes] = await Promise.all([
         supabase.from('pc_clientes').select('id, nombre, razon_social, activo, motivo_baja, fecha_baja').order('nombre'),
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
+        supabase.from('servicios_planificados').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
         supabase.from('cs_touchpoints').select('cliente_id, created_at'),
       ]);
 
       if (clientesRes.error) throw clientesRes.error;
-      if (serviciosRes.error) throw serviciosRes.error;
+      if (legacyRes.error) throw legacyRes.error;
+      if (planRes.error) throw planRes.error;
       if (quejasRes.error) throw quejasRes.error;
       if (touchpointsRes.error) throw touchpointsRes.error;
 
       const clientes = clientesRes.data || [];
-      const servicios = serviciosRes.data || [];
+      const allServicios = [...(legacyRes.data || []), ...(planRes.data || [])];
+      const seen = new Set<string>();
+      const servicios = allServicios.filter(s => {
+        const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
       const quejas = quejasRes.data || [];
       const touchpoints = touchpointsRes.data || [];
 
