@@ -97,7 +97,7 @@ export function useCSLoyaltyFunnel() {
       // Fetch services summary per client (using nombre_cliente match)
       const { data: servicios, error: sErr } = await supabase
         .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente, fecha_servicio');
+        .select('nombre_cliente, cobro_cliente, fecha_hora_cita');
       if (sErr) throw sErr;
 
       // Fetch quejas
@@ -127,7 +127,7 @@ export function useCSLoyaltyFunnel() {
         );
         const total_servicios = cServicios.length;
         const fechas = cServicios
-          .map(s => s.fecha_servicio)
+          .map(s => s.fecha_hora_cita)
           .filter(Boolean)
           .sort();
         const primer_servicio = fechas[0] || null;
