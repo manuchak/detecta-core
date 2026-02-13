@@ -10959,6 +10959,7 @@ export type Database = {
           dias_credito: number | null
           dias_max_facturacion: number | null
           direccion_fiscal: string | null
+          es_embajador: boolean | null
           forma_pago_preferida: string | null
           horas_cortesia: number | null
           id: string
@@ -10967,6 +10968,7 @@ export type Database = {
           nombre: string
           notas: string | null
           notas_cobranza: string | null
+          notas_fidelidad: string | null
           pernocta_tarifa: number | null
           prioridad_cobranza: string | null
           razon_social: string | null
@@ -10998,6 +11000,7 @@ export type Database = {
           dias_credito?: number | null
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
+          es_embajador?: boolean | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
           id?: string
@@ -11006,6 +11009,7 @@ export type Database = {
           nombre: string
           notas?: string | null
           notas_cobranza?: string | null
+          notas_fidelidad?: string | null
           pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null
@@ -11037,6 +11041,7 @@ export type Database = {
           dias_credito?: number | null
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
+          es_embajador?: boolean | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
           id?: string
@@ -11045,6 +11050,7 @@ export type Database = {
           nombre?: string
           notas?: string | null
           notas_cobranza?: string | null
+          notas_fidelidad?: string | null
           pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null

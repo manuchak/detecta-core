@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, Plus } from 'lucide-react';
 import { CSDashboard } from './components/CSDashboard';
+import { CSRetentionDashboard } from './components/CSRetentionDashboard';
 import { CSQuejasList } from './components/CSQuejasList';
 import { CSClientesList } from './components/CSClientesList';
 import { CSCAPAKanban } from './components/CSCAPAKanban';
@@ -34,6 +35,7 @@ const CustomerSuccessPage = () => {
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="retencion">Retención</TabsTrigger>
           <TabsTrigger value="quejas">Quejas</TabsTrigger>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="capa">CAPA</TabsTrigger>
@@ -41,6 +43,7 @@ const CustomerSuccessPage = () => {
         </TabsList>
 
         <TabsContent value="dashboard"><CSDashboard /></TabsContent>
+        <TabsContent value="retencion"><CSRetentionDashboard /></TabsContent>
         <TabsContent value="quejas"><CSQuejasList /></TabsContent>
         <TabsContent value="clientes"><CSClientesList /></TabsContent>
         <TabsContent value="capa"><CSCAPAKanban /></TabsContent>
