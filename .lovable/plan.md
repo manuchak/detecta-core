@@ -1,62 +1,64 @@
 
-## Fix: Custodio no ve sus servicios asignados
 
-### Diagnóstico
+## Rediseño: Happy Index basado en actividad operativa
 
-Se identificaron **2 problemas** que causan que Cesar Palma (y probablemente todos los custodios) no vean sus servicios:
+### Problema actual
 
-### Problema 1: RLS en `servicios_custodia` bloquea a custodios (CRÍTICO)
+La logica de loyalty/health usa `dias_sin_contacto` basado exclusivamente en `cs_touchpoints` (tabla vacia). Resultado: 80/80 clientes = "En Riesgo". Mientras tanto, hay 108 clientes con 2,410 servicios activos en 90 dias, GMV de millones, y 0 quejas la mayoria.
 
-La política RLS para custodios en la tabla `servicios_custodia` requiere:
+### Nuevo modelo: Happy Index multi-señal
 
-```
-id_custodio = auth.uid()
-```
+El "ultimo contacto" debe ser la fecha mas reciente entre:
+- Ultimo servicio prestado (señal mas fuerte, ya existe en los datos)
+- Ultimo touchpoint formal (cuando existan)
 
-Pero el campo `id_custodio` está **NULL** en todos los registros. Los servicios se identifican por teléfono (`telefono` / `telefono_operador`), no por UUID. Resultado: **0 servicios visibles** para cualquier usuario con rol `custodio`.
+Ademas, la clasificacion de stage debe considerar **frecuencia de servicio** y **tendencia de GMV** como indicadores positivos, no solo la ausencia de problemas.
 
-**Fix**: Modificar la política RLS `servicios_custodia_select_custodio_own` para que busque por teléfono del usuario en lugar de por `id_custodio`:
+### Señales operativas a incorporar
 
-```sql
-DROP POLICY "servicios_custodia_select_custodio_own" ON servicios_custodia;
+| Señal | Fuente | Peso en salud |
+|---|---|---|
+| Dias desde ultimo servicio | servicios_custodia.fecha_hora_cita | Reemplaza dias_sin_contacto como primario |
+| Frecuencia de servicios (90d) | COUNT servicios 90d | Indicador de engagement |
+| Tendencia GMV (mes actual vs anterior) | SUM cobro_cliente por mes | Crecimiento = salud positiva |
+| Quejas abiertas | cs_quejas | Señal negativa (mantener) |
+| CAPAs pendientes | cs_capa | Señal negativa (mantener) |
+| Touchpoints formales | cs_touchpoints | Complementario cuando existan |
 
-CREATE POLICY "servicios_custodia_select_custodio_own"
-ON servicios_custodia FOR SELECT
-USING (
-  user_has_role_direct('custodio') AND (
-    telefono = replace(replace((SELECT phone FROM profiles WHERE id = auth.uid()), ' ', ''), '-', '')
-    OR
-    telefono_operador = replace(replace((SELECT phone FROM profiles WHERE id = auth.uid()), ' ', ''), '-', '')
-  )
-);
-```
+### Cambios tecnicos
 
-Esto normaliza el teléfono del perfil (quita espacios y guiones) y lo compara contra `telefono` y `telefono_operador`.
+**Archivo 1: `src/hooks/useCSLoyaltyFunnel.ts`**
 
-### Problema 2: `useCustodianServices` no normaliza el teléfono
+1. **dias_sin_contacto** (lineas 145-152): Usar `MAX(ultimo_servicio, ultimo_touchpoint)` como ultimo contacto real
+2. **calculateStage** (lineas 40-83): Ajustar umbrales para que un cliente con servicios recientes y sin quejas no caiga en "en_riesgo"
+   - En Riesgo: quejas >= 2 OR (dias_sin_contacto > 60 AND dias_sin_servicio > 60)
+   - Leal: >= 6 meses, 0 quejas, servicio o contacto en ultimos 30 dias
+   - Promotor: leal + CSAT >= 4.5 (cuando existe) + 0 CAPAs
+   - Activo: servicio en ultimos 60 dias, sin quejas graves
 
-**Archivo:** `src/hooks/useCustodianServices.ts`
+**Archivo 2: `src/hooks/useCSRetentionMetrics.ts`**
 
-El hook recibe `profile.phone` que es `"249 174 6505"` (con espacios) y lo pasa directo al query de Supabase. Pero la base de datos almacena `"2491746505"` (sin espacios).
+1. **diasPromedioSinContacto** (lineas 84-92): Incorporar fecha de ultimo servicio por cliente como fallback/complemento al touchpoint
+2. Esto corrige el KPI "Dias promedio sin contacto" que hoy muestra 999
 
-**Fix**: Agregar normalización del teléfono al inicio de `fetchCustodianServices`:
+**Archivo 3: `src/hooks/useCSHealthScores.ts`**
 
-```typescript
-const normalizedPhone = custodianPhone.replace(/[\s-]/g, '');
-```
+1. **useCSClientesConQuejas** (lineas 56-85): Agregar fetch de servicios por cliente para calcular `diasSinContacto` usando la fecha de ultimo servicio
+2. Agregar campo `servicios_recientes` (count 90d) y `gmv_tendencia` (up/down/stable) al objeto retornado para enriquecer los semaforos de salud
+3. Ajustar la logica de riesgo:
+   - critico: quejas >= 3 OR (sin servicio > 60 dias AND sin touchpoint > 60 dias)
+   - alto: quejas >= 2 OR sin actividad > 30 dias
+   - medio: quejas >= 1
+   - bajo: default (tiene servicios recientes, sin quejas)
 
-Y usar `normalizedPhone` en el `.or()` filter en lugar de `custodianPhone`.
+### Resultado esperado con datos reales
 
-### Archivos a Modificar
+| Cliente | Hoy (roto) | Despues (corregido) |
+|---|---|---|
+| ASTRA ZENECA (345 svcs, $2.8M, 0 quejas) | En Riesgo | Leal/Promotor |
+| SIEGFRIED RHEIN (182 svcs, $810K, 0 quejas) | En Riesgo | Leal |
+| LOGER (151 svcs, $2.3M, 0 quejas) | En Riesgo | Leal |
+| Cliente sin servicios 90d + 2 quejas | En Riesgo | En Riesgo (correcto) |
+| Cliente nuevo, 3 servicios, 0 quejas | En Riesgo | Nuevo/Activo |
 
-| Archivo | Cambio |
-|---|---|
-| **SQL (RLS)** | Reemplazar política `servicios_custodia_select_custodio_own` para match por teléfono normalizado |
-| **`src/hooks/useCustodianServices.ts`** | Normalizar teléfono antes de query (linea ~68) |
-
-### Resultado
-
-- Cesar Palma verá su servicio VALEC LOGISTICA de hoy (via `useNextService`, que ya normaliza)
-- Verá sus 38 servicios históricos en el dashboard y en el historial
-- Las stats (Servicios, Km, Ingresos) se calcularán correctamente
-- Todos los custodios registrados podrán ver sus servicios
+La distribucion del funnel pasara de 100% "En Riesgo" a una distribucion realista basada en la actividad operativa real de cada cliente.
