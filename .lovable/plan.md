@@ -1,63 +1,68 @@
 
 
-## Fix: Aplicar filtro de antigüedad al conteo de Candidatos en el breadcrumb
+## Dos mejoras: Nombre del analista en tarjetas + Filtro temporal en evaluaciones
 
-### Diagnostico
+### 1. Mostrar nombre del analista en vez del ID
 
-El query del breadcrumb en `useSupplyPipelineCounts.ts` filtra por estado y asignacion, pero **no tiene filtro de fecha**. Por eso muestra 1,154 en vez de un numero accionable.
+**Problema**: Las tarjetas de leads muestran "ID: 30c9a3f" en vez del nombre real del analista asignado (como "Saul Lopez Diaz").
 
-Desglose real de leads sin asignar:
+**Solucion**: La tabla `profiles` ya tiene `display_name` vinculado por `id`. Hay dos opciones para resolver esto:
 
-| Antiguedad | Cantidad |
+**Opcion A (elegida): JOIN en el query del hook**
+Modificar `useSimpleLeads.ts` para hacer un LEFT JOIN con `profiles` via la relacion `asignado_a`:
+
+```
+select: `*, approval:lead_approval_process(...), assigned_profile:profiles!asignado_a(display_name)`
+```
+
+Esto trae el nombre del analista directamente sin queries adicionales.
+
+**Cambios en archivos**:
+
+| Archivo | Cambio |
 |---|---|
-| Ultimos 7 dias | 36 |
-| 8-15 dias | 99 |
-| 16-30 dias | 0 |
-| Mas de 30 dias | 1,019 (legacy muerto) |
+| `src/hooks/useSimpleLeads.ts` | Agregar join con profiles en el select |
+| `src/components/leads/LeadsTable.tsx` (linea 744-745) | Reemplazar `ID: {lead.asignado_a?.slice(-8)}` por el display_name del profile |
 
-Los 1,019 leads legacy nunca fueron tocados (su `updated_at` tampoco cambio). Con un corte de 30 dias da 135, pero la realidad operativa es que un lead sin contactar despues de 15 dias ya esta frio.
-
-### Cambio propuesto
-
-#### Archivo: `src/hooks/useSupplyPipelineCounts.ts`
-
-Agregar filtro `.gte('created_at', cutoffISO)` al query de candidatos:
-
+En `LeadsTable.tsx`, la linea 745 cambiara de:
 ```
-const cutoff = new Date();
-cutoff.setDate(cutoff.getDate() - 15);
-const cutoffISO = cutoff.toISOString();
+<span className="text-xs ...">ID: {lead.asignado_a?.slice(-8)}</span>
+```
+a:
+```
+<span className="text-xs ...">{lead.assigned_profile?.display_name || lead.asignado_a?.slice(-8)}</span>
+```
 
+**Nota tecnica**: Si Supabase no reconoce la FK `asignado_a -> profiles.id` automaticamente, se usara un approach alternativo: cargar los profiles una sola vez con `get_users_with_roles_secure` y hacer el mapeo en el frontend con un `Map<userId, displayName>`.
+
+---
+
+### 2. Filtro temporal en evaluaciones (conteo del breadcrumb)
+
+**Problema**: Las evaluaciones SIERCP entraron en produccion esta semana, pero el breadcrumb muestra **254 evaluaciones pendientes** (legacy) cuando en realidad solo hay **5 recientes** (ultimos 15 dias).
+
+**Dato actual**:
+- Total `candidatos_custodios`: 441
+- Con estado 'aprobado' o 'en_evaluacion': 254
+- Creados en ultimos 15 dias con ese estado: **5**
+
+**Cambio**: Agregar el mismo filtro de 15 dias al query de evaluaciones en `useSupplyPipelineCounts.ts`:
+
+```tsx
 supabase
-  .from('leads')
+  .from('candidatos_custodios')
   .select('*', { count: 'exact', head: true })
-  .is('asignado_a', null)
-  .not('estado', 'in', '("rechazado","inactivo","custodio_activo")')
-  .gte('created_at', cutoffISO)
+  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
+  .gte('created_at', cutoffISO)  // <-- agregar esto
 ```
 
-Esto reducira el conteo del breadcrumb de **1,154 a ~36-135** dependiendo del corte elegido.
+**Archivo**: `src/hooks/useSupplyPipelineCounts.ts` (linea 32-34)
 
-#### Archivo: RPC `get_leads_counts` (migracion SQL)
-
-La RPC que alimenta los tabs tambien necesita el mismo corte. La migracion anterior uso `WHERE created_at >= cutoff OR estado NOT IN (...)` que es demasiado permisiva (el OR deja pasar todo). Corregir a:
-
-```sql
-WHERE created_at >= cutoff
-```
-
-Sin el OR, para que los tabs (Por Contactar, Listos, En Proceso, Archivo) solo muestren leads recientes.
-
-### Decision de corte temporal
-
-Se propone **15 dias** como corte para la etapa de Candidatos, porque:
-- Un lead sin contactar despues de 15 dias esta frio
-- Da un numero mas cercano a lo operativamente real (~36-135)
-- Los leads mas viejos no desaparecen de la BD, solo del tablero accionable
+---
 
 ### Resultado esperado
 
-- Breadcrumb Candidatos: **~36** (en vez de 1,154)
-- Tab "Por Contactar": numero equivalente y consistente
-- Datos historicos intactos en la base de datos
+- Las tarjetas de leads mostraran "Saul Lopez Diaz" en vez de "ID: 30c9a3f"
+- El breadcrumb de Evaluaciones mostrara **5** en vez de **254**
+- Sin cambios en la base de datos, solo logica de frontend
 
