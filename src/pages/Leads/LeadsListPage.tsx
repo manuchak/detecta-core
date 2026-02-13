@@ -153,7 +153,7 @@ const LeadsListPage = () => {
           <UserPlus className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold tracking-tight">Candidatos</h1>
           <Badge variant="outline" className="text-xs font-normal tabular-nums">
-            {countsLoading ? '...' : (counts?.total || 0).toLocaleString()}
+            {countsLoading ? '...' : `${(counts?.uncontacted || 0).toLocaleString()} por asignar`}
           </Badge>
         </div>
         
