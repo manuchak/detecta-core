@@ -7,6 +7,7 @@ import { CSPanorama } from './components/CSPanorama';
 import { CSCartera } from './components/CSCartera';
 import { CSOperativo } from './components/CSOperativo';
 import { CSQuejaForm } from './components/CSQuejaForm';
+import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CustomerSuccessPage = () => {
@@ -45,11 +46,13 @@ const CustomerSuccessPage = () => {
           <TabsTrigger value="panorama">Panorama</TabsTrigger>
           <TabsTrigger value="cartera">Cartera</TabsTrigger>
           <TabsTrigger value="operativo">Operativo</TabsTrigger>
+          <TabsTrigger value="analisis">Análisis Clientes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="panorama"><CSPanorama /></TabsContent>
         <TabsContent value="cartera"><CSCartera /></TabsContent>
         <TabsContent value="operativo"><CSOperativo /></TabsContent>
+        <TabsContent value="analisis"><ClientAnalytics /></TabsContent>
       </Tabs>
 
       <Dialog open={showNewQueja} onOpenChange={setShowNewQueja}>
