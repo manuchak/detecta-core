@@ -1,21 +1,17 @@
 /**
- * Modal de detalle completo del checklist de un servicio
- * Layout con Tabs para eliminar scroll excesivo
+ * Modal de detalle completo del checklist - Layout 3 columnas "Dashboard Compacto"
+ * Todo visible sin scroll ni cambio de pestaña
  */
 import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Camera,
   Car,
   Wrench,
   FileText,
@@ -27,7 +23,6 @@ import {
   AlertTriangle,
   Fuel,
   PenLine,
-  MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -55,7 +50,7 @@ const combustibleNiveles: Record<NivelCombustible, number> = {
   vacio: 0,
 };
 
-function InspeccionItem({
+function InspeccionItemCompact({
   label,
   icon,
   value,
@@ -65,23 +60,16 @@ function InspeccionItem({
   value: boolean | null;
 }) {
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2 p-2 rounded-md border',
-        value === true
-          ? 'bg-success/5 border-success/20'
-          : value === false
-          ? 'bg-destructive/5 border-destructive/20'
-          : 'bg-muted/50 border-border'
+    <div className="flex items-center gap-1.5 py-0.5">
+      {value === true ? (
+        <Check className="h-3.5 w-3.5 text-success shrink-0" />
+      ) : value === false ? (
+        <X className="h-3.5 w-3.5 text-destructive shrink-0" />
+      ) : (
+        <span className="h-3.5 w-3.5 shrink-0 text-center text-muted-foreground text-xs">—</span>
       )}
-    >
-      <span className="text-lg">{icon}</span>
-      <span className="flex-1 text-sm">{label}</span>
-      {value === true && <Check className="h-4 w-4 text-success" />}
-      {value === false && <X className="h-4 w-4 text-destructive" />}
-      {value === null && (
-        <span className="text-xs text-muted-foreground">N/A</span>
-      )}
+      <span className="text-xs">{icon}</span>
+      <span className="text-xs truncate">{label}</span>
     </div>
   );
 }
@@ -104,22 +92,57 @@ export function ChecklistDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl h-[85vh] p-0 flex flex-col [&>button:last-child]:hidden" style={{ zoom: 1 }}>
-          {/* Fixed header */}
-          <div className="p-6 pb-4 border-b shrink-0">
+        <DialogContent
+          className="max-w-5xl h-[85vh] p-0 !flex !flex-col overflow-hidden [&>button:last-child]:hidden"
+          style={{ zoom: 1 }}
+        >
+          {/* Header compacto */}
+          <div className="p-4 pb-3 border-b shrink-0">
             <div className="flex items-start justify-between">
-              <div>
-                <DialogTitle className="text-xl">
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-semibold truncate">
                   {servicio.nombreCliente}
                 </DialogTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Folio: {servicio.idServicio}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                  <span>Folio: {servicio.idServicio}</span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {format(new Date(servicio.fechaHoraCita), "d MMM HH:mm", { locale: es })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Car className="h-3 w-3" />
+                    {servicio.custodioAsignado}
+                    {servicio.custodioTelefono && (
+                      <a href={`tel:${servicio.custodioTelefono}`} className="text-primary">
+                        <Phone className="h-3 w-3" />
+                      </a>
+                    )}
+                  </span>
+                  {servicio.origen && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {servicio.origen} → {servicio.destino || 'N/A'}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
+                {servicio.custodioTelefono && (
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1" asChild>
+                    <a
+                      href={`https://wa.me/52${servicio.custodioTelefono}?text=Checklist servicio ${servicio.idServicio}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Phone className="h-3 w-3" />
+                      WhatsApp
+                    </a>
+                  </Button>
+                )}
                 <Badge
                   variant="outline"
                   className={cn(
+                    'text-xs shrink-0',
                     servicio.checklistEstado === 'completo'
                       ? 'bg-success/10 text-success'
                       : servicio.checklistEstado === 'sin_checklist'
@@ -136,7 +159,7 @@ export function ChecklistDetailModal({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-7 w-7"
                   onClick={() => onOpenChange(false)}
                 >
                   <X className="h-4 w-4" />
@@ -144,38 +167,15 @@ export function ChecklistDetailModal({
               </div>
             </div>
 
-            {/* Service info row */}
-            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {format(new Date(servicio.fechaHoraCita), "d MMM HH:mm", { locale: es })}
-              </span>
-              <span className="flex items-center gap-1">
-                <Car className="h-3.5 w-3.5" />
-                {servicio.custodioAsignado}
-                {servicio.custodioTelefono && (
-                  <a href={`tel:${servicio.custodioTelefono}`} className="text-primary ml-1">
-                    <Phone className="h-3 w-3" />
-                  </a>
-                )}
-              </span>
-              {servicio.origen && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {servicio.origen} → {servicio.destino || 'N/A'}
-                </span>
-              )}
-            </div>
-
-            {/* Alerts inline */}
+            {/* Alertas inline */}
             {servicio.alertas.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {servicio.alertas.map((alerta, i) => (
                   <Badge
                     key={i}
                     variant="outline"
                     className={cn(
-                      'text-xs',
+                      'text-[10px] py-0',
                       alerta.severidad === 'critica'
                         ? 'bg-destructive/10 text-destructive border-destructive/30'
                         : alerta.severidad === 'alta'
@@ -183,7 +183,7 @@ export function ChecklistDetailModal({
                         : 'bg-warning/10 text-warning border-warning/30'
                     )}
                   >
-                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
                     {alerta.descripcion}
                   </Badge>
                 ))}
@@ -214,30 +214,19 @@ export function ChecklistDetailModal({
               </div>
             </div>
           ) : (
-            <Tabs defaultValue="fotos" className="flex-1 min-h-0 flex flex-col">
-              <TabsList className="mx-6 mt-4 shrink-0 self-start">
-                <TabsTrigger value="fotos" className="gap-1.5">
-                  <Camera className="h-3.5 w-3.5" />
+            /* 3 columnas: Fotos | Inspección | Observaciones */
+            <div className="flex-1 min-h-0 grid grid-cols-3 gap-0 overflow-hidden">
+              {/* Col 1: Fotos */}
+              <div className="p-3 border-r overflow-auto">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   Fotos
-                </TabsTrigger>
-                <TabsTrigger value="inspeccion" className="gap-1.5">
-                  <Car className="h-3.5 w-3.5" />
-                  Inspección
-                </TabsTrigger>
-                <TabsTrigger value="observaciones" className="gap-1.5">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Observaciones
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Tab: Fotos */}
-              <TabsContent value="fotos" className="flex-1 min-h-0 overflow-auto p-6 pt-4 mt-0">
-                <div className="grid grid-cols-2 gap-3">
-                  {servicio.fotosValidadas.length > 0 ? (
-                    servicio.fotosValidadas.map((foto, index) => (
+                </h4>
+                {servicio.fotosValidadas.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {servicio.fotosValidadas.map((foto, index) => (
                       <button
                         key={foto.angle}
-                        className="relative aspect-square rounded-lg overflow-hidden border hover:ring-2 hover:ring-primary transition-all"
+                        className="relative aspect-[4/3] rounded-md overflow-hidden border hover:ring-2 hover:ring-primary transition-all"
                         onClick={() => setLightboxIndex(index)}
                       >
                         <img
@@ -246,117 +235,113 @@ export function ChecklistDetailModal({
                           className="w-full h-full object-cover"
                           loading="lazy"
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                          <p className="text-white text-xs font-medium">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
+                          <p className="text-white text-[10px] font-medium leading-tight">
                             {ANGULO_LABELS[foto.angle]}
                           </p>
                           <GeoValidationBadge
                             validacion={foto.validacion}
                             distancia={foto.distancia_origen_m}
-                            className="mt-1"
+                            className="mt-0.5 scale-75 origin-left"
                           />
                         </div>
                       </button>
-                    ))
-                  ) : (
-                    <div className="col-span-2 text-center py-12 text-muted-foreground">
-                      No hay fotos registradas
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              {/* Tab: Inspección (vehicular + combustible + equipamiento) */}
-              <TabsContent value="inspeccion" className="flex-1 min-h-0 overflow-auto p-6 pt-4 mt-0 space-y-5">
-                {/* Inspección vehicular */}
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
-                    <Car className="h-4 w-4 text-muted-foreground" />
-                    Inspección Vehicular
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {INSPECCION_ITEMS.map((item) => (
-                      <InspeccionItem
-                        key={item.key}
-                        label={item.label}
-                        icon={item.icon}
-                        value={
-                          servicio.itemsInspeccion?.vehiculo?.[
-                            item.key as keyof typeof servicio.itemsInspeccion.vehiculo
-                          ] as boolean | null
-                        }
-                      />
                     ))}
                   </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground text-xs">
+                    No hay fotos
+                  </div>
+                )}
+              </div>
+
+              {/* Col 2: Inspección Vehicular + Equipamiento + Combustible */}
+              <div className="p-3 border-r overflow-auto">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Inspección Vehicular
+                </h4>
+                <div className="space-y-0.5">
+                  {INSPECCION_ITEMS.map((item) => (
+                    <InspeccionItemCompact
+                      key={item.key}
+                      label={item.label}
+                      icon={item.icon}
+                      value={
+                        servicio.itemsInspeccion?.vehiculo?.[
+                          item.key as keyof typeof servicio.itemsInspeccion.vehiculo
+                        ] as boolean | null
+                      }
+                    />
+                  ))}
                 </div>
 
+                <div className="my-2 border-t" />
+
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Equipamiento
+                </h4>
+                <div className="space-y-0.5">
+                  {EQUIPAMIENTO_ITEMS.map((item) => (
+                    <InspeccionItemCompact
+                      key={item.key}
+                      label={item.label}
+                      icon={item.icon}
+                      value={
+                        servicio.itemsInspeccion?.equipamiento?.[
+                          item.key as keyof typeof servicio.itemsInspeccion.equipamiento
+                        ] as boolean | null
+                      }
+                    />
+                  ))}
+                </div>
+
+                <div className="my-2 border-t" />
+
                 {/* Combustible */}
-                <div className="p-3 rounded-md border bg-muted/30">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="flex items-center gap-2 text-sm">
-                      <Fuel className="h-4 w-4" />
-                      Nivel de Combustible
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="flex items-center gap-1 text-xs">
+                      <Fuel className="h-3 w-3" />
+                      Combustible
                     </span>
-                    <span className="text-sm font-medium">
+                    <span className="text-xs font-medium">
                       {combustibleNivel || 'N/A'}
                     </span>
                   </div>
-                  <Progress value={combustiblePct} className="h-2" />
+                  <Progress value={combustiblePct} className="h-1.5" />
                 </div>
+              </div>
 
-                {/* Equipamiento */}
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
-                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                    Equipamiento de Emergencia
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {EQUIPAMIENTO_ITEMS.map((item) => (
-                      <InspeccionItem
-                        key={item.key}
-                        label={item.label}
-                        icon={item.icon}
-                        value={
-                          servicio.itemsInspeccion?.equipamiento?.[
-                            item.key as keyof typeof servicio.itemsInspeccion.equipamiento
-                          ] as boolean | null
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* Tab: Observaciones */}
-              <TabsContent value="observaciones" className="flex-1 min-h-0 overflow-auto p-6 pt-4 mt-0 space-y-4">
+              {/* Col 3: Observaciones + Firma */}
+              <div className="p-3 overflow-auto">
+                <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Observaciones
+                </h4>
                 {servicio.observaciones ? (
-                  <div className="p-4 rounded-lg border bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-2">Observaciones</p>
-                    <p className="text-sm">{servicio.observaciones}</p>
-                  </div>
+                  <p className="text-xs leading-relaxed">{servicio.observaciones}</p>
                 ) : (
-                  <div className="p-4 rounded-lg border border-dashed text-center text-muted-foreground text-sm">
+                  <p className="text-xs text-muted-foreground italic">
                     Sin observaciones registradas
-                  </div>
+                  </p>
                 )}
 
                 {servicio.firmaBase64 && (
-                  <div className="p-4 rounded-lg border bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                      <PenLine className="h-3 w-3" />
+                  <div className="mt-3">
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
+                      <PenLine className="h-2.5 w-2.5" />
                       Firma del Custodio
                     </p>
                     <img
                       src={servicio.firmaBase64}
                       alt="Firma"
-                      className="h-20 border rounded bg-white"
+                      className="h-14 border rounded bg-white"
                     />
                   </div>
                 )}
 
                 {servicio.fechaChecklist && (
-                  <p className="text-xs text-muted-foreground text-center pt-2">
-                    Checklist completado el{' '}
+                  <p className="text-[10px] text-muted-foreground mt-3">
+                    Completado el{' '}
                     {format(
                       new Date(servicio.fechaChecklist),
                       "d 'de' MMMM 'a las' HH:mm",
@@ -364,8 +349,8 @@ export function ChecklistDetailModal({
                     )}
                   </p>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
