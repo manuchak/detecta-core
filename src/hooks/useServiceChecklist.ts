@@ -17,10 +17,11 @@
    deletePhotoBlob,
  } from '@/lib/offlineStorage';
 import { compressImage, needsCompression } from '@/lib/imageUtils';
- import {
-   getCurrentPositionSafe,
-   validarUbicacionFoto,
- } from '@/lib/geoUtils';
+import {
+  getCurrentPositionSafe,
+  validarUbicacionFoto,
+} from '@/lib/geoUtils';
+import { normalizePhone } from '@/lib/phoneUtils';
  import {
    type ChecklistServicio,
    type ItemsInspeccion,
@@ -37,11 +38,12 @@ import { compressImage, needsCompression } from '@/lib/imageUtils';
    origenCoords?: { lat: number; lng: number } | null;
  }
  
- export function useServiceChecklist({
-   servicioId,
-   custodioTelefono,
-   origenCoords,
- }: UseServiceChecklistOptions) {
+export function useServiceChecklist({
+  servicioId,
+  custodioTelefono: rawTelefono,
+  origenCoords,
+}: UseServiceChecklistOptions) {
+  const custodioTelefono = normalizePhone(rawTelefono);
    const queryClient = useQueryClient();
    const { isOnline } = useNetworkStatus();
  
