@@ -14,7 +14,7 @@ export function useSupplyPipelineCounts() {
     queryKey: ['supply-pipeline-counts'],
     queryFn: async (): Promise<PipelineCounts> => {
       const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 15);
+      cutoff.setDate(cutoff.getDate() - 7);
       const cutoffISO = cutoff.toISOString();
 
       const [candidatos, aprobaciones, evaluaciones, liberacion, operativos] = await Promise.allSettled([
