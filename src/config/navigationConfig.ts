@@ -362,40 +362,22 @@ export const navigationModules: NavigationModule[] = [
     roles: ['admin', 'owner', 'customer_success', 'ejecutivo_ventas', 'coordinador_operaciones'],
     children: [
       {
-        id: 'cs_dashboard',
-        label: 'Dashboard',
+        id: 'cs_panorama',
+        label: 'Panorama',
         path: '/customer-success',
         icon: LayoutDashboard
       },
       {
-        id: 'cs_retencion',
-        label: 'Retención',
-        path: '/customer-success?tab=retencion',
-        icon: TrendingUp
-      },
-      {
-        id: 'cs_quejas',
-        label: 'Quejas',
-        path: '/customer-success?tab=quejas',
-        icon: ClipboardList
-      },
-      {
-        id: 'cs_clientes',
-        label: 'Clientes',
-        path: '/customer-success?tab=clientes',
+        id: 'cs_cartera',
+        label: 'Cartera',
+        path: '/customer-success?tab=cartera',
         icon: Users
       },
       {
-        id: 'cs_capa',
-        label: 'CAPA',
-        path: '/customer-success?tab=capa',
-        icon: CheckCircle2
-      },
-      {
-        id: 'cs_mejora',
-        label: 'Mejora Continua',
-        path: '/customer-success?tab=mejora',
-        icon: BarChart3
+        id: 'cs_operativo',
+        label: 'Operativo',
+        path: '/customer-success?tab=operativo',
+        icon: ClipboardList
       }
     ]
   },

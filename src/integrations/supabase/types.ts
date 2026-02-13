@@ -10960,11 +10960,13 @@ export type Database = {
           dias_max_facturacion: number | null
           direccion_fiscal: string | null
           es_embajador: boolean | null
+          fecha_baja: string | null
           forma_pago_preferida: string | null
           horas_cortesia: number | null
           id: string
           limite_credito: number | null
           margen_objetivo_porcentaje: number | null
+          motivo_baja: string | null
           nombre: string
           notas: string | null
           notas_cobranza: string | null
@@ -11001,11 +11003,13 @@ export type Database = {
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           es_embajador?: boolean | null
+          fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
+          motivo_baja?: string | null
           nombre: string
           notas?: string | null
           notas_cobranza?: string | null
@@ -11042,11 +11046,13 @@ export type Database = {
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           es_embajador?: boolean | null
+          fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
+          motivo_baja?: string | null
           nombre?: string
           notas?: string | null
           notas_cobranza?: string | null
