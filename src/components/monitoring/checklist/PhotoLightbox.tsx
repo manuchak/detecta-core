@@ -114,14 +114,17 @@ export function PhotoLightbox({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur" style={{ zoom: 1 }}>
+      <DialogContent
+        className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur [&>button:last-child]:hidden"
+        style={{ zoom: 1 }}
+      >
         <div
           className="relative h-full flex flex-col"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center justify-between p-4 border-b shrink-0">
             <div className="flex items-center gap-3">
               <span className="font-medium">
                 {ANGULO_LABELS[currentFoto.angle]}
@@ -151,11 +154,18 @@ export function PhotoLightbox({
                   <ExternalLink className="h-3 w-3" />
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
           </div>
 
-          {/* Image container */}
-          <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden">
+          {/* Image container - min-h-0 constrains flex child */}
+          <div className="flex-1 min-h-0 relative flex items-center justify-center p-4 overflow-hidden">
             {/* Navigation buttons */}
             {fotos.length > 1 && (
               <>
@@ -188,7 +198,7 @@ export function PhotoLightbox({
           </div>
 
           {/* Footer with thumbnails */}
-          <div className="p-4 border-t">
+          <div className="p-4 border-t shrink-0">
             <div className="flex items-center justify-center gap-2">
               {fotos.map((foto, index) => (
                 <button
