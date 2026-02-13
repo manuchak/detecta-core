@@ -105,6 +105,25 @@ const MobileDashboardLayout = () => {
     return services.filter(s => new Date(s.fecha_hora_cita) >= startOfMonth).length;
   }, [services]);
 
+  // Calcular KM e ingresos del mes actual (mismo filtro que serviciosEsteMes)
+  const kmEsteMes = useMemo(() => {
+    if (!services || services.length === 0) return 0;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return services
+      .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
+      .reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
+  }, [services]);
+
+  const ingresosEsteMes = useMemo(() => {
+    if (!services || services.length === 0) return 0;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return services
+      .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
+      .reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+  }, [services]);
+
   // Get open tickets for urgency calculation - MUST be before any conditional returns
   const openTickets = useMemo(() => 
     allTickets.filter(t => t.status === 'abierto' || t.status === 'en_progreso'), 
@@ -431,8 +450,8 @@ const MobileDashboardLayout = () => {
         <section className="animate-fade-in" style={{ animationDelay: '50ms' }}>
           <CompactStatsBar
             serviciosEsteMes={serviciosEsteMes}
-            kmRecorridos={stats.km_totales}
-            ingresosTotales={stats.ingresos_totales}
+            kmRecorridos={kmEsteMes}
+            ingresosTotales={ingresosEsteMes}
           />
         </section>
 

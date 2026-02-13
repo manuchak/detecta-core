@@ -32,14 +32,14 @@ const CompactStatsBar = ({ serviciosEsteMes, kmRecorridos, ingresosTotales }: Co
     {
       icon: MapPin,
       value: formatCompactNumber(kmRecorridos),
-      label: "Km",
+      label: "Km mes",
       color: "text-purple-600",
       bgColor: "bg-purple-500/10",
     },
     {
       icon: DollarSign,
       value: formatCompactNumber(ingresosTotales),
-      label: "Ingresos",
+      label: "Ingresos mes",
       color: "text-green-600",
       bgColor: "bg-green-500/10",
     },
