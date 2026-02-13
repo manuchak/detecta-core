@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizePhone } from '@/lib/phoneUtils';
 
 interface CustodianService {
   id_servicio: string;
@@ -31,8 +32,8 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
       now.setHours(0, 0, 0, 0);
       const todayISO = now.toISOString();
       
-      // Normalizar teléfono (quitar espacios, guiones)
-      const normalizedPhone = custodianPhone.replace(/[\s-]/g, '');
+      // Normalizar teléfono usando utilidad centralizada
+      const normalizedPhone = normalizePhone(custodianPhone);
       
       // 1. Query servicios_planificados (sistema nuevo con custodio_telefono)
       const { data: planificados, error: planError } = await supabase
