@@ -2,7 +2,8 @@ import { useState, useCallback, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Filter, Users, BarChart3, Target } from "lucide-react";
+import { Plus, Filter, Users, BarChart3, Target, UserPlus } from "lucide-react";
+import { SupplyPipelineBreadcrumb } from "@/components/leads/supply/SupplyPipelineBreadcrumb";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadsTable } from "@/components/leads/LeadsTable";
 import { EnhancedLeadForm } from "@/components/leads/EnhancedLeadForm";
@@ -143,9 +144,13 @@ const LeadsListPage = () => {
 
   return (
     <div className="space-y-4 p-6">
+      {/* Supply Pipeline Breadcrumb */}
+      <SupplyPipelineBreadcrumb />
+
       {/* Header Lean */}
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <UserPlus className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold tracking-tight">Candidatos</h1>
           <Badge variant="outline" className="text-xs font-normal tabular-nums">
             {countsLoading ? '...' : (counts?.total || 0).toLocaleString()}
