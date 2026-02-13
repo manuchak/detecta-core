@@ -31,21 +31,21 @@ export function useCSRetentionMetrics() {
       // Fetch servicios for NRR and churn calculation
       const { data: servicios, error: sErr } = await supabase
         .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente, fecha_servicio')
-        .gte('fecha_servicio', format(subMonths(now, 6), 'yyyy-MM-dd'));
+        .select('nombre_cliente, cobro_cliente, fecha_hora_cita')
+        .gte('fecha_hora_cita', format(subMonths(now, 6), 'yyyy-MM-dd'));
       if (sErr) throw sErr;
 
       // NRR: GMV current month / GMV previous month (existing clients only)
       const gmvMesActual = (servicios || [])
         .filter(s => {
-          const d = s.fecha_servicio;
+          const d = s.fecha_hora_cita;
           return d && d >= format(mesActual, 'yyyy-MM-dd') && d <= format(endOfMonth(now), 'yyyy-MM-dd');
         })
         .reduce((sum, s) => sum + (Number(s.cobro_cliente) || 0), 0);
 
       const gmvMesAnterior = (servicios || [])
         .filter(s => {
-          const d = s.fecha_servicio;
+          const d = s.fecha_hora_cita;
           return d && d >= format(mesAnterior, 'yyyy-MM-dd') && d < format(mesActual, 'yyyy-MM-dd');
         })
         .reduce((sum, s) => sum + (Number(s.cobro_cliente) || 0), 0);
@@ -56,7 +56,7 @@ export function useCSRetentionMetrics() {
       const cutoff60d = format(subMonths(now, 2), 'yyyy-MM-dd');
       const clientesConServicioReciente = new Set(
         (servicios || [])
-          .filter(s => s.fecha_servicio && s.fecha_servicio >= cutoff60d)
+          .filter(s => s.fecha_hora_cita && s.fecha_hora_cita >= cutoff60d)
           .map(s => s.nombre_cliente?.toLowerCase().trim())
       );
       const clientesSinServicio = (clientes || []).filter(
@@ -100,7 +100,7 @@ export function useCSRetentionMetrics() {
 
         const clientesMes = new Set(
           (servicios || [])
-            .filter(s => s.fecha_servicio && s.fecha_servicio >= mesStart && s.fecha_servicio <= mesEnd)
+            .filter(s => s.fecha_hora_cita && s.fecha_hora_cita >= mesStart && s.fecha_hora_cita <= mesEnd)
             .map(s => s.nombre_cliente?.toLowerCase().trim())
         );
 
