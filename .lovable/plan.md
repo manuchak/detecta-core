@@ -1,49 +1,45 @@
 
 
-## Fix: Alinear criterio de "En Riesgo" entre Funnel y Tarjeta KPI
+## Incorporar "Análisis Clientes" en Customer Success
 
-### Problema
+### Objetivo
 
-La tarjeta KPI "Clientes en Riesgo" y el Funnel de Fidelidad usan criterios diferentes para clasificar riesgo:
+Reutilizar el componente `ClientAnalytics` (actualmente en KPIs > Analisis Clientes) como una nueva pestaña dentro del modulo de Customer Success, manteniendo exactamente la misma estructura, logica y UI.
 
-| Criterio | Tarjeta KPI (Cartera) | Funnel (Fidelidad) |
-|---|---|---|
-| Quejas >= 2 | En Riesgo | En Riesgo |
-| Sin contacto > 60d Y sin servicios 90d | En Riesgo | En Riesgo |
-| Sin contacto > 60d PERO con servicios 90d | NO es riesgo | Es riesgo |
+### Cambio
 
-La linea 59 del funnel marca como "en_riesgo" a cualquier cliente con `dias_sin_contacto > 60`, sin verificar si tiene servicios recientes. Esto atrapa 4 clientes extra que la tarjeta KPI correctamente excluye.
+**Archivo: `src/pages/CustomerSuccess/CustomerSuccessPage.tsx`**
 
-### Solucion
+1. Importar el componente existente:
+   ```typescript
+   import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
+   ```
 
-Actualizar `calculateStage()` en `src/hooks/useCSLoyaltyFunnel.ts` para que use la misma condicion que `calcSalud()` en Cartera.
+2. Agregar una cuarta pestaña "Analisis Clientes" al TabsList (despues de Operativo):
+   ```tsx
+   <TabsTrigger value="analisis">Analisis Clientes</TabsTrigger>
+   ```
 
-### Cambio en `src/hooks/useCSLoyaltyFunnel.ts`
+3. Agregar el TabsContent correspondiente:
+   ```tsx
+   <TabsContent value="analisis"><ClientAnalytics /></TabsContent>
+   ```
 
-Reemplazar lineas 53-59:
+4. Actualizar el grid del TabsList de `w-full justify-start` a acomodar 4 tabs.
 
-```
-const sinActividadReciente = client.dias_sin_contacto > 60;
-if (client.quejas_abiertas >= 2 || (sinActividadReciente && !client.ultimo_servicio)) {
-  return 'en_riesgo';
-}
-if (sinActividadReciente) return 'en_riesgo';
-```
+### Lo que NO cambia
 
-Por:
-
-```
-const sinActividadReciente = client.dias_sin_contacto > 60;
-if (client.quejas_abiertas >= 2 || (sinActividadReciente && client.servicios_90d === 0)) {
-  return 'en_riesgo';
-}
-```
-
-Esto:
-- Elimina la linea 59 que marcaba riesgo solo por `dias_sin_contacto > 60`
-- Unifica la condicion: riesgo = `quejas >= 2` O `(sin contacto > 60d Y sin servicios en 90d)`
-- Clientes con servicios recientes pero sin touchpoint manual no seran penalizados
+- El componente `ClientAnalytics` se reutiliza tal cual, sin duplicar codigo
+- Los hooks `useClientsData`, `useClientMetrics`, `useClientTableData`, `useClientAnalytics` siguen siendo los mismos
+- Toda la UI (tarjetas de Mejor AOV, Mas Servicios, Mayor GMV, tabla Top 15, drill-down por cliente, filtros de fecha, PDF export) se mantiene identica
+- El modulo de KPIs sigue teniendo su propia copia funcional
 
 ### Resultado
 
-Ambos componentes mostraran el mismo numero de clientes en riesgo (3 en este caso).
+El equipo de Customer Success tendra acceso directo al dashboard de performance de clientes sin necesidad de ir a KPIs, con las mismas metricas, filtros y capacidad de drill-down.
+
+### Detalle tecnico
+
+- Solo se modifica 1 archivo: `CustomerSuccessPage.tsx`
+- Se agregan ~4 lineas de codigo (1 import + 1 TabsTrigger + 1 TabsContent)
+- La navegacion por URL seguira funcionando: `/customer-success?tab=analisis`
