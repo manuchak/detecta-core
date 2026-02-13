@@ -1,68 +1,71 @@
 
 
-## Dos mejoras: Nombre del analista en tarjetas + Filtro temporal en evaluaciones
+## Fix: Bug que impide cargar candidatos
 
-### 1. Mostrar nombre del analista en vez del ID
+### Causa raiz
 
-**Problema**: Las tarjetas de leads muestran "ID: 30c9a3f" en vez del nombre real del analista asignado (como "Saul Lopez Diaz").
+El ultimo cambio agrego `assigned_profile:profiles!asignado_a(display_name)` al query de `useSimpleLeads.ts`. Supabase requiere una FK (foreign key) para resolver JOINs con la sintaxis `!column_name`, pero la tabla `leads` **no tiene ninguna FK definida** — ni hacia `profiles` ni hacia ninguna otra tabla.
 
-**Solucion**: La tabla `profiles` ya tiene `display_name` vinculado por `id`. Hay dos opciones para resolver esto:
+Por eso el query falla con un error de PostgREST y los candidatos no cargan.
 
-**Opcion A (elegida): JOIN en el query del hook**
-Modificar `useSimpleLeads.ts` para hacer un LEFT JOIN con `profiles` via la relacion `asignado_a`:
+### Solucion
 
+Usar un enfoque alternativo: quitar el JOIN problemático y resolver los nombres de analistas con un query separado.
+
+#### Paso 1: Revertir el JOIN en `useSimpleLeads.ts`
+
+Quitar `assigned_profile:profiles!asignado_a(display_name)` del select query, dejandolo como estaba antes:
+
+```tsx
+.select(`
+  *,
+  approval:lead_approval_process(
+    final_decision,
+    current_stage,
+    analyst_id,
+    phone_interview_completed
+  )
+`, { count: 'exact' })
 ```
-select: `*, approval:lead_approval_process(...), assigned_profile:profiles!asignado_a(display_name)`
+
+#### Paso 2: Cargar nombres de analistas por separado
+
+Despues de obtener los leads, extraer los IDs unicos de `asignado_a`, hacer un query a `profiles` para obtener los `display_name`, y crear un Map para busqueda rapida:
+
+```tsx
+// Extraer IDs unicos de analistas
+const analystIds = [...new Set(data.filter(l => l.asignado_a).map(l => l.asignado_a))];
+
+// Cargar nombres si hay IDs
+let analystMap = new Map();
+if (analystIds.length > 0) {
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, display_name')
+    .in('id', analystIds);
+  profiles?.forEach(p => analystMap.set(p.id, p.display_name));
+}
+
+// Agregar display_name a cada lead
+const typedLeads = data.map(lead => ({
+  ...lead,
+  assigned_profile: lead.asignado_a ? { display_name: analystMap.get(lead.asignado_a) || null } : null
+}));
 ```
 
-Esto trae el nombre del analista directamente sin queries adicionales.
+#### Paso 3: Mantener el cambio en LeadsTable.tsx
 
-**Cambios en archivos**:
+El cambio en la UI ya es correcto — muestra `assigned_profile?.display_name` con fallback al ID truncado. No requiere cambios adicionales.
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/hooks/useSimpleLeads.ts` | Agregar join con profiles en el select |
-| `src/components/leads/LeadsTable.tsx` (linea 744-745) | Reemplazar `ID: {lead.asignado_a?.slice(-8)}` por el display_name del profile |
+| `src/hooks/useSimpleLeads.ts` | Quitar JOIN, agregar query separado a profiles, mapear nombres |
 
-En `LeadsTable.tsx`, la linea 745 cambiara de:
-```
-<span className="text-xs ...">ID: {lead.asignado_a?.slice(-8)}</span>
-```
-a:
-```
-<span className="text-xs ...">{lead.assigned_profile?.display_name || lead.asignado_a?.slice(-8)}</span>
-```
+### Resultado
 
-**Nota tecnica**: Si Supabase no reconoce la FK `asignado_a -> profiles.id` automaticamente, se usara un approach alternativo: cargar los profiles una sola vez con `get_users_with_roles_secure` y hacer el mapeo en el frontend con un `Map<userId, displayName>`.
-
----
-
-### 2. Filtro temporal en evaluaciones (conteo del breadcrumb)
-
-**Problema**: Las evaluaciones SIERCP entraron en produccion esta semana, pero el breadcrumb muestra **254 evaluaciones pendientes** (legacy) cuando en realidad solo hay **5 recientes** (ultimos 15 dias).
-
-**Dato actual**:
-- Total `candidatos_custodios`: 441
-- Con estado 'aprobado' o 'en_evaluacion': 254
-- Creados en ultimos 15 dias con ese estado: **5**
-
-**Cambio**: Agregar el mismo filtro de 15 dias al query de evaluaciones en `useSupplyPipelineCounts.ts`:
-
-```tsx
-supabase
-  .from('candidatos_custodios')
-  .select('*', { count: 'exact', head: true })
-  .in('estado_proceso', ['aprobado', 'en_evaluacion'])
-  .gte('created_at', cutoffISO)  // <-- agregar esto
-```
-
-**Archivo**: `src/hooks/useSupplyPipelineCounts.ts` (linea 32-34)
-
----
-
-### Resultado esperado
-
-- Las tarjetas de leads mostraran "Saul Lopez Diaz" en vez de "ID: 30c9a3f"
-- El breadcrumb de Evaluaciones mostrara **5** en vez de **254**
-- Sin cambios en la base de datos, solo logica de frontend
+- Los candidatos volveran a cargar correctamente
+- Las tarjetas mostraran el nombre del analista (ej: "Saul Lopez Diaz") en vez del ID
+- Sin necesidad de crear FK en la base de datos
 
