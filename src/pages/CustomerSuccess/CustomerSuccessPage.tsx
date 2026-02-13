@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, Plus } from 'lucide-react';
@@ -13,6 +14,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 const CustomerSuccessPage = () => {
   const [showNewQueja, setShowNewQueja] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'dashboard';
+
+  const handleTabChange = (value: string) => {
+    if (value === 'dashboard') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab: value });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -32,7 +43,7 @@ const CustomerSuccessPage = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="dashboard" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="retencion">Retención</TabsTrigger>
