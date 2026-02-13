@@ -1,71 +1,58 @@
 
 
-## Fix: RLS policy de `documentos_custodio` falla por formato de telefono
+## Fix: Incluir `servicios_planificados` en el Funnel de Fidelidad
 
-### Problema raiz
+### Problema
 
-La politica RLS "Custodios gestionan documentos propios" compara directamente:
-
-```
-custodio_telefono = (SELECT profiles.phone FROM profiles WHERE profiles.id = auth.uid())
-```
-
-Pero el codigo normaliza el telefono antes de insertar (quita espacios y caracteres no numericos):
-- `profiles.phone` almacena: `"56 5351 6083"` (con espacios)
-- El codigo inserta `custodio_telefono` como: `"5653516083"` (normalizado, solo digitos)
-
-Como `"5653516083" != "56 5351 6083"`, el RLS rechaza el INSERT.
+`useCSLoyaltyFunnel.ts` (linea 110-113) solo consulta `servicios_custodia`, ignorando `servicios_planificados`. Resultado:
+- Clientes con servicios recientes en la tabla nueva aparecen con `dias_sin_contacto = 999`
+- `calculateStage()` los clasifica como **En Riesgo** (condicion: `dias_sin_contacto > 60`)
+- Por eso 49 de 80 clientes (61%) caen en "En Riesgo" cuando en realidad estan activos
 
 ### Solucion
 
-Crear una funcion SQL que normalice el telefono (extraiga solo digitos, ultimos 10) y actualizar la politica RLS para usar esa funcion en ambos lados de la comparacion.
+Aplicar el mismo patron de "Dual-Source Unification" ya implementado en los otros 3 hooks de CS.
 
-### Cambios
+### Cambio en `src/hooks/useCSLoyaltyFunnel.ts`
 
-**1. Crear funcion SQL `normalize_phone`**
-
-```sql
-CREATE OR REPLACE FUNCTION public.normalize_phone(phone text)
-RETURNS text
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT right(regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10)
-$$;
+**Reemplazar** el fetch simple de servicios (lineas 110-113):
+```
+const { data: servicios, error: sErr } = await supabase
+  .from('servicios_custodia')
+  .select('nombre_cliente, cobro_cliente, fecha_hora_cita');
 ```
 
-**2. Reemplazar la politica RLS**
+**Por** el patron dual con deduplicacion:
+```
+const [legacyRes, planRes] = await Promise.all([
+  supabase.from('servicios_custodia')
+    .select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
+  supabase.from('servicios_planificados')
+    .select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
+]);
+if (legacyRes.error) throw legacyRes.error;
+if (planRes.error) throw planRes.error;
 
-Eliminar la politica actual y crear una nueva que use `normalize_phone()` en ambos lados:
-
-```sql
-DROP POLICY "Custodios gestionan documentos propios" ON documentos_custodio;
-
-CREATE POLICY "Custodios gestionan documentos propios"
-ON documentos_custodio FOR ALL
-USING (
-  normalize_phone(custodio_telefono) = (
-    SELECT normalize_phone(profiles.phone)
-    FROM profiles
-    WHERE profiles.id = auth.uid()
-  )
-)
-WITH CHECK (
-  normalize_phone(custodio_telefono) = (
-    SELECT normalize_phone(profiles.phone)
-    FROM profiles
-    WHERE profiles.id = auth.uid()
-  )
-);
+const planData = (planRes.data || []).map(s => ({
+  nombre_cliente: s.nombre_cliente,
+  cobro_cliente: s.cobro_posicionamiento,
+  fecha_hora_cita: s.fecha_hora_cita,
+}));
+const allServicios = [...(legacyRes.data || []), ...planData];
+const seen = new Set();
+const servicios = allServicios.filter(s => {
+  const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
+  if (seen.has(key)) return false;
+  seen.add(key);
+  return true;
+});
 ```
 
-### Por que esto funciona
+Mover estas dos queries al bloque `Promise.all` existente (linea 116) para mantener el paralelismo.
 
-- `normalize_phone("56 5351 6083")` retorna `"5653516083"`
-- `normalize_phone("5653516083")` retorna `"5653516083"`
-- Ahora ambos lados coinciden, y el INSERT pasa el chequeo RLS
+### Resultado esperado
 
-### Sin cambios en el frontend
-
-No se necesita modificar ningun archivo TypeScript. El fix es puramente en la base de datos (SQL).
+- Clientes con servicios planificados recientes saldran de "En Riesgo" y se clasificaran correctamente (Activo, Leal, Promotor, etc.)
+- El conteo del funnel hara match con los datos de las tarjetas de Cartera
+- Sin cambios en la UI ni en la logica de `calculateStage()`
 
