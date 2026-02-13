@@ -3,22 +3,19 @@ import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { HeartHandshake, Plus } from 'lucide-react';
-import { CSDashboard } from './components/CSDashboard';
-import { CSRetentionDashboard } from './components/CSRetentionDashboard';
-import { CSQuejasList } from './components/CSQuejasList';
-import { CSClientesList } from './components/CSClientesList';
-import { CSCAPAKanban } from './components/CSCAPAKanban';
-import { CSMejoraContinua } from './components/CSMejoraContinua';
+import { CSPanorama } from './components/CSPanorama';
+import { CSCartera } from './components/CSCartera';
+import { CSOperativo } from './components/CSOperativo';
 import { CSQuejaForm } from './components/CSQuejaForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CustomerSuccessPage = () => {
   const [showNewQueja, setShowNewQueja] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'dashboard';
+  const activeTab = searchParams.get('tab') || 'panorama';
 
   const handleTabChange = (value: string) => {
-    if (value === 'dashboard') {
+    if (value === 'panorama') {
       setSearchParams({});
     } else {
       setSearchParams({ tab: value });
@@ -33,7 +30,7 @@ const CustomerSuccessPage = () => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Customer Success</h1>
             <p className="text-muted-foreground text-sm">
-              Gestión de quejas, satisfacción y mejora continua · ISO 9001:2015
+              Gestión de cartera, satisfacción y mejora continua · ISO 9001:2015
             </p>
           </div>
         </div>
@@ -45,20 +42,14 @@ const CustomerSuccessPage = () => {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="retencion">Retención</TabsTrigger>
-          <TabsTrigger value="quejas">Quejas</TabsTrigger>
-          <TabsTrigger value="clientes">Clientes</TabsTrigger>
-          <TabsTrigger value="capa">CAPA</TabsTrigger>
-          <TabsTrigger value="mejora">Mejora Continua</TabsTrigger>
+          <TabsTrigger value="panorama">Panorama</TabsTrigger>
+          <TabsTrigger value="cartera">Cartera</TabsTrigger>
+          <TabsTrigger value="operativo">Operativo</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard"><CSDashboard /></TabsContent>
-        <TabsContent value="retencion"><CSRetentionDashboard /></TabsContent>
-        <TabsContent value="quejas"><CSQuejasList /></TabsContent>
-        <TabsContent value="clientes"><CSClientesList /></TabsContent>
-        <TabsContent value="capa"><CSCAPAKanban /></TabsContent>
-        <TabsContent value="mejora"><CSMejoraContinua /></TabsContent>
+        <TabsContent value="panorama"><CSPanorama /></TabsContent>
+        <TabsContent value="cartera"><CSCartera /></TabsContent>
+        <TabsContent value="operativo"><CSOperativo /></TabsContent>
       </Tabs>
 
       <Dialog open={showNewQueja} onOpenChange={setShowNewQueja}>
