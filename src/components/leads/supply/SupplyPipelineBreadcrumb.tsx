@@ -2,10 +2,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSupplyPipelineCounts } from '@/hooks/useSupplyPipelineCounts';
 import { useSupplyPipelineAlerts } from '@/hooks/useSupplyPipelineAlerts';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, ClipboardCheck, Rocket, Users, ChevronRight, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, ClipboardCheck, Rocket, Users, ChevronRight, Loader2, AlertTriangle, UserPlus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const steps = [
+  { key: 'candidatos', label: 'Candidatos', path: '/leads', icon: UserPlus },
   { key: 'aprobaciones', label: 'Aprobaciones', path: '/leads/approvals', icon: CheckCircle2 },
   { key: 'evaluaciones', label: 'Evaluaciones', path: '/leads/evaluaciones', icon: ClipboardCheck },
   { key: 'liberacion', label: 'Liberación', path: '/leads/liberacion', icon: Rocket },

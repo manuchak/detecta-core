@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface PipelineCounts {
+  candidatos: number | null;
   aprobaciones: number | null;
   evaluaciones: number | null;
   liberacion: number | null;
@@ -12,7 +13,10 @@ export function useSupplyPipelineCounts() {
   return useQuery({
     queryKey: ['supply-pipeline-counts'],
     queryFn: async (): Promise<PipelineCounts> => {
-      const [aprobaciones, evaluaciones, liberacion, operativos] = await Promise.allSettled([
+      const [candidatos, aprobaciones, evaluaciones, liberacion, operativos] = await Promise.allSettled([
+        supabase
+          .from('leads')
+          .select('*', { count: 'exact', head: true }),
         supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
@@ -32,6 +36,7 @@ export function useSupplyPipelineCounts() {
       ]);
 
       return {
+        candidatos: candidatos.status === 'fulfilled' ? candidatos.value.count : null,
         aprobaciones: aprobaciones.status === 'fulfilled' ? aprobaciones.value.count : null,
         evaluaciones: evaluaciones.status === 'fulfilled' ? evaluaciones.value.count : null,
         liberacion: liberacion.status === 'fulfilled' ? liberacion.value.count : null,
