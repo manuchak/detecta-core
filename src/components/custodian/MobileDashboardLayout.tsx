@@ -292,7 +292,13 @@ const MobileDashboardLayout = () => {
   };
 
    const handleStartChecklist = (serviceId: string) => {
-     navigate(`/custodian/checklist/${serviceId}`);
+     const params = new URLSearchParams();
+     if (nextService?.origen_lat && nextService?.origen_lng) {
+       params.set('lat', nextService.origen_lat.toString());
+       params.set('lng', nextService.origen_lng.toString());
+     }
+     const qs = params.toString();
+     navigate(`/custodian/checklist/${serviceId}${qs ? `?${qs}` : ''}`);
    };
  
   if (loading) {
