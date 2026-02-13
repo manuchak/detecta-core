@@ -47,7 +47,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
         `)
         .eq('custodio_telefono', normalizedPhone)
         .gte('fecha_hora_cita', todayISO)
-        .in('estado_planeacion', ['asignado', 'confirmado', 'en_transito', 'Asignado', 'Confirmado', 'En Tránsito'])
+        .in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_transito', 'Planificado', 'Asignado', 'Confirmado', 'En Tránsito'])
         .order('fecha_hora_cita', { ascending: true })
         .limit(1);
 
