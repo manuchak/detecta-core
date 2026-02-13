@@ -1,56 +1,60 @@
 
 
-## Agregar Customer Success al Menu Lateral (Sidebar)
+## Migrar Quejas del Excel al Sistema CS
 
-### Cambio Principal
+### Objetivo
+Insertar las 6 quejas históricas del Excel directamente en la tabla `cs_quejas`, creando también el cliente faltante OJTLE TRANSPORTE. Esto permite que el sistema CS arranque con datos reales desde el día 1.
 
-Se agrega Customer Success como un nuevo grupo en la navegacion lateral (`UnifiedSidebar`), con 6 sub-secciones que corresponden a las tabs del modulo. Esto sigue exactamente el mismo patron que los demas modulos (Facturacion, LMS, Monitoreo, etc.).
+### Mapeo de Clientes Excel a Base de Datos
 
-### Archivo a Modificar
+| Cliente en Excel | Cliente en BD | ID |
+|---|---|---|
+| FERRER | FERRER | ecf1e8c5-593c-42ad-8942-d7be5a81387a |
+| MULTIADUANAS AGENTES ADUANALES | MULTI ADUANAS | ad69cd6f-6bc5-485a-9e07-3866d0d6dd1d |
+| FABRICAS DE CALZADO ANDREA | FABRICAS DE CALZADO ANDREA | e182ef1e-9e61-4bbb-a5cd-1721f64cf610 |
+| CARGO INTERAMERICANA | SERVICIOS COMERCIALES INTERAMERICA | 94b95c55-4fb7-4759-867d-9ada4a59f383 |
+| OJTLE TRANSPORTE | **No existe - se creará** | (nuevo) |
+| CLASE AZUL / CASA TRADICION | CASA TRADICION | f4fcbc8f-380d-4269-9f86-fe431bfd48d5 |
 
-**`src/config/navigationConfig.ts`**
+### Mapeo de Columnas Excel a Campos cs_quejas
 
-1. Importar el icono `HeartHandshake` de lucide-react
-2. Agregar un nuevo grupo `'customer-success'` al array `navigationGroups` (despues de `facturacion` y antes de `monitoring`):
-   - id: `'customer-success'`
-   - label: `'Customer Success'`
-   - icon: `HeartHandshake`
-3. Agregar un nuevo modulo al array `navigationModules` con:
-   - id: `'customer-success'`
-   - label: `'Customer Success'`
-   - icon: `HeartHandshake`
-   - path: `'/customer-success'`
-   - group: `'customer-success'`
-   - roles: `['admin', 'owner', 'customer_success', 'ejecutivo_ventas', 'coordinador_operaciones']`
-   - children con 6 sub-secciones:
+| Columna Excel | Campo en cs_quejas | Transformación |
+|---|---|---|
+| CLIENTE | cliente_id | Lookup por nombre en pc_clientes |
+| FECHA DE SOLICITUD DEL REPORTE | created_at | Fecha de registro de la queja |
+| FECHA DEL SERVICIO | Incluido en descripcion | Se agrega como texto contextual |
+| COMENTARIOS | descripcion | Texto completo del incidente |
+| REPORTE DE ACCIONES CORRECTIVAS (QUIEN ATENDIO) | Incluido en descripcion | Se agrega al final de la descripción |
+| COMENTARIOS DE ACCIONES CORRECTIVAS | accion_correctiva | Acciones tomadas |
 
-| Sub-seccion | id | path | Icono |
+### Clasificación Asignada por Queja
+
+| Queja | Tipo | Severidad | Estado |
 |---|---|---|---|
-| Dashboard | `cs_dashboard` | `/customer-success` | `LayoutDashboard` |
-| Retencion | `cs_retencion` | `/customer-success?tab=retencion` | `TrendingUp` |
-| Quejas | `cs_quejas` | `/customer-success?tab=quejas` | `ClipboardList` |
-| Clientes | `cs_clientes` | `/customer-success?tab=clientes` | `Users` |
-| CAPA | `cs_capa` | `/customer-success?tab=capa` | `CheckCircle2` |
-| Mejora Continua | `cs_mejora` | `/customer-success?tab=mejora` | `BarChart3` |
+| FERRER (7 hallazgos operativos graves) | calidad_servicio | alta | en_investigacion |
+| MULTI ADUANAS (retraso 2hrs custodio) | calidad_servicio | media | seguimiento |
+| CALZADO ANDREA (falla cobertura) | cobertura | alta | accion_correctiva |
+| CARGO INTERAMERICANA (actitudes equipo) | calidad_servicio | media | accion_correctiva |
+| OJTLE (falla GPS) | seguridad | media | seguimiento |
+| CASA TRADICION (3 hallazgos consignas) | consignas | alta | accion_correctiva |
 
-### Archivo Adicional a Modificar
+### Implementación Técnica
 
-**`src/pages/CustomerSuccess/CustomerSuccessPage.tsx`**
+**Archivo a crear:** `supabase/functions/seed-excel-quejas/index.ts`
 
-Integrar `useSearchParams` para que las sub-secciones del sidebar controlen la tab activa (siguiendo el patron estandar del proyecto con `?tab=`). Actualmente el componente usa `Tabs defaultValue="dashboard"` sin sincronizacion con la URL. Se cambiara a un `Tabs` controlado donde el valor viene de `searchParams.get('tab') || 'dashboard'`.
+Edge function que:
+1. Crea el cliente OJTLE TRANSPORTE en `pc_clientes` (si no existe)
+2. Inserta las 6 quejas en `cs_quejas` con todos los datos mapeados del Excel
+3. El trigger `generate_queja_folio()` auto-genera los folios QJ-2026-XXXX
+4. Usa service role key para bypass de RLS
+5. Retorna los folios generados como confirmación
 
-### Resultado
+**Ejecución:** Se despliega la función, se invoca una vez para sembrar los datos, y luego se puede eliminar.
 
-El equipo de Customer Success vera en el sidebar izquierdo:
+### Resultado Esperado
 
-```text
-CUSTOMER SUCCESS
-  > Dashboard
-  > Retencion
-  > Quejas
-  > Clientes
-  > CAPA
-  > Mejora Continua
-```
+- 1 nuevo cliente: OJTLE TRANSPORTE
+- 6 quejas con folios QJ-2026-0001 a QJ-2026-0006
+- Dashboard CS mostrará datos reales inmediatamente
+- El Loyalty Funnel clasificará estos 6 clientes con quejas como "En Riesgo" o "Activo"
 
-Cada sub-seccion navega directamente a la tab correspondiente sin recargar la pagina.
