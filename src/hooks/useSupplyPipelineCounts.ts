@@ -13,12 +13,17 @@ export function useSupplyPipelineCounts() {
   return useQuery({
     queryKey: ['supply-pipeline-counts'],
     queryFn: async (): Promise<PipelineCounts> => {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 15);
+      const cutoffISO = cutoff.toISOString();
+
       const [candidatos, aprobaciones, evaluaciones, liberacion, operativos] = await Promise.allSettled([
         supabase
           .from('leads')
           .select('*', { count: 'exact', head: true })
           .is('asignado_a', null)
-          .not('estado', 'in', '("rechazado","inactivo","custodio_activo")'),
+          .not('estado', 'in', '("rechazado","inactivo","custodio_activo")')
+          .gte('created_at', cutoffISO),
         supabase
           .from('lead_approval_process')
           .select('*', { count: 'exact', head: true })
