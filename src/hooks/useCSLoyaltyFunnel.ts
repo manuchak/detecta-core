@@ -106,21 +106,33 @@ export function useCSLoyaltyFunnel() {
         .order('nombre');
       if (cErr) throw cErr;
 
-      // Fetch services (all time for GMV/history)
-      const { data: servicios, error: sErr } = await supabase
-        .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente, fecha_hora_cita');
-      if (sErr) throw sErr;
-
-      // Fetch quejas, touchpoints, capas in parallel
-      const [quejasRes, touchpointsRes, capasRes] = await Promise.all([
+      // Fetch services from both tables + quejas, touchpoints, capas in parallel
+      const [legacyRes, planRes, quejasRes, touchpointsRes, capasRes] = await Promise.all([
+        supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
+        supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
         supabase.from('cs_touchpoints').select('cliente_id, created_at'),
         supabase.from('cs_capa').select('cliente_id, estado'),
       ]);
+      if (legacyRes.error) throw legacyRes.error;
+      if (planRes.error) throw planRes.error;
       if (quejasRes.error) throw quejasRes.error;
       if (touchpointsRes.error) throw touchpointsRes.error;
       if (capasRes.error) throw capasRes.error;
+
+      const planData = (planRes.data || []).map(s => ({
+        nombre_cliente: s.nombre_cliente,
+        cobro_cliente: s.cobro_posicionamiento,
+        fecha_hora_cita: s.fecha_hora_cita,
+      }));
+      const allServicios = [...(legacyRes.data || []), ...planData];
+      const seen = new Set<string>();
+      const servicios = allServicios.filter(s => {
+        const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       const quejas = quejasRes.data || [];
       const touchpoints = touchpointsRes.data || [];
