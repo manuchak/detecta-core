@@ -28,12 +28,22 @@ export function useCSRetentionMetrics() {
       if (cErr) throw cErr;
       const totalClientes = clientes?.length || 0;
 
-      // Fetch servicios for NRR and churn calculation
-      const { data: servicios, error: sErr } = await supabase
-        .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente, fecha_hora_cita')
-        .gte('fecha_hora_cita', format(subMonths(now, 6), 'yyyy-MM-dd'));
-      if (sErr) throw sErr;
+      // Fetch servicios from both tables for NRR and churn calculation
+      const cutoff6m = format(subMonths(now, 6), 'yyyy-MM-dd');
+      const [legacyRes, planRes] = await Promise.all([
+        supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
+        supabase.from('servicios_planificados').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
+      ]);
+      if (legacyRes.error) throw legacyRes.error;
+      if (planRes.error) throw planRes.error;
+      const allServicios = [...(legacyRes.data || []), ...(planRes.data || [])];
+      const seenSvc = new Set<string>();
+      const servicios = allServicios.filter(s => {
+        const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
+        if (seenSvc.has(key)) return false;
+        seenSvc.add(key);
+        return true;
+      });
 
       // NRR
       const gmvMesActual = (servicios || [])
