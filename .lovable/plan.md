@@ -1,57 +1,96 @@
 
 
-## Fix: Validacion GPS de fotos siempre muestra "Pendiente"
+## Fix: Mejorar UI del visor de fotos y persistencia del detalle de checklist
 
-### Problema
+### Problemas identificados
 
-Hay dos fallas encadenadas que causan que todas las fotos muestren "Pendiente" en vez del estado real de GPS:
+**1. Doble boton "X"**
+El componente `DialogContent` (dialog.tsx linea 47) incluye un boton de cierre automatico de Radix. Ademas, el `PhotoLightbox` agrega su propio boton X (linea 154-160). Resultado: dos iconos de cierre superpuestos.
 
-1. **No se pasan coordenadas de origen**: Cuando el custodio abre el checklist, la navegacion no incluye las coordenadas del punto de origen del servicio en la URL
-2. **Laguna logica**: Cuando el telefono SI obtiene GPS pero no hay coordenadas de origen para comparar, el codigo no contempla ese caso y deja la validacion como "pendiente"
+**2. Foto desborda el marco**
+El `DialogContent` tiene un `style={{ zoom: 1.428571 }}` global (dialog.tsx linea 43). Cuando el lightbox usa `max-w-4xl h-[90vh]`, el zoom lo escala mas alla del viewport, causando que la imagen se salga del cuadro y requiera scroll.
 
-```text
-Flujo actual:
-  coords = GPS del telefono (SI existe)
-  origenCoords = null (nunca se pasan)
+**3. Thumbnails y metadatos cortados**
+El mismo problema de zoom hace que el footer con thumbnails quede fuera del area visible.
 
-  if (coords && origenCoords) → false (no entra)
-  else if (!coords) → false (coords SI existen)
-  → validacion = 'pendiente' (el default, nunca se actualiza)
-```
+**4. Perdida de contexto al cerrar**
+El estado `servicioChecklistSeleccionado` y `isChecklistDetailOpen` son variables locales en `MonitoringPage`. No hay persistencia en URL ni proteccion contra perdida de contexto. Al cerrar el lightbox, el detail modal se mantiene. Pero al cerrar el detail modal por error o navegar, se pierde el servicio seleccionado sin forma de regresar.
 
 ### Solucion
 
-Dos cambios:
+| Problema | Archivo | Cambio |
+|---|---|---|
+| Doble X | `PhotoLightbox.tsx` | Eliminar el boton X manual (lineas 154-160) ya que `DialogContent` ya incluye uno |
+| Foto desborda | `PhotoLightbox.tsx` | Anular el zoom heredado con `style={{ zoom: 1 }}` en el DialogContent del lightbox |
+| Persistencia | `MonitoringPage.tsx` | Guardar el `servicioId` del checklist seleccionado en `useSearchParams` (patron `?tab=checklists&checklistId=XXX`). Al recargar o regresar, re-seleccionar automaticamente el servicio |
 
-**1. Pasar coordenadas de origen en la navegacion**
+### Detalle tecnico
 
-En `src/components/custodian/MobileDashboardLayout.tsx`, al navegar al checklist, incluir las coordenadas del origen del servicio (si existen) como query params.
+**1. PhotoLightbox - Eliminar X duplicado y corregir zoom**
 
-**2. Manejar el caso sin coordenadas de origen**
-
-En `src/hooks/useServiceChecklist.ts`, agregar un `else` para cuando el telefono SI tiene GPS pero no hay origen para comparar. En ese caso, registrar la ubicacion como 'ok' (capturada exitosamente, sin referencia de comparacion).
-
-```text
-Flujo corregido:
-  coords = GPS del telefono (SI existe)
-  origenCoords = coordenadas del origen del servicio
-
-  if (coords && origenCoords) → compara distancia → 'ok' o 'fuera_rango'
-  else if (!coords) → 'sin_gps'
-  else → 'ok' (tiene GPS pero sin punto de referencia para comparar)
+```typescript
+// Agregar style={{ zoom: 1 }} para anular el zoom global de DialogContent
+<DialogContent 
+  className="max-w-4xl h-[90vh] p-0 bg-background/95 backdrop-blur"
+  style={{ zoom: 1 }}
+>
+  <div className="relative h-full flex flex-col" ...>
+    {/* Header - ELIMINAR el boton X manual, ya que DialogContent lo incluye */}
+    <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center gap-3">
+        {/* ...label y badge... */}
+      </div>
+      <div className="flex items-center gap-2">
+        {/* Solo dejar "Ver en mapa", quitar el Button con X */}
+      </div>
+    </div>
+    {/* resto sin cambios */}
+  </div>
+</DialogContent>
 ```
 
-### Archivos a modificar
+**2. MonitoringPage - Persistencia del checklist seleccionado en URL**
 
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useServiceChecklist.ts` | Agregar `else { validacion = 'ok' }` despues del `else if (!coords)` en la linea 194 |
-| `src/components/custodian/MobileDashboardLayout.tsx` | Pasar coordenadas de origen del servicio como query params en la navegacion al checklist |
+```typescript
+// Al seleccionar un checklist, guardar en URL
+const handleChecklistSelect = (servicio: ServicioConChecklist) => {
+  setServicioChecklistSeleccionado(servicio);
+  setIsChecklistDetailOpen(true);
+  setSearchParams(prev => {
+    prev.set('checklistId', servicio.servicioId);
+    return prev;
+  });
+};
+
+// Al cerrar, limpiar de URL
+const handleChecklistDetailClose = (open: boolean) => {
+  setIsChecklistDetailOpen(open);
+  if (!open) {
+    setSearchParams(prev => {
+      prev.delete('checklistId');
+      return prev;
+    });
+  }
+};
+
+// Al cargar, restaurar seleccion desde URL
+useEffect(() => {
+  const checklistId = searchParams.get('checklistId');
+  if (checklistId && serviciosChecklist.length > 0) {
+    const found = serviciosChecklist.find(s => s.servicioId === checklistId);
+    if (found) {
+      setServicioChecklistSeleccionado(found);
+      setIsChecklistDetailOpen(true);
+    }
+  }
+}, [serviciosChecklist]);
+```
 
 ### Resultado esperado
 
-- Las fotos que SI tienen GPS mostraran "ok" con las coordenadas capturadas
-- Si ademas hay coordenadas de origen, se calculara la distancia y se validara el rango
-- Solo las fotos genuinamente sin GPS mostraran "Sin GPS"
-- "Pendiente" solo aparecera antes de capturar la foto
+- Una sola X de cierre en el visor de fotos
+- La foto se muestra correctamente dentro del marco sin desbordar
+- Los thumbnails y el contador son visibles sin scroll
+- Si el usuario cierra el lightbox, regresa al detalle del checklist (ya funciona asi)
+- Si el usuario refresca la pagina o regresa por navegacion, el detalle del checklist se restaura automaticamente desde la URL
 
