@@ -16,11 +16,13 @@ export function useSupplyPipelineCounts() {
       const [candidatos, aprobaciones, evaluaciones, liberacion, operativos] = await Promise.allSettled([
         supabase
           .from('leads')
-          .select('*', { count: 'exact', head: true }),
-        supabase
-          .from('leads')
           .select('*', { count: 'exact', head: true })
-          .eq('final_decision', 'approved'),
+          .is('asignado_a', null)
+          .not('estado', 'in', '("rechazado","inactivo","custodio_activo")'),
+        supabase
+          .from('lead_approval_process')
+          .select('*', { count: 'exact', head: true })
+          .is('final_decision', null),
         supabase
           .from('candidatos_custodios')
           .select('*', { count: 'exact', head: true })
