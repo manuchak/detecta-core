@@ -1,49 +1,71 @@
 
-## Fix: Columna incorrecta en queries a `servicios_planificados`
+
+## Fix: RLS policy de `documentos_custodio` falla por formato de telefono
 
 ### Problema raiz
 
-La tabla `servicios_planificados` no tiene columna `cobro_cliente` -- se llama `cobro_posicionamiento`. Los 3 hooks de CS hacen `select('nombre_cliente, cobro_cliente, fecha_hora_cita')` contra esa tabla, lo que retorna un error HTTP 400:
+La politica RLS "Custodios gestionan documentos propios" compara directamente:
 
 ```
-"column servicios_planificados.cobro_cliente does not exist"
+custodio_telefono = (SELECT profiles.phone FROM profiles WHERE profiles.id = auth.uid())
 ```
 
-Como el codigo hace `if (planRes.error) throw planRes.error`, toda la query falla y la tabla muestra 0 clientes.
+Pero el codigo normaliza el telefono antes de insertar (quita espacios y caracteres no numericos):
+- `profiles.phone` almacena: `"56 5351 6083"` (con espacios)
+- El codigo inserta `custodio_telefono` como: `"5653516083"` (normalizado, solo digitos)
+
+Como `"5653516083" != "56 5351 6083"`, el RLS rechaza el INSERT.
 
 ### Solucion
 
-Cambiar `cobro_cliente` a `cobro_posicionamiento` en los 3 archivos, y mapear el valor al alias `cobro_cliente` en el codigo para mantener compatibilidad con la logica existente.
+Crear una funcion SQL que normalice el telefono (extraiga solo digitos, ultimos 10) y actualizar la politica RLS para usar esa funcion en ambos lados de la comparacion.
 
-### Cambios por archivo
+### Cambios
 
-**1. `src/hooks/useCSCartera.ts` (linea 48)**
-- Cambiar: `select('nombre_cliente, cobro_cliente, fecha_hora_cita')`
-- A: `select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita')`
-- En la logica de GMV, usar `cobro_posicionamiento` para los registros de planificados (o unificar con un map previo)
+**1. Crear funcion SQL `normalize_phone`**
 
-**2. `src/hooks/useCSHealthScores.ts` (linea 50)**
-- Mismo cambio: `cobro_cliente` a `cobro_posicionamiento`
-
-**3. `src/hooks/useCSRetentionMetrics.ts` (linea 35)**
-- Mismo cambio: `cobro_cliente` a `cobro_posicionamiento`
-
-### Estrategia de unificacion
-
-Despues de hacer fetch de `servicios_planificados`, mapear los resultados para normalizar el nombre del campo:
-
-```text
-const planData = (planRes.data || []).map(s => ({
-  nombre_cliente: s.nombre_cliente,
-  cobro_cliente: s.cobro_posicionamiento,
-  fecha_hora_cita: s.fecha_hora_cita,
-}));
+```sql
+CREATE OR REPLACE FUNCTION public.normalize_phone(phone text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT right(regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10)
+$$;
 ```
 
-Esto mantiene toda la logica downstream (calculo de GMV, NRR, etc.) sin cambios adicionales.
+**2. Reemplazar la politica RLS**
 
-### Resultado
+Eliminar la politica actual y crear una nueva que use `normalize_phone()` en ambos lados:
 
-- La query dejara de fallar con error 400
-- Los ~62+ clientes activos apareceran en la tabla de Cartera
-- Las metricas de Panorama (NRR, Churn, CSAT) tambien se corregiranm porque usan los mismos hooks
+```sql
+DROP POLICY "Custodios gestionan documentos propios" ON documentos_custodio;
+
+CREATE POLICY "Custodios gestionan documentos propios"
+ON documentos_custodio FOR ALL
+USING (
+  normalize_phone(custodio_telefono) = (
+    SELECT normalize_phone(profiles.phone)
+    FROM profiles
+    WHERE profiles.id = auth.uid()
+  )
+)
+WITH CHECK (
+  normalize_phone(custodio_telefono) = (
+    SELECT normalize_phone(profiles.phone)
+    FROM profiles
+    WHERE profiles.id = auth.uid()
+  )
+);
+```
+
+### Por que esto funciona
+
+- `normalize_phone("56 5351 6083")` retorna `"5653516083"`
+- `normalize_phone("5653516083")` retorna `"5653516083"`
+- Ahora ambos lados coinciden, y el INSERT pasa el chequeo RLS
+
+### Sin cambios en el frontend
+
+No se necesita modificar ningun archivo TypeScript. El fix es puramente en la base de datos (SQL).
+
