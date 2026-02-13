@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCSQuejaStats } from '@/hooks/useCSQuejas';
 import { AlertTriangle, CheckCircle2, Clock, TrendingUp, MessageSquare } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { CSLoyaltyFunnel } from './CSLoyaltyFunnel';
+import { CSPlaybooks } from './CSPlaybooks';
 
 const TIPO_LABELS: Record<string, string> = {
   calidad_servicio: 'Calidad del servicio',
@@ -95,6 +97,12 @@ export function CSDashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Loyalty Funnel + Playbooks */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CSLoyaltyFunnel />
+        <CSPlaybooks />
       </div>
 
       {/* Charts */}

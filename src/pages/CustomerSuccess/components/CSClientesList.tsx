@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { useCSClientesConQuejas } from '@/hooks/useCSHealthScores';
+import { useCSLoyaltyFunnel } from '@/hooks/useCSLoyaltyFunnel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, AlertTriangle } from 'lucide-react';
+import { CSLoyaltyBadge } from './CSLoyaltyBadge';
+import { CSClienteProfileModal } from './CSClienteProfileModal';
 
 const RIESGO_COLORS: Record<string, string> = {
   bajo: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -13,6 +17,8 @@ const RIESGO_COLORS: Record<string, string> = {
 
 export function CSClientesList() {
   const { data: clientes, isLoading } = useCSClientesConQuejas();
+  const { data: loyalty } = useCSLoyaltyFunnel();
+  const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -43,33 +49,48 @@ export function CSClientesList() {
 
       {/* Client list */}
       <div className="space-y-2">
-        {sorted.map(c => (
-          <Card key={c.id} className="hover:bg-accent/30 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{c.nombre_comercial}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                    <span>{c.total_quejas} quejas totales</span>
-                    {c.quejas_abiertas > 0 && (
-                      <span className="text-destructive font-medium">{c.quejas_abiertas} abiertas</span>
-                    )}
-                    <span>CSAT: {c.csat ? c.csat.toFixed(1) : '—'}</span>
-                    <span>
-                      {c.diasSinContacto < 999
-                        ? `Último contacto: hace ${c.diasSinContacto}d`
-                        : 'Sin contacto registrado'}
-                    </span>
+        {sorted.map(c => {
+          const clientLoyalty = loyalty?.clients.find(lc => lc.id === c.id);
+          return (
+            <Card
+              key={c.id}
+              className="hover:bg-accent/30 transition-colors cursor-pointer"
+              onClick={() => setSelectedClienteId(c.id)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{c.nombre_comercial}</p>
+                      {clientLoyalty && <CSLoyaltyBadge stage={clientLoyalty.stage} />}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      <span>{c.total_quejas} quejas totales</span>
+                      {c.quejas_abiertas > 0 && (
+                        <span className="text-destructive font-medium">{c.quejas_abiertas} abiertas</span>
+                      )}
+                      <span>CSAT: {c.csat ? c.csat.toFixed(1) : '—'}</span>
+                      <span>
+                        {c.diasSinContacto < 999
+                          ? `Último contacto: hace ${c.diasSinContacto}d`
+                          : 'Sin contacto registrado'}
+                      </span>
+                    </div>
                   </div>
+                  <Badge variant="outline" className={RIESGO_COLORS[c.riesgo] || ''}>
+                    Riesgo {c.riesgo}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={RIESGO_COLORS[c.riesgo] || ''}>
-                  Riesgo {c.riesgo}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+
+      <CSClienteProfileModal
+        clienteId={selectedClienteId}
+        onClose={() => setSelectedClienteId(null)}
+      />
     </div>
   );
 }
