@@ -1,45 +1,77 @@
 
 
-## Incorporar "Análisis Clientes" en Customer Success
+## Fix: Alinear todas las stats del custodio al mes actual
 
-### Objetivo
+### Problema
 
-Reutilizar el componente `ClientAnalytics` (actualmente en KPIs > Analisis Clientes) como una nueva pestaña dentro del modulo de Customer Success, manteniendo exactamente la misma estructura, logica y UI.
+Las 3 tarjetas de stats muestran rangos de tiempo inconsistentes:
 
-### Cambio
+| Metrica | Rango actual | Rango correcto |
+|---|---|---|
+| Servicios | Mes actual | Mes actual |
+| Km | ALL TIME (historico) | Mes actual |
+| Ingresos | ALL TIME (historico) | Mes actual |
 
-**Archivo: `src/pages/CustomerSuccess/CustomerSuccessPage.tsx`**
+Resultado: Un custodio con 3 servicios en febrero ve "$1.4M" de ingresos (acumulado historico), lo cual es confuso y genera desconfianza.
 
-1. Importar el componente existente:
-   ```typescript
-   import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
-   ```
+### Mejores practicas (Uber, DoorDash, Rappi)
 
-2. Agregar una cuarta pestaña "Analisis Clientes" al TabsList (despues de Operativo):
-   ```tsx
-   <TabsTrigger value="analisis">Analisis Clientes</TabsTrigger>
-   ```
+- **Uber**: Semana actual (lun-dom) como periodo principal, con opcion de ver dia/mes
+- **DoorDash**: Resumen del dash actual + semana
+- **Rappi**: Semana actual
 
-3. Agregar el TabsContent correspondiente:
-   ```tsx
-   <TabsContent value="analisis"><ClientAnalytics /></TabsContent>
-   ```
+Para custodios de seguridad privada, cuya frecuencia de servicio es menor que rideshare, el **mes actual** es el periodo optimo (ya se usa para servicios).
 
-4. Actualizar el grid del TabsList de `w-full justify-start` a acomodar 4 tabs.
+### Solucion
+
+Calcular `kmEsteMes` e `ingresosEsteMes` con el mismo filtro de fecha que ya se usa para `serviciosEsteMes`.
+
+### Cambios
+
+**Archivo: `src/components/custodian/MobileDashboardLayout.tsx`**
+
+Agregar dos `useMemo` adicionales que filtren servicios del mes actual para KM e ingresos:
+
+```typescript
+const kmEsteMes = useMemo(() => {
+  if (!services || services.length === 0) return 0;
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return services
+    .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
+    .reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
+}, [services]);
+
+const ingresosEsteMes = useMemo(() => {
+  if (!services || services.length === 0) return 0;
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return services
+    .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
+    .reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+}, [services]);
+```
+
+Actualizar el CompactStatsBar:
+
+```tsx
+<CompactStatsBar
+  serviciosEsteMes={serviciosEsteMes}
+  kmRecorridos={kmEsteMes}          // era stats.km_totales
+  ingresosTotales={ingresosEsteMes}  // era stats.ingresos_totales
+/>
+```
+
+**Archivo: `src/components/custodian/CompactStatsBar.tsx`**
+
+Actualizar el label de "Km" a "Km mes" y "Ingresos" a "Ingresos mes" (o alternativamente, agregar el nombre del mes como subtitulo en las 3 tarjetas).
 
 ### Lo que NO cambia
 
-- El componente `ClientAnalytics` se reutiliza tal cual, sin duplicar codigo
-- Los hooks `useClientsData`, `useClientMetrics`, `useClientTableData`, `useClientAnalytics` siguen siendo los mismos
-- Toda la UI (tarjetas de Mejor AOV, Mas Servicios, Mayor GMV, tabla Top 15, drill-down por cliente, filtros de fecha, PDF export) se mantiene identica
-- El modulo de KPIs sigue teniendo su propia copia funcional
+- `useCustodianServices` sigue calculando stats historicos (se usan en la pagina de Vehiculo para kilometraje total de mantenimiento)
+- La UI y el componente CompactStatsBar mantienen su estructura
+- El calculo de `serviciosEsteMes` que ya existia no se toca
 
 ### Resultado
 
-El equipo de Customer Success tendra acceso directo al dashboard de performance de clientes sin necesidad de ir a KPIs, con las mismas metricas, filtros y capacidad de drill-down.
-
-### Detalle tecnico
-
-- Solo se modifica 1 archivo: `CustomerSuccessPage.tsx`
-- Se agregan ~4 lineas de codigo (1 import + 1 TabsTrigger + 1 TabsContent)
-- La navegacion por URL seguira funcionando: `/customer-success?tab=analisis`
+Las 3 tarjetas mostraran datos coherentes del mes actual: "3 servicios, X km, $Y ingresos" — todo del mismo periodo, sin ruido.
