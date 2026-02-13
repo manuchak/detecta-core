@@ -1,46 +1,49 @@
 
 
-## Fix: Custodio no ve su servicio -- estado "planificado" excluido del filtro
+## Cambiar cutoff de 15 dias a 7 dias en pipeline de Candidatos
 
-### Causa raiz
+### Contexto
 
-El servicio `YOCOYTM-273` tiene:
-- `custodio_telefono = '5516802984'` (correcto, coincide con el perfil de Jesus Molina)
-- `estado_planeacion = 'planificado'` (problema)
+Actualmente hay **dos lugares** donde se aplica el cutoff de 15 dias para leads:
 
-El hook `useNextService.ts` (linea 50) filtra servicios con:
-```
-.in('estado_planeacion', ['asignado', 'confirmado', 'en_transito', 'Asignado', 'Confirmado', 'En Tránsito'])
-```
+1. **Hook frontend**: `src/hooks/useSupplyPipelineCounts.ts` (linea 17) - usado por el breadcrumb del pipeline
+2. **RPC en base de datos**: funcion `get_leads_counts()` - usada por los conteos de tabs (Por Contactar, En Proceso, etc.)
 
-El estado `'planificado'` no esta en la lista, por lo que el servicio se descarta. **21 servicios de hoy** tienen este mismo problema: custodio asignado pero estado "planificado", invisibles para los custodios.
+Ambos deben cambiarse a 7 dias para que los numeros sean consistentes.
 
-### Impacto
+### Cambios
 
-Cualquier servicio que tenga custodio asignado pero cuyo estado no haya avanzado a "asignado" queda invisible en el portal del custodio. Esto afecta hoy a 21 servicios.
-
-### Solucion
-
-Agregar `'planificado'` y `'Planificado'` a la lista de estados permitidos en el filtro de `useNextService.ts`.
-
-### Cambio
-
-| Archivo | Cambio |
+| Recurso | Cambio |
 |---|---|
-| `src/hooks/useNextService.ts` | Linea 50: agregar `'planificado'` y `'Planificado'` al array del filtro `.in()` |
+| `src/hooks/useSupplyPipelineCounts.ts` linea 17 | `cutoff.setDate(cutoff.getDate() - 15)` a `cutoff.setDate(cutoff.getDate() - 7)` |
+| RPC `get_leads_counts()` (migracion SQL) | `interval '15 days'` a `interval '7 days'` |
 
-Cambio de una sola linea:
-```tsx
-// ANTES
-.in('estado_planeacion', ['asignado', 'confirmado', 'en_transito', 'Asignado', 'Confirmado', 'En Tránsito'])
+### Migracion SQL
 
-// DESPUES
-.in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_transito', 'Planificado', 'Asignado', 'Confirmado', 'En Tránsito'])
+```sql
+CREATE OR REPLACE FUNCTION get_leads_counts()
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  result jsonb;
+  cutoff timestamptz := now() - interval '7 days';
+BEGIN
+  SELECT jsonb_build_object(
+    'total', COUNT(*),
+    'approved', COUNT(*) FILTER (WHERE estado = 'aprobado'),
+    'pending', COUNT(*) FILTER (WHERE estado NOT IN ('aprobado', 'rechazado', 'inactivo', 'custodio_activo') OR estado IS NULL),
+    'rejected', COUNT(*) FILTER (WHERE estado = 'rechazado'),
+    'uncontacted', COUNT(*) FILTER (WHERE asignado_a IS NULL AND estado NOT IN ('rechazado', 'inactivo', 'custodio_activo'))
+  ) INTO result
+  FROM leads
+  WHERE created_at >= cutoff;
+
+  RETURN result;
+END;
+$$;
 ```
 
-### Resultado
+### Resultado esperado
 
-- Jesus Molina vera inmediatamente su servicio YOCOYTM-273
-- Los otros 20 servicios en estado "planificado" con custodio asignado tambien seran visibles
-- No hay riesgo de mostrar servicios sin custodio porque el filtro por `custodio_telefono` ya los excluye
-
+Los conteos del breadcrumb y las tabs mostraran solo leads de los ultimos 7 dias, alineandose con la carga de trabajo operativa real (~33-40 leads en vez de 135).
