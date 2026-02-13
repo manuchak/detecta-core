@@ -14,7 +14,7 @@ export interface CSHealthScore {
   riesgo_churn: string;
   notas: string | null;
   created_at: string;
-  cliente?: { nombre_comercial: string; razon_social: string } | null;
+  cliente?: { nombre: string; razon_social: string } | null;
 }
 
 export function useCSHealthScores() {
@@ -23,7 +23,7 @@ export function useCSHealthScores() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cs_health_scores')
-        .select('*, cliente:pc_clientes(nombre_comercial, razon_social)')
+        .select('*, cliente:pc_clientes(nombre, razon_social)')
         .order('periodo', { ascending: false });
       if (error) throw error;
       return data as CSHealthScore[];
@@ -38,9 +38,9 @@ export function useCSClientesConQuejas() {
       // Get all clients with their complaint counts
       const { data: clientes, error: cErr } = await supabase
         .from('pc_clientes')
-        .select('id, nombre_comercial, razon_social')
+        .select('id, nombre, razon_social')
         .eq('activo', true)
-        .order('nombre_comercial');
+        .order('nombre');
       if (cErr) throw cErr;
 
       const { data: quejas, error: qErr } = await supabase

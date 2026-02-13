@@ -13,7 +13,7 @@ interface Props {
 
 export function CSQuejaForm({ onSuccess }: Props) {
   const createQueja = useCreateCSQueja();
-  const [clientes, setClientes] = useState<{ id: string; nombre_comercial: string }[]>([]);
+  const [clientes, setClientes] = useState<{ id: string; nombre: string }[]>([]);
   const [form, setForm] = useState({
     cliente_id: '',
     tipo: 'calidad_servicio',
@@ -26,9 +26,9 @@ export function CSQuejaForm({ onSuccess }: Props) {
   useEffect(() => {
     supabase
       .from('pc_clientes')
-      .select('id, nombre_comercial')
+      .select('id, nombre')
       .eq('activo', true)
-      .order('nombre_comercial')
+      .order('nombre')
       .then(({ data }) => setClientes(data || []));
   }, []);
 
@@ -53,7 +53,7 @@ export function CSQuejaForm({ onSuccess }: Props) {
           <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
           <SelectContent>
             {clientes.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.nombre_comercial}</SelectItem>
+              <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
             ))}
           </SelectContent>
         </Select>

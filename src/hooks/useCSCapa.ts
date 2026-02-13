@@ -20,7 +20,7 @@ export interface CSCAPA {
   estado: string;
   created_at: string;
   updated_at: string;
-  cliente?: { nombre_comercial: string } | null;
+  cliente?: { nombre: string } | null;
 }
 
 export type CSCAPAInsert = {
@@ -48,7 +48,7 @@ export function useCSCapas(filters?: { estado?: string }) {
     queryFn: async () => {
       let query = supabase
         .from('cs_capa')
-        .select('*, cliente:pc_clientes(nombre_comercial)')
+        .select('*, cliente:pc_clientes(nombre)')
         .order('created_at', { ascending: false });
 
       if (filters?.estado) query = query.eq('estado', filters.estado);

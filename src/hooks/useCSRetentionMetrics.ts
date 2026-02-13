@@ -23,7 +23,7 @@ export function useCSRetentionMetrics() {
       // Fetch clientes activos
       const { data: clientes, error: cErr } = await supabase
         .from('pc_clientes')
-        .select('id, nombre_comercial, created_at')
+        .select('id, nombre, created_at')
         .eq('activo', true);
       if (cErr) throw cErr;
       const totalClientes = clientes?.length || 0;
@@ -60,7 +60,7 @@ export function useCSRetentionMetrics() {
           .map(s => s.nombre_cliente?.toLowerCase().trim())
       );
       const clientesSinServicio = (clientes || []).filter(
-        c => !clientesConServicioReciente.has(c.nombre_comercial?.toLowerCase().trim())
+        c => !clientesConServicioReciente.has(c.nombre?.toLowerCase().trim())
       ).length;
       const churnRate = totalClientes > 0 ? (clientesSinServicio / totalClientes) * 100 : 0;
 

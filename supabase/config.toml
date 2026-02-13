@@ -152,3 +152,6 @@ verify_jwt = true
 
 [functions.kapso-webhook-receiver]
 verify_jwt = false
+
+[functions.seed-excel-quejas]
+verify_jwt = false

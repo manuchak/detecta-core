@@ -61,7 +61,7 @@ export function CSClientesList() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{c.nombre_comercial}</p>
+                      <p className="font-medium">{c.nombre}</p>
                       {clientLoyalty && <CSLoyaltyBadge stage={clientLoyalty.stage} />}
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">

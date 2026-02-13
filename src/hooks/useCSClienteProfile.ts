@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CSClienteProfileData {
   id: string;
-  nombre_comercial: string;
+  nombre: string;
   razon_social: string;
   es_embajador: boolean;
   notas_fidelidad: string | null;
@@ -25,7 +25,7 @@ export function useCSClienteProfile(clienteId: string | null) {
 
       const { data: cliente, error: cErr } = await supabase
         .from('pc_clientes')
-        .select('id, nombre_comercial, razon_social, es_embajador, notas_fidelidad')
+        .select('id, nombre, razon_social, es_embajador, notas_fidelidad')
         .eq('id', clienteId)
         .single();
       if (cErr) throw cErr;
@@ -34,7 +34,7 @@ export function useCSClienteProfile(clienteId: string | null) {
       const { data: servicios, error: sErr } = await supabase
         .from('servicios_custodia')
         .select('cobro_cliente, fecha_servicio')
-        .ilike('nombre_cliente', cliente.nombre_comercial);
+        .ilike('nombre_cliente', cliente.nombre);
       if (sErr) throw sErr;
 
       const lifetime_servicios = servicios?.length || 0;

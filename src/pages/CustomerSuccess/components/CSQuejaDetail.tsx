@@ -54,7 +54,7 @@ export function CSQuejaDetail({ quejaId }: Props) {
         <div>
           <span className="font-mono text-lg font-bold text-primary">{queja.numero_queja}</span>
           <p className="text-sm text-muted-foreground mt-1">
-            {queja.cliente?.nombre_comercial || 'Cliente'} · {format(new Date(queja.created_at), "dd MMM yyyy HH:mm", { locale: es })}
+            {queja.cliente?.nombre || 'Cliente'} · {format(new Date(queja.created_at), "dd MMM yyyy HH:mm", { locale: es })}
           </p>
         </div>
         <Select value={queja.estado} onValueChange={handleStatusChange}>
