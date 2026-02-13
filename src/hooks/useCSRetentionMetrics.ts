@@ -32,11 +32,12 @@ export function useCSRetentionMetrics() {
       const cutoff6m = format(subMonths(now, 6), 'yyyy-MM-dd');
       const [legacyRes, planRes] = await Promise.all([
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
-        supabase.from('servicios_planificados').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
+        supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
       ]);
       if (legacyRes.error) throw legacyRes.error;
       if (planRes.error) throw planRes.error;
-      const allServicios = [...(legacyRes.data || []), ...(planRes.data || [])];
+      const planData = (planRes.data || []).map(s => ({ nombre_cliente: s.nombre_cliente, cobro_cliente: s.cobro_posicionamiento, fecha_hora_cita: s.fecha_hora_cita }));
+      const allServicios = [...(legacyRes.data || []), ...planData];
       const seenSvc = new Set<string>();
       const servicios = allServicios.filter(s => {
         const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;

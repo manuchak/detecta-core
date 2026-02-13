@@ -47,7 +47,7 @@ export function useCSClientesConQuejas() {
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
         supabase.from('cs_touchpoints').select('cliente_id, created_at'),
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
-        supabase.from('servicios_planificados').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
+        supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
       ]);
 
       if (clientesRes.error) throw clientesRes.error;
@@ -59,7 +59,8 @@ export function useCSClientesConQuejas() {
       const clientes = clientesRes.data || [];
       const quejas = quejasRes.data || [];
       const touchpoints = touchpointsRes.data || [];
-      const allServicios = [...(legacyRes.data || []), ...(planRes.data || [])];
+      const planData = (planRes.data || []).map(s => ({ nombre_cliente: s.nombre_cliente, cobro_cliente: s.cobro_posicionamiento, fecha_hora_cita: s.fecha_hora_cita }));
+      const allServicios = [...(legacyRes.data || []), ...planData];
       const seen = new Set<string>();
       const servicios = allServicios.filter(s => {
         const key = `${s.nombre_cliente?.toLowerCase().trim()}|${s.fecha_hora_cita}`;
