@@ -57,6 +57,9 @@ export const useCustodianServices = (custodianPhone?: string) => {
         return;
       }
 
+      // Normalizar teléfono (quitar espacios y guiones)
+      const normalizedPhone = custodianPhone.replace(/[\s-]/g, '');
+
       // Fetch services by phone number
       const { data: servicesData, error: servicesError } = await supabase
         .from('servicios_custodia')
@@ -72,7 +75,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
           cobro_cliente,
           comentarios_adicionales
         `)
-        .or(`telefono.eq.${custodianPhone},telefono_operador.eq.${custodianPhone}`)
+        .or(`telefono.eq.${normalizedPhone},telefono_operador.eq.${normalizedPhone}`)
         .order('fecha_hora_cita', { ascending: false })
         .limit(50);
 
