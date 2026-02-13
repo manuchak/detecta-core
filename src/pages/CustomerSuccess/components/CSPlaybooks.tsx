@@ -83,10 +83,10 @@ export function CSPlaybooks() {
       cliente_id: client.id,
       tipo: playbook.touchpointTipo,
       direccion: 'saliente',
-      resumen: `${playbook.touchpointResumen} — Cliente: ${client.nombre_comercial}`,
+      resumen: `${playbook.touchpointResumen} — Cliente: ${client.nombre}`,
       siguiente_accion: playbook.description,
     });
-    toast.success(`Touchpoint creado para ${client.nombre_comercial}`);
+    toast.success(`Touchpoint creado para ${client.nombre}`);
   };
 
   if (activePlaybooks.length === 0) {

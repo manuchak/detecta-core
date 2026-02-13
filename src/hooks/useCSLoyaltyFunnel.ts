@@ -5,7 +5,7 @@ export type LoyaltyStage = 'nuevo' | 'activo' | 'leal' | 'promotor' | 'embajador
 
 export interface ClienteLoyalty {
   id: string;
-  nombre_comercial: string;
+  nombre: string;
   razon_social: string;
   es_embajador: boolean;
   notas_fidelidad: string | null;
@@ -89,9 +89,9 @@ export function useCSLoyaltyFunnel() {
       // Fetch all active clients
       const { data: clientes, error: cErr } = await supabase
         .from('pc_clientes')
-        .select('id, nombre_comercial, razon_social, es_embajador, notas_fidelidad')
+        .select('id, nombre, razon_social, es_embajador, notas_fidelidad')
         .eq('activo', true)
-        .order('nombre_comercial');
+        .order('nombre');
       if (cErr) throw cErr;
 
       // Fetch services summary per client (using nombre_cliente match)
@@ -121,9 +121,9 @@ export function useCSLoyaltyFunnel() {
       const now = Date.now();
 
       const clientesLoyalty: ClienteLoyalty[] = (clientes || []).map(c => {
-        // Match services by nombre_comercial
+        // Match services by nombre
         const cServicios = (servicios || []).filter(
-          s => s.nombre_cliente?.toLowerCase().trim() === c.nombre_comercial?.toLowerCase().trim()
+          s => s.nombre_cliente?.toLowerCase().trim() === c.nombre?.toLowerCase().trim()
         );
         const total_servicios = cServicios.length;
         const fechas = cServicios
@@ -172,7 +172,7 @@ export function useCSLoyaltyFunnel() {
 
         return {
           id: c.id,
-          nombre_comercial: c.nombre_comercial,
+          nombre: c.nombre,
           razon_social: c.razon_social,
           es_embajador: c.es_embajador || false,
           notas_fidelidad: c.notas_fidelidad || null,

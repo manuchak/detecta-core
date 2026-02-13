@@ -238,7 +238,7 @@ export function CSRetentionDashboard() {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs text-muted-foreground w-5">{i + 1}.</span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.nombre_comercial}</p>
+                      <p className="text-sm font-medium truncate">{c.nombre}</p>
                       <p className="text-xs text-muted-foreground">
                         {c.total_servicios} servicios
                       </p>
@@ -278,7 +278,7 @@ export function CSRetentionDashboard() {
                     className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-accent/30 transition-colors text-left"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.nombre_comercial}</p>
+                      <p className="text-sm font-medium truncate">{c.nombre}</p>
                       <div className="flex gap-2 text-xs text-muted-foreground">
                         {c.quejas_abiertas > 0 && (
                           <span className="text-destructive">{c.quejas_abiertas} quejas</span>
@@ -320,7 +320,7 @@ export function CSRetentionDashboard() {
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/30 transition-colors text-left"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{c.nombre_comercial}</p>
+                    <p className="text-sm font-medium truncate">{c.nombre}</p>
                     <p className="text-xs text-muted-foreground">
                       {c.total_servicios} servicios · GMV ${(c.gmv_total / 1000).toFixed(0)}K
                     </p>

@@ -36,7 +36,7 @@ export function CSClienteProfileModal({ clienteId, onClose }: Props) {
               <div className="flex items-center gap-3">
                 {clientLoyalty && <CSLoyaltyBadge stage={clientLoyalty.stage} size="md" />}
                 <div>
-                  <DialogTitle className="text-xl">{profile.nombre_comercial}</DialogTitle>
+                  <DialogTitle className="text-xl">{profile.nombre}</DialogTitle>
                   <p className="text-sm text-muted-foreground">{profile.razon_social}</p>
                 </div>
               </div>

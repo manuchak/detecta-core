@@ -73,7 +73,7 @@ export function CSCAPAKanban() {
                             <Badge variant="outline" className="text-[10px] capitalize">{capa.tipo}</Badge>
                           </div>
                           <p className="text-xs line-clamp-2">{capa.descripcion_no_conformidad}</p>
-                          <p className="text-[10px] text-muted-foreground">{capa.cliente?.nombre_comercial}</p>
+                          <p className="text-[10px] text-muted-foreground">{capa.cliente?.nombre}</p>
                           {capa.fecha_implementacion && (
                             <div className={`flex items-center gap-1 text-[10px] ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
                               {isOverdue && <AlertTriangle className="h-3 w-3" />}

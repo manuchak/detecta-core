@@ -103,7 +103,7 @@ export function CSQuejasList() {
                     </div>
                     <p className="text-sm truncate">{q.descripcion}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span>{q.cliente?.nombre_comercial || 'Sin cliente'}</span>
+                      <span>{q.cliente?.nombre || 'Sin cliente'}</span>
                       <span>·</span>
                       <span>{TIPO_LABELS[q.tipo] || q.tipo}</span>
                       <span>·</span>

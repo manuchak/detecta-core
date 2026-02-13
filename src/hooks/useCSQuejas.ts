@@ -30,7 +30,7 @@ export interface CSQueja {
   created_at: string;
   updated_at: string;
   // Joined
-  cliente?: { nombre_comercial: string; razon_social: string } | null;
+  cliente?: { nombre: string; razon_social: string } | null;
 }
 
 export type CSQuejaInsert = {
@@ -66,7 +66,7 @@ export function useCSQuejas(filters?: { estado?: string; tipo?: string; severida
     queryFn: async () => {
       let query = supabase
         .from('cs_quejas')
-        .select('*, cliente:pc_clientes(nombre_comercial, razon_social)')
+        .select('*, cliente:pc_clientes(nombre, razon_social)')
         .order('created_at', { ascending: false });
 
       if (filters?.estado) query = query.eq('estado', filters.estado);
@@ -88,7 +88,7 @@ export function useCSQueja(id: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cs_quejas')
-        .select('*, cliente:pc_clientes(nombre_comercial, razon_social)')
+        .select('*, cliente:pc_clientes(nombre, razon_social)')
         .eq('id', id!)
         .single();
       if (error) throw error;
