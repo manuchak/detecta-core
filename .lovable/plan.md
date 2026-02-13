@@ -1,86 +1,63 @@
 
 
-## Sincerar los conteos del Pipeline: Mostrar solo lo accionable
+## Fix: Aplicar filtro de antigüedad al conteo de Candidatos en el breadcrumb
 
-### Problema
+### Diagnostico
 
-El pipeline muestra conteos brutos de la base de datos (9,069 candidatos, 254 evaluaciones, etc.) cuando lo que cada stakeholder necesita ver es su trabajo pendiente real. Esto genera ansiedad, confusion y paralisis en los analistas.
+El query del breadcrumb en `useSupplyPipelineCounts.ts` filtra por estado y asignacion, pero **no tiene filtro de fecha**. Por eso muestra 1,154 en vez de un numero accionable.
 
-### Vision por Stakeholder (validada)
+Desglose real de leads sin asignar:
 
-| Etapa | Quien la usa | Que necesita ver | Metrica accionable |
-|---|---|---|---|
-| Candidatos | Coordinador Supply | Leads nuevos por asignar a analistas | **Sin asignar** (~135) |
-| Aprobaciones | Analista individual | MIS leads asignados pendientes de decision | **Mis leads activos** (variable por analista) |
-| Evaluaciones | Analista / Coordinador | Candidatos aprobados en proceso de evaluacion | **En evaluacion activa** |
-| Liberacion | Coordinador | Candidatos listos o en proceso de liberacion | **En proceso** (no liberados ni rechazados) |
-| Operativos | Planeacion | Personal activo disponible | **Activos** |
+| Antiguedad | Cantidad |
+|---|---|
+| Ultimos 7 dias | 36 |
+| 8-15 dias | 99 |
+| 16-30 dias | 0 |
+| Mas de 30 dias | 1,019 (legacy muerto) |
 
-### Cambios Propuestos
+Los 1,019 leads legacy nunca fueron tocados (su `updated_at` tampoco cambio). Con un corte de 30 dias da 135, pero la realidad operativa es que un lead sin contactar despues de 15 dias ya esta frio.
 
-#### 1. Redefinir los conteos del breadcrumb para que sean accionables
-**Archivo**: `src/hooks/useSupplyPipelineCounts.ts`
+### Cambio propuesto
 
-Cambiar las queries para que cada conteo refleje el trabajo pendiente real, no el total historico:
+#### Archivo: `src/hooks/useSupplyPipelineCounts.ts`
+
+Agregar filtro `.gte('created_at', cutoffISO)` al query de candidatos:
 
 ```
-candidatos:   leads sin asignar + estado activo (no rechazado/inactivo/custodio_activo)
-aprobaciones: leads asignados con decision pendiente (final_decision IS NULL)
-evaluaciones: candidatos_custodios en estado 'aprobado' o 'en_evaluacion' (ya esta correcto)
-liberacion:   custodio_liberacion no liberados ni rechazados (ya esta correcto)
-operativos:   custodios_operativos activos (ya esta correcto)
-```
+const cutoff = new Date();
+cutoff.setDate(cutoff.getDate() - 15);
+const cutoffISO = cutoff.toISOString();
 
-#### 2. Actualizar el badge del header en LeadsListPage
-**Archivo**: `src/pages/Leads/LeadsListPage.tsx`
-
-El badge junto a "Candidatos" debe mostrar el conteo de leads sin asignar (lo accionable), no el total historico. Opcionalmente mostrar "135 por asignar" en lugar de "9,069".
-
-#### 3. Ajustar los tabs de navegacion en Candidatos
-**Archivo**: `src/components/leads/LeadsNavigationTabs.tsx`
-
-Los tabs "Por Contactar", "Listos", "En Proceso", "Archivo" ya segmentan correctamente. Pero el tab default ("Por Contactar") deberia reflejar solo leads sin asignar activos, que es la accion primaria del coordinador.
-
-#### 4. Filtrar la RPC get_leads_counts para excluir legacy quemado
-Crear o ajustar la funcion RPC `get_leads_counts` para que los conteos que alimentan los tabs tambien reflejen solo datos accionables (excluyendo leads con mas de 30 dias sin actividad, o bien leads ya procesados).
-
-### Seccion Tecnica
-
-**useSupplyPipelineCounts.ts** - Queries accionables:
-```tsx
-// ANTES (total bruto):
-supabase.from('leads').select('*', { count: 'exact', head: true })
-
-// DESPUES (solo accionables - sin asignar y con estado activo):
 supabase
   .from('leads')
   .select('*', { count: 'exact', head: true })
   .is('asignado_a', null)
   .not('estado', 'in', '("rechazado","inactivo","custodio_activo")')
-
-// Aprobaciones - leads asignados pendientes de decision:
-supabase
-  .from('leads')
-  .select('*', { count: 'exact', head: true })
-  .not('asignado_a', 'is', null)
-  .is('final_decision', null)
+  .gte('created_at', cutoffISO)
 ```
 
-**LeadsListPage.tsx** - Badge contextual:
-```tsx
-// Mostrar "por asignar" en lugar del total
-<Badge variant="outline">
-  {counts?.uncontacted || 0} por asignar
-</Badge>
+Esto reducira el conteo del breadcrumb de **1,154 a ~36-135** dependiendo del corte elegido.
+
+#### Archivo: RPC `get_leads_counts` (migracion SQL)
+
+La RPC que alimenta los tabs tambien necesita el mismo corte. La migracion anterior uso `WHERE created_at >= cutoff OR estado NOT IN (...)` que es demasiado permisiva (el OR deja pasar todo). Corregir a:
+
+```sql
+WHERE created_at >= cutoff
 ```
 
-**useLeadsCounts / get_leads_counts** - Necesita revision de la funcion RPC en Supabase para confirmar que los conteos de los tabs tambien filtren datos legacy. Si la RPC no tiene filtro de antiguedad, se agrega un filtro de 30 dias o de estado activo.
+Sin el OR, para que los tabs (Por Contactar, Listos, En Proceso, Archivo) solo muestren leads recientes.
 
-### Resultado Esperado
+### Decision de corte temporal
 
-- El breadcrumb mostrara: **Candidatos (135)** en lugar de Candidatos (9,069)
-- Aprobaciones mostrara leads asignados pendientes de decision, no todos los aprobados historicos
-- Cada analista vera volumenes de trabajo realistas y manejables
-- Los datos historicos permanecen intactos en la base de datos para reporting
-- Zero data deletion requerida
+Se propone **15 dias** como corte para la etapa de Candidatos, porque:
+- Un lead sin contactar despues de 15 dias esta frio
+- Da un numero mas cercano a lo operativamente real (~36-135)
+- Los leads mas viejos no desaparecen de la BD, solo del tablero accionable
+
+### Resultado esperado
+
+- Breadcrumb Candidatos: **~36** (en vez de 1,154)
+- Tab "Por Contactar": numero equivalente y consistente
+- Datos historicos intactos en la base de datos
 
