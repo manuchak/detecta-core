@@ -138,6 +138,17 @@ export const FACTURACION_ALLOWED_ROLES = [
 ] as const;
 
 /**
+ * Roles con acceso al módulo Customer Success
+ */
+export const CUSTOMER_SUCCESS_ALLOWED_ROLES = [
+  'admin',
+  'owner',
+  'customer_success',
+  'ejecutivo_ventas',
+  'coordinador_operaciones'
+] as const;
+
+/**
  * Roles autorizados para editar el nombre comercial de clientes
  * IMPORTANTE: Este cambio puede afectar vinculaciones con rutas/servicios históricos
  */
@@ -178,6 +189,8 @@ export function getTargetRouteForRole(role: string): string {
     case 'supply_lead':
     case 'supply':
       return '/leads';
+    case 'customer_success':
+      return '/customer-success';
     case 'admin':
     case 'owner':
     case 'supply_admin':

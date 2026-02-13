@@ -122,6 +122,7 @@ const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCurs
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
+const CustomerSuccessPage = lazy(() => import('@/pages/CustomerSuccess/CustomerSuccessPage'));
  const ServiceChecklistPage = lazy(() => import('@/pages/custodian/ServiceChecklistPage'));
 
 // Components
@@ -332,6 +333,20 @@ function App() {
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones']}>
                         <UnifiedLayout>
                           <FacturacionHub />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Customer Success */}
+                <Route
+                  path="/customer-success"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'customer_success', 'ejecutivo_ventas', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <CustomerSuccessPage />
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>

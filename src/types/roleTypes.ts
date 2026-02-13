@@ -21,6 +21,7 @@ export type Role =
   | 'facturacion'
   | 'finanzas_admin'
   | 'finanzas'
+  | 'customer_success'
   | 'pending'
   | 'unverified';
 

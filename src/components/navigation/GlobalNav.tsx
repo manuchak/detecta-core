@@ -22,7 +22,8 @@ import {
   Settings,
   LogOut,
   User,
-  Receipt
+  Receipt,
+  HeartHandshake
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +80,13 @@ const modules: Module[] = [
     icon: Receipt,
     path: '/facturacion',
     roles: ['admin', 'owner', 'bi', 'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'coordinador_operaciones']
+  },
+  {
+    id: 'customer-success',
+    label: 'Customer Success',
+    icon: HeartHandshake,
+    path: '/customer-success',
+    roles: ['admin', 'owner', 'customer_success', 'ejecutivo_ventas', 'coordinador_operaciones']
   }
 ];
 
