@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format, subDays, subMonths } from 'date-fns';
 
 export interface CSHealthScore {
   id: string;
@@ -35,43 +36,89 @@ export function useCSClientesConQuejas() {
   return useQuery({
     queryKey: ['cs-clientes-con-quejas'],
     queryFn: async () => {
-      // Get all clients with their complaint counts
-      const { data: clientes, error: cErr } = await supabase
-        .from('pc_clientes')
-        .select('id, nombre, razon_social')
-        .eq('activo', true)
-        .order('nombre');
-      if (cErr) throw cErr;
+      const now = Date.now();
+      const cutoff90d = format(subDays(new Date(), 90), 'yyyy-MM-dd');
+      const mesActual = format(new Date(), 'yyyy-MM');
+      const mesAnterior = format(subMonths(new Date(), 1), 'yyyy-MM');
 
-      const { data: quejas, error: qErr } = await supabase
-        .from('cs_quejas')
-        .select('cliente_id, estado, calificacion_cierre');
-      if (qErr) throw qErr;
+      // Parallel fetches
+      const [clientesRes, quejasRes, touchpointsRes, serviciosRes] = await Promise.all([
+        supabase.from('pc_clientes').select('id, nombre, razon_social').eq('activo', true).order('nombre'),
+        supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
+        supabase.from('cs_touchpoints').select('cliente_id, created_at'),
+        supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
+      ]);
 
-      const { data: touchpoints, error: tErr } = await supabase
-        .from('cs_touchpoints')
-        .select('cliente_id, created_at');
-      if (tErr) throw tErr;
+      if (clientesRes.error) throw clientesRes.error;
+      if (quejasRes.error) throw quejasRes.error;
+      if (touchpointsRes.error) throw touchpointsRes.error;
+      if (serviciosRes.error) throw serviciosRes.error;
 
-      return (clientes || []).map(c => {
-        const cQuejas = (quejas || []).filter(q => q.cliente_id === c.id);
+      const clientes = clientesRes.data || [];
+      const quejas = quejasRes.data || [];
+      const touchpoints = touchpointsRes.data || [];
+      const servicios = serviciosRes.data || [];
+
+      return clientes.map(c => {
+        const nombreNorm = c.nombre?.toLowerCase().trim();
+
+        // Quejas
+        const cQuejas = quejas.filter(q => q.cliente_id === c.id);
         const abiertas = cQuejas.filter(q => q.estado !== 'cerrada').length;
         const conCsat = cQuejas.filter(q => q.calificacion_cierre);
         const csat = conCsat.length
           ? conCsat.reduce((s, q) => s + (q.calificacion_cierre || 0), 0) / conCsat.length
           : null;
-        const cTouchpoints = (touchpoints || []).filter(t => t.cliente_id === c.id);
-        const lastContact = cTouchpoints.length
+
+        // Touchpoints - last contact
+        const cTouchpoints = touchpoints.filter(t => t.cliente_id === c.id);
+        const lastTpDate = cTouchpoints.length
           ? cTouchpoints.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
           : null;
+
+        // Services for this client
+        const cServicios = servicios.filter(
+          s => s.nombre_cliente?.toLowerCase().trim() === nombreNorm
+        );
+        const fechas = cServicios.map(s => s.fecha_hora_cita).filter(Boolean).sort();
+        const lastServiceDate = fechas[fechas.length - 1] || null;
+
+        // dias_sin_contacto = MAX(lastService, lastTouchpoint)
+        let lastContact: number | null = null;
+        if (lastServiceDate) lastContact = new Date(lastServiceDate).getTime();
+        if (lastTpDate) {
+          const tpTime = new Date(lastTpDate).getTime();
+          lastContact = lastContact ? Math.max(lastContact, tpTime) : tpTime;
+        }
         const diasSinContacto = lastContact
-          ? Math.floor((Date.now() - new Date(lastContact).getTime()) / (1000 * 60 * 60 * 24))
+          ? Math.floor((now - lastContact) / (1000 * 60 * 60 * 24))
           : 999;
 
+        // Servicios recientes (90d)
+        const servicios_recientes = cServicios.filter(
+          s => s.fecha_hora_cita && s.fecha_hora_cita >= cutoff90d
+        ).length;
+
+        // GMV tendencia (mes actual vs anterior)
+        const gmvActual = cServicios
+          .filter(s => s.fecha_hora_cita?.startsWith(mesActual))
+          .reduce((sum, s) => sum + (Number(s.cobro_cliente) || 0), 0);
+        const gmvAnterior = cServicios
+          .filter(s => s.fecha_hora_cita?.startsWith(mesAnterior))
+          .reduce((sum, s) => sum + (Number(s.cobro_cliente) || 0), 0);
+
+        let gmv_tendencia: 'up' | 'down' | 'stable' = 'stable';
+        if (gmvAnterior > 0) {
+          const cambio = (gmvActual - gmvAnterior) / gmvAnterior;
+          if (cambio > 0.1) gmv_tendencia = 'up';
+          else if (cambio < -0.1) gmv_tendencia = 'down';
+        }
+
+        // Risk level adjusted with service data
         let riesgo: string = 'bajo';
-        if (abiertas >= 3 || diasSinContacto > 60) riesgo = 'critico';
-        else if (abiertas >= 2 || diasSinContacto > 30) riesgo = 'alto';
-        else if (abiertas >= 1 || diasSinContacto > 14) riesgo = 'medio';
+        if (abiertas >= 3 || (diasSinContacto > 60 && servicios_recientes === 0)) riesgo = 'critico';
+        else if (abiertas >= 2 || (diasSinContacto > 30 && servicios_recientes === 0)) riesgo = 'alto';
+        else if (abiertas >= 1) riesgo = 'medio';
 
         return {
           ...c,
@@ -80,7 +127,9 @@ export function useCSClientesConQuejas() {
           csat,
           diasSinContacto,
           riesgo,
-          ultimo_contacto: lastContact,
+          ultimo_contacto: lastContact ? new Date(lastContact).toISOString() : null,
+          servicios_recientes,
+          gmv_tendencia,
         };
       });
     },
