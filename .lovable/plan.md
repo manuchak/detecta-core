@@ -1,75 +1,86 @@
 
 
-## Integrar la pagina de Candidatos (/leads) al UX del Supply Pipeline
+## Sincerar los conteos del Pipeline: Mostrar solo lo accionable
 
-### Diagnostico
+### Problema
 
-La pagina `/leads` (renderizada por `LeadsListPage.tsx`) ya tiene un diseno relativamente moderno con tabs de navegacion, filtros inline y metricas en popover. Sin embargo, **no esta conectada visualmente al pipeline de Supply** que si tienen las paginas de Aprobaciones, Evaluaciones y Liberacion. Especificamente:
+El pipeline muestra conteos brutos de la base de datos (9,069 candidatos, 254 evaluaciones, etc.) cuando lo que cada stakeholder necesita ver es su trabajo pendiente real. Esto genera ansiedad, confusion y paralisis en los analistas.
 
-1. **Falta el `SupplyPipelineBreadcrumb`**: Las otras 3 etapas del pipeline (Approvals, Evaluaciones, Liberacion) muestran un breadcrumb con conteos en vivo y alertas de envejecimiento. La pagina de Candidatos no lo tiene, lo que la desconecta del flujo.
+### Vision por Stakeholder (validada)
 
-2. **La pagina de Candidatos no aparece en el breadcrumb**: El componente `SupplyPipelineBreadcrumb` define 4 pasos (Aprobaciones, Evaluaciones, Liberacion, Operativos) pero **no incluye "Candidatos"** como primer paso del pipeline, aunque logicamente es la entrada al embudo.
-
-3. **La tabla es densa y poco mobile-friendly**: `LeadsTable.tsx` usa una tabla HTML con 9 columnas que no se adapta bien a pantallas pequenas, contrario al estandar de supply que prioriza card layouts en mobile.
+| Etapa | Quien la usa | Que necesita ver | Metrica accionable |
+|---|---|---|---|
+| Candidatos | Coordinador Supply | Leads nuevos por asignar a analistas | **Sin asignar** (~135) |
+| Aprobaciones | Analista individual | MIS leads asignados pendientes de decision | **Mis leads activos** (variable por analista) |
+| Evaluaciones | Analista / Coordinador | Candidatos aprobados en proceso de evaluacion | **En evaluacion activa** |
+| Liberacion | Coordinador | Candidatos listos o en proceso de liberacion | **En proceso** (no liberados ni rechazados) |
+| Operativos | Planeacion | Personal activo disponible | **Activos** |
 
 ### Cambios Propuestos
 
-#### 1. Agregar "Candidatos" como primer paso del pipeline breadcrumb
-**Archivo**: `src/components/leads/supply/SupplyPipelineBreadcrumb.tsx`
-- Agregar un nuevo paso al inicio del array `steps`: `{ key: 'candidatos', label: 'Candidatos', path: '/leads', icon: UserPlus }`
-- Agregar el conteo correspondiente usando los datos existentes de `useSupplyPipelineCounts` o `useLeadsCounts`
+#### 1. Redefinir los conteos del breadcrumb para que sean accionables
+**Archivo**: `src/hooks/useSupplyPipelineCounts.ts`
 
-#### 2. Integrar el breadcrumb en LeadsListPage
-**Archivo**: `src/pages/Leads/LeadsListPage.tsx`
-- Importar y renderizar `SupplyPipelineBreadcrumb` al inicio de la pagina, igual que en Approvals, Evaluaciones y Liberacion
-- Esto conecta visualmente la pagina al flujo del pipeline
+Cambiar las queries para que cada conteo refleje el trabajo pendiente real, no el total historico:
 
-#### 3. Refinar el header para consistencia con el resto del pipeline
+```
+candidatos:   leads sin asignar + estado activo (no rechazado/inactivo/custodio_activo)
+aprobaciones: leads asignados con decision pendiente (final_decision IS NULL)
+evaluaciones: candidatos_custodios en estado 'aprobado' o 'en_evaluacion' (ya esta correcto)
+liberacion:   custodio_liberacion no liberados ni rechazados (ya esta correcto)
+operativos:   custodios_operativos activos (ya esta correcto)
+```
+
+#### 2. Actualizar el badge del header en LeadsListPage
 **Archivo**: `src/pages/Leads/LeadsListPage.tsx`
-- Ajustar el header para que siga el mismo patron visual que Evaluaciones (icono + titulo + descripcion)
-- Mantener los botones de accion existentes (Metricas, Metas, Filtros, Nuevo)
+
+El badge junto a "Candidatos" debe mostrar el conteo de leads sin asignar (lo accionable), no el total historico. Opcionalmente mostrar "135 por asignar" en lugar de "9,069".
+
+#### 3. Ajustar los tabs de navegacion en Candidatos
+**Archivo**: `src/components/leads/LeadsNavigationTabs.tsx`
+
+Los tabs "Por Contactar", "Listos", "En Proceso", "Archivo" ya segmentan correctamente. Pero el tab default ("Por Contactar") deberia reflejar solo leads sin asignar activos, que es la accion primaria del coordinador.
+
+#### 4. Filtrar la RPC get_leads_counts para excluir legacy quemado
+Crear o ajustar la funcion RPC `get_leads_counts` para que los conteos que alimentan los tabs tambien reflejen solo datos accionables (excluyendo leads con mas de 30 dias sin actividad, o bien leads ya procesados).
 
 ### Seccion Tecnica
 
-**SupplyPipelineBreadcrumb.tsx** - Agregar candidatos al pipeline:
+**useSupplyPipelineCounts.ts** - Queries accionables:
 ```tsx
-const steps = [
-  { key: 'candidatos', label: 'Candidatos', path: '/leads', icon: UserPlus },
-  { key: 'aprobaciones', label: 'Aprobaciones', path: '/leads/approvals', icon: CheckCircle2 },
-  { key: 'evaluaciones', label: 'Evaluaciones', path: '/leads/evaluaciones', icon: ClipboardCheck },
-  { key: 'liberacion', label: 'Liberacion', path: '/leads/liberacion', icon: Rocket },
-  { key: 'operativos', label: 'Operativos', path: null, icon: Users },
-];
-```
+// ANTES (total bruto):
+supabase.from('leads').select('*', { count: 'exact', head: true })
 
-**useSupplyPipelineCounts.ts** - Agregar conteo de candidatos:
-```tsx
-// Agregar query para total de leads activos
-const candidatos = await supabase
+// DESPUES (solo accionables - sin asignar y con estado activo):
+supabase
   .from('leads')
-  .select('*', { count: 'exact', head: true });
+  .select('*', { count: 'exact', head: true })
+  .is('asignado_a', null)
+  .not('estado', 'in', '("rechazado","inactivo","custodio_activo")')
 
-return {
-  candidatos: candidatos.status === 'fulfilled' ? candidatos.value.count : null,
-  aprobaciones: ...,
-  // ...resto igual
-};
+// Aprobaciones - leads asignados pendientes de decision:
+supabase
+  .from('leads')
+  .select('*', { count: 'exact', head: true })
+  .not('asignado_a', 'is', null)
+  .is('final_decision', null)
 ```
 
-**LeadsListPage.tsx** - Integrar breadcrumb:
+**LeadsListPage.tsx** - Badge contextual:
 ```tsx
-import { SupplyPipelineBreadcrumb } from '@/components/leads/supply/SupplyPipelineBreadcrumb';
-
-return (
-  <div className="space-y-4 p-6">
-    <SupplyPipelineBreadcrumb />
-    <header>...</header>
-    {/* resto del contenido */}
-  </div>
-);
+// Mostrar "por asignar" en lugar del total
+<Badge variant="outline">
+  {counts?.uncontacted || 0} por asignar
+</Badge>
 ```
+
+**useLeadsCounts / get_leads_counts** - Necesita revision de la funcion RPC en Supabase para confirmar que los conteos de los tabs tambien filtren datos legacy. Si la RPC no tiene filtro de antiguedad, se agrega un filtro de 30 dias o de estado activo.
 
 ### Resultado Esperado
 
-La pagina de Candidatos se integrara visualmente al pipeline de Supply con el mismo breadcrumb de navegacion que ya usan Aprobaciones, Evaluaciones y Liberacion, mostrando conteos en vivo en cada etapa y permitiendo al usuario navegar entre todas las fases del embudo desde cualquier punto.
+- El breadcrumb mostrara: **Candidatos (135)** en lugar de Candidatos (9,069)
+- Aprobaciones mostrara leads asignados pendientes de decision, no todos los aprobados historicos
+- Cada analista vera volumenes de trabajo realistas y manejables
+- Los datos historicos permanecen intactos en la base de datos para reporting
+- Zero data deletion requerida
 
