@@ -87,7 +87,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
           `)
           .or(`telefono.eq.${normalizedPhone},telefono_operador.eq.${normalizedPhone}`)
           .order('fecha_hora_cita', { ascending: false })
-          .limit(50),
+          .limit(200),
 
         // 2. Nuevo: servicios_planificados
         supabase
@@ -106,7 +106,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
           `)
           .eq('custodio_telefono', normalizedPhone)
           .order('fecha_hora_cita', { ascending: false })
-          .limit(50)
+          .limit(200)
       ]);
 
       if (legacyResult.error) {
