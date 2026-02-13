@@ -37,12 +37,15 @@ export function useSupplyPipelineAlerts() {
     queryKey: ['supply-pipeline-alerts'],
     queryFn: async (): Promise<PipelineAlertsSummary> => {
       const now = new Date();
+      const cutoff30d = new Date();
+      cutoff30d.setDate(cutoff30d.getDate() - 30);
 
       const [evalRes, libRes] = await Promise.allSettled([
         supabase
           .from('candidatos_custodios')
           .select('id, nombre, updated_at')
-          .in('estado_proceso', ['aprobado', 'en_evaluacion']),
+          .in('estado_proceso', ['aprobado', 'en_evaluacion'])
+          .gte('created_at', cutoff30d.toISOString()),
         supabase
           .from('custodio_liberacion')
           .select('id, updated_at, candidato:candidatos_custodios(nombre)')
