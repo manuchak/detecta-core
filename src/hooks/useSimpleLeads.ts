@@ -85,7 +85,8 @@ export const useSimpleLeads = (options: UseSimpleLeadsOptions = {}) => {
             current_stage,
             analyst_id,
             phone_interview_completed
-          )
+          ),
+          assigned_profile:profiles!asignado_a(display_name)
         `, { count: 'exact' });
 
       // Aplicar filtros en el backend

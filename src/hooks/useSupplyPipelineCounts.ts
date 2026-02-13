@@ -31,7 +31,8 @@ export function useSupplyPipelineCounts() {
         supabase
           .from('candidatos_custodios')
           .select('*', { count: 'exact', head: true })
-          .in('estado_proceso', ['aprobado', 'en_evaluacion']),
+          .in('estado_proceso', ['aprobado', 'en_evaluacion'])
+          .gte('created_at', cutoffISO),
         supabase
           .from('custodio_liberacion')
           .select('*', { count: 'exact', head: true })
