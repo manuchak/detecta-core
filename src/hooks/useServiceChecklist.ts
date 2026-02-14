@@ -5,8 +5,9 @@
  import { useState, useCallback, useEffect } from 'react';
  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
- import { toast } from 'sonner';
- import { useNetworkStatus } from './useNetworkStatus';
+  import { toast } from 'sonner';
+  import { useNetworkStatus } from './useNetworkStatus';
+  import { withSmartRetry } from '@/lib/retryUtils';
  import {
    saveDraft,
    getDraft,
@@ -266,54 +267,74 @@ export function useServiceChecklist({
          sincronizado_offline: !isOnline,
        };
  
-       if (isOnline) {
-         const fotosConUrl: FotoValidada[] = [];
- 
-         for (const foto of fotos) {
-           if (foto.localBlobId) {
-             const localPhotos = await getPhotosByServicio(servicioId);
-             const localPhoto = localPhotos.find(
-               (p) => p.id === foto.localBlobId
-             );
- 
-             if (localPhoto) {
-               const fileName = `${servicioId}/${foto.angle}_${Date.now()}.jpg`;
- 
-               const { error } = await supabase.storage
-                 .from('checklist-evidencias')
-                 .upload(fileName, localPhoto.blob, { upsert: true });
- 
-               if (error) throw error;
- 
-               const { data: urlData } = supabase.storage
-                 .from('checklist-evidencias')
-                 .getPublicUrl(fileName);
- 
-               fotosConUrl.push({
-                 ...foto,
-                 url: urlData.publicUrl,
-                 localBlobId: undefined,
-               });
- 
-               await deletePhotoBlob(localPhoto.id);
-             }
-           } else {
-             fotosConUrl.push(foto);
-           }
-         }
- 
-         checklistData.fotos_validadas = fotosConUrl;
-         checklistData.fecha_sincronizacion = now;
-         checklistData.sincronizado_offline = false;
- 
-         const { error } = await supabase
-           .from('checklist_servicio')
-           .upsert(checklistData, {
-             onConflict: 'servicio_id,custodio_telefono',
-           });
- 
-         if (error) throw error;
-         await deleteDraft(servicioId);
+        if (isOnline) {
+          const fotosConUrl: FotoValidada[] = [];
+
+          for (const foto of fotos) {
+            if (foto.localBlobId) {
+              const localPhotos = await getPhotosByServicio(servicioId);
+              const localPhoto = localPhotos.find(
+                (p) => p.id === foto.localBlobId
+              );
+
+              if (localPhoto) {
+                const fileName = `${servicioId}/${foto.angle}_${Date.now()}.jpg`;
+
+                const { error } = await supabase.storage
+                  .from('checklist-evidencias')
+                  .upload(fileName, localPhoto.blob, { upsert: true });
+
+                if (error) throw error;
+
+                const { data: urlData } = supabase.storage
+                  .from('checklist-evidencias')
+                  .getPublicUrl(fileName);
+
+                fotosConUrl.push({
+                  ...foto,
+                  url: urlData.publicUrl,
+                  localBlobId: undefined,
+                });
+
+                await deletePhotoBlob(localPhoto.id);
+              }
+            } else {
+              fotosConUrl.push(foto);
+            }
+          }
+
+          checklistData.fotos_validadas = fotosConUrl;
+          checklistData.fecha_sincronizacion = now;
+          checklistData.sincronizado_offline = false;
+
+          // Save with retry for transient errors
+          await withSmartRetry(
+            async () => {
+              const { error } = await supabase
+                .from('checklist_servicio')
+                .upsert(checklistData, {
+                  onConflict: 'servicio_id,custodio_telefono',
+                });
+
+              if (error) {
+                console.error('[Checklist] DB save error:', {
+                  code: error.code,
+                  message: error.message,
+                  details: error.details,
+                  hint: error.hint,
+                  servicioId,
+                  custodioTelefono,
+                });
+                throw new Error(`DB error ${error.code}: ${error.message}`);
+              }
+            },
+            { maxAttempts: 3, baseDelayMs: 1000 },
+            (attempt, delay) => {
+              console.log(`[Checklist] Retry ${attempt}, waiting ${delay}ms...`);
+            }
+          );
+
+          await deleteDraft(servicioId);
        } else {
          await addToSyncQueue({
            action: 'save_checklist',
@@ -342,11 +363,14 @@ export function useServiceChecklist({
        );
        setIsSaving(false);
      },
-     onError: (error) => {
-       console.error('[Checklist] Save error:', error);
-       toast.error('Error al guardar checklist');
-       setIsSaving(false);
-     },
+      onError: (error) => {
+        console.error('[Checklist] Save failed permanently:', error);
+        toast.error('Error al guardar checklist. Por favor intenta de nuevo.', {
+          duration: Infinity,
+          description: 'Si el problema persiste, contacta a soporte.',
+        });
+        setIsSaving(false);
+      },
    });
  
    const isComplete = useCallback(() => {
