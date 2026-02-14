@@ -33,20 +33,20 @@ export function useCSClienteProfile(clienteId: string | null) {
       // Services
       const { data: servicios, error: sErr } = await supabase
         .from('servicios_custodia')
-        .select('cobro_cliente, fecha_servicio')
+        .select('cobro_cliente, fecha_hora_cita')
         .ilike('nombre_cliente', cliente.nombre);
       if (sErr) throw sErr;
 
       const lifetime_servicios = servicios?.length || 0;
       const gmv_total = (servicios || []).reduce((s, sv) => s + (Number(sv.cobro_cliente) || 0), 0);
-      const fechas = (servicios || []).map(s => s.fecha_servicio).filter(Boolean).sort();
+      const fechas = (servicios || []).map(s => s.fecha_hora_cita).filter(Boolean).sort();
       const primer_servicio = fechas[0] || null;
 
       // GMV by month (last 12)
       const gmvByMonth: Record<string, { gmv: number; servicios: number }> = {};
       (servicios || []).forEach(s => {
-        if (!s.fecha_servicio) return;
-        const key = s.fecha_servicio.substring(0, 7); // YYYY-MM
+        if (!s.fecha_hora_cita) return;
+        const key = s.fecha_hora_cita.substring(0, 7); // YYYY-MM
         if (!gmvByMonth[key]) gmvByMonth[key] = { gmv: 0, servicios: 0 };
         gmvByMonth[key].gmv += Number(s.cobro_cliente) || 0;
         gmvByMonth[key].servicios += 1;
