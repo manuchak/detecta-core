@@ -1,137 +1,95 @@
 
 
-## Modulo de Configuracion CS - Health Score y Funnel de Fidelidad
+## Rediseno del Funnel de Fidelidad - Trapecio Continuo (Validado con Research)
 
-### Enfoque: Tabla de configuracion con fallback a valores actuales
+### Evaluacion: Propuesta original vs. Research vs. Imagen de referencia
 
-La estrategia clave para no romper nada es usar una tabla `cs_config` con pares clave-valor JSON. Los hooks y la edge function leeran la config al inicio; si no existe, usan los valores hardcoded actuales como fallback. Asi el sistema funciona identico hasta que el admin decida cambiar algo.
+Despues de investigar dashboards de loyalty/conversion funnels en Userpilot, Dribbble, y guias SaaS 2025-2026, la conclusion es:
 
----
+- **Mi propuesta original** (bandas rectangulares con ancho decreciente) es funcional pero produce un efecto de "escalones separados" — mejor que el grid actual pero no tan fluido como tu imagen de referencia.
+- **La imagen de referencia** usa un trapecio continuo donde cada etapa fluye visualmente a la siguiente, creando un embudo real.
+- **El estandar de industria** confirma que los funnels mas efectivos usan formas trapezoidales con datos inline y colores por etapa.
 
-### 1. Tabla `cs_config`
+### Diseno final: Trapecio continuo con CSS
 
-Estructura simple y flexible:
-
-```text
-cs_config
----------
-id          uuid PK
-categoria   text  ('health_score' | 'loyalty_funnel' | 'sla' | ...)
-config      jsonb (los parametros)
-updated_at  timestamptz
-updated_by  uuid FK profiles
-```
-
-Un solo registro por categoria. Ejemplo del JSON para `health_score`:
+Cada etapa del funnel es una seccion trapezoidal que se estrecha progresivamente, creando una silueta de embudo continua sin gaps entre secciones.
 
 ```text
-{
-  "penalizaciones": {
-    "quejas_2_mas": 30,
-    "quejas_1": 15,
-    "sin_contacto_60d": 25,
-    "sin_contacto_30d": 10,
-    "sin_servicios_90d": 20,
-    "csat_bajo_3": 15,
-    "csat_bajo_4": 5
-  },
-  "umbrales_churn": {
-    "alto": 40,
-    "medio": 70
-  }
-}
+Vista del componente:
+
+  ┌────────────────────────────────────────────────┐
+  │\  Sparkles   Nuevo         45          62%    /│  ← azul, mas ancho
+  │ \____________________________________________/ │
+  │  \  Activity  Activo       20          28%  /  │  ← gris
+  │   \________________________________________/   │
+  │    \  Shield   Leal         8          11% /   │  ← verde
+  │     \____________________________________/     │
+  │      \  Star   Promotor     4          6%/     │  ← ambar
+  │       \________________________________/       │
+  │        \  Crown  Embajador   2       3%/       │  ← purpura
+  │         \____________________________/         │
+
+  ┌──────────────────────────┐
+  │ ⚠ 3 clientes en riesgo   │  ← card roja separada
+  └──────────────────────────┘
 ```
 
-Y para `loyalty_funnel`:
+### Implementacion tecnica
+
+**Tecnica CSS - clip-path polygon:**
+
+Cada seccion usa `clip-path: polygon(...)` para crear la forma trapezoidal. Los porcentajes de indentacion son progresivos:
 
 ```text
-{
-  "en_riesgo": {
-    "quejas_minimas": 2,
-    "dias_inactividad": 60,
-    "servicios_90d_minimo": 0
-  },
-  "embajador": {
-    "meses_minimos": 6,
-    "csat_minimo": 4.5,
-    "dias_contacto_maximo": 30
-  },
-  "promotor": {
-    "meses_minimos": 6,
-    "csat_minimo": 4.5,
-    "dias_contacto_maximo": 30
-  },
-  "leal": {
-    "meses_minimos": 6,
-    "dias_contacto_maximo": 30
-  },
-  "nuevo": {
-    "meses_maximo": 2
-  }
-}
+Etapa 1 (Nuevo):     polygon(0% 0%, 100% 0%, 97% 100%, 3% 100%)
+Etapa 2 (Activo):    polygon(3% 0%, 97% 0%, 94% 100%, 6% 100%)
+Etapa 3 (Leal):      polygon(6% 0%, 94% 0%, 91% 100%, 9% 100%)
+Etapa 4 (Promotor):  polygon(9% 0%, 91% 0%, 88% 100%, 12% 100%)
+Etapa 5 (Embajador): polygon(12% 0%, 88% 0%, 85% 100%, 15% 100%)
 ```
 
----
+Cada seccion tiene `margin-top: -2px` para que se solapen ligeramente y creen continuidad visual (sin gaps blancos).
 
-### 2. Hook `useCSConfig.ts`
+**Contenido dentro de cada seccion:**
+- Flex row: Icono + Label (izquierda) | Count bold (centro) | Porcentaje (derecha)
+- Texto blanco sobre fondo de color con gradiente sutil
+- Padding vertical suficiente para area clickeable (~44px altura)
 
-- Lee la config de `cs_config` por categoria
-- Exporta funciones `getHealthConfig()` y `getLoyaltyConfig()` con fallback a los valores hardcoded actuales
-- Mutation para guardar cambios (upsert por categoria)
-- Cache con React Query (`staleTime: 5min`)
+**Interactividad:**
+- Hover: brightness sube (`hover:brightness-110`) + cursor pointer
+- Selected: `ring-2 ring-white/40 z-10` sobre la seccion activa
+- Transition suave: `transition-all duration-200`
 
----
+**"En Riesgo" separado:**
+- Card independiente debajo del funnel con fondo `bg-red-50 dark:bg-red-950/30`
+- Icono AlertTriangle + count + "clientes requieren atencion"
+- Clickeable con el mismo `onStageClick`
 
-### 3. Integracion sin romper nada
+### Colores con gradiente por etapa
 
-**En `useCSLoyaltyFunnel.ts`:**
-- Llamar `useCSConfig('loyalty_funnel')` al inicio
-- La funcion `calculateStage()` recibe la config como parametro en vez de usar constantes
-- Si la config es `null` (no existe en BD), usa los mismos valores hardcoded actuales
+| Etapa | Gradiente |
+|-------|-----------|
+| Nuevo | `from-blue-500 to-blue-600` |
+| Activo | `from-slate-400 to-slate-500` |
+| Leal | `from-green-500 to-green-600` |
+| Promotor | `from-amber-500 to-amber-600` |
+| Embajador | `from-purple-500 to-purple-600` |
 
-**En `cs-health-snapshot/index.ts` (Edge Function):**
-- Al inicio, leer `cs_config` donde `categoria = 'health_score'`
-- Si no hay registro, usar los valores actuales
-- Pasar la config al calculo del score
+### Responsive
 
-**En `useCSCartera.ts` y `useCSAlerts.ts`:**
-- Los que usan umbrales de riesgo o dias, tambien pueden leer la config, pero con fallback
+- Desktop: clip-path con indentaciones del 3% progresivo
+- Mobile (< sm): indentaciones reducidas al 2% para maximizar espacio de texto; font-size se reduce a `text-xs`
 
----
+### Archivo a modificar
 
-### 4. UI de Configuracion
+Solo `src/pages/CustomerSuccess/components/CSLoyaltyFunnel.tsx` — cambio puramente visual.
 
-Nuevo componente `CSConfigPanel.tsx` accesible desde un boton de engranaje en la pagina principal de CS (solo visible para admins).
+No se modifica ningun hook, edge function, ni componente padre. La interfaz `Props` (onStageClick, selectedStage) permanece identica.
 
-La interfaz tendra dos secciones con formularios:
+### Por que este diseno es superior
 
-**Seccion Health Score:**
-- Inputs numericos para cada penalizacion (ej: "Quejas >= 2: -30 pts")
-- Inputs para umbrales de churn (alto/medio)
-- Preview en tiempo real del impacto: "Con esta config, X clientes serian riesgo alto"
-
-**Seccion Funnel de Fidelidad:**
-- Por cada etapa, inputs para sus criterios (meses, CSAT minimo, dias contacto)
-- Preview: "Con esta config, la distribucion seria: 5 nuevos, 40 activos, ..."
-
-**Boton Guardar** con confirmacion y toast de exito.
-
----
-
-### 5. Archivos a crear/modificar
-
-| Archivo | Accion |
-|---------|--------|
-| Migracion SQL | Crear tabla `cs_config` con RLS |
-| `src/hooks/useCSConfig.ts` | Nuevo hook de lectura/escritura |
-| `src/pages/CustomerSuccess/components/CSConfigPanel.tsx` | Nueva UI de configuracion |
-| `src/pages/CustomerSuccess/CustomerSuccessPage.tsx` | Boton engranaje para abrir config |
-| `src/hooks/useCSLoyaltyFunnel.ts` | Leer config con fallback |
-| `supabase/functions/cs-health-snapshot/index.ts` | Leer config con fallback |
-| `src/hooks/useCSAlerts.ts` | Leer config de umbrales con fallback |
-
-### 6. Seguridad
-
-- RLS: solo usuarios autenticados pueden leer; solo roles admin pueden escribir (o se valida en el frontend con el perfil del usuario)
-- La edge function usa service role key, asi que lee sin restriccion
+1. **Vs. grid actual**: Comunica visualmente la metafora de embudo; el grid es un chart de Excel
+2. **Vs. bandas rectangulares separadas**: El trapecio continuo fluye como un embudo real; las bandas separadas parecen cards apiladas
+3. **Vs. imagen de referencia**: Replica la misma estetica de trapecio continuo con colores por etapa y datos inline
+4. **Industria**: Alineado con los patrones de Userpilot y los disenos top de Dribbble para funnel charts
 
