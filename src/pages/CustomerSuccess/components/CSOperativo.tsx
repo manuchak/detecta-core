@@ -4,6 +4,7 @@ import { CSCAPAKanban } from './CSCAPAKanban';
 import { CSMejoraContinua } from './CSMejoraContinua';
 import { CSNPSSurvey } from './CSNPSSurvey';
 import { CSNPSCampaign } from './CSNPSCampaign';
+import { CSCSATSurveys } from './CSCSATSurveys';
 import { CSExportButton } from './CSExportButton';
 import { CSTouchpointsList } from './CSTouchpointsList';
 
@@ -21,6 +22,7 @@ export function CSOperativo() {
           <TabsTrigger value="capa">CAPA</TabsTrigger>
           <TabsTrigger value="nps">NPS</TabsTrigger>
           <TabsTrigger value="campanas">Campañas NPS</TabsTrigger>
+          <TabsTrigger value="csat">CSAT</TabsTrigger>
           <TabsTrigger value="mejora">Mejora Continua</TabsTrigger>
         </TabsList>
 
@@ -29,6 +31,7 @@ export function CSOperativo() {
         <TabsContent value="capa"><CSCAPAKanban /></TabsContent>
         <TabsContent value="nps"><CSNPSSurvey /></TabsContent>
         <TabsContent value="campanas"><CSNPSCampaign /></TabsContent>
+        <TabsContent value="csat"><CSCSATSurveys /></TabsContent>
         <TabsContent value="mejora"><CSMejoraContinua /></TabsContent>
       </Tabs>
     </div>
