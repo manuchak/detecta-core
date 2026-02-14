@@ -8,6 +8,7 @@ import { CSCartera } from './components/CSCartera';
 import { CSOperativo } from './components/CSOperativo';
 import { CSQuejaForm } from './components/CSQuejaForm';
 import { CSConfigPanel } from './components/CSConfigPanel';
+import { CSStaffPerformance } from './components/CSStaffPerformance';
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
@@ -50,6 +51,7 @@ const CustomerSuccessPage = () => {
           <TabsTrigger value="cartera">Cartera</TabsTrigger>
           <TabsTrigger value="operativo">Operativo</TabsTrigger>
           <TabsTrigger value="analisis">Análisis Clientes</TabsTrigger>
+          <TabsTrigger value="staff">Staff CSM</TabsTrigger>
           <TabsTrigger value="config" className="gap-1.5">
             <Settings className="h-3.5 w-3.5" />
             Configuración
@@ -60,6 +62,7 @@ const CustomerSuccessPage = () => {
         <TabsContent value="cartera"><CSCartera /></TabsContent>
         <TabsContent value="operativo"><CSOperativo /></TabsContent>
         <TabsContent value="analisis"><ClientAnalytics /></TabsContent>
+        <TabsContent value="staff"><CSStaffPerformance /></TabsContent>
         <TabsContent value="config"><CSConfigPanel /></TabsContent>
       </Tabs>
 

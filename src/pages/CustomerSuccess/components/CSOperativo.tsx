@@ -4,6 +4,7 @@ import { CSCAPAKanban } from './CSCAPAKanban';
 import { CSMejoraContinua } from './CSMejoraContinua';
 import { CSNPSSurvey } from './CSNPSSurvey';
 import { CSExportButton } from './CSExportButton';
+import { CSTouchpointsList } from './CSTouchpointsList';
 
 export function CSOperativo() {
   return (
@@ -15,12 +16,14 @@ export function CSOperativo() {
       <Tabs defaultValue="quejas" className="w-full">
         <TabsList>
           <TabsTrigger value="quejas">Quejas</TabsTrigger>
+          <TabsTrigger value="touchpoints">Touchpoints</TabsTrigger>
           <TabsTrigger value="capa">CAPA</TabsTrigger>
           <TabsTrigger value="nps">NPS</TabsTrigger>
           <TabsTrigger value="mejora">Mejora Continua</TabsTrigger>
         </TabsList>
 
         <TabsContent value="quejas"><CSQuejasList /></TabsContent>
+        <TabsContent value="touchpoints"><CSTouchpointsList /></TabsContent>
         <TabsContent value="capa"><CSCAPAKanban /></TabsContent>
         <TabsContent value="nps"><CSNPSSurvey /></TabsContent>
         <TabsContent value="mejora"><CSMejoraContinua /></TabsContent>
