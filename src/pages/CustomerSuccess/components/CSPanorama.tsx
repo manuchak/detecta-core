@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { useCSCartera } from '@/hooks/useCSCartera';
 import { useCSQuejaStats } from '@/hooks/useCSQuejas';
 import { CSLoyaltyFunnel } from './CSLoyaltyFunnel';
+import { CSAlertsFeed } from './CSAlertsFeed';
 import { CSClienteProfileModal } from './CSClienteProfileModal';
-import { Users, AlertTriangle, MessageSquare, ShieldAlert, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Users, AlertTriangle, MessageSquare, ShieldAlert, ArrowRight, Clock, Camera } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SemaforoKPIProps {
   label: string;
@@ -58,14 +61,31 @@ export function CSPanorama() {
   const { data: stats, isLoading: statsLoading } = useCSQuejaStats();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
 
   const isLoading = carteraLoading || statsLoading;
+
+  const handleSnapshot = async () => {
+    setSnapshotLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('cs-health-snapshot', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) throw res.error;
+      toast.success(`Snapshot generado: ${res.data.count} clientes procesados`);
+    } catch (e: any) {
+      toast.error(`Error generando snapshot: ${e.message}`);
+    } finally {
+      setSnapshotLoading(false);
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6 mt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-40" />
       </div>
@@ -77,6 +97,7 @@ export function CSPanorama() {
   const enRiesgo = activos.filter(c => c.salud === 'rojo');
   const quejasAbiertas = stats?.abiertas || 0;
   const csatPromedio = stats?.csatPromedio;
+  const sinContacto30d = activos.filter(c => c.dias_sin_contacto >= 30).length;
 
   // Semaphore levels
   const lvlActivos: 'verde' | 'amarillo' | 'rojo' =
@@ -96,14 +117,9 @@ export function CSPanorama() {
     enRiesgo.length === 0 ? 'verde' :
     enRiesgo.length <= 3 ? 'amarillo' : 'rojo';
 
-  // Top 5 urgent actions
-  const urgentes = [...(activos.filter(c => c.salud === 'rojo' || c.salud === 'amarillo'))]
-    .sort((a, b) => {
-      if (a.salud === 'rojo' && b.salud !== 'rojo') return -1;
-      if (b.salud === 'rojo' && a.salud !== 'rojo') return 1;
-      return b.quejas_abiertas - a.quejas_abiertas || b.dias_sin_contacto - a.dias_sin_contacto;
-    })
-    .slice(0, 5);
+  const lvlSinContacto: 'verde' | 'amarillo' | 'rojo' =
+    sinContacto30d === 0 ? 'verde' :
+    sinContacto30d <= 5 ? 'amarillo' : 'rojo';
 
   const navigateToCartera = (filter?: string) => {
     setSearchParams(filter ? { tab: 'cartera', filtro: filter } : { tab: 'cartera' });
@@ -111,8 +127,8 @@ export function CSPanorama() {
 
   return (
     <div className="space-y-6 mt-4">
-      {/* Hero KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Hero KPIs - now 5 columns including sin contacto */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <SemaforoKPI
           label="Clientes Activos"
           value={conServicio.length}
@@ -144,67 +160,34 @@ export function CSPanorama() {
           level={lvlRiesgo}
           onClick={() => navigateToCartera('en_riesgo')}
         />
+        <SemaforoKPI
+          label="Sin Contacto 30d+"
+          value={sinContacto30d}
+          subtitle={sinContacto30d > 0 ? 'Pendientes de seguimiento' : 'Todos al día'}
+          icon={Clock}
+          level={lvlSinContacto}
+          onClick={() => navigateToCartera('sin_servicio')}
+        />
       </div>
 
-      {/* Funnel + Urgent */}
+      {/* Snapshot button */}
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSnapshot}
+          disabled={snapshotLoading}
+          className="gap-1.5"
+        >
+          <Camera className="h-4 w-4" />
+          {snapshotLoading ? 'Generando...' : 'Generar Snapshot Health'}
+        </Button>
+      </div>
+
+      {/* Funnel + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CSLoyaltyFunnel />
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-destructive" />
-              Atención Urgente
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">Clientes que necesitan acción hoy</p>
-          </CardHeader>
-          <CardContent>
-            {urgentes.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                ✓ Todos los clientes están al día
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {urgentes.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedClienteId(c.id)}
-                    className="flex items-center justify-between w-full p-3 rounded-lg border hover:bg-accent/30 transition-colors text-left group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className={`h-3 w-3 rounded-full shrink-0 ${DOT_STYLES[c.salud]}`} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{c.nombre}</p>
-                        <div className="flex gap-2 text-xs text-muted-foreground">
-                          {c.quejas_abiertas > 0 && (
-                            <span className="text-destructive font-medium">{c.quejas_abiertas} quejas</span>
-                          )}
-                          {c.dias_sin_contacto < 999 && (
-                            <span>{c.dias_sin_contacto}d sin contacto</span>
-                          )}
-                          {c.servicios_90d === 0 && (
-                            <span>Sin servicio 90d</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-                {enRiesgo.length > 5 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => navigateToCartera('en_riesgo')}
-                  >
-                    Ver todos ({enRiesgo.length}) →
-                  </Button>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <CSAlertsFeed onClienteClick={id => setSelectedClienteId(id)} />
       </div>
 
       <CSClienteProfileModal

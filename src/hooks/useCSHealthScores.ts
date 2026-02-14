@@ -32,6 +32,23 @@ export function useCSHealthScores() {
   });
 }
 
+export function useCSHealthScoreHistory(clienteId: string | null) {
+  return useQuery({
+    queryKey: ['cs-health-score-history', clienteId],
+    enabled: !!clienteId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cs_health_scores')
+        .select('*')
+        .eq('cliente_id', clienteId!)
+        .order('periodo', { ascending: true })
+        .limit(12);
+      if (error) throw error;
+      return data as CSHealthScore[];
+    },
+  });
+}
+
 export function useCSClientesConQuejas() {
   return useQuery({
     queryKey: ['cs-clientes-con-quejas'],
