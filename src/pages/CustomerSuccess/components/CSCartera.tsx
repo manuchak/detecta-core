@@ -69,6 +69,10 @@ export function CSCartera() {
   const [touchpointModal, setTouchpointModal] = useState<{ id: string; nombre: string } | null>(null);
   const [tpResumen, setTpResumen] = useState('');
   const [tpTipo, setTpTipo] = useState('llamada');
+  const [tpContacto, setTpContacto] = useState('');
+  const [tpSiguienteAccion, setTpSiguienteAccion] = useState('');
+  const [tpFechaSiguiente, setTpFechaSiguiente] = useState('');
+  const [tpDuracion, setTpDuracion] = useState('');
   const createTouchpoint = useCreateCSTouchpoint();
 
   const { data: cartera, isLoading } = useCSCartera();
@@ -149,6 +153,16 @@ export function CSCartera() {
     });
   };
 
+  const resetTpModal = () => {
+    setTouchpointModal(null);
+    setTpResumen('');
+    setTpTipo('llamada');
+    setTpContacto('');
+    setTpSiguienteAccion('');
+    setTpFechaSiguiente('');
+    setTpDuracion('');
+  };
+
   const handleQuickTouchpoint = () => {
     if (!touchpointModal || !tpResumen.trim()) return;
     createTouchpoint.mutate({
@@ -156,12 +170,12 @@ export function CSCartera() {
       tipo: tpTipo,
       direccion: 'saliente',
       resumen: tpResumen.trim(),
+      ...(tpContacto.trim() && { contacto_nombre: tpContacto.trim() }),
+      ...(tpSiguienteAccion.trim() && { siguiente_accion: tpSiguienteAccion.trim() }),
+      ...(tpFechaSiguiente && { fecha_siguiente_accion: tpFechaSiguiente }),
+      ...(tpDuracion && { duracion_minutos: Number(tpDuracion) }),
     }, {
-      onSuccess: () => {
-        setTouchpointModal(null);
-        setTpResumen('');
-        setTpTipo('llamada');
-      },
+      onSuccess: resetTpModal,
     });
   };
 
@@ -375,25 +389,35 @@ export function CSCartera() {
       )}
 
       {/* Quick Touchpoint Modal */}
-      <Dialog open={!!touchpointModal} onOpenChange={open => { if (!open) { setTouchpointModal(null); setTpResumen(''); } }}>
+      <Dialog open={!!touchpointModal} onOpenChange={open => { if (!open) resetTpModal(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar contacto — {touchpointModal?.nombre}</DialogTitle>
             <DialogDescription>Registra un touchpoint rápido para este cliente.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Tipo de contacto</label>
-              <Select value={tpTipo} onValueChange={setTpTipo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="llamada">Llamada</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="reunion">Reunión</SelectItem>
-                  <SelectItem value="visita">Visita</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Tipo de contacto</label>
+                <Select value={tpTipo} onValueChange={setTpTipo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="llamada">Llamada</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="reunion">Reunión</SelectItem>
+                    <SelectItem value="visita">Visita</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Persona contactada</label>
+                <Input
+                  placeholder="Nombre del contacto"
+                  value={tpContacto}
+                  onChange={e => setTpContacto(e.target.value)}
+                />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Resumen <span className="text-destructive">*</span></label>
@@ -404,9 +428,37 @@ export function CSCartera() {
                 rows={3}
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Siguiente paso</label>
+                <Input
+                  placeholder="Ej: Enviar cotización..."
+                  value={tpSiguienteAccion}
+                  onChange={e => setTpSiguienteAccion(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Fecha seguimiento</label>
+                <Input
+                  type="date"
+                  value={tpFechaSiguiente}
+                  onChange={e => setTpFechaSiguiente(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="w-1/2">
+              <label className="text-sm font-medium">Duración (min)</label>
+              <Input
+                type="number"
+                placeholder="Opcional"
+                value={tpDuracion}
+                onChange={e => setTpDuracion(e.target.value)}
+                min={1}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setTouchpointModal(null); setTpResumen(''); }}>Cancelar</Button>
+            <Button variant="outline" onClick={resetTpModal}>Cancelar</Button>
             <Button onClick={handleQuickTouchpoint} disabled={!tpResumen.trim() || createTouchpoint.isPending}>
               {createTouchpoint.isPending ? 'Guardando...' : 'Registrar'}
             </Button>

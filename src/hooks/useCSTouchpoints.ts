@@ -48,6 +48,22 @@ export function useCSTouchpoints(filters?: { queja_id?: string; cliente_id?: str
   });
 }
 
+export function useOverdueTouchpoints() {
+  return useQuery({
+    queryKey: ['cs-touchpoints-overdue'],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('cs_touchpoints')
+        .select('id, cliente_id, siguiente_accion, fecha_siguiente_accion')
+        .lt('fecha_siguiente_accion', today)
+        .not('fecha_siguiente_accion', 'is', null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
 export function useCreateCSTouchpoint() {
   const qc = useQueryClient();
   return useMutation({

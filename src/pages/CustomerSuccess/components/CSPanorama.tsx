@@ -4,10 +4,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useCSCartera } from '@/hooks/useCSCartera';
 import { useCSQuejaStats } from '@/hooks/useCSQuejas';
+import { useOverdueTouchpoints } from '@/hooks/useCSTouchpoints';
 import { CSLoyaltyFunnel } from './CSLoyaltyFunnel';
 import { CSAlertsFeed } from './CSAlertsFeed';
 import { CSClienteProfileModal } from './CSClienteProfileModal';
-import { Users, AlertTriangle, MessageSquare, ShieldAlert, ArrowRight, Clock, Camera } from 'lucide-react';
+import { Users, AlertTriangle, MessageSquare, ShieldAlert, ArrowRight, Clock, Camera, CalendarClock } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -59,6 +60,7 @@ function SemaforoKPI({ label, value, subtitle, icon: Icon, level, onClick }: Sem
 export function CSPanorama() {
   const { data: cartera, isLoading: carteraLoading } = useCSCartera();
   const { data: stats, isLoading: statsLoading } = useCSQuejaStats();
+  const { data: overdueTps } = useOverdueTouchpoints();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
   const [, setSearchParams] = useSearchParams();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -85,7 +87,7 @@ export function CSPanorama() {
     return (
       <div className="space-y-6 mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-40" />
       </div>
@@ -98,6 +100,7 @@ export function CSPanorama() {
   const quejasAbiertas = stats?.abiertas || 0;
   const csatPromedio = stats?.csatPromedio;
   const sinContacto30d = activos.filter(c => c.dias_sin_contacto >= 30).length;
+  const seguimientosVencidos = overdueTps?.length || 0;
 
   // Semaphore levels
   const lvlActivos: 'verde' | 'amarillo' | 'rojo' =
@@ -121,14 +124,18 @@ export function CSPanorama() {
     sinContacto30d === 0 ? 'verde' :
     sinContacto30d <= 5 ? 'amarillo' : 'rojo';
 
+  const lvlSeguimientos: 'verde' | 'amarillo' | 'rojo' =
+    seguimientosVencidos === 0 ? 'verde' :
+    seguimientosVencidos <= 5 ? 'amarillo' : 'rojo';
+
   const navigateToCartera = (filter?: string) => {
     setSearchParams(filter ? { tab: 'cartera', filtro: filter } : { tab: 'cartera' });
   };
 
   return (
     <div className="space-y-6 mt-4">
-      {/* Hero KPIs - now 5 columns including sin contacto */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Hero KPIs - 6 columns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <SemaforoKPI
           label="Clientes Activos"
           value={conServicio.length}
@@ -167,6 +174,14 @@ export function CSPanorama() {
           icon={Clock}
           level={lvlSinContacto}
           onClick={() => navigateToCartera('sin_servicio')}
+        />
+        <SemaforoKPI
+          label="Seg. Pendientes"
+          value={seguimientosVencidos}
+          subtitle={seguimientosVencidos > 0 ? 'Seguimientos vencidos' : 'Al día'}
+          icon={CalendarClock}
+          level={lvlSeguimientos}
+          onClick={() => setSearchParams({ tab: 'operativo' })}
         />
       </div>
 
