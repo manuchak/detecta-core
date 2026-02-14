@@ -3491,6 +3491,66 @@ export type Database = {
           },
         ]
       }
+      cs_nps_sends: {
+        Row: {
+          canal_envio: string
+          cliente_id: string
+          created_at: string
+          enviado_at: string | null
+          enviado_por: string | null
+          estado: string
+          id: string
+          notas: string | null
+          nps_response_id: string | null
+          periodo: string
+          respondido_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          canal_envio?: string
+          cliente_id: string
+          created_at?: string
+          enviado_at?: string | null
+          enviado_por?: string | null
+          estado?: string
+          id?: string
+          notas?: string | null
+          nps_response_id?: string | null
+          periodo: string
+          respondido_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canal_envio?: string
+          cliente_id?: string
+          created_at?: string
+          enviado_at?: string | null
+          enviado_por?: string | null
+          estado?: string
+          id?: string
+          notas?: string | null
+          nps_response_id?: string | null
+          periodo?: string
+          respondido_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_nps_sends_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_nps_sends_nps_response_id_fkey"
+            columns: ["nps_response_id"]
+            isOneToOne: false
+            referencedRelation: "cs_nps_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_quejas: {
         Row: {
           accion_correctiva: string | null
