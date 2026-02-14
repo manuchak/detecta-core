@@ -3,6 +3,7 @@ import { CSQuejasList } from './CSQuejasList';
 import { CSCAPAKanban } from './CSCAPAKanban';
 import { CSMejoraContinua } from './CSMejoraContinua';
 import { CSNPSSurvey } from './CSNPSSurvey';
+import { CSNPSCampaign } from './CSNPSCampaign';
 import { CSExportButton } from './CSExportButton';
 import { CSTouchpointsList } from './CSTouchpointsList';
 
@@ -19,6 +20,7 @@ export function CSOperativo() {
           <TabsTrigger value="touchpoints">Touchpoints</TabsTrigger>
           <TabsTrigger value="capa">CAPA</TabsTrigger>
           <TabsTrigger value="nps">NPS</TabsTrigger>
+          <TabsTrigger value="campanas">Campañas NPS</TabsTrigger>
           <TabsTrigger value="mejora">Mejora Continua</TabsTrigger>
         </TabsList>
 
@@ -26,6 +28,7 @@ export function CSOperativo() {
         <TabsContent value="touchpoints"><CSTouchpointsList /></TabsContent>
         <TabsContent value="capa"><CSCAPAKanban /></TabsContent>
         <TabsContent value="nps"><CSNPSSurvey /></TabsContent>
+        <TabsContent value="campanas"><CSNPSCampaign /></TabsContent>
         <TabsContent value="mejora"><CSMejoraContinua /></TabsContent>
       </Tabs>
     </div>

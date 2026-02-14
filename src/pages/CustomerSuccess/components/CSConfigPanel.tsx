@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, RotateCcw } from 'lucide-react';
-import { useCSConfig, DEFAULT_HEALTH_CONFIG, DEFAULT_LOYALTY_CONFIG, type HealthConfig, type LoyaltyConfig } from '@/hooks/useCSConfig';
+import { useCSConfig, DEFAULT_HEALTH_CONFIG, DEFAULT_LOYALTY_CONFIG, DEFAULT_NPS_RULES_CONFIG, type HealthConfig, type LoyaltyConfig, type NPSRulesConfig } from '@/hooks/useCSConfig';
 
 // ── Helper: numeric input field ──
 function NumField({ label, value, onChange, suffix }: { label: string; value: number; onChange: (v: number) => void; suffix?: string }) {
@@ -171,6 +172,99 @@ function LoyaltyFunnelConfig() {
   );
 }
 
+// ── NPS Rules Section ──
+function NPSRulesConfig_() {
+  const { config, save, isSaving, isCustom } = useCSConfig<NPSRulesConfig>('nps_rules');
+  const [draft, setDraft] = useState<NPSRulesConfig>(config);
+  const [initialized, setInitialized] = useState(false);
+
+  if (!initialized && config) {
+    setDraft(config);
+    setInitialized(true);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Reglas de Campañas NPS</CardTitle>
+        <CardDescription>
+          Configura los criterios para generar campañas NPS automáticamente.
+          {isCustom && <span className="ml-2 text-xs text-primary font-medium">(Personalizado)</span>}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">General</p>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Frecuencia</Label>
+              <Select
+                value={draft.frecuencia}
+                onValueChange={(v) => setDraft(d => ({ ...d, frecuencia: v as any }))}
+              >
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mensual">Mensual</SelectItem>
+                  <SelectItem value="trimestral">Trimestral</SelectItem>
+                  <SelectItem value="semestral">Semestral</SelectItem>
+                  <SelectItem value="anual">Anual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm">Canal por defecto</Label>
+              <Select
+                value={draft.canal_default}
+                onValueChange={(v) => setDraft(d => ({ ...d, canal_default: v }))}
+              >
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="llamada">Llamada</SelectItem>
+                  <SelectItem value="formulario">Formulario</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Criterios de selección</p>
+            <NumField
+              label="Antigüedad mín."
+              value={draft.criterios.meses_antiguedad_minima}
+              onChange={v => setDraft(d => ({ ...d, criterios: { ...d.criterios, meses_antiguedad_minima: v } }))}
+              suffix="meses"
+            />
+            <NumField
+              label="Servicios mínimos"
+              value={draft.criterios.servicios_minimos}
+              onChange={v => setDraft(d => ({ ...d, criterios: { ...d.criterios, servicios_minimos: v } }))}
+              suffix=""
+            />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4">Exclusiones</p>
+            <NumField
+              label="Días desde último NPS"
+              value={draft.exclusiones.dias_desde_ultimo_nps}
+              onChange={v => setDraft(d => ({ ...d, exclusiones: { ...d.exclusiones, dias_desde_ultimo_nps: v } }))}
+              suffix="días"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <Button onClick={() => save(draft)} disabled={isSaving} className="gap-2">
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Guardando...' : 'Guardar Reglas NPS'}
+          </Button>
+          <Button variant="outline" onClick={() => setDraft(DEFAULT_NPS_RULES_CONFIG)} className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Restaurar defaults
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main Panel ──
 export function CSConfigPanel() {
   return (
@@ -179,9 +273,11 @@ export function CSConfigPanel() {
         <TabsList>
           <TabsTrigger value="health">Health Score</TabsTrigger>
           <TabsTrigger value="funnel">Funnel de Fidelidad</TabsTrigger>
+          <TabsTrigger value="nps">Reglas NPS</TabsTrigger>
         </TabsList>
         <TabsContent value="health"><HealthScoreConfig /></TabsContent>
         <TabsContent value="funnel"><LoyaltyFunnelConfig /></TabsContent>
+        <TabsContent value="nps"><NPSRulesConfig_ /></TabsContent>
       </Tabs>
     </div>
   );

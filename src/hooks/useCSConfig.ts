@@ -45,13 +45,27 @@ export const DEFAULT_LOYALTY_CONFIG = {
   },
 };
 
+export const DEFAULT_NPS_RULES_CONFIG = {
+  frecuencia: 'trimestral' as const,
+  canal_default: 'email',
+  criterios: {
+    solo_activos: true,
+    meses_antiguedad_minima: 3,
+    servicios_minimos: 1,
+  },
+  exclusiones: {
+    dias_desde_ultimo_nps: 60,
+  },
+};
+
 export type HealthConfig = typeof DEFAULT_HEALTH_CONFIG;
 export type LoyaltyConfig = typeof DEFAULT_LOYALTY_CONFIG;
+export type NPSRulesConfig = typeof DEFAULT_NPS_RULES_CONFIG;
 
 // ── Hook ──────────────────────────────────────────────────────────────────
 
-export function useCSConfig<T>(categoria: 'health_score' | 'loyalty_funnel') {
-  const defaults = categoria === 'health_score' ? DEFAULT_HEALTH_CONFIG : DEFAULT_LOYALTY_CONFIG;
+export function useCSConfig<T>(categoria: 'health_score' | 'loyalty_funnel' | 'nps_rules') {
+  const defaults = categoria === 'health_score' ? DEFAULT_HEALTH_CONFIG : categoria === 'loyalty_funnel' ? DEFAULT_LOYALTY_CONFIG : DEFAULT_NPS_RULES_CONFIG;
   const queryClient = useQueryClient();
 
   const query = useQuery({
