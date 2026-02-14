@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCSClienteProfile } from '@/hooks/useCSClienteProfile';
 import { useCSLoyaltyFunnel } from '@/hooks/useCSLoyaltyFunnel';
+import { useCSHealthScoreHistory } from '@/hooks/useCSHealthScores';
 import { CSLoyaltyBadge } from './CSLoyaltyBadge';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { Package, DollarSign, Calendar, MessageSquare, FileWarning, Shield } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line } from 'recharts';
+import { Package, DollarSign, Calendar, MessageSquare, FileWarning, Shield, Activity } from 'lucide-react';
 
 interface Props {
   clienteId: string | null;
@@ -19,7 +20,7 @@ interface Props {
 export function CSClienteProfileModal({ clienteId, onClose }: Props) {
   const { data: profile, isLoading } = useCSClienteProfile(clienteId);
   const { data: loyalty } = useCSLoyaltyFunnel();
-
+  const { data: healthHistory } = useCSHealthScoreHistory(clienteId);
   const clientLoyalty = loyalty?.clients.find(c => c.id === clienteId);
 
   return (
@@ -91,6 +92,28 @@ export function CSClienteProfileModal({ clienteId, onClose }: Props) {
                       <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
                       <Area type="monotone" dataKey="gmv" stroke="hsl(var(--chart-1))" fill="hsl(var(--chart-1))" fillOpacity={0.1} />
                     </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Health Score Trend */}
+            {healthHistory && healthHistory.length > 0 && (
+              <Card>
+                <CardContent className="p-3">
+                  <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                    <Activity className="h-3 w-3" /> Tendencia Health Score
+                  </p>
+                  <ResponsiveContainer width="100%" height={100}>
+                    <LineChart data={healthHistory.map(h => ({
+                      mes: format(new Date(h.periodo), 'MMM yy', { locale: es }),
+                      score: h.score,
+                    }))}>
+                      <XAxis dataKey="mes" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip formatter={(v: number) => `${v}/100`} />
+                      <Line type="monotone" dataKey="score" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
