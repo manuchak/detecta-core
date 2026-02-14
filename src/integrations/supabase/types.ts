@@ -3383,6 +3383,64 @@ export type Database = {
           },
         ]
       }
+      cs_csat_surveys: {
+        Row: {
+          canal: string
+          cliente_id: string
+          comentario: string | null
+          contexto: string
+          created_at: string
+          created_by: string | null
+          id: string
+          score: number
+          servicio_id: number | null
+        }
+        Insert: {
+          canal?: string
+          cliente_id: string
+          comentario?: string | null
+          contexto?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          score: number
+          servicio_id?: number | null
+        }
+        Update: {
+          canal?: string
+          cliente_id?: string
+          comentario?: string | null
+          contexto?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          score?: number
+          servicio_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_csat_surveys_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_csat_surveys_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_csat_surveys_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_health_scores: {
         Row: {
           cliente_id: string
