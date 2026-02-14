@@ -10953,6 +10953,7 @@ export type Database = {
           contacto_tel: string
           created_at: string | null
           created_by: string | null
+          csm_asignado: string | null
           descuentos_aplicables: Json | null
           dia_corte: number | null
           dia_pago: number | null
@@ -10996,6 +10997,7 @@ export type Database = {
           contacto_tel: string
           created_at?: string | null
           created_by?: string | null
+          csm_asignado?: string | null
           descuentos_aplicables?: Json | null
           dia_corte?: number | null
           dia_pago?: number | null
@@ -11039,6 +11041,7 @@ export type Database = {
           contacto_tel?: string
           created_at?: string | null
           created_by?: string | null
+          csm_asignado?: string | null
           descuentos_aplicables?: Json | null
           dia_corte?: number | null
           dia_pago?: number | null
@@ -11070,7 +11073,22 @@ export type Database = {
           updated_at?: string | null
           uso_cfdi_default?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pc_clientes_csm_asignado_fkey"
+            columns: ["csm_asignado"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pc_clientes_csm_asignado_fkey"
+            columns: ["csm_asignado"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+        ]
       }
       pc_config_scoring: {
         Row: {

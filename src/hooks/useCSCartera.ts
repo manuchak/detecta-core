@@ -20,6 +20,8 @@ export interface CarteraCliente {
   dias_sin_contacto: number;
   salud: 'verde' | 'amarillo' | 'rojo';
   segment: CarteraSegment;
+  csm_asignado: string | null;
+  csm_nombre: string | null;
 }
 
 function calcSalud(c: { quejas_abiertas: number; dias_sin_contacto: number; servicios_90d: number }): 'verde' | 'amarillo' | 'rojo' {
@@ -43,7 +45,7 @@ export function useCSCartera() {
       const cutoff90d = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
       const [clientesRes, legacyRes, planRes, quejasRes, touchpointsRes] = await Promise.all([
-        supabase.from('pc_clientes').select('id, nombre, razon_social, activo, motivo_baja, fecha_baja').order('nombre'),
+        supabase.from('pc_clientes').select('id, nombre, razon_social, activo, motivo_baja, fecha_baja, csm_asignado, csm:profiles!pc_clientes_csm_asignado_fkey(id, display_name)').order('nombre'),
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
         supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
@@ -103,6 +105,7 @@ export function useCSCartera() {
         const salud = calcSalud({ quejas_abiertas, dias_sin_contacto, servicios_90d });
         const segment = calcSegment({ activo: c.activo, salud, servicios_90d });
 
+        const csmData = (c as any).csm;
         return {
           id: c.id,
           nombre: c.nombre,
@@ -118,6 +121,8 @@ export function useCSCartera() {
           dias_sin_contacto,
           salud,
           segment,
+          csm_asignado: (c as any).csm_asignado || null,
+          csm_nombre: csmData?.display_name || null,
         };
       });
 
