@@ -16,6 +16,24 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Load health score config with fallback to defaults
+    const defaultPen = {
+      quejas_2_mas: 30, quejas_1: 15,
+      sin_contacto_60d: 25, sin_contacto_30d: 10,
+      sin_servicios_90d: 20, csat_bajo_3: 15, csat_bajo_4: 5,
+    };
+    const defaultUmbrales = { alto: 40, medio: 70 };
+
+    const { data: configRow } = await supabase
+      .from('cs_config')
+      .select('config')
+      .eq('categoria', 'health_score')
+      .maybeSingle();
+
+    const hsConfig = configRow?.config as any;
+    const pen = hsConfig?.penalizaciones ?? defaultPen;
+    const umbrales = hsConfig?.umbrales_churn ?? defaultUmbrales;
+
     const now = new Date();
     const periodo = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const cutoff90d = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -93,18 +111,18 @@ serve(async (req) => {
       }
       const dias_sin_contacto = lastContact ? Math.floor((now.getTime() - lastContact) / (1000 * 60 * 60 * 24)) : 999;
 
-      // Health score (0-100)
+      // Health score (0-100) using config
       let score = 100;
-      if (quejas_abiertas >= 2) score -= 30;
-      else if (quejas_abiertas >= 1) score -= 15;
-      if (dias_sin_contacto > 60) score -= 25;
-      else if (dias_sin_contacto > 30) score -= 10;
-      if (servicios_90d === 0) score -= 20;
-      if (csat_promedio && csat_promedio < 3) score -= 15;
-      else if (csat_promedio && csat_promedio < 4) score -= 5;
+      if (quejas_abiertas >= 2) score -= pen.quejas_2_mas;
+      else if (quejas_abiertas >= 1) score -= pen.quejas_1;
+      if (dias_sin_contacto > 60) score -= pen.sin_contacto_60d;
+      else if (dias_sin_contacto > 30) score -= pen.sin_contacto_30d;
+      if (servicios_90d === 0) score -= pen.sin_servicios_90d;
+      if (csat_promedio && csat_promedio < 3) score -= pen.csat_bajo_3;
+      else if (csat_promedio && csat_promedio < 4) score -= pen.csat_bajo_4;
       score = Math.max(0, Math.min(100, score));
 
-      const riesgo_churn = score <= 40 ? 'alto' : score <= 70 ? 'medio' : 'bajo';
+      const riesgo_churn = score <= umbrales.alto ? 'alto' : score <= umbrales.medio ? 'medio' : 'bajo';
 
       return {
         cliente_id: c.id,

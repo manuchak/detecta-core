@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { HeartHandshake, Plus } from 'lucide-react';
+import { HeartHandshake, Plus, Settings } from 'lucide-react';
 import { CSPanorama } from './components/CSPanorama';
 import { CSCartera } from './components/CSCartera';
 import { CSOperativo } from './components/CSOperativo';
 import { CSQuejaForm } from './components/CSQuejaForm';
+import { CSConfigPanel } from './components/CSConfigPanel';
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const CustomerSuccessPage = () => {
   const [showNewQueja, setShowNewQueja] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'panorama';
 
@@ -35,10 +37,15 @@ const CustomerSuccessPage = () => {
             </p>
           </div>
         </div>
-        <Button onClick={() => setShowNewQueja(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nueva Queja
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setShowConfig(true)} title="Configuración CS">
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => setShowNewQueja(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nueva Queja
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -59,8 +66,21 @@ const CustomerSuccessPage = () => {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Nueva Queja</DialogTitle>
+            <DialogDescription>Capture los datos de la queja del cliente.</DialogDescription>
           </DialogHeader>
           <CSQuejaForm onSuccess={() => setShowNewQueja(false)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showConfig} onOpenChange={setShowConfig}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configuración Customer Success</DialogTitle>
+            <DialogDescription>
+              Ajusta los parámetros del Health Score y el Embudo de Fidelidad.
+            </DialogDescription>
+          </DialogHeader>
+          <CSConfigPanel />
         </DialogContent>
       </Dialog>
     </div>
