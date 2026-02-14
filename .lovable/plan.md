@@ -1,101 +1,73 @@
 
 
-## Correccion de 3 Bugs Criticos - Portal Custodio
+## Prevencion Definitiva: Trigger de Normalizacion Automatica en Base de Datos
 
-### Diagnostico
+### Problema
 
-Despues de revisar la base de datos, el codigo y las politicas RLS, identifique una cadena de problemas interconectados:
+Hoy corregimos los sintomas (RLS y datos existentes), pero la causa raiz persiste: **el telefono se escribe en formato libre** desde distintas fuentes (app, webhooks, imports masivos). Cada nuevo custodio que se registre con un telefono con espacios o prefijo +52 estara expuesto al mismo bug.
 
-### Bug 1 y 2: Antonio y Rodrigo no ven su servicio / no pueden hacer check
+### Solucion: Defensa en profundidad
 
-**Causa raiz:** La query de `useNextService` (linea 53) busca servicios usando `custodio_telefono` normalizado (solo digitos), pero el problema es que NO hay ningun checklist en la base de datos para los servicios de hoy. Los 3 custodios tienen `hora_inicio_real` ya registrada (ya se posicionaron), pero el check nunca se guardo.
-
-La pantalla muestra "Sin servicios pendientes" porque `useNextService` solo busca servicios con estados activos (`planificado`, `asignado`, `confirmado`, `en_transito`). Si el servicio ya fue marcado como completado o su estado cambio despues de posicionarse, desaparece de la vista.
-
-**Hallazgo adicional para Rodrigo:** Sus stats muestran 0 en todo, lo que indica que `useCustodianServices` no encuentra servicios. Sin embargo, la DB tiene registros con su telefono correcto. Esto apunta a un problema de sesion o cache en su dispositivo, o a que su perfil phone se cargo vacio transitoriamente.
-
-### Bug 3: Sergio hizo el check pero no aparece al equipo
-
-**Causa raiz confirmada:** No existe NINGUN checklist para el servicio de hoy (ASCAAST-1399) en la base de datos. Sergio tiene un unico checklist guardado: ASCAAST-1383 del 12 de febrero, almacenado con telefono `55 4518 0581` (con espacios).
-
-El problema tiene dos capas:
-
-1. **El checklist de hoy nunca se guardo** - probablemente fallo silenciosamente o quedo en cola offline
-2. **La politica RLS de `checklist_servicio` tiene un bug critico**: Solo normaliza el telefono del perfil (`replace(phone, ' ', '')`) pero NO normaliza el campo `custodio_telefono` de la tabla. Esto significa que checklists guardados con formato antiguo (con espacios) son INVISIBLES para el custodio:
+Implementar un **trigger a nivel de base de datos** que normalice automaticamente el campo `custodio_telefono` en TODAS las tablas relevantes al momento de INSERT o UPDATE. Esto garantiza que sin importar la fuente del dato, siempre se almacene limpio.
 
 ```text
-Columna:  '55 4518 0581'  (con espacios)
-RLS:      '5545180581'    (sin espacios)
-Resultado: NO MATCH -> bloqueado por RLS
+Fluente de datos          Trigger DB           Dato almacenado
++--------------------+    +-------------+      +------------+
+| App movil          | -> |             |      |            |
+| Webhook WhatsApp   | -> | normalize   | ---> | 5545180581 |
+| Import Excel       | -> | trigger     |      |            |
+| Edge function      | -> |             |      |            |
++--------------------+    +-------------+      +------------+
 ```
 
-### Solucion
+### Cambios
 
-#### 1. Corregir la politica RLS de checklist_servicio (CRITICO)
+#### 1. Migracion SQL: Funcion + Triggers
 
-Normalizar AMBOS lados de la comparacion en la politica RLS:
+Crear una funcion SQL reutilizable y aplicarla como trigger en las 4 tablas que usan `custodio_telefono`:
 
 ```sql
-DROP POLICY IF EXISTS "Custodios gestionan checklist propio" ON checklist_servicio;
-
-CREATE POLICY "Custodios gestionan checklist propio"
-ON checklist_servicio FOR ALL
-USING (
-  regexp_replace(custodio_telefono, '[^0-9]', '', 'g') = 
-  regexp_replace(
-    (SELECT phone FROM profiles WHERE id = auth.uid()),
-    '[^0-9]', '', 'g'
-  )
-);
+-- Funcion reutilizable
+CREATE OR REPLACE FUNCTION normalize_custodio_telefono()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.custodio_telefono IS NOT NULL THEN
+    NEW.custodio_telefono := regexp_replace(
+      NEW.custodio_telefono, '[^0-9]', '', 'g'
+    );
+    -- Tomar ultimos 10 digitos si tiene prefijo de pais
+    IF length(NEW.custodio_telefono) > 10 THEN
+      NEW.custodio_telefono := right(NEW.custodio_telefono, 10);
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
-Esto usa `regexp_replace` para eliminar TODOS los caracteres no numericos de ambos lados, exactamente como hace `normalizePhone` en el frontend.
+Tablas donde se aplicara el trigger:
+- `checklist_servicio`
+- `documentos_custodio`
+- `custodio_mantenimientos`
+- `custodio_configuracion_mantenimiento`
 
-#### 2. Migrar datos existentes de checklist_servicio
+Adicionalmente, normalizar datos existentes en las 4 tablas que pudieran tener formatos inconsistentes.
 
-Normalizar todos los `custodio_telefono` existentes para consistencia futura:
+#### 2. Simplificar la RLS de checklist_servicio
 
-```sql
-UPDATE checklist_servicio 
-SET custodio_telefono = regexp_replace(custodio_telefono, '[^0-9]', '', 'g')
-WHERE custodio_telefono ~ '[^0-9]';
-```
+Con el trigger garantizando datos limpios, la politica RLS puede simplificarse para usar `normalize_phone()` (que ya existe como funcion SQL) en lugar de `regexp_replace` inline, manteniendo consistencia con `documentos_custodio`.
 
-#### 3. Agregar resiliencia a useNextService
+#### 3. Sin cambios en frontend
 
-Modificar `src/hooks/useNextService.ts` para:
-- Incluir servicios que ya tienen `hora_inicio_real` pero NO tienen checklist completado (estos son servicios "en progreso" donde el custodio aun necesita hacer el check)
-- No filtrar por `estado_planeacion` cuando `hora_inicio_real` existe, ya que el estado puede cambiar despues del posicionamiento
+El frontend ya usa `normalizePhone()` en todos los hooks. Los triggers son una red de seguridad para datos que llegan por otras vias (webhooks, imports, queries directas).
 
-Cambio especifico: Remover el filtro `.in('estado_planeacion', [...])` para servicios de hoy y en su lugar filtrar servicios que NO esten cancelados/completados. Esto amplia la ventana de visibilidad.
-
-```typescript
-// Antes: filtro restrictivo
-.in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_transito', ...])
-
-// Despues: filtro permisivo (excluir solo terminales)
-.not('estado_planeacion', 'in', '(cancelado,completado,finalizado)')
-```
-
-#### 4. Agregar feedback de error visible en el guardado de checklist
-
-En `src/hooks/useServiceChecklist.ts`, mejorar el manejo de errores para que el custodio sepa si el guardado fallo:
-
-- Agregar `console.error` con detalle del error RLS
-- Mostrar toast persistente (no auto-dismiss) cuando falla el guardado
-- Agregar retry automatico con backoff
-
-### Archivos a modificar
+### Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| Nueva migracion SQL | RLS policy fix + data normalization |
-| `src/hooks/useNextService.ts` | Ampliar filtro de estados para incluir servicios con hora_inicio_real |
-| `src/hooks/useServiceChecklist.ts` | Mejorar feedback de errores en save |
+| Nueva migracion SQL | Funcion trigger + 4 triggers + normalizacion de datos existentes + simplificacion RLS |
 
-### Resultado esperado
+### Resultado
 
-- Los 3 custodios veran sus servicios del dia
-- Los checklists se guardaran correctamente y seran visibles tanto para el custodio como para el equipo de monitoreo
-- Los checklists historicos con telefono en formato antiguo seguiran siendo accesibles
+Cualquier custodio nuevo que se registre o reciba servicios tendra su telefono normalizado automaticamente en la base de datos, eliminando la posibilidad de que un formato inconsistente bloquee su acceso a checklists, documentos o mantenimientos.
 
