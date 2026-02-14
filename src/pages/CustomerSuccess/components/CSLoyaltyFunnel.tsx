@@ -3,25 +3,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCSLoyaltyFunnel, type LoyaltyStage } from '@/hooks/useCSLoyaltyFunnel';
 import { Sparkles, Activity, Shield, Star, Crown, AlertTriangle } from 'lucide-react';
 
-const STAGE_COLORS: Record<LoyaltyStage, string> = {
-  nuevo: 'bg-blue-500',
-  activo: 'bg-muted-foreground/50',
-  leal: 'bg-green-500',
-  promotor: 'bg-amber-500',
-  embajador: 'bg-purple-500',
-  en_riesgo: 'bg-destructive',
+const FUNNEL_STAGES: LoyaltyStage[] = ['nuevo', 'activo', 'leal', 'promotor', 'embajador'];
+
+const STAGE_GRADIENTS: Record<string, string> = {
+  nuevo: 'bg-gradient-to-r from-blue-500 to-blue-600',
+  activo: 'bg-gradient-to-r from-slate-400 to-slate-500',
+  leal: 'bg-gradient-to-r from-green-500 to-green-600',
+  promotor: 'bg-gradient-to-r from-amber-500 to-amber-600',
+  embajador: 'bg-gradient-to-r from-purple-500 to-purple-600',
 };
 
-const STAGE_BG: Record<LoyaltyStage, string> = {
-  nuevo: 'bg-blue-50 dark:bg-blue-950/30',
-  activo: 'bg-secondary/50',
-  leal: 'bg-green-50 dark:bg-green-950/30',
-  promotor: 'bg-amber-50 dark:bg-amber-950/30',
-  embajador: 'bg-purple-50 dark:bg-purple-950/30',
-  en_riesgo: 'bg-red-50 dark:bg-red-950/30',
-};
-
-const STAGE_ICONS: Record<LoyaltyStage, React.ElementType> = {
+const STAGE_ICONS: Record<string, React.ElementType> = {
   nuevo: Sparkles,
   activo: Activity,
   leal: Shield,
@@ -29,6 +21,8 @@ const STAGE_ICONS: Record<LoyaltyStage, React.ElementType> = {
   embajador: Crown,
   en_riesgo: AlertTriangle,
 };
+
+const INDENT_STEP = 3; // percentage per stage
 
 interface Props {
   onStageClick?: (stage: LoyaltyStage) => void;
@@ -39,12 +33,13 @@ export function CSLoyaltyFunnel({ onStageClick, selectedStage }: Props) {
   const { data, isLoading } = useCSLoyaltyFunnel();
 
   if (isLoading) {
-    return <Skeleton className="h-32 w-full" />;
+    return <Skeleton className="h-48 w-full" />;
   }
 
   if (!data) return null;
 
-  const maxCount = Math.max(...data.funnel.map(f => f.count), 1);
+  const funnelItems = data.funnel.filter(f => FUNNEL_STAGES.includes(f.stage));
+  const riesgoItem = data.funnel.find(f => f.stage === 'en_riesgo');
 
   return (
     <Card>
@@ -52,35 +47,56 @@ export function CSLoyaltyFunnel({ onStageClick, selectedStage }: Props) {
         <CardTitle className="text-lg">Funnel de Fidelidad</CardTitle>
         <p className="text-xs text-muted-foreground">{data.total} clientes activos · Customer Loyalty Ladder</p>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-6 gap-2">
-          {data.funnel.map(item => {
+      <CardContent className="space-y-0">
+        {/* Trapezoid funnel */}
+        <div className="flex flex-col">
+          {funnelItems.map((item, index) => {
             const Icon = STAGE_ICONS[item.stage];
             const isSelected = selectedStage === item.stage;
-            const barHeight = Math.max((item.count / maxCount) * 60, 4);
+            const indent = index * INDENT_STEP;
+            const clipPath = `polygon(${indent}% 0%, ${100 - indent}% 0%, ${100 - indent - INDENT_STEP}% 100%, ${indent + INDENT_STEP}% 100%)`;
 
             return (
               <button
                 key={item.stage}
                 onClick={() => onStageClick?.(item.stage)}
-                className={`flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all ${
-                  STAGE_BG[item.stage]
-                } ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-border'}`}
+                className={`relative flex items-center justify-between px-8 sm:px-10 cursor-pointer transition-all duration-200 hover:brightness-110 ${
+                  STAGE_GRADIENTS[item.stage]
+                } ${isSelected ? 'ring-2 ring-white/40 z-10 brightness-110' : ''}`}
+                style={{
+                  clipPath,
+                  height: '44px',
+                  marginTop: index > 0 ? '-2px' : '0',
+                }}
               >
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-medium">{item.label}</span>
-                <div className="w-full flex items-end justify-center h-[60px]">
-                  <div
-                    className={`w-full max-w-[40px] rounded-t ${STAGE_COLORS[item.stage]} transition-all`}
-                    style={{ height: `${barHeight}px` }}
-                  />
+                <div className="flex items-center gap-2 z-10">
+                  <Icon className="h-4 w-4 text-white/80" />
+                  <span className="text-sm font-medium text-white">{item.label}</span>
                 </div>
-                <span className="text-lg font-bold">{item.count}</span>
-                <span className="text-[10px] text-muted-foreground">{item.percentage}%</span>
+                <div className="flex items-center gap-3 z-10">
+                  <span className="text-lg font-bold text-white">{item.count}</span>
+                  <span className="text-xs text-white/70">{item.percentage}%</span>
+                </div>
               </button>
             );
           })}
         </div>
+
+        {/* En Riesgo - separate alert card */}
+        {riesgoItem && riesgoItem.count > 0 && (
+          <button
+            onClick={() => onStageClick?.('en_riesgo')}
+            className={`mt-4 w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 transition-all hover:shadow-md cursor-pointer ${
+              selectedStage === 'en_riesgo' ? 'ring-2 ring-destructive' : ''
+            }`}
+          >
+            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+            <span className="text-sm font-semibold text-red-700 dark:text-red-400">
+              {riesgoItem.count} cliente{riesgoItem.count !== 1 ? 's' : ''} en riesgo
+            </span>
+            <span className="text-xs text-red-500/70 ml-auto">Requieren atención</span>
+          </button>
+        )}
       </CardContent>
     </Card>
   );
