@@ -105,18 +105,20 @@ export function useCSLoyaltyFunnel() {
       if (cErr) throw cErr;
 
       // Fetch services from both tables + quejas, touchpoints, capas in parallel
-      const [legacyRes, planRes, quejasRes, touchpointsRes, capasRes] = await Promise.all([
+      const [legacyRes, planRes, quejasRes, touchpointsRes, capasRes, npsRes] = await Promise.all([
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
         supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
         supabase.from('cs_touchpoints').select('cliente_id, created_at'),
         supabase.from('cs_capa').select('cliente_id, estado'),
+        supabase.from('cs_nps_campaigns').select('cliente_id, score'),
       ]);
       if (legacyRes.error) throw legacyRes.error;
       if (planRes.error) throw planRes.error;
       if (quejasRes.error) throw quejasRes.error;
       if (touchpointsRes.error) throw touchpointsRes.error;
       if (capasRes.error) throw capasRes.error;
+      if (npsRes.error) throw npsRes.error;
 
       const planData = (planRes.data || []).map(s => ({
         nombre_cliente: s.nombre_cliente,
@@ -135,7 +137,7 @@ export function useCSLoyaltyFunnel() {
       const quejas = quejasRes.data || [];
       const touchpoints = touchpointsRes.data || [];
       const capas = capasRes.data || [];
-
+      const npsEntries = npsRes.data || [];
       const clientesLoyalty: ClienteLoyalty[] = (clientes || []).map(c => {
         const nombreNorm = c.nombre?.toLowerCase().trim();
 
@@ -161,6 +163,19 @@ export function useCSLoyaltyFunnel() {
         const csat_promedio = conCsat.length
           ? conCsat.reduce((s, q) => s + (q.calificacion_cierre || 0), 0) / conCsat.length
           : null;
+
+        // NPS for this client
+        const cNps = npsEntries.filter(n => n.cliente_id === c.id);
+        const nps_promedio = cNps.length
+          ? cNps.reduce((s, n) => s + n.score, 0) / cNps.length
+          : null;
+        
+        // Combine CSAT and NPS: use NPS (scaled to 5) if no CSAT, or average both
+        let satisfaccion: number | null = csat_promedio;
+        if (nps_promedio !== null) {
+          const npsScaled = (nps_promedio / 10) * 5; // scale 0-10 to 0-5
+          satisfaccion = csat_promedio !== null ? (csat_promedio + npsScaled) / 2 : npsScaled;
+        }
 
         // Último contacto = MAX(ultimo_servicio, ultimo_touchpoint)
         const cTouchpoints = touchpoints.filter(t => t.cliente_id === c.id);
@@ -194,7 +209,7 @@ export function useCSLoyaltyFunnel() {
           primer_servicio,
           ultimo_servicio,
           quejas_abiertas,
-          csat_promedio,
+          csat_promedio: satisfaccion,
           dias_sin_contacto,
           capas_pendientes,
           meses_activo,
