@@ -88,7 +88,7 @@ export function CSLoyaltyFunnel({ onStageClick, selectedStage }: Props) {
         {riesgoItem && riesgoItem.count > 0 && (
           <button
             onClick={() => onStageClick?.('en_riesgo')}
-            className={`mt-4 w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 transition-all hover:shadow-md cursor-pointer ${
+            className={`mt-8 w-full flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 transition-all hover:shadow-md cursor-pointer ${
               selectedStage === 'en_riesgo' ? 'ring-2 ring-destructive' : ''
             }`}
           >
