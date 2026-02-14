@@ -1,77 +1,101 @@
 
 
-## Fix: Alinear todas las stats del custodio al mes actual
+## Correccion de 3 Bugs Criticos - Portal Custodio
 
-### Problema
+### Diagnostico
 
-Las 3 tarjetas de stats muestran rangos de tiempo inconsistentes:
+Despues de revisar la base de datos, el codigo y las politicas RLS, identifique una cadena de problemas interconectados:
 
-| Metrica | Rango actual | Rango correcto |
-|---|---|---|
-| Servicios | Mes actual | Mes actual |
-| Km | ALL TIME (historico) | Mes actual |
-| Ingresos | ALL TIME (historico) | Mes actual |
+### Bug 1 y 2: Antonio y Rodrigo no ven su servicio / no pueden hacer check
 
-Resultado: Un custodio con 3 servicios en febrero ve "$1.4M" de ingresos (acumulado historico), lo cual es confuso y genera desconfianza.
+**Causa raiz:** La query de `useNextService` (linea 53) busca servicios usando `custodio_telefono` normalizado (solo digitos), pero el problema es que NO hay ningun checklist en la base de datos para los servicios de hoy. Los 3 custodios tienen `hora_inicio_real` ya registrada (ya se posicionaron), pero el check nunca se guardo.
 
-### Mejores practicas (Uber, DoorDash, Rappi)
+La pantalla muestra "Sin servicios pendientes" porque `useNextService` solo busca servicios con estados activos (`planificado`, `asignado`, `confirmado`, `en_transito`). Si el servicio ya fue marcado como completado o su estado cambio despues de posicionarse, desaparece de la vista.
 
-- **Uber**: Semana actual (lun-dom) como periodo principal, con opcion de ver dia/mes
-- **DoorDash**: Resumen del dash actual + semana
-- **Rappi**: Semana actual
+**Hallazgo adicional para Rodrigo:** Sus stats muestran 0 en todo, lo que indica que `useCustodianServices` no encuentra servicios. Sin embargo, la DB tiene registros con su telefono correcto. Esto apunta a un problema de sesion o cache en su dispositivo, o a que su perfil phone se cargo vacio transitoriamente.
 
-Para custodios de seguridad privada, cuya frecuencia de servicio es menor que rideshare, el **mes actual** es el periodo optimo (ya se usa para servicios).
+### Bug 3: Sergio hizo el check pero no aparece al equipo
+
+**Causa raiz confirmada:** No existe NINGUN checklist para el servicio de hoy (ASCAAST-1399) en la base de datos. Sergio tiene un unico checklist guardado: ASCAAST-1383 del 12 de febrero, almacenado con telefono `55 4518 0581` (con espacios).
+
+El problema tiene dos capas:
+
+1. **El checklist de hoy nunca se guardo** - probablemente fallo silenciosamente o quedo en cola offline
+2. **La politica RLS de `checklist_servicio` tiene un bug critico**: Solo normaliza el telefono del perfil (`replace(phone, ' ', '')`) pero NO normaliza el campo `custodio_telefono` de la tabla. Esto significa que checklists guardados con formato antiguo (con espacios) son INVISIBLES para el custodio:
+
+```text
+Columna:  '55 4518 0581'  (con espacios)
+RLS:      '5545180581'    (sin espacios)
+Resultado: NO MATCH -> bloqueado por RLS
+```
 
 ### Solucion
 
-Calcular `kmEsteMes` e `ingresosEsteMes` con el mismo filtro de fecha que ya se usa para `serviciosEsteMes`.
+#### 1. Corregir la politica RLS de checklist_servicio (CRITICO)
 
-### Cambios
+Normalizar AMBOS lados de la comparacion en la politica RLS:
 
-**Archivo: `src/components/custodian/MobileDashboardLayout.tsx`**
+```sql
+DROP POLICY IF EXISTS "Custodios gestionan checklist propio" ON checklist_servicio;
 
-Agregar dos `useMemo` adicionales que filtren servicios del mes actual para KM e ingresos:
+CREATE POLICY "Custodios gestionan checklist propio"
+ON checklist_servicio FOR ALL
+USING (
+  regexp_replace(custodio_telefono, '[^0-9]', '', 'g') = 
+  regexp_replace(
+    (SELECT phone FROM profiles WHERE id = auth.uid()),
+    '[^0-9]', '', 'g'
+  )
+);
+```
+
+Esto usa `regexp_replace` para eliminar TODOS los caracteres no numericos de ambos lados, exactamente como hace `normalizePhone` en el frontend.
+
+#### 2. Migrar datos existentes de checklist_servicio
+
+Normalizar todos los `custodio_telefono` existentes para consistencia futura:
+
+```sql
+UPDATE checklist_servicio 
+SET custodio_telefono = regexp_replace(custodio_telefono, '[^0-9]', '', 'g')
+WHERE custodio_telefono ~ '[^0-9]';
+```
+
+#### 3. Agregar resiliencia a useNextService
+
+Modificar `src/hooks/useNextService.ts` para:
+- Incluir servicios que ya tienen `hora_inicio_real` pero NO tienen checklist completado (estos son servicios "en progreso" donde el custodio aun necesita hacer el check)
+- No filtrar por `estado_planeacion` cuando `hora_inicio_real` existe, ya que el estado puede cambiar despues del posicionamiento
+
+Cambio especifico: Remover el filtro `.in('estado_planeacion', [...])` para servicios de hoy y en su lugar filtrar servicios que NO esten cancelados/completados. Esto amplia la ventana de visibilidad.
 
 ```typescript
-const kmEsteMes = useMemo(() => {
-  if (!services || services.length === 0) return 0;
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  return services
-    .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
-    .reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
-}, [services]);
+// Antes: filtro restrictivo
+.in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_transito', ...])
 
-const ingresosEsteMes = useMemo(() => {
-  if (!services || services.length === 0) return 0;
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  return services
-    .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
-    .reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
-}, [services]);
+// Despues: filtro permisivo (excluir solo terminales)
+.not('estado_planeacion', 'in', '(cancelado,completado,finalizado)')
 ```
 
-Actualizar el CompactStatsBar:
+#### 4. Agregar feedback de error visible en el guardado de checklist
 
-```tsx
-<CompactStatsBar
-  serviciosEsteMes={serviciosEsteMes}
-  kmRecorridos={kmEsteMes}          // era stats.km_totales
-  ingresosTotales={ingresosEsteMes}  // era stats.ingresos_totales
-/>
-```
+En `src/hooks/useServiceChecklist.ts`, mejorar el manejo de errores para que el custodio sepa si el guardado fallo:
 
-**Archivo: `src/components/custodian/CompactStatsBar.tsx`**
+- Agregar `console.error` con detalle del error RLS
+- Mostrar toast persistente (no auto-dismiss) cuando falla el guardado
+- Agregar retry automatico con backoff
 
-Actualizar el label de "Km" a "Km mes" y "Ingresos" a "Ingresos mes" (o alternativamente, agregar el nombre del mes como subtitulo en las 3 tarjetas).
+### Archivos a modificar
 
-### Lo que NO cambia
+| Archivo | Cambio |
+|---|---|
+| Nueva migracion SQL | RLS policy fix + data normalization |
+| `src/hooks/useNextService.ts` | Ampliar filtro de estados para incluir servicios con hora_inicio_real |
+| `src/hooks/useServiceChecklist.ts` | Mejorar feedback de errores en save |
 
-- `useCustodianServices` sigue calculando stats historicos (se usan en la pagina de Vehiculo para kilometraje total de mantenimiento)
-- La UI y el componente CompactStatsBar mantienen su estructura
-- El calculo de `serviciosEsteMes` que ya existia no se toca
+### Resultado esperado
 
-### Resultado
+- Los 3 custodios veran sus servicios del dia
+- Los checklists se guardaran correctamente y seran visibles tanto para el custodio como para el equipo de monitoreo
+- Los checklists historicos con telefono en formato antiguo seguiran siendo accesibles
 
-Las 3 tarjetas mostraran datos coherentes del mes actual: "3 servicios, X km, $Y ingresos" — todo del mismo periodo, sin ruido.
