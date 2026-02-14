@@ -1,24 +1,24 @@
 
 
-## Mover Configuración CS de Dialog a Pestaña del Módulo
+## Separar visualmente la alerta "En Riesgo" del Funnel
 
-### Cambio
+### Problema actual
 
-Actualmente la configuración CS se abre en un Dialog modal. El objetivo es convertirla en una pestaña más del módulo CS, manteniendo el patrón de navegación por URL (`?tab=config`).
+El `mt-8` ya esta aplicado pero no es suficiente porque la alerta sigue dentro del mismo `CardContent`, asi que visualmente parece una extension del funnel (un "sexto nivel").
 
-### Archivos a modificar
+### Solucion
 
-**`src/pages/CustomerSuccess/CustomerSuccessPage.tsx`**:
+Mover la alerta de riesgo **fuera** del `Card` del funnel, convirtiendola en un elemento independiente debajo. Esto crea una ruptura visual clara:
 
-1. Agregar una quinta pestaña "Configuración" al TabsList con icono Settings
-2. Agregar el TabsContent correspondiente que renderiza `<CSConfigPanel />`
-3. Eliminar el botón de Settings del header (ya no se necesita el icono de engranaje)
-4. Eliminar el Dialog de configuración y su estado (`showConfig`, `setShowConfig`)
-5. Mantener el import de CSConfigPanel (ya existe)
+**Cambios en `CSLoyaltyFunnel.tsx`:**
 
-### Resultado
+1. Cerrar el `</Card>` inmediatamente despues del funnel trapezoidal (despues del `</div>` del flex-col)
+2. Renderizar el bloque "En Riesgo" como un elemento separado fuera del Card, sin estar envuelto en CardContent
+3. Mantener el estilo actual del boton de riesgo (borde rojo, fondo rojo claro) que ya lo diferencia visualmente
 
-- La pestaña se accede via `?tab=config` siguiendo el patrón existente de `useSearchParams`
-- El componente `CSConfigPanel` se reutiliza tal cual (ya tiene tabs internas para Health Score y Funnel)
-- Se elimina código del Dialog (simplificación)
-- El botón de engranaje en el header desaparece ya que la config tiene su propia pestaña dedicada
+Resultado: El funnel termina limpiamente dentro de su Card, y la alerta roja aparece como un componente completamente separado debajo, eliminando cualquier ambiguedad visual.
+
+### Archivo
+
+- `src/pages/CustomerSuccess/components/CSLoyaltyFunnel.tsx`
+
