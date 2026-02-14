@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function CSClienteProfileModal({ clienteId, onClose }: Props) {
-  const { data: profile, isLoading } = useCSClienteProfile(clienteId);
+  const { data: profile, isLoading, isError } = useCSClienteProfile(clienteId);
   const { data: loyalty } = useCSLoyaltyFunnel();
   const { data: healthHistory } = useCSHealthScoreHistory(clienteId);
   const clientLoyalty = loyalty?.clients.find(c => c.id === clienteId);
@@ -26,8 +26,16 @@ export function CSClienteProfileModal({ clienteId, onClose }: Props) {
   return (
     <Dialog open={!!clienteId} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        {isLoading || !profile ? (
+        {isError ? (
+          <div className="py-8 text-center space-y-2">
+            <DialogHeader>
+              <DialogTitle>Error al cargar perfil</DialogTitle>
+              <DialogDescription>No se pudieron obtener los datos del cliente. Intenta de nuevo más tarde.</DialogDescription>
+            </DialogHeader>
+          </div>
+        ) : isLoading || !profile ? (
           <div className="space-y-4">
+            <DialogHeader><DialogTitle>Cargando perfil...</DialogTitle><DialogDescription>Obteniendo datos del cliente</DialogDescription></DialogHeader>
             <Skeleton className="h-20" />
             <Skeleton className="h-40" />
           </div>
@@ -38,7 +46,7 @@ export function CSClienteProfileModal({ clienteId, onClose }: Props) {
                 {clientLoyalty && <CSLoyaltyBadge stage={clientLoyalty.stage} size="md" />}
                 <div>
                   <DialogTitle className="text-xl">{profile.nombre}</DialogTitle>
-                  <p className="text-sm text-muted-foreground">{profile.razon_social}</p>
+                  <DialogDescription>{profile.razon_social}</DialogDescription>
                 </div>
               </div>
             </DialogHeader>
