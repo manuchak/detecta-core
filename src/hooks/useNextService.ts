@@ -52,7 +52,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
         `)
         .eq('custodio_telefono', normalizedPhone)
         .gte('fecha_hora_cita', todayISO)
-        .in('estado_planeacion', ['planificado', 'asignado', 'confirmado', 'en_transito', 'Planificado', 'Asignado', 'Confirmado', 'En Tránsito'])
+        .not('estado_planeacion', 'in', '(cancelado,completado,finalizado,Cancelado,Completado,Finalizado)')
         .order('fecha_hora_cita', { ascending: true })
         .limit(1);
 
@@ -76,7 +76,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
         `)
         .or(`telefono.eq.${normalizedPhone},telefono_operador.eq.${normalizedPhone}`)
         .gte('fecha_hora_cita', todayISO)
-        .in('estado', ['pendiente', 'programado', 'Pendiente', 'Programado', 'asignado', 'Asignado'])
+        .not('estado', 'in', '(cancelado,completado,finalizado,Cancelado,Completado,Finalizado)')
         .order('fecha_hora_cita', { ascending: true })
         .limit(1);
 
