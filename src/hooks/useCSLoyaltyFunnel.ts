@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, subDays } from 'date-fns';
+import { useCSConfig, DEFAULT_LOYALTY_CONFIG, type LoyaltyConfig } from './useCSConfig';
 
 export type LoyaltyStage = 'nuevo' | 'activo' | 'leal' | 'promotor' | 'embajador' | 'en_riesgo';
 
@@ -49,49 +50,49 @@ function calculateStage(client: {
   capas_pendientes: number;
   meses_activo: number;
   servicios_90d: number;
-}): LoyaltyStage {
-  // En Riesgo: quejas >= 2 OR (sin contacto > 60d Y sin servicios en 90d)
-  const sinActividadReciente = client.dias_sin_contacto > 60;
-  if (client.quejas_abiertas >= 2 || (sinActividadReciente && client.servicios_90d === 0)) {
+}, cfg: LoyaltyConfig): LoyaltyStage {
+  const riesgo = cfg.en_riesgo;
+  const sinActividadReciente = client.dias_sin_contacto > riesgo.dias_inactividad;
+  if (client.quejas_abiertas >= riesgo.quejas_minimas || (sinActividadReciente && client.servicios_90d <= riesgo.servicios_90d_minimo)) {
     return 'en_riesgo';
   }
 
-  // Embajador: manual flag + all promotor criteria
+  const emb = cfg.embajador;
   if (
     client.es_embajador &&
-    client.meses_activo >= 6 &&
+    client.meses_activo >= emb.meses_minimos &&
     client.quejas_abiertas === 0 &&
-    (client.csat_promedio === null || client.csat_promedio >= 4.5) &&
+    (client.csat_promedio === null || client.csat_promedio >= emb.csat_minimo) &&
     client.capas_pendientes === 0 &&
-    client.dias_sin_contacto <= 30
+    client.dias_sin_contacto <= emb.dias_contacto_maximo
   ) return 'embajador';
 
-  // Promotor: leal + CSAT >= 4.5 (when exists) + 0 CAPAs
+  const prom = cfg.promotor;
   if (
-    client.meses_activo >= 6 &&
+    client.meses_activo >= prom.meses_minimos &&
     client.quejas_abiertas === 0 &&
-    (client.csat_promedio === null || client.csat_promedio >= 4.5) &&
+    (client.csat_promedio === null || client.csat_promedio >= prom.csat_minimo) &&
     client.capas_pendientes === 0 &&
-    client.dias_sin_contacto <= 30
+    client.dias_sin_contacto <= prom.dias_contacto_maximo
   ) return 'promotor';
 
-  // Leal: >= 6 meses, 0 quejas, servicio o contacto en 30 días
+  const leal = cfg.leal;
   if (
-    client.meses_activo >= 6 &&
+    client.meses_activo >= leal.meses_minimos &&
     client.quejas_abiertas === 0 &&
-    client.dias_sin_contacto <= 30
+    client.dias_sin_contacto <= leal.dias_contacto_maximo
   ) return 'leal';
 
-  // Nuevo: primer servicio < 2 meses
-  if (client.meses_activo < 2) return 'nuevo';
+  if (client.meses_activo < cfg.nuevo.meses_maximo) return 'nuevo';
 
-  // Activo: default (tiene servicios en 60d, sin quejas graves)
   return 'activo';
 }
 
 export function useCSLoyaltyFunnel() {
+  const { config: loyaltyConfig } = useCSConfig<LoyaltyConfig>('loyalty_funnel');
+
   return useQuery({
-    queryKey: ['cs-loyalty-funnel'],
+    queryKey: ['cs-loyalty-funnel', loyaltyConfig],
     queryFn: async () => {
       const now = Date.now();
       const cutoff90d = format(subDays(new Date(), 90), 'yyyy-MM-dd');
@@ -214,7 +215,7 @@ export function useCSLoyaltyFunnel() {
           capas_pendientes,
           meses_activo,
           servicios_90d,
-        });
+        }, loyaltyConfig);
 
         return {
           id: c.id,

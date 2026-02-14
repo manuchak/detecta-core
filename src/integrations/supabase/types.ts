@@ -3344,6 +3344,45 @@ export type Database = {
           },
         ]
       }
+      cs_config: {
+        Row: {
+          categoria: string
+          config: Json
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          categoria: string
+          config?: Json
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          categoria?: string
+          config?: Json
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       cs_health_scores: {
         Row: {
           cliente_id: string
