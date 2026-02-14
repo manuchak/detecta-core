@@ -3397,6 +3397,61 @@ export type Database = {
           },
         ]
       }
+      cs_nps_campaigns: {
+        Row: {
+          canal: string
+          cliente_id: string
+          comentario: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          periodo: string
+          score: number
+        }
+        Insert: {
+          canal?: string
+          cliente_id: string
+          comentario?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          periodo: string
+          score: number
+        }
+        Update: {
+          canal?: string
+          cliente_id?: string
+          comentario?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          periodo?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_nps_campaigns_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_nps_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_nps_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       cs_quejas: {
         Row: {
           accion_correctiva: string | null
