@@ -60,13 +60,15 @@ export function CSLoyaltyFunnel({ onStageClick, selectedStage }: Props) {
               <button
                 key={item.stage}
                 onClick={() => onStageClick?.(item.stage)}
-                className={`relative flex items-center justify-between px-8 sm:px-10 cursor-pointer transition-all duration-200 hover:brightness-110 ${
+                className={`relative flex items-center justify-between cursor-pointer transition-all duration-200 hover:brightness-110 ${
                   STAGE_GRADIENTS[item.stage]
                 } ${isSelected ? 'ring-2 ring-white/40 z-10 brightness-110' : ''}`}
                 style={{
                   clipPath,
-                  height: '44px',
+                  height: '48px',
                   marginTop: index > 0 ? '-2px' : '0',
+                  paddingLeft: `calc(${indent + INDENT_STEP + 2}% + 8px)`,
+                  paddingRight: `calc(${indent + INDENT_STEP + 2}% + 8px)`,
                 }}
               >
                 <div className="flex items-center gap-2 z-10">
