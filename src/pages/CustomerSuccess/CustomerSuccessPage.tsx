@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 const CustomerSuccessPage = () => {
   const [showNewQueja, setShowNewQueja] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'panorama';
 
@@ -38,9 +37,6 @@ const CustomerSuccessPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setShowConfig(true)} title="Configuración CS">
-            <Settings className="h-4 w-4" />
-          </Button>
           <Button onClick={() => setShowNewQueja(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             Nueva Queja
@@ -54,12 +50,17 @@ const CustomerSuccessPage = () => {
           <TabsTrigger value="cartera">Cartera</TabsTrigger>
           <TabsTrigger value="operativo">Operativo</TabsTrigger>
           <TabsTrigger value="analisis">Análisis Clientes</TabsTrigger>
+          <TabsTrigger value="config" className="gap-1.5">
+            <Settings className="h-3.5 w-3.5" />
+            Configuración
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="panorama"><CSPanorama /></TabsContent>
         <TabsContent value="cartera"><CSCartera /></TabsContent>
         <TabsContent value="operativo"><CSOperativo /></TabsContent>
         <TabsContent value="analisis"><ClientAnalytics /></TabsContent>
+        <TabsContent value="config"><CSConfigPanel /></TabsContent>
       </Tabs>
 
       <Dialog open={showNewQueja} onOpenChange={setShowNewQueja}>
@@ -69,18 +70,6 @@ const CustomerSuccessPage = () => {
             <DialogDescription>Capture los datos de la queja del cliente.</DialogDescription>
           </DialogHeader>
           <CSQuejaForm onSuccess={() => setShowNewQueja(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showConfig} onOpenChange={setShowConfig}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Configuración Customer Success</DialogTitle>
-            <DialogDescription>
-              Ajusta los parámetros del Health Score y el Embudo de Fidelidad.
-            </DialogDescription>
-          </DialogHeader>
-          <CSConfigPanel />
         </DialogContent>
       </Dialog>
     </div>
