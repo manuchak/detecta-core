@@ -1,43 +1,63 @@
 
-# Cerrar incidente desde la lista principal (con control de rol)
 
-## Resumen
+# Firmas Digitales en Incidentes + Mejora de Tarjetas del Listado
 
-Agregar un boton "Cerrar" directamente en cada tarjeta de la lista de incidentes (IncidentListPanel), visible solo para roles autorizados (coordinador_operaciones, admin, owner). Al hacer clic se muestra un AlertDialog de confirmacion antes de ejecutar el cierre.
+## Parte 1: Firmas Digitales (Creacion y Cierre)
 
-## Cambios
+### Nuevas columnas en `incidentes_operativos`
 
-### 1. `src/components/monitoring/incidents/IncidentListPanel.tsx`
+Se agregaran 6 columnas via SQL migration:
 
-- Importar `useUpdateIncidente` del hook existente
-- Importar `useAuth` para obtener el `userRole` del usuario actual
-- Importar `AlertDialog` de Radix para confirmacion
-- Importar iconos `Lock` y `XCircle` de lucide
-- Definir constante local con roles autorizados para cerrar: `['admin', 'owner', 'coordinador_operaciones']`
-- En cada fila de incidente cuyo estado NO sea `cerrado`:
-  - Si el usuario tiene rol autorizado, renderizar un boton icono "Cerrar" (XCircle) al final de la fila
-  - El boton abre un AlertDialog: "Confirmar cierre de incidente - Esta accion cambiara el estado a cerrado y registrara la fecha de resolucion. No se puede revertir."
-  - Al confirmar, llamar `updateIncidente.mutateAsync({ id, estado: 'cerrado', fecha_resolucion: new Date().toISOString() })`
-  - Mostrar toast de exito/error
-- El boton debe usar `e.stopPropagation()` para no disparar el `handleEdit` del row
+- `firma_creacion_base64` (text) - imagen base64 de la firma del creador
+- `firma_creacion_email` (text) - email del usuario que firmo la creacion
+- `firma_creacion_timestamp` (timestamptz) - momento exacto de la firma de creacion
+- `firma_cierre_base64` (text) - imagen base64 de la firma de quien cerro
+- `firma_cierre_email` (text) - email del usuario que firmo el cierre
+- `firma_cierre_timestamp` (timestamptz) - momento exacto de la firma de cierre
 
-### 2. `src/components/monitoring/incidents/IncidentReportForm.tsx`
+### Flujo de Creacion (IncidentReportForm.tsx)
 
-- Aplicar la misma restriccion de rol al boton "Cerrar incidente" existente dentro del formulario
-- Importar `useAuth` y verificar que el rol este en la lista autorizada antes de renderizar el boton
+- Agregar el componente `SignaturePad` (ya existente en `src/components/custodian/checklist/SignaturePad.tsx`) al formulario, visible al registrar (boton "Registrar")
+- La firma sera obligatoria para pasar de borrador a estado "abierto" (al hacer clic en "Registrar")
+- Guardar borradores NO requiere firma (permite trabajar iterativamente)
+- Al registrar: se guarda `firma_creacion_base64`, `firma_creacion_email` (del usuario autenticado), y `firma_creacion_timestamp`
+- Validacion: si no hay firma, mostrar toast de error "Firma digital requerida para registrar el incidente"
 
-## Roles autorizados para cerrar
+### Flujo de Cierre (IncidentReportForm.tsx + IncidentListPanel.tsx)
 
-- `admin`
-- `owner`
-- `coordinador_operaciones`
+- En el `AlertDialog` de confirmacion de cierre (tanto en lista como en formulario), agregar el `SignaturePad` dentro del dialogo
+- El boton "Cerrar incidente" queda deshabilitado hasta que se dibuje la firma
+- Al confirmar cierre: se guarda `firma_cierre_base64`, `firma_cierre_email`, y `firma_cierre_timestamp`
 
-Estos roles ya estan definidos como roles de alta autoridad en `accessControl.ts`. Se usara una constante local en el componente para mantener la logica clara y no contaminar el archivo central con una constante muy especifica.
+### PDF (IncidentPDFExporter.ts)
 
-## Flujo del usuario
+- Agregar seccion "6. Firmas Digitales" al final del PDF
+- Renderizar la imagen de firma de creacion con nombre/email y timestamp
+- Si el incidente esta cerrado, renderizar tambien la firma de cierre con nombre/email y timestamp
 
-1. Ve la lista de incidentes
-2. En incidentes no cerrados, aparece un boton con icono X (solo si tiene rol autorizado)
-3. Hace clic, se abre dialogo de confirmacion
-4. Confirma: el incidente pasa a estado "cerrado" con fecha de resolucion = ahora
-5. La lista se refresca automaticamente (invalidateQueries ya configurado en useUpdateIncidente)
+## Parte 2: Mejora de Tarjetas del Listado (IncidentListPanel.tsx)
+
+La tarjeta actual solo muestra: severidad, estado, tipo, descripcion truncada, zona y fecha. Esto es insuficiente para evaluar rapidamente un incidente.
+
+### Informacion adicional en cada tarjeta
+
+Se rediseniara cada fila del listado para incluir:
+
+- **Linea 1 (existente mejorada)**: Severidad badge + Estado badge + Tipo (label completo) + Fecha/hora
+- **Linea 2 (nueva)**: Cliente | Zona | ID servicio vinculado (si existe) | Icono de atribuible a operacion
+- **Linea 3 (nueva)**: Descripcion truncada (60 chars) + Conteo de entradas de cronologia (ej: "3 entradas") + Indicador de firma (check verde si tiene firma de creacion)
+- **Indicadores visuales**: Badge de "Firmado" si tiene firma de creacion, badge de "Cerrado + Firmado" si tiene firma de cierre
+
+### Cambios al query de listado
+
+- El query actual solo hace `select('*')` de `incidentes_operativos`, lo cual ya trae todas las columnas incluyendo las nuevas de firma
+- Para mostrar conteo de cronologia, se agregara un query ligero o se usara un count en el select
+
+## Detalle tecnico de archivos a modificar
+
+1. **SQL Migration** - Agregar las 6 columnas de firma a `incidentes_operativos`
+2. **`src/hooks/useIncidentesOperativos.ts`** - Actualizar la interfaz `IncidenteOperativo` con los nuevos campos de firma; actualizar `useCreateIncidente` y `useUpdateIncidente` para incluir firma en el payload
+3. **`src/components/monitoring/incidents/IncidentReportForm.tsx`** - Integrar `SignaturePad` antes del boton "Registrar"; validar firma obligatoria en `handleSubmit`; agregar `SignaturePad` al flujo de cierre
+4. **`src/components/monitoring/incidents/IncidentListPanel.tsx`** - Rediseniur las tarjetas con la informacion expandida; agregar `SignaturePad` dentro del `AlertDialog` de cierre; mostrar indicadores de firma
+5. **`src/components/monitoring/incidents/IncidentPDFExporter.ts`** - Agregar seccion 6 con firmas digitales renderizadas como imagenes
+
