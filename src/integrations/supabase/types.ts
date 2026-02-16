@@ -7155,6 +7155,9 @@ export type Database = {
           incidente_id: string
           timestamp: string
           tipo_entrada: string
+          ubicacion_lat: number | null
+          ubicacion_lng: number | null
+          ubicacion_texto: string | null
         }
         Insert: {
           autor_id?: string | null
@@ -7165,6 +7168,9 @@ export type Database = {
           incidente_id: string
           timestamp?: string
           tipo_entrada: string
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          ubicacion_texto?: string | null
         }
         Update: {
           autor_id?: string | null
@@ -7175,6 +7181,9 @@ export type Database = {
           incidente_id?: string
           timestamp?: string
           tipo_entrada?: string
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          ubicacion_texto?: string | null
         }
         Relationships: [
           {

@@ -37,6 +37,9 @@ export interface EntradaCronologia {
   descripcion: string;
   imagen_url: string | null;
   autor_id: string | null;
+  ubicacion_lat: number | null;
+  ubicacion_lng: number | null;
+  ubicacion_texto: string | null;
   created_at: string;
 }
 
@@ -334,8 +337,11 @@ export function useAddCronologiaEntry() {
       tipo_entrada: TipoEntradaCronologia;
       descripcion: string;
       imagen?: File;
+      ubicacion_lat?: number | null;
+      ubicacion_lng?: number | null;
+      ubicacion_texto?: string | null;
     }) => {
-      const { imagen, ...rest } = data;
+      const { imagen, ubicacion_lat, ubicacion_lng, ubicacion_texto, ...rest } = data;
       let imagen_url: string | null = null;
 
       if (imagen) {
@@ -349,6 +355,9 @@ export function useAddCronologiaEntry() {
           ...rest,
           imagen_url,
           autor_id: user?.user?.id || null,
+          ubicacion_lat: ubicacion_lat ?? null,
+          ubicacion_lng: ubicacion_lng ?? null,
+          ubicacion_texto: ubicacion_texto ?? null,
         } as any);
       if (error) throw error;
     },

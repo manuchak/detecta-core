@@ -5,11 +5,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Eye, Bell, Zap, ArrowUp, Camera, CheckCircle, MessageSquare, Plus, Trash2, Loader2, ImagePlus, X } from 'lucide-react';
+import { Eye, Bell, Zap, ArrowUp, Camera, CheckCircle, MessageSquare, Plus, Trash2, Loader2, ImagePlus, X, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { EntradaCronologia, TipoEntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import { TIPOS_ENTRADA_CRONOLOGIA } from '@/hooks/useIncidentesOperativos';
+import { LocationPicker } from './LocationPicker';
 
 /** Returns current local datetime as YYYY-MM-DDTHH:mm for datetime-local inputs */
 const getLocalDateTimeString = () => {
@@ -49,12 +50,15 @@ export interface LocalTimelineEntry {
   descripcion: string;
   imagenFile?: File;
   imagenPreview?: string;
+  ubicacion_lat?: number | null;
+  ubicacion_lng?: number | null;
+  ubicacion_texto?: string | null;
 }
 
 interface IncidentTimelineProps {
   entries: EntradaCronologia[];
   localEntries?: LocalTimelineEntry[];
-  onAddEntry: (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File }) => void;
+  onAddEntry: (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File; ubicacion_lat?: number | null; ubicacion_lng?: number | null; ubicacion_texto?: string | null }) => void;
   onDeleteEntry?: (id: string) => void;
   onDeleteLocalEntry?: (localId: string) => void;
   isAdding?: boolean;
@@ -79,6 +83,8 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [entryLocation, setEntryLocation] = useState<{ lat: number | null; lng: number | null; texto: string }>({ lat: null, lng: null, texto: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
 
@@ -120,9 +126,14 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
       tipo_entrada: newEntry.tipo_entrada as TipoEntradaCronologia,
       descripcion: newEntry.descripcion.trim(),
       imagen: selectedImage || undefined,
+      ubicacion_lat: entryLocation.lat,
+      ubicacion_lng: entryLocation.lng,
+      ubicacion_texto: entryLocation.texto || null,
     });
     setNewEntry({ timestamp: getLocalDateTimeString(), tipo_entrada: '', descripcion: '' });
     clearImage();
+    setShowLocationPicker(false);
+    setEntryLocation({ lat: null, lng: null, texto: '' });
     setShowForm(false);
   };
 
@@ -221,6 +232,41 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
             />
           </div>
 
+          {/* Location toggle */}
+          <div className="space-y-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={showLocationPicker ? 'default' : 'outline'}
+              onClick={() => {
+                setShowLocationPicker(!showLocationPicker);
+                if (showLocationPicker) setEntryLocation({ lat: null, lng: null, texto: '' });
+              }}
+              className="h-7 text-xs gap-1"
+            >
+              <MapPin className="h-3 w-3" />
+              {showLocationPicker ? 'Quitar ubicación' : 'Agregar ubicación'}
+            </Button>
+            {showLocationPicker && (
+              <div className="border rounded-lg p-2 bg-background">
+                <LocationPicker
+                  value={entryLocation.texto}
+                  lat={entryLocation.lat}
+                  lng={entryLocation.lng}
+                  onChange={({ zona, lat, lng }) => {
+                    setEntryLocation({ lat, lng, texto: zona });
+                  }}
+                />
+              </div>
+            )}
+            {entryLocation.texto && (
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {entryLocation.texto.length > 60 ? entryLocation.texto.slice(0, 60) + '...' : entryLocation.texto}
+              </p>
+            )}
+          </div>
+
           <div className="flex gap-2 justify-end">
             <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); clearImage(); }} className="h-7 text-xs">Cancelar</Button>
             <Button
@@ -294,6 +340,14 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
                     )}
                   </div>
                   <p className="text-xs text-foreground">{entry.descripcion}</p>
+
+                  {/* Location badge */}
+                  {(entry as any).ubicacion_texto && (
+                    <Badge variant="outline" className="mt-1 text-[9px] h-4 px-1.5 gap-0.5 max-w-[200px] truncate">
+                      <MapPin className="h-2.5 w-2.5 shrink-0" />
+                      {(entry as any).ubicacion_texto.length > 40 ? (entry as any).ubicacion_texto.slice(0, 40) + '...' : (entry as any).ubicacion_texto}
+                    </Badge>
+                  )}
 
                   {/* Thumbnail de evidencia */}
                   {imgUrl && (
