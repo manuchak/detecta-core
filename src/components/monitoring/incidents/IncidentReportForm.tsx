@@ -123,7 +123,30 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
   });
 
   // Local timeline entries (Bloque 3)
-  const [localTimelineEntries, setLocalTimelineEntries] = useState<LocalTimelineEntry[]>([]);
+  const [localTimelineEntries, setLocalTimelineEntries] = useState<LocalTimelineEntry[]>(() => {
+    // Initialize from storage synchronously to avoid race conditions
+    try {
+      const sessionStored = sessionStorage.getItem(`${isEditing ? `incident-report-${incidente.id}` : 'incident-report-new'}_timeline`);
+      const localStored = localStorage.getItem(`${isEditing ? `incident-report-${incidente.id}` : 'incident-report-new'}_timeline`);
+      const raw = sessionStored || localStored;
+      if (raw) {
+        const entries = deserializeTimelineEntries(raw);
+        return entries;
+      }
+    } catch {}
+    return [];
+  });
+  const [timelineRestored, setTimelineRestored] = useState(false);
+
+  // Notify about lost images after first render
+  useEffect(() => {
+    if (timelineRestored) return;
+    setTimelineRestored(true);
+    const lostImages = localTimelineEntries.filter((e: any) => e.hadImage);
+    if (lostImages.length > 0) {
+      toast.info(`${lostImages.length} entrada(s) de cronología tenían fotos que no pudieron restaurarse`, { duration: 5000 });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Service lookup (Bloque 1) — synced with form for persistence
   const { servicio, isSearching, error: servicioError, buscarServicio } = useServicioLookup();
@@ -211,27 +234,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     persistLocalEntries();
   }, [persistLocalEntries]);
 
-  // Restore local entries on mount (try sessionStorage first, then localStorage)
-  useEffect(() => {
-    try {
-      const sessionStored = sessionStorage.getItem(timelineKey);
-      const localStored = localStorage.getItem(timelineKey);
-      const raw = sessionStored || localStored;
-      if (raw) {
-        const entries = deserializeTimelineEntries(raw);
-        if (entries.length > 0) {
-          setLocalTimelineEntries(entries);
-          // Check if any had images that were lost
-          const lostImages = entries.filter((e: any) => e.hadImage);
-          if (lostImages.length > 0) {
-            toast.info(`${lostImages.length} entrada(s) de cronología tenían fotos que no pudieron restaurarse`, { duration: 5000 });
-          }
-        }
-      }
-    } catch {}
-  }, [timelineKey]);
-
-  // Correccion 4: Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
       localTimelineEntries.forEach(entry => {
