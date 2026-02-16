@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,12 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Send, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Send, FileText, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
-import { IncidentTimeline } from './IncidentTimeline';
+import { IncidentTimeline, type LocalTimelineEntry } from './IncidentTimeline';
+import { ServiceDataSummary } from './ServiceDataSummary';
+import { LocationPicker } from './LocationPicker';
 import { exportIncidentePDF } from './IncidentPDFExporter';
+import { useServicioLookup } from '@/hooks/useServicioLookup';
 import {
   TIPOS_INCIDENTE, SEVERIDADES, CONTROLES,
   useCreateIncidente, useUpdateIncidente, useAddCronologiaEntry, useDeleteCronologiaEntry, useIncidenteCronologia,
@@ -25,7 +28,13 @@ interface IncidentReportFormProps {
   onBack: () => void;
 }
 
-const defaultFormData: IncidenteFormData = {
+interface ExtendedFormData extends IncidenteFormData {
+  id_servicio_texto: string;
+  ubicacion_lat: number | null;
+  ubicacion_lng: number | null;
+}
+
+const defaultFormData: ExtendedFormData = {
   tipo: '',
   severidad: '',
   descripcion: '',
@@ -36,13 +45,16 @@ const defaultFormData: IncidenteFormData = {
   cliente_nombre: '',
   acciones_tomadas: '',
   resolucion_notas: '',
+  id_servicio_texto: '',
+  ubicacion_lat: null,
+  ubicacion_lng: null,
 };
 
 export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incidente, onBack }) => {
   const isEditing = !!incidente;
   const persistKey = isEditing ? `incident-report-${incidente.id}` : 'incident-report-new';
 
-  const form = useForm<IncidenteFormData>({
+  const form = useForm<ExtendedFormData>({
     defaultValues: isEditing
       ? {
           tipo: incidente.tipo,
@@ -55,21 +67,32 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
           cliente_nombre: incidente.cliente_nombre || '',
           acciones_tomadas: incidente.acciones_tomadas || '',
           resolucion_notas: incidente.resolucion_notas || '',
+          id_servicio_texto: (incidente as any).id_servicio_texto || '',
+          ubicacion_lat: (incidente as any).ubicacion_lat || null,
+          ubicacion_lng: (incidente as any).ubicacion_lng || null,
         }
       : defaultFormData,
   });
 
-  const persistence = useFormPersistence<IncidenteFormData>({
+  const persistence = useFormPersistence<ExtendedFormData>({
     key: persistKey,
     initialData: defaultFormData,
     level: 'robust',
     ttl: 72 * 60 * 60 * 1000,
+    debounceMs: 300,
     form,
-    enabled: !isEditing,
+    enabled: true,
     moduleName: 'Reporte de Incidente',
     isMeaningful: (data) => !!(data.tipo || data.descripcion),
     getPreviewText: (data) => data.descripcion?.slice(0, 60) || data.tipo || '',
   });
+
+  // Local timeline entries (Bloque 3)
+  const [localTimelineEntries, setLocalTimelineEntries] = useState<LocalTimelineEntry[]>([]);
+
+  // Service lookup (Bloque 1)
+  const { servicio, isSearching, error: servicioError, buscarServicio } = useServicioLookup();
+  const [idServicioInput, setIdServicioInput] = useState((incidente as any)?.id_servicio_texto || '');
 
   const createMutation = useCreateIncidente();
   const updateMutation = useUpdateIncidente();
@@ -79,12 +102,135 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   const watchedValues = form.watch();
 
+  // Bloque 4: beforeunload + visibilitychange
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      persistence.saveDraft();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        persistence.saveDraft();
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [persistence]);
+
+  // Bloque 1: Auto-fill from service
+  const handleSearchServicio = async () => {
+    const result = await buscarServicio(idServicioInput);
+    if (result) {
+      form.setValue('id_servicio_texto', result.id_servicio, { shouldDirty: true });
+      form.setValue('cliente_nombre', result.nombre_cliente || '', { shouldDirty: true });
+      if (result.origen) {
+        form.setValue('zona', result.origen, { shouldDirty: true });
+      }
+      toast.success(`Servicio ${result.id_servicio} vinculado`);
+    }
+  };
+
   const toggleControl = (ctrl: string) => {
     const current = form.getValues('controles_activos');
     const next = current.includes(ctrl)
       ? current.filter((c: string) => c !== ctrl)
       : [...current, ctrl];
     form.setValue('controles_activos', next, { shouldDirty: true });
+  };
+
+  // Persist local timeline entries together with form data
+  const persistLocalEntries = useCallback(() => {
+    try {
+      localStorage.setItem(`${persistKey}_timeline`, JSON.stringify(localTimelineEntries));
+    } catch {}
+  }, [localTimelineEntries, persistKey]);
+
+  useEffect(() => {
+    persistLocalEntries();
+  }, [persistLocalEntries]);
+
+  // Restore local entries on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`${persistKey}_timeline`);
+      if (stored) {
+        setLocalTimelineEntries(JSON.parse(stored));
+      }
+    } catch {}
+  }, [persistKey]);
+
+  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => {
+    if (isEditing && incidente?.id) {
+      // Directly save to DB if editing
+      try {
+        await addCronologiaMutation.mutateAsync({ incidente_id: incidente.id, ...entry });
+        toast.success('Entrada agregada a cronología');
+      } catch (err: any) {
+        toast.error(err.message);
+      }
+    } else {
+      // Save locally (Bloque 3)
+      const localEntry: LocalTimelineEntry = {
+        localId: crypto.randomUUID(),
+        ...entry,
+      };
+      setLocalTimelineEntries(prev => [...prev, localEntry]);
+      toast.success('Entrada agregada (se guardará con el incidente)');
+    }
+  };
+
+  const handleDeleteCronologia = async (id: string) => {
+    if (!incidente?.id) return;
+    try {
+      await deleteCronologiaMutation.mutateAsync({ id, incidente_id: incidente.id });
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteLocalEntry = (localId: string) => {
+    setLocalTimelineEntries(prev => prev.filter(e => e.localId !== localId));
+  };
+
+  const buildPayload = () => {
+    const values = form.getValues();
+    const payload: Record<string, any> = {
+      tipo: values.tipo,
+      severidad: values.severidad,
+      descripcion: values.descripcion,
+      zona: values.zona,
+      atribuible_operacion: values.atribuible_operacion,
+      controles_activos: values.controles_activos,
+      control_efectivo: values.control_efectivo,
+      cliente_nombre: values.cliente_nombre,
+      acciones_tomadas: values.acciones_tomadas,
+      resolucion_notas: values.resolucion_notas,
+      id_servicio_texto: values.id_servicio_texto || null,
+      ubicacion_lat: values.ubicacion_lat,
+      ubicacion_lng: values.ubicacion_lng,
+    };
+    if (servicio) {
+      payload.servicio_planificado_id = servicio.id;
+      payload.custodio_id = servicio.custodio_id;
+    }
+    return payload;
+  };
+
+  const persistCronologiaEntries = async (incidenteId: string) => {
+    if (localTimelineEntries.length === 0) return;
+    for (const entry of localTimelineEntries) {
+      await addCronologiaMutation.mutateAsync({
+        incidente_id: incidenteId,
+        timestamp: entry.timestamp,
+        tipo_entrada: entry.tipo_entrada,
+        descripcion: entry.descripcion,
+      });
+    }
+    setLocalTimelineEntries([]);
+    localStorage.removeItem(`${persistKey}_timeline`);
   };
 
   const handleSaveDraft = async () => {
@@ -96,9 +242,11 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
     try {
       if (isEditing) {
-        await updateMutation.mutateAsync({ id: incidente.id, ...values, estado: 'borrador' } as any);
+        await updateMutation.mutateAsync({ id: incidente.id, ...buildPayload(), estado: 'borrador' } as any);
+        await persistCronologiaEntries(incidente.id);
       } else {
-        const result = await createMutation.mutateAsync({ ...values, estado: 'borrador' } as any);
+        const result = await createMutation.mutateAsync({ ...buildPayload(), estado: 'borrador' } as any);
+        await persistCronologiaEntries(result.id);
         persistence.clearDraft(true);
       }
       toast.success('Borrador guardado');
@@ -116,9 +264,11 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
     try {
       if (isEditing) {
-        await updateMutation.mutateAsync({ id: incidente.id, ...values, estado: 'abierto' } as any);
+        await updateMutation.mutateAsync({ id: incidente.id, ...buildPayload(), estado: 'abierto' } as any);
+        await persistCronologiaEntries(incidente.id);
       } else {
-        await createMutation.mutateAsync({ ...values, estado: 'abierto' } as any);
+        const result = await createMutation.mutateAsync({ ...buildPayload(), estado: 'abierto' } as any);
+        await persistCronologiaEntries(result.id);
         persistence.clearDraft(true);
       }
       toast.success('Incidente registrado');
@@ -130,11 +280,10 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   const handleClose = async () => {
     if (!isEditing) return;
-    const values = form.getValues();
     try {
       await updateMutation.mutateAsync({
         id: incidente.id,
-        ...values,
+        ...buildPayload(),
         estado: 'cerrado',
         fecha_resolucion: new Date().toISOString(),
       } as any);
@@ -145,31 +294,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     }
   };
 
-  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => {
-    if (!incidente?.id) {
-      toast.error('Guarda el incidente primero para agregar cronología');
-      return;
-    }
-    try {
-      await addCronologiaMutation.mutateAsync({ incidente_id: incidente.id, ...entry });
-      toast.success('Entrada agregada a cronología');
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
-
-  const handleDeleteCronologia = async (id: string) => {
-    if (!incidente?.id) return;
-    try {
-      await deleteCronologiaMutation.mutateAsync({ id, incidente_id: incidente.id });
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
-
   const handleExportPDF = () => {
     if (!incidente) return;
-    exportIncidentePDF({ incidente, cronologia });
+    exportIncidentePDF({ incidente, cronologia, servicio: servicio || undefined });
     toast.success('PDF generado');
   };
 
@@ -192,7 +319,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
               </div>
             )}
           </div>
-          {!isEditing && <DraftIndicator lastSaved={persistence.lastSaved} />}
+          <DraftIndicator lastSaved={persistence.lastSaved} />
         </div>
         <div className="flex items-center gap-2">
           {isEditing && (
@@ -219,20 +346,50 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
       </div>
 
       {/* Draft restore banner */}
-      {!isEditing && (
-        <DraftRestoreBanner
-          visible={persistence.showRestorePrompt}
-          savedAt={persistence.lastSaved}
-          previewText={persistence.previewText}
-          moduleName="Reporte de Incidente"
-          onRestore={persistence.acceptRestore}
-          onDiscard={persistence.rejectRestore}
-        />
-      )}
+      <DraftRestoreBanner
+        visible={persistence.showRestorePrompt}
+        savedAt={persistence.lastSaved}
+        previewText={persistence.previewText}
+        moduleName="Reporte de Incidente"
+        onRestore={persistence.acceptRestore}
+        onDiscard={persistence.rejectRestore}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left: Form fields */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Bloque 1: Vincular servicio */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Vincular Servicio</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  value={idServicioInput}
+                  onChange={e => setIdServicioInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearchServicio()}
+                  placeholder="Ej: YOCOYTM-273"
+                  className="h-8 text-xs flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSearchServicio}
+                  disabled={isSearching || !idServicioInput.trim()}
+                  className="h-8 text-xs gap-1"
+                >
+                  {isSearching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                  Buscar
+                </Button>
+              </div>
+              {servicioError && (
+                <p className="text-[10px] text-destructive">{servicioError}</p>
+              )}
+              {servicio && <ServiceDataSummary servicio={servicio} />}
+            </CardContent>
+          </Card>
+
           {/* Datos generales */}
           <Card>
             <CardHeader className="pb-3">
@@ -262,8 +419,17 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Zona</Label>
-                  <Input {...form.register('zona')} placeholder="Ej: CDMX Norte" className="h-8 text-xs" />
+                  <Label className="text-xs">Ubicación / Zona</Label>
+                  <LocationPicker
+                    value={watchedValues.zona}
+                    lat={watchedValues.ubicacion_lat}
+                    lng={watchedValues.ubicacion_lng}
+                    onChange={({ zona, lat, lng }) => {
+                      form.setValue('zona', zona, { shouldDirty: true });
+                      form.setValue('ubicacion_lat', lat, { shouldDirty: true });
+                      form.setValue('ubicacion_lng', lng, { shouldDirty: true });
+                    }}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cliente</Label>
@@ -283,14 +449,16 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             <CardContent className="pt-4">
               <IncidentTimeline
                 entries={cronologia}
+                localEntries={localTimelineEntries}
                 onAddEntry={handleAddCronologia}
                 onDeleteEntry={handleDeleteCronologia}
+                onDeleteLocalEntry={handleDeleteLocalEntry}
                 isAdding={addCronologiaMutation.isPending}
-                readOnly={!isEditing}
+                readOnly={false}
               />
-              {!isEditing && (
+              {!isEditing && localTimelineEntries.length > 0 && (
                 <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                  Guarda el incidente para poder agregar entradas a la cronología
+                  {localTimelineEntries.length} entrada(s) pendiente(s) — se guardarán al registrar el incidente
                 </p>
               )}
             </CardContent>

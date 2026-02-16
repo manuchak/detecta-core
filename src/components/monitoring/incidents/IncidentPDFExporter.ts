@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { IncidenteOperativo, EntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import { TIPOS_INCIDENTE, SEVERIDADES, TIPOS_ENTRADA_CRONOLOGIA } from '@/hooks/useIncidentesOperativos';
+import type { ServicioVinculado } from '@/hooks/useServicioLookup';
 
 const CORPORATE_RED = [235, 0, 0] as const;
 const CORPORATE_BLACK = [25, 25, 25] as const;
@@ -13,9 +14,10 @@ const WHITE = [255, 255, 255] as const;
 interface ExportData {
   incidente: IncidenteOperativo;
   cronologia: EntradaCronologia[];
+  servicio?: ServicioVinculado;
 }
 
-export function exportIncidentePDF({ incidente, cronologia }: ExportData) {
+export function exportIncidentePDF({ incidente, cronologia, servicio }: ExportData) {
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
   const marginLeft = 20;
@@ -122,6 +124,55 @@ export function exportIncidentePDF({ incidente, cronologia }: ExportData) {
   });
   y += 8;
 
+  // Section: Servicio Vinculado (Bloque 5)
+  if (servicio) {
+    checkPage(15);
+    pdf.setFillColor(...LIGHT_GRAY);
+    pdf.rect(marginLeft, y, contentWidth, 7, 'F');
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...CORPORATE_BLACK);
+    pdf.text('2. Servicio Vinculado', marginLeft + 3, y + 5);
+    y += 12;
+
+    const svcFields = [
+      ['ID Servicio', servicio.id_servicio],
+      ['Cliente', servicio.nombre_cliente || '—'],
+      ['Custodio', servicio.custodio_asignado || '—'],
+      ['Vehículo', [servicio.auto, servicio.placa].filter(Boolean).join(' · ') || '—'],
+      ['Armado', servicio.armado_asignado || '—'],
+      ['Tarifa', servicio.tarifa_acordada ? `$${Number(servicio.tarifa_acordada).toLocaleString('es-MX')}` : '—'],
+      ['Ruta', [servicio.origen, servicio.destino].filter(Boolean).join(' → ') || '—'],
+    ];
+
+    pdf.setFontSize(9);
+    svcFields.forEach(([label, value]) => {
+      checkPage(6);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...CORPORATE_GRAY);
+      pdf.text(`${label}:`, marginLeft + 3, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...CORPORATE_BLACK);
+      pdf.text(String(value), marginLeft + 45, y);
+      y += 5;
+    });
+    y += 8;
+  }
+
+  // Ubicación georeferenciada
+  const incAny = incidente as any;
+  if (incAny.ubicacion_lat && incAny.ubicacion_lng) {
+    checkPage(10);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(...CORPORATE_GRAY);
+    pdf.text('Coordenadas:', marginLeft + 3, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(...CORPORATE_BLACK);
+    pdf.text(`${incAny.ubicacion_lat.toFixed(6)}, ${incAny.ubicacion_lng.toFixed(6)}`, marginLeft + 45, y);
+    y += 8;
+  }
+
   // Section: Cronología
   checkPage(15);
   pdf.setFillColor(...LIGHT_GRAY);
@@ -129,7 +180,7 @@ export function exportIncidentePDF({ incidente, cronologia }: ExportData) {
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(...CORPORATE_BLACK);
-  pdf.text('2. Cronología del Evento', marginLeft + 3, y + 5);
+  pdf.text('3. Cronología del Evento', marginLeft + 3, y + 5);
   y += 12;
 
   if (cronologia.length === 0) {
@@ -172,7 +223,7 @@ export function exportIncidentePDF({ incidente, cronologia }: ExportData) {
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(...CORPORATE_BLACK);
-  pdf.text('3. Controles y Atribución', marginLeft + 3, y + 5);
+  pdf.text('4. Controles y Atribución', marginLeft + 3, y + 5);
   y += 12;
 
   pdf.setFontSize(9);
@@ -200,7 +251,7 @@ export function exportIncidentePDF({ incidente, cronologia }: ExportData) {
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...CORPORATE_BLACK);
-    pdf.text('4. Resolución', marginLeft + 3, y + 5);
+    pdf.text('5. Resolución', marginLeft + 3, y + 5);
     y += 12;
 
     if (incidente.fecha_resolucion) {
