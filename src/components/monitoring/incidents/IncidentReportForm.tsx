@@ -466,10 +466,15 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!incidente) return;
-    exportIncidentePDF({ incidente, cronologia, servicio: servicio || undefined });
-    toast.success('PDF generado');
+    try {
+      await exportIncidentePDF({ incidente, cronologia, servicio: servicio || undefined });
+      toast.success('PDF generado');
+    } catch (err: any) {
+      toast.error('Error al generar PDF');
+      console.error(err);
+    }
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
