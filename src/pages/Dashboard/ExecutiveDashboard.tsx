@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { BarChart3, TrendingUp, Target } from 'lucide-react';
+import { BarChart3, TrendingUp, Target, Star } from 'lucide-react';
 import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard';
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
@@ -22,6 +22,7 @@ const ExecutiveDashboard = () => {
   const getInitialTab = () => {
     if (location.pathname === '/dashboard/kpis') return 'kpis';
     if (location.pathname === '/dashboard/plan') return 'plan';
+    if (location.pathname === '/dashboard/starmap') return 'starmap';
     return 'executive';
   };
   
@@ -32,6 +33,8 @@ const ExecutiveDashboard = () => {
       navigate('/dashboard/kpis');
     } else if (value === 'plan') {
       navigate('/dashboard/plan');
+    } else if (value === 'starmap') {
+      navigate('/dashboard/starmap');
     } else {
       navigate('/dashboard');
     }
@@ -54,7 +57,7 @@ const ExecutiveDashboard = () => {
             
             {/* Navigation Tabs */}
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="executive" className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
                   Proyecciones
@@ -62,6 +65,10 @@ const ExecutiveDashboard = () => {
                 <TabsTrigger value="plan" className="flex items-center gap-2">
                   <Target className="h-4 w-4" />
                   Plan 2026
+                </TabsTrigger>
+                <TabsTrigger value="starmap" className="flex items-center gap-2">
+                  <Star className="h-4 w-4" />
+                  StarMap
                 </TabsTrigger>
                 <TabsTrigger value="kpis" className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
