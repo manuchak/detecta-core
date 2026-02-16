@@ -62,6 +62,7 @@ export function CSPanorama() {
   const { data: stats, isLoading: statsLoading } = useCSQuejaStats();
   const { data: overdueTps } = useOverdueTouchpoints();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
+  const [profileDefaultTab, setProfileDefaultTab] = useState<string | undefined>(undefined);
   const [, setSearchParams] = useSearchParams();
   const [snapshotLoading, setSnapshotLoading] = useState(false);
 
@@ -181,7 +182,7 @@ export function CSPanorama() {
           subtitle={seguimientosVencidos > 0 ? 'Seguimientos vencidos' : 'Al día'}
           icon={CalendarClock}
           level={lvlSeguimientos}
-          onClick={() => setSearchParams({ tab: 'operativo' })}
+          onClick={() => setSearchParams({ tab: 'operativo', subtab: 'touchpoints', tpTab: 'vencidos' })}
         />
       </div>
 
@@ -202,12 +203,13 @@ export function CSPanorama() {
       {/* Funnel + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <CSLoyaltyFunnel />
-        <CSAlertsFeed onClienteClick={id => setSelectedClienteId(id)} />
+        <CSAlertsFeed onClienteClick={id => { setProfileDefaultTab('touchpoints'); setSelectedClienteId(id); }} />
       </div>
 
       <CSClienteProfileModal
         clienteId={selectedClienteId}
-        onClose={() => setSelectedClienteId(null)}
+        onClose={() => { setSelectedClienteId(null); setProfileDefaultTab(undefined); }}
+        defaultTab={profileDefaultTab}
       />
     </div>
   );
