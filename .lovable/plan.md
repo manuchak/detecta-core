@@ -1,55 +1,61 @@
 
+# Custodio Prueba no aparece en asignacion
 
-# Hacer la Firma Obligatoria en el Checklist
+## Diagnostico
 
-## Problema
+El custodio "Usuario Prueba" (tel: 5500000001) tiene los siguientes datos en `custodios_operativos`:
 
-El checklist de Daniel Garcia Medina (YOCOYTM-274) fue guardado sin firma. Aunque la UI del wizard muestra "(Requerida)" y deshabilita el boton si no hay firma, el backend no valida esto, permitiendo que checklists sin firma se guarden (por ejemplo, via sync offline o race conditions).
+- **estado**: `inactivo`
+- **disponibilidad**: `inactivo_temporal`
+- **motivo**: "Dado de baja por inactividad (+90 dias)"
+- **tipo_inactivacion**: `permanente`
+- **fecha_inactivacion**: 2026-02-03
+- **ultimo_servicio**: 2025-06-09
 
-## Cambios
+El sistema de asignacion (RPC `get_custodios_activos_disponibles`) solo muestra custodios con `estado = 'activo'` y `disponibilidad IN ('disponible', 'parcial')`. Esto es correcto por diseno: un custodio inactivo no debe aparecer para asignacion.
 
-### 1. Validacion en el hook de guardado
+## Solucion: Reactivar el custodio prueba
 
-**Archivo:** `src/hooks/useServiceChecklist.ts` (linea ~250)
-
-Agregar una validacion al inicio de `saveChecklist.mutationFn` que lance un error si `firma` es null o vacio:
-
-```text
-if (!firma) {
-  throw new Error('La firma digital es obligatoria');
-}
-```
-
-Y cambiar la linea 263 de `firma_base64: firma || undefined` a `firma_base64: firma` para garantizar que siempre se envie.
-
-### 2. Constraint en base de datos
-
-**Archivo:** Nueva migracion SQL
-
-Agregar un CHECK constraint a la tabla `checklist_servicio` para que `firma_base64` no pueda ser null ni vacio cuando el estado es 'completo':
+Se necesita ejecutar un UPDATE en la base de datos para reactivar al custodio de prueba:
 
 ```sql
-ALTER TABLE checklist_servicio
-ADD CONSTRAINT chk_firma_obligatoria
-CHECK (estado != 'completo' OR (firma_base64 IS NOT NULL AND firma_base64 != ''));
+UPDATE custodios_operativos
+SET 
+  estado = 'activo',
+  disponibilidad = 'disponible',
+  motivo_inactivacion = NULL,
+  tipo_inactivacion = NULL,
+  fecha_inactivacion = NULL,
+  fecha_reactivacion_programada = NULL,
+  updated_at = now()
+WHERE telefono = '5500000001';
 ```
 
-Esto garantiza que ningun checklist "completo" pueda existir sin firma, sin importar como se guarde.
+### Donde ejecutarlo
 
-### 3. Indicador visual en Monitoreo cuando falta firma
+El equipo de Daniela (o un admin) puede ejecutar esto directamente en el SQL Editor de Supabase, o bien se puede hacer desde el modulo de "Perfiles Operativos" si existe la opcion de reactivar custodios inactivos.
 
-**Archivo:** `src/components/monitoring/checklist/ChecklistDetailModal.tsx` (linea ~328)
+## Prevencion futura (opcional)
 
-Actualmente solo muestra la firma si existe (`servicio.firmaBase64 &&`). Agregar un else que muestre una advertencia visible cuando no hay firma:
+Para evitar que el custodio de prueba se inactive automaticamente cada 90 dias, hay dos opciones:
 
-```text
-Si hay firma -> mostrar imagen (como ahora)
-Si no hay firma -> mostrar badge rojo: "Sin firma digital"
+1. **Excluirlo del proceso de baja automatica**: Agregar una condicion al trigger/cron que desactiva custodios por inactividad para que excluya el telefono `5500000001` (cuenta de prueba documentada).
+
+2. **Asignar servicios periodicamente**: Usar la cuenta de prueba al menos una vez cada 90 dias para mantenerla activa.
+
+La opcion 1 es mas robusta y evita trabajo manual recurrente. Se modificaria la funcion que ejecuta las bajas automaticas para excluir el telefono de prueba.
+
+## Detalle Tecnico
+
+### Archivo a modificar (opcion 1 - exclusion)
+
+Se necesita identificar la funcion SQL o cron job que ejecuta las bajas por inactividad y agregar un filtro:
+
+```sql
+WHERE telefono != '5500000001'  -- Excluir cuenta de prueba
 ```
 
-## Secuencia
+### Migracion SQL
 
-1. Migracion SQL (constraint en DB)
-2. Validacion en hook (defensa en codigo)
-3. Indicador visual en monitoreo (visibilidad para auditoria)
-
+1. Reactivar el custodio (UPDATE inmediato)
+2. Opcionalmente, modificar el proceso de baja automatica para excluir la cuenta de prueba
