@@ -1,61 +1,58 @@
 
 
-# Mejora Visual: Temas Detectados
+# Fix: Servicios pendientes no aparecen para custodios (Rodrigo, Jorge, Daniel)
 
-## Problema Actual
+## Causa Raiz
 
-Los temas se muestran como pills/badges planos con escala CSS que los hace difíciles de leer (texto cortado, todos del mismo color rojo, sin jerarquía visual clara). No comunican la gravedad ni facilitan la exploración para stakeholders ejecutivos.
+El hook `useNextService.ts` solicita las columnas `origen_lat` y `origen_lng` de la tabla `servicios_planificados`, pero esas columnas **no existen** en esa tabla (solo existen en `servicios_custodia`). Esto causa un error HTTP 400 silencioso que hace que la query falle, retornando cero servicios planificados.
 
-## Propuesta: Cards de Tema con Barras de Impacto
+Es el mismo patron de bug que corregimos anteriormente con `km_recorridos`/`cobro_cliente` en `useCustodianServices.ts`.
 
-Reemplazar las burbujas por **mini-cards verticales** con los siguientes elementos:
+## Impacto
+
+Afecta a **todos** los custodios cuyo proximo servicio esta en `servicios_planificados`. La tarjeta principal del dashboard muestra "Sin servicios pendientes" aunque tengan servicios confirmados para hoy.
+
+## Fix
+
+### Archivo: `src/hooks/useNextService.ts`
+
+Eliminar `origen_lat` y `origen_lng` del SELECT de `servicios_planificados` (lineas 50-51) y asignar `null` a esos campos en el mapeo del resultado (linea 102-103).
+
+El SELECT de `servicios_custodia` (lineas 74-75) se mantiene sin cambios ya que esas columnas SI existen en esa tabla.
+
+### Cambio especifico
 
 ```text
-+--------------------------------------------+
-| Temas Detectados                    4 temas |
-|--------------------------------------------|
-| [===========================] 3 menciones   |
-| Incumplimiento de Protocolos Operativos     |
-| #protocolo #consigna #incumplimiento        |
-| Sentimiento: negativo                       |
-|--------------------------------------------|
-| [==================       ] 2 menciones     |
-| Puntualidad y Disponibilidad de Personal    |
-| #puntualidad #retraso #personal             |
-| Sentimiento: negativo                       |
-|--------------------------------------------|
-| [=========               ] 1 mencion        |
-| Fallas Tecnologicas y GPS                   |
-| ...                                         |
-+--------------------------------------------+
+Antes (linea 41-51):
+  .select(`
+    id,
+    id_servicio,
+    nombre_cliente,
+    origen,
+    destino,
+    fecha_hora_cita,
+    estado_planeacion,
+    tipo_servicio,
+    origen_lat,      <-- NO EXISTE
+    origen_lng       <-- NO EXISTE
+  `)
+
+Despues:
+  .select(`
+    id,
+    id_servicio,
+    nombre_cliente,
+    origen,
+    destino,
+    fecha_hora_cita,
+    estado_planeacion,
+    tipo_servicio
+  `)
 ```
 
-Cada card incluye:
-- **Barra de progreso** proporcional al conteo (max = tema con mas menciones)
-- **Color de la barra** segun sentimiento: rojo (negativo), verde (positivo), gris (neutro)
-- **Nombre del tema** en texto claro, sin truncar
-- **Keywords** como chips pequenos debajo del nombre
-- **Badge de sentimiento** con icono (TrendingDown, TrendingUp, Minus)
-- Ordenados de mayor a menor menciones
+Y en el mapeo (lineas 93-104), asignar `origen_lat: null` y `origen_lng: null` para servicios planificados.
 
-## Detalle Tecnico
+## Verificacion
 
-### Archivo a modificar
-
-`src/pages/CustomerSuccess/components/CSVoiceOfCustomer.tsx` - Funcion `ThemeBubbles` (lineas 64-101)
-
-### Cambios especificos
-
-Reemplazar el layout de `flex-wrap` con pills escalados por un layout vertical de cards con:
-- `Progress` component de Radix (ya instalado) para la barra
-- Iconos `TrendingDown`, `TrendingUp`, `Minus` de lucide para sentimiento
-- Keywords como badges pequenos con `text-[10px]`
-- Fondo sutil diferenciado por sentimiento (borde izquierdo de color)
-- Sin tooltip ya que toda la info es visible directamente
-
-### Layout responsivo
-
-- En desktop: las cards ocupan el ancho completo de su columna (50% del grid)
-- En mobile: stack vertical, full width
-- ScrollArea si hay mas de 4 temas para no desbordar el card
+Rodrigo Becerril (tel 5542954197) tiene el servicio SIINSRH-738 confirmado para hoy 16:00 UTC. Tras el fix, debera aparecer como proximo servicio con boton para iniciar checklist.
 
