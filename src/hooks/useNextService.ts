@@ -46,9 +46,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           destino,
           fecha_hora_cita,
           estado_planeacion,
-          tipo_servicio,
-          origen_lat,
-          origen_lng
+          tipo_servicio
         `)
         .eq('custodio_telefono', normalizedPhone)
         .gte('fecha_hora_cita', todayISO)
@@ -99,8 +97,8 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           estado: p.estado_planeacion || 'asignado',
           tipo_servicio: p.tipo_servicio || 'custodia',
           source: 'planificado',
-          origen_lat: p.origen_lat ?? null,
-          origen_lng: p.origen_lng ?? null
+          origen_lat: null,
+          origen_lng: null
         });
       }
       
