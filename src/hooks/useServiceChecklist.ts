@@ -246,21 +246,25 @@ export function useServiceChecklist({
      [fotos]
    );
  
-   const saveChecklist = useMutation({
-     mutationFn: async () => {
-       setIsSaving(true);
- 
-       const now = new Date().toISOString();
-       const ubicacion = await getCurrentPositionSafe();
- 
-       const checklistData: Partial<ChecklistServicio> = {
-         servicio_id: servicioId,
-         custodio_telefono: custodioTelefono,
-         estado: 'completo',
-         items_inspeccion: items,
-         fotos_validadas: fotos,
-         observaciones,
-         firma_base64: firma || undefined,
+    const saveChecklist = useMutation({
+      mutationFn: async () => {
+        if (!firma) {
+          throw new Error('La firma digital es obligatoria');
+        }
+
+        setIsSaving(true);
+
+        const now = new Date().toISOString();
+        const ubicacion = await getCurrentPositionSafe();
+
+        const checklistData: Partial<ChecklistServicio> = {
+          servicio_id: servicioId,
+          custodio_telefono: custodioTelefono,
+          estado: 'completo',
+          items_inspeccion: items,
+          fotos_validadas: fotos,
+          observaciones,
+          firma_base64: firma,
          ubicacion_lat: ubicacion?.lat,
          ubicacion_lng: ubicacion?.lng,
          fecha_captura_local: now,
