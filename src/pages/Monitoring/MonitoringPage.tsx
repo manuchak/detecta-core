@@ -24,6 +24,8 @@ import type { ServicioConChecklist, FiltroChecklist } from "@/types/checklist";
 import AdoptionDashboard from "@/components/monitoring/adoption/AdoptionDashboard";
 import AdoptionTable from "@/components/monitoring/adoption/AdoptionTable";
 import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigital";
+import { IncidentListPanel } from "@/components/monitoring/incidents";
+import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,13 +36,14 @@ const MonitoringPage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : 'posicionamiento'
+    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : tabFromUrl === 'incidentes' ? 'incidentes' : 'posicionamiento'
   );
   
   // Sync tab with URL param
   useEffect(() => {
     if (tabFromUrl === 'checklists') setActiveTab('checklists');
     if (tabFromUrl === 'adopcion') setActiveTab('adopcion');
+    if (tabFromUrl === 'incidentes') setActiveTab('incidentes');
   }, [tabFromUrl]);
   
   // Checklist state
@@ -62,7 +65,7 @@ const MonitoringPage = () => {
     isLoading: isLoadingAdopcion,
     refetch: refetchAdopcion,
   } = useAdopcionDigital();
-  
+  const { data: resumenIncidentes } = useIncidenteResumen();
   const servicios = data?.servicios || [];
   const resumen = data?.resumen || {
     enSitio: 0,
@@ -165,6 +168,14 @@ const MonitoringPage = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="adopcion">Adopción Digital</TabsTrigger>
+          <TabsTrigger value="incidentes" className="relative">
+            Incidentes
+            {(resumenIncidentes?.abiertos || 0) + (resumenIncidentes?.en_investigacion || 0) > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                {(resumenIncidentes?.abiertos || 0) + (resumenIncidentes?.en_investigacion || 0)}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab: Posicionamiento */}
@@ -265,6 +276,11 @@ const MonitoringPage = () => {
             isLoading={isLoadingAdopcion}
             filtro={filtroAdopcion}
           />
+        </TabsContent>
+
+        {/* Tab: Incidentes */}
+        <TabsContent value="incidentes" className="space-y-6 mt-0">
+          <IncidentListPanel />
         </TabsContent>
       </Tabs>
 
