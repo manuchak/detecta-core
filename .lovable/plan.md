@@ -1,106 +1,116 @@
 
 
-# Plan de Mejoras al Modulo de Incidentes Operativos
+# Guia Contextual para Clasificacion de Incidentes
 
-El usuario identifico 4 problemas/oportunidades concretas. Se aborda cada uno como un bloque independiente.
+## Objetivo
+
+Agregar descripciones explicativas y ejemplos concretos a los selectores de **Tipo de Incidente** y **Severidad** para que el usuario pueda clasificar correctamente sin ambiguedad. Se implementara mediante tooltips/popovers informativos y texto de ayuda contextual directamente en el formulario.
 
 ---
 
-## Bloque 1: Auto-llenado desde ID de Servicio
+## Cambios
 
-**Problema**: El formulario pide datos manualmente (cliente, custodio, zona) que ya existen en `servicios_planificados`.
+### 1. Enriquecer constantes con descripciones y ejemplos
 
-**Solucion**: Agregar un campo "ID Servicio" al inicio del formulario. Al ingresarlo (ej. `YOCOYTM-273`), buscar en `servicios_planificados` por `id_servicio` y auto-llenar:
+**Archivo**: `src/hooks/useIncidentesOperativos.ts`
 
-| Campo incidente | Fuente en servicios_planificados |
+Ampliar `TIPOS_INCIDENTE` y `SEVERIDADES` con campos `descripcion` y `ejemplo`:
+
+```typescript
+export const TIPOS_INCIDENTE = [
+  {
+    value: 'robo',
+    label: 'Robo',
+    descripcion: 'Sustraccion de bienes sin confrontacion directa con personas. El delincuente actua sin violencia fisica hacia el custodio u operador.',
+    ejemplo: 'Mercancia sustraida de la unidad mientras el operador estaba en descanso; robo de autopartes en estacionamiento.'
+  },
+  {
+    value: 'asalto',
+    label: 'Asalto',
+    descripcion: 'Agresion con violencia o intimidacion directa hacia el personal para despojar bienes. Implica amenaza con arma o fuerza fisica.',
+    ejemplo: 'Sujetos armados interceptan la unidad y amenazan al operador para llevarse la carga; encajonamiento en carretera con armas de fuego.'
+  },
+  {
+    value: 'perdida_mercancia',
+    label: 'Perdida de mercancia',
+    descripcion: 'Faltante de producto sin evidencia de acto delictivo. Puede ser por error logistico, danio en transito o discrepancia en conteo.',
+    ejemplo: 'Al entregar se detectan 3 cajas faltantes sin signos de apertura forzada; producto danado por mala estiba que se reporta como merma.'
+  },
+  // ... demas tipos con sus descripciones
+];
+
+export const SEVERIDADES = [
+  {
+    value: 'baja',
+    label: 'Baja',
+    color: '...',
+    descripcion: 'Sin lesiones, sin perdida economica significativa, sin afectacion al servicio.',
+    ejemplo: 'Falla de GPS temporal, protocolo menor incumplido sin consecuencias.'
+  },
+  {
+    value: 'media',
+    label: 'Media',
+    color: '...',
+    descripcion: 'Perdida economica moderada o retraso significativo. Sin lesiones graves.',
+    ejemplo: 'Perdida parcial de mercancia por danio en transito; accidente vial menor sin heridos.'
+  },
+  {
+    value: 'alta',
+    label: 'Alta',
+    color: '...',
+    descripcion: 'Perdida economica importante, lesiones leves, o riesgo de afectacion a la relacion con el cliente.',
+    ejemplo: 'Robo de carga completa sin violencia; accidente con lesiones leves; cliente escala queja formal.'
+  },
+  {
+    value: 'critica',
+    label: 'Critica',
+    color: '...',
+    descripcion: 'Lesiones graves, perdida total de carga de alto valor, uso de armas, o riesgo de vida.',
+    ejemplo: 'Asalto con arma de fuego; secuestro de operador; perdida de carga valuada en mas de $500K.'
+  },
+];
+```
+
+### 2. Componente de ayuda contextual en el formulario
+
+**Archivo**: `src/components/monitoring/incidents/IncidentReportForm.tsx`
+
+Reemplazar los `Select` simples de tipo y severidad por versiones que incluyan:
+- **Texto de ayuda debajo del selector** que cambia dinamicamente al seleccionar un tipo/severidad, mostrando la descripcion y ejemplo del valor seleccionado.
+- **Items del dropdown enriquecidos**: cada `SelectItem` muestra el label + una descripcion corta debajo en texto muted.
+
+Ejemplo visual del selector de Tipo:
+
+```
+[Tipo *]
+[ Robo                          v ]
+  "Sustraccion de bienes sin confrontacion directa..."
+  Ej: "Mercancia sustraida mientras el operador descansaba"
+```
+
+### 3. Tabla comparativa de referencia rapida
+
+**Archivo**: `src/components/monitoring/incidents/IncidentClassificationGuide.tsx` (nuevo)
+
+Componente colapsable (usando Collapsible de Radix) que muestra una tabla comparativa entre Robo vs Asalto vs Perdida de mercancia con las diferencias clave:
+
+| Criterio | Robo | Asalto | Perdida de mercancia |
+|---|---|---|---|
+| Violencia | No | Si | No aplica |
+| Contacto con personal | No directo | Directo/amenaza | No aplica |
+| Causa | Acto delictivo sin confrontacion | Acto delictivo con intimidacion | Error logistico o danio |
+| Evidencia tipica | Sellos rotos, faltante | Testigos, lesiones, denuncia | Discrepancia en conteo |
+
+Se coloca como un panel colapsable "Guia de clasificacion" arriba de los selectores en la seccion Datos Generales.
+
+---
+
+## Archivos a crear/modificar
+
+| Archivo | Accion |
 |---|---|
-| cliente_nombre | nombre_cliente |
-| custodio (nuevo campo visual) | custodio_asignado |
-| custodio_id | custodio_id |
-| servicio_planificado_id | id (UUID) |
-| zona (origen) | origen |
-| tipo_servicio (visual) | tipo_servicio |
-| vehiculo (visual) | auto, placa |
-| tarifa (visual) | tarifa_acordada |
-| armado (visual) | armado_asignado |
-
-Se creara un campo `id_servicio_texto` en la tabla `incidentes_operativos` (TEXT) para guardar el ID comercial legible, y se mostrara un panel resumen con los datos cargados.
-
-**Archivos**:
-- `supabase/migrations/xxx.sql` -- ALTER TABLE agregar `id_servicio_texto`
-- `src/hooks/useIncidentesOperativos.ts` -- nuevo hook `useServicioLookup(idServicio)` para buscar y devolver datos
-- `src/components/monitoring/incidents/IncidentReportForm.tsx` -- agregar campo ID servicio con busqueda + panel resumen de datos cargados
-- `src/components/monitoring/incidents/ServiceDataSummary.tsx` -- nuevo componente que muestra los datos del servicio vinculado (cliente, custodio, vehiculo, tarifa)
-
----
-
-## Bloque 2: Zona como ubicacion georreferenciada con Mapbox
-
-**Problema**: El campo "Zona" es texto libre sin referencia util. La tabla ya tiene `ubicacion_lat` y `ubicacion_lng` pero no se usan.
-
-**Solucion**: Reemplazar el input de texto "Zona" por un componente de direccion con autocompletado via Mapbox (`geocodeAddress` de `src/lib/mapbox.ts`). Al seleccionar una sugerencia, se guardan latitud/longitud en `ubicacion_lat`/`ubicacion_lng` y la direccion legible en `zona`. Opcionalmente mostrar un mini-mapa con el pin de la ubicacion.
-
-**Archivos**:
-- `src/components/monitoring/incidents/LocationPicker.tsx` -- nuevo componente con input autocomplete + mini-mapa Mapbox
-- `src/components/monitoring/incidents/IncidentReportForm.tsx` -- reemplazar input "Zona" por LocationPicker, pasar lat/lng al formulario
-- `src/hooks/useIncidentesOperativos.ts` -- agregar `ubicacion_lat` y `ubicacion_lng` al IncidenteFormData
-
----
-
-## Bloque 3: Cronologia - clarificar workflow y permitir entradas antes de guardar
-
-**Problema**: La cronologia actual requiere guardar el incidente en BD antes de poder agregar entradas. Esto es confuso porque el usuario espera documentar el evento desde el inicio.
-
-**Solucion**: Permitir agregar entradas de cronologia en memoria (estado local) antes de que el incidente se guarde en BD. Al hacer "Guardar borrador" o "Registrar", primero se crea/actualiza el incidente y luego se insertan todas las entradas pendientes en `incidente_cronologia`. Esto elimina la friccion del workflow actual.
-
-Flujo mejorado:
-1. Usuario abre formulario nuevo
-2. Agrega entradas a la cronologia (se mantienen en estado local)
-3. Al guardar borrador o registrar, se persisten incidente + cronologia juntos
-
-**Archivos**:
-- `src/components/monitoring/incidents/IncidentTimeline.tsx` -- aceptar entradas locales (sin ID de BD) ademas de las de BD
-- `src/components/monitoring/incidents/IncidentReportForm.tsx` -- mantener `localEntries[]` en estado, al guardar insertar batch
-
----
-
-## Bloque 4: Persistencia robusta - corregir perdida de datos al cambiar pantalla
-
-**Problema**: El usuario reporta que al cambiar de pantalla por mas de 1 segundo pierde todo lo hecho en el formulario.
-
-**Diagnostico**: El hook `useFormPersistence` esta configurado con `enabled: !isEditing`, lo cual significa que solo persiste para incidentes NUEVOS. Ademas, la persistencia depende del `form.watch()` con debounce, pero el componente se desmonta antes de que el save se ejecute.
-
-**Solucion**:
-1. Habilitar persistencia tambien para edicion (`enabled: true` siempre)
-2. Agregar `beforeunload` y `visibilitychange` listeners para forzar guardado inmediato al salir
-3. Incluir las entradas de cronologia locales en los datos persistidos
-4. Reducir el debounce de 800ms a 300ms para este formulario
-5. Agregar `onBlur` save en campos criticos
-
-**Archivos**:
-- `src/components/monitoring/incidents/IncidentReportForm.tsx` -- enabled: true, debounceMs: 300, incluir cronologia local en datos persistidos, listener beforeunload
-- `src/hooks/useIncidentesOperativos.ts` -- actualizar IncidenteFormData para incluir cronologia local
-
----
-
-## Bloque 5: PDF - incluir datos del servicio vinculado
-
-**Archivo**: `src/components/monitoring/incidents/IncidentPDFExporter.ts`
-- Agregar seccion "Servicio Vinculado" con ID, cliente, custodio, vehiculo, tarifa
-- Agregar coordenadas/direccion de ubicacion
-
----
-
-## Resumen de archivos
-
-| Archivo | Accion | Bloque |
-|---|---|---|
-| `supabase/migrations/xxx.sql` | ALTER TABLE agregar id_servicio_texto | 1 |
-| `src/components/monitoring/incidents/ServiceDataSummary.tsx` | Nuevo - panel resumen servicio | 1 |
-| `src/components/monitoring/incidents/LocationPicker.tsx` | Nuevo - autocomplete + mini mapa | 2 |
-| `src/components/monitoring/incidents/IncidentReportForm.tsx` | Modificar - integrar bloques 1-4 | 1,2,3,4 |
-| `src/components/monitoring/incidents/IncidentTimeline.tsx` | Modificar - entradas locales | 3 |
-| `src/hooks/useIncidentesOperativos.ts` | Modificar - lookup, form data ampliada | 1,2,4 |
-| `src/components/monitoring/incidents/IncidentPDFExporter.ts` | Modificar - seccion servicio | 5 |
-| `src/components/monitoring/incidents/index.ts` | Actualizar exports | 1,2 |
+| `src/hooks/useIncidentesOperativos.ts` | Agregar `descripcion` y `ejemplo` a TIPOS_INCIDENTE y SEVERIDADES |
+| `src/components/monitoring/incidents/IncidentClassificationGuide.tsx` | Nuevo - tabla comparativa colapsable |
+| `src/components/monitoring/incidents/IncidentReportForm.tsx` | Integrar guia + texto de ayuda dinamico bajo selectores |
+| `src/components/monitoring/incidents/index.ts` | Exportar nuevo componente |
 
