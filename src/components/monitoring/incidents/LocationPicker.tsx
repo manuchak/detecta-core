@@ -316,7 +316,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
 
       {/* Expanded map dialog */}
       <Dialog open={isExpanded} onOpenChange={(open) => { if (!open) handleConfirmExpanded(); }}>
-        <DialogContent className="max-w-4xl !flex !flex-col overflow-hidden" style={{ zoom: 1, height: '85vh' }}>
+        <DialogContent className="max-w-4xl !flex !flex-col overflow-hidden" style={{ height: '85vh' }}>
           <DialogHeader>
             <DialogTitle className="text-sm">Seleccionar Ubicación</DialogTitle>
           </DialogHeader>
