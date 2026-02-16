@@ -3,28 +3,13 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { IncidenteOperativo, EntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import type { ServicioVinculado } from '@/hooks/useServicioLookup';
+import { loadImageAsBase64 } from '@/components/pdf';
 import detectaLogoUrl from '@/assets/detecta-logo.png';
 
 interface ExportData {
   incidente: IncidenteOperativo;
   cronologia: EntradaCronologia[];
   servicio?: ServicioVinculado;
-}
-
-/** Load an image URL as base64 data URL */
-async function loadImageAsBase64(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, { mode: 'cors' });
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
 }
 
 /** Calculate response time between first detection and first action/notification */
@@ -43,16 +28,14 @@ function calcResponseTime(cronologia: EntradaCronologia[]): string {
 }
 
 export async function exportIncidentePDF({ incidente, cronologia, servicio }: ExportData) {
-  // Dynamic import to keep bundle small – react-pdf is only loaded when generating
+  // Dynamic import to keep bundle small
   const [{ pdf }, { IncidentPDFDocument }] = await Promise.all([
     import('@react-pdf/renderer'),
     import('./pdf/IncidentPDFDocument'),
   ]);
 
-  // Pre-load logo
   const logoBase64 = await loadImageAsBase64(detectaLogoUrl);
 
-  // Pre-load timeline images
   const imageCache = new Map<string, string | null>();
   await Promise.all(
     cronologia
@@ -67,12 +50,7 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
   const responseTime = calcResponseTime(cronologia);
 
   const doc = React.createElement(IncidentPDFDocument, {
-    incidente,
-    cronologia,
-    servicio,
-    logoBase64,
-    imageCache,
-    responseTime,
+    incidente, cronologia, servicio, logoBase64, imageCache, responseTime,
   });
 
   const blob = await (pdf as any)(doc).toBlob();

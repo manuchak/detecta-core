@@ -1,8 +1,7 @@
 import React from 'react';
-import { Document, Page } from '@react-pdf/renderer';
-import './fontSetup';
-import { styles } from './pdfStyles';
-import { PDFHeader } from './PDFHeader';
+import { Document } from '@react-pdf/renderer';
+import { registerPDFFonts } from '@/components/pdf';
+import { ReportPage } from '@/components/pdf';
 import { PDFExecutiveSummary } from './PDFExecutiveSummary';
 import { PDFGeneralData } from './PDFGeneralData';
 import { PDFLinkedService } from './PDFLinkedService';
@@ -10,10 +9,11 @@ import { PDFTimeline } from './PDFTimeline';
 import { PDFControls } from './PDFControls';
 import { PDFResolution } from './PDFResolution';
 import { PDFSignatures } from './PDFSignatures';
-import { PDFFooter } from './PDFFooter';
 import { TIPOS_INCIDENTE, SEVERIDADES } from '@/hooks/useIncidentesOperativos';
 import type { IncidenteOperativo, EntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import type { ServicioVinculado } from '@/hooks/useServicioLookup';
+
+registerPDFFonts();
 
 interface Props {
   incidente: IncidenteOperativo;
@@ -46,10 +46,11 @@ export const IncidentPDFDocument: React.FC<Props> = ({
 
   return (
     <Document title={`Incidente ${incidente.id.slice(0, 8)}`} author="Detecta">
-      <Page size="A4" style={styles.page} wrap>
-        <PDFHeader logoBase64={logoBase64} incidentId={incidente.id} />
-        <PDFFooter />
-
+      <ReportPage
+        title="REPORTE DE INCIDENTE OPERATIVO"
+        subtitle={`ID: ${incidente.id.slice(0, 8)}`}
+        logoBase64={logoBase64}
+      >
         <PDFExecutiveSummary
           tipo={tipoLabel}
           severidad={sevLabel}
@@ -96,7 +97,7 @@ export const IncidentPDFDocument: React.FC<Props> = ({
             timestamp: incAny.firma_cierre_timestamp,
           }}
         />
-      </Page>
+      </ReportPage>
     </Document>
   );
 };

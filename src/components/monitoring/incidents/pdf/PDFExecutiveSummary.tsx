@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from '@react-pdf/renderer';
-import { styles, SEV_COLORS } from './pdfStyles';
+import { pdfBaseStyles } from '@/components/pdf';
+import { PDF_SEVERITY_COLORS, PDF_COLORS } from '@/components/pdf';
 
 interface Props {
   tipo: string;
@@ -14,7 +15,7 @@ interface Props {
 export const PDFExecutiveSummary: React.FC<Props> = ({
   tipo, severidad, severidadValue, cliente, zona, tiempoRespuesta,
 }) => {
-  const sevColor = SEV_COLORS[severidadValue] || '#646464';
+  const sevColor = PDF_SEVERITY_COLORS[severidadValue] || PDF_COLORS.gray;
 
   const boxes = [
     { label: 'Tipo', value: tipo },
@@ -25,17 +26,24 @@ export const PDFExecutiveSummary: React.FC<Props> = ({
   ];
 
   return (
-    <View style={styles.summaryBox}>
+    <View style={{
+      flexDirection: 'row',
+      backgroundColor: '#FAFAFA',
+      border: '1pt solid #DCDCDC',
+      borderRadius: 3,
+      padding: 8,
+      marginBottom: 14,
+    }}>
       {boxes.map((box, i) => (
-        <View style={styles.summaryCol} key={i}>
-          <Text style={styles.summaryLabel}>{box.label}</Text>
+        <View style={{ flex: 1, alignItems: 'center' }} key={i}>
+          <Text style={{ fontSize: 7, color: PDF_COLORS.gray, marginBottom: 4 }}>{box.label}</Text>
           {box.color ? (
-            <View style={styles.sevRow}>
-              <View style={[styles.sevDot, { backgroundColor: box.color }]} />
-              <Text style={styles.summaryValue}>{box.value}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: box.color, marginRight: 4 }} />
+              <Text style={{ fontSize: 9, fontWeight: 700 }}>{box.value}</Text>
             </View>
           ) : (
-            <Text style={styles.summaryValue}>{box.value}</Text>
+            <Text style={{ fontSize: 9, fontWeight: 700 }}>{box.value}</Text>
           )}
         </View>
       ))}
