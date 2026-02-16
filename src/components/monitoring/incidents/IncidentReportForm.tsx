@@ -185,6 +185,36 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
   });
   const [timelineRestored, setTimelineRestored] = useState(false);
 
+  // Cambio 3 (plan): Auto-restore form draft silently on mount (defense-in-depth)
+  const hasAutoRestored = useRef(false);
+  useEffect(() => {
+    if (hasAutoRestored.current || isEditing) return;
+    hasAutoRestored.current = true;
+    // Give useFormPersistence a tick to restore first
+    const timer = setTimeout(() => {
+      const currentValues = form.getValues();
+      const isFormEmpty = !currentValues.tipo && !currentValues.descripcion;
+      if (!isFormEmpty) return; // useFormPersistence already restored
+
+      // Try to restore from storage manually
+      try {
+        const raw = sessionStorage.getItem(persistKey) || localStorage.getItem(persistKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const draftData = parsed?.data || parsed;
+          if (draftData && (draftData.tipo || draftData.descripcion)) {
+            form.reset({ ...defaultFormData, ...draftData });
+            toast.info('Borrador restaurado automáticamente');
+            console.log('[IncidentForm] Auto-restored draft from storage');
+          }
+        }
+      } catch (e) {
+        console.warn('[IncidentForm] Failed to auto-restore draft:', e);
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [form, isEditing, persistKey]);
+
   // Images are now restored from base64 — no lost-image toast needed
 
   // Service lookup (Bloque 1) — synced with form for persistence

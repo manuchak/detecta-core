@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useRef } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -201,6 +201,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Track the last authenticated user ID to distinguish genuine logins from token refreshes
+  const lastAuthUserId = useRef<string | null>(null);
+
   useEffect(() => {
     let mounted = true;
 
@@ -209,59 +212,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
 
         console.log("Auth state changed:", event, currentSession?.user?.email);
-        
-        // Secure role fetching - no hardcoded email bypasses
+
         if (currentSession?.user) {
+          const isSameUser = lastAuthUserId.current === currentSession.user.id;
+          const isTokenRefresh = event === 'TOKEN_REFRESHED';
+          const isRefreshDisguisedAsSignIn = event === 'SIGNED_IN' && isSameUser;
+
+          // Always update session and user so the new token is used
           setSession(currentSession);
           setUser(currentSession.user);
-          setUserRole(null); // Reset role
-          setRoleLoading(true); // Keep showing spinner until role resolves
-          
-          // Always fetch role from database securely
-          setTimeout(async () => {
-            if (mounted) {
-              try {
-                const role = await fetchUserRole();
-                if (mounted) {
-                  setUserRole(role);
-                  setRoleLoading(false);
-                }
-              } catch (error) {
-                console.error('Error fetching user role:', error);
-                if (mounted) {
-                  setUserRole('unverified');
-                  setRoleLoading(false);
+
+          if (isTokenRefresh || isRefreshDisguisedAsSignIn) {
+            // Token refresh: keep userRole and roleLoading intact to avoid unmounting the component tree
+            console.log("Token refresh detected — preserving role state, no toast");
+          } else {
+            // Genuine login (new user or first auth event)
+            lastAuthUserId.current = currentSession.user.id;
+            setUserRole(null);
+            setRoleLoading(true);
+
+            setTimeout(async () => {
+              if (mounted) {
+                try {
+                  const role = await fetchUserRole();
+                  if (mounted) {
+                    setUserRole(role);
+                    setRoleLoading(false);
+                  }
+                } catch (error) {
+                  console.error('Error fetching user role:', error);
+                  if (mounted) {
+                    setUserRole('unverified');
+                    setRoleLoading(false);
+                  }
                 }
               }
-            }
-          }, 50);
+            }, 50);
+          }
         } else {
           setSession(currentSession);
           setUser(null);
           setUserRole(null);
           setRoleLoading(false);
+          lastAuthUserId.current = null;
         }
-        
-        // Handle auth events
+
+        // Handle auth events — only show toast for genuine logins
         if (event === 'SIGNED_IN' && currentSession?.user) {
-          console.log("User signed in:", currentSession.user.email);
-          toast({
-            title: "Bienvenido",
-            description: `Has iniciado sesión como ${currentSession.user.email}`,
-          });
-          
-          // Update last login
-          setTimeout(async () => {
-            if (mounted) {
-              try {
-                await supabase.rpc('update_last_login');
-              } catch (error) {
-                console.error('Error updating last login:', error);
+          const wasAlreadyLoggedIn = lastAuthUserId.current === currentSession.user.id;
+          // Update ref after check
+          lastAuthUserId.current = currentSession.user.id;
+
+          if (!wasAlreadyLoggedIn) {
+            console.log("User signed in (genuine):", currentSession.user.email);
+            toast({
+              title: "Bienvenido",
+              description: `Has iniciado sesión como ${currentSession.user.email}`,
+            });
+
+            // Update last login
+            setTimeout(async () => {
+              if (mounted) {
+                try {
+                  await supabase.rpc('update_last_login');
+                } catch (error) {
+                  console.error('Error updating last login:', error);
+                }
               }
-            }
-          }, 100);
+            }, 100);
+          }
         }
-        
+
         if (event === 'SIGNED_OUT') {
           console.log("User signed out");
           toast({
@@ -281,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
+        lastAuthUserId.current = currentSession.user.id;
         setRoleLoading(true);
         fetchUserRole().then(role => {
           if (mounted) {
