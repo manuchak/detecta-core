@@ -274,7 +274,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
                       {TIPOS_ENTRADA_CRONOLOGIA.find(t => t.value === tipo)?.label || tipo}
                     </Badge>
                     {entry.isLocal && (
-                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Pendiente</Badge>
+                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Sin guardar</Badge>
                     )}
                     {!readOnly && !entry.isLocal && onDeleteEntry && (
                       <button
