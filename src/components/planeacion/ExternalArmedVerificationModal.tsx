@@ -34,14 +34,14 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
   onConfirm
 }) => {
   const { getPersonalByProveedor, createPersonal } = usePersonalProveedorArmados();
-  const { isPlanificador, isAdmin, userId, loading: roleLoading } = useUserRole();
+  const { isPlanificador, isAdmin, hasRole, userId, loading: roleLoading } = useUserRole();
   const [selectedPersonalId, setSelectedPersonalId] = useState<string>('');
   const [showNewPersonalInput, setShowNewPersonalInput] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [loading, setLoading] = useState(false);
 
   const personalDelProveedor = getPersonalByProveedor(proveedorId);
-  const canModify = isPlanificador() || isAdmin();
+  const canModify = isPlanificador() || isAdmin() || hasRole('coordinador_operaciones');
 
   useEffect(() => {
     if (!open) {
@@ -55,7 +55,7 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
     if (!selectedPersonalId || !userId) return;
 
     if (!canModify) {
-      toast.error('No tienes permisos para asignar personal. Se requiere rol de Planificador o Administrador.');
+      toast.error('No tienes permisos para asignar personal. Se requiere rol de Planificador, Coordinador de Operaciones o Administrador.');
       return;
     }
 
@@ -163,7 +163,7 @@ export const ExternalArmedVerificationModal: React.FC<ExternalArmedVerificationM
             <Alert variant="destructive">
               <ShieldAlert className="h-4 w-4" />
               <AlertDescription>
-                No tienes permisos para asignar personal. Se requiere rol de <strong>Planificador</strong> o <strong>Administrador</strong>.
+                No tienes permisos para asignar personal. Se requiere rol de <strong>Planificador</strong>, <strong>Coordinador de Operaciones</strong> o <strong>Administrador</strong>.
               </AlertDescription>
             </Alert>
           )}
