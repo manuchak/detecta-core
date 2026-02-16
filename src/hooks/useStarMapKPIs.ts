@@ -12,6 +12,8 @@ export interface StarMapKPI {
   isProxy: boolean;
   dataSource: string;
   missingFields?: string[];
+  instrumentationCategory?: 'quick-win' | 'new-table' | 'external';
+  businessImpact?: string;
 }
 
 export interface StarMapPillar {
@@ -270,13 +272,13 @@ export function useStarMapKPIs(): StarMapData {
       color: 'hsl(210, 70%, 50%)',
       kpis: [
         { id: 'S3', name: 'Win Rate', value: d.winRate ?? null, target: 35, unit: '%', status: getStatus(d.winRate ?? null, 35, 20), isProxy: false, dataSource: 'crm_deals' },
-        { id: 'S1', name: 'Plan Rate', value: d.s1PlanRate != null ? Math.round(d.s1PlanRate * 10) / 10 : null, target: 80, unit: '%', status: getStatus(d.s1PlanRate ?? null, 80, 60), isProxy: true, dataSource: 'servicios_planificados', missingFields: ['deal_id→servicio join', 'status OPERABLE formal'] },
-        { id: 'S4', name: 'Forecast Accuracy (MAPE)', value: d.s4Mape != null ? Math.round(d.s4Mape * 10) / 10 : null, target: 15, unit: '%', status: getStatus(d.s4Mape ?? null, 15, 25, true), isProxy: true, dataSource: 'forecast_accuracy_history', missingFields: ['datos reales en forecast_accuracy_history'] },
-        { id: 'M1', name: 'Solicitudes Operables', value: null, target: 0, unit: '#', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['status OPERABLE', 'checklist campos mínimos'] },
-        { id: 'M2', name: 'SQL → Operable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['etapa SQL', 'etapa OPERABLE'] },
-        { id: 'M3', name: 'Fit Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['cobertura zona', 'capacidad servicio'] },
-        { id: 'M5', name: 'Lead Response Time', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['lead_created_ts', 'first_contact_ts'] },
-        { id: 'S2', name: 'Quote Turnaround Time', value: null, target: 0, unit: 'h', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['quote_sent_ts', 'operable_ts'] },
+        { id: 'S1', name: 'Plan Rate', value: d.s1PlanRate != null ? Math.round(d.s1PlanRate * 10) / 10 : null, target: 80, unit: '%', status: getStatus(d.s1PlanRate ?? null, 80, 60), isProxy: true, dataSource: 'servicios_planificados', missingFields: ['deal_id→servicio join', 'status OPERABLE formal'], instrumentationCategory: 'quick-win', businessImpact: 'GTM: cobertura +12%' },
+        { id: 'S4', name: 'Forecast Accuracy (MAPE)', value: d.s4Mape != null ? Math.round(d.s4Mape * 10) / 10 : null, target: 15, unit: '%', status: getStatus(d.s4Mape ?? null, 15, 25, true), isProxy: true, dataSource: 'forecast_accuracy_history', missingFields: ['datos reales en forecast_accuracy_history'], instrumentationCategory: 'quick-win', businessImpact: 'GTM: forecast real vs proxy' },
+        { id: 'M1', name: 'Solicitudes Operables', value: null, target: 0, unit: '#', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['status OPERABLE', 'checklist campos mínimos'], instrumentationCategory: 'new-table', businessImpact: 'GTM: visibilidad pipeline operativo' },
+        { id: 'M2', name: 'SQL → Operable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['etapa SQL', 'etapa OPERABLE'], instrumentationCategory: 'new-table', businessImpact: 'GTM: tasa conversión comercial→ops' },
+        { id: 'M3', name: 'Fit Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['cobertura zona', 'capacidad servicio'], instrumentationCategory: 'new-table', businessImpact: 'GTM: match oferta-demanda' },
+        { id: 'M5', name: 'Lead Response Time', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['lead_created_ts', 'first_contact_ts'], instrumentationCategory: 'external', businessImpact: 'GTM: velocidad respuesta +12%' },
+        { id: 'S2', name: 'Quote Turnaround Time', value: null, target: 0, unit: 'h', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['quote_sent_ts', 'operable_ts'], instrumentationCategory: 'external', businessImpact: 'GTM: ciclo cotización' },
       ],
       score: 0,
       coverage: 0,
@@ -289,9 +291,9 @@ export function useStarMapKPIs(): StarMapData {
       color: 'hsl(270, 60%, 50%)',
       kpis: [
         { id: 'TP7', name: 'Evidence Capture Pass Rate', value: d.evidenceRate ?? null, target: 95, unit: '%', status: getStatus(d.evidenceRate ?? null, 95, 80), isProxy: false, dataSource: 'checklist_servicio' },
-        { id: 'TP1', name: 'E2E Traceability Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['join key CRM→servicio', 'flag trazabilidad'] },
-        { id: 'TP2', name: 'Timestamp Completeness', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['operable_ts', 'quote_sent_ts', 'closed_ok_ts'] },
-        { id: 'TP9', name: 'Integration Reliability', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['logs integración', 'reconciliación'] },
+        { id: 'TP1', name: 'E2E Traceability Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['join key CRM→servicio', 'flag trazabilidad'], instrumentationCategory: 'external', businessImpact: 'Tech: trazabilidad deal→servicio' },
+        { id: 'TP2', name: 'Timestamp Completeness', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['operable_ts', 'quote_sent_ts', 'closed_ok_ts'], instrumentationCategory: 'external', businessImpact: 'Tech: auditoría temporal completa' },
+        { id: 'TP9', name: 'Integration Reliability', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['logs integración', 'reconciliación'], instrumentationCategory: 'external', businessImpact: 'Tech: confiabilidad integraciones' },
       ],
       score: 0,
       coverage: 0,
@@ -305,12 +307,12 @@ export function useStarMapKPIs(): StarMapData {
       kpis: [
         { id: 'O1', name: 'Fill Rate E2E', value: d.fillRate ?? null, target: 95, unit: '%', status: getStatus(d.fillRate ?? null, 95, 85), isProxy: false, dataSource: 'servicios_planificados' },
         { id: 'O2', name: 'Confirm Rate', value: d.confirmRate ?? null, target: 90, unit: '%', status: getStatus(d.confirmRate ?? null, 90, 75), isProxy: false, dataSource: 'servicios_planificados' },
-        { id: 'O3', name: 'No-Show Rate', value: d.noShowRate != null ? Math.round(d.noShowRate * 10) / 10 : null, target: 5, unit: '%', status: getStatus(d.noShowRate ?? null, 5, 10, true), isProxy: true, dataSource: 'servicios_planificados (hora_inicio_real)', missingFields: ['flag no_show explícito en BD'] },
+        { id: 'O3', name: 'No-Show Rate', value: d.noShowRate != null ? Math.round(d.noShowRate * 10) / 10 : null, target: 5, unit: '%', status: getStatus(d.noShowRate ?? null, 5, 10, true), isProxy: true, dataSource: 'servicios_planificados (hora_inicio_real)', missingFields: ['flag no_show explícito en BD'], instrumentationCategory: 'quick-win', businessImpact: 'Ops: +12% cobertura' },
         { id: 'O4', name: 'Time to Assign', value: d.avgTimeToAssign ? Math.round(d.avgTimeToAssign) : null, target: 30, unit: 'min', status: getStatus(d.avgTimeToAssign ?? null, 30, 60, true), isProxy: false, dataSource: 'servicios_planificados' },
-        { id: 'O5', name: 'Coverage Index', value: d.coverageIndex ?? null, target: 1.5, unit: 'ratio', status: getStatus(d.coverageIndex ?? null, 1.5, 1.0), isProxy: true, dataSource: 'custodios_operativos / demanda semanal', missingFields: ['capacidad neta formal por zona'] },
+        { id: 'O5', name: 'Coverage Index', value: d.coverageIndex ?? null, target: 1.5, unit: 'ratio', status: getStatus(d.coverageIndex ?? null, 1.5, 1.0), isProxy: true, dataSource: 'custodios_operativos / demanda semanal', missingFields: ['capacidad neta formal por zona'], instrumentationCategory: 'quick-win', businessImpact: 'Ops: capacidad real vs estimada' },
         { id: 'O6', name: 'Activación Base', value: d.newCustodians ?? null, target: 5, unit: '#/mes', status: getStatus(d.newCustodians ?? null, 5, 2), isProxy: false, dataSource: 'custodios_operativos' },
         { id: 'O7', name: 'Document Compliance', value: d.docCompliance ?? null, target: 95, unit: '%', status: getStatus(d.docCompliance ?? null, 95, 80), isProxy: false, dataSource: 'documentos_custodio' },
-        { id: 'O8', name: 'Rechazos Capacidad', value: d.rechazosCount ?? null, target: 5, unit: '#', status: getStatus(d.rechazosCount ?? null, 5, 15, true), isProxy: true, dataSource: 'custodio_rechazos', missingFields: ['razón rechazo tipificada (capacidad vs otra)'] },
+        { id: 'O8', name: 'Rechazos Capacidad', value: d.rechazosCount ?? null, target: 5, unit: '#', status: getStatus(d.rechazosCount ?? null, 5, 15, true), isProxy: true, dataSource: 'custodio_rechazos', missingFields: ['razón rechazo tipificada (capacidad vs otra)'], instrumentationCategory: 'quick-win', businessImpact: 'Ops: clasificar rechazos' },
       ],
       score: 0,
       coverage: 0,
@@ -323,11 +325,11 @@ export function useStarMapKPIs(): StarMapData {
       color: 'hsl(30, 80%, 50%)',
       kpis: [
         { id: 'C1', name: 'Check-in Compliance', value: d.checkinCompliance ?? null, target: 98, unit: '%', status: getStatus(d.checkinCompliance ?? null, 98, 90), isProxy: false, dataSource: 'checklist_servicio' },
-        { id: 'C5', name: 'Close Quality Rate', value: d.closeQuality != null ? Math.round(d.closeQuality * 10) / 10 : null, target: 95, unit: '%', status: getStatus(d.closeQuality ?? null, 95, 80), isProxy: true, dataSource: 'checklist_servicio (firma + items)', missingFields: ['campo cierre_ok formal'] },
-        { id: 'C2', name: 'Time to Acknowledge', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['alertas C4', 'ack_ts'] },
-        { id: 'C3', name: 'Time to Validate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['validate_ts'] },
-        { id: 'C4', name: 'Time to Escalate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['escalate_ts'] },
-        { id: 'C6', name: 'Rework Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['concepto retrabajo'] },
+        { id: 'C5', name: 'Close Quality Rate', value: d.closeQuality != null ? Math.round(d.closeQuality * 10) / 10 : null, target: 95, unit: '%', status: getStatus(d.closeQuality ?? null, 95, 80), isProxy: true, dataSource: 'checklist_servicio (firma + items)', missingFields: ['campo cierre_ok formal'], instrumentationCategory: 'quick-win', businessImpact: 'C4: +17% cobertura' },
+        { id: 'C2', name: 'Time to Acknowledge', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['alertas C4', 'ack_ts'], instrumentationCategory: 'new-table', businessImpact: 'C4: tiempos respuesta alertas' },
+        { id: 'C3', name: 'Time to Validate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['validate_ts'], instrumentationCategory: 'new-table', businessImpact: 'C4: SLA validación' },
+        { id: 'C4', name: 'Time to Escalate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['escalate_ts'], instrumentationCategory: 'new-table', businessImpact: 'C4: escalamiento oportuno' },
+        { id: 'C6', name: 'Rework Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['concepto retrabajo'], instrumentationCategory: 'new-table', businessImpact: 'C4: calidad operativa' },
       ],
       score: 0,
       coverage: 0,
@@ -339,10 +341,10 @@ export function useStarMapKPIs(): StarMapData {
       icon: '🔒',
       color: 'hsl(0, 65%, 48%)',
       kpis: [
-        { id: 'R1', name: 'Incident Rate ×1,000', value: null, target: 0, unit: 'rate', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['tabla incidentes operativos'] },
-        { id: 'R2', name: 'Critical Attributable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['taxonomía incidentes'] },
-        { id: 'R3', name: 'Exposure Score', value: null, target: 0, unit: 'pts', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['modelo exposición'] },
-        { id: 'R4', name: 'Control Effectiveness', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['datos mitigantes'] },
+        { id: 'R1', name: 'Incident Rate ×1,000', value: null, target: 0, unit: 'rate', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['tabla incidentes operativos'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: de 0% a 100% cobertura' },
+        { id: 'R2', name: 'Critical Attributable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['taxonomía incidentes'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: clasificación severidad' },
+        { id: 'R3', name: 'Exposure Score', value: null, target: 0, unit: 'pts', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['modelo exposición'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: scoring zonas' },
+        { id: 'R4', name: 'Control Effectiveness', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['datos mitigantes'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: eficacia controles' },
       ],
       score: 0,
       coverage: 0,
@@ -356,9 +358,9 @@ export function useStarMapKPIs(): StarMapData {
       kpis: [
         { id: 'F4', name: 'Retención / Health Score', value: d.avgHealthScore ?? null, target: 80, unit: 'pts', status: getStatus(d.avgHealthScore ?? null, 80, 60), isProxy: false, dataSource: 'cs_health_scores' },
         { id: 'F5', name: 'DSO', value: d.avgDSO ? Math.round(d.avgDSO) : null, target: 30, unit: 'días', status: getStatus(d.avgDSO ?? null, 30, 45, true), isProxy: false, dataSource: 'facturas' },
-        { id: 'F1', name: 'GM por servicio', value: d.avgGM ?? null, target: 40, unit: '%', status: getStatus(d.avgGM ?? null, 40, 25), isProxy: true, dataSource: 'servicios_custodia (cobro - costo)', missingFields: ['costo armado', 'casetas reales', 'overhead'] },
-        { id: 'F2', name: 'CPS', value: d.avgCPS ?? null, target: 3000, unit: '$', status: getStatus(d.avgCPS ?? null, 3000, 4500, true), isProxy: true, dataSource: 'servicios_custodia (costo_custodio)', missingFields: ['overhead', 'armado externo', 'gadgets'] },
-        { id: 'F3', name: 'Leakage', value: null, target: 0, unit: '$', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['descuentos', 'ajustes', 'no facturados'] },
+        { id: 'F1', name: 'GM por servicio', value: d.avgGM ?? null, target: 40, unit: '%', status: getStatus(d.avgGM ?? null, 40, 25), isProxy: true, dataSource: 'servicios_custodia (cobro - costo)', missingFields: ['costo armado', 'casetas reales', 'overhead'], instrumentationCategory: 'quick-win', businessImpact: 'Finanzas: margen real completo' },
+        { id: 'F2', name: 'CPS', value: d.avgCPS ?? null, target: 3000, unit: '$', status: getStatus(d.avgCPS ?? null, 3000, 4500, true), isProxy: true, dataSource: 'servicios_custodia (costo_custodio)', missingFields: ['overhead', 'armado externo', 'gadgets'], instrumentationCategory: 'quick-win', businessImpact: 'Finanzas: costo real por servicio' },
+        { id: 'F3', name: 'Leakage', value: null, target: 0, unit: '$', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['descuentos', 'ajustes', 'no facturados'], instrumentationCategory: 'new-table', businessImpact: 'Finanzas: fuga de ingreso' },
       ],
       score: 0,
       coverage: 0,
