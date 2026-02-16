@@ -25,6 +25,12 @@ export interface IncidenteOperativo {
   resolucion_notas: string | null;
   fecha_resolucion: string | null;
   reportado_por: string | null;
+  firma_creacion_base64: string | null;
+  firma_creacion_email: string | null;
+  firma_creacion_timestamp: string | null;
+  firma_cierre_base64: string | null;
+  firma_cierre_email: string | null;
+  firma_cierre_timestamp: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -424,6 +424,59 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
     }
   }
 
+  // ───── 6. Firmas Digitales ─────
+  const hasFirmaCreacion = !!(incidente as any).firma_creacion_base64;
+  const hasFirmaCierre = !!(incidente as any).firma_cierre_base64;
+
+  if (hasFirmaCreacion || hasFirmaCierre) {
+    addSectionHeader('6. Firmas Digitales');
+
+    if (hasFirmaCreacion) {
+      checkPage(45);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...CORPORATE_BLACK);
+      pdf.text('Firma de Creacion', marginLeft + 3, y);
+      y += 5;
+      try {
+        pdf.addImage((incidente as any).firma_creacion_base64, 'PNG', marginLeft + 3, y, 50, 20);
+        y += 22;
+      } catch { y += 2; }
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...CORPORATE_GRAY);
+      pdf.text(`Firmado por: ${(incidente as any).firma_creacion_email || '-'}`, marginLeft + 3, y);
+      y += 4;
+      if ((incidente as any).firma_creacion_timestamp) {
+        pdf.text(`Fecha: ${format(new Date((incidente as any).firma_creacion_timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`, marginLeft + 3, y);
+        y += 4;
+      }
+      y += 5;
+    }
+
+    if (hasFirmaCierre) {
+      checkPage(45);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(...CORPORATE_BLACK);
+      pdf.text('Firma de Cierre', marginLeft + 3, y);
+      y += 5;
+      try {
+        pdf.addImage((incidente as any).firma_cierre_base64, 'PNG', marginLeft + 3, y, 50, 20);
+        y += 22;
+      } catch { y += 2; }
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...CORPORATE_GRAY);
+      pdf.text(`Firmado por: ${(incidente as any).firma_cierre_email || '-'}`, marginLeft + 3, y);
+      y += 4;
+      if ((incidente as any).firma_cierre_timestamp) {
+        pdf.text(`Fecha: ${format(new Date((incidente as any).firma_cierre_timestamp), 'dd/MM/yyyy HH:mm:ss', { locale: es })}`, marginLeft + 3, y);
+        y += 4;
+      }
+    }
+  }
+
   addFooter();
   pdf.save(`incidente-${incidente.id.slice(0, 8)}-${format(new Date(), 'yyyyMMdd')}.pdf`);
 }

@@ -9,8 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info, HelpCircle } from 'lucide-react';
+import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 import { IncidentTimeline, type LocalTimelineEntry } from './IncidentTimeline';
@@ -132,8 +135,14 @@ const defaultFormData: ExtendedFormData = {
 export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incidente, onBack }) => {
   const isEditing = !!incidente;
   const persistKey = isEditing ? `incident-report-${incidente.id}` : 'incident-report-new';
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const timelineKey = `${persistKey}_timeline`;
+
+  // Firma digital de creación
+  const [firmaCreacion, setFirmaCreacion] = useState<string | null>(null);
+  // Firma digital de cierre
+  const [firmaCierre, setFirmaCierre] = useState<string | null>(null);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
 
   // Correccion 3: exit confirmation state
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -435,13 +444,23 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
       toast.error('Completa tipo, severidad y descripción');
       return;
     }
+    if (!firmaCreacion) {
+      toast.error('Firma digital requerida para registrar el incidente');
+      return;
+    }
+
+    const firmaPayload = {
+      firma_creacion_base64: firmaCreacion,
+      firma_creacion_email: user?.email || null,
+      firma_creacion_timestamp: new Date().toISOString(),
+    };
 
     try {
       if (isEditing) {
-        await updateMutation.mutateAsync({ id: incidente.id, ...buildPayload(), estado: 'abierto' } as any);
+        await updateMutation.mutateAsync({ id: incidente.id, ...buildPayload(), ...firmaPayload, estado: 'abierto' } as any);
         await persistCronologiaEntries(incidente.id);
       } else {
-        const result = await createMutation.mutateAsync({ ...buildPayload(), estado: 'abierto' } as any);
+        const result = await createMutation.mutateAsync({ ...buildPayload(), ...firmaPayload, estado: 'abierto' } as any);
         await persistCronologiaEntries(result.id);
         persistence.clearDraft(true);
       }
@@ -453,15 +472,19 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
   };
 
   const handleClose = async () => {
-    if (!isEditing) return;
+    if (!isEditing || !firmaCierre) return;
     try {
       await updateMutation.mutateAsync({
         id: incidente.id,
         ...buildPayload(),
         estado: 'cerrado',
         fecha_resolucion: new Date().toISOString(),
+        firma_cierre_base64: firmaCierre,
+        firma_cierre_email: user?.email || null,
+        firma_cierre_timestamp: new Date().toISOString(),
       } as any);
       toast.success('Incidente cerrado');
+      setShowCloseDialog(false);
       onBack();
     } catch (err: any) {
       toast.error(err.message);
@@ -543,7 +566,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             Registrar
           </Button>
           {isEditing && incidente.estado !== 'cerrado' && ['admin', 'owner', 'coordinador_operaciones'].includes(userRole || '') && (
-            <Button variant="destructive" size="sm" onClick={handleClose} disabled={isPending} className="h-8 text-xs">
+            <Button variant="destructive" size="sm" onClick={() => setShowCloseDialog(true)} disabled={isPending} className="h-8 text-xs">
               Cerrar incidente
             </Button>
           )}
@@ -711,6 +734,38 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
               </CardContent>
             </Card>
           )}
+
+          {/* Firma digital de creación */}
+          {(!isEditing || (isEditing && !incidente?.firma_creacion_base64)) && (
+            <Card>
+              <CardContent className="pt-4">
+                <SignaturePad value={firmaCreacion} onChange={setFirmaCreacion} />
+                <p className="text-[10px] text-muted-foreground mt-1">Firma requerida para registrar el incidente</p>
+              </CardContent>
+            </Card>
+          )}
+          {isEditing && incidente?.firma_creacion_base64 && (
+            <Card>
+              <CardContent className="pt-4 space-y-2">
+                <p className="text-xs font-medium">✅ Firma de creación</p>
+                <img src={incidente.firma_creacion_base64} alt="Firma creación" className="h-16 border rounded" />
+                <p className="text-[10px] text-muted-foreground">
+                  {incidente.firma_creacion_email} — {incidente.firma_creacion_timestamp ? format(new Date(incidente.firma_creacion_timestamp), 'dd/MM/yy HH:mm', { locale: es }) : ''}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {isEditing && incidente?.firma_cierre_base64 && (
+            <Card>
+              <CardContent className="pt-4 space-y-2">
+                <p className="text-xs font-medium">🔒 Firma de cierre</p>
+                <img src={incidente.firma_cierre_base64} alt="Firma cierre" className="h-16 border rounded" />
+                <p className="text-[10px] text-muted-foreground">
+                  {incidente.firma_cierre_email} — {incidente.firma_cierre_timestamp ? format(new Date(incidente.firma_cierre_timestamp), 'dd/MM/yy HH:mm', { locale: es }) : ''}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right column (40%) - Controles y Cronología */}
@@ -796,6 +851,26 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
           </Card>
         </div>
       </div>
+
+      {/* AlertDialog para cierre con firma */}
+      <AlertDialog open={showCloseDialog} onOpenChange={(open) => { if (!open) { setShowCloseDialog(false); setFirmaCierre(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cierre de incidente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción cambiará el estado a cerrado. Firma digital requerida para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <SignaturePad value={firmaCierre} onChange={setFirmaCierre} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClose} disabled={!firmaCierre || updateMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Cerrar incidente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -7208,6 +7208,12 @@ export type Database = {
           estado: string
           fecha_incidente: string
           fecha_resolucion: string | null
+          firma_cierre_base64: string | null
+          firma_cierre_email: string | null
+          firma_cierre_timestamp: string | null
+          firma_creacion_base64: string | null
+          firma_creacion_email: string | null
+          firma_creacion_timestamp: string | null
           id: string
           id_servicio_texto: string | null
           reportado_por: string | null
@@ -7233,6 +7239,12 @@ export type Database = {
           estado?: string
           fecha_incidente?: string
           fecha_resolucion?: string | null
+          firma_cierre_base64?: string | null
+          firma_cierre_email?: string | null
+          firma_cierre_timestamp?: string | null
+          firma_creacion_base64?: string | null
+          firma_creacion_email?: string | null
+          firma_creacion_timestamp?: string | null
           id?: string
           id_servicio_texto?: string | null
           reportado_por?: string | null
@@ -7258,6 +7270,12 @@ export type Database = {
           estado?: string
           fecha_incidente?: string
           fecha_resolucion?: string | null
+          firma_cierre_base64?: string | null
+          firma_cierre_email?: string | null
+          firma_cierre_timestamp?: string | null
+          firma_creacion_base64?: string | null
+          firma_creacion_email?: string | null
+          firma_creacion_timestamp?: string | null
           id?: string
           id_servicio_texto?: string | null
           reportado_por?: string | null
