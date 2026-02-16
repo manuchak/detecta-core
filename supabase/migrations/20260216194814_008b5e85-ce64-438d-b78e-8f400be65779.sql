@@ -1,0 +1,1 @@
+ALTER TABLE public.incidentes_operativos ADD COLUMN IF NOT EXISTS id_servicio_texto TEXT;

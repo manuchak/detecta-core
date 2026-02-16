@@ -7197,6 +7197,7 @@ export type Database = {
           fecha_incidente: string
           fecha_resolucion: string | null
           id: string
+          id_servicio_texto: string | null
           reportado_por: string | null
           resolucion_notas: string | null
           servicio_custodia_id: number | null
@@ -7221,6 +7222,7 @@ export type Database = {
           fecha_incidente?: string
           fecha_resolucion?: string | null
           id?: string
+          id_servicio_texto?: string | null
           reportado_por?: string | null
           resolucion_notas?: string | null
           servicio_custodia_id?: number | null
@@ -7245,6 +7247,7 @@ export type Database = {
           fecha_incidente?: string
           fecha_resolucion?: string | null
           id?: string
+          id_servicio_texto?: string | null
           reportado_por?: string | null
           resolucion_notas?: string | null
           servicio_custodia_id?: number | null

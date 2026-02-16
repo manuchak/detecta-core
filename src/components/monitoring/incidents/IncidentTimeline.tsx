@@ -30,18 +30,29 @@ const COLOR_MAP: Record<TipoEntradaCronologia, string> = {
   nota: 'bg-gray-500/10 text-gray-600 border-gray-500/30',
 };
 
+export interface LocalTimelineEntry {
+  localId: string;
+  timestamp: string;
+  tipo_entrada: TipoEntradaCronologia;
+  descripcion: string;
+}
+
 interface IncidentTimelineProps {
   entries: EntradaCronologia[];
+  localEntries?: LocalTimelineEntry[];
   onAddEntry: (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => void;
   onDeleteEntry?: (id: string) => void;
+  onDeleteLocalEntry?: (localId: string) => void;
   isAdding?: boolean;
   readOnly?: boolean;
 }
 
 export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
   entries,
+  localEntries = [],
   onAddEntry,
   onDeleteEntry,
+  onDeleteLocalEntry,
   isAdding = false,
   readOnly = false,
 }) => {
@@ -62,6 +73,12 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
     setNewEntry({ timestamp: new Date().toISOString().slice(0, 16), tipo_entrada: '', descripcion: '' });
     setShowForm(false);
   };
+
+  // Merge DB entries and local entries for display, sorted by timestamp
+  const allEntries: Array<(EntradaCronologia & { isLocal?: false }) | (LocalTimelineEntry & { isLocal: true })> = [
+    ...entries.map(e => ({ ...e, isLocal: false as const })),
+    ...localEntries.map(e => ({ ...e, isLocal: true as const })),
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   return (
     <div className="space-y-4">
@@ -128,7 +145,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
       )}
 
       {/* Timeline */}
-      {entries.length === 0 ? (
+      {allEntries.length === 0 ? (
         <div className="text-center py-6 text-muted-foreground">
           <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
           <p className="text-xs">Sin entradas en la cronología</p>
@@ -139,11 +156,12 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
           {/* Vertical line */}
           <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
 
-          {entries.map((entry, idx) => {
+          {allEntries.map((entry) => {
             const tipo = entry.tipo_entrada as TipoEntradaCronologia;
             const colorClass = COLOR_MAP[tipo] || COLOR_MAP.nota;
+            const entryKey = entry.isLocal ? entry.localId : (entry as EntradaCronologia).id;
             return (
-              <div key={entry.id} className="relative pb-4 last:pb-0">
+              <div key={entryKey} className="relative pb-4 last:pb-0">
                 {/* Dot */}
                 <div className={`absolute -left-6 top-1 h-[22px] w-[22px] rounded-full border-2 flex items-center justify-center ${colorClass}`}>
                   {ICON_MAP[tipo] || <MessageSquare className="h-3 w-3" />}
@@ -157,9 +175,20 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
                     <Badge variant="outline" className={`text-[9px] h-4 px-1.5 ${colorClass}`}>
                       {TIPOS_ENTRADA_CRONOLOGIA.find(t => t.value === tipo)?.label || tipo}
                     </Badge>
-                    {!readOnly && onDeleteEntry && (
+                    {entry.isLocal && (
+                      <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Pendiente</Badge>
+                    )}
+                    {!readOnly && !entry.isLocal && onDeleteEntry && (
                       <button
-                        onClick={() => onDeleteEntry(entry.id)}
+                        onClick={() => onDeleteEntry((entry as EntradaCronologia).id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </button>
+                    )}
+                    {!readOnly && entry.isLocal && onDeleteLocalEntry && (
+                      <button
+                        onClick={() => onDeleteLocalEntry(entry.localId)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
