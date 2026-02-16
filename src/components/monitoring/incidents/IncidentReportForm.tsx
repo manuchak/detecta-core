@@ -42,23 +42,70 @@ interface ExtendedFormData extends IncidenteFormData {
 
 const TIMELINE_TTL_MS = 72 * 60 * 60 * 1000; // 72h aligned with form TTL
 
-/** Serialize timeline entries omitting non-serializable File/blob fields */
-const serializeTimelineEntries = (entries: LocalTimelineEntry[]) => ({
-  timestamp: Date.now(),
-  entries: entries.map(({ imagenFile, imagenPreview, ...rest }) => ({
-    ...rest,
-    hadImage: !!imagenFile, // flag so user knows image was lost
-  })),
-});
+/** Convert a File to base64 data URL */
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+/** Serialize timeline entries, converting images to base64 for persistence */
+const serializeTimelineEntries = async (entries: LocalTimelineEntry[]) => {
+  const MAX_IMAGES = 5;
+  let imageCount = 0;
+  const serializedEntries = [];
+  for (const { imagenFile, imagenPreview, ...rest } of entries) {
+    const entry: Record<string, any> = { ...rest };
+    if (imagenFile && imageCount < MAX_IMAGES) {
+      try {
+        entry.base64Image = await fileToBase64(imagenFile);
+        entry.fileName = imagenFile.name;
+        entry.fileType = imagenFile.type;
+        imageCount++;
+      } catch {
+        // If conversion fails, just skip the image
+      }
+    }
+    serializedEntries.push(entry);
+  }
+  return { timestamp: Date.now(), entries: serializedEntries };
+};
 
 const deserializeTimelineEntries = (raw: string): LocalTimelineEntry[] => {
   try {
     const parsed = JSON.parse(raw);
     // TTL check
     if (parsed.timestamp && Date.now() - parsed.timestamp > TIMELINE_TTL_MS) return [];
-    return (parsed.entries || []) as LocalTimelineEntry[];
+    const entries = (parsed.entries || []) as any[];
+    return entries.map((entry) => {
+      if (entry.base64Image) {
+        // Reconstruct File from base64 synchronously via data URL
+        try {
+          const byteString = atob(entry.base64Image.split(',')[1]);
+          const mimeType = entry.fileType || 'image/png';
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+          const blob = new Blob([ab], { type: mimeType });
+          const file = new File([blob], entry.fileName || 'restored.png', { type: mimeType });
+          return {
+            ...entry,
+            imagenFile: file,
+            imagenPreview: entry.base64Image, // use base64 directly as preview src
+            base64Image: undefined,
+            fileName: undefined,
+            fileType: undefined,
+          } as LocalTimelineEntry;
+        } catch {
+          return entry as LocalTimelineEntry;
+        }
+      }
+      return entry as LocalTimelineEntry;
+    });
   } catch {
-    // Legacy format (plain array) — apply no TTL
     try { return JSON.parse(raw) as LocalTimelineEntry[]; } catch { return []; }
   }
 };
@@ -138,15 +185,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
   });
   const [timelineRestored, setTimelineRestored] = useState(false);
 
-  // Notify about lost images after first render
-  useEffect(() => {
-    if (timelineRestored) return;
-    setTimelineRestored(true);
-    const lostImages = localTimelineEntries.filter((e: any) => e.hadImage);
-    if (lostImages.length > 0) {
-      toast.info(`${lostImages.length} entrada(s) de cronología tenían fotos que no pudieron restaurarse`, { duration: 5000 });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Images are now restored from base64 — no lost-image toast needed
 
   // Service lookup (Bloque 1) — synced with form for persistence
   const { servicio, isSearching, error: servicioError, buscarServicio } = useServicioLookup();
@@ -221,10 +260,11 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     form.setValue('controles_activos', next, { shouldDirty: true });
   };
 
-  // Correccion 2: Dual backup for local timeline entries with TTL
-  const persistLocalEntries = useCallback(() => {
+  // Correccion 2: Dual backup for local timeline entries with TTL (async for base64)
+  const persistLocalEntries = useCallback(async () => {
     try {
-      const serialized = JSON.stringify(serializeTimelineEntries(localTimelineEntries));
+      const data = await serializeTimelineEntries(localTimelineEntries);
+      const serialized = JSON.stringify(data);
       localStorage.setItem(timelineKey, serialized);
       sessionStorage.setItem(timelineKey, serialized); // dual backup
     } catch {}
