@@ -1,58 +1,95 @@
 
-# Persistencia de Screenshots en la Cronologia del Evento
 
-## Problema
+# Blindaje de Persistencia del Formulario de Incidentes
 
-Cuando se agrega una imagen (screenshot o foto) a una entrada de cronologia en un incidente **nuevo** (no editado), la imagen se pierde al cambiar de pagina o refrescar. Esto ocurre porque:
+## Problema Raiz
 
-1. Las imagenes se guardan como objetos `File` en el estado (`imagenFile`)
-2. Los objetos `File` y las URLs `blob:` **no son serializables** -- no pueden guardarse en localStorage/sessionStorage
-3. La funcion `serializeTimelineEntries` explicitamente elimina `imagenFile` e `imagenPreview`, dejando solo un flag `hadImage: true`
-4. Al restaurar, las entradas llegan sin imagen y el usuario ve el toast "fotos que no pudieron restaurarse"
-
-## Solucion
-
-Convertir las imagenes a **base64 data URLs** antes de persistir en localStorage/sessionStorage. Al restaurar, reconstruir los objetos `File` desde el base64 para que puedan subirse a Supabase Storage cuando se registre el incidente.
-
-## Cambios
-
-### Archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`
-
-1. **Agregar funcion `fileToBase64`**: Convierte un `File` a string base64 data URL usando `FileReader`
-
-2. **Modificar `serializeTimelineEntries`**: Hacerla `async` para que pueda convertir cada `imagenFile` a base64 antes de serializar. Se almacena junto con el `type` y `name` del archivo original
-
-3. **Modificar `deserializeTimelineEntries`**: Reconstruir objetos `File` desde el base64 guardado, y usar el mismo base64 como `imagenPreview` (en lugar de blob URL)
-
-4. **Actualizar `persistLocalEntries`**: Hacerlo `async` para acomodar la serializacion asincrona
-
-5. **Eliminar toast de "fotos que no pudieron restaurarse"**: Ya no aplica porque las fotos SI se restauran
-
-## Detalle tecnico
+Cuando Supabase refresca el token de autenticacion (cada ~1 hora), el evento `onAuthStateChange` dispara con tipo `SIGNED_IN` o `TOKEN_REFRESHED`. El codigo actual en `AuthContext.tsx` (linea 217) **resetea el rol a null y roleLoading a true** en CADA evento de auth, incluyendo renovaciones de token:
 
 ```text
-Al agregar entrada con imagen:
-  File --> fileToBase64() --> data:image/png;base64,... 
-  --> se guarda en localStorage junto con name y type
-
-Al restaurar:
-  base64 --> new File([blob], name, {type}) --> imagenFile restaurado
-  base64 --> imagenPreview (se usa directamente como src de <img>)
-
-Al enviar incidente:
-  imagenFile (File reconstruido) --> uploadEvidenciaImage() --> Supabase Storage
+setUserRole(null);      // <-- Hace que RoleProtectedRoute muestre spinner
+setRoleLoading(true);   // <-- Desmonta TODO el arbol de componentes
 ```
 
-### Consideraciones de tamano
+Esto causa la siguiente cadena:
 
-- Las fotos ya pasan por compresion Canvas API (~400KB)
-- Un screenshot tipico en base64 ocupa ~500KB-1MB
-- localStorage tiene un limite de ~5-10MB por dominio
-- Con el TTL de 72h existente, los datos se limpian automaticamente
-- Se limita a maximo 5 imagenes almacenadas para evitar exceder el limite
+```text
+Token refresh
+  -> AuthContext: userRole = null, roleLoading = true
+  -> RoleProtectedRoute: muestra "Verificando permisos..." (spinner)
+  -> MonitoringPage se DESMONTA (destruye todo el estado React)
+  -> Role se resuelve en ~50ms
+  -> RoleProtectedRoute: renderiza children de nuevo
+  -> MonitoringPage se MONTA FRESCO (sin datos del formulario)
+  -> LastRouteRestorer puede redirigir a otra pagina
+```
+
+El formulario de incidentes tiene persistencia en localStorage/sessionStorage, pero el **remontaje completo** causa que:
+1. El formulario se reinicializa con valores default
+2. La restauracion del draft depende de un banner manual que el usuario debe aceptar
+3. La cronologia se restaura correctamente (inicializacion sincrona en useState), pero el formulario principal no
+
+## Solucion (3 cambios)
+
+### Cambio 1: No resetear rol en token refresh (AuthContext.tsx)
+
+El cambio mas critico. Distinguir entre un inicio de sesion genuino vs una renovacion de token:
+
+- Si el evento es `TOKEN_REFRESHED` o si el usuario ya es el mismo que esta autenticado, **no resetear** `userRole` ni `roleLoading`
+- Solo resetear en `SIGNED_IN` cuando el usuario cambia (diferente user ID)
+- Esto evita el desmontaje completo del arbol de componentes
+
+### Cambio 2: Suprimir toast duplicado en token refresh (AuthContext.tsx)
+
+El toast "Bienvenido - Has iniciado sesion como..." no debe aparecer durante renovaciones de token, solo en logins genuinos. Se agrega una referencia al user ID anterior para detectar si es un login real o simplemente un refresh.
+
+### Cambio 3: Auto-restauracion silenciosa del formulario (IncidentReportForm.tsx)
+
+Como capa adicional de seguridad (defense-in-depth), si el componente se remonta y existe un draft en storage, restaurar automaticamente sin requerir interaccion del usuario:
+
+- Detectar si hay un draft guardado al montar
+- Si lo hay, restaurar los valores del form automaticamente con `form.reset(restoredData)`
+- Mostrar un toast informativo en vez de un banner que requiere clic
 
 ## Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/monitoring/incidents/IncidentReportForm.tsx` | Serializar/deserializar imagenes como base64, eliminar toast de imagenes perdidas |
+| `src/contexts/AuthContext.tsx` | No resetear userRole/roleLoading en TOKEN_REFRESHED ni cuando el user ID no cambia; suprimir toast de bienvenida en refreshes |
+| `src/components/monitoring/incidents/IncidentReportForm.tsx` | Auto-restaurar form data al montar si existe draft (sin requerir interaccion del usuario) |
+
+## Detalle Tecnico
+
+### AuthContext.tsx - Logica de diferenciacion
+
+```text
+onAuthStateChange(event, currentSession):
+  IF event === 'TOKEN_REFRESHED':
+    -> Actualizar session y user (para que el token nuevo se use)
+    -> NO tocar userRole ni roleLoading
+    -> NO mostrar toast
+  ELSE IF event === 'SIGNED_IN':
+    IF currentSession.user.id === previousUserId:
+      -> Es un refresh disfrazado, NO resetear rol
+      -> NO mostrar toast
+    ELSE:
+      -> Login genuino, SI resetear y re-fetch rol
+      -> SI mostrar toast
+```
+
+### IncidentReportForm.tsx - Auto-restore
+
+```text
+useEffect al montar:
+  1. Revisar si useFormPersistence ya restauro datos
+  2. Si los datos del form siguen en default Y hay draft en storage:
+     -> form.reset(draftData)
+     -> toast.info("Borrador restaurado automaticamente")
+```
+
+## Impacto
+
+- **Elimina** el desmontaje involuntario durante token refresh (~cada hora)
+- **Elimina** el toast confuso de "Bienvenido" cuando no hubo login real
+- **Garantiza** que si por cualquier otra razon el formulario se remonta, los datos se restauran sin friccion
+- Compatible con la arquitectura de persistencia existente (dual backup localStorage + sessionStorage)
