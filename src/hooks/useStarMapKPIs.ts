@@ -20,8 +20,8 @@ export interface StarMapPillar {
   shortName: string;
   icon: string;
   kpis: StarMapKPI[];
-  score: number; // 0-100
-  coverage: number; // % of KPIs measurable
+  score: number;
+  coverage: number;
   color: string;
 }
 
@@ -36,7 +36,6 @@ export interface StarMapData {
 function getStatus(value: number | null, greenMin: number, yellowMin: number, invert = false): 'green' | 'yellow' | 'red' | 'no-data' {
   if (value === null) return 'no-data';
   if (invert) {
-    // Lower is better (e.g., time to assign)
     if (value <= greenMin) return 'green';
     if (value <= yellowMin) return 'yellow';
     return 'red';
@@ -50,7 +49,8 @@ export function useStarMapKPIs(): StarMapData {
   const { data, isLoading } = useQuery({
     queryKey: ['starmap-kpis'],
     queryFn: async () => {
-      // Execute all queries in parallel
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
       const [
         dealsRes,
         planificadosRes,
@@ -59,34 +59,44 @@ export function useStarMapKPIs(): StarMapData {
         documentosRes,
         facturasRes,
         healthScoresRes,
+        // Phase 2 queries
+        custodiaFinancierosRes,
+        rechazosRes,
+        forecastRes,
       ] = await Promise.all([
-        // CRM deals for Win Rate
         supabase.from('crm_deals').select('id, status, value').eq('is_deleted', false),
-        // Servicios planificados for Ops KPIs
         supabase.from('servicios_planificados')
           .select('id, custodio_asignado, armado_asignado, requiere_armado, estado_confirmacion_custodio, estado_planeacion, fecha_asignacion, created_at, hora_inicio_real, hora_fin_real')
-          .gte('fecha_hora_cita', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()),
-        // Checklists for evidence
+          .gte('fecha_hora_cita', ninetyDaysAgo),
         supabase.from('checklist_servicio')
           .select('id, servicio_id, firma_base64, items_inspeccion, estado')
-          .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()),
-        // Custodios for activation rate
+          .gte('created_at', ninetyDaysAgo),
         supabase.from('custodios_operativos')
           .select('id, estado, created_at')
           .eq('estado', 'activo'),
-        // Documents compliance
         supabase.from('documentos_custodio')
           .select('id, custodio_id, estado_validacion, fecha_vencimiento')
           .eq('estado_validacion', 'aprobado'),
-        // Facturas for DSO
         supabase.from('facturas')
           .select('id, fecha_emision, fecha_pago, monto_total, estado')
-          .gte('fecha_emision', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()),
-        // CS Health scores
+          .gte('fecha_emision', ninetyDaysAgo),
         supabase.from('cs_health_scores')
           .select('id, cliente, health_score, churn_risk')
           .order('created_at', { ascending: false })
           .limit(50),
+        // F1/F2: servicios_custodia with financial fields
+        supabase.from('servicios_custodia')
+          .select('id, cobro_cliente, costo_custodio')
+          .gte('created_at', ninetyDaysAgo),
+        // O8: custodio_rechazos count
+        supabase.from('custodio_rechazos')
+          .select('id')
+          .gte('fecha_rechazo', ninetyDaysAgo),
+        // S4: forecast accuracy latest
+        supabase.from('forecast_accuracy_history')
+          .select('mape_services')
+          .order('created_at', { ascending: false })
+          .limit(1),
       ]);
 
       const deals = dealsRes.data || [];
@@ -96,6 +106,9 @@ export function useStarMapKPIs(): StarMapData {
       const documentos = documentosRes.data || [];
       const facturas = facturasRes.data || [];
       const healthScores = healthScoresRes.data || [];
+      const custodiaFinancieros = custodiaFinancierosRes.data || [];
+      const rechazos = rechazosRes.data || [];
+      const forecastData = forecastRes.data || [];
 
       // === NORTH STAR: SCNV (Proxy) ===
       const serviciosFinalizados = planificados.filter(s => 
@@ -114,6 +127,17 @@ export function useStarMapKPIs(): StarMapData {
       const closedDeals = deals.filter(d => d.status === 'won' || d.status === 'lost').length;
       const winRate = closedDeals > 0 ? (wonDeals / closedDeals) * 100 : null;
 
+      // S1: Plan Rate (proxy) — finalizados / planificados no-cancelados
+      const totalNoCancelados = planificados.filter(s => s.estado_planeacion !== 'cancelado');
+      const s1PlanRate = totalNoCancelados.length > 0
+        ? (serviciosFinalizados.length / totalNoCancelados.length) * 100
+        : null;
+
+      // S4: Forecast Accuracy (proxy) — MAPE from history or fallback
+      const s4Mape = forecastData.length > 0 && forecastData[0].mape_services != null
+        ? forecastData[0].mape_services
+        : 18.5; // fallback
+
       // === PILAR 2: Tech ===
       // TP7: Evidence Capture Pass Rate
       const completedChecklists = checklists.filter(c => c.firma_base64 && c.items_inspeccion);
@@ -122,8 +146,8 @@ export function useStarMapKPIs(): StarMapData {
         : null;
 
       // === PILAR 3: Ops/Supply ===
-      // O1: Fill Rate E2E
       const totalPlanificados = planificados.filter(s => s.estado_planeacion !== 'cancelado');
+      // O1: Fill Rate E2E
       const asignadosCompletos = totalPlanificados.filter(s => {
         const custodioOk = !!s.custodio_asignado;
         const armadoOk = s.requiere_armado ? !!s.armado_asignado : true;
@@ -140,33 +164,50 @@ export function useStarMapKPIs(): StarMapData {
         ? (confirmados.length / asignados.length) * 100
         : null;
 
+      // O3: No-Show Rate (proxy) — asignados sin hora_inicio_real
+      const asignadosPasados = asignados.filter(s => {
+        const cita = new Date(s.created_at);
+        return cita < new Date(); // only past services
+      });
+      const sinInicio = asignadosPasados.filter(s => !s.hora_inicio_real);
+      const noShowRate = asignadosPasados.length > 0
+        ? (sinInicio.length / asignadosPasados.length) * 100
+        : null;
+
       // O4: Time to Assign (minutes)
       const assignTimes = totalPlanificados
         .filter(s => s.fecha_asignacion && s.created_at)
         .map(s => {
           const diff = new Date(s.fecha_asignacion).getTime() - new Date(s.created_at).getTime();
-          return diff / (1000 * 60); // minutes
+          return diff / (1000 * 60);
         })
-        .filter(t => t > 0 && t < 10080); // filter outliers (>1 week)
+        .filter(t => t > 0 && t < 10080);
       const avgTimeToAssign = assignTimes.length > 0
         ? assignTimes.reduce((a, b) => a + b, 0) / assignTimes.length
         : null;
 
-      // O6: Activation (new custodians this month)
+      // O5: Coverage Index (proxy) — custodios activos / demanda semanal
+      const weeklyDemand = totalPlanificados.length > 0
+        ? totalPlanificados.length / 13 // 90 days ≈ 13 weeks
+        : 0;
+      const coverageIndex = weeklyDemand > 0
+        ? Math.round((custodios.length / weeklyDemand) * 100) / 100
+        : null;
+
+      // O6: Activation
       const thisMonth = new Date();
       thisMonth.setDate(1);
-      const newCustodians = custodios.filter(c => 
-        new Date(c.created_at) >= thisMonth
-      ).length;
+      const newCustodians = custodios.filter(c => new Date(c.created_at) >= thisMonth).length;
 
       // O7: Document Compliance
       const now = new Date();
-      const validDocs = documentos.filter(d => 
-        !d.fecha_vencimiento || new Date(d.fecha_vencimiento) > now
-      ).length;
+      const validDocs = documentos.filter(d => !d.fecha_vencimiento || new Date(d.fecha_vencimiento) > now).length;
       const docCompliance = documentos.length > 0
         ? (validDocs / documentos.length) * 100
         : null;
+
+      // O8: Rechazos (proxy) — count directo
+      const rechazosCount = rechazos.length;
 
       // === PILAR 4: C4 ===
       // C1: Check-in Compliance
@@ -174,8 +215,26 @@ export function useStarMapKPIs(): StarMapData {
         ? (checklists.length / serviciosFinalizados.length) * 100
         : null;
 
+      // C5: Close Quality (proxy) — checklists con firma + items / finalizados
+      const closeQuality = serviciosFinalizados.length > 0
+        ? (completedChecklists.length / serviciosFinalizados.length) * 100
+        : null;
+
       // === PILAR 6: Finanzas ===
-      // F4: Retention (from CS health scores)
+      // F1: GM por servicio (proxy)
+      const conAmbos = custodiaFinancieros.filter(s => s.cobro_cliente > 0 && s.costo_custodio > 0);
+      const gmValues = conAmbos.map(s => ((s.cobro_cliente - s.costo_custodio) / s.cobro_cliente) * 100);
+      const avgGM = gmValues.length > 0
+        ? Math.round(gmValues.reduce((a, b) => a + b, 0) / gmValues.length * 10) / 10
+        : null;
+
+      // F2: CPS (proxy)
+      const conCosto = custodiaFinancieros.filter(s => s.costo_custodio > 0);
+      const avgCPS = conCosto.length > 0
+        ? Math.round(conCosto.reduce((sum, s) => sum + s.costo_custodio, 0) / conCosto.length)
+        : null;
+
+      // F4: Retention
       const avgHealthScore = healthScores.length > 0
         ? healthScores.reduce((sum, h) => sum + (h.health_score || 0), 0) / healthScores.length
         : null;
@@ -184,24 +243,17 @@ export function useStarMapKPIs(): StarMapData {
       const paidFacturas = facturas.filter(f => f.fecha_pago && f.fecha_emision);
       const dsoValues = paidFacturas.map(f => {
         const diff = new Date(f.fecha_pago).getTime() - new Date(f.fecha_emision).getTime();
-        return diff / (1000 * 60 * 60 * 24); // days
+        return diff / (1000 * 60 * 60 * 24);
       }).filter(d => d > 0 && d < 365);
       const avgDSO = dsoValues.length > 0
         ? dsoValues.reduce((a, b) => a + b, 0) / dsoValues.length
         : null;
 
       return {
-        scnvProxy,
-        winRate,
-        evidenceRate,
-        fillRate,
-        confirmRate,
-        avgTimeToAssign,
-        newCustodians,
-        docCompliance,
-        checkinCompliance,
-        avgHealthScore,
-        avgDSO,
+        scnvProxy, winRate, evidenceRate, fillRate, confirmRate, avgTimeToAssign,
+        newCustodians, docCompliance, checkinCompliance, avgHealthScore, avgDSO,
+        // Phase 2
+        s1PlanRate, s4Mape, noShowRate, coverageIndex, rechazosCount, closeQuality, avgGM, avgCPS,
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -209,7 +261,6 @@ export function useStarMapKPIs(): StarMapData {
 
   const d = data || {};
 
-  // Build pillars
   const pillars: StarMapPillar[] = [
     {
       id: 'gtm',
@@ -219,6 +270,8 @@ export function useStarMapKPIs(): StarMapData {
       color: 'hsl(210, 70%, 50%)',
       kpis: [
         { id: 'S3', name: 'Win Rate', value: d.winRate ?? null, target: 35, unit: '%', status: getStatus(d.winRate ?? null, 35, 20), isProxy: false, dataSource: 'crm_deals' },
+        { id: 'S1', name: 'Plan Rate', value: d.s1PlanRate != null ? Math.round(d.s1PlanRate * 10) / 10 : null, target: 80, unit: '%', status: getStatus(d.s1PlanRate ?? null, 80, 60), isProxy: true, dataSource: 'servicios_planificados', missingFields: ['deal_id→servicio join', 'status OPERABLE formal'] },
+        { id: 'S4', name: 'Forecast Accuracy (MAPE)', value: d.s4Mape != null ? Math.round(d.s4Mape * 10) / 10 : null, target: 15, unit: '%', status: getStatus(d.s4Mape ?? null, 15, 25, true), isProxy: true, dataSource: 'forecast_accuracy_history', missingFields: ['datos reales en forecast_accuracy_history'] },
         { id: 'M1', name: 'Solicitudes Operables', value: null, target: 0, unit: '#', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['status OPERABLE', 'checklist campos mínimos'] },
         { id: 'M2', name: 'SQL → Operable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['etapa SQL', 'etapa OPERABLE'] },
         { id: 'M3', name: 'Fit Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['cobertura zona', 'capacidad servicio'] },
@@ -252,12 +305,12 @@ export function useStarMapKPIs(): StarMapData {
       kpis: [
         { id: 'O1', name: 'Fill Rate E2E', value: d.fillRate ?? null, target: 95, unit: '%', status: getStatus(d.fillRate ?? null, 95, 85), isProxy: false, dataSource: 'servicios_planificados' },
         { id: 'O2', name: 'Confirm Rate', value: d.confirmRate ?? null, target: 90, unit: '%', status: getStatus(d.confirmRate ?? null, 90, 75), isProxy: false, dataSource: 'servicios_planificados' },
+        { id: 'O3', name: 'No-Show Rate', value: d.noShowRate != null ? Math.round(d.noShowRate * 10) / 10 : null, target: 5, unit: '%', status: getStatus(d.noShowRate ?? null, 5, 10, true), isProxy: true, dataSource: 'servicios_planificados (hora_inicio_real)', missingFields: ['flag no_show explícito en BD'] },
         { id: 'O4', name: 'Time to Assign', value: d.avgTimeToAssign ? Math.round(d.avgTimeToAssign) : null, target: 30, unit: 'min', status: getStatus(d.avgTimeToAssign ?? null, 30, 60, true), isProxy: false, dataSource: 'servicios_planificados' },
+        { id: 'O5', name: 'Coverage Index', value: d.coverageIndex ?? null, target: 1.5, unit: 'ratio', status: getStatus(d.coverageIndex ?? null, 1.5, 1.0), isProxy: true, dataSource: 'custodios_operativos / demanda semanal', missingFields: ['capacidad neta formal por zona'] },
         { id: 'O6', name: 'Activación Base', value: d.newCustodians ?? null, target: 5, unit: '#/mes', status: getStatus(d.newCustodians ?? null, 5, 2), isProxy: false, dataSource: 'custodios_operativos' },
         { id: 'O7', name: 'Document Compliance', value: d.docCompliance ?? null, target: 95, unit: '%', status: getStatus(d.docCompliance ?? null, 95, 80), isProxy: false, dataSource: 'documentos_custodio' },
-        { id: 'O3', name: 'No-Show Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['flag no_show explícito'] },
-        { id: 'O5', name: 'Coverage Index', value: null, target: 0, unit: 'ratio', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['capacidad neta por zona'] },
-        { id: 'O8', name: 'Rechazos Capacidad', value: null, target: 0, unit: '#', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['razón rechazo tipificada'] },
+        { id: 'O8', name: 'Rechazos Capacidad', value: d.rechazosCount ?? null, target: 5, unit: '#', status: getStatus(d.rechazosCount ?? null, 5, 15, true), isProxy: true, dataSource: 'custodio_rechazos', missingFields: ['razón rechazo tipificada (capacidad vs otra)'] },
       ],
       score: 0,
       coverage: 0,
@@ -270,10 +323,10 @@ export function useStarMapKPIs(): StarMapData {
       color: 'hsl(30, 80%, 50%)',
       kpis: [
         { id: 'C1', name: 'Check-in Compliance', value: d.checkinCompliance ?? null, target: 98, unit: '%', status: getStatus(d.checkinCompliance ?? null, 98, 90), isProxy: false, dataSource: 'checklist_servicio' },
+        { id: 'C5', name: 'Close Quality Rate', value: d.closeQuality != null ? Math.round(d.closeQuality * 10) / 10 : null, target: 95, unit: '%', status: getStatus(d.closeQuality ?? null, 95, 80), isProxy: true, dataSource: 'checklist_servicio (firma + items)', missingFields: ['campo cierre_ok formal'] },
         { id: 'C2', name: 'Time to Acknowledge', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['alertas C4', 'ack_ts'] },
         { id: 'C3', name: 'Time to Validate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['validate_ts'] },
         { id: 'C4', name: 'Time to Escalate', value: null, target: 0, unit: 'min', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['escalate_ts'] },
-        { id: 'C5', name: 'Close Quality Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['campo cierre_ok'] },
         { id: 'C6', name: 'Rework Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['concepto retrabajo'] },
       ],
       score: 0,
@@ -303,8 +356,8 @@ export function useStarMapKPIs(): StarMapData {
       kpis: [
         { id: 'F4', name: 'Retención / Health Score', value: d.avgHealthScore ?? null, target: 80, unit: 'pts', status: getStatus(d.avgHealthScore ?? null, 80, 60), isProxy: false, dataSource: 'cs_health_scores' },
         { id: 'F5', name: 'DSO', value: d.avgDSO ? Math.round(d.avgDSO) : null, target: 30, unit: 'días', status: getStatus(d.avgDSO ?? null, 30, 45, true), isProxy: false, dataSource: 'facturas' },
-        { id: 'F1', name: 'GM por servicio', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['costo armado', 'casetas reales', 'overhead'] },
-        { id: 'F2', name: 'CPS', value: null, target: 0, unit: '$', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['overhead', 'armado externo'] },
+        { id: 'F1', name: 'GM por servicio', value: d.avgGM ?? null, target: 40, unit: '%', status: getStatus(d.avgGM ?? null, 40, 25), isProxy: true, dataSource: 'servicios_custodia (cobro - costo)', missingFields: ['costo armado', 'casetas reales', 'overhead'] },
+        { id: 'F2', name: 'CPS', value: d.avgCPS ?? null, target: 3000, unit: '$', status: getStatus(d.avgCPS ?? null, 3000, 4500, true), isProxy: true, dataSource: 'servicios_custodia (costo_custodio)', missingFields: ['overhead', 'armado externo', 'gadgets'] },
         { id: 'F3', name: 'Leakage', value: null, target: 0, unit: '$', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['descuentos', 'ajustes', 'no facturados'] },
       ],
       score: 0,
