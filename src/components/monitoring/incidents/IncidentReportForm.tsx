@@ -158,6 +158,25 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     };
   }, [persistence]);
 
+  // Auto-search service when draft is restored with a saved id_servicio_input
+  const hasAutoSearched = useRef(false);
+  useEffect(() => {
+    if (hasAutoSearched.current) return;
+    const savedInput = form.getValues('id_servicio_input');
+    if (savedInput && savedInput.trim() && !servicio && !isSearching) {
+      hasAutoSearched.current = true;
+      buscarServicio(savedInput).then(result => {
+        if (result) {
+          form.setValue('id_servicio_texto', result.id_servicio, { shouldDirty: false });
+          form.setValue('cliente_nombre', result.nombre_cliente || '', { shouldDirty: false });
+          if (result.origen) {
+            form.setValue('zona', result.origen, { shouldDirty: false });
+          }
+        }
+      });
+    }
+  }, [form, servicio, isSearching, buscarServicio]);
+
   // Bloque 1: Auto-fill from service
   const handleSearchServicio = async () => {
     const result = await buscarServicio(idServicioInput);
