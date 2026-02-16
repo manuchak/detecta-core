@@ -42,7 +42,7 @@ const editServiceSchema = z.object({
       'No se permiten caracteres de inyección (<, >, \', ", `, \\, ;, =) ni espacios'
     ),
   id_interno_cliente: z.string()
-    .max(50, 'La referencia no puede exceder 50 caracteres')
+    .max(200, 'La referencia no puede exceder 200 caracteres')
     .optional()
     .nullable(),
   nombre_cliente: z.string()
@@ -356,8 +356,35 @@ export function EditServiceForm({
     if (!service || !hasChanges) return;
 
     try {
-      // Validar todos los campos antes de guardar
-      const validationResult = editServiceSchema.safeParse(formData);
+      // ========================================================================
+      // Build changedFields FIRST, then validate only those fields
+      // This prevents untouched fields (e.g. long id_interno_cliente) from
+      // blocking saves when the planner only changed the time.
+      // ========================================================================
+      const changedFields: Partial<EditableService> = {};
+      
+      (Object.keys(formData) as Array<keyof EditableService>).forEach(key => {
+        const formValue = formData[key];
+        const serviceValue = service[key];
+        
+        const normalizedFormValue = formValue === '' ? null : formValue;
+        const normalizedServiceValue = serviceValue === '' ? null : serviceValue;
+        
+        if (normalizedFormValue !== normalizedServiceValue) {
+          // @ts-ignore - dynamic assignment
+          changedFields[key] = formValue;
+        }
+      });
+
+      // Only save if there are actual changes
+      if (Object.keys(changedFields).length === 0) {
+        toast.info('No hay cambios que guardar');
+        return;
+      }
+
+      // Validate ONLY the changed fields using a partial schema
+      const partialSchema = editServiceSchema.partial();
+      const validationResult = partialSchema.safeParse(changedFields);
       
       if (!validationResult.success) {
         const errors: Record<string, string> = {};
@@ -367,7 +394,6 @@ export function EditServiceForm({
         });
         setValidationErrors(errors);
         
-        // Toast detallado con lista de campos con error
         const errorFieldNames = Object.keys(errors).map(f => fieldLabels[f] || f);
         toast.error(
           <div className="space-y-1">
@@ -381,7 +407,6 @@ export function EditServiceForm({
           { duration: 5000 }
         );
         
-        // Scroll al primer campo con error
         const firstErrorField = Object.keys(errors)[0];
         if (firstErrorField) {
           const element = document.getElementById(firstErrorField);
@@ -394,40 +419,8 @@ export function EditServiceForm({
         return;
       }
       
-      // Validar ID único si cambió
-      if (formData.id_servicio && formData.id_servicio !== service.id_servicio) {
-        const isValid = await validateServiceId(formData.id_servicio);
-        if (!isValid) return;
-      }
-      
-      // ========================================================================
-      // FIX: Only send fields that actually changed to prevent timezone drift
-      // This prevents fecha_hora_cita from being modified when only editing
-      // other fields like id_interno_cliente (Referencia Cliente)
-      // ========================================================================
-      const changedFields: Partial<EditableService> = {};
-      
-      (Object.keys(formData) as Array<keyof EditableService>).forEach(key => {
-        const formValue = formData[key];
-        const serviceValue = service[key];
-        
-        // Compare values - handle empty strings vs undefined/null
-        const normalizedFormValue = formValue === '' ? null : formValue;
-        const normalizedServiceValue = serviceValue === '' ? null : serviceValue;
-        
-        if (normalizedFormValue !== normalizedServiceValue) {
-          // @ts-ignore - dynamic assignment
-          changedFields[key] = formValue;
-        }
-      });
       
       console.log('[EditServiceForm] Saving only changed fields:', Object.keys(changedFields));
-      
-      // Only save if there are actual changes
-      if (Object.keys(changedFields).length === 0) {
-        toast.info('No hay cambios que guardar');
-        return;
-      }
       
       await onSave(service.id, changedFields);
       
@@ -643,7 +636,7 @@ export function EditServiceForm({
                 value={formData.id_interno_cliente || ''}
                 onChange={(e) => handleInputChange('id_interno_cliente', e.target.value)}
                 placeholder="ID interno del cliente para facturación"
-                maxLength={50}
+                maxLength={200}
               />
               <p className="text-xs text-muted-foreground">
                 Referencia proporcionada por el cliente para efectos de facturación
