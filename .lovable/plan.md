@@ -1,111 +1,65 @@
 
-# Plan: Voice of the Customer (VoC) con Nube de Palabras
 
-## Que se va a construir
+# Fix: Daniel Medina no ve servicios en el portal de custodio
 
-Un panel de inteligencia VoC integrado en la pestana Panorama que usa IA (Lovable AI Gateway con Gemini 3 Flash) para analizar textos de quejas, touchpoints, CSAT y NPS, y presentar 6 widgets ejecutivos:
+## Causa Raiz Identificada
 
-1. **Resumen Ejecutivo IA** - Parrafo narrativo de como perciben los clientes a la empresa
-2. **Temperatura del Sentimiento** - Gauge semicircular SVG (0-100) con zonas frio/tibio/calido
-3. **Temas Detectados** - Burbujas interactivas por tema, tamano = frecuencia, color = sentimiento
-4. **Nube de Palabras** - Visualizacion de las palabras mas frecuentes en resumenes de touchpoints, descripciones de quejas y comentarios CSAT/NPS, con tamano proporcional a frecuencia y color por sentimiento
-5. **Verbatims Recientes** - Citas textuales de clientes con badge de fuente y sentimiento
-6. **Recomendaciones de Accion** - 3-5 acciones priorizadas generadas por IA
+Se encontraron **2 bugs** que en conjunto causan que los custodios no vean sus servicios:
 
-## Arquitectura
+### Bug 1: RLS de `servicios_custodia` no normaliza telefono correctamente
+
+La policy `servicios_custodia_select_custodio_own` compara el telefono del custodio asi:
 
 ```text
-Frontend (CSVoiceOfCustomer)
-    |
-    v
-Hook (useCSVoC) --invoke--> Edge Function (cs-voc-analysis)
-                                  |
-                                  |- Query: cs_quejas.descripcion, causa_raiz
-                                  |- Query: cs_touchpoints.resumen
-                                  |- Query: cs_csat_surveys.comentario
-                                  |- Query: cs_nps_campaigns.comentario
-                                  |
-                                  v
-                             Lovable AI Gateway (gemini-3-flash-preview)
-                                  |
-                                  v
-                             Tool calling -> JSON estructurado
-                             (sentiment, themes, word_cloud, verbatims, recommendations)
+telefono = replace(replace(profiles.phone, ' ', ''), '-', '')
 ```
 
-## Archivos a crear
+Para Daniel, `profiles.phone` = `+52 558 068 0854`. Despues de quitar espacios y guiones queda `+525580680854` (12 caracteres). Pero en `servicios_custodia`, el telefono almacenado es `5580680854` (10 digitos). **No coinciden** porque la policy no quita el codigo de pais `+52`.
 
-| Archivo | Descripcion |
-|---------|-------------|
-| `supabase/functions/cs-voc-analysis/index.ts` | Edge function que recopila textos de 4 tablas, envia a Lovable AI con tool calling, retorna analisis estructurado incluyendo nube de palabras |
-| `src/hooks/useCSVoC.ts` | Hook React Query que invoca la edge function con staleTime de 30 min y boton de regenerar |
-| `src/pages/CustomerSuccess/components/CSVoiceOfCustomer.tsx` | Componente principal con los 6 widgets (resumen, gauge, temas, nube de palabras, verbatims, recomendaciones) |
+Esto bloquea a cualquier custodio cuyo telefono en profiles incluya codigo de pais de ver sus servicios legacy.
 
-## Archivo a modificar
+### Bug 2: Query invalida en `useCustodianServices`
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/pages/CustomerSuccess/components/CSPanorama.tsx` | Agregar CSVoiceOfCustomer debajo del grid de Funnel + Alertas |
-| `supabase/config.toml` | Agregar entrada para `cs-voc-analysis` con `verify_jwt = false` |
+El hook `useCustodianServices.ts` solicita las columnas `km_recorridos` y `cobro_cliente` de la tabla `servicios_planificados`, pero **esas columnas no existen** en esa tabla (solo existen en `servicios_custodia`). Esto causa un error HTTP 400 silencioso que impide cargar servicios planificados en el dashboard.
 
-## Detalle de la Nube de Palabras
+## Datos de Daniel Garcia Medina
 
-La nube de palabras se genera en el backend como parte del analisis de IA. El modelo recibe los textos y extrae las 20-30 palabras mas relevantes (excluyendo stopwords en espanol) con su frecuencia y sentimiento asociado. El frontend renderiza cada palabra con:
+| Dato | Valor |
+|------|-------|
+| Telefono en profiles | `+52 558 068 0854` |
+| Telefono en servicios | `5580680854` |
+| Servicios este mes (legacy) | 4 (todos "Finalizado") |
+| Servicio hoy (planificados) | YOCOYTM-274 con hora_inicio_real ya registrada |
+| Rol | custodio |
 
-- **Tamano de fuente** proporcional a la frecuencia (rango de 12px a 48px)
-- **Color** segun sentimiento: verde (positivo), rojo (negativo), gris (neutro)
-- **Layout** tipo nube con posicionamiento CSS (flexbox wrap con rotaciones aleatorias sutiles)
-- **Interactividad**: Hover muestra tooltip con frecuencia y contexto de ejemplo
+## Plan de Correccion
+
+### Fix 1: Corregir RLS policy de `servicios_custodia`
+
+Crear una migracion SQL que actualice la policy para usar los ultimos 10 digitos del telefono (misma logica que `normalizePhone` en el frontend):
 
 ```text
-+------------------------------------------+
-|           Nube de Palabras               |
-|                                          |
-|     retraso    GPS        protocolo      |
-|        custodia    puntualidad           |
-|   servicio   atencion     ruta           |
-|      vehiculo    consigna   horario      |
-|          respuesta    guardia            |
-+------------------------------------------+
+Antes:  replace(replace(profiles.phone, ' ', ''), '-', '')
+Despues: RIGHT(regexp_replace(profiles.phone, '[^0-9]', '', 'g'), 10)
 ```
 
-## Detalle del Tool Calling (AI)
+Esto quita TODOS los caracteres no numericos y toma los ultimos 10 digitos, coincidiendo exactamente con el formato almacenado en `servicios_custodia`.
 
-El prompt usa tool calling para obtener JSON estructurado sin ambiguedad:
+Archivo: Nueva migracion SQL
 
-```text
-Tool: analyze_customer_voice
-Parameters:
-  sentiment_score: number (0-100)
-  executive_summary: string
-  themes: array of {name, count, sentiment, keywords}
-  word_cloud: array of {word, frequency, sentiment}  <-- NUEVO
-  verbatims: array of {text, source, sentiment, cliente}
-  recommendations: array of {action, priority, context}
-```
+### Fix 2: Corregir query en `useCustodianServices.ts`
 
-## Layout Responsivo
+Eliminar las columnas `km_recorridos` y `cobro_cliente` del select de `servicios_planificados`, ya que no existen en esa tabla. Solo `comentarios_adicionales` existe y puede mantenerse.
 
-```text
-Desktop (lg+):
-+---------------------------+-------------+
-| Resumen Ejecutivo IA      | Temperatura |
-+---------------------------+-------------+
-| Temas (Bubbles)    | Nube de Palabras   |
-+------------------------------------------+
-| Verbatims Recientes  | Recomendaciones   |
-+------------------------------------------+
+Archivo: `src/hooks/useCustodianServices.ts` (lineas 103-105)
 
-Mobile: Stack vertical
-```
+## Impacto
 
-## Estado Vacio
+- Estos fixes afectan a **todos** los custodios que tengan codigo de pais en su telefono de profiles
+- No requiere cambios en la logica de `useNextService` ya que ese hook consulta `servicios_planificados` (que tiene RLS abierta) correctamente
+- Los stats del mes (Servicios, Km, Ingresos) empezaran a mostrar datos correctos de ambas tablas
 
-Si hay menos de 2 registros con texto en todas las fuentes combinadas, se muestra un card elegante invitando a registrar quejas, encuestas o touchpoints para activar el analisis VoC.
+## Secuencia
 
-## Secuencia de implementacion
-
-1. Crear edge function `cs-voc-analysis` + entrada en config.toml
-2. Crear hook `useCSVoC.ts`
-3. Crear componente `CSVoiceOfCustomer.tsx` con los 6 widgets
-4. Integrar en `CSPanorama.tsx`
+1. Aplicar migracion SQL (fix RLS)
+2. Corregir hook `useCustodianServices.ts` (fix query)
