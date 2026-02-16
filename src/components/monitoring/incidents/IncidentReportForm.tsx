@@ -404,12 +404,12 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                   <Label className="text-xs">Tipo *</Label>
                   <Select value={watchedValues.tipo} onValueChange={v => form.setValue('tipo', v, { shouldDirty: true })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent className="max-w-[340px]">
+                    <SelectContent className="w-[420px]">
                       {TIPOS_INCIDENTE.map(t => (
-                        <SelectItem key={t.value} value={t.value} className="py-2">
-                          <div>
+                        <SelectItem key={t.value} value={t.value} className="py-2.5 whitespace-normal">
+                          <div className="max-w-[370px]">
                             <span className="text-xs font-medium">{t.label}</span>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{t.descripcion.slice(0, 80)}…</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{t.descripcion}</p>
                           </div>
                         </SelectItem>
                       ))}
@@ -432,12 +432,12 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                   <Label className="text-xs">Severidad *</Label>
                   <Select value={watchedValues.severidad} onValueChange={v => form.setValue('severidad', v, { shouldDirty: true })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent className="max-w-[340px]">
+                    <SelectContent className="w-[420px]">
                       {SEVERIDADES.map(s => (
-                        <SelectItem key={s.value} value={s.value} className="py-2">
-                          <div>
+                        <SelectItem key={s.value} value={s.value} className="py-2.5 whitespace-normal">
+                          <div className="max-w-[370px]">
                             <span className="text-xs font-medium">{s.label}</span>
-                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.descripcion.slice(0, 80)}…</p>
+                            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{s.descripcion}</p>
                           </div>
                         </SelectItem>
                       ))}
