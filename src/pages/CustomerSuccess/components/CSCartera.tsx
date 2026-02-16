@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCSCartera, useDeactivateCliente, useReactivateCliente, type CarteraSegment, type CarteraCliente } from '@/hooks/useCSCartera';
 import { useCreateCSTouchpoint } from '@/hooks/useCSTouchpoints';
+import { useAssignCSM, useBulkAssignCSM, useCSMOptions } from '@/hooks/useAssignCSM';
 import { CSClienteProfileModal } from './CSClienteProfileModal';
-import { UserMinus, UserPlus, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MessageSquarePlus, Users } from 'lucide-react';
+import { UserMinus, UserPlus, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MessageSquarePlus, Users, UserCog } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -74,6 +75,14 @@ export function CSCartera() {
   const [tpFechaSiguiente, setTpFechaSiguiente] = useState('');
   const [tpDuracion, setTpDuracion] = useState('');
   const createTouchpoint = useCreateCSTouchpoint();
+  const assignCSM = useAssignCSM();
+  const bulkAssignCSM = useBulkAssignCSM();
+  const { data: csmOptions } = useCSMOptions();
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCsmModal, setBulkCsmModal] = useState(false);
+  const [bulkCsmId, setBulkCsmId] = useState('');
 
   const { data: cartera, isLoading } = useCSCartera();
   const deactivate = useDeactivateCliente();
@@ -179,6 +188,21 @@ export function CSCartera() {
     });
   };
 
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAssign = () => {
+    if (!bulkCsmId || selectedIds.size === 0) return;
+    bulkAssignCSM.mutate({ clienteIds: Array.from(selectedIds), csmId: bulkCsmId }, {
+      onSuccess: () => { setBulkCsmModal(false); setBulkCsmId(''); setSelectedIds(new Set()); },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4 mt-4">
@@ -192,7 +216,7 @@ export function CSCartera() {
 
   return (
     <div className="space-y-4 mt-4">
-      {/* Top bar: search + CSM toggle */}
+      {/* Top bar: search + CSM toggle + bulk assign */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -212,6 +236,17 @@ export function CSCartera() {
           <Users className="h-4 w-4" />
           {miCartera ? 'Mi Cartera' : 'Todos'}
         </Button>
+        {selectedIds.size > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setBulkCsmModal(true)}
+            className="gap-1.5"
+          >
+            <UserCog className="h-4 w-4" />
+            Asignar CSM ({selectedIds.size})
+          </Button>
+        )}
       </div>
 
       {/* Segment Filters */}
@@ -250,6 +285,17 @@ export function CSCartera() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8">
+                    <input
+                      type="checkbox"
+                      className="rounded border-border"
+                      checked={selectedIds.size > 0 && processed.items.every(c => selectedIds.has(c.id))}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedIds(new Set(processed.items.map(c => c.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                  </TableHead>
                   <TableHead className="w-8"></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('nombre')}>
                     <div className="flex items-center">Cliente<SortIcon col="nombre" /></div>
@@ -279,7 +325,7 @@ export function CSCartera() {
               <TableBody>
                 {processed.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
                       No hay clientes en este segmento
                     </TableCell>
                   </TableRow>
@@ -290,6 +336,14 @@ export function CSCartera() {
                       className="cursor-pointer hover:bg-accent/30"
                       onClick={() => setSelectedClienteId(c.id)}
                     >
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-border"
+                          checked={selectedIds.has(c.id)}
+                          onChange={() => toggleSelection(c.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className={`h-3 w-3 rounded-full ${DOT[c.salud]}`} title={`Salud: ${c.salud}`} />
                       </TableCell>
@@ -301,8 +355,21 @@ export function CSCartera() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.csm_nombre || <span className="italic text-muted-foreground/50">Sin asignar</span>}
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <Select
+                          value={c.csm_asignado || '__none'}
+                          onValueChange={val => assignCSM.mutate({ clienteId: c.id, csmId: val === '__none' ? null : val })}
+                        >
+                          <SelectTrigger className={`h-7 text-xs w-[140px] ${!c.csm_asignado ? 'border-amber-300 dark:border-amber-700' : ''}`}>
+                            <SelectValue placeholder="Sin asignar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">Sin asignar</SelectItem>
+                            {csmOptions?.map(o => (
+                              <SelectItem key={o.id} value={o.id}>{o.display_name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell className="text-center text-sm">
                         {c.ultimo_servicio
@@ -502,6 +569,30 @@ export function CSCartera() {
             <Button variant="outline" onClick={() => setReactivarModal(null)}>Cancelar</Button>
             <Button onClick={handleReactivar} disabled={reactivate.isPending}>
               {reactivate.isPending ? 'Procesando...' : 'Confirmar Reactivación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk CSM Assignment Modal */}
+      <Dialog open={bulkCsmModal} onOpenChange={open => { if (!open) { setBulkCsmModal(false); setBulkCsmId(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar CSM a {selectedIds.size} clientes</DialogTitle>
+            <DialogDescription>Selecciona el CSM que se asignará a los clientes seleccionados.</DialogDescription>
+          </DialogHeader>
+          <Select value={bulkCsmId} onValueChange={setBulkCsmId}>
+            <SelectTrigger><SelectValue placeholder="Seleccionar CSM..." /></SelectTrigger>
+            <SelectContent>
+              {csmOptions?.map(o => (
+                <SelectItem key={o.id} value={o.id}>{o.display_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkCsmModal(false); setBulkCsmId(''); }}>Cancelar</Button>
+            <Button onClick={handleBulkAssign} disabled={!bulkCsmId || bulkAssignCSM.isPending}>
+              {bulkAssignCSM.isPending ? 'Asignando...' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

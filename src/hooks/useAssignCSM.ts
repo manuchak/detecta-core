@@ -34,3 +34,21 @@ export function useAssignCSM() {
     onError: (e: any) => toast.error(`Error: ${e.message}`),
   });
 }
+
+export function useBulkAssignCSM() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ clienteIds, csmId }: { clienteIds: string[]; csmId: string }) => {
+      const { error } = await supabase
+        .from('pc_clientes')
+        .update({ csm_asignado: csmId } as any)
+        .in('id', clienteIds);
+      if (error) throw error;
+    },
+    onSuccess: (_, { clienteIds }) => {
+      toast.success(`CSM asignado a ${clienteIds.length} clientes`);
+      qc.invalidateQueries({ queryKey: ['cs-cartera'] });
+    },
+    onError: (e: any) => toast.error(`Error: ${e.message}`),
+  });
+}

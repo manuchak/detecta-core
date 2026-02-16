@@ -3719,6 +3719,7 @@ export type Database = {
           created_by: string | null
           direccion: string
           duracion_minutos: number | null
+          estado: string
           fecha_siguiente_accion: string | null
           id: string
           queja_id: string | null
@@ -3733,6 +3734,7 @@ export type Database = {
           created_by?: string | null
           direccion?: string
           duracion_minutos?: number | null
+          estado?: string
           fecha_siguiente_accion?: string | null
           id?: string
           queja_id?: string | null
@@ -3747,6 +3749,7 @@ export type Database = {
           created_by?: string | null
           direccion?: string
           duracion_minutos?: number | null
+          estado?: string
           fecha_siguiente_accion?: string | null
           id?: string
           queja_id?: string | null
