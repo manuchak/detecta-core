@@ -23,6 +23,7 @@ import { LocationPicker } from './LocationPicker';
 import { IncidentClassificationGuide } from './IncidentClassificationGuide';
 import { exportIncidentePDF } from './IncidentPDFExporter';
 import { useServicioLookup } from '@/hooks/useServicioLookup';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   TIPOS_INCIDENTE, SEVERIDADES, CONTROLES,
   useCreateIncidente, useUpdateIncidente, useAddCronologiaEntry, useDeleteCronologiaEntry, useIncidenteCronologia,
@@ -131,6 +132,7 @@ const defaultFormData: ExtendedFormData = {
 export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incidente, onBack }) => {
   const isEditing = !!incidente;
   const persistKey = isEditing ? `incident-report-${incidente.id}` : 'incident-report-new';
+  const { userRole } = useAuth();
   const timelineKey = `${persistKey}_timeline`;
 
   // Correccion 3: exit confirmation state
@@ -540,7 +542,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             <Send className="h-3 w-3" />
             Registrar
           </Button>
-          {isEditing && incidente.estado !== 'cerrado' && (
+          {isEditing && incidente.estado !== 'cerrado' && ['admin', 'owner', 'coordinador_operaciones'].includes(userRole || '') && (
             <Button variant="destructive" size="sm" onClick={handleClose} disabled={isPending} className="h-8 text-xs">
               Cerrar incidente
             </Button>

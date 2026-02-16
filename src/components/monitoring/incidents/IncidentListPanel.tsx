@@ -3,11 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Shield, AlertTriangle, FileText, Loader2 } from 'lucide-react';
+import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'sonner';
 import {
-  useIncidentesList, useIncidenteResumen,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  useIncidentesList, useIncidenteResumen, useUpdateIncidente,
   TIPOS_INCIDENTE, SEVERIDADES,
   type IncidenteOperativo, type EstadoIncidente, type SeveridadIncidente, type FiltrosIncidentes,
 } from '@/hooks/useIncidentesOperativos';
@@ -23,13 +29,20 @@ const ESTADOS_BADGE: Record<string, string> = {
   cerrado: 'bg-muted text-muted-foreground',
 };
 
+const ROLES_CERRAR_INCIDENTE = ['admin', 'owner', 'coordinador_operaciones'];
+
 export const IncidentListPanel: React.FC = () => {
   const [filtros, setFiltros] = useState<FiltrosIncidentes>({});
   const [view, setView] = useState<'list' | 'form'>('list');
   const [selectedIncident, setSelectedIncident] = useState<IncidenteOperativo | null>(null);
+  const [closingIncidentId, setClosingIncidentId] = useState<string | null>(null);
+
+  const { userRole } = useAuth();
+  const canClose = ROLES_CERRAR_INCIDENTE.includes(userRole || '');
 
   const { data: incidentes = [], isLoading } = useIncidentesList(filtros);
   const { data: resumen } = useIncidenteResumen();
+  const updateMutation = useUpdateIncidente();
 
   const handleNew = () => {
     setSelectedIncident(null);
@@ -44,6 +57,22 @@ export const IncidentListPanel: React.FC = () => {
   const handleBack = () => {
     setView('list');
     setSelectedIncident(null);
+  };
+
+  const handleConfirmClose = async () => {
+    if (!closingIncidentId) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: closingIncidentId,
+        estado: 'cerrado',
+        fecha_resolucion: new Date().toISOString(),
+      } as any);
+      toast.success('Incidente cerrado');
+    } catch (err: any) {
+      toast.error(err.message || 'Error al cerrar incidente');
+    } finally {
+      setClosingIncidentId(null);
+    }
   };
 
   if (view === 'form') {
@@ -150,6 +179,16 @@ export const IncidentListPanel: React.FC = () => {
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {format(new Date(inc.fecha_incidente), 'dd/MM/yy', { locale: es })}
                       </span>
+                      {canClose && inc.estado !== 'cerrado' && (
+                        <button
+                          type="button"
+                          title="Cerrar incidente"
+                          onClick={(e) => { e.stopPropagation(); setClosingIncidentId(inc.id); }}
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </button>
                 );
@@ -158,6 +197,25 @@ export const IncidentListPanel: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* AlertDialog para confirmar cierre */}
+      <AlertDialog open={!!closingIncidentId} onOpenChange={(open) => { if (!open) setClosingIncidentId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cierre de incidente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción cambiará el estado a cerrado y registrará la fecha de resolución. No se puede revertir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Cerrar incidente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
