@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCSVoC, VoCTheme, VoCWordCloud, VoCVerbatim, VoCRecommendation } from '@/hooks/useCSVoC';
-import { RefreshCw, Brain, Thermometer, MessageCircle, Lightbulb, CloudFog, Sparkles, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Brain, Thermometer, MessageCircle, Lightbulb, CloudFog, Sparkles, AlertTriangle, TrendingDown, TrendingUp, Minus } from 'lucide-react';
 import { useMemo } from 'react';
 
 // ──────── Sentiment Gauge (SVG semicircle) ────────
@@ -60,43 +61,82 @@ function SentimentGauge({ score }: { score: number }) {
   );
 }
 
-// ──────── Theme Bubbles ────────
-function ThemeBubbles({ themes }: { themes: VoCTheme[] }) {
-  const maxCount = Math.max(...themes.map(t => t.count), 1);
+// ──────── Theme Cards ────────
+function ThemeCards({ themes }: { themes: VoCTheme[] }) {
+  const sorted = useMemo(() => [...themes].sort((a, b) => b.count - a.count), [themes]);
+  const maxCount = Math.max(...sorted.map(t => t.count), 1);
 
-  const sentimentColor = (s: string) =>
-    s === 'positivo' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700' :
-    s === 'negativo' ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700' :
-    'bg-muted text-muted-foreground border-border';
+  const sentimentConfig = (s: string) => {
+    if (s === 'negativo') return {
+      border: 'border-l-red-500 dark:border-l-red-400',
+      progressClass: '[&>div]:bg-red-500 dark:[&>div]:bg-red-400',
+      icon: TrendingDown,
+      badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+      label: 'Negativo',
+    };
+    if (s === 'positivo') return {
+      border: 'border-l-green-500 dark:border-l-green-400',
+      progressClass: '[&>div]:bg-green-500 dark:[&>div]:bg-green-400',
+      icon: TrendingUp,
+      badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+      label: 'Positivo',
+    };
+    return {
+      border: 'border-l-muted-foreground/40',
+      progressClass: '[&>div]:bg-muted-foreground/60',
+      icon: Minus,
+      badge: 'bg-muted text-muted-foreground',
+      label: 'Neutro',
+    };
+  };
 
   return (
-    <div className="flex flex-wrap gap-2 justify-center">
-      {themes.map((theme) => {
-        const scale = 0.7 + (theme.count / maxCount) * 0.6;
-        return (
-          <TooltipProvider key={theme.name}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 cursor-default transition-transform hover:scale-105 ${sentimentColor(theme.sentiment)}`}
-                  style={{ transform: `scale(${scale})` }}
-                >
-                  <span className="font-medium text-sm">{theme.name}</span>
-                  <span className="text-xs opacity-70">({theme.count})</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="font-medium">{theme.name}</p>
-                <p className="text-xs">Menciones: {theme.count} · Sentimiento: {theme.sentiment}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Keywords: {theme.keywords.join(', ')}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      })}
-    </div>
+    <ScrollArea className="h-[280px] pr-2">
+      <div className="space-y-2.5">
+        {sorted.map((theme) => {
+          const cfg = sentimentConfig(theme.sentiment);
+          const SentimentIcon = cfg.icon;
+          const pct = (theme.count / maxCount) * 100;
+
+          return (
+            <div
+              key={theme.name}
+              className={`border rounded-lg border-l-[3px] p-3 space-y-2 ${cfg.border}`}
+            >
+              {/* Progress bar + count */}
+              <div className="flex items-center gap-2">
+                <Progress
+                  value={pct}
+                  className={`h-2 flex-1 ${cfg.progressClass}`}
+                />
+                <span className="text-[11px] text-muted-foreground whitespace-nowrap font-medium">
+                  {theme.count} {theme.count === 1 ? 'mención' : 'menciones'}
+                </span>
+              </div>
+
+              {/* Theme name */}
+              <p className="text-sm font-semibold leading-snug">{theme.name}</p>
+
+              {/* Keywords + sentiment badge */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {theme.keywords.slice(0, 5).map((kw) => (
+                  <span
+                    key={kw}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium"
+                  >
+                    #{kw}
+                  </span>
+                ))}
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1 ml-auto ${cfg.badge}`}>
+                  <SentimentIcon className="h-3 w-3" />
+                  {cfg.label}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ScrollArea>
   );
 }
 
@@ -338,7 +378,7 @@ export function CSVoiceOfCustomer() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ThemeBubbles themes={data.themes} />
+            <ThemeCards themes={data.themes} />
           </CardContent>
         </Card>
 
