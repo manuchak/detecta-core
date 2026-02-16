@@ -8,6 +8,7 @@ import { useOverdueTouchpoints } from '@/hooks/useCSTouchpoints';
 import { CSLoyaltyFunnel } from './CSLoyaltyFunnel';
 import { CSAlertsFeed } from './CSAlertsFeed';
 import { CSClienteProfileModal } from './CSClienteProfileModal';
+import { CSVoiceOfCustomer } from './CSVoiceOfCustomer';
 import { Users, AlertTriangle, MessageSquare, ShieldAlert, ArrowRight, Clock, Camera, CalendarClock } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -205,6 +206,9 @@ export function CSPanorama() {
         <CSLoyaltyFunnel />
         <CSAlertsFeed onClienteClick={id => { setProfileDefaultTab('touchpoints'); setSelectedClienteId(id); }} />
       </div>
+
+      {/* Voice of the Customer - AI Analysis */}
+      <CSVoiceOfCustomer />
 
       <CSClienteProfileModal
         clienteId={selectedClienteId}

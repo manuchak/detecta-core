@@ -155,3 +155,6 @@ verify_jwt = false
 
 [functions.cs-health-snapshot]
 verify_jwt = false
+
+[functions.cs-voc-analysis]
+verify_jwt = false
