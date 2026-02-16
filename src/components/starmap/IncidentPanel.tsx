@@ -127,8 +127,8 @@ export const IncidentPanel: React.FC = () => {
           </CardTitle>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
-                <Plus className="h-3 w-3" /> Reportar
+              <Button size="sm" className="h-7 text-xs gap-1">
+                <Plus className="h-3 w-3" /> Reportar Incidente
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -239,10 +239,15 @@ export const IncidentPanel: React.FC = () => {
         {isLoading ? (
           <p className="text-xs text-muted-foreground text-center py-4">Cargando...</p>
         ) : incidents.length === 0 ? (
-          <div className="text-center py-8">
-            <Shield className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Sin incidentes registrados</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Reporta incidentes para alimentar los KPIs R1-R4</p>
+          <div className="text-center py-8 space-y-3">
+            <Shield className="h-10 w-10 text-muted-foreground/20 mx-auto" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Sin incidentes registrados</p>
+              <p className="text-xs text-muted-foreground mt-1">Registra el primer incidente para activar los KPIs R1–R4</p>
+            </div>
+            <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600 bg-amber-500/5">
+              Pilar Riesgo: 0% datos
+            </Badge>
           </div>
         ) : (
           <div className="space-y-1.5 max-h-[280px] overflow-y-auto">
