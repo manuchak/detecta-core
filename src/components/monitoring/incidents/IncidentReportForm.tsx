@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info } from 'lucide-react';
+import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
@@ -539,9 +540,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
         onDiscard={persistence.rejectRestore}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left: Form fields */}
-        <div className="lg:col-span-2 space-y-4">
+      <div className={`grid gap-4 ${isEditing ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 max-w-4xl'}`}>
+        {/* Main column */}
+        <div className={`${isEditing ? 'lg:col-span-2' : ''} space-y-4`}>
           {/* Bloque 1: Vincular servicio */}
           <Card>
             <CardHeader className="pb-3">
@@ -582,7 +583,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             <CardContent className="space-y-3">
               <IncidentClassificationGuide />
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Tipo *</Label>
                   <Select value={watchedValues.tipo} onValueChange={v => form.setValue('tipo', v, { shouldDirty: true })}>
@@ -598,18 +599,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                       ))}
                     </SelectContent>
                   </Select>
-                  {watchedValues.tipo && (() => {
-                    const selected = TIPOS_INCIDENTE.find(t => t.value === watchedValues.tipo);
-                    return selected ? (
-                      <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
-                        <p className="text-[10px] text-muted-foreground flex items-start gap-1">
-                          <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
-                          {selected.descripcion}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
-                      </div>
-                    ) : null;
-                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Severidad *</Label>
@@ -626,39 +615,54 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                       ))}
                     </SelectContent>
                   </Select>
-                  {watchedValues.severidad && (() => {
-                    const selected = SEVERIDADES.find(s => s.value === watchedValues.severidad);
-                    return selected ? (
-                      <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
-                        <p className="text-[10px] text-muted-foreground flex items-start gap-1">
-                          <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
-                          {selected.descripcion}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Ubicación / Zona</Label>
-                  <LocationPicker
-                    value={watchedValues.zona}
-                    lat={watchedValues.ubicacion_lat}
-                    lng={watchedValues.ubicacion_lng}
-                    onChange={({ zona, lat, lng }) => {
-                      form.setValue('zona', zona, { shouldDirty: true });
-                      form.setValue('ubicacion_lat', lat, { shouldDirty: true });
-                      form.setValue('ubicacion_lng', lng, { shouldDirty: true });
-                    }}
-                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cliente</Label>
                   <Input {...form.register('cliente_nombre')} placeholder="Nombre cliente" className="h-8 text-xs" />
                 </div>
+              </div>
+
+              {/* Contextual info for selected tipo/severidad */}
+              <div className="grid grid-cols-2 gap-3">
+                {watchedValues.tipo && (() => {
+                  const selected = TIPOS_INCIDENTE.find(t => t.value === watchedValues.tipo);
+                  return selected ? (
+                    <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground flex items-start gap-1">
+                        <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
+                        {selected.descripcion}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
+                    </div>
+                  ) : null;
+                })()}
+                {watchedValues.severidad && (() => {
+                  const selected = SEVERIDADES.find(s => s.value === watchedValues.severidad);
+                  return selected ? (
+                    <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground flex items-start gap-1">
+                        <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
+                        {selected.descripcion}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Location - full width */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Ubicación / Zona</Label>
+                <LocationPicker
+                  value={watchedValues.zona}
+                  lat={watchedValues.ubicacion_lat}
+                  lng={watchedValues.ubicacion_lng}
+                  onChange={({ zona, lat, lng }) => {
+                    form.setValue('zona', zona, { shouldDirty: true });
+                    form.setValue('ubicacion_lat', lat, { shouldDirty: true });
+                    form.setValue('ubicacion_lng', lng, { shouldDirty: true });
+                  }}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -668,30 +672,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             </CardContent>
           </Card>
 
-          {/* Cronología */}
-          <Card>
-            <CardContent className="pt-4">
-              <IncidentTimeline
-                entries={cronologia}
-                localEntries={localTimelineEntries}
-                onAddEntry={handleAddCronologia}
-                onDeleteEntry={handleDeleteCronologia}
-                onDeleteLocalEntry={handleDeleteLocalEntry}
-                isAdding={addCronologiaMutation.isPending}
-                readOnly={false}
-              />
-              {!isEditing && localTimelineEntries.length > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                  {localTimelineEntries.length} entrada(s) pendiente(s) — se guardarán al registrar el incidente
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right: Controls & Resolution */}
-        <div className="space-y-4">
-          {/* Controles */}
+          {/* Controles y Atribución - integrated into main flow */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Controles y Atribución</CardTitle>
@@ -703,6 +684,16 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                   onCheckedChange={v => form.setValue('atribuible_operacion', !!v, { shouldDirty: true })}
                 />
                 <Label className="text-xs">Atribuible a la operación</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-[240px]">
+                      <p className="text-xs">Marcar si el incidente fue causado o pudo prevenirse por acciones operativas internas de la empresa.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               <div className="space-y-1.5">
@@ -742,8 +733,30 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             </CardContent>
           </Card>
 
-          {/* Resolución */}
-          {isEditing && (
+          {/* Cronología */}
+          <Card>
+            <CardContent className="pt-4">
+              <IncidentTimeline
+                entries={cronologia}
+                localEntries={localTimelineEntries}
+                onAddEntry={handleAddCronologia}
+                onDeleteEntry={handleDeleteCronologia}
+                onDeleteLocalEntry={handleDeleteLocalEntry}
+                isAdding={addCronologiaMutation.isPending}
+                readOnly={false}
+              />
+              {!isEditing && localTimelineEntries.length > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                  {localTimelineEntries.length} entrada(s) pendiente(s) — se guardarán al registrar el incidente
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right column: Resolution (only when editing) */}
+        {isEditing && (
+          <div className="space-y-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Resolución</CardTitle>
@@ -760,8 +773,8 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
                 )}
               </CardContent>
             </Card>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
