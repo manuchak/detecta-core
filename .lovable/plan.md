@@ -1,74 +1,135 @@
 
 
-# Correcciones Criticas del PDF de Incidentes - Evaluacion de Diseno
+# Migracion de IncidentPDFExporter a @react-pdf/renderer
 
-## Problemas Detectados
+## Resumen
 
-### 1. BUG CRITICO: Timestamps corruptos en Cronologia
-El caracter `●` (Unicode bullet) no es soportado por la fuente Helvetica base de jsPDF. Esto causa que el timestamp se renderice como:
+Reemplazar la generacion manual con coordenadas X/Y de jsPDF por componentes React declarativos usando `@react-pdf/renderer`. Esto resuelve de raiz los problemas de encoding Unicode (acentos, bullets), permite tipografia profesional con fuentes Google (Inter), y simplifica drasticamente el mantenimiento del layout con Flexbox en lugar de posicionamiento absoluto.
+
+## Dependencia nueva
+
+- `@react-pdf/renderer` - Libreria que permite definir PDFs como componentes React con JSX y estilos CSS-like (Flexbox).
+
+## Arquitectura
+
+Se creara un directorio `src/components/monitoring/incidents/pdf/` con componentes React modulares que representan cada seccion del PDF. El archivo `IncidentPDFExporter.ts` se reescribira para usar la funcion `pdf()` de react-pdf que genera un Blob y lo descarga.
+
+### Estructura de archivos nuevos
+
+```text
+src/components/monitoring/incidents/pdf/
+  IncidentPDFDocument.tsx    -- Componente raiz <Document>
+  PDFHeader.tsx              -- Barra roja superior con logo + titulo
+  PDFExecutiveSummary.tsx    -- Caja con 5 columnas (tipo, severidad, etc)
+  PDFGeneralData.tsx         -- Seccion 1: datos generales
+  PDFLinkedService.tsx       -- Seccion 2: servicio vinculado
+  PDFTimeline.tsx            -- Seccion 3: cronologia con imagenes
+  PDFControls.tsx            -- Seccion 4: controles y atribucion
+  PDFResolution.tsx          -- Seccion 5: resolucion
+  PDFSignatures.tsx          -- Seccion 6: firmas digitales
+  PDFFooter.tsx              -- Pie de pagina con numero y fecha
+  pdfStyles.ts               -- StyleSheet compartido (colores, fuentes, espaciado)
+  fontSetup.ts               -- Registro de fuente Inter desde CDN de Google Fonts
 ```
-%Ï 1 6 / 0 2  1 4 : 3 2 [Notificación]
+
+### Archivo modificado
+
+```text
+src/components/monitoring/incidents/IncidentPDFExporter.ts
+  -- Se reescribe para usar pdf(<IncidentPDFDocument />) de @react-pdf/renderer
+  -- Mantiene la misma firma: exportIncidentePDF({ incidente, cronologia, servicio })
+  -- La pre-carga de imagenes como base64 se mantiene (react-pdf necesita base64 o URL)
+  -- El nombre del archivo generado no cambia
 ```
-En lugar de:
+
+## Detalle tecnico
+
+### 1. Registro de fuente Inter (`fontSetup.ts`)
+
+Se registrara la fuente Inter desde Google Fonts CDN para tener soporte completo de acentos, ene, y caracteres especiales. Esto elimina la necesidad de `sanitizeForPDF()`.
+
+```text
+Font.register({
+  family: 'Inter',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/inter/v18/...400.ttf' },
+    { src: 'https://fonts.gstatic.com/s/inter/v18/...700.ttf', fontWeight: 700 },
+  ]
+})
 ```
-● 16/02 14:32 [Notificacion]
+
+### 2. Estilos compartidos (`pdfStyles.ts`)
+
+Constantes de colores corporativos (rojo #EB0000, negro #191919, gris #646464) y un `StyleSheet.create()` con estilos base reutilizables: `page`, `sectionHeader`, `fieldRow`, `label`, `value`, etc.
+
+### 3. Componente raiz (`IncidentPDFDocument.tsx`)
+
+Recibe las props `{ incidente, cronologia, servicio, logoBase64, imageCache }` y compone todas las secciones en un `<Document>`. Usa `<Page size="A4" style={styles.page}>` con `wrap` habilitado para paginacion automatica. Cada seccion es un componente independiente.
+
+### 4. Header (`PDFHeader.tsx`)
+
+Barra roja con el logo (via `<Image src={logoBase64} />`) y el texto "REPORTE DE INCIDENTE OPERATIVO" en blanco. Se renderiza como `fixed` para que aparezca en cada pagina.
+
+### 5. Resumen Ejecutivo (`PDFExecutiveSummary.tsx`)
+
+Caja con fondo gris claro, 5 columnas en Flexbox (flexDirection: 'row'). Cada columna muestra label arriba y valor abajo. La severidad incluye un circulo de color usando `<View>` con `borderRadius: 50%`.
+
+### 6. Datos Generales (`PDFGeneralData.tsx`)
+
+Grid de 2 columnas con label en gris bold y valor en negro. Soporta acentos nativamente gracias a la fuente Inter. La descripcion se renderiza como parrafo con wrap automatico.
+
+### 7. Cronologia (`PDFTimeline.tsx`)
+
+Cada entrada tiene:
+- Circulo rojo (`<View>` con borderRadius) + timestamp en rojo + tipo en gris
+- Descripcion como parrafo
+- Ubicacion en italica si existe
+- Imagen de evidencia via `<Image src={base64} />` con borde gris y tamano 60x45mm equivalente en puntos
+
+La paginacion es automatica: react-pdf parte las entradas entre paginas sin cortar elementos marcados con `wrap={false}`.
+
+### 8. Controles (`PDFControls.tsx`)
+
+Lista de controles activos y flag de control efectivo.
+
+### 9. Resolucion (`PDFResolution.tsx`)
+
+Fecha de resolucion y notas. Solo se renderiza si hay datos.
+
+### 10. Firmas Digitales (`PDFSignatures.tsx`)
+
+Renderiza las imagenes base64 de firma como `<Image>` con tamano fijo, acompanadas del email y timestamp. Muestra firma de creacion y de cierre si existen.
+
+### 11. Footer (`PDFFooter.tsx`)
+
+Se renderiza como `fixed` en la parte inferior de cada pagina. Muestra "Documento confidencial", fecha de generacion, y numero de pagina usando `render={({ pageNumber, totalPages }) => ...}`.
+
+### 12. Exportador (`IncidentPDFExporter.ts`)
+
+La funcion `exportIncidentePDF` se reescribe:
+
+```text
+1. Pre-cargar logo como base64 (igual que ahora)
+2. Pre-cargar imagenes de cronologia como base64 (igual que ahora)
+3. Llamar pdf(<IncidentPDFDocument {...props} />).toBlob()
+4. Crear URL del blob y descargar con link.click()
+5. Revocar URL
 ```
-El caracter corrupto arrastra el encoding de toda la linea, generando espaciado excesivo entre cada digito. Este es el defecto visual mas grave del documento.
 
-**Solucion**: Reemplazar el caracter Unicode `●` por un circulo dibujado con `pdf.circle()` (fill) y renderizar el timestamp como texto separado despues del circulo. Esto elimina el problema de encoding de raiz.
+La firma publica `exportIncidentePDF({ incidente, cronologia, servicio })` no cambia, por lo que todos los call sites existentes siguen funcionando sin modificaciones.
 
-### 2. Pagina 2 casi vacia (desperdicio de espacio)
-La cronologia corta al final de pagina 1 y pasa a pagina 2 con solo una entrada + la seccion "Controles y Atribucion" dejando ~70% de la pagina en blanco. Esto se ve poco profesional.
+## Ventajas de la migracion
 
-**Solucion**: Ajustar el `checkPage()` para ser menos agresivo en saltos de pagina: reducir el margen de seguridad de 20mm a 15mm en la parte inferior, y permitir que secciones cortas como "Controles" se apilen mejor.
+- Soporte nativo de Unicode: acentos, ene, caracteres especiales sin sanitizacion
+- Paginacion automatica: react-pdf maneja saltos de pagina sin calculos manuales
+- Layout declarativo: Flexbox en lugar de coordenadas X/Y
+- Tipografia profesional: fuente Inter en lugar de Helvetica limitada
+- Mantenibilidad: cada seccion es un componente React independiente y testeable
+- Texto seleccionable: el PDF genera texto vectorial, no imagenes
 
-### 3. Evidencia fotografica muestra screenshots de la app
-Las imagenes adjuntas a las entradas de cronologia son screenshots del dashboard de la aplicacion, no fotos reales de evidencia. Esto es un problema de datos (las imagenes subidas son capturas de pantalla), no del PDF en si. Sin embargo, el thumbnail de 40x30mm es demasiado pequeno para evaluar evidencia.
+## Riesgos y mitigacion
 
-**Solucion**: Aumentar el tamano del thumbnail a 60x45mm y agregar un borde sutil para separarlo del texto. Tambien ajustar la relacion de aspecto calculandola dinamicamente segun la imagen real.
+- **Tamano del bundle**: `@react-pdf/renderer` agrega ~200KB. Mitigacion: se importa dinamicamente solo cuando se genera PDF.
+- **Carga de fuentes**: la fuente Inter se descarga desde CDN la primera vez. Mitigacion: se cachea en el navegador.
+- **Imagenes CORS**: se mantiene la pre-carga de imagenes como base64 (ya implementada).
 
-### 4. Tipografia y jerarquia visual mejorable
-- Los labels de campos ("Tipo:", "Severidad:") son demasiado sutiles en gris
-- No hay separacion visual clara entre subsecciones dentro de Datos Generales
-- El titulo "Reporte de Incidente Operativo" es redundante con el header
-
-**Solucion**: Eliminar el titulo redundante debajo del header. Mejorar el contraste de labels. Agregar lineas separadoras sutiles entre grupos de campos.
-
-### 5. Resumen Ejecutivo: circulo de severidad desalineado
-El circulo de color de severidad (`pdf.circle`) esta posicionado con offset fijo (`bx + boxW/2 - 10`) lo cual lo desalinea del texto en diferentes anchos de columna.
-
-**Solucion**: Posicionar el circulo justo antes del texto de severidad usando el ancho medido del texto como referencia.
-
-## Archivos a modificar
-
-### `src/components/monitoring/incidents/IncidentPDFExporter.ts`
-
-Cambios especificos:
-
-1. **Lineas ~314**: Reemplazar `pdf.text('● ${ts}', ...)` por:
-   - `pdf.setFillColor(...CORPORATE_RED)`
-   - `pdf.circle(marginLeft + 5, y - 1.2, 1.5, 'F')` (circulo rojo solido)
-   - `pdf.text(ts, marginLeft + 9, y)` (timestamp sin el bullet Unicode)
-
-2. **Linea ~87**: Cambiar `pageHeight - 20` a `pageHeight - 15` para mejor aprovechamiento de pagina
-
-3. **Lineas ~177-187**: Eliminar el bloque del titulo redundante "Reporte de Incidente Operativo" y su fecha (ya estan en header + resumen ejecutivo)
-
-4. **Lineas ~354**: Cambiar dimensiones de imagen de `40, 30` a `60, 45` y agregar borde con `pdf.setDrawColor(200,200,200); pdf.rect()`
-
-5. **Lineas ~163-166**: Corregir posicionamiento del circulo de severidad para que quede alineado con el texto
-
-6. **Agregar acentos como texto plano**: Cambiar "Notificación" por "Notificacion" y otros textos con acentos que jsPDF no renderiza bien con Helvetica base, o mejor aun, dejar los labels del array `TIPOS_ENTRADA_CRONOLOGIA` tal como estan pero sanitizar acentos con una funcion `removeAccents()` antes de pasarlos a `pdf.text()`
-
-### Funcion auxiliar nueva: `sanitizeForPDF(text: string): string`
-Reemplazar caracteres con acentos por sus equivalentes sin acento para evitar problemas de renderizado con la fuente Helvetica base de jsPDF. Ejemplo: `á→a, é→e, í→i, ó→o, ú→u, ñ→n`.
-
-Nota: Los acentos en la version actual se muestran porque jsPDF maneja *algunos* diacriticos en Helvetica, pero no es consistente. La solucion robusta es sanitizar todos los textos.
-
-## Resultado esperado
-
-- Timestamps limpios: circulo rojo + "16/02 14:32 [Notificacion]"
-- Mejor aprovechamiento de pagina (menos espacio desperdiciado)
-- Imagenes de evidencia mas grandes y con borde
-- Sin titulo redundante
-- Severidad con indicador de color bien alineado
