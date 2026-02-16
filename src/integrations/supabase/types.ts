@@ -17309,6 +17309,7 @@ export type Database = {
       ensure_default_admin: { Args: never; Returns: undefined }
       es_c4_monitoreo: { Args: never; Returns: boolean }
       es_planificador: { Args: never; Returns: boolean }
+      es_staff_incidentes: { Args: never; Returns: boolean }
       es_usuario_admin:
         | { Args: never; Returns: boolean }
         | { Args: { user_id: string }; Returns: boolean }
