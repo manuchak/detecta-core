@@ -7145,6 +7145,44 @@ export type Database = {
           },
         ]
       }
+      incidente_cronologia: {
+        Row: {
+          autor_id: string | null
+          created_at: string
+          descripcion: string
+          id: string
+          incidente_id: string
+          timestamp: string
+          tipo_entrada: string
+        }
+        Insert: {
+          autor_id?: string | null
+          created_at?: string
+          descripcion: string
+          id?: string
+          incidente_id: string
+          timestamp?: string
+          tipo_entrada: string
+        }
+        Update: {
+          autor_id?: string | null
+          created_at?: string
+          descripcion?: string
+          id?: string
+          incidente_id?: string
+          timestamp?: string
+          tipo_entrada?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidente_cronologia_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes_operativos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidentes_operativos: {
         Row: {
           acciones_tomadas: string | null
