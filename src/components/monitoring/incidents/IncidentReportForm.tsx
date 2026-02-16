@@ -390,6 +390,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
       ubicacion_lat: values.ubicacion_lat,
       ubicacion_lng: values.ubicacion_lng,
     };
+    payload.reportado_por = user?.id || null;
     if (servicio) {
       payload.servicio_planificado_id = servicio.id;
       payload.custodio_id = servicio.custodio_id;

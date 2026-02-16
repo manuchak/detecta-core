@@ -29,10 +29,25 @@ function calcResponseTime(cronologia: EntradaCronologia[]): string {
 
 export async function exportIncidentePDF({ incidente, cronologia, servicio }: ExportData) {
   // Dynamic import to keep bundle small
-  const [{ pdf }, { IncidentPDFDocument }] = await Promise.all([
+  const [{ pdf }, { IncidentPDFDocument }, { supabase }] = await Promise.all([
     import('@react-pdf/renderer'),
     import('./pdf/IncidentPDFDocument'),
+    import('@/integrations/supabase/client'),
   ]);
+
+  // Resolve creator name from profiles
+  let reportadoPorNombre = '-';
+  const incAny = incidente as any;
+  if (incAny.reportado_por) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, email')
+      .eq('id', incAny.reportado_por)
+      .single();
+    reportadoPorNombre = profile?.display_name || profile?.email || '-';
+  } else if (incAny.firma_creacion_email) {
+    reportadoPorNombre = incAny.firma_creacion_email;
+  }
 
   const logoBase64 = await loadImageAsBase64(detectaLogoUrl);
 
@@ -50,7 +65,7 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
   const responseTime = calcResponseTime(cronologia);
 
   const doc = React.createElement(IncidentPDFDocument, {
-    incidente, cronologia, servicio, logoBase64, imageCache, responseTime,
+    incidente, cronologia, servicio, logoBase64, imageCache, responseTime, reportadoPorNombre,
   });
 
   const blob = await (pdf as any)(doc).toBlob();
