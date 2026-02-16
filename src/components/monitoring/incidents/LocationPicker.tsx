@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { MapPin, Loader2, X } from 'lucide-react';
-import { geocodeAddress } from '@/lib/mapbox';
+import { geocodeAddress, reverseGeocode } from '@/lib/mapbox';
 import mapboxgl from 'mapbox-gl';
 import { initializeMapboxToken } from '@/lib/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -18,6 +18,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -40,6 +41,25 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
     if (value !== query) setQuery(value || '');
   }, [value]);
 
+  // Handle map click - reverse geocode and update
+  const handleMapClick = useCallback(async (e: mapboxgl.MapMouseEvent) => {
+    const { lng: clickLng, lat: clickLat } = e.lngLat;
+
+    // Move marker immediately
+    if (markerRef.current) {
+      markerRef.current.setLngLat([clickLng, clickLat]);
+    }
+
+    // Reverse geocode
+    setIsReverseGeocoding(true);
+    const { address } = await reverseGeocode(clickLat, clickLng);
+    setIsReverseGeocoding(false);
+
+    const newZona = address || `${clickLat.toFixed(5)}, ${clickLng.toFixed(5)}`;
+    setQuery(newZona);
+    onChange({ zona: newZona, lat: clickLat, lng: clickLng });
+  }, [onChange]);
+
   // Initialize map when coordinates exist
   useEffect(() => {
     if (!lat || !lng || !mapContainerRef.current) return;
@@ -51,7 +71,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
       if (mapRef.current) {
         mapRef.current.flyTo({ center: [lng, lat], zoom: 14 });
         if (markerRef.current) markerRef.current.setLngLat([lng, lat]);
-        else markerRef.current = new mapboxgl.Marker({ color: '#ef4444' }).setLngLat([lng, lat]).addTo(mapRef.current);
+        else markerRef.current = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([lng, lat]).addTo(mapRef.current);
         return;
       }
 
@@ -61,14 +81,36 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
         style: 'mapbox://styles/mapbox/streets-v12',
         center: [lng, lat],
         zoom: 14,
-        interactive: false,
+        interactive: true,
       });
+
+      map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+
+      const marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([lng, lat]).addTo(map);
+
+      // Handle marker drag end
+      marker.on('dragend', async () => {
+        const lngLat = marker.getLngLat();
+        setIsReverseGeocoding(true);
+        const { address } = await reverseGeocode(lngLat.lat, lngLat.lng);
+        setIsReverseGeocoding(false);
+        const newZona = address || `${lngLat.lat.toFixed(5)}, ${lngLat.lng.toFixed(5)}`;
+        setQuery(newZona);
+        onChange({ zona: newZona, lat: lngLat.lat, lng: lngLat.lng });
+      });
+
+      // Handle map click
+      map.on('click', handleMapClick);
+
+      // Crosshair cursor
+      map.getCanvas().style.cursor = 'crosshair';
+
       mapRef.current = map;
-      markerRef.current = new mapboxgl.Marker({ color: '#ef4444' }).setLngLat([lng, lat]).addTo(map);
+      markerRef.current = marker;
     };
 
     initMap();
-  }, [lat, lng]);
+  }, [lat, lng, handleMapClick, onChange]);
 
   // Cleanup
   useEffect(() => () => { mapRef.current?.remove(); }, []);
@@ -118,8 +160,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
           placeholder="Buscar dirección o ubicación..."
           className="h-8 text-xs pl-7 pr-8"
         />
-        {isSearching && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-        {query && !isSearching && (
+        {(isSearching || isReverseGeocoding) && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        {query && !isSearching && !isReverseGeocoding && (
           <button onClick={handleClear} className="absolute right-2 top-1/2 -translate-y-1/2">
             <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
           </button>
@@ -142,7 +184,12 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
       </div>
 
       {lat && lng && (
-        <div className="rounded-md overflow-hidden border h-32" ref={mapContainerRef} />
+        <>
+          <div className="rounded-md overflow-hidden border h-48" ref={mapContainerRef} />
+          <p className="text-[10px] text-muted-foreground text-center">
+            Haz clic en el mapa o arrastra el marcador para ajustar la ubicación
+          </p>
+        </>
       )}
     </div>
   );
