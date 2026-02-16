@@ -1,4 +1,5 @@
-import { 
+import {
+  AlertTriangle,
   ShieldCheck,
   LayoutDashboard,
   Users, 
@@ -407,6 +408,12 @@ export const navigationModules: NavigationModule[] = [
         label: 'Adopción Digital',
         path: '/monitoring?tab=adopcion',
         icon: ShieldCheck
+      },
+      {
+        id: 'monitoring_incidentes',
+        label: 'Incidentes Operativos',
+        path: '/monitoring?tab=incidentes',
+        icon: AlertTriangle
       },
       {
         id: 'monitoring_tv',
