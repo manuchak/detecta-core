@@ -1,43 +1,28 @@
 
+# Fix: Mapa expandido no llena el ancho completo
 
-# Fix: Mapa expandido no ocupa el ancho completo del Dialog
+## Causa raiz
 
-## Problema
-
-El mapa dentro del dialog expandido no se extiende al 100% del ancho disponible (hay un espacio vacio a la derecha). Esto ocurre porque Mapbox calcula las dimensiones del canvas al momento de la inicializacion, pero el dialog aun no ha terminado su animacion de apertura en ese instante.
+El sitio tiene `zoom: 0.7` global en el `html`. Los dialogs compensan con `zoom: 1.428571` (1/0.7) para volver al 100%. Pero el dialog del mapa expandido usa `style={{ zoom: 1 }}`, lo que resulta en un zoom efectivo de 0.7. Mapbox GL lee el `offsetWidth` del contenedor (afectado por el zoom CSS) y solo renderiza tiles para el 70% del area visible. Por eso el mapa ocupa ~70% y hay un espacio blanco a la derecha.
 
 ## Solucion
 
-Modificar la inicializacion del mapa expandido en `LocationPicker.tsx` para:
+Remover el override `zoom: 1` del `DialogContent` del mapa expandido, dejando que use el `zoom: 1.428571` por defecto del componente `Dialog`. Esto restaura el zoom efectivo al 100% y Mapbox calculara las dimensiones correctamente.
 
-1. Llamar `map.resize()` dentro del evento `load` del mapa
-2. Agregar un `ResizeObserver` al contenedor del mapa expandido para recalcular dimensiones automaticamente
-3. Agregar un segundo `resize()` con delay de 300ms para cubrir la animacion del dialog
+## Cambio
 
-## Cambios
+**Archivo: `src/components/monitoring/incidents/LocationPicker.tsx`** (linea 319)
 
-**Archivo: `src/components/monitoring/incidents/LocationPicker.tsx`**
-
-En el `useEffect` que inicializa el mapa expandido (linea 132-190), despues de crear la instancia de Mapbox:
-
-- Agregar `map.on('load', () => map.resize())` para forzar recalculo al cargar
-- Agregar `ResizeObserver` sobre `expandedMapContainerRef.current` que llame `map.resize()`
-- Agregar `setTimeout(() => map.resize(), 350)` para cubrir la animacion del dialog
-- Limpiar el observer en el return del useEffect
-
-### Codigo relevante del cambio
-
-Dentro del `setTimeout` existente (linea 140), despues de `expandedMarkerRef.current = marker` (linea 181):
-
-```
-map.on('load', () => map.resize());
-setTimeout(() => map.resize(), 350);
-
-const observer = new ResizeObserver(() => map.resize());
-observer.observe(expandedMapContainerRef.current);
+Cambiar:
+```tsx
+<DialogContent className="max-w-4xl !flex !flex-col overflow-hidden" style={{ zoom: 1, height: '85vh' }}>
 ```
 
-Y en el cleanup (linea 184-189), agregar `observer.disconnect()`.
+A:
+```tsx
+<DialogContent className="max-w-4xl !flex !flex-col overflow-hidden" style={{ height: '85vh' }}>
+```
 
-Solo se modifica un archivo, y el cambio es de ~6 lineas.
+Se elimina `zoom: 1` del style, permitiendo que el dialog use su zoom compensatorio por defecto (1.428571). Esto hace que el zoom efectivo sea `0.7 x 1.428571 = 1.0` (100%), y Mapbox renderizara correctamente el canvas al 100% del contenedor.
 
+Un solo cambio en una sola linea.
