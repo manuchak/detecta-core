@@ -1,65 +1,113 @@
 
 
-# Fase 2 StarMap: 8 KPIs Proxy
+# Fase 3: Roadmap de Instrumentacion Avanzado
 
-## Resumen
+## Objetivo
 
-Agregar los 8 KPIs parciales al hook `useStarMapKPIs` usando datos proxy de tablas existentes. Cada uno llevara el badge "proxy" ya soportado por la UI.
+Transformar el panel "Roadmap de Instrumentacion" actual (lista plana de campos faltantes) en un centro de decision ejecutivo que priorice que instrumentar primero segun impacto de negocio vs esfuerzo tecnico.
 
-## Datos verificados en BD
+## Estado actual
 
-| KPI | Proxy Logic | Datos disponibles |
+El `DataHealthSummary` ya muestra:
+- Cobertura general (%) y conteo de KPIs por semaforo
+- Barras de cobertura por pilar
+- Lista plana de campos faltantes (campo + KPI + pilar)
+
+Lo que falta:
+- No hay priorizacion ni agrupacion por esfuerzo
+- No se indica el impacto de negocio de cada KPI faltante
+- No hay estimacion de que se necesita (campo nuevo vs tabla nueva vs integracion externa)
+- No hay vista de "proximos pasos" accionables
+- Los KPIs proxy no se distinguen de los no-data en el roadmap
+
+---
+
+## Cambios propuestos
+
+### 1. Nuevo componente: `InstrumentationRoadmap`
+
+Reemplaza la tarjeta derecha del `DataHealthSummary` con un panel mas rico que agrupa los 12 KPIs sin datos + 8 proxy en tres categorias de esfuerzo:
+
+```text
++----------------------------------------------+
+| Roadmap de Instrumentacion                    |
+|----------------------------------------------|
+| [Tab: Quick Wins] [Nuevas Tablas] [Externo]  |
+|                                               |
+| -- QUICK WINS (campos en tablas existentes) --|
+| O3 No-Show Rate          proxy -> real        |
+|   Agregar: flag no_show en servicios_plan.    |
+|   Impacto: Pilar Ops +12% cobertura          |
+|   Esfuerzo: 1 migracion SQL                  |
+|                                               |
+| C5 Close Quality          proxy -> real       |
+|   Agregar: campo cierre_ok en checklist       |
+|   Impacto: Pilar C4 +17% cobertura           |
+|                                               |
+| -- NUEVAS TABLAS / MODULOS -------------------|
+| R1-R4 Seguridad (4 KPIs)                     |
+|   Crear: tabla incidentes_operativos          |
+|   Impacto: Pilar Riesgo de 0% a 100%         |
+|   Esfuerzo: Tabla + UI de captura            |
+|                                               |
+| -- INTEGRACIONES EXTERNAS --------------------|
+| M5 Lead Response Time                         |
+|   Requiere: timestamps desde Pipedrive       |
+|   Impacto: Pilar GTM +12%                    |
++----------------------------------------------+
+```
+
+### 2. Metadata enriquecida en cada KPI
+
+Agregar al tipo `StarMapKPI` dos campos opcionales nuevos:
+
+- `instrumentationCategory`: `'quick-win' | 'new-table' | 'external'`  
+- `businessImpact`: texto corto describiendo el impacto (ej: "Pilar Ops: 75% -> 88%")
+
+Estos se definen estaticamente en el hook junto a los `missingFields` existentes.
+
+### 3. Clasificacion de los 20 KPIs pendientes
+
+| Categoria | KPIs | Que se necesita |
 |---|---|---|
-| S1 Plan Rate | deals won con servicios planificados / total won | 78 won deals, 2268 servicios planificados |
-| S4 Forecast Accuracy | `forecast_accuracy_history.mape_services` | Tabla existe pero vacia; usar fallback 18.5% |
-| O3 No-Show Rate | asignados sin `hora_inicio_real` / total asignados | 848/1900 sin inicio (ultimos 90 dias) |
-| O5 Coverage Index | custodios activos / demanda semanal | 108 activos / 214 demanda = 0.50 |
-| O8 Rechazos | count de `custodio_rechazos` (90 dias) | 24 rechazos |
-| C5 Close Quality | checklists con firma + items / total finalizados | Ya tenemos los datos en la query existente |
-| F1 GM por servicio | (cobro_cliente - costo_custodio) / cobro_cliente | 33,846 con cobro, 9,031 con costo (historico) |
-| F2 CPS | avg(costo_custodio) | avg $3,058 historico |
+| **Quick Wins** (agregar campo a tabla existente) | O3 (no_show flag), O5 (capacidad_zona), O8 (razon_rechazo), C5 (cierre_ok), F1 (costo_armado, overhead), F2 (overhead), S1 (deal_id join) | 1 migracion SQL cada uno |
+| **Nuevas tablas/modulos** | R1-R4 (incidentes_operativos), C2-C4 (alertas_c4 con timestamps), C6 (retrabajo), M1-M2 (solicitudes_operables), F3 (leakage/ajustes) | Tabla + logica + UI |
+| **Integraciones externas** | M5 (timestamps Pipedrive), S2 (quote_sent_ts), TP9 (logs integracion), TP1 (join CRM-servicio), TP2 (timestamps completos) | Cambios en webhook/sync |
 
-## Cambios tecnicos
+### 4. Indicador de "Proxy -> Real"
 
-### 1. `src/hooks/useStarMapKPIs.ts`
+Para los 8 KPIs proxy, mostrar un badge especial "proxy -> real" con el campo especifico que convertiria el dato proxy en dato real. Esto da visibilidad de que ya tenemos algo pero se puede mejorar.
 
-**Queries adicionales** (agregar al Promise.all existente):
-- `servicios_custodia` con `cobro_cliente, costo_custodio` (ultimos 90 dias) para F1/F2
-- `custodio_rechazos` count (ultimos 90 dias) para O8
-- `forecast_accuracy_history` latest record para S4
+### 5. Score de prioridad
 
-**Calculos nuevos** (despues de las queries):
-- **S1**: Proxy simplificado: servicios finalizados / total planificados no-cancelados (usa datos ya cargados)
-- **S4**: mape_services del ultimo registro, o fallback 18.5%
-- **O3**: (asignados - con hora_inicio_real) / asignados * 100
-- **O5**: custodios activos / (demanda semanal normalizada)
-- **O8**: count directo de rechazos
-- **C5**: checklists con firma Y items_inspeccion / servicios finalizados
-- **F1**: avg((cobro - costo) / cobro) * 100
-- **F2**: avg(costo_custodio)
+Cada KPI faltante recibe un score de prioridad calculado:
+- **Impacto**: cuantos puntos porcentuales sube la cobertura del pilar (+peso del pilar)
+- **Esfuerzo**: quick-win=1, new-table=3, external=5
+- **Prioridad** = Impacto / Esfuerzo
 
-**Actualizar definiciones de pilares**: Cambiar los 8 KPIs de `status: 'no-data'` a usar los valores calculados, con `isProxy: true` y `missingFields` indicando que falta para el dato real.
+Esto permite ordenar automaticamente el roadmap por ROI de instrumentacion.
 
-### 2. Umbrales (targets y semaforos)
+---
 
-| KPI | Green | Yellow | Red | Inverted? |
-|---|---|---|---|---|
-| S1 Plan Rate | >= 80% | >= 60% | < 60% | No |
-| S4 Forecast Accuracy (MAPE) | <= 15% | <= 25% | > 25% | Yes (lower better) |
-| O3 No-Show Rate | <= 5% | <= 10% | > 10% | Yes (lower better) |
-| O5 Coverage Index | >= 1.5 | >= 1.0 | < 1.0 | No |
-| O8 Rechazos | <= 5 | <= 15 | > 15 | Yes (lower better) |
-| C5 Close Quality | >= 95% | >= 80% | < 80% | No |
-| F1 GM | >= 40% | >= 25% | < 25% | No |
-| F2 CPS | <= 3000 | <= 4500 | > 4500 | Yes (lower better) |
+## Detalle tecnico
 
-### 3. Sin cambios en UI
+### Archivos a modificar
 
-Los componentes `PillarDetailPanel` y `DataHealthSummary` ya soportan el badge "proxy" y el listado de campos faltantes. La cobertura general subira de ~30% a ~60%.
+1. **`src/hooks/useStarMapKPIs.ts`**
+   - Agregar `instrumentationCategory` y `businessImpact` al tipo `StarMapKPI`
+   - Poblar estos campos en las definiciones de los 20 KPIs pendientes/proxy
 
-## Impacto esperado
+2. **`src/components/starmap/InstrumentationRoadmap.tsx`** (nuevo)
+   - Componente con 3 tabs (Quick Wins / Nuevas Tablas / Externo)
+   - Cada item muestra: KPI id, nombre, campos requeridos, impacto estimado, badge proxy/no-data
+   - Barra de progreso por categoria
+   - Score de prioridad ordenable
 
-- Cobertura: de 10/30 KPIs medibles a 18/30 (60%)
-- Pilares con mejora: GTM (1->2), Ops (5->8), C4 (1->2), Finanzas (2->4)
-- Todos los nuevos KPIs mostraran badge "proxy" naranja
+3. **`src/components/starmap/DataHealthSummary.tsx`**
+   - Reemplazar la tarjeta derecha "Roadmap de Instrumentacion" por el nuevo `InstrumentationRoadmap`
+   - Mantener la tarjeta izquierda de cobertura sin cambios
+
+### Sin cambios en BD
+
+Todo es metadata estatica definida en el hook. No requiere migraciones.
 
