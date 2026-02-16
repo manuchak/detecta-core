@@ -89,7 +89,15 @@ export function ReassignmentModal({
 
   // NEW: State for modular custodian components
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<CustodianStepFilters>(DEFAULT_FILTERS);
+  // In reassignment context, show ALL categories by default (including occupied)
+  // so planners can find replacement custodians during emergencies (e.g. "Hoy No Circula")
+  const REASSIGNMENT_FILTERS: CustodianStepFilters = {
+    disponibles: true,
+    parcialmenteOcupados: true,
+    ocupados: true,
+    scoreMinimo: null,
+  };
+  const [filters, setFilters] = useState<CustodianStepFilters>(REASSIGNMENT_FILTERS);
   const [comunicaciones, setComunicaciones] = useState<Record<string, CustodianCommunicationState>>({});
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   
@@ -198,7 +206,7 @@ export function ReassignmentModal({
       setSelectedProviderId('');
       // Reset modular component state
       setSearchTerm('');
-      setFilters(DEFAULT_FILTERS);
+      setFilters(REASSIGNMENT_FILTERS);
       setComunicaciones({});
       setHighlightedIndex(-1);
     }
