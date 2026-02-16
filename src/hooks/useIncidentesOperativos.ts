@@ -35,6 +35,7 @@ export interface EntradaCronologia {
   timestamp: string;
   tipo_entrada: TipoEntradaCronologia;
   descripcion: string;
+  imagen_url: string | null;
   autor_id: string | null;
   created_at: string;
 }
@@ -267,15 +268,86 @@ export function useUpdateIncidente() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Image compression utility (Canvas API, max 1920x1080, quality 0.7)
+// ---------------------------------------------------------------------------
+async function compressImage(file: File): Promise<File> {
+  const MAX_W = 1920;
+  const MAX_H = 1080;
+  const QUALITY = 0.7;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_W || height > MAX_H) {
+        const ratio = Math.min(MAX_W / width, MAX_H / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name, { type: blob.type }));
+        },
+        'image/jpeg',
+        QUALITY,
+      );
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+async function uploadEvidenciaImage(file: File, incidenteId: string): Promise<string> {
+  const compressed = await compressImage(file);
+  const ext = compressed.name.split('.').pop() || 'jpg';
+  const path = `${incidenteId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('evidencias-incidentes')
+    .upload(path, compressed, { contentType: compressed.type, upsert: false });
+  if (error) throw error;
+
+  const { data: urlData } = supabase.storage
+    .from('evidencias-incidentes')
+    .getPublicUrl(path);
+  return urlData.publicUrl;
+}
+
 export function useAddCronologiaEntry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { incidente_id: string; timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => {
+    mutationFn: async (data: {
+      incidente_id: string;
+      timestamp: string;
+      tipo_entrada: TipoEntradaCronologia;
+      descripcion: string;
+      imagen?: File;
+    }) => {
+      const { imagen, ...rest } = data;
+      let imagen_url: string | null = null;
+
+      if (imagen) {
+        imagen_url = await uploadEvidenciaImage(imagen, data.incidente_id);
+      }
+
       const { data: user } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('incidente_cronologia')
         .insert({
-          ...data,
+          ...rest,
+          imagen_url,
           autor_id: user?.user?.id || null,
         } as any);
       if (error) throw error;
@@ -285,6 +357,8 @@ export function useAddCronologiaEntry() {
     },
   });
 }
+
+export { uploadEvidenciaImage };
 
 export function useDeleteCronologiaEntry() {
   const queryClient = useQueryClient();

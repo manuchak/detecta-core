@@ -163,7 +163,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     } catch {}
   }, [persistKey]);
 
-  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => {
+  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File }) => {
     if (isEditing && incidente?.id) {
       // Directly save to DB if editing
       try {
@@ -176,7 +176,11 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
       // Save locally (Bloque 3)
       const localEntry: LocalTimelineEntry = {
         localId: crypto.randomUUID(),
-        ...entry,
+        timestamp: entry.timestamp,
+        tipo_entrada: entry.tipo_entrada,
+        descripcion: entry.descripcion,
+        imagenFile: entry.imagen,
+        imagenPreview: entry.imagen ? URL.createObjectURL(entry.imagen) : undefined,
       };
       setLocalTimelineEntries(prev => [...prev, localEntry]);
       toast.success('Entrada agregada (se guardará con el incidente)');
@@ -228,6 +232,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
         timestamp: entry.timestamp,
         tipo_entrada: entry.tipo_entrada,
         descripcion: entry.descripcion,
+        imagen: entry.imagenFile,
       });
     }
     setLocalTimelineEntries([]);
