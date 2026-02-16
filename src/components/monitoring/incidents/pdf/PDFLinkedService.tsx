@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text } from '@react-pdf/renderer';
-import { styles } from './pdfStyles';
+import { View } from '@react-pdf/renderer';
+import { FieldGroup, FieldRow } from '@/components/pdf';
 import type { ServicioVinculado } from '@/hooks/useServicioLookup';
 
 interface Props {
@@ -24,20 +24,9 @@ export const PDFLinkedService: React.FC<Props> = ({ servicio, ubicacionLat, ubic
 
   return (
     <View>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>2. Servicio Vinculado</Text>
-      </View>
-      {fields.map(([label, value], i) => (
-        <View style={styles.fieldRow} key={i}>
-          <Text style={styles.label}>{label}:</Text>
-          <Text style={styles.value}>{value}</Text>
-        </View>
-      ))}
+      <FieldGroup title="2. Servicio Vinculado" fields={fields} />
       {ubicacionLat && ubicacionLng && (
-        <View style={[styles.fieldRow, { marginTop: 4 }]}>
-          <Text style={styles.label}>Coordenadas:</Text>
-          <Text style={styles.value}>{ubicacionLat.toFixed(6)}, {ubicacionLng.toFixed(6)}</Text>
-        </View>
+        <FieldRow label="Coordenadas" value={`${ubicacionLat.toFixed(6)}, ${ubicacionLng.toFixed(6)}`} />
       )}
     </View>
   );

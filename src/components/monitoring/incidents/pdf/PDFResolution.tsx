@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from '@react-pdf/renderer';
-import { styles } from './pdfStyles';
+import { SectionHeader, FieldRow, pdfBaseStyles } from '@/components/pdf';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -14,23 +14,19 @@ export const PDFResolution: React.FC<Props> = ({ fechaResolucion, resolucionNota
 
   return (
     <View>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>5. Resolución</Text>
-      </View>
+      <SectionHeader title="5. Resolución" />
       {fechaResolucion && (
-        <View style={styles.fieldRow}>
-          <Text style={styles.label}>Fecha resolución:</Text>
-          <Text style={styles.value}>
-            {format(new Date(fechaResolucion), 'dd/MM/yyyy HH:mm', { locale: es })}
-          </Text>
-        </View>
+        <FieldRow
+          label="Fecha resolución"
+          value={format(new Date(fechaResolucion), 'dd/MM/yyyy HH:mm', { locale: es })}
+        />
       )}
       {resolucionNotas && (
         <View>
-          <View style={[styles.fieldRow, { marginBottom: 0 }]}>
-            <Text style={styles.label}>Notas:</Text>
+          <View style={{ paddingHorizontal: 4, marginBottom: 2 }}>
+            <Text style={{ fontSize: 9, fontWeight: 600, color: '#646464' }}>Notas:</Text>
           </View>
-          <Text style={styles.paragraph}>{resolucionNotas}</Text>
+          <Text style={pdfBaseStyles.paragraph}>{resolucionNotas}</Text>
         </View>
       )}
     </View>

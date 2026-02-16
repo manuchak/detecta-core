@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from '@react-pdf/renderer';
-import { styles } from './pdfStyles';
+import { SectionHeader, FieldRow } from '@/components/pdf';
 
 interface Props {
   controlesActivos: string[] | null;
@@ -9,18 +9,11 @@ interface Props {
 
 export const PDFControls: React.FC<Props> = ({ controlesActivos, controlEfectivo }) => (
   <View>
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>4. Controles y Atribución</Text>
-    </View>
-    <View style={styles.fieldRow}>
-      <Text style={styles.label}>Controles activos:</Text>
-      <Text style={styles.value}>
-        {controlesActivos?.length ? controlesActivos.join(', ') : 'Ninguno registrado'}
-      </Text>
-    </View>
-    <View style={styles.fieldRow}>
-      <Text style={styles.label}>Control efectivo:</Text>
-      <Text style={styles.value}>{controlEfectivo ? 'Sí' : 'No'}</Text>
-    </View>
+    <SectionHeader title="4. Controles y Atribución" />
+    <FieldRow
+      label="Controles activos"
+      value={controlesActivos?.length ? controlesActivos.join(', ') : 'Ninguno registrado'}
+    />
+    <FieldRow label="Control efectivo" value={controlEfectivo ? 'Sí' : 'No'} />
   </View>
 );
