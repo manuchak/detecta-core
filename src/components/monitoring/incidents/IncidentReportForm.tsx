@@ -13,6 +13,10 @@ import { toast } from 'sonner';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 import { IncidentTimeline, type LocalTimelineEntry } from './IncidentTimeline';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ServiceDataSummary } from './ServiceDataSummary';
 import { LocationPicker } from './LocationPicker';
 import { IncidentClassificationGuide } from './IncidentClassificationGuide';
@@ -31,9 +35,33 @@ interface IncidentReportFormProps {
 
 interface ExtendedFormData extends IncidenteFormData {
   id_servicio_texto: string;
+  id_servicio_input: string; // Correccion 1: persist search input
   ubicacion_lat: number | null;
   ubicacion_lng: number | null;
 }
+
+const TIMELINE_TTL_MS = 72 * 60 * 60 * 1000; // 72h aligned with form TTL
+
+/** Serialize timeline entries omitting non-serializable File/blob fields */
+const serializeTimelineEntries = (entries: LocalTimelineEntry[]) => ({
+  timestamp: Date.now(),
+  entries: entries.map(({ imagenFile, imagenPreview, ...rest }) => ({
+    ...rest,
+    hadImage: !!imagenFile, // flag so user knows image was lost
+  })),
+});
+
+const deserializeTimelineEntries = (raw: string): LocalTimelineEntry[] => {
+  try {
+    const parsed = JSON.parse(raw);
+    // TTL check
+    if (parsed.timestamp && Date.now() - parsed.timestamp > TIMELINE_TTL_MS) return [];
+    return (parsed.entries || []) as LocalTimelineEntry[];
+  } catch {
+    // Legacy format (plain array) — apply no TTL
+    try { return JSON.parse(raw) as LocalTimelineEntry[]; } catch { return []; }
+  }
+};
 
 const defaultFormData: ExtendedFormData = {
   tipo: '',
@@ -47,6 +75,7 @@ const defaultFormData: ExtendedFormData = {
   acciones_tomadas: '',
   resolucion_notas: '',
   id_servicio_texto: '',
+  id_servicio_input: '',
   ubicacion_lat: null,
   ubicacion_lng: null,
 };
@@ -54,6 +83,10 @@ const defaultFormData: ExtendedFormData = {
 export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incidente, onBack }) => {
   const isEditing = !!incidente;
   const persistKey = isEditing ? `incident-report-${incidente.id}` : 'incident-report-new';
+  const timelineKey = `${persistKey}_timeline`;
+
+  // Correccion 3: exit confirmation state
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const form = useForm<ExtendedFormData>({
     defaultValues: isEditing
@@ -69,6 +102,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
           acciones_tomadas: incidente.acciones_tomadas || '',
           resolucion_notas: incidente.resolucion_notas || '',
           id_servicio_texto: (incidente as any).id_servicio_texto || '',
+          id_servicio_input: (incidente as any).id_servicio_texto || '',
           ubicacion_lat: (incidente as any).ubicacion_lat || null,
           ubicacion_lng: (incidente as any).ubicacion_lng || null,
         }
@@ -91,9 +125,12 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
   // Local timeline entries (Bloque 3)
   const [localTimelineEntries, setLocalTimelineEntries] = useState<LocalTimelineEntry[]>([]);
 
-  // Service lookup (Bloque 1)
+  // Service lookup (Bloque 1) — synced with form for persistence
   const { servicio, isSearching, error: servicioError, buscarServicio } = useServicioLookup();
-  const [idServicioInput, setIdServicioInput] = useState((incidente as any)?.id_servicio_texto || '');
+  const idServicioInput = form.watch('id_servicio_input');
+  const setIdServicioInput = useCallback((val: string) => {
+    form.setValue('id_servicio_input', val, { shouldDirty: true });
+  }, [form]);
 
   const createMutation = useCreateIncidente();
   const updateMutation = useUpdateIncidente();
@@ -142,26 +179,49 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     form.setValue('controles_activos', next, { shouldDirty: true });
   };
 
-  // Persist local timeline entries together with form data
+  // Correccion 2: Dual backup for local timeline entries with TTL
   const persistLocalEntries = useCallback(() => {
     try {
-      localStorage.setItem(`${persistKey}_timeline`, JSON.stringify(localTimelineEntries));
+      const serialized = JSON.stringify(serializeTimelineEntries(localTimelineEntries));
+      localStorage.setItem(timelineKey, serialized);
+      sessionStorage.setItem(timelineKey, serialized); // dual backup
     } catch {}
-  }, [localTimelineEntries, persistKey]);
+  }, [localTimelineEntries, timelineKey]);
 
   useEffect(() => {
     persistLocalEntries();
   }, [persistLocalEntries]);
 
-  // Restore local entries on mount
+  // Restore local entries on mount (try sessionStorage first, then localStorage)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(`${persistKey}_timeline`);
-      if (stored) {
-        setLocalTimelineEntries(JSON.parse(stored));
+      const sessionStored = sessionStorage.getItem(timelineKey);
+      const localStored = localStorage.getItem(timelineKey);
+      const raw = sessionStored || localStored;
+      if (raw) {
+        const entries = deserializeTimelineEntries(raw);
+        if (entries.length > 0) {
+          setLocalTimelineEntries(entries);
+          // Check if any had images that were lost
+          const lostImages = entries.filter((e: any) => e.hadImage);
+          if (lostImages.length > 0) {
+            toast.info(`${lostImages.length} entrada(s) de cronología tenían fotos que no pudieron restaurarse`, { duration: 5000 });
+          }
+        }
       }
     } catch {}
-  }, [persistKey]);
+  }, [timelineKey]);
+
+  // Correccion 4: Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      localTimelineEntries.forEach(entry => {
+        if (entry.imagenPreview?.startsWith('blob:')) {
+          URL.revokeObjectURL(entry.imagenPreview);
+        }
+      });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File }) => {
     if (isEditing && incidente?.id) {
@@ -236,7 +296,8 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
       });
     }
     setLocalTimelineEntries([]);
-    localStorage.removeItem(`${persistKey}_timeline`);
+    localStorage.removeItem(timelineKey);
+    sessionStorage.removeItem(timelineKey);
   };
 
   const handleSaveDraft = async () => {
@@ -308,12 +369,38 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  // Correccion 3: Guard onBack with exit confirmation
+  const hasUnsavedWork = persistence.hasDraft || form.formState.isDirty || localTimelineEntries.length > 0;
+  const handleBack = () => {
+    if (hasUnsavedWork) {
+      setShowExitConfirm(true);
+    } else {
+      onBack();
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Correccion 3: Exit confirmation dialog */}
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes cambios sin guardar en este reporte. Si sales ahora, el borrador se conservará automáticamente para que puedas continuar después.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+            <AlertDialogAction onClick={onBack}>Salir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
