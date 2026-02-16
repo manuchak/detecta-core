@@ -1,45 +1,56 @@
 
 
-# Rediseño del Layout del Formulario de Incidentes
+# Mapa expandible con doble clic
 
 ## Problema
 
-El layout actual en modo creacion usa `max-w-4xl` (896px) en una sola columna, desperdiciando ~40% del ancho de pantalla disponible. Todo se apila verticalmente forzando scroll innecesario mientras el espacio horizontal queda vacio.
+El mapa inline de 192px es demasiado pequeno para seleccionar ubicaciones con precision. Hacer clic o arrastrar el marcador en un area tan reducida es incomodo.
 
-## Solucion: Layout de 2 columnas siempre
+## Solucion
 
-Usar un grid de 2 columnas (60/40) tanto en creacion como en edicion, distribuyendo las secciones para aprovechar todo el ancho:
+Agregar un **Dialog de mapa expandido** que se abre al hacer doble clic en el mapa inline (o con un boton "Expandir"). El dialog mostrara un mapa grande (~80vh) con la misma funcionalidad: clic para mover marcador, arrastrar marcador, reverse geocode automatico. Al cerrar el dialog, las coordenadas se sincronizan de vuelta al formulario.
 
 ```text
-+----------------------------------+------------------------+
-| Vincular Servicio                | Controles y Atribucion |
-+----------------------------------+                        |
-| Datos Generales                  |                        |
-|  [Tipo] [Severidad] [Cliente]    +------------------------+
-|  [Ubicacion/Zona + Mapa]         | Cronologia de Eventos  |
-|  [Descripcion]                   |                        |
-+----------------------------------+                        |
-| Resolucion (solo al editar)      |                        |
-+----------------------------------+------------------------+
++------------------------------------------+
+|  [X]  Seleccionar Ubicacion              |
++------------------------------------------+
+|  [📍 Buscar direccion...            X ]  |
+|  +------------------------------------+  |
+|  |                                    |  |
+|  |         MAPA GRANDE               |  |
+|  |         (~70vh)                    |  |
+|  |                                    |  |
+|  |            📍                      |  |
+|  |                                    |  |
+|  +------------------------------------+  |
+|  Direccion actual: Blvd Heroes...        |
+|           [Confirmar ubicacion]          |
++------------------------------------------+
 ```
 
-## Cambios en el archivo
+## Cambios
 
-**`src/components/monitoring/incidents/IncidentReportForm.tsx`**
+**Archivo unico: `src/components/monitoring/incidents/LocationPicker.tsx`**
 
-1. **Eliminar `max-w-4xl`** - Quitar la restriccion de ancho maximo
-2. **Usar `grid-cols-1 lg:grid-cols-5` siempre** - Columna izquierda 3/5 (60%), derecha 2/5 (40%)
-3. **Columna izquierda**: Vincular Servicio + Datos Generales (+ Resolucion si edita)
-4. **Columna derecha**: Controles y Atribucion + Cronologia de Eventos
-5. Ambas columnas visibles tanto en creacion como en edicion
+1. Agregar estado `isExpanded` (boolean)
+2. Agregar listener `dblclick` en el mapa inline que setea `isExpanded = true`
+3. Agregar boton "Expandir" (icono Maximize2) sobre el mapa como alternativa al doble clic
+4. Renderizar un `Dialog` cuando `isExpanded = true`:
+   - Contenido: barra de busqueda + mapa Mapbox a `h-[70vh]` + direccion actual + boton "Confirmar"
+   - El mapa del dialog es una **segunda instancia** de Mapbox (ref separada: `expandedMapRef`, `expandedMarkerRef`)
+   - Se inicializa con las mismas coordenadas y zoom del mapa inline
+   - Soporta clic para mover marcador + drag del marcador + reverse geocode (misma logica)
+   - Incluye barra de busqueda con geocoding (reutiliza `handleSearch`/`handleSelect`)
+5. Al hacer clic en "Confirmar" o cerrar el dialog:
+   - Se llama `onChange` con las coordenadas finales del mapa expandido
+   - Se actualiza el mapa inline para reflejar la nueva posicion
+6. Texto de ayuda del mapa inline cambia a: "Doble clic para expandir el mapa"
 
-### Detalle del grid
+### Detalles tecnicos
 
-| Antes | Despues |
-|---|---|
-| `grid-cols-1 max-w-4xl` (creacion) | `grid-cols-1 lg:grid-cols-5` siempre |
-| `grid-cols-1 lg:grid-cols-3` (edicion) | Mismo grid, col derecha agrega card Resolucion |
-| Controles debajo de Descripcion | Controles en columna derecha |
-| Cronologia debajo de Controles | Cronologia en columna derecha debajo de Controles |
+- Se usa el componente `Dialog` existente de `@/components/ui/dialog.tsx` (ya tiene el zoom 1.428571 en el style)
+- El `DialogContent` usara `max-w-4xl` para dar ancho suficiente al mapa
+- Se necesitan refs separadas para los dos mapas (inline y expandido) para evitar conflictos
+- El mapa expandido se inicializa en un `useEffect` que depende de `isExpanded`
+- Al cerrar, se llama `expandedMapRef.current?.remove()` para limpiar
 
-Solo se modifica un archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`, lineas 543-777 (la estructura del grid).
