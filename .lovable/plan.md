@@ -1,65 +1,61 @@
 
 
-# Fix: Daniel Medina no ve servicios en el portal de custodio
+# Mejora Visual: Temas Detectados
 
-## Causa Raiz Identificada
+## Problema Actual
 
-Se encontraron **2 bugs** que en conjunto causan que los custodios no vean sus servicios:
+Los temas se muestran como pills/badges planos con escala CSS que los hace difíciles de leer (texto cortado, todos del mismo color rojo, sin jerarquía visual clara). No comunican la gravedad ni facilitan la exploración para stakeholders ejecutivos.
 
-### Bug 1: RLS de `servicios_custodia` no normaliza telefono correctamente
+## Propuesta: Cards de Tema con Barras de Impacto
 
-La policy `servicios_custodia_select_custodio_own` compara el telefono del custodio asi:
-
-```text
-telefono = replace(replace(profiles.phone, ' ', ''), '-', '')
-```
-
-Para Daniel, `profiles.phone` = `+52 558 068 0854`. Despues de quitar espacios y guiones queda `+525580680854` (12 caracteres). Pero en `servicios_custodia`, el telefono almacenado es `5580680854` (10 digitos). **No coinciden** porque la policy no quita el codigo de pais `+52`.
-
-Esto bloquea a cualquier custodio cuyo telefono en profiles incluya codigo de pais de ver sus servicios legacy.
-
-### Bug 2: Query invalida en `useCustodianServices`
-
-El hook `useCustodianServices.ts` solicita las columnas `km_recorridos` y `cobro_cliente` de la tabla `servicios_planificados`, pero **esas columnas no existen** en esa tabla (solo existen en `servicios_custodia`). Esto causa un error HTTP 400 silencioso que impide cargar servicios planificados en el dashboard.
-
-## Datos de Daniel Garcia Medina
-
-| Dato | Valor |
-|------|-------|
-| Telefono en profiles | `+52 558 068 0854` |
-| Telefono en servicios | `5580680854` |
-| Servicios este mes (legacy) | 4 (todos "Finalizado") |
-| Servicio hoy (planificados) | YOCOYTM-274 con hora_inicio_real ya registrada |
-| Rol | custodio |
-
-## Plan de Correccion
-
-### Fix 1: Corregir RLS policy de `servicios_custodia`
-
-Crear una migracion SQL que actualice la policy para usar los ultimos 10 digitos del telefono (misma logica que `normalizePhone` en el frontend):
+Reemplazar las burbujas por **mini-cards verticales** con los siguientes elementos:
 
 ```text
-Antes:  replace(replace(profiles.phone, ' ', ''), '-', '')
-Despues: RIGHT(regexp_replace(profiles.phone, '[^0-9]', '', 'g'), 10)
++--------------------------------------------+
+| Temas Detectados                    4 temas |
+|--------------------------------------------|
+| [===========================] 3 menciones   |
+| Incumplimiento de Protocolos Operativos     |
+| #protocolo #consigna #incumplimiento        |
+| Sentimiento: negativo                       |
+|--------------------------------------------|
+| [==================       ] 2 menciones     |
+| Puntualidad y Disponibilidad de Personal    |
+| #puntualidad #retraso #personal             |
+| Sentimiento: negativo                       |
+|--------------------------------------------|
+| [=========               ] 1 mencion        |
+| Fallas Tecnologicas y GPS                   |
+| ...                                         |
++--------------------------------------------+
 ```
 
-Esto quita TODOS los caracteres no numericos y toma los ultimos 10 digitos, coincidiendo exactamente con el formato almacenado en `servicios_custodia`.
+Cada card incluye:
+- **Barra de progreso** proporcional al conteo (max = tema con mas menciones)
+- **Color de la barra** segun sentimiento: rojo (negativo), verde (positivo), gris (neutro)
+- **Nombre del tema** en texto claro, sin truncar
+- **Keywords** como chips pequenos debajo del nombre
+- **Badge de sentimiento** con icono (TrendingDown, TrendingUp, Minus)
+- Ordenados de mayor a menor menciones
 
-Archivo: Nueva migracion SQL
+## Detalle Tecnico
 
-### Fix 2: Corregir query en `useCustodianServices.ts`
+### Archivo a modificar
 
-Eliminar las columnas `km_recorridos` y `cobro_cliente` del select de `servicios_planificados`, ya que no existen en esa tabla. Solo `comentarios_adicionales` existe y puede mantenerse.
+`src/pages/CustomerSuccess/components/CSVoiceOfCustomer.tsx` - Funcion `ThemeBubbles` (lineas 64-101)
 
-Archivo: `src/hooks/useCustodianServices.ts` (lineas 103-105)
+### Cambios especificos
 
-## Impacto
+Reemplazar el layout de `flex-wrap` con pills escalados por un layout vertical de cards con:
+- `Progress` component de Radix (ya instalado) para la barra
+- Iconos `TrendingDown`, `TrendingUp`, `Minus` de lucide para sentimiento
+- Keywords como badges pequenos con `text-[10px]`
+- Fondo sutil diferenciado por sentimiento (borde izquierdo de color)
+- Sin tooltip ya que toda la info es visible directamente
 
-- Estos fixes afectan a **todos** los custodios que tengan codigo de pais en su telefono de profiles
-- No requiere cambios en la logica de `useNextService` ya que ese hook consulta `servicios_planificados` (que tiene RLS abierta) correctamente
-- Los stats del mes (Servicios, Km, Ingresos) empezaran a mostrar datos correctos de ambas tablas
+### Layout responsivo
 
-## Secuencia
+- En desktop: las cards ocupan el ancho completo de su columna (50% del grid)
+- En mobile: stack vertical, full width
+- ScrollArea si hay mas de 4 temas para no desbordar el card
 
-1. Aplicar migracion SQL (fix RLS)
-2. Corregir hook `useCustodianServices.ts` (fix query)
