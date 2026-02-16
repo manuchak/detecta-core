@@ -100,8 +100,6 @@ export const useCustodianServices = (custodianPhone?: string) => {
             fecha_hora_cita,
             estado_planeacion,
             tipo_servicio,
-            km_recorridos,
-            cobro_cliente,
             comentarios_adicionales
           `)
           .eq('custodio_telefono', normalizedPhone)
@@ -126,8 +124,8 @@ export const useCustodianServices = (custodianPhone?: string) => {
         fecha_hora_cita: p.fecha_hora_cita,
         estado: p.estado_planeacion || 'planificado',
         tipo_servicio: p.tipo_servicio || 'custodia',
-        km_recorridos: p.km_recorridos ?? undefined,
-        cobro_cliente: p.cobro_cliente ?? undefined,
+        km_recorridos: undefined,
+        cobro_cliente: undefined,
         comentarios_adicionales: p.comentarios_adicionales ?? undefined,
       }));
 
