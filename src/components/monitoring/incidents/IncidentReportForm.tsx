@@ -540,9 +540,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
         onDiscard={persistence.rejectRestore}
       />
 
-      <div className={`grid gap-4 ${isEditing ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 max-w-4xl'}`}>
-        {/* Main column */}
-        <div className={`${isEditing ? 'lg:col-span-2' : ''} space-y-4`}>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Left column (60%) */}
+        <div className="lg:col-span-3 space-y-4">
           {/* Bloque 1: Vincular servicio */}
           <Card>
             <CardHeader className="pb-3">
@@ -672,7 +672,29 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             </CardContent>
           </Card>
 
-          {/* Controles y Atribución - integrated into main flow */}
+          {/* Resolution (only when editing) */}
+          {isEditing && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Resolución</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notas de resolución</Label>
+                  <Textarea {...form.register('resolucion_notas')} placeholder="Notas sobre cómo se resolvió..." rows={3} className="text-xs" />
+                </div>
+                {incidente?.fecha_resolucion && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Resuelto: {new Date(incidente.fecha_resolucion).toLocaleDateString('es-MX')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right column (40%) - Controles y Cronología */}
+        <div className="lg:col-span-2 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Controles y Atribución</CardTitle>
@@ -753,28 +775,6 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             </CardContent>
           </Card>
         </div>
-
-        {/* Right column: Resolution (only when editing) */}
-        {isEditing && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Resolución</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Notas de resolución</Label>
-                  <Textarea {...form.register('resolucion_notas')} placeholder="Notas sobre cómo se resolvió..." rows={3} className="text-xs" />
-                </div>
-                {incidente.fecha_resolucion && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Resuelto: {new Date(incidente.fecha_resolucion).toLocaleDateString('es-MX')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </div>
   );
