@@ -1,69 +1,68 @@
 
+# Analisis de Persistencia - Formulario de Reporte de Incidentes
 
-# Evidencias Fotograficas en la Cronologia de Incidentes
+## Estado Actual
 
-## Objetivo
+El formulario ya implementa `useFormPersistence` con nivel **robust**, lo cual cubre:
 
-Permitir adjuntar fotos (capturas de WhatsApp, fotos del evento, etc.) a cada entrada de la cronologia, ya sea al crearla o a las existentes.
+- Backup dual (localStorage + sessionStorage)
+- TTL de 72 horas
+- Debounce de 300ms
+- URL params con draft ID (`?draft=xxx`)
+- `DraftRestoreBanner` + `DraftIndicator` en header
+- Guardado en `beforeunload` y `visibilitychange`
+- Verificacion `isMeaningful` (requiere tipo o descripcion)
+- Preview text para el prompt de restauracion
 
----
+## Brechas Detectadas
 
-## Cambios
+### 1. Cronologia local: persistencia fragil (CRITICO)
+Las entradas de cronologia locales se guardan en `localStorage` manualmente (lineas 146-164), pero:
+- **Sin backup en sessionStorage** (a diferencia del formulario principal que usa backup dual)
+- **Sin TTL ni limpieza automatica** - se quedan para siempre si no se limpian
+- **Los archivos de imagen (`imagenFile`) no se serializan** - `JSON.stringify(File)` produce `{}`, asi que las fotos adjuntas se pierden al recargar
+- **Las URLs de preview (`imagenPreview`) son blob URLs** que se invalidan al recargar la pagina
 
-### 1. Agregar columna de imagen a la tabla `incidente_cronologia`
+### 2. Estado del servicio vinculado no persistido (ALTO)
+- `idServicioInput` (el texto del input de busqueda) se pierde al recargar
+- El objeto `servicio` (resultado de la busqueda) no se persiste - el usuario debe buscar de nuevo
+- Esto afecta campos auto-rellenados como `cliente_nombre` y `zona`
 
-**Migracion SQL**: Agregar columna `imagen_url TEXT` a la tabla existente.
+### 3. Sin dialogo de confirmacion al salir (MEDIO)
+- El boton "Atras" (`onBack`) no verifica si hay cambios sin guardar
+- El usuario puede perder datos haciendo click en la flecha de retroceso sin darse cuenta
+- `confirmDiscard` existe en el hook pero no se usa
 
-```sql
-ALTER TABLE public.incidente_cronologia ADD COLUMN imagen_url TEXT;
-```
+### 4. Memory leak de blob URLs (BAJO)
+- Las `imagenPreview` creadas con `URL.createObjectURL` en las entradas locales nunca se revocan al desmontar el componente o al descartar
 
-### 2. Crear bucket de storage `evidencias-incidentes`
+## Plan de Correccion
 
-**Migracion SQL**: Bucket publico para almacenar las fotos, con politicas RLS para staff.
+### Archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`
 
-### 3. Modificar el formulario de entrada en `IncidentTimeline.tsx`
+**Correccion 1 - Persistir idServicioInput en el formulario:**
+- Agregar `idServicioInput` como campo dentro de `ExtendedFormData` (ya existe `id_servicio_texto` pero el input visual no se sincroniza)
+- Sincronizar `idServicioInput` con `form.setValue` para que se persista automaticamente
 
-- Agregar un boton de "Adjuntar foto" (icono de camara) junto al campo de descripcion
-- Input de tipo `file` oculto que acepta imagenes
-- Vista previa (thumbnail) de la imagen seleccionada antes de enviar
-- Compresion automatica via Canvas API (1920x1080, 0.7 quality) siguiendo el estandar del proyecto
+**Correccion 2 - Backup dual para cronologia local:**
+- Agregar guardado en `sessionStorage` para las entradas de cronologia, replicando el patron del hook principal
+- Agregar TTL de 72h alineado con el formulario
+- Al serializar, omitir `imagenFile` y `imagenPreview` (no serializables), pero preservar la descripcion y metadata
 
-### 4. Actualizar la funcion `useAddCronologiaEntry` en `useIncidentesOperativos.ts`
+**Correccion 3 - Confirmacion al salir:**
+- Envolver `onBack` con una verificacion: si `hasDraft` o `hasUnsavedChanges` o `localTimelineEntries.length > 0`, mostrar dialogo de confirmacion antes de navegar
 
-- Aceptar un parametro opcional `imagen?: File`
-- Si hay imagen: subir al bucket `evidencias-incidentes`, obtener URL publica, guardar en `imagen_url`
-- Sanitizar nombre de archivo (sin espacios ni caracteres especiales)
+**Correccion 4 - Limpieza de blob URLs:**
+- Agregar `useEffect` de cleanup que revoque todas las `imagenPreview` blob URLs al desmontar
 
-### 5. Mostrar imagenes en las entradas de la cronologia
+### Resumen de cambios
 
-En cada entrada que tenga `imagen_url`, mostrar:
-- Thumbnail clickeable debajo de la descripcion
-- Al hacer click, abrir la imagen en un dialog/lightbox simple para verla en tamano completo
+| Brecha | Severidad | Archivo | Cambio |
+|---|---|---|---|
+| Cronologia sin backup dual | Critico | IncidentReportForm.tsx | Agregar sessionStorage + TTL |
+| Imagenes no serializables | Critico | IncidentReportForm.tsx | Omitir File/blob al serializar, advertir al restaurar |
+| Servicio no persistido | Alto | IncidentReportForm.tsx | Sincronizar idServicioInput via form |
+| Sin confirmacion al salir | Medio | IncidentReportForm.tsx | Guard en onBack con confirmDiscard |
+| Memory leak blob URLs | Bajo | IncidentReportForm.tsx | useEffect cleanup al desmontar |
 
-### 6. Soporte para entradas locales (modo borrador)
-
-- `LocalTimelineEntry` se extiende con `imagenFile?: File` y `imagenPreview?: string`
-- La imagen se sube al guardar el incidente (en `persistCronologiaEntries`)
-- La preview se genera localmente con `URL.createObjectURL`
-
----
-
-## Archivos a crear/modificar
-
-| Archivo | Accion |
-|---|---|
-| `supabase/migrations/...evidencias_cronologia.sql` | Nueva migracion: columna `imagen_url` + bucket + politicas |
-| `src/hooks/useIncidentesOperativos.ts` | Ampliar `EntradaCronologia` con `imagen_url`, actualizar mutation para subir foto |
-| `src/components/monitoring/incidents/IncidentTimeline.tsx` | Agregar input de foto al formulario, mostrar thumbnails en entradas, lightbox |
-
----
-
-## Detalles tecnicos
-
-- **Compresion**: Canvas API, max 1920x1080, quality 0.7 (~400KB) con fallback al original
-- **Ruta de archivo**: `{incidente_id}/{timestamp}_{random}.{ext}` sanitizada
-- **Bucket**: `evidencias-incidentes`, publico, con politicas de insert/select/delete para staff
-- **Lightbox**: Dialog simple de Radix con la imagen a tamano completo
-- **Tipos aceptados**: image/jpeg, image/png, image/webp
-
+Solo se modifica **1 archivo**: `IncidentReportForm.tsx`
