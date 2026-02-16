@@ -169,15 +169,15 @@ const StarMapPage = () => {
           ))}
         </div>
 
+        {/* Incident Panel — prominente antes de Data Health */}
+        <IncidentPanel />
+
         {/* Data Health Summary */}
         <DataHealthSummary
           pillars={pillars}
           overallCoverage={overallCoverage}
           overallScore={overallScore}
         />
-
-        {/* Incident Panel */}
-        <IncidentPanel />
       </div>
     </div>
   );
