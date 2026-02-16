@@ -7151,6 +7151,7 @@ export type Database = {
           created_at: string
           descripcion: string
           id: string
+          imagen_url: string | null
           incidente_id: string
           timestamp: string
           tipo_entrada: string
@@ -7160,6 +7161,7 @@ export type Database = {
           created_at?: string
           descripcion: string
           id?: string
+          imagen_url?: string | null
           incidente_id: string
           timestamp?: string
           tipo_entrada: string
@@ -7169,6 +7171,7 @@ export type Database = {
           created_at?: string
           descripcion?: string
           id?: string
+          imagen_url?: string | null
           incidente_id?: string
           timestamp?: string
           tipo_entrada?: string

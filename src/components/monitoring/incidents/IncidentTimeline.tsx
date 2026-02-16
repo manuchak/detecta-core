@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Bell, Zap, ArrowUp, Camera, CheckCircle, MessageSquare, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Eye, Bell, Zap, ArrowUp, Camera, CheckCircle, MessageSquare, Plus, Trash2, Loader2, ImagePlus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { EntradaCronologia, TipoEntradaCronologia } from '@/hooks/useIncidentesOperativos';
@@ -35,12 +36,14 @@ export interface LocalTimelineEntry {
   timestamp: string;
   tipo_entrada: TipoEntradaCronologia;
   descripcion: string;
+  imagenFile?: File;
+  imagenPreview?: string;
 }
 
 interface IncidentTimelineProps {
   entries: EntradaCronologia[];
   localEntries?: LocalTimelineEntry[];
-  onAddEntry: (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string }) => void;
+  onAddEntry: (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File }) => void;
   onDeleteEntry?: (id: string) => void;
   onDeleteLocalEntry?: (localId: string) => void;
   isAdding?: boolean;
@@ -62,6 +65,25 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
     tipo_entrada: '' as TipoEntradaCronologia | '',
     descripcion: '',
   });
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  const clearImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setSelectedImage(null);
+    setImagePreview(null);
+  };
 
   const handleSubmit = () => {
     if (!newEntry.tipo_entrada || !newEntry.descripcion.trim()) return;
@@ -69,8 +91,10 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
       timestamp: new Date(newEntry.timestamp).toISOString(),
       tipo_entrada: newEntry.tipo_entrada as TipoEntradaCronologia,
       descripcion: newEntry.descripcion.trim(),
+      imagen: selectedImage || undefined,
     });
     setNewEntry({ timestamp: new Date().toISOString().slice(0, 16), tipo_entrada: '', descripcion: '' });
+    clearImage();
     setShowForm(false);
   };
 
@@ -129,8 +153,48 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
               className="text-xs"
             />
           </div>
+
+          {/* Image attachment */}
+          <div className="space-y-2">
+            {imagePreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-20 w-20 object-cover rounded-lg border border-border cursor-pointer"
+                  onClick={() => setLightboxUrl(imagePreview)}
+                />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-7 text-xs gap-1"
+              >
+                <ImagePlus className="h-3 w-3" />
+                Adjuntar foto
+              </Button>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+
           <div className="flex gap-2 justify-end">
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="h-7 text-xs">Cancelar</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); clearImage(); }} className="h-7 text-xs">Cancelar</Button>
             <Button
               size="sm"
               onClick={handleSubmit}
@@ -160,6 +224,12 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
             const tipo = entry.tipo_entrada as TipoEntradaCronologia;
             const colorClass = COLOR_MAP[tipo] || COLOR_MAP.nota;
             const entryKey = entry.isLocal ? entry.localId : (entry as EntradaCronologia).id;
+
+            // Determine image URL to show
+            const imgUrl = entry.isLocal
+              ? (entry as LocalTimelineEntry).imagenPreview
+              : (entry as EntradaCronologia).imagen_url;
+
             return (
               <div key={entryKey} className="relative pb-4 last:pb-0">
                 {/* Dot */}
@@ -196,12 +266,32 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
                     )}
                   </div>
                   <p className="text-xs text-foreground">{entry.descripcion}</p>
+
+                  {/* Thumbnail de evidencia */}
+                  {imgUrl && (
+                    <img
+                      src={imgUrl}
+                      alt="Evidencia"
+                      className="mt-1.5 h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-md border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                      loading="lazy"
+                      onClick={() => setLightboxUrl(imgUrl)}
+                    />
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Lightbox */}
+      <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl p-2">
+          {lightboxUrl && (
+            <img src={lightboxUrl} alt="Evidencia" className="w-full rounded-lg" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
