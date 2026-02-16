@@ -22,10 +22,11 @@ interface Props {
   logoBase64: string | null;
   imageCache: Map<string, string | null>;
   responseTime: string;
+  reportadoPorNombre?: string;
 }
 
 export const IncidentPDFDocument: React.FC<Props> = ({
-  incidente, cronologia, servicio, logoBase64, imageCache, responseTime,
+  incidente, cronologia, servicio, logoBase64, imageCache, responseTime, reportadoPorNombre,
 }) => {
   const tipoLabel = TIPOS_INCIDENTE.find(t => t.value === incidente.tipo)?.label || incidente.tipo;
   const sevLabel = SEVERIDADES.find(s => s.value === incidente.severidad)?.label || incidente.severidad;
@@ -37,7 +38,7 @@ export const IncidentPDFDocument: React.FC<Props> = ({
     ['Estado', incidente.estado],
     ['Zona', incidente.zona || '-'],
     ['Cliente', incidente.cliente_nombre || '-'],
-    ['Reportado por', incAny.reportado_por || '-'],
+    ['Reportado por', reportadoPorNombre || incAny.firma_creacion_email || '-'],
     ['Atribuible a operación', incidente.atribuible_operacion ? 'Sí' : 'No'],
   ];
   if (responseTime !== 'N/D') {
