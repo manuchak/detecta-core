@@ -1,56 +1,43 @@
 
 
-# Mapa expandible con doble clic
+# Fix: Mapa expandido no ocupa el ancho completo del Dialog
 
 ## Problema
 
-El mapa inline de 192px es demasiado pequeno para seleccionar ubicaciones con precision. Hacer clic o arrastrar el marcador en un area tan reducida es incomodo.
+El mapa dentro del dialog expandido no se extiende al 100% del ancho disponible (hay un espacio vacio a la derecha). Esto ocurre porque Mapbox calcula las dimensiones del canvas al momento de la inicializacion, pero el dialog aun no ha terminado su animacion de apertura en ese instante.
 
 ## Solucion
 
-Agregar un **Dialog de mapa expandido** que se abre al hacer doble clic en el mapa inline (o con un boton "Expandir"). El dialog mostrara un mapa grande (~80vh) con la misma funcionalidad: clic para mover marcador, arrastrar marcador, reverse geocode automatico. Al cerrar el dialog, las coordenadas se sincronizan de vuelta al formulario.
+Modificar la inicializacion del mapa expandido en `LocationPicker.tsx` para:
 
-```text
-+------------------------------------------+
-|  [X]  Seleccionar Ubicacion              |
-+------------------------------------------+
-|  [📍 Buscar direccion...            X ]  |
-|  +------------------------------------+  |
-|  |                                    |  |
-|  |         MAPA GRANDE               |  |
-|  |         (~70vh)                    |  |
-|  |                                    |  |
-|  |            📍                      |  |
-|  |                                    |  |
-|  +------------------------------------+  |
-|  Direccion actual: Blvd Heroes...        |
-|           [Confirmar ubicacion]          |
-+------------------------------------------+
-```
+1. Llamar `map.resize()` dentro del evento `load` del mapa
+2. Agregar un `ResizeObserver` al contenedor del mapa expandido para recalcular dimensiones automaticamente
+3. Agregar un segundo `resize()` con delay de 300ms para cubrir la animacion del dialog
 
 ## Cambios
 
-**Archivo unico: `src/components/monitoring/incidents/LocationPicker.tsx`**
+**Archivo: `src/components/monitoring/incidents/LocationPicker.tsx`**
 
-1. Agregar estado `isExpanded` (boolean)
-2. Agregar listener `dblclick` en el mapa inline que setea `isExpanded = true`
-3. Agregar boton "Expandir" (icono Maximize2) sobre el mapa como alternativa al doble clic
-4. Renderizar un `Dialog` cuando `isExpanded = true`:
-   - Contenido: barra de busqueda + mapa Mapbox a `h-[70vh]` + direccion actual + boton "Confirmar"
-   - El mapa del dialog es una **segunda instancia** de Mapbox (ref separada: `expandedMapRef`, `expandedMarkerRef`)
-   - Se inicializa con las mismas coordenadas y zoom del mapa inline
-   - Soporta clic para mover marcador + drag del marcador + reverse geocode (misma logica)
-   - Incluye barra de busqueda con geocoding (reutiliza `handleSearch`/`handleSelect`)
-5. Al hacer clic en "Confirmar" o cerrar el dialog:
-   - Se llama `onChange` con las coordenadas finales del mapa expandido
-   - Se actualiza el mapa inline para reflejar la nueva posicion
-6. Texto de ayuda del mapa inline cambia a: "Doble clic para expandir el mapa"
+En el `useEffect` que inicializa el mapa expandido (linea 132-190), despues de crear la instancia de Mapbox:
 
-### Detalles tecnicos
+- Agregar `map.on('load', () => map.resize())` para forzar recalculo al cargar
+- Agregar `ResizeObserver` sobre `expandedMapContainerRef.current` que llame `map.resize()`
+- Agregar `setTimeout(() => map.resize(), 350)` para cubrir la animacion del dialog
+- Limpiar el observer en el return del useEffect
 
-- Se usa el componente `Dialog` existente de `@/components/ui/dialog.tsx` (ya tiene el zoom 1.428571 en el style)
-- El `DialogContent` usara `max-w-4xl` para dar ancho suficiente al mapa
-- Se necesitan refs separadas para los dos mapas (inline y expandido) para evitar conflictos
-- El mapa expandido se inicializa en un `useEffect` que depende de `isExpanded`
-- Al cerrar, se llama `expandedMapRef.current?.remove()` para limpiar
+### Codigo relevante del cambio
+
+Dentro del `setTimeout` existente (linea 140), despues de `expandedMarkerRef.current = marker` (linea 181):
+
+```
+map.on('load', () => map.resize());
+setTimeout(() => map.resize(), 350);
+
+const observer = new ResizeObserver(() => map.resize());
+observer.observe(expandedMapContainerRef.current);
+```
+
+Y en el cleanup (linea 184-189), agregar `observer.disconnect()`.
+
+Solo se modifica un archivo, y el cambio es de ~6 lineas.
 
