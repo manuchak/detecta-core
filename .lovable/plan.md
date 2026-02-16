@@ -1,68 +1,46 @@
 
-# Analisis de Persistencia - Formulario de Reporte de Incidentes
 
-## Estado Actual
+# Pegar Imagenes desde el Portapapeles en la Cronologia
 
-El formulario ya implementa `useFormPersistence` con nivel **robust**, lo cual cubre:
+## Problema
 
-- Backup dual (localStorage + sessionStorage)
-- TTL de 72 horas
-- Debounce de 300ms
-- URL params con draft ID (`?draft=xxx`)
-- `DraftRestoreBanner` + `DraftIndicator` en header
-- Guardado en `beforeunload` y `visibilitychange`
-- Verificacion `isMeaningful` (requiere tipo o descripcion)
-- Preview text para el prompt de restauracion
+Actualmente para adjuntar una imagen hay que guardarla primero como archivo y luego subirla con el boton "Adjuntar foto". Esto es lento cuando se quiere pegar un screenshot o una imagen copiada de WhatsApp Web.
 
-## Brechas Detectadas
+## Solucion
 
-### 1. Cronologia local: persistencia fragil (CRITICO)
-Las entradas de cronologia locales se guardan en `localStorage` manualmente (lineas 146-164), pero:
-- **Sin backup en sessionStorage** (a diferencia del formulario principal que usa backup dual)
-- **Sin TTL ni limpieza automatica** - se quedan para siempre si no se limpian
-- **Los archivos de imagen (`imagenFile`) no se serializan** - `JSON.stringify(File)` produce `{}`, asi que las fotos adjuntas se pierden al recargar
-- **Las URLs de preview (`imagenPreview`) son blob URLs** que se invalidan al recargar la pagina
+Agregar soporte para **pegar imagenes directamente** (Ctrl+V / Cmd+V) en el area del formulario de entrada de cronologia. Cuando el formulario esta abierto y el usuario pega una imagen del portapapeles, se captura automaticamente como si la hubiera seleccionado con el boton.
 
-### 2. Estado del servicio vinculado no persistido (ALTO)
-- `idServicioInput` (el texto del input de busqueda) se pierde al recargar
-- El objeto `servicio` (resultado de la busqueda) no se persiste - el usuario debe buscar de nuevo
-- Esto afecta campos auto-rellenados como `cliente_nombre` y `zona`
+## Cambios
 
-### 3. Sin dialogo de confirmacion al salir (MEDIO)
-- El boton "Atras" (`onBack`) no verifica si hay cambios sin guardar
-- El usuario puede perder datos haciendo click en la flecha de retroceso sin darse cuenta
-- `confirmDiscard` existe en el hook pero no se usa
+### Archivo: `src/components/monitoring/incidents/IncidentTimeline.tsx`
 
-### 4. Memory leak de blob URLs (BAJO)
-- Las `imagenPreview` creadas con `URL.createObjectURL` en las entradas locales nunca se revocan al desmontar el componente o al descartar
+1. **Agregar listener de `paste`** en el contenedor del formulario:
+   - Detectar `clipboardData.items` de tipo `image/*`
+   - Convertir el item a `File` y asignarlo como `selectedImage`
+   - Generar el preview con `URL.createObjectURL`
+   - Si ya hay una imagen seleccionada, reemplazarla (revocando la URL anterior)
 
-## Plan de Correccion
+2. **Indicador visual**: Actualizar el texto del boton de adjuntar para indicar la opcion de pegar:
+   - "Adjuntar foto o pegar (Ctrl+V)" en lugar de solo "Adjuntar foto"
 
-### Archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`
+3. **Reutilizar la logica existente**: El archivo pegado pasa por el mismo flujo de compresion y subida que ya existe para archivos seleccionados manualmente.
 
-**Correccion 1 - Persistir idServicioInput en el formulario:**
-- Agregar `idServicioInput` como campo dentro de `ExtendedFormData` (ya existe `id_servicio_texto` pero el input visual no se sincroniza)
-- Sincronizar `idServicioInput` con `form.setValue` para que se persista automaticamente
+## Detalle tecnico
 
-**Correccion 2 - Backup dual para cronologia local:**
-- Agregar guardado en `sessionStorage` para las entradas de cronologia, replicando el patron del hook principal
-- Agregar TTL de 72h alineado con el formulario
-- Al serializar, omitir `imagenFile` y `imagenPreview` (no serializables), pero preservar la descripcion y metadata
+```text
+Evento paste en el formulario
+  --> clipboardData.items[i].type.startsWith('image/')
+    --> item.getAsFile()
+      --> setSelectedImage(file) + setImagePreview(URL.createObjectURL(file))
+```
 
-**Correccion 3 - Confirmacion al salir:**
-- Envolver `onBack` con una verificacion: si `hasDraft` o `hasUnsavedChanges` o `localTimelineEntries.length > 0`, mostrar dialogo de confirmacion antes de navegar
+- Solo se activa cuando el formulario esta visible (`showForm === true`)
+- Se valida que el tipo sea imagen (jpeg, png, webp)
+- Compatible con: screenshots del sistema, imagenes copiadas de WhatsApp Web, imagenes copiadas del navegador
 
-**Correccion 4 - Limpieza de blob URLs:**
-- Agregar `useEffect` de cleanup que revoque todas las `imagenPreview` blob URLs al desmontar
+## Archivo a modificar
 
-### Resumen de cambios
+| Archivo | Cambio |
+|---|---|
+| `src/components/monitoring/incidents/IncidentTimeline.tsx` | Agregar handler de paste + texto indicativo |
 
-| Brecha | Severidad | Archivo | Cambio |
-|---|---|---|---|
-| Cronologia sin backup dual | Critico | IncidentReportForm.tsx | Agregar sessionStorage + TTL |
-| Imagenes no serializables | Critico | IncidentReportForm.tsx | Omitir File/blob al serializar, advertir al restaurar |
-| Servicio no persistido | Alto | IncidentReportForm.tsx | Sincronizar idServicioInput via form |
-| Sin confirmacion al salir | Medio | IncidentReportForm.tsx | Guard en onBack con confirmDiscard |
-| Memory leak blob URLs | Bajo | IncidentReportForm.tsx | useEffect cleanup al desmontar |
-
-Solo se modifica **1 archivo**: `IncidentReportForm.tsx`
