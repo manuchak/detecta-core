@@ -315,17 +315,24 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File }) => {
+  const handleAddCronologia = async (entry: { timestamp: string; tipo_entrada: TipoEntradaCronologia; descripcion: string; imagen?: File; ubicacion_lat?: number | null; ubicacion_lng?: number | null; ubicacion_texto?: string | null }) => {
     if (isEditing && incidente?.id) {
-      // Directly save to DB if editing
       try {
-        await addCronologiaMutation.mutateAsync({ incidente_id: incidente.id, ...entry });
+        await addCronologiaMutation.mutateAsync({
+          incidente_id: incidente.id,
+          timestamp: entry.timestamp,
+          tipo_entrada: entry.tipo_entrada,
+          descripcion: entry.descripcion,
+          imagen: entry.imagen,
+          ubicacion_lat: entry.ubicacion_lat,
+          ubicacion_lng: entry.ubicacion_lng,
+          ubicacion_texto: entry.ubicacion_texto,
+        });
         toast.success('Entrada agregada a cronología');
       } catch (err: any) {
         toast.error(err.message);
       }
     } else {
-      // Save locally (Bloque 3)
       const localEntry: LocalTimelineEntry = {
         localId: crypto.randomUUID(),
         timestamp: entry.timestamp,
@@ -333,6 +340,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
         descripcion: entry.descripcion,
         imagenFile: entry.imagen,
         imagenPreview: entry.imagen ? URL.createObjectURL(entry.imagen) : undefined,
+        ubicacion_lat: entry.ubicacion_lat,
+        ubicacion_lng: entry.ubicacion_lng,
+        ubicacion_texto: entry.ubicacion_texto,
       };
       setLocalTimelineEntries(prev => [...prev, localEntry]);
       toast.success('Entrada agregada (se guardará con el incidente)');
@@ -385,6 +395,9 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
         tipo_entrada: entry.tipo_entrada,
         descripcion: entry.descripcion,
         imagen: entry.imagenFile,
+        ubicacion_lat: entry.ubicacion_lat,
+        ubicacion_lng: entry.ubicacion_lng,
+        ubicacion_texto: entry.ubicacion_texto,
       });
     }
     setLocalTimelineEntries([]);
