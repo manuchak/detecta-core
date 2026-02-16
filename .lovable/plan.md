@@ -1,28 +1,69 @@
 
 
-# Corregir descripciones cortadas en los selectores de Tipo y Severidad
+# Evidencias Fotograficas en la Cronologia de Incidentes
 
-## Problema
+## Objetivo
 
-Las descripciones dentro de los dropdowns de "Tipo" y "Severidad" se cortan por dos razones:
-1. El texto se trunca a 80 caracteres con `.slice(0, 80)`
-2. El contenedor tiene `max-w-[340px]` que es muy estrecho para el texto completo
+Permitir adjuntar fotos (capturas de WhatsApp, fotos del evento, etc.) a cada entrada de la cronologia, ya sea al crearla o a las existentes.
+
+---
 
 ## Cambios
 
-### Archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`
+### 1. Agregar columna de imagen a la tabla `incidente_cronologia`
 
-**Selector de Tipo (lineas 407-414)**:
-- Cambiar `max-w-[340px]` a `w-[420px]` en SelectContent para dar mas espacio
-- Eliminar `.slice(0, 80)` para mostrar el texto completo
-- Agregar `whitespace-normal` al SelectItem para permitir salto de linea
-- Cambiar `leading-tight` a `leading-snug` para mejor legibilidad
+**Migracion SQL**: Agregar columna `imagen_url TEXT` a la tabla existente.
 
-**Selector de Severidad (lineas 435-442)**:
-- Aplicar los mismos cambios que en Tipo
+```sql
+ALTER TABLE public.incidente_cronologia ADD COLUMN imagen_url TEXT;
+```
 
-En ambos casos el cambio es identico:
-- `SelectContent className="max-w-[340px]"` se convierte en `SelectContent className="w-[420px]"`
-- `{t.descripcion.slice(0, 80)}...` se convierte en `{t.descripcion}` (texto completo)
-- Se agrega `whitespace-normal` en el SelectItem y `max-w-[370px]` en el div interno para que el texto fluya correctamente
+### 2. Crear bucket de storage `evidencias-incidentes`
+
+**Migracion SQL**: Bucket publico para almacenar las fotos, con politicas RLS para staff.
+
+### 3. Modificar el formulario de entrada en `IncidentTimeline.tsx`
+
+- Agregar un boton de "Adjuntar foto" (icono de camara) junto al campo de descripcion
+- Input de tipo `file` oculto que acepta imagenes
+- Vista previa (thumbnail) de la imagen seleccionada antes de enviar
+- Compresion automatica via Canvas API (1920x1080, 0.7 quality) siguiendo el estandar del proyecto
+
+### 4. Actualizar la funcion `useAddCronologiaEntry` en `useIncidentesOperativos.ts`
+
+- Aceptar un parametro opcional `imagen?: File`
+- Si hay imagen: subir al bucket `evidencias-incidentes`, obtener URL publica, guardar en `imagen_url`
+- Sanitizar nombre de archivo (sin espacios ni caracteres especiales)
+
+### 5. Mostrar imagenes en las entradas de la cronologia
+
+En cada entrada que tenga `imagen_url`, mostrar:
+- Thumbnail clickeable debajo de la descripcion
+- Al hacer click, abrir la imagen en un dialog/lightbox simple para verla en tamano completo
+
+### 6. Soporte para entradas locales (modo borrador)
+
+- `LocalTimelineEntry` se extiende con `imagenFile?: File` y `imagenPreview?: string`
+- La imagen se sube al guardar el incidente (en `persistCronologiaEntries`)
+- La preview se genera localmente con `URL.createObjectURL`
+
+---
+
+## Archivos a crear/modificar
+
+| Archivo | Accion |
+|---|---|
+| `supabase/migrations/...evidencias_cronologia.sql` | Nueva migracion: columna `imagen_url` + bucket + politicas |
+| `src/hooks/useIncidentesOperativos.ts` | Ampliar `EntradaCronologia` con `imagen_url`, actualizar mutation para subir foto |
+| `src/components/monitoring/incidents/IncidentTimeline.tsx` | Agregar input de foto al formulario, mostrar thumbnails en entradas, lightbox |
+
+---
+
+## Detalles tecnicos
+
+- **Compresion**: Canvas API, max 1920x1080, quality 0.7 (~400KB) con fallback al original
+- **Ruta de archivo**: `{incidente_id}/{timestamp}_{random}.{ext}` sanitizada
+- **Bucket**: `evidencias-incidentes`, publico, con politicas de insert/select/delete para staff
+- **Lightbox**: Dialog simple de Radix con la imagen a tamano completo
+- **Tipos aceptados**: image/jpeg, image/png, image/webp
 
