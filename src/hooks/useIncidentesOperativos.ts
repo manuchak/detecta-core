@@ -62,22 +62,91 @@ export interface FiltrosIncidentes {
 // =============================================================================
 
 export const TIPOS_INCIDENTE = [
-  { value: 'robo', label: 'Robo' },
-  { value: 'asalto', label: 'Asalto' },
-  { value: 'accidente_vial', label: 'Accidente vial' },
-  { value: 'agresion', label: 'Agresión' },
-  { value: 'extorsion', label: 'Extorsión' },
-  { value: 'perdida_mercancia', label: 'Pérdida de mercancía' },
-  { value: 'falla_gps', label: 'Falla GPS' },
-  { value: 'protocolo_incumplido', label: 'Protocolo incumplido' },
-  { value: 'otro', label: 'Otro' },
+  {
+    value: 'robo',
+    label: 'Robo',
+    descripcion: 'Sustracción de bienes sin confrontación directa con personas. El delincuente actúa sin violencia física hacia el custodio u operador.',
+    ejemplo: 'Mercancía sustraída de la unidad mientras el operador estaba en descanso; robo de autopartes en estacionamiento.',
+  },
+  {
+    value: 'asalto',
+    label: 'Asalto',
+    descripcion: 'Agresión con violencia o intimidación directa hacia el personal para despojar bienes. Implica amenaza con arma o fuerza física.',
+    ejemplo: 'Sujetos armados interceptan la unidad y amenazan al operador; encajonamiento en carretera con armas de fuego.',
+  },
+  {
+    value: 'accidente_vial',
+    label: 'Accidente vial',
+    descripcion: 'Colisión, volcadura o percance vehicular durante el traslado. Puede o no involucrar terceros.',
+    ejemplo: 'Choque en crucero por falta de semáforo; volcadura en curva por exceso de velocidad.',
+  },
+  {
+    value: 'agresion',
+    label: 'Agresión',
+    descripcion: 'Ataque físico o verbal hacia el personal sin intención de robo. Puede ser de terceros o entre personal.',
+    ejemplo: 'Altercado con conductor de otro vehículo; agresión de civil en punto de entrega.',
+  },
+  {
+    value: 'extorsion',
+    label: 'Extorsión',
+    descripcion: 'Exigencia de dinero o bienes bajo amenaza, sin sustracción directa de mercancía. Incluye cobro de piso o llamadas amenazantes.',
+    ejemplo: 'Llamada exigiendo pago para permitir paso en zona; cobro de "derecho de piso" en punto de entrega.',
+  },
+  {
+    value: 'perdida_mercancia',
+    label: 'Pérdida de mercancía',
+    descripcion: 'Faltante de producto sin evidencia de acto delictivo. Puede ser por error logístico, daño en tránsito o discrepancia en conteo.',
+    ejemplo: 'Al entregar se detectan 3 cajas faltantes sin signos de apertura forzada; producto dañado por mala estiba.',
+  },
+  {
+    value: 'falla_gps',
+    label: 'Falla GPS',
+    descripcion: 'Pérdida de señal, desconexión o mal funcionamiento del dispositivo de rastreo durante el servicio.',
+    ejemplo: 'GPS sin reportar posición por más de 30 min; dispositivo desconectado detectado en revisión.',
+  },
+  {
+    value: 'protocolo_incumplido',
+    label: 'Protocolo incumplido',
+    descripcion: 'Violación a procedimientos operativos establecidos sin que necesariamente ocurra un siniestro.',
+    ejemplo: 'Operador no realizó check-in en punto de control; custodio abandonó la unidad sin autorización.',
+  },
+  {
+    value: 'otro',
+    label: 'Otro',
+    descripcion: 'Evento que no encaja en las categorías anteriores pero requiere documentación.',
+    ejemplo: 'Bloqueo carretero que impide la entrega; fenómeno meteorológico que daña la unidad.',
+  },
 ];
 
 export const SEVERIDADES = [
-  { value: 'baja', label: 'Baja', color: 'bg-emerald-500/10 text-emerald-600' },
-  { value: 'media', label: 'Media', color: 'bg-amber-500/10 text-amber-600' },
-  { value: 'alta', label: 'Alta', color: 'bg-orange-500/10 text-orange-600' },
-  { value: 'critica', label: 'Crítica', color: 'bg-red-500/10 text-red-600' },
+  {
+    value: 'baja',
+    label: 'Baja',
+    color: 'bg-emerald-500/10 text-emerald-600',
+    descripcion: 'Sin lesiones, sin pérdida económica significativa, sin afectación al servicio.',
+    ejemplo: 'Falla de GPS temporal resuelta en minutos; protocolo menor incumplido sin consecuencias.',
+  },
+  {
+    value: 'media',
+    label: 'Media',
+    color: 'bg-amber-500/10 text-amber-600',
+    descripcion: 'Pérdida económica moderada o retraso significativo en la entrega. Sin lesiones graves.',
+    ejemplo: 'Pérdida parcial de mercancía por daño en tránsito; accidente vial menor sin heridos.',
+  },
+  {
+    value: 'alta',
+    label: 'Alta',
+    color: 'bg-orange-500/10 text-orange-600',
+    descripcion: 'Pérdida económica importante, lesiones leves, o riesgo de afectación a la relación con el cliente.',
+    ejemplo: 'Robo de carga completa sin violencia; accidente con lesiones leves; cliente escala queja formal.',
+  },
+  {
+    value: 'critica',
+    label: 'Crítica',
+    color: 'bg-red-500/10 text-red-600',
+    descripcion: 'Lesiones graves, pérdida total de carga de alto valor, uso de armas, o riesgo de vida.',
+    ejemplo: 'Asalto con arma de fuego; secuestro de operador; pérdida de carga valuada en más de $500K.',
+  },
 ];
 
 export const CONTROLES = ['GPS activo', 'Protocolo pavor', 'Botón pánico', 'Custodio armado', 'Escolta', 'Ruta alterna'];

@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Send, FileText, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { DraftRestoreBanner, DraftIndicator } from '@/components/ui/DraftAutoRestorePrompt';
 import { IncidentTimeline, type LocalTimelineEntry } from './IncidentTimeline';
 import { ServiceDataSummary } from './ServiceDataSummary';
 import { LocationPicker } from './LocationPicker';
+import { IncidentClassificationGuide } from './IncidentClassificationGuide';
 import { exportIncidentePDF } from './IncidentPDFExporter';
 import { useServicioLookup } from '@/hooks/useServicioLookup';
 import {
@@ -396,24 +397,64 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
               <CardTitle className="text-sm">Datos Generales</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <IncidentClassificationGuide />
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Tipo *</Label>
                   <Select value={watchedValues.tipo} onValueChange={v => form.setValue('tipo', v, { shouldDirty: true })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>
-                      {TIPOS_INCIDENTE.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    <SelectContent className="max-w-[340px]">
+                      {TIPOS_INCIDENTE.map(t => (
+                        <SelectItem key={t.value} value={t.value} className="py-2">
+                          <div>
+                            <span className="text-xs font-medium">{t.label}</span>
+                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{t.descripcion.slice(0, 80)}…</p>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {watchedValues.tipo && (() => {
+                    const selected = TIPOS_INCIDENTE.find(t => t.value === watchedValues.tipo);
+                    return selected ? (
+                      <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground flex items-start gap-1">
+                          <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
+                          {selected.descripcion}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Severidad *</Label>
                   <Select value={watchedValues.severidad} onValueChange={v => form.setValue('severidad', v, { shouldDirty: true })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                    <SelectContent>
-                      {SEVERIDADES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    <SelectContent className="max-w-[340px]">
+                      {SEVERIDADES.map(s => (
+                        <SelectItem key={s.value} value={s.value} className="py-2">
+                          <div>
+                            <span className="text-xs font-medium">{s.label}</span>
+                            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{s.descripcion.slice(0, 80)}…</p>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {watchedValues.severidad && (() => {
+                    const selected = SEVERIDADES.find(s => s.value === watchedValues.severidad);
+                    return selected ? (
+                      <div className="rounded-md bg-muted/50 border border-border p-2 space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground flex items-start gap-1">
+                          <Info className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
+                          {selected.descripcion}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground italic pl-4">Ej: {selected.ejemplo}</p>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 
