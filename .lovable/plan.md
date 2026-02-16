@@ -1,46 +1,58 @@
 
-
-# Pegar Imagenes desde el Portapapeles en la Cronologia
+# Persistencia de Screenshots en la Cronologia del Evento
 
 ## Problema
 
-Actualmente para adjuntar una imagen hay que guardarla primero como archivo y luego subirla con el boton "Adjuntar foto". Esto es lento cuando se quiere pegar un screenshot o una imagen copiada de WhatsApp Web.
+Cuando se agrega una imagen (screenshot o foto) a una entrada de cronologia en un incidente **nuevo** (no editado), la imagen se pierde al cambiar de pagina o refrescar. Esto ocurre porque:
+
+1. Las imagenes se guardan como objetos `File` en el estado (`imagenFile`)
+2. Los objetos `File` y las URLs `blob:` **no son serializables** -- no pueden guardarse en localStorage/sessionStorage
+3. La funcion `serializeTimelineEntries` explicitamente elimina `imagenFile` e `imagenPreview`, dejando solo un flag `hadImage: true`
+4. Al restaurar, las entradas llegan sin imagen y el usuario ve el toast "fotos que no pudieron restaurarse"
 
 ## Solucion
 
-Agregar soporte para **pegar imagenes directamente** (Ctrl+V / Cmd+V) en el area del formulario de entrada de cronologia. Cuando el formulario esta abierto y el usuario pega una imagen del portapapeles, se captura automaticamente como si la hubiera seleccionado con el boton.
+Convertir las imagenes a **base64 data URLs** antes de persistir en localStorage/sessionStorage. Al restaurar, reconstruir los objetos `File` desde el base64 para que puedan subirse a Supabase Storage cuando se registre el incidente.
 
 ## Cambios
 
-### Archivo: `src/components/monitoring/incidents/IncidentTimeline.tsx`
+### Archivo: `src/components/monitoring/incidents/IncidentReportForm.tsx`
 
-1. **Agregar listener de `paste`** en el contenedor del formulario:
-   - Detectar `clipboardData.items` de tipo `image/*`
-   - Convertir el item a `File` y asignarlo como `selectedImage`
-   - Generar el preview con `URL.createObjectURL`
-   - Si ya hay una imagen seleccionada, reemplazarla (revocando la URL anterior)
+1. **Agregar funcion `fileToBase64`**: Convierte un `File` a string base64 data URL usando `FileReader`
 
-2. **Indicador visual**: Actualizar el texto del boton de adjuntar para indicar la opcion de pegar:
-   - "Adjuntar foto o pegar (Ctrl+V)" en lugar de solo "Adjuntar foto"
+2. **Modificar `serializeTimelineEntries`**: Hacerla `async` para que pueda convertir cada `imagenFile` a base64 antes de serializar. Se almacena junto con el `type` y `name` del archivo original
 
-3. **Reutilizar la logica existente**: El archivo pegado pasa por el mismo flujo de compresion y subida que ya existe para archivos seleccionados manualmente.
+3. **Modificar `deserializeTimelineEntries`**: Reconstruir objetos `File` desde el base64 guardado, y usar el mismo base64 como `imagenPreview` (en lugar de blob URL)
+
+4. **Actualizar `persistLocalEntries`**: Hacerlo `async` para acomodar la serializacion asincrona
+
+5. **Eliminar toast de "fotos que no pudieron restaurarse"**: Ya no aplica porque las fotos SI se restauran
 
 ## Detalle tecnico
 
 ```text
-Evento paste en el formulario
-  --> clipboardData.items[i].type.startsWith('image/')
-    --> item.getAsFile()
-      --> setSelectedImage(file) + setImagePreview(URL.createObjectURL(file))
+Al agregar entrada con imagen:
+  File --> fileToBase64() --> data:image/png;base64,... 
+  --> se guarda en localStorage junto con name y type
+
+Al restaurar:
+  base64 --> new File([blob], name, {type}) --> imagenFile restaurado
+  base64 --> imagenPreview (se usa directamente como src de <img>)
+
+Al enviar incidente:
+  imagenFile (File reconstruido) --> uploadEvidenciaImage() --> Supabase Storage
 ```
 
-- Solo se activa cuando el formulario esta visible (`showForm === true`)
-- Se valida que el tipo sea imagen (jpeg, png, webp)
-- Compatible con: screenshots del sistema, imagenes copiadas de WhatsApp Web, imagenes copiadas del navegador
+### Consideraciones de tamano
 
-## Archivo a modificar
+- Las fotos ya pasan por compresion Canvas API (~400KB)
+- Un screenshot tipico en base64 ocupa ~500KB-1MB
+- localStorage tiene un limite de ~5-10MB por dominio
+- Con el TTL de 72h existente, los datos se limpian automaticamente
+- Se limita a maximo 5 imagenes almacenadas para evitar exceder el limite
+
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/monitoring/incidents/IncidentTimeline.tsx` | Agregar handler de paste + texto indicativo |
-
+| `src/components/monitoring/incidents/IncidentReportForm.tsx` | Serializar/deserializar imagenes como base64, eliminar toast de imagenes perdidas |
