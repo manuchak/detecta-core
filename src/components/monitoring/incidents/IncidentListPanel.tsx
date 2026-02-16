@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle } from 'lucide-react';
+import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle, Check, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import {
   useIncidentesList, useIncidenteResumen, useUpdateIncidente,
   TIPOS_INCIDENTE, SEVERIDADES,
@@ -36,8 +37,9 @@ export const IncidentListPanel: React.FC = () => {
   const [view, setView] = useState<'list' | 'form'>('list');
   const [selectedIncident, setSelectedIncident] = useState<IncidenteOperativo | null>(null);
   const [closingIncidentId, setClosingIncidentId] = useState<string | null>(null);
+  const [firmaCierre, setFirmaCierre] = useState<string | null>(null);
 
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const canClose = ROLES_CERRAR_INCIDENTE.includes(userRole || '');
 
   const { data: incidentes = [], isLoading } = useIncidentesList(filtros);
@@ -60,18 +62,22 @@ export const IncidentListPanel: React.FC = () => {
   };
 
   const handleConfirmClose = async () => {
-    if (!closingIncidentId) return;
+    if (!closingIncidentId || !firmaCierre) return;
     try {
       await updateMutation.mutateAsync({
         id: closingIncidentId,
         estado: 'cerrado',
         fecha_resolucion: new Date().toISOString(),
+        firma_cierre_base64: firmaCierre,
+        firma_cierre_email: user?.email || null,
+        firma_cierre_timestamp: new Date().toISOString(),
       } as any);
       toast.success('Incidente cerrado');
     } catch (err: any) {
       toast.error(err.message || 'Error al cerrar incidente');
     } finally {
       setClosingIncidentId(null);
+      setFirmaCierre(null);
     }
   };
 
@@ -155,29 +161,24 @@ export const IncidentListPanel: React.FC = () => {
               {incidentes.map(inc => {
                 const sev = SEVERIDADES.find(s => s.value === inc.severidad);
                 const tipoLabel = TIPOS_INCIDENTE.find(t => t.value === inc.tipo)?.label || inc.tipo;
+                const incAny = inc as any;
                 return (
                   <button
                     key={inc.id}
                     onClick={() => handleEdit(inc)}
-                    className="w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-4 py-3 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Línea 1: Badges + Tipo + Fecha */}
+                    <div className="flex items-center gap-2 mb-1">
                       <Badge className={`text-[9px] h-5 px-2 shrink-0 ${sev?.color || ''}`}>
                         {inc.severidad}
                       </Badge>
                       <Badge variant="outline" className={`text-[9px] h-5 px-2 shrink-0 ${ESTADOS_BADGE[inc.estado] || ''}`}>
                         {inc.estado}
                       </Badge>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{tipoLabel}</p>
-                        <p className="text-xs text-muted-foreground truncate">{inc.descripcion}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {inc.atribuible_operacion && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
-                      {inc.zona && <span className="text-[10px] text-muted-foreground">{inc.zona}</span>}
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {format(new Date(inc.fecha_incidente), 'dd/MM/yy', { locale: es })}
+                      <span className="text-xs font-medium truncate flex-1">{tipoLabel}</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                        {format(new Date(inc.fecha_incidente), 'dd/MM/yy HH:mm', { locale: es })}
                       </span>
                       {canClose && inc.estado !== 'cerrado' && (
                         <button
@@ -190,6 +191,40 @@ export const IncidentListPanel: React.FC = () => {
                         </button>
                       )}
                     </div>
+                    {/* Línea 2: Cliente | Zona | Servicio | Atribuible */}
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1">
+                      {inc.cliente_nombre && <span>{inc.cliente_nombre}</span>}
+                      {inc.cliente_nombre && inc.zona && <span>•</span>}
+                      {inc.zona && <span>{inc.zona}</span>}
+                      {incAny.id_servicio_texto && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-0.5"><Link2 className="h-3 w-3" />{incAny.id_servicio_texto}</span>
+                        </>
+                      )}
+                      {inc.atribuible_operacion && (
+                        <>
+                          <span>•</span>
+                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                        </>
+                      )}
+                    </div>
+                    {/* Línea 3: Descripción + Indicadores de firma */}
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] text-muted-foreground truncate flex-1">
+                        {inc.descripcion?.length > 60 ? inc.descripcion.slice(0, 60) + '…' : inc.descripcion}
+                      </p>
+                      {inc.firma_creacion_base64 && (
+                        <Badge variant="outline" className="text-[8px] h-4 px-1.5 gap-0.5 shrink-0 border-emerald-300 text-emerald-600">
+                          <Check className="h-2.5 w-2.5" /> Firmado
+                        </Badge>
+                      )}
+                      {inc.firma_cierre_base64 && (
+                        <Badge variant="outline" className="text-[8px] h-4 px-1.5 shrink-0 border-blue-300 text-blue-600">
+                          🔒 Cerrado
+                        </Badge>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -199,17 +234,18 @@ export const IncidentListPanel: React.FC = () => {
       </Card>
 
       {/* AlertDialog para confirmar cierre */}
-      <AlertDialog open={!!closingIncidentId} onOpenChange={(open) => { if (!open) setClosingIncidentId(null); }}>
+      <AlertDialog open={!!closingIncidentId} onOpenChange={(open) => { if (!open) { setClosingIncidentId(null); setFirmaCierre(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar cierre de incidente</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción cambiará el estado a cerrado y registrará la fecha de resolución. No se puede revertir.
+              Esta acción cambiará el estado a cerrado. Firma digital requerida para confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <SignaturePad value={firmaCierre} onChange={setFirmaCierre} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClose} disabled={updateMutation.isPending}>
+            <AlertDialogAction onClick={handleConfirmClose} disabled={!firmaCierre || updateMutation.isPending}>
               {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Cerrar incidente
             </AlertDialogAction>
