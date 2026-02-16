@@ -325,7 +325,7 @@ export function ChecklistDetailModal({
                   </p>
                 )}
 
-                {servicio.firmaBase64 && (
+                {servicio.firmaBase64 ? (
                   <div className="mt-3">
                     <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
                       <PenLine className="h-2.5 w-2.5" />
@@ -336,6 +336,13 @@ export function ChecklistDetailModal({
                       alt="Firma"
                       className="h-14 border rounded bg-white"
                     />
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/10 text-destructive text-xs font-medium">
+                      <AlertTriangle className="h-3 w-3" />
+                      Sin firma digital
+                    </span>
                   </div>
                 )}
 
