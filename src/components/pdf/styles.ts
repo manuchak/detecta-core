@@ -23,27 +23,27 @@ export const pdfBaseStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: PDF_PAGE_CONFIG.headerHeight,
-    backgroundColor: PDF_COLORS.red,
+    backgroundColor: PDF_COLORS.surface,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: PDF_PAGE_CONFIG.paddingHorizontal,
   },
   headerLogo: {
-    width: 26,
-    height: 26,
+    height: 28,
+    maxWidth: 80,
+    objectFit: 'contain',
     marginRight: 10,
   },
   headerTitle: {
-    color: PDF_COLORS.white,
+    color: PDF_COLORS.black,
     fontSize: 11,
     fontWeight: 700,
     letterSpacing: 0.5,
   },
   headerSubtitle: {
-    color: PDF_COLORS.white,
+    color: PDF_COLORS.gray,
     fontSize: PDF_FONT_SIZES.sm,
     marginLeft: 'auto',
-    opacity: 0.9,
   },
 
   // ── Report Footer (fixed, bottom) ──

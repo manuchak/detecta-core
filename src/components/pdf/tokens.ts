@@ -66,6 +66,6 @@ export const PDF_PAGE_CONFIG = {
   paddingTop: 50,
   paddingBottom: 40,
   paddingHorizontal: 40,
-  headerHeight: 36,
+  headerHeight: 42,
   footerHeight: 20,
 } as const;
