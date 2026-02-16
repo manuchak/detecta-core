@@ -123,6 +123,7 @@ const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
 const CustomerSuccessPage = lazy(() => import('@/pages/CustomerSuccess/CustomerSuccessPage'));
+const StarMapPage = lazy(() => import('@/pages/StarMap/StarMapPage'));
  const ServiceChecklistPage = lazy(() => import('@/pages/custodian/ServiceChecklistPage'));
 
 // Components
@@ -291,6 +292,20 @@ function App() {
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <UnifiedLayout>
                           <ExecutiveDashboard />
+                        </UnifiedLayout>
+                      </PermissionProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* StarMap Dashboard */}
+                <Route
+                  path="/dashboard/starmap"
+                  element={
+                    <ProtectedRoute>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
+                        <UnifiedLayout>
+                          <StarMapPage />
                         </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
