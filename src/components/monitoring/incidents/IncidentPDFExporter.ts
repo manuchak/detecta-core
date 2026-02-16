@@ -12,6 +12,16 @@ const CORPORATE_GRAY = [100, 100, 100] as const;
 const LIGHT_GRAY = [240, 240, 240] as const;
 const WHITE = [255, 255, 255] as const;
 
+/** Remove accents and unsupported Unicode chars for jsPDF Helvetica */
+function sanitizeForPDF(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[●•◦▪▸►]/g, '')
+    .replace(/\u00f1/g, 'n')
+    .replace(/\u00d1/g, 'N');
+}
+
 const SEV_COLORS: Record<string, [number, number, number]> = {
   baja: [34, 197, 94],
   media: [234, 179, 8],
@@ -84,7 +94,7 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
   );
 
   const checkPage = (needed: number) => {
-    if (y + needed > pageHeight - 20) {
+    if (y + needed > pageHeight - 15) {
       pdf.addPage();
       y = 25;
       addHeader();
@@ -119,9 +129,9 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
       pdf.setPage(i);
       pdf.setFontSize(7);
       pdf.setTextColor(...CORPORATE_GRAY);
-      pdf.text('Documento confidencial - Solo para uso interno', marginLeft, pageHeight - 8);
+      pdf.text(sanitizeForPDF('Documento confidencial - Solo para uso interno'), marginLeft, pageHeight - 8);
       pdf.text(
-        `Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}  |  Pagina ${i} de ${pageCount}`,
+        sanitizeForPDF(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}  |  Pagina ${i} de ${pageCount}`),
         pageWidth - marginRight,
         pageHeight - 8,
         { align: 'right' }
@@ -159,32 +169,25 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
     pdf.setTextColor(...CORPORATE_GRAY);
     pdf.text(box.label, bx + boxW / 2, y + 7, { align: 'center' });
 
-    if (box.color) {
-      // Severity circle
-      pdf.setFillColor(box.color[0], box.color[1], box.color[2]);
-      pdf.circle(bx + boxW / 2 - 10, y + 14, 2, 'F');
-    }
-
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...CORPORATE_BLACK);
-    const valText = pdf.splitTextToSize(String(box.value), boxW - 4);
-    pdf.text(valText[0] || '', bx + boxW / 2, y + 15, { align: 'center' });
+    const valText = pdf.splitTextToSize(sanitizeForPDF(String(box.value)), boxW - 4);
+    const displayVal = valText[0] || '';
+
+    if (box.color) {
+      // Severity circle aligned to text
+      const textW = pdf.getTextWidth(displayVal);
+      pdf.setFillColor(box.color[0], box.color[1], box.color[2]);
+      pdf.circle(bx + boxW / 2 - textW / 2 - 4, y + 14, 2, 'F');
+    }
+
+    pdf.text(displayVal, bx + boxW / 2, y + 15, { align: 'center' });
   });
 
   y += 28;
 
-  // ───── Title ─────
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(...CORPORATE_BLACK);
-  pdf.text('Reporte de Incidente Operativo', marginLeft, y);
-  y += 6;
-  pdf.setFontSize(9);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(...CORPORATE_GRAY);
-  pdf.text(`Fecha: ${format(new Date(incidente.fecha_incidente), "dd 'de' MMMM yyyy, HH:mm", { locale: es })}`, marginLeft, y);
-  y += 10;
+  // (Title removed - already in header bar)
 
   // ───── 1. Datos Generales ─────
   const addSectionHeader = (title: string) => {
@@ -219,10 +222,10 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
     checkPage(6);
     pdf.setFont('helvetica', 'bold');
     pdf.setTextColor(...CORPORATE_GRAY);
-    pdf.text(`${label}:`, marginLeft + 3, y);
+    pdf.text(sanitizeForPDF(`${label}:`), marginLeft + 3, y);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(...CORPORATE_BLACK);
-    pdf.text(String(value), marginLeft + 50, y);
+    pdf.text(sanitizeForPDF(String(value)), marginLeft + 50, y);
     y += 5;
   });
 
@@ -230,11 +233,11 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
   checkPage(12);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(...CORPORATE_GRAY);
-  pdf.text('Descripcion:', marginLeft + 3, y);
+  pdf.text(sanitizeForPDF('Descripcion:'), marginLeft + 3, y);
   y += 5;
   pdf.setFont('helvetica', 'normal');
   pdf.setTextColor(...CORPORATE_BLACK);
-  const descLines = pdf.splitTextToSize(incidente.descripcion, contentWidth - 6);
+  const descLines = pdf.splitTextToSize(sanitizeForPDF(incidente.descripcion), contentWidth - 6);
   descLines.forEach((line: string) => {
     checkPage(5);
     pdf.text(line, marginLeft + 3, y);
@@ -308,18 +311,21 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
       const tipoEntrada = TIPOS_ENTRADA_CRONOLOGIA.find(t => t.value === entry.tipo_entrada)?.label || entry.tipo_entrada;
       const ts = format(new Date(entry.timestamp), 'dd/MM HH:mm', { locale: es });
 
+      pdf.setFillColor(...CORPORATE_RED);
+      pdf.circle(marginLeft + 5, y - 1.2, 1.5, 'F');
+
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...CORPORATE_RED);
-      pdf.text(`● ${ts}`, marginLeft + 3, y);
+      pdf.text(sanitizeForPDF(ts), marginLeft + 9, y);
       pdf.setTextColor(...CORPORATE_GRAY);
-      pdf.text(`[${tipoEntrada}]`, marginLeft + 30, y);
+      pdf.text(sanitizeForPDF(`[${tipoEntrada}]`), marginLeft + 32, y);
       y += 4.5;
 
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(...CORPORATE_BLACK);
-      const entryLines = pdf.splitTextToSize(entry.descripcion, contentWidth - 10);
+      const entryLines = pdf.splitTextToSize(sanitizeForPDF(entry.descripcion), contentWidth - 10);
       entryLines.forEach((line: string) => {
         checkPage(4.5);
         pdf.text(line, marginLeft + 8, y);
@@ -349,10 +355,12 @@ export async function exportIncidentePDF({ incidente, cronologia, servicio }: Ex
       if (imgUrl) {
         const imgData = imageCache.get(imgUrl);
         if (imgData) {
-          checkPage(35);
+          checkPage(50);
           try {
-            pdf.addImage(imgData, 'JPEG', marginLeft + 8, y, 40, 30);
-            y += 32;
+            pdf.addImage(imgData, 'JPEG', marginLeft + 8, y, 60, 45);
+            pdf.setDrawColor(200, 200, 200);
+            pdf.rect(marginLeft + 8, y, 60, 45);
+            y += 47;
           } catch {
             pdf.setFontSize(7);
             pdf.setTextColor(...CORPORATE_GRAY);
