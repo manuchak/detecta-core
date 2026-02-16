@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,17 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { EntradaCronologia, TipoEntradaCronologia } from '@/hooks/useIncidentesOperativos';
 import { TIPOS_ENTRADA_CRONOLOGIA } from '@/hooks/useIncidentesOperativos';
+
+/** Returns current local datetime as YYYY-MM-DDTHH:mm for datetime-local inputs */
+const getLocalDateTimeString = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  return `${y}-${mo}-${d}T${h}:${mi}`;
+};
 
 const ICON_MAP: Record<TipoEntradaCronologia, React.ReactNode> = {
   deteccion: <Eye className="h-4 w-4" />,
@@ -61,7 +72,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [newEntry, setNewEntry] = useState({
-    timestamp: new Date().toISOString().slice(0, 16),
+    timestamp: getLocalDateTimeString(),
     tipo_entrada: '' as TipoEntradaCronologia | '',
     descripcion: '',
   });
@@ -110,7 +121,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
       descripcion: newEntry.descripcion.trim(),
       imagen: selectedImage || undefined,
     });
-    setNewEntry({ timestamp: new Date().toISOString().slice(0, 16), tipo_entrada: '', descripcion: '' });
+    setNewEntry({ timestamp: getLocalDateTimeString(), tipo_entrada: '', descripcion: '' });
     clearImage();
     setShowForm(false);
   };
