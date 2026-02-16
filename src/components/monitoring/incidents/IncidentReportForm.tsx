@@ -127,7 +127,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   // Service lookup (Bloque 1) — synced with form for persistence
   const { servicio, isSearching, error: servicioError, buscarServicio } = useServicioLookup();
-  const idServicioInput = form.watch('id_servicio_input');
+  const idServicioInput = form.watch('id_servicio_input') ?? '';
   const setIdServicioInput = useCallback((val: string) => {
     form.setValue('id_servicio_input', val, { shouldDirty: true });
   }, [form]);
