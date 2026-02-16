@@ -1,120 +1,43 @@
 
+# Cerrar incidente desde la lista principal (con control de rol)
 
-# Mejora del PDF de Reporte de Incidente Operativo
+## Resumen
 
-## Problemas identificados
+Agregar un boton "Cerrar" directamente en cada tarjeta de la lista de incidentes (IncidentListPanel), visible solo para roles autorizados (coordinador_operaciones, admin, owner). Al hacer clic se muestra un AlertDialog de confirmacion antes de ejecutar el cierre.
 
-1. No aparece el logo de Detecta en ninguna pagina
-2. No se incluyen las imagenes/evidencia adjuntas a la cronologia
-3. No se exporta la ubicacion de las entradas de cronologia (campos recien agregados)
-4. La ruta del servicio muestra caracteres espaciados/corruptos
-5. Falta informacion clave para un Head de Seguridad: tiempo de respuesta, responsable, impacto
-6. La cronologia no se ordena cronologicamente en el PDF
+## Cambios
 
-## Cambios propuestos
+### 1. `src/components/monitoring/incidents/IncidentListPanel.tsx`
 
-### 1. Agregar logo de Detecta en el header de cada pagina
+- Importar `useUpdateIncidente` del hook existente
+- Importar `useAuth` para obtener el `userRole` del usuario actual
+- Importar `AlertDialog` de Radix para confirmacion
+- Importar iconos `Lock` y `XCircle` de lucide
+- Definir constante local con roles autorizados para cerrar: `['admin', 'owner', 'coordinador_operaciones']`
+- En cada fila de incidente cuyo estado NO sea `cerrado`:
+  - Si el usuario tiene rol autorizado, renderizar un boton icono "Cerrar" (XCircle) al final de la fila
+  - El boton abre un AlertDialog: "Confirmar cierre de incidente - Esta accion cambiara el estado a cerrado y registrara la fecha de resolucion. No se puede revertir."
+  - Al confirmar, llamar `updateIncidente.mutateAsync({ id, estado: 'cerrado', fecha_resolucion: new Date().toISOString() })`
+  - Mostrar toast de exito/error
+- El boton debe usar `e.stopPropagation()` para no disparar el `handleEdit` del row
 
-- Cargar el logo `src/assets/detecta-logo.png` como base64 al inicio de la funcion
-- Renderizarlo en la barra roja del header (esquina izquierda, ~12mm de alto)
-- Mover el texto "REPORTE DE INCIDENTE OPERATIVO" a la derecha del logo
+### 2. `src/components/monitoring/incidents/IncidentReportForm.tsx`
 
-### 2. Mejorar la seccion de Datos Generales
+- Aplicar la misma restriccion de rol al boton "Cerrar incidente" existente dentro del formulario
+- Importar `useAuth` y verificar que el rol este en la lista autorizada antes de renderizar el boton
 
-- Agregar campo "Reportado por" (ya existe en `incidente.reportado_por`)
-- Agregar "Tiempo de respuesta" calculado: diferencia entre la primera entrada tipo `deteccion` y la primera `accion` o `notificacion`
-- Mostrar severidad con indicador visual (circulo de color segun nivel)
+## Roles autorizados para cerrar
 
-### 3. Corregir renderizado de Ruta en Servicio Vinculado
+- `admin`
+- `owner`
+- `coordinador_operaciones`
 
-- El campo Ruta concatena origen y destino con `→` pero jsPDF no maneja bien caracteres especiales en ciertas fuentes
-- Usar `.replace()` para limpiar espacios extra y validar encoding antes de renderizar
+Estos roles ya estan definidos como roles de alta autoridad en `accessControl.ts`. Se usara una constante local en el componente para mantener la logica clara y no contaminar el archivo central con una constante muy especifica.
 
-### 4. Incluir ubicacion en entradas de Cronologia
+## Flujo del usuario
 
-- Para cada entrada que tenga `ubicacion_texto`, mostrar una linea adicional con icono de pin y la direccion
-- Para entradas con `ubicacion_lat/lng` sin texto, mostrar las coordenadas
-
-### 5. Incluir imagenes de evidencia en la Cronologia
-
-- Para entradas con `imagen_url`, descargar la imagen como base64 usando `fetch` + `canvas`
-- Renderizar un thumbnail (~40x30mm) debajo de la descripcion de la entrada
-- Hacer la funcion `async` para permitir la carga de imagenes
-- Agregar fallback: si la imagen no carga, mostrar texto "[Imagen no disponible]"
-
-### 6. Ordenar cronologia cronologicamente
-
-- Ordenar las entradas por `timestamp` ascendente antes de renderizar
-
-### 7. Agregar seccion de Resumen Ejecutivo (nueva, antes de Datos Generales)
-
-- Cuadro destacado con: Tipo, Severidad (con color), Cliente, Zona, Tiempo de respuesta
-- Formato visual compacto que permite al Head de Seguridad evaluar gravedad en 5 segundos
-
-### 8. Mejorar el footer
-
-- Incluir "Documento confidencial - Solo para uso interno" en cada pagina
-- Mantener numeracion de paginas y fecha de generacion
-
-## Detalle tecnico
-
-### Archivo modificado: `src/components/monitoring/incidents/IncidentPDFExporter.ts`
-
-**Cambios principales:**
-
-1. Importar el logo como base64 (crear constante o importar asset)
-2. Convertir `exportIncidentePDF` a funcion `async` para poder cargar imagenes
-3. En `addHeader()`: agregar `pdf.addImage()` con el logo
-4. Nuevo bloque "Resumen Ejecutivo" con cuadros de color segun severidad
-5. En seccion Cronologia:
-   - Ordenar `cronologia.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp))`
-   - Para cada entrada, verificar `imagen_url` y cargar con `fetch` + blob to base64
-   - Verificar `ubicacion_texto` y renderizar linea extra
-6. En seccion Servicio Vinculado: sanitizar texto de ruta
-
-**Archivos adicionales afectados:**
-
-- `src/components/monitoring/incidents/IncidentReportForm.tsx` - Cambiar llamada a `await exportIncidentePDF()`
-- `src/components/monitoring/incidents/IncidentListPanel.tsx` - Cambiar llamada a `await exportIncidentePDF()`
-
-### Estructura final del PDF
-
-```text
-+------------------------------------------+
-| [LOGO DETECTA]  REPORTE DE INCIDENTE     |
-|              OPERATIVO        ID: xxxx   |
-+------------------------------------------+
-|                                          |
-|  RESUMEN EJECUTIVO (nuevo)               |
-|  +--------+ +--------+ +--------+       |
-|  | Tipo   | | Sever. | | T.Resp |       |
-|  | Acc.   | | ●BAJA  | | 1h 55m |       |
-|  +--------+ +--------+ +--------+       |
-|                                          |
-|  1. Datos Generales                      |
-|     Tipo: ...  Severidad: ...            |
-|     Reportado por: ...                   |
-|                                          |
-|  2. Servicio Vinculado                   |
-|     (ruta corregida)                     |
-|                                          |
-|  3. Cronologia del Evento               |
-|     (ordenada cronologicamente)          |
-|     ● 16/02 14:32 [Deteccion]           |
-|       prueba 1                           |
-|     ● 16/02 14:38 [Accion tomada]       |
-|       foto del lugar                     |
-|       [imagen thumbnail]                 |
-|       📍 Calle X, Puebla               |
-|     ● 16/02 20:27 [Notificacion]        |
-|       prueba 2                           |
-|                                          |
-|  4. Controles y Atribucion              |
-|                                          |
-|  5. Resolucion (si aplica)              |
-|                                          |
-+------------------------------------------+
-| Confidencial | Gen: 16/02 | Pag 1 de N  |
-+------------------------------------------+
-```
-
+1. Ve la lista de incidentes
+2. En incidentes no cerrados, aparece un boton con icono X (solo si tiene rol autorizado)
+3. Hace clic, se abre dialogo de confirmacion
+4. Confirma: el incidente pasa a estado "cerrado" con fecha de resolucion = ahora
+5. La lista se refresca automaticamente (invalidateQueries ya configurado en useUpdateIncidente)
