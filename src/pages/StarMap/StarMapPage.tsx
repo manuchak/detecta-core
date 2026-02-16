@@ -4,6 +4,7 @@ import { useStarMapKPIs } from '@/hooks/useStarMapKPIs';
 import { StarMapVisualization } from '@/components/starmap/StarMapVisualization';
 import { PillarDetailPanel } from '@/components/starmap/PillarDetailPanel';
 import { DataHealthSummary } from '@/components/starmap/DataHealthSummary';
+import { IncidentPanel } from '@/components/starmap/IncidentPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Star, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -174,6 +175,9 @@ const StarMapPage = () => {
           overallCoverage={overallCoverage}
           overallScore={overallScore}
         />
+
+        {/* Incident Panel */}
+        <IncidentPanel />
       </div>
     </div>
   );

@@ -65,6 +65,8 @@ export function useStarMapKPIs(): StarMapData {
         custodiaFinancierosRes,
         rechazosRes,
         forecastRes,
+        // Phase 4: Incidents
+        incidentesRes,
       ] = await Promise.all([
         supabase.from('crm_deals').select('id, status, value').eq('is_deleted', false),
         supabase.from('servicios_planificados')
@@ -99,6 +101,10 @@ export function useStarMapKPIs(): StarMapData {
           .select('mape_services')
           .order('created_at', { ascending: false })
           .limit(1),
+        // Phase 4: incidentes_operativos
+        supabase.from('incidentes_operativos')
+          .select('id, severidad, atribuible_operacion, controles_activos, control_efectivo')
+          .gte('fecha_incidente', ninetyDaysAgo),
       ]);
 
       const deals = dealsRes.data || [];
@@ -111,6 +117,7 @@ export function useStarMapKPIs(): StarMapData {
       const custodiaFinancieros = custodiaFinancierosRes.data || [];
       const rechazos = rechazosRes.data || [];
       const forecastData = forecastRes.data || [];
+      const incidentes = incidentesRes.data || [];
 
       // === NORTH STAR: SCNV (Proxy) ===
       const serviciosFinalizados = planificados.filter(s => 
@@ -251,11 +258,41 @@ export function useStarMapKPIs(): StarMapData {
         ? dsoValues.reduce((a, b) => a + b, 0) / dsoValues.length
         : null;
 
+      // === PILAR 5: Seguridad / Riesgo (Phase 4) ===
+      // Total services in period for rate calculation
+      const totalServiciosPeriodo = totalPlanificados.length;
+
+      // R1: Incident Rate per 1,000 services
+      const r1IncidentRate = totalServiciosPeriodo > 0
+        ? Math.round((incidentes.length / totalServiciosPeriodo) * 1000 * 10) / 10
+        : incidentes.length > 0 ? incidentes.length : null;
+
+      // R2: Critical Attributable Rate — % of incidents that are critical AND attributable
+      const criticalAtribuibles = incidentes.filter(i => (i.severidad === 'critica' || i.severidad === 'alta') && i.atribuible_operacion);
+      const r2CriticalRate = incidentes.length > 0
+        ? Math.round((criticalAtribuibles.length / incidentes.length) * 100 * 10) / 10
+        : null;
+
+      // R3: Exposure Score — weighted severity (baja=1, media=2, alta=4, critica=8)
+      const severityWeights = { baja: 1, media: 2, alta: 4, critica: 8 };
+      const r3ExposureScore = incidentes.length > 0
+        ? Math.round(incidentes.reduce((sum, i) => sum + (severityWeights[i.severidad] || 1), 0) * 10) / 10
+        : null;
+
+      // R4: Control Effectiveness — % of incidents where controls were active AND effective
+      const withControls = incidentes.filter(i => i.controles_activos && i.controles_activos.length > 0);
+      const controlsEffective = withControls.filter(i => i.control_efectivo === true);
+      const r4ControlEffectiveness = withControls.length > 0
+        ? Math.round((controlsEffective.length / withControls.length) * 100 * 10) / 10
+        : null;
+
       return {
         scnvProxy, winRate, evidenceRate, fillRate, confirmRate, avgTimeToAssign,
         newCustodians, docCompliance, checkinCompliance, avgHealthScore, avgDSO,
         // Phase 2
         s1PlanRate, s4Mape, noShowRate, coverageIndex, rechazosCount, closeQuality, avgGM, avgCPS,
+        // Phase 4
+        r1IncidentRate, r2CriticalRate, r3ExposureScore, r4ControlEffectiveness,
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -341,10 +378,10 @@ export function useStarMapKPIs(): StarMapData {
       icon: '🔒',
       color: 'hsl(0, 65%, 48%)',
       kpis: [
-        { id: 'R1', name: 'Incident Rate ×1,000', value: null, target: 0, unit: 'rate', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['tabla incidentes operativos'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: de 0% a 100% cobertura' },
-        { id: 'R2', name: 'Critical Attributable Rate', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['taxonomía incidentes'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: clasificación severidad' },
-        { id: 'R3', name: 'Exposure Score', value: null, target: 0, unit: 'pts', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['modelo exposición'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: scoring zonas' },
-        { id: 'R4', name: 'Control Effectiveness', value: null, target: 0, unit: '%', status: 'no-data', isProxy: false, dataSource: '', missingFields: ['datos mitigantes'], instrumentationCategory: 'new-table', businessImpact: 'Riesgo: eficacia controles' },
+        { id: 'R1', name: 'Incident Rate ×1,000', value: d.r1IncidentRate ?? null, target: 5, unit: 'rate', status: getStatus(d.r1IncidentRate ?? null, 5, 15, true), isProxy: false, dataSource: 'incidentes_operativos' },
+        { id: 'R2', name: 'Critical Attributable Rate', value: d.r2CriticalRate ?? null, target: 10, unit: '%', status: getStatus(d.r2CriticalRate ?? null, 10, 25, true), isProxy: false, dataSource: 'incidentes_operativos' },
+        { id: 'R3', name: 'Exposure Score', value: d.r3ExposureScore ?? null, target: 20, unit: 'pts', status: getStatus(d.r3ExposureScore ?? null, 20, 50, true), isProxy: false, dataSource: 'incidentes_operativos' },
+        { id: 'R4', name: 'Control Effectiveness', value: d.r4ControlEffectiveness ?? null, target: 80, unit: '%', status: getStatus(d.r4ControlEffectiveness ?? null, 80, 60), isProxy: false, dataSource: 'incidentes_operativos' },
       ],
       score: 0,
       coverage: 0,
