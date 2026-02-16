@@ -1,73 +1,142 @@
 
 
-## Plan: Corregir 2 problemas operativos de planeacion
+# Plan: Workflow Completo de Cartera y Touchpoints
 
-### Problema 1: Error de "Referencia Cliente" al cambiar hora de servicio
+## Diagnostico del Estado Actual
 
-**Causa raiz**: El campo `id_interno_cliente` tiene una validacion Zod de maximo 50 caracteres. El servicio de BIRKENSTOCK tiene un valor de ~57 caracteres ("San Pedro Garza Garcia, N.L. Local 217-218 Local 217-218"). Cuando Daniela intenta cambiar solo la hora, el sistema valida TODOS los campos del formulario (incluido `id_interno_cliente`), y la validacion falla por exceder el limite, bloqueando el guardado.
+Tras analizar el modulo completo, se identificaron las siguientes brechas criticas que hacen el flujo confuso para los usuarios:
 
-**Solucion**: Dos cambios complementarios:
+### Brechas Identificadas
 
-1. **Aumentar limite de caracteres**: Cambiar la validacion de `id_interno_cliente` de 50 a 200 caracteres en el schema Zod, ya que las referencias de facturacion de clientes pueden incluir direcciones completas.
+| Area | Problema | Impacto en UX |
+|------|----------|---------------|
+| Asignacion CSM | Solo existe `useAssignCSM` pero no hay UI para asignarlos masiva o individualmente desde Cartera | El campo "CSM" en la tabla muestra "Sin asignar" sin forma de corregirlo in-situ |
+| Touchpoint Lifecycle | No hay estado (pendiente/completado) ni forma de marcar un seguimiento como realizado | El usuario crea touchpoints pero no puede cerrar el ciclo |
+| Touchpoint List | Solo lectura, sin boton "Nuevo", sin edicion, sin accion sobre seguimientos vencidos | El analista debe ir a Cartera para crear touchpoints, flujo no intuitivo |
+| Perfil de Cliente | Muestra touchpoints como lista plana, sin acciones ni contexto de seguimiento | No se puede actuar desde el perfil del cliente |
+| Playbooks | Ejecuta solo para el primer cliente de la etapa, sin seleccion ni confirmacion | Accion automatica sin control del usuario |
+| Conexion entre vistas | No hay navegacion directa entre touchpoint vencido -> cliente -> accion | El usuario debe hacer clicks manuales para conectar contextos |
 
-2. **Validacion solo de campos modificados**: Ajustar la logica de `handleSave` para que la validacion Zod se ejecute unicamente sobre los campos que realmente cambiaron (ya existe la logica de `changedFields`, pero la validacion se ejecuta ANTES sobre todo el formulario). Esto evita que un campo que el planeador no toco bloquee un cambio en otro campo.
+### Mejores Practicas de la Industria (Gainsight/Totango/ChurnZero)
 
-**Archivo**: `src/components/planeacion/EditServiceForm.tsx`
-- Linea 45: Cambiar `.max(50, ...)` a `.max(200, ...)`
-- Linea 646: Actualizar `maxLength={50}` a `maxLength={200}` en el input HTML
-- Lineas 360-394: Mover la validacion para que se aplique sobre `changedFields` en lugar de sobre todo `formData`
+Basado en la investigacion, los patrones que aplican directamente a este sistema:
 
----
+1. **"Task-based Touchpoints"**: Los touchpoints deben ser tareas con estado (abierto -> completado/reprogramado), no registros planos. Totango los llama "SuccessPlays" y siempre tienen un resultado esperado.
 
-### Problema 2: Custodio "Ignacio Villegas" no aparece en el listado de reasignacion
+2. **"Contextual Actions"**: Toda accion disponible debe ser ejecutable desde donde el usuario esta (inline editing), no forzar navegacion a otra vista. ChurnZero usa "action sidebars" que aparecen sobre la vista actual.
 
-**Causa raiz**: El filtro por defecto en el modal de reasignacion tiene `ocupados: false` (definido en `DEFAULT_FILTERS`). Si Ignacio Villegas tiene servicios asignados ese dia, el RPC `verificar_disponibilidad_equitativa_custodio` lo clasifica como "ocupado" y queda oculto por defecto.
+3. **"Portfolio-First View"**: La tabla de cartera es el centro de operaciones. Asignacion, touchpoints y alertas deben ser operables directamente desde esta vista con un patron de "click to expand" o "slide-over panel".
 
-Daniela necesita reasignar porque el custodio original tiene "Hoy No Circula" (contingencia ambiental en CDMX que restringe la circulacion de vehiculos). El custodio de reemplazo (Ignacio Villegas) probablemente ya tiene otro servicio, por lo que queda clasificado como "ocupado" y no es visible con los filtros por defecto.
-
-**Verificacion en BD**: Ignacio Villegas Sanchez (id: `0f65378c`) esta `activo` con `disponibilidad = 'disponible'`, confirmando que el filtro de categoria es lo que lo oculta.
-
-**Solucion**: Cambiar los filtros por defecto en el modal de reasignacion para que incluyan la categoria "ocupados", ya que en el contexto de reasignacion (cambio de custodio por emergencia) es critico ver a todos los operativos disponibles.
-
-**Archivos**:
-- `src/components/planeacion/ReassignmentModal.tsx` linea 92: Usar filtros de reasignacion especificos con `ocupados: true`
-- Alternativamente, crear una constante `REASSIGNMENT_FILTERS` que active las tres categorias por defecto
+4. **"Follow-up Engine"**: Los seguimientos vencidos deben ser la primera cosa visible, con accion de un click para completar o reprogramar.
 
 ---
 
-### Resumen de cambios
+## Solucion Propuesta
 
-| Archivo | Cambio | Impacto |
-|---------|--------|---------|
-| `EditServiceForm.tsx` | Aumentar limite de `id_interno_cliente` de 50 a 200 chars | Permite guardar servicios con referencias largas |
-| `EditServiceForm.tsx` | Validar solo campos modificados | Evita bloqueos por campos que el planeador no toco |
-| `ReassignmentModal.tsx` | Filtros de reasignacion con `ocupados: true` por defecto | Ignacio Villegas y otros custodios con carga aparecen de inmediato |
+### Fase 1: Touchpoint Lifecycle (Columna `estado`)
 
-### Seccion tecnica
+**Objetivo**: Convertir touchpoints de registros planos a tareas con ciclo de vida.
 
-**Cambio 1 - Validacion parcial**:
+**Cambios en BD**:
+- Agregar columna `estado` a `cs_touchpoints` con valores: `pendiente`, `completado`, `cancelado` (default: `completado` para los existentes, `pendiente` cuando hay `siguiente_accion`)
+
+**Archivos a modificar**:
+- `src/hooks/useCSTouchpoints.ts`: Agregar `estado` al tipo, crear `useCompleteTouchpoint` mutation, crear `useRescheduleTouchpoint` mutation
+- `src/integrations/supabase/types.ts`: Se regenera automaticamente
+
+### Fase 2: Touchpoints List Accionable
+
+**Objetivo**: Transformar la lista de touchpoints de solo-lectura a centro de operaciones.
+
+**Archivos a crear/modificar**:
+- `src/pages/CustomerSuccess/components/CSTouchpointsList.tsx`: Rediseno completo con:
+  - Boton "Nuevo Touchpoint" en header con modal completo (selector de cliente)
+  - Tabs: "Pendientes" | "Vencidos" | "Historial"
+  - Cada fila con acciones inline: "Completar" (un click), "Reprogramar" (date picker), "Ver cliente"
+  - Filas vencidas con highlighting y accion prioritaria
+  - Click en nombre de cliente abre el perfil
+
+**Patron UX**: Vista tipo "Task Inbox" donde los pendientes/vencidos son lo primero.
+
 ```text
-Antes:
-  const validationResult = editServiceSchema.safeParse(formData);
-  // Valida TODO el formulario, incluyendo campos no modificados
-
-Despues:
-  // Construir changedFields primero
-  // Luego validar solo los campos en changedFields usando .pick() o .partial()
-  const partialSchema = editServiceSchema.partial();
-  const validationResult = partialSchema.safeParse(changedFields);
++--------------------------------------------------+
+| [Nuevo Touchpoint]              [Filtros]         |
+|--------------------------------------------------|
+| Pendientes (3) | Vencidos (2) | Historial        |
+|--------------------------------------------------|
+| ! BIRKENSTOCK - Llamar a Juan   Vence: 15/02     |
+|   [Completar]  [Reprogramar]   [Ver cliente ->]  |
+|--------------------------------------------------|
+| ! SERVAL - Enviar cotizacion    Vencio: 10/02    |
+|   [Completar]  [Reprogramar]   [Ver cliente ->]  |
++--------------------------------------------------+
 ```
 
-**Cambio 2 - Filtros de reasignacion**:
-```text
-// En ReassignmentModal.tsx
-const REASSIGNMENT_FILTERS: CustodianStepFilters = {
-  disponibles: true,
-  parcialmenteOcupados: true,
-  ocupados: true,        // <-- Cambio clave
-  scoreMinimo: null,
-};
+### Fase 3: Asignacion CSM desde Cartera
 
-const [filters, setFilters] = useState<CustodianStepFilters>(REASSIGNMENT_FILTERS);
+**Objetivo**: Permitir asignar/reasignar CSM directamente desde la tabla de cartera.
+
+**Archivos a modificar**:
+- `src/pages/CustomerSuccess/components/CSCartera.tsx`:
+  - Columna CSM: Click inline abre un `Select` con la lista de CSMs (usando `useCSMOptions`)
+  - Boton de "Asignacion masiva": Seleccionar multiples clientes y asignar CSM en batch
+  - Indicador visual: clientes "Sin asignar" con badge de alerta
+
+**Patron UX**: Edicion inline tipo spreadsheet para la columna CSM.
+
+```text
+| Cliente      | CSM                    | ...  |
+|-------------|------------------------|------|
+| BIRKENSTOCK | [v] Maria Lopez        | ...  |
+| SERVAL      | [!] Sin asignar [+]    | ...  |
+| FLEXI       | [v] Carlos Ramirez     | ...  |
 ```
+
+### Fase 4: Panel de Cliente Enriquecido
+
+**Objetivo**: Hacer el perfil modal del cliente accionable, no solo informativo.
+
+**Archivos a modificar**:
+- `src/pages/CustomerSuccess/components/CSClienteProfileModal.tsx`:
+  - Tab "Touchpoints": Agregar boton "Nuevo Touchpoint" dentro del tab
+  - Cada touchpoint: Mostrar estado con badge de color y acciones (completar/reprogramar)
+  - Seguimientos pendientes: Destacarlos con borde amarillo/rojo segun vencimiento
+  - Boton "Asignar CSM" visible en el header del modal si no tiene CSM
+
+### Fase 5: Flujo Conectado y Navegacion Contextual
+
+**Objetivo**: Conectar todas las vistas para que el usuario nunca se pierda.
+
+**Cambios**:
+- Desde KPI "Seg. Pendientes" en Panorama: Click navega a Operativo > Touchpoints > tab "Vencidos"
+- Desde alerta en `CSAlertsFeed`: Click en alerta de tipo "sin_contacto_30d" abre el perfil con tab Touchpoints pre-seleccionado
+- Desde tabla Cartera: Click en "Dias s/c" de un cliente abre modal con el touchpoint mas reciente visible
+- Desde Playbooks: "Ejecutar" muestra un mini-selector de clientes de la etapa antes de crear el touchpoint
+
+---
+
+## Resumen de Archivos Afectados
+
+| Archivo | Tipo de Cambio |
+|---------|---------------|
+| `cs_touchpoints` (BD) | Agregar columna `estado` |
+| `src/hooks/useCSTouchpoints.ts` | Agregar mutations: complete, reschedule, update |
+| `src/pages/CustomerSuccess/components/CSTouchpointsList.tsx` | Rediseno completo con tabs y acciones |
+| `src/pages/CustomerSuccess/components/CSCartera.tsx` | Inline CSM assignment + indicadores |
+| `src/pages/CustomerSuccess/components/CSClienteProfileModal.tsx` | Touchpoints accionables + asignacion CSM |
+| `src/pages/CustomerSuccess/components/CSPlaybooks.tsx` | Selector de cliente antes de ejecutar |
+| `src/pages/CustomerSuccess/components/CSPanorama.tsx` | Navegacion contextual desde KPIs |
+| `src/pages/CustomerSuccess/components/CSAlertsFeed.tsx` | Deep-links a touchpoints |
+| `src/hooks/useAssignCSM.ts` | Agregar mutation para asignacion masiva |
+
+## Secuencia de Implementacion
+
+Se recomienda implementar en orden Fase 1 -> 2 -> 3 -> 4 -> 5, ya que cada fase construye sobre la anterior. Las fases 3 y 4 pueden ejecutarse en paralelo.
+
+### Notas Tecnicas
+
+- La columna `estado` en `cs_touchpoints` usara un migration SQL: `ALTER TABLE cs_touchpoints ADD COLUMN estado text NOT NULL DEFAULT 'completado'` y luego actualizar registros con `siguiente_accion IS NOT NULL AND fecha_siguiente_accion >= NOW()` a `pendiente`.
+- La edicion inline de CSM usa el pattern existente de `useAssignCSM` que ya hace `update` a `pc_clientes.csm_asignado`.
+- Los tabs de touchpoints usan el componente `Tabs` de Radix ya existente en el proyecto.
+- No se requieren edge functions nuevas; toda la logica es frontend + queries directas a Supabase.
 
