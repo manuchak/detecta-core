@@ -7145,6 +7145,117 @@ export type Database = {
           },
         ]
       }
+      incidentes_operativos: {
+        Row: {
+          acciones_tomadas: string | null
+          atribuible_operacion: boolean
+          cliente_nombre: string | null
+          control_efectivo: boolean | null
+          controles_activos: string[] | null
+          created_at: string
+          custodio_id: string | null
+          descripcion: string
+          estado: string
+          fecha_incidente: string
+          fecha_resolucion: string | null
+          id: string
+          reportado_por: string | null
+          resolucion_notas: string | null
+          servicio_custodia_id: number | null
+          servicio_planificado_id: string | null
+          severidad: string
+          tipo: string
+          ubicacion_lat: number | null
+          ubicacion_lng: number | null
+          updated_at: string
+          zona: string | null
+        }
+        Insert: {
+          acciones_tomadas?: string | null
+          atribuible_operacion?: boolean
+          cliente_nombre?: string | null
+          control_efectivo?: boolean | null
+          controles_activos?: string[] | null
+          created_at?: string
+          custodio_id?: string | null
+          descripcion: string
+          estado?: string
+          fecha_incidente?: string
+          fecha_resolucion?: string | null
+          id?: string
+          reportado_por?: string | null
+          resolucion_notas?: string | null
+          servicio_custodia_id?: number | null
+          servicio_planificado_id?: string | null
+          severidad: string
+          tipo: string
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          updated_at?: string
+          zona?: string | null
+        }
+        Update: {
+          acciones_tomadas?: string | null
+          atribuible_operacion?: boolean
+          cliente_nombre?: string | null
+          control_efectivo?: boolean | null
+          controles_activos?: string[] | null
+          created_at?: string
+          custodio_id?: string | null
+          descripcion?: string
+          estado?: string
+          fecha_incidente?: string
+          fecha_resolucion?: string | null
+          id?: string
+          reportado_por?: string | null
+          resolucion_notas?: string | null
+          servicio_custodia_id?: number | null
+          servicio_planificado_id?: string | null
+          severidad?: string
+          tipo?: string
+          ubicacion_lat?: number | null
+          ubicacion_lng?: number | null
+          updated_at?: string
+          zona?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidentes_operativos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_operativos_custodio_id_fkey"
+            columns: ["custodio_id"]
+            isOneToOne: false
+            referencedRelation: "custodios_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_operativos_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_operativos_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_operativos_servicio_planificado_id_fkey"
+            columns: ["servicio_planificado_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_planificados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidentes_rrss: {
         Row: {
           apify_actor_id: string | null
