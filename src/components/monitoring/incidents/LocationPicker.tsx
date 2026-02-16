@@ -179,6 +179,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
       map.getCanvas().style.cursor = 'crosshair';
       expandedMapRef.current = map;
       expandedMarkerRef.current = marker;
+
+      map.on('load', () => map.resize());
+      setTimeout(() => map.resize(), 350);
+
+      const observer = new ResizeObserver(() => map.resize());
+      if (expandedMapContainerRef.current) {
+        observer.observe(expandedMapContainerRef.current);
+      }
     }, 100);
 
     return () => {
