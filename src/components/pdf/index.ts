@@ -26,3 +26,13 @@ export { ReportPage } from './ReportPage';
 
 // Utilities
 export { loadImageAsBase64 } from './utils';
+
+// Charts
+export {
+  PDFBarChart,
+  PDFHorizontalBarChart,
+  PDFLineChart,
+  PDFPieChart,
+  PDFGaugeChart,
+  PDFStackedBarChart,
+} from './charts';
