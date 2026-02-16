@@ -69,6 +69,23 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formContainerRef = useRef<HTMLDivElement>(null);
+
+  const applyImage = (file: File) => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find(item => item.type.startsWith('image/'));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    applyImage(file);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -118,7 +135,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
 
       {/* Add entry form */}
       {showForm && !readOnly && (
-        <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+        <div ref={formContainerRef} onPaste={handlePaste} className="border rounded-lg p-3 space-y-3 bg-muted/30">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium">Fecha/Hora</label>
@@ -181,7 +198,7 @@ export const IncidentTimeline: React.FC<IncidentTimelineProps> = ({
                 className="h-7 text-xs gap-1"
               >
                 <ImagePlus className="h-3 w-3" />
-                Adjuntar foto
+                Adjuntar foto o pegar (Ctrl+V)
               </Button>
             )}
             <input
