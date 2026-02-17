@@ -17,12 +17,17 @@ export const ServicesMoMChart = () => {
   }
 
   const prevYear = currentYear - 1;
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+
   const chartData = Array.from({ length: 12 }, (_, m) => {
-    const curr = monthlyByYear.find(d => d.year === currentYear && d.month === m + 1);
-    const prev = monthlyByYear.find(d => d.year === prevYear && d.month === m + 1);
+    const monthNum = m + 1;
+    const curr = monthlyByYear.find(d => d.year === currentYear && d.month === monthNum);
+    const prev = monthlyByYear.find(d => d.year === prevYear && d.month === monthNum);
+    const currVal = curr?.services || 0;
     return {
-      month: curr?.monthLabel || '',
-      [currentYear]: curr?.services || 0,
+      month: curr?.monthLabel || prev?.monthLabel || '',
+      [currentYear]: (currentYear > now.getFullYear() || (currentYear === now.getFullYear() && monthNum > currentMonth)) ? undefined : (currVal === 0 ? undefined : currVal),
       [prevYear]: prev?.services || 0,
     };
   });
