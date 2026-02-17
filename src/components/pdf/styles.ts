@@ -18,10 +18,6 @@ export const pdfBaseStyles = StyleSheet.create({
 
   // ── Report Header (fixed, top bar) ──
   headerBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     height: PDF_PAGE_CONFIG.headerHeight,
     backgroundColor: PDF_COLORS.surface,
     flexDirection: 'row',

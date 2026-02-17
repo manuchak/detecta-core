@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document } from '@react-pdf/renderer';
+import { Document, View } from '@react-pdf/renderer';
 import { registerPDFFonts } from '@/components/pdf';
 import { ReportPage } from '@/components/pdf';
 import { PDFExecutiveSummary } from './PDFExecutiveSummary';
@@ -76,28 +76,34 @@ export const IncidentPDFDocument: React.FC<Props> = ({
 
         <PDFTimeline cronologia={cronologia} imageCache={imageCache} />
 
-        <PDFControls
-          controlesActivos={incidente.controles_activos}
-          controlEfectivo={!!incidente.control_efectivo}
-        />
+        <View wrap={false}>
+          <PDFControls
+            controlesActivos={incidente.controles_activos}
+            controlEfectivo={!!incidente.control_efectivo}
+          />
+        </View>
 
-        <PDFResolution
-          fechaResolucion={incidente.fecha_resolucion}
-          resolucionNotas={incidente.resolucion_notas}
-        />
+        <View wrap={false}>
+          <PDFResolution
+            fechaResolucion={incidente.fecha_resolucion}
+            resolucionNotas={incidente.resolucion_notas}
+          />
+        </View>
 
-        <PDFSignatures
-          firmaCreacion={{
-            base64: incAny.firma_creacion_base64,
-            email: incAny.firma_creacion_email,
-            timestamp: incAny.firma_creacion_timestamp,
-          }}
-          firmaCierre={{
-            base64: incAny.firma_cierre_base64,
-            email: incAny.firma_cierre_email,
-            timestamp: incAny.firma_cierre_timestamp,
-          }}
-        />
+        <View wrap={false}>
+          <PDFSignatures
+            firmaCreacion={{
+              base64: incAny.firma_creacion_base64,
+              email: incAny.firma_creacion_email,
+              timestamp: incAny.firma_creacion_timestamp,
+            }}
+            firmaCierre={{
+              base64: incAny.firma_cierre_base64,
+              email: incAny.firma_cierre_email,
+              timestamp: incAny.firma_cierre_timestamp,
+            }}
+          />
+        </View>
       </ReportPage>
     </Document>
   );

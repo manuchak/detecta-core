@@ -63,7 +63,7 @@ export const PDF_FONT_SIZES = {
 /** Standard page config */
 export const PDF_PAGE_CONFIG = {
   size: 'A4' as const,
-  paddingTop: 60,
+  paddingTop: 14,
   paddingBottom: 40,
   paddingHorizontal: 40,
   headerHeight: 42,
