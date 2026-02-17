@@ -1,87 +1,76 @@
 
-## Corregir filtrado de custodios rechazados e inactivos en todo el workflow
+## Trigger inverso: sincronizar telefono desde custodios_operativos hacia profiles
 
-### Problema 1: Custodios rechazados siguen apareciendo
+### Contexto
 
-Hay 17 rechazos vigentes en `custodio_rechazos`, pero el hook `useRechazosVigentes()` (definido en `useCustodioRechazos.ts`) **nunca se consume** en ningun componente. Los rechazos se registran correctamente pero no se filtran al mostrar las listas.
+Actualmente existe `trg_sync_profile_phone` que propaga cambios de telefono de `profiles` a `custodios_operativos` y `servicios_planificados`. Pero cuando se edita el telefono directamente en `custodios_operativos` (por ejemplo desde el panel de admin), el cambio **no se refleja** en `profiles`, causando que el custodio no vea sus servicios al iniciar sesion.
 
-**Causa raiz**: El filtrado de rechazos no esta integrado en `useProximidadOperacional`, que es el punto central de datos para todos los modales de asignacion (CustodianStep, PendingAssignmentModal, ReassignmentModal).
+### Solucion
 
-**Solucion**: Integrar `useRechazosVigentes` directamente dentro de `useProximidadOperacional` para que **todos los consumidores** reciban la lista ya filtrada, sin necesidad de cambiar cada modal individualmente.
+Crear una funcion y trigger en `custodios_operativos` que, al detectar un cambio en la columna `telefono`, busque el perfil correspondiente via `email` y actualice `profiles.phone`.
 
-### Problema 2: Christian Canseco sigue activo en la base de datos
+### SQL de la migracion
 
-La consulta confirma que `CHRISTIAN CANSECO CASTILLO` tiene `estado: 'activo'` en `custodios_operativos`. El cambio de estatus aparentemente no se persisitio. Esto es un dato operativo que debe corregirse manualmente (o investigar por que fallo el UPDATE), pero a nivel de codigo se puede mejorar la retroalimentacion.
+```sql
+CREATE OR REPLACE FUNCTION sync_operativo_phone_to_profile()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  normalized_new TEXT;
+  normalized_old TEXT;
+BEGIN
+  -- Solo actuar si el telefono cambio
+  IF NEW.telefono IS NOT DISTINCT FROM OLD.telefono THEN
+    RETURN NEW;
+  END IF;
 
-**Solucion de codigo**: Agregar validacion post-UPDATE en `useCambioEstatusOperativo` que verifique que el cambio se persistio leyendo el registro despues del update, y mostrar error explicito si no coincide.
+  normalized_new := RIGHT(regexp_replace(COALESCE(NEW.telefono, ''), '[^0-9]', '', 'g'), 10);
+  normalized_old := RIGHT(regexp_replace(COALESCE(OLD.telefono, ''), '[^0-9]', '', 'g'), 10);
 
----
+  IF normalized_new = normalized_old OR length(normalized_new) < 10 THEN
+    RETURN NEW;
+  END IF;
 
-### Archivos a modificar
+  -- Actualizar profiles vinculado por email
+  UPDATE profiles
+  SET phone = normalized_new,
+      updated_at = now()
+  WHERE LOWER(email) = LOWER(NEW.email);
 
-**1. `src/hooks/useProximidadOperacional.ts`**
+  -- Tambien propagar a servicios_planificados pendientes
+  IF normalized_old != '' AND length(normalized_old) = 10 THEN
+    UPDATE servicios_planificados
+    SET custodio_telefono = normalized_new
+    WHERE custodio_telefono = normalized_old
+      AND fecha_hora_cita >= now()
+      AND estado_planeacion NOT IN ('cancelado', 'completado', 'finalizado');
+  END IF;
 
-En la funcion `queryFn` de `useCustodiosConProximidad`, justo antes de la categorizacion final (linea ~400), obtener los IDs rechazados y filtrarlos:
+  RETURN NEW;
+END;
+$$;
 
-```text
-// Antes de categorizar:
-const { data: rechazos } = await supabase
-  .from('custodio_rechazos')
-  .select('custodio_id')
-  .gt('vigencia_hasta', new Date().toISOString());
-
-const rechazadosIds = new Set((rechazos || []).map(r => r.custodio_id));
-const custodiosSinRechazos = custodiosProcessed.filter(c => !rechazadosIds.has(c.id));
-
-// Log para visibilidad operativa
-if (rechazadosIds.size > 0) {
-  console.log(`🚫 ${rechazadosIds.size} custodios excluidos por rechazos vigentes`);
-}
-
-// Luego categorizar usando custodiosSinRechazos en lugar de custodiosProcessed
+DROP TRIGGER IF EXISTS trg_sync_operativo_phone_to_profile ON custodios_operativos;
+CREATE TRIGGER trg_sync_operativo_phone_to_profile
+  AFTER UPDATE OF telefono ON custodios_operativos
+  FOR EACH ROW
+  EXECUTE FUNCTION sync_operativo_phone_to_profile();
 ```
 
-Esto resuelve el filtrado para TODOS los modales simultaneamente:
-- CustodianStep (creacion de servicio)
-- PendingAssignmentModal (asignacion pendiente)
-- ReassignmentModal (reasignacion)
-- Cualquier futuro consumidor del hook
+### Detalles tecnicos
 
-**2. `src/hooks/useCambioEstatusOperativo.ts`**
+- **Vinculacion**: Se usa `LOWER(email)` para encontrar el perfil correspondiente, ya que `custodios_operativos` no tiene columna `user_id`.
+- **SECURITY DEFINER**: Necesario para que el trigger pueda escribir en `profiles` sin depender de los permisos del usuario que dispara el UPDATE.
+- **Proteccion contra loops**: El trigger de `profiles` (`trg_sync_profile_phone`) verifica `IF NEW.phone IS NOT DISTINCT FROM OLD.phone` antes de actuar. Como este trigger inverso escribe el valor normalizado y el trigger de profiles normaliza tambien, al comparar seran iguales y no se disparara un ciclo infinito.
+- **Propagacion a servicios**: Tambien actualiza `servicios_planificados` pendientes con el telefono anterior, igual que hace el trigger directo.
 
-Despues del `UPDATE` exitoso (linea ~75), agregar una lectura de verificacion:
+### Archivos afectados
 
-```text
-// Verificar que el cambio se persistio
-const { data: verificacion } = await supabase
-  .from(tableName)
-  .select('estado')
-  .eq('id', operativoId)
-  .single();
-
-if (verificacion?.estado !== estatusNuevo) {
-  console.error('El cambio de estatus no se persistio:', {
-    esperado: estatusNuevo,
-    actual: verificacion?.estado
-  });
-  toast.error('El cambio no se guardo correctamente', {
-    description: 'Posible restriccion de permisos. Contacte al administrador.'
-  });
-  return false;
-}
-```
-
----
-
-### Resultado esperado
-
-| Problema | Antes | Despues |
-|----------|-------|---------|
-| Rechazos en PendingAssignmentModal | Custodios rechazados aparecen | Filtrados automaticamente |
-| Rechazos en ReassignmentModal | Custodios rechazados aparecen | Filtrados automaticamente |
-| Rechazos en CustodianStep | Rechazos no se filtran a nivel de hook | Filtrados en el hook central |
-| Cambio de estatus silencioso | UPDATE falla sin feedback | Verificacion post-UPDATE con toast de error |
+Solo se crea una migracion SQL. No se requieren cambios en codigo frontend.
 
 ### Riesgo
 
-Bajo. El filtrado de rechazos agrega una query ligera (1 SELECT a `custodio_rechazos`) dentro de un flujo que ya hace multiples RPCs. La verificacion post-UPDATE es una lectura adicional minima.
+Bajo. La unica consideracion es el potencial loop entre triggers, que esta resuelto por las guardas `IS NOT DISTINCT FROM` en ambas funciones.
