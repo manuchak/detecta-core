@@ -106,14 +106,20 @@ const ExecutiveDashboard = () => {
             {/* BLOQUE 1: GMV Principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <GmvDailyChart />
-              <GmvAccumulatedCard />
-              <GmvMoMChart />
+              <div className="lg:col-span-2">
+                <GmvMoMChart />
+              </div>
             </div>
 
             {/* BLOQUE 2: GMV Desgloses */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <GmvAccumulatedCard />
               <GmvClientDonut />
               <GmvByYearChart />
+            </div>
+
+            {/* BLOQUE 2b: GMV Trimestral */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <GmvByQuarterChart />
             </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { DollarSign } from 'lucide-react';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
 
@@ -36,7 +36,13 @@ export const GmvDailyChart = () => {
       <CardContent>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailyCurrent} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+            <AreaChart data={dailyCurrent} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="gradientDailyGmv" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <XAxis dataKey="dayLabel" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
               <YAxis tickFormatter={formatCurrency} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} width={50} />
               <Tooltip content={({ active, payload }) => {
@@ -52,10 +58,8 @@ export const GmvDailyChart = () => {
                 }
                 return null;
               }} />
-              <Bar dataKey="gmv" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
-                <LabelList dataKey="gmv" position="top" formatter={formatCurrency} style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} />
-              </Bar>
-            </BarChart>
+              <Area type="monotone" dataKey="gmv" fill="url(#gradientDailyGmv)" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 3 }} activeDot={{ r: 5 }} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
