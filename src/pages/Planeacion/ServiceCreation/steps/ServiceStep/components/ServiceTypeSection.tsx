@@ -1,12 +1,14 @@
 /**
  * ServiceTypeSection - Service type selector with armed guard toggle
  * Bidirectional synchronization between type and armed flag
+ * Supports cantidadArmadosRequeridos for multi-armado
  */
 
-import { Shield, ShieldCheck, ShieldPlus, Sparkles } from 'lucide-react';
+import { Shield, ShieldCheck, ShieldPlus, Sparkles, Minus, Plus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -27,8 +29,10 @@ interface ServiceTypeOption {
 interface ServiceTypeSectionProps {
   tipoServicio: ServiceType;
   requiereArmado: boolean;
+  cantidadArmadosRequeridos: number;
   onTipoServicioChange: (value: ServiceType) => void;
   onRequiereArmadoChange: (checked: boolean) => void;
+  onCantidadArmadosChange: (cantidad: number) => void;
   options: readonly ServiceTypeOption[];
   wasAutoFilled: boolean;
 }
@@ -42,8 +46,10 @@ const TYPE_ICONS: Record<ServiceType, React.ReactNode> = {
 export function ServiceTypeSection({
   tipoServicio,
   requiereArmado,
+  cantidadArmadosRequeridos,
   onTipoServicioChange,
   onRequiereArmadoChange,
+  onCantidadArmadosChange,
   options,
   wasAutoFilled,
 }: ServiceTypeSectionProps) {
@@ -124,6 +130,44 @@ export function ServiceTypeSection({
           onCheckedChange={onRequiereArmadoChange}
         />
       </div>
+
+      {/* Cantidad de armados - only visible when requiereArmado */}
+      {requiereArmado && (
+        <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30 animate-in fade-in-50 slide-in-from-top-2">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <ShieldPlus className="h-4 w-4" />
+              Cantidad de armados
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Número de elementos armados requeridos
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onCantidadArmadosChange(cantidadArmadosRequeridos - 1)}
+              disabled={cantidadArmadosRequeridos <= 1}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <span className="w-8 text-center font-semibold text-lg tabular-nums">
+              {cantidadArmadosRequeridos}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onCantidadArmadosChange(cantidadArmadosRequeridos + 1)}
+              disabled={cantidadArmadosRequeridos >= 4}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

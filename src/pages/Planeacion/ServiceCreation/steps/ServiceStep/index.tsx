@@ -40,6 +40,7 @@ export default function ServiceStep() {
     hora,
     tipoServicio,
     requiereArmado,
+    cantidadArmadosRequeridos,
     gadgets,
     observaciones,
     
@@ -51,6 +52,7 @@ export default function ServiceStep() {
     setObservaciones,
     handleTipoServicioChange,
     handleRequiereArmadoChange,
+    handleCantidadArmadosChange,
     handleGadgetChange,
     esServicioRetorno,
     setEsServicioRetorno,
@@ -238,8 +240,10 @@ export default function ServiceStep() {
         <ServiceTypeSection
           tipoServicio={tipoServicio}
           requiereArmado={requiereArmado}
+          cantidadArmadosRequeridos={cantidadArmadosRequeridos}
           onTipoServicioChange={handleTipoServicioChange}
           onRequiereArmadoChange={handleRequiereArmadoChange}
+          onCantidadArmadosChange={handleCantidadArmadosChange}
           options={SERVICE_TYPE_OPTIONS}
           wasAutoFilled={wasAutoFilled}
         />
