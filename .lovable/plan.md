@@ -1,60 +1,38 @@
 
+## Corregir cálculo de promedios y bug de timezone en gráfico de días de semana
 
-## Corregir gráfico "Comparativo MTD por Día Semana" para comparación justa
+### Problema confirmado
 
-### Problema identificado
+El gráfico muestra **totales** en vez de **promedios** a pesar de que el código de división está presente. La causa raíz es un **bug de timezone** en el cálculo del `weekdayIndex` que corrompe la agrupación:
 
-El gráfico actual suma todos los servicios del mes anterior completo vs solo los días transcurridos del mes actual. Esto genera una impresión visual falsa de bajo rendimiento cuando en realidad el mes actual va mejor en ritmo diario.
+- **Línea 180-181**: `const d = new Date(fecha); const weekdayIndex = d.getDay();`
+- Esto usa el timezone del navegador para determinar el día de la semana, pero puede causar que el weekdayIndex sea inconsistente con el `day` extraído via CDMX
+- El resultado: los Sets de días únicos (`weekdayPrevDays`) acumulan días de otros weekdays, distorsionando la división
 
-### Solución: Promediar por número de ocurrencias
+**Datos verificados desde la DB:**
+- Dom enero: 66 total / 4 ocurrencias = promedio real **16.5** (el gráfico muestra 66)
+- Vie enero: 140 total / 5 ocurrencias = promedio real **28.0** (el gráfico muestra ~140)
 
-Cambiar la métrica de "total de servicios por día de semana" a "promedio de servicios por día de semana", dividiendo entre cuántas veces aparece cada día en el período.
+### Solución
 
-### Cambios técnicos
+**Archivo: `src/utils/cdmxDateUtils.ts`**
+- Agregar nueva función `getCDMXWeekday(isoString)` que retorna 0-6 (Dom-Sáb) usando timezone CDMX
+- Usa `formatInTimeZone` con formato `'e'` para obtener el día de semana correcto
 
-**Archivo 1: `src/hooks/useExecutiveMultiYearData.ts` (lineas 224-237)**
-
-Cambiar la lógica de acumulación de weekday para también contar las ocurrencias de cada día:
-
-```ts
-// Contar servicios Y ocurrencias de cada día
-const weekdayCurrent: Record<number, number> = {};
-const weekdayPrev: Record<number, number> = {};
-const weekdayCurrentDays: Record<number, Set<string>> = {};
-const weekdayPrevDays: Record<number, Set<string>> = {};
-
-enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
-  weekdayCurrent[s.weekdayIndex] = (weekdayCurrent[s.weekdayIndex] || 0) + 1;
-  if (!weekdayCurrentDays[s.weekdayIndex]) weekdayCurrentDays[s.weekdayIndex] = new Set();
-  weekdayCurrentDays[s.weekdayIndex].add(String(s.day));
-});
-
-enriched.filter(s => s.year === prevYear && s.month === prevMonth).forEach(s => {
-  weekdayPrev[s.weekdayIndex] = (weekdayPrev[s.weekdayIndex] || 0) + 1;
-  if (!weekdayPrevDays[s.weekdayIndex]) weekdayPrevDays[s.weekdayIndex] = new Set();
-  weekdayPrevDays[s.weekdayIndex].add(String(s.day));
-});
-
-const weekdayComparison = WEEKDAY_LABELS.map((label, idx) => ({
-  weekday: label,
-  weekdayIndex: idx,
-  currentMTD: weekdayCurrentDays[idx]?.size
-    ? Math.round((weekdayCurrent[idx] || 0) / weekdayCurrentDays[idx].size)
-    : 0,
-  previousMTD: weekdayPrevDays[idx]?.size
-    ? Math.round((weekdayPrev[idx] || 0) / weekdayPrevDays[idx].size)
-    : 0,
-}));
-```
-
-**Archivo 2: `src/components/executive/WeekdayComparisonChart.tsx`**
-
-- Actualizar el titulo a "Promedio de Servicios por Día Semana" para reflejar la nueva métrica
-- Actualizar el tooltip para mostrar "promedio" en lugar de total
-- Agregar subtitulo explicativo: "Servicios promedio por ocurrencia de cada día"
+**Archivo: `src/hooks/useExecutiveMultiYearData.ts`**
+- Reemplazar `const weekdayIndex = d.getDay()` (línea 181) con `getCDMXWeekday(fecha)` importado desde cdmxDateUtils
+- Eliminar la variable `d` (línea 180) ya que no se usa para nada más
 
 ### Resultado esperado
 
-- Si un viernes promedio de febrero tiene 40 servicios vs 35 de enero, las barras reflejarán que febrero va mejor
-- Comparación justa independientemente de cuántos días han pasado
-- El feeling del usuario coincidirá con la realidad de los datos
+| Día | Antes (incorrecto) | Después (correcto) |
+|-----|-------------------|-------------------|
+| Dom | 66 | ~17 |
+| Lun | ~105 | ~26 |
+| Mar | ~102 | ~26 |
+| Mié | ~114 | ~29 |
+| Jue | ~134 | ~27 |
+| Vie | ~140 | ~28 |
+| Sáb | ~35 | ~7 |
+
+Los valores ahora reflejarán el volumen diario promedio real, permitiendo una comparación justa mes a mes.
