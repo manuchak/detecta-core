@@ -397,6 +397,24 @@ export function useCustodiosConProximidad(
       
       console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios en paralelo`);
 
+      // ── FILTRAR CUSTODIOS CON RECHAZOS VIGENTES ──
+      // Query ligera fail-open: si falla, no bloquea asignaciones
+      let custodiosFiltrados = custodiosProcessed;
+      try {
+        const { data: rechazos } = await supabase
+          .from('custodio_rechazos')
+          .select('custodio_id')
+          .gt('vigencia_hasta', new Date().toISOString());
+
+        if (rechazos && rechazos.length > 0) {
+          const rechazadosIds = new Set(rechazos.map(r => r.custodio_id));
+          custodiosFiltrados = custodiosProcessed.filter(c => !rechazadosIds.has(c.id));
+          console.log(`🚫 ${rechazadosIds.size} custodios excluidos por rechazos vigentes (${custodiosProcessed.length} → ${custodiosFiltrados.length})`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error fetching rechazos (fail-open, no se filtran):', err);
+      }
+
       // NUEVO: Separar en categorías según disponibilidad REAL (sin conflictos)
       const categorizado: CustodiosCategorizados = {
         disponibles: [],
@@ -405,7 +423,7 @@ export function useCustodiosConProximidad(
         noDisponibles: []
       };
 
-      for (const custodio of custodiosProcessed) {
+      for (const custodio of custodiosFiltrados) {
         // CRÍTICO: Filtrar completamente indisponibles y con conflictos
         if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' || 
             custodio.conflictos_detectados) {
