@@ -1,101 +1,57 @@
 
 
-## Correcciones: Limpieza de datos + Ajuste de RPC
+## Mejoras al Dashboard Ejecutivo: GMV Diario y GMV MoM
 
-### Hallazgos del analisis
+### Cambio 1: GMV Diario - De barras a linea suavizada
 
-Las discrepancias tienen dos causas raiz:
+**Archivo:** `src/components/executive/GmvDailyChart.tsx`
 
-**1. Ene/Feb 2025 - Registros duplicados en BD (sistema muestra MAS que Excel):**
-- Enero: 426 registros con `tipo_servicio='Punto a B'` y `'Repartos'` que NO existen en el Excel
-- Febrero: 399 registros similares
-- Total a eliminar: **825 registros**
+- Reemplazar el `BarChart` + `Bar` de Recharts por `AreaChart` + `Area` con `type="monotone"` para lograr la curva suavizada
+- Agregar puntos (`dot`) en cada dia para marcar los hitos diarios
+- Mantener el gradiente debajo de la linea (area fill) para dar contexto visual
+- Conservar el tooltip con la misma informacion (dia, GMV, servicios)
+- Mantener las etiquetas de valor en los puntos mas relevantes
 
-**2. Mar-Dic 2025 - RPC excluye cancelados (sistema muestra MENOS que Excel):**
-- El Excel del usuario incluye TODOS los registros (incluyendo cancelados)
-- El RPC actual filtra `NOT IN ('cancelado')`, excluyendo ~30-50 registros por mes
+### Cambio 2: Layout - Mas espacio para GMV MoM
 
-### Proyeccion de resultados despues de ambas acciones
+**Archivo:** `src/pages/Dashboard/ExecutiveDashboard.tsx`
 
-| Mes | Excel | Sistema Actual | Sistema Corregido | Diferencia Residual |
-|-----|-------|---------------|-------------------|---------------------|
-| Ene 2025 | 626 | 1,039 | 627 | +0.2% (OK) |
-| Feb 2025 | 478 | 871 | 486 | +1.7% (Alerta menor) |
-| Mar 2025 | 834 | 794 | 835 | +0.1% (OK) |
-| Abr 2025 | 769 | 730 | 775 | +0.8% (OK) |
-| May 2025 | 795 | 786 | 807 | +1.5% (Alerta menor) |
-| Jun 2025 | 815 | 794 | 826 | +1.3% (Alerta menor) |
-| Jul 2025 | 984 | 950 | 979 | -0.5% (OK) |
-| Ago 2025 | 976 | 935 | 977 | +0.1% (OK) |
-| Sep 2025 | 1,066 | 1,028 | 1,070 | +0.4% (OK) |
-| Oct 2025 | 1,385 | 1,238 | 1,290 | -6.9% (95 registros faltan en BD) |
-| Nov 2025 | 1,004 | 965 | 1,014 | +1.0% (OK) |
-| Dic 2025 | 910 | 856 | 894 | -1.8% (Alerta menor) |
+El layout actual del Bloque 1 es:
 
-De 12 meses en rojo/amarillo, pasamos a **10 en verde/amarillo** y solo **Oct** queda en rojo (95 registros que existen en Excel pero no en la BD - requeriria importacion manual).
-
-### Accion 1: Limpieza de datos duplicados
-
-**SQL para ejecutar manualmente** en Supabase SQL Editor:
-
-```sql
--- Eliminar 825 registros duplicados de Ene/Feb 2025
--- Estos registros con tipo_servicio NO existen en el Excel del usuario
-DELETE FROM servicios_custodia 
-WHERE fecha_hora_cita IS NOT NULL 
-  AND EXTRACT(YEAR FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City') = 2025
-  AND EXTRACT(MONTH FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City') IN (1, 2)
-  AND tipo_servicio IS NOT NULL 
-  AND TRIM(tipo_servicio) != '';
+```text
+[ GMV Diario (1/3) ] [ YTD Card (1/3) ] [ GMV MoM (1/3) ]
 ```
 
-Este SQL debe ejecutarse en el **SQL Editor de Supabase** (no puede ejecutarse desde la app por permisos).
+Se cambiara a un layout donde GMV MoM ocupe 2 columnas:
 
-### Accion 2: Migracion SQL - Actualizar RPC
-
-**Archivo:** Nueva migracion SQL
-
-Cambios en `get_historical_monthly_data`:
-- **Eliminar** filtros `AND estado IS NOT NULL` y `AND LOWER(TRIM(...)) NOT IN ('cancelado'...)`
-- **Mantener** timezone CDMX (`AT TIME ZONE 'America/Mexico_City'`)
-- **Mantener** `services_completed` como conteo separado de finalizados (para dashboards que lo necesiten)
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_historical_monthly_data()
- RETURNS TABLE(year integer, month integer, services integer, gmv numeric, services_completed integer)
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    EXTRACT(YEAR FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City')::integer as year,
-    EXTRACT(MONTH FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City')::integer as month,
-    COUNT(*)::integer as services,
-    COALESCE(SUM(CASE WHEN cobro_cliente > 0 THEN cobro_cliente ELSE 0 END), 0) as gmv,
-    COUNT(*) FILTER (
-      WHERE LOWER(TRIM(COALESCE(estado, ''))) IN ('finalizado', 'completado')
-    )::integer as services_completed
-  FROM servicios_custodia 
-  WHERE fecha_hora_cita IS NOT NULL 
-    AND fecha_hora_cita >= '2023-01-01'
-  GROUP BY 
-    EXTRACT(YEAR FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City'), 
-    EXTRACT(MONTH FROM fecha_hora_cita AT TIME ZONE 'America/Mexico_City')
-  ORDER BY year, month;
-END;
-$function$;
+```text
+[ GMV Diario (1/3) ] [ GMV MoM Multi-Ano (2/3)          ]
 ```
 
-### Nota sobre Octubre 2025
+- `GmvDailyChart` mantiene 1 columna (`lg:col-span-1`)
+- `GmvMoMChart` se expande a 2 columnas (`lg:col-span-2`)
+- `GmvAccumulatedCard` (YTD 2026 vs 2025) se reubica dentro de la tarjeta de GMV MoM como un header compacto o se mueve al Bloque 2
 
-Octubre tiene 95 registros en el Excel que no existen en la base de datos. Esto NO se puede resolver con cambios en el query - requiere importar esos registros faltantes. Si deseas resolverlo, necesitaria el Excel para identificar cuales registros faltan e importarlos.
+Para no perder ninguna informacion, la tarjeta YTD se reubicara al Bloque 2, reemplazando la posicion antes del donut de clientes:
 
-### Archivos afectados
+```text
+Bloque 1: [ GMV Diario (1/3) ] [ GMV MoM Multi-Ano (2/3)          ]
+Bloque 2: [ YTD Card (1/3)   ] [ GMV por Cliente (1/3) ] [ GMV por Ano (1/3) ]
+Bloque 3: [ GMV Trimestre     ] [ ... resto igual ...                        ]
+```
 
-| Tipo | Archivo | Cambio |
-|------|---------|--------|
-| Manual | Supabase SQL Editor | Ejecutar DELETE de 825 registros duplicados |
-| Migracion | Nueva migracion SQL | Actualizar RPC sin filtro de cancelados |
+### Detalle tecnico
 
+**GmvDailyChart.tsx:**
+- Cambiar imports de `BarChart, Bar` a `AreaChart, Area`
+- Agregar gradiente `linearGradient` para el fill del area
+- Usar `type="monotone"` en el `Area` para curva suavizada
+- Configurar `dot={{ fill: 'hsl(var(--primary))', r: 3 }}` para los puntos en cada dia
+- Remover `LabelList` (las etiquetas de barras) ya que en linea suavizada se ven mejor solo en el tooltip
+
+**ExecutiveDashboard.tsx:**
+- Bloque 1: cambiar de 3 columnas iguales a `GmvDailyChart` (1 col) + `GmvMoMChart` (2 cols con `lg:col-span-2`)
+- Bloque 2: agregar `GmvAccumulatedCard` como primera tarjeta, seguida de `GmvClientDonut` y `GmvByYearChart`
+- Mover `GmvByQuarterChart` a un nuevo Bloque 3 o mantenerlo en el existente
+
+No se elimina ni omite ninguna tarjeta ni dato; solo se reorganiza el orden para dar mas espacio al grafico MoM multi-ano.
