@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle, Check, Link2 } from 'lucide-react';
+import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle, Check, Link2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import {
-  useIncidentesList, useIncidenteResumen, useUpdateIncidente,
+  useIncidentesList, useIncidenteResumen, useUpdateIncidente, useDeleteIncidente,
   TIPOS_INCIDENTE, SEVERIDADES,
   type IncidenteOperativo, type EstadoIncidente, type SeveridadIncidente, type FiltrosIncidentes,
 } from '@/hooks/useIncidentesOperativos';
@@ -37,14 +37,17 @@ export const IncidentListPanel: React.FC = () => {
   const [view, setView] = useState<'list' | 'form'>('list');
   const [selectedIncident, setSelectedIncident] = useState<IncidenteOperativo | null>(null);
   const [closingIncidentId, setClosingIncidentId] = useState<string | null>(null);
+  const [deletingIncidentId, setDeletingIncidentId] = useState<string | null>(null);
   const [firmaCierre, setFirmaCierre] = useState<string | null>(null);
 
   const { userRole, user } = useAuth();
   const canClose = ROLES_CERRAR_INCIDENTE.includes(userRole || '');
+  const canDelete = ['admin', 'owner'].includes(userRole || '');
 
   const { data: incidentes = [], isLoading } = useIncidentesList(filtros);
   const { data: resumen } = useIncidenteResumen();
   const updateMutation = useUpdateIncidente();
+  const deleteMutation = useDeleteIncidente();
 
   const handleNew = () => {
     setSelectedIncident(null);
@@ -188,8 +191,18 @@ export const IncidentListPanel: React.FC = () => {
                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                         >
                           <XCircle className="h-4 w-4" />
-                        </button>
-                      )}
+                         </button>
+                       )}
+                       {canDelete && (
+                         <button
+                           type="button"
+                           title="Eliminar incidente"
+                           onClick={(e) => { e.stopPropagation(); setDeletingIncidentId(inc.id); }}
+                           className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </button>
+                       )}
                     </div>
                     {/* Línea 2: Cliente | Zona | Servicio | Atribuible */}
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1">
@@ -248,6 +261,39 @@ export const IncidentListPanel: React.FC = () => {
             <AlertDialogAction onClick={handleConfirmClose} disabled={!firmaCierre || updateMutation.isPending}>
               {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Cerrar incidente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog para eliminar incidente */}
+      <AlertDialog open={!!deletingIncidentId} onOpenChange={(open) => { if (!open) setDeletingIncidentId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar incidente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es irreversible. Se eliminará el incidente y toda su cronología asociada permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deletingIncidentId) return;
+                try {
+                  await deleteMutation.mutateAsync(deletingIncidentId);
+                  toast.success('Incidente eliminado');
+                } catch (err: any) {
+                  toast.error(err.message || 'Error al eliminar');
+                } finally {
+                  setDeletingIncidentId(null);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Eliminar permanentemente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

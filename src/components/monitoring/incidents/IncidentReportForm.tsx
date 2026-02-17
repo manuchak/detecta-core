@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Save, Send, FileText, Loader2, Search, Info, HelpCircle, PenTool, Trash2 } from 'lucide-react';
 import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ import { useServicioLookup } from '@/hooks/useServicioLookup';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   TIPOS_INCIDENTE, SEVERIDADES, CONTROLES,
-  useCreateIncidente, useUpdateIncidente, useAddCronologiaEntry, useDeleteCronologiaEntry, useIncidenteCronologia,
+  useCreateIncidente, useUpdateIncidente, useAddCronologiaEntry, useDeleteCronologiaEntry, useIncidenteCronologia, useDeleteIncidente,
   type IncidenteOperativo, type IncidenteFormData, type TipoEntradaCronologia,
 } from '@/hooks/useIncidentesOperativos';
 
@@ -146,6 +146,10 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   // Correccion 3: exit confirmation state
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const canDelete = isEditing && ['admin', 'owner'].includes(userRole || '');
 
   const form = useForm<ExtendedFormData>({
     defaultValues: isEditing
@@ -238,6 +242,7 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
 
   const createMutation = useCreateIncidente();
   const updateMutation = useUpdateIncidente();
+  const deleteMutation = useDeleteIncidente();
   const addCronologiaMutation = useAddCronologiaEntry();
   const deleteCronologiaMutation = useDeleteCronologiaEntry();
   const { data: cronologia = [] } = useIncidenteCronologia(incidente?.id || null);
@@ -561,14 +566,23 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             <Save className="h-3 w-3" />
             Guardar borrador
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={isPending} className="gap-1 h-8 text-xs">
+          <Button size="sm" onClick={handleSubmit} disabled={isPending} className={`gap-1 h-8 text-xs ${!firmaCreacion && !incidente?.firma_creacion_base64 ? 'opacity-70' : ''}`}>
             {isPending && <Loader2 className="h-3 w-3 animate-spin" />}
             <Send className="h-3 w-3" />
             Registrar
+            {!firmaCreacion && !incidente?.firma_creacion_base64 && (
+              <Badge variant="outline" className="text-[8px] h-4 px-1 ml-1 border-amber-400 text-amber-600">Falta firma</Badge>
+            )}
           </Button>
           {isEditing && incidente.estado !== 'cerrado' && ['admin', 'owner', 'coordinador_operaciones'].includes(userRole || '') && (
             <Button variant="destructive" size="sm" onClick={() => setShowCloseDialog(true)} disabled={isPending} className="h-8 text-xs">
               Cerrar incidente
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} disabled={isPending} className="gap-1 h-8 text-xs">
+              <Trash2 className="h-3 w-3" />
+              Eliminar
             </Button>
           )}
         </div>
@@ -739,9 +753,18 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
           {/* Firma digital de creación */}
           {(!isEditing || (isEditing && !incidente?.firma_creacion_base64)) && (
             <Card>
-              <CardContent className="pt-4">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <PenTool className="h-4 w-4 text-primary" />
+                  Firma de Creación
+                </CardTitle>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  La firma es <span className="font-semibold text-foreground">requerida para Registrar</span> (cambiar estado a abierto).
+                  Puedes <span className="font-semibold text-foreground">Guardar borrador sin firmar</span>.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-2">
                 <SignaturePad value={firmaCreacion} onChange={setFirmaCreacion} />
-                <p className="text-[10px] text-muted-foreground mt-1">Firma requerida para registrar el incidente</p>
               </CardContent>
             </Card>
           )}
@@ -868,6 +891,38 @@ export const IncidentReportForm: React.FC<IncidentReportFormProps> = ({ incident
             <AlertDialogAction onClick={handleClose} disabled={!firmaCierre || updateMutation.isPending}>
               {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Cerrar incidente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog para eliminar incidente */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar incidente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción es irreversible. Se eliminará el incidente y toda su cronología asociada permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!incidente?.id) return;
+                try {
+                  await deleteMutation.mutateAsync(incidente.id);
+                  toast.success('Incidente eliminado');
+                  onBack();
+                } catch (err: any) {
+                  toast.error(err.message || 'Error al eliminar');
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Eliminar permanentemente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
