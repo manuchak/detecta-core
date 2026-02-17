@@ -25,6 +25,15 @@ export interface PricingResultData {
   ruta_encontrada?: string;
 }
 
+export interface ArmadoSeleccionado {
+  nombre: string;
+  id: string;
+  tipo: 'interno' | 'proveedor';
+  proveedorId?: string;
+  puntoEncuentro: string;
+  horaEncuentro: string;
+}
+
 export interface ServiceFormData {
   // Route step
   cliente: string;
@@ -53,6 +62,7 @@ export interface ServiceFormData {
   tipoServicio: string;
   tipoCustodia: string;
   requiereArmado: boolean;
+  cantidadArmadosRequeridos: number;
   esServicioRetorno: boolean; // Flag for return services - bypasses 30min validation
   gadgets: Record<string, number>;
   observaciones: string;   // Additional notes
@@ -61,7 +71,10 @@ export interface ServiceFormData {
   custodio: string;
   custodioId: string;
   
-  // Armed step
+  // Armed step - Multi-armado array (source of truth)
+  armados: ArmadoSeleccionado[];
+  
+  // Armed step - Legacy scalar fields (aliases of armados[0] for backward compat)
   armado: string;
   armadoId: string;
   tipoAsignacionArmado: 'interno' | 'proveedor' | null;
@@ -132,13 +145,16 @@ const INITIAL_FORM_DATA: Partial<ServiceFormData> = {
   tipoServicio: '',
   tipoCustodia: '',
   requiereArmado: false,
+  cantidadArmadosRequeridos: 1,
   esServicioRetorno: false,
   gadgets: {},
   observaciones: '',
   // Custodian step
   custodio: '',
   custodioId: '',
-  // Armed step
+  // Armed step - multi-armado
+  armados: [],
+  // Armed step - legacy scalars
   armado: '',
   armadoId: '',
   tipoAsignacionArmado: null,

@@ -5,13 +5,16 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useServiciosPlanificados } from '@/hooks/useServiciosPlanificados';
 import { buildCDMXTimestamp } from '@/utils/cdmxTimezone';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * ConfirmationStep - Final step in service creation
  * Shows a summary of all data and creates the service in the database
+ * Supports multi-armado: inserts N records in asignacion_armados
  */
 export default function ConfirmationStep() {
   const navigate = useNavigate();
@@ -20,13 +23,15 @@ export default function ConfirmationStep() {
   const [confirmed, setConfirmed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const armados = formData.armados || [];
+  const cantidadRequeridos = formData.cantidadArmadosRequeridos || 1;
+
   const handleCreateService = async () => {
     if (!confirmed) {
       toast.error('Debes confirmar la información antes de crear el servicio');
       return;
     }
 
-    // Validate required fields
     if (!formData.servicioId || !formData.cliente || !formData.origen || 
         !formData.destino || !formData.fecha || !formData.hora) {
       toast.error('Faltan campos requeridos para crear el servicio', {
@@ -38,15 +43,15 @@ export default function ConfirmationStep() {
     setIsSubmitting(true);
     
     try {
-      // Build timestamp with correct CDMX timezone offset (-06:00)
       const fechaHoraCita = buildCDMXTimestamp(formData.fecha, formData.hora);
       
-      // Transform gadgets to expected JSONB format
       const gadgetsCantidades = Object.entries(formData.gadgets || {})
         .filter(([_, cantidad]) => cantidad > 0)
         .map(([tipo, cantidad]) => ({ tipo, cantidad }));
       
-      // Build payload for insertion
+      // First armado for legacy scalar fields
+      const firstArmado = armados[0];
+      
       const servicePayload = {
         id_servicio: formData.servicioId,
         id_interno_cliente: formData.idInterno || undefined,
@@ -58,28 +63,54 @@ export default function ConfirmationStep() {
         custodio_asignado: formData.custodio || undefined,
         custodio_id: formData.custodioId || undefined,
         requiere_armado: formData.requiereArmado || false,
-        armado_asignado: formData.armado || undefined,
-        armado_id: formData.armadoId || undefined,
-        tipo_asignacion_armado: formData.tipoAsignacionArmado || undefined,
-        proveedor_armado_id: formData.proveedorArmadoId || undefined,
-        punto_encuentro: formData.puntoEncuentro || undefined,
-        hora_encuentro: formData.horaEncuentro || undefined,
+        cantidad_armados_requeridos: cantidadRequeridos,
+        // Legacy scalar compat: first armado
+        armado_asignado: firstArmado?.nombre || undefined,
+        armado_id: firstArmado?.id || undefined,
+        tipo_asignacion_armado: firstArmado?.tipo || undefined,
+        proveedor_armado_id: firstArmado?.proveedorId || undefined,
+        punto_encuentro: firstArmado?.puntoEncuentro || undefined,
+        hora_encuentro: firstArmado?.horaEncuentro || undefined,
         tarifa_acordada: formData.precioCotizado || undefined,
         observaciones: formData.observaciones || undefined,
         gadgets_cantidades: gadgetsCantidades.length > 0 ? gadgetsCantidades : undefined,
         estado_planeacion: 'planificado'
       };
       
-      // Create service using the mutation
       createServicioPlanificado(servicePayload, {
-        onSuccess: () => {
-          // Clear draft from localStorage after successful creation
+        onSuccess: async () => {
+          // Insert all armados into asignacion_armados (relational table)
+          if (armados.length > 0 && formData.servicioId) {
+            try {
+              const asignaciones = armados.map(armado => ({
+                servicio_custodia_id: formData.servicioId,
+                armado_id: armado.tipo === 'interno' ? armado.id : null,
+                personal_proveedor_id: armado.tipo === 'proveedor' ? armado.id : null,
+                proveedor_armado_id: armado.proveedorId || null,
+                tipo_asignacion: armado.tipo,
+                punto_encuentro: armado.puntoEncuentro || null,
+                hora_encuentro: armado.horaEncuentro || null,
+                estado_asignacion: 'pendiente',
+                custodio_id: formData.custodioId || null,
+              }));
+              
+              const { error: asignError } = await supabase
+                .from('asignacion_armados')
+                .insert(asignaciones);
+              
+              if (asignError) {
+                console.error('Error inserting armado assignments:', asignError);
+                // Non-blocking: service was created, just log the error
+              }
+            } catch (err) {
+              console.error('Error creating armado assignments:', err);
+            }
+          }
+
           clearDraft();
-          
           toast.success('Servicio creado exitosamente', {
             description: `ID: ${formData.servicioId}`
           });
-          
           navigate('/planeacion');
         },
         onError: (error: any) => {
@@ -100,7 +131,6 @@ export default function ConfirmationStep() {
     }
   };
 
-  // Get gadgets display text
   const getGadgetsDisplay = () => {
     if (!formData.gadgets) return null;
     const activeGadgets = Object.entries(formData.gadgets)
@@ -203,7 +233,11 @@ export default function ConfirmationStep() {
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Armado requerido:</span>
-            <span className="font-medium">{formData.requiereArmado ? 'Sí' : 'No'}</span>
+            <span className="font-medium">
+              {formData.requiereArmado 
+                ? cantidadRequeridos > 1 ? `Sí (${cantidadRequeridos})` : 'Sí' 
+                : 'No'}
+            </span>
           </div>
           {gadgetsDisplay && (
             <div className="flex justify-between pt-1 border-t">
@@ -224,30 +258,67 @@ export default function ConfirmationStep() {
           </div>
         </SummarySection>
 
-        {/* Armed (if required) */}
-        {(formData.requiereArmado || formData.armado) && (
-          <SummarySection title="Elemento Armado" icon={Shield} stepId="armed">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Asignado:</span>
-              <span className="font-medium">{formData.armado || '—'}</span>
-            </div>
-            {formData.tipoAsignacionArmado && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tipo:</span>
-                <span className="font-medium capitalize">{formData.tipoAsignacionArmado}</span>
-              </div>
-            )}
-            {formData.puntoEncuentro && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Punto encuentro:</span>
-                <span className="font-medium">{formData.puntoEncuentro}</span>
-              </div>
-            )}
-            {formData.horaEncuentro && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Hora encuentro:</span>
-                <span className="font-medium">{formData.horaEncuentro}</span>
-              </div>
+        {/* Armed (if required) - multi-armado support */}
+        {(formData.requiereArmado || armados.length > 0) && (
+          <SummarySection 
+            title={armados.length > 1 ? `Elementos Armados (${armados.length})` : 'Elemento Armado'} 
+            icon={Shield} 
+            stepId="armed"
+          >
+            {armados.length > 0 ? (
+              armados.map((armado, idx) => (
+                <div key={armado.id} className={cn("space-y-1", idx > 0 && "pt-2 mt-2 border-t border-border/50")}>
+                  {armados.length > 1 && (
+                    <p className="text-xs font-semibold text-muted-foreground">Armado {idx + 1}</p>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Asignado:</span>
+                    <span className="font-medium">{armado.nombre}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span className="font-medium capitalize">{armado.tipo}</span>
+                  </div>
+                  {armado.puntoEncuentro && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Punto encuentro:</span>
+                      <span className="font-medium">{armado.puntoEncuentro}</span>
+                    </div>
+                  )}
+                  {armado.horaEncuentro && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Hora encuentro:</span>
+                      <span className="font-medium">{armado.horaEncuentro}</span>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              // Fallback to legacy scalar fields
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Asignado:</span>
+                  <span className="font-medium">{formData.armado || '—'}</span>
+                </div>
+                {formData.tipoAsignacionArmado && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tipo:</span>
+                    <span className="font-medium capitalize">{formData.tipoAsignacionArmado}</span>
+                  </div>
+                )}
+                {formData.puntoEncuentro && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Punto encuentro:</span>
+                    <span className="font-medium">{formData.puntoEncuentro}</span>
+                  </div>
+                )}
+                {formData.horaEncuentro && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Hora encuentro:</span>
+                    <span className="font-medium">{formData.horaEncuentro}</span>
+                  </div>
+                )}
+              </>
             )}
           </SummarySection>
         )}
