@@ -1,56 +1,87 @@
 
+## Corregir filtrado de custodios rechazados e inactivos en todo el workflow
 
-## Corregir solapamiento de contenido con header en PDF de Incidentes
+### Problema 1: Custodios rechazados siguen apareciendo
 
-### Problema raiz
+Hay 17 rechazos vigentes en `custodio_rechazos`, pero el hook `useRechazosVigentes()` (definido en `useCustodioRechazos.ts`) **nunca se consume** en ningun componente. Los rechazos se registran correctamente pero no se filtran al mostrar las listas.
 
-El `ReportHeader` usa `position: 'absolute'` dentro de un `<View fixed>`. Esto posiciona el header fuera del flujo del documento. Aunque la pagina tiene `paddingTop: 60`, al hacer wrap a paginas 2+, el contenido de la cronologia (especialmente entradas con imagenes grandes) se solapa con el header fijo porque react-pdf no siempre respeta el padding correctamente en paginas subsiguientes cuando hay elementos absolutamente posicionados combinados con `wrap={false}` en hijos grandes.
+**Causa raiz**: El filtrado de rechazos no esta integrado en `useProximidadOperacional`, que es el punto central de datos para todos los modales de asignacion (CustodianStep, PendingAssignmentModal, ReassignmentModal).
 
-### Solucion
+**Solucion**: Integrar `useRechazosVigentes` directamente dentro de `useProximidadOperacional` para que **todos los consumidores** reciban la lista ya filtrada, sin necesidad de cambiar cada modal individualmente.
 
-Cambiar el header de `position: absolute` a un layout de flujo (flow-based) que reserve espacio real en cada pagina, manteniendo el mismo aspecto visual.
+### Problema 2: Christian Canseco sigue activo en la base de datos
+
+La consulta confirma que `CHRISTIAN CANSECO CASTILLO` tiene `estado: 'activo'` en `custodios_operativos`. El cambio de estatus aparentemente no se persisitio. Esto es un dato operativo que debe corregirse manualmente (o investigar por que fallo el UPDATE), pero a nivel de codigo se puede mejorar la retroalimentacion.
+
+**Solucion de codigo**: Agregar validacion post-UPDATE en `useCambioEstatusOperativo` que verifique que el cambio se persistio leyendo el registro despues del update, y mostrar error explicito si no coincide.
 
 ---
 
 ### Archivos a modificar
 
-**1. `src/components/pdf/ReportHeader.tsx`**
+**1. `src/hooks/useProximidadOperacional.ts`**
 
-Eliminar `position: 'absolute'` del headerBar. En su lugar, usar un `<View fixed>` que ocupe espacio real en el flujo del documento con dimensiones explicitas, y posicionar los hijos internamente:
+En la funcion `queryFn` de `useCustodiosConProximidad`, justo antes de la categorizacion final (linea ~400), obtener los IDs rechazados y filtrarlos:
 
-- El wrapper `fixed` mantiene un alto de 52pt (42pt barra + 2pt linea roja + 8pt espacio)
-- La barra gris se posiciona con absolute DENTRO del fixed view (no del page)
-- La linea roja se mantiene debajo
+```text
+// Antes de categorizar:
+const { data: rechazos } = await supabase
+  .from('custodio_rechazos')
+  .select('custodio_id')
+  .gt('vigencia_hasta', new Date().toISOString());
 
-Esto asegura que en cada pagina, el header reserva 52pt de espacio antes de que el contenido fluya.
+const rechazadosIds = new Set((rechazos || []).map(r => r.custodio_id));
+const custodiosSinRechazos = custodiosProcessed.filter(c => !rechazadosIds.has(c.id));
 
-**2. `src/components/pdf/styles.ts`**
+// Log para visibilidad operativa
+if (rechazadosIds.size > 0) {
+  console.log(`🚫 ${rechazadosIds.size} custodios excluidos por rechazos vigentes`);
+}
 
-Actualizar `headerBar` para quitar `position: 'absolute'` y cambiar a un layout de flujo. Ajustar las propiedades para que la barra ocupe su espacio natural (height fijo, flexDirection row, alignItems center).
+// Luego categorizar usando custodiosSinRechazos en lugar de custodiosProcessed
+```
 
-**3. `src/components/pdf/tokens.ts`**
+Esto resuelve el filtrado para TODOS los modales simultaneamente:
+- CustodianStep (creacion de servicio)
+- PendingAssignmentModal (asignacion pendiente)
+- ReassignmentModal (reasignacion)
+- Cualquier futuro consumidor del hook
 
-Reducir `paddingTop` de 60 a un valor menor (ej: 10-14pt) ya que el header ahora reserva espacio por si mismo en el flujo. El paddingTop ya no necesita compensar un header absoluto.
+**2. `src/hooks/useCambioEstatusOperativo.ts`**
 
-**4. `src/components/monitoring/incidents/pdf/PDFTimeline.tsx`**
+Despues del `UPDATE` exitoso (linea ~75), agregar una lectura de verificacion:
 
-Agregar `minPresenceAhead={40}` al `SectionHeader` de la cronologia para evitar que el titulo de seccion quede huerfano al final de pagina sin entradas debajo.
+```text
+// Verificar que el cambio se persistio
+const { data: verificacion } = await supabase
+  .from(tableName)
+  .select('estado')
+  .eq('id', operativoId)
+  .single();
 
-**5. `src/components/monitoring/incidents/pdf/IncidentPDFDocument.tsx`**
-
-Envolver las secciones Controls, Resolution y Signatures cada una en `<View wrap={false}>` para que no se partan a mitad de pagina.
+if (verificacion?.estado !== estatusNuevo) {
+  console.error('El cambio de estatus no se persistio:', {
+    esperado: estatusNuevo,
+    actual: verificacion?.estado
+  });
+  toast.error('El cambio no se guardo correctamente', {
+    description: 'Posible restriccion de permisos. Contacte al administrador.'
+  });
+  return false;
+}
+```
 
 ---
 
 ### Resultado esperado
 
-| Antes | Despues |
-|-------|---------|
-| Texto de cronologia se solapa con header en pag. 2+ | Header reserva espacio real, contenido fluye debajo |
-| Imagenes de cronologia cubren la barra gris y linea roja | Separacion limpia entre header y contenido en cada pagina |
-| Secciones cortas (Controles, Resolucion) pueden partirse entre paginas | Secciones cortas se mantienen agrupadas |
+| Problema | Antes | Despues |
+|----------|-------|---------|
+| Rechazos en PendingAssignmentModal | Custodios rechazados aparecen | Filtrados automaticamente |
+| Rechazos en ReassignmentModal | Custodios rechazados aparecen | Filtrados automaticamente |
+| Rechazos en CustodianStep | Rechazos no se filtran a nivel de hook | Filtrados en el hook central |
+| Cambio de estatus silencioso | UPDATE falla sin feedback | Verificacion post-UPDATE con toast de error |
 
 ### Riesgo
 
-Este cambio afecta `ReportHeader`, `styles.ts` y `tokens.ts` que son compartidos por todos los reportes PDF (Incidentes, Historico, Clientes). Dado que todos sufren el mismo patron de header absoluto, la correccion los beneficia a todos. Se verificara que el paddingTop ajustado no rompa los otros reportes ya que todos usan el mismo `ReportPage` wrapper.
-
+Bajo. El filtrado de rechazos agrega una query ligera (1 SELECT a `custodio_rechazos`) dentro de un flujo que ya hace multiples RPCs. La verificacion post-UPDATE es una lectura adicional minima.
