@@ -26,6 +26,7 @@ export function useServiceTransformations() {
       custodio_asignado: typeof servicio.custodio_asignado === 'string'
         ? servicio.custodio_asignado
         : servicio.custodio_asignado?.nombre,
+      // Legacy scalar fallback — will be removed in Phase 3 write deprecation
       armado_asignado: typeof (servicio as any).armado_asignado === 'string'
         ? (servicio as any).armado_asignado
         : (servicio as any).armado_asignado?.nombre || null,
@@ -50,6 +51,7 @@ export function useServiceTransformations() {
       custodio_asignado: typeof servicio.custodio_asignado === 'string'
         ? servicio.custodio_asignado
         : servicio.custodio_asignado?.nombre,
+      // Legacy scalar fallback — will be removed in Phase 3 write deprecation
       armado_asignado: typeof (servicio as any).armado_asignado === 'string'
         ? (servicio as any).armado_asignado
         : (servicio as any).armado_asignado?.nombre || null,

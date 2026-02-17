@@ -8,13 +8,18 @@ interface ServiceDataSummaryProps {
 }
 
 export const ServiceDataSummary: React.FC<ServiceDataSummaryProps> = ({ servicio }) => {
+  // Build armado display from relational data, fallback to scalar
+  const armadoDisplay = servicio.armados && servicio.armados.length > 0
+    ? servicio.armados.map(a => a.armado_nombre_verificado || 'Sin nombre').join(', ')
+    : servicio.armado_asignado;
+
   const items = [
     { icon: Briefcase, label: 'Cliente', value: servicio.nombre_cliente },
     { icon: User, label: 'Custodio', value: servicio.custodio_asignado },
     { icon: MapPin, label: 'Origen', value: servicio.origen },
     { icon: MapPin, label: 'Destino', value: servicio.destino },
     { icon: Car, label: 'Vehículo', value: [servicio.auto, servicio.placa].filter(Boolean).join(' · ') || null },
-    { icon: Shield, label: 'Armado', value: servicio.armado_asignado },
+    { icon: Shield, label: 'Armado', value: armadoDisplay },
     { icon: DollarSign, label: 'Tarifa', value: servicio.tarifa_acordada ? `$${Number(servicio.tarifa_acordada).toLocaleString('es-MX')}` : null },
   ].filter(item => item.value);
 

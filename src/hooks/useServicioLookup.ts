@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface ArmadoVinculado {
+  id: string;
+  armado_nombre_verificado: string | null;
+  tipo_asignacion: string;
+  estado_asignacion: string;
+}
+
 export interface ServicioVinculado {
   id: string;
   id_servicio: string;
@@ -13,8 +20,11 @@ export interface ServicioVinculado {
   auto: string | null;
   placa: string | null;
   tarifa_acordada: number | null;
+  /** @deprecated Use armados[] instead */
   armado_asignado: string | null;
   fecha_hora_cita: string | null;
+  /** Armados from relational table */
+  armados: ArmadoVinculado[];
 }
 
 export function useServicioLookup() {
@@ -48,7 +58,19 @@ export function useServicioLookup() {
         return null;
       }
 
-      const result: ServicioVinculado = data as any;
+      // Fetch armados from relational table
+      let armados: ArmadoVinculado[] = [];
+      if (data.id) {
+        const { data: armadosData } = await supabase
+          .from('asignacion_armados')
+          .select('id, armado_nombre_verificado, tipo_asignacion, estado_asignacion')
+          .eq('servicio_custodia_id', data.id)
+          .not('estado_asignacion', 'eq', 'cancelado')
+          .order('created_at', { ascending: true });
+        armados = (armadosData as ArmadoVinculado[]) || [];
+      }
+
+      const result: ServicioVinculado = { ...(data as any), armados };
       setServicio(result);
       return result;
     } catch (err: any) {
