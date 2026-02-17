@@ -23,8 +23,9 @@ export const ClientServiceDonut = () => {
     );
   }
 
-  const top10 = clientsMTD.slice(0, 10);
-  const othersSvc = clientsMTD.slice(10).reduce((sum, c) => sum + c.services, 0);
+  const sorted = [...clientsMTD].sort((a, b) => b.services - a.services);
+  const top10 = sorted.slice(0, 10);
+  const othersSvc = sorted.slice(10).reduce((sum, c) => sum + c.services, 0);
   const pieData = [
     ...top10.map(c => ({ name: c.client, value: c.services })),
     ...(othersSvc > 0 ? [{ name: 'Otros', value: othersSvc }] : []),
