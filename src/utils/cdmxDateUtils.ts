@@ -96,3 +96,18 @@ export const isOnOrBeforeDayCDMX = (isoString: string, dayOfMonth: number): bool
   if (!isoString) return false;
   return getCDMXDayOfMonth(isoString) <= dayOfMonth;
 };
+
+/**
+ * Obtiene día de la semana (0-6, Dom-Sáb) en timezone CDMX
+ * @param isoString - String ISO de la DB
+ * @returns Número 0=Domingo, 1=Lunes, ..., 6=Sábado en hora local CDMX
+ * 
+ * @example
+ * getCDMXWeekday("2026-01-28T02:00:00.000Z") // 1 (Martes en UTC, pero Lunes en CDMX)
+ */
+export const getCDMXWeekday = (isoString: string): number => {
+  if (!isoString) return 0;
+  // 'e' returns 1=Mon..7=Sun in date-fns; convert to 0=Sun..6=Sat
+  const eVal = parseInt(formatInTimeZone(isoString, TIMEZONE_CDMX, 'e'), 10);
+  return eVal === 7 ? 0 : eVal;
+};

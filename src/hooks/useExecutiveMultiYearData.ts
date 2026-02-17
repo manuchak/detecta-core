@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getCDMXYear, getCDMXMonth, getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
+import { getCDMXYear, getCDMXMonth, getCDMXDayOfMonth, getCDMXWeekday } from '@/utils/cdmxDateUtils';
 
 export interface MonthlyData {
   year: number;
@@ -177,8 +177,7 @@ export function useExecutiveMultiYearData() {
         const month = getCDMXMonth(fecha);
         const day = getCDMXDayOfMonth(fecha);
         const cobro = parseFloat(String(s.cobro_cliente || 0));
-        const d = new Date(fecha);
-        const weekdayIndex = d.getDay();
+        const weekdayIndex = getCDMXWeekday(fecha);
         return {
           year, month, day, cobro, weekdayIndex,
           client: s.nombre_cliente || 'Sin nombre',
