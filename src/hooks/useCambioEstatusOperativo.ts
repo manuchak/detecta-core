@@ -83,6 +83,26 @@ export function useCambioEstatusOperativo() {
         return false;
       }
 
+      // Verificar que el cambio se persistió realmente
+      const { data: verificacion } = await supabase
+        .from(tableName)
+        .select('estado')
+        .eq('id', operativoId)
+        .single();
+
+      if (verificacion?.estado !== estatusNuevo) {
+        console.error('❌ El cambio de estatus no se persistió:', {
+          esperado: estatusNuevo,
+          actual: verificacion?.estado,
+          operativoId,
+          tableName,
+        });
+        toast.error('El cambio no se guardó correctamente', {
+          description: 'Posible restricción de permisos. Contacte al administrador.',
+        });
+        return false;
+      }
+
       // Record in history table
       const { error: historyError } = await supabase
         .from('operativo_estatus_historial')
