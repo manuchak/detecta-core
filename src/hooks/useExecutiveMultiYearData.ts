@@ -221,19 +221,30 @@ export function useExecutiveMultiYearData() {
         .sort((a, b) => b.gmv - a.gmv)
         .slice(0, 15);
 
-      // Weekday Comparison
+      // Weekday Comparison - Promedio por ocurrencia de cada día
       const weekdayCurrent: Record<number, number> = {};
       const weekdayPrev: Record<number, number> = {};
+      const weekdayCurrentDays: Record<number, Set<string>> = {};
+      const weekdayPrevDays: Record<number, Set<string>> = {};
+
       enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
         weekdayCurrent[s.weekdayIndex] = (weekdayCurrent[s.weekdayIndex] || 0) + 1;
+        if (!weekdayCurrentDays[s.weekdayIndex]) weekdayCurrentDays[s.weekdayIndex] = new Set();
+        weekdayCurrentDays[s.weekdayIndex].add(String(s.day));
       });
       enriched.filter(s => s.year === prevYear && s.month === prevMonth).forEach(s => {
         weekdayPrev[s.weekdayIndex] = (weekdayPrev[s.weekdayIndex] || 0) + 1;
+        if (!weekdayPrevDays[s.weekdayIndex]) weekdayPrevDays[s.weekdayIndex] = new Set();
+        weekdayPrevDays[s.weekdayIndex].add(String(s.day));
       });
       const weekdayComparison: WeekdayData[] = WEEKDAY_LABELS.map((label, idx) => ({
         weekday: label, weekdayIndex: idx,
-        currentMTD: weekdayCurrent[idx] || 0,
-        previousMTD: weekdayPrev[idx] || 0,
+        currentMTD: weekdayCurrentDays[idx]?.size
+          ? Math.round((weekdayCurrent[idx] || 0) / weekdayCurrentDays[idx].size)
+          : 0,
+        previousMTD: weekdayPrevDays[idx]?.size
+          ? Math.round((weekdayPrev[idx] || 0) / weekdayPrevDays[idx].size)
+          : 0,
       }));
 
       // ========================================
