@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
 
@@ -59,7 +59,13 @@ export const GmvMoMChart = () => {
       <CardContent>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="gradientCurrentYear" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
               <YAxis tickFormatter={formatCurrency} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} width={50} />
               <Tooltip content={({ active, payload, label }) => {
@@ -67,7 +73,7 @@ export const GmvMoMChart = () => {
                   return (
                     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
                       <p className="font-medium text-foreground mb-1">{label}</p>
-                      {payload.map((p, i) => (
+                      {payload.filter(p => p.value !== undefined).map((p, i) => (
                         <p key={i} className="text-sm" style={{ color: p.color }}>
                           {p.name}: {formatCurrency(Number(p.value))}
                         </p>
@@ -78,10 +84,11 @@ export const GmvMoMChart = () => {
                 return null;
               }} />
               <Legend wrapperStyle={{ fontSize: '11px' }} formatter={(v) => <span className="text-foreground">{v}</span>} />
+              <Area type="monotone" dataKey={`y${latestYear}`} fill="url(#gradientCurrentYear)" stroke="none" connectNulls={false} legendType="none" />
               {years.map((y, i) => (
                 <Line key={y} type="monotone" dataKey={`y${y}`} name={y.toString()} stroke={YEAR_COLORS[i] || YEAR_COLORS[0]} strokeWidth={y === latestYear ? 2.5 : 1.5} dot={{ fill: YEAR_COLORS[i] || YEAR_COLORS[0], r: 3 }} connectNulls={false} />
               ))}
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
