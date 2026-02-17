@@ -67,58 +67,52 @@ export interface ArmedData {
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const WEEKDAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
+/** Fetch all rows with pagination to bypass Supabase 1000-row limit */
+async function fetchAllPaginated(
+  baseQuery: () => any,
+  pageSize = 1000
+) {
+  const allRecords: any[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await baseQuery().range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allRecords.push(...data);
+    if (data.length < pageSize) break;
+    offset += pageSize;
+  }
+  return allRecords;
+}
+
 export function useExecutiveMultiYearData() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['executive-multi-year-data'],
     queryFn: async () => {
       const now = new Date();
       const currentYear = now.getFullYear();
-      const startYear = currentYear - 3; // 3 full years back
+      const currentMonth = now.getMonth(); // 0-11
+      const startYear = currentYear - 3;
 
-      // Single query for all data
-      const { data: services, error: err } = await supabase
-        .from('servicios_custodia')
-        .select('fecha_hora_cita, cobro_cliente, nombre_cliente, local_foraneo, nombre_armado')
-        .gte('fecha_hora_cita', `${startYear}-01-01`)
-        .not('estado', 'eq', 'Cancelado');
+      // ========================================
+      // SOURCE 1: RPC for monthly aggregates (server-side, no row limit)
+      // ========================================
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_historical_monthly_data');
+      if (rpcErr) throw rpcErr;
+      const rpcRows = (rpcData || []) as Array<{ year: number; month: number; services: number; gmv: string | number }>;
 
-      if (err) throw err;
-      const all = services || [];
-
-      // Pre-compute CDMX-aware date components for each service
-      const enriched = all.map(s => {
-        const fecha = s.fecha_hora_cita;
-        if (!fecha) return null;
-        const year = getCDMXYear(fecha);
-        const month = getCDMXMonth(fecha); // 0-11
-        const day = getCDMXDayOfMonth(fecha);
-        const cobro = parseFloat(String(s.cobro_cliente || 0));
-        const d = new Date(fecha);
-        const weekdayIndex = d.getDay(); // Use UTC-ish for weekday, close enough
-        return {
-          year, month, day, cobro, weekdayIndex,
-          client: s.nombre_cliente || 'Sin nombre',
-          localForaneo: s.local_foraneo || '',
-          armed: !!s.nombre_armado && s.nombre_armado.trim() !== '',
-        };
-      }).filter(Boolean) as Array<{
-        year: number; month: number; day: number; cobro: number;
-        weekdayIndex: number; client: string; localForaneo: string; armed: boolean;
-      }>;
-
-      // --- Monthly by Year ---
+      // Build monthlyMap from RPC
       const monthlyMap: Record<string, { services: number; gmv: number }> = {};
-      enriched.forEach(s => {
-        const key = `${s.year}-${s.month}`;
-        if (!monthlyMap[key]) monthlyMap[key] = { services: 0, gmv: 0 };
-        monthlyMap[key].services += 1;
-        monthlyMap[key].gmv += s.cobro;
+      rpcRows.forEach(r => {
+        const key = `${r.year}-${r.month - 1}`; // month in RPC is 1-12, we use 0-11 internally
+        monthlyMap[key] = { services: r.services, gmv: parseFloat(String(r.gmv)) || 0 };
       });
+
+      // Monthly by Year
       const monthlyByYear: MonthlyData[] = [];
       for (let y = startYear; y <= currentYear; y++) {
         for (let m = 0; m < 12; m++) {
-          const key = `${y}-${m}`;
-          const d = monthlyMap[key] || { services: 0, gmv: 0 };
+          const d = monthlyMap[`${y}-${m}`] || { services: 0, gmv: 0 };
           monthlyByYear.push({
             year: y, month: m + 1,
             monthLabel: MONTH_LABELS[m],
@@ -129,7 +123,7 @@ export function useExecutiveMultiYearData() {
         }
       }
 
-      // --- Quarterly by Year ---
+      // Quarterly by Year
       const quarterlyByYear: QuarterlyData[] = [];
       for (let y = startYear; y <= currentYear; y++) {
         for (let q = 1; q <= 4; q++) {
@@ -143,22 +137,60 @@ export function useExecutiveMultiYearData() {
         }
       }
 
-      // --- Yearly Totals ---
-      const yearlyMap: Record<number, { services: number; gmv: number }> = {};
-      enriched.forEach(s => {
-        if (!yearlyMap[s.year]) yearlyMap[s.year] = { services: 0, gmv: 0 };
-        yearlyMap[s.year].services += 1;
-        yearlyMap[s.year].gmv += s.cobro;
+      // Yearly Totals
+      const yearlyAgg: Record<number, { services: number; gmv: number }> = {};
+      rpcRows.forEach(r => {
+        if (!yearlyAgg[r.year]) yearlyAgg[r.year] = { services: 0, gmv: 0 };
+        yearlyAgg[r.year].services += r.services;
+        yearlyAgg[r.year].gmv += parseFloat(String(r.gmv)) || 0;
       });
-      const yearlyTotals: YearlyData[] = Object.entries(yearlyMap)
+      const yearlyTotals: YearlyData[] = Object.entries(yearlyAgg)
         .map(([y, d]) => ({
           year: Number(y), services: d.services, gmv: d.gmv,
           aov: d.services > 0 ? d.gmv / d.services : 0,
         }))
         .sort((a, b) => a.year - b.year);
 
-      // --- Daily Current Month ---
-      const currentMonth = now.getMonth(); // 0-11
+      // ========================================
+      // SOURCE 2: Paginated detail queries for current + previous month
+      // ========================================
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevMonthStart = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-01`;
+      const nextMonthStart = currentMonth === 11
+        ? `${currentYear + 1}-01-01`
+        : `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}-01`;
+
+      const detailRecords = await fetchAllPaginated(() =>
+        supabase
+          .from('servicios_custodia')
+          .select('fecha_hora_cita, cobro_cliente, nombre_cliente, local_foraneo, nombre_armado')
+          .gte('fecha_hora_cita', prevMonthStart)
+          .lt('fecha_hora_cita', nextMonthStart)
+          .not('estado', 'eq', 'Cancelado')
+      );
+
+      const enriched = detailRecords.map(s => {
+        const fecha = s.fecha_hora_cita;
+        if (!fecha) return null;
+        const year = getCDMXYear(fecha);
+        const month = getCDMXMonth(fecha);
+        const day = getCDMXDayOfMonth(fecha);
+        const cobro = parseFloat(String(s.cobro_cliente || 0));
+        const d = new Date(fecha);
+        const weekdayIndex = d.getDay();
+        return {
+          year, month, day, cobro, weekdayIndex,
+          client: s.nombre_cliente || 'Sin nombre',
+          localForaneo: s.local_foraneo || '',
+          armed: !!s.nombre_armado && s.nombre_armado.trim() !== '',
+        };
+      }).filter(Boolean) as Array<{
+        year: number; month: number; day: number; cobro: number;
+        weekdayIndex: number; client: string; localForaneo: string; armed: boolean;
+      }>;
+
+      // Daily Current Month
       const dailyMap: Record<number, { services: number; gmv: number }> = {};
       enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
         if (!dailyMap[s.day]) dailyMap[s.day] = { services: 0, gmv: 0 };
@@ -174,7 +206,7 @@ export function useExecutiveMultiYearData() {
         }))
         .sort((a, b) => a.day - b.day);
 
-      // --- Clients MTD ---
+      // Clients MTD
       const clientMap: Record<string, { services: number; gmv: number }> = {};
       enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
         if (!clientMap[s.client]) clientMap[s.client] = { services: 0, gmv: 0 };
@@ -189,9 +221,7 @@ export function useExecutiveMultiYearData() {
         .sort((a, b) => b.gmv - a.gmv)
         .slice(0, 15);
 
-      // --- Weekday Comparison ---
-      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      // Weekday Comparison
       const weekdayCurrent: Record<number, number> = {};
       const weekdayPrev: Record<number, number> = {};
       enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
@@ -206,9 +236,35 @@ export function useExecutiveMultiYearData() {
         previousMTD: weekdayPrev[idx] || 0,
       }));
 
-      // --- Local/Foráneo Monthly (last 12 months) ---
+      // ========================================
+      // SOURCE 3: Paginated detail for last 12 months (local/foraneo + armed)
+      // ========================================
+      const twelveMonthsAgo = new Date(currentYear, currentMonth - 11, 1);
+      const lfStart = `${twelveMonthsAgo.getFullYear()}-${String(twelveMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`;
+
+      const lfRecords = await fetchAllPaginated(() =>
+        supabase
+          .from('servicios_custodia')
+          .select('fecha_hora_cita, local_foraneo, nombre_armado')
+          .gte('fecha_hora_cita', lfStart)
+          .not('estado', 'eq', 'Cancelado')
+      );
+
+      const lfEnriched = lfRecords.map(s => {
+        const fecha = s.fecha_hora_cita;
+        if (!fecha) return null;
+        const year = getCDMXYear(fecha);
+        const month = getCDMXMonth(fecha);
+        return {
+          year, month,
+          localForaneo: s.local_foraneo || '',
+          armed: !!s.nombre_armado && s.nombre_armado.trim() !== '',
+        };
+      }).filter(Boolean) as Array<{ year: number; month: number; localForaneo: string; armed: boolean }>;
+
+      // Local/Foráneo Monthly
       const lfMap: Record<string, { local: number; foraneo: number }> = {};
-      enriched.forEach(s => {
+      lfEnriched.forEach(s => {
         const key = `${s.year}-${String(s.month + 1).padStart(2, '0')}`;
         if (!lfMap[key]) lfMap[key] = { local: 0, foraneo: 0 };
         const tipo = s.localForaneo?.toLowerCase() || '';
@@ -230,9 +286,9 @@ export function useExecutiveMultiYearData() {
           };
         });
 
-      // --- Armed Monthly (last 12 months) ---
+      // Armed Monthly
       const armedMap: Record<string, { armed: number; notArmed: number }> = {};
-      enriched.forEach(s => {
+      lfEnriched.forEach(s => {
         const key = `${s.year}-${String(s.month + 1).padStart(2, '0')}`;
         if (!armedMap[key]) armedMap[key] = { armed: 0, notArmed: 0 };
         if (s.armed) armedMap[key].armed += 1;
