@@ -206,6 +206,22 @@ export function useExecutiveMultiYearData() {
         }))
         .sort((a, b) => a.day - b.day);
 
+      // Daily Previous Month
+      const dailyPrevMap: Record<number, { services: number; gmv: number }> = {};
+      enriched.filter(s => s.year === prevYear && s.month === prevMonth).forEach(s => {
+        if (!dailyPrevMap[s.day]) dailyPrevMap[s.day] = { services: 0, gmv: 0 };
+        dailyPrevMap[s.day].services += 1;
+        dailyPrevMap[s.day].gmv += s.cobro;
+      });
+      const dailyPrevious: DailyData[] = Object.entries(dailyPrevMap)
+        .map(([d, v]) => ({
+          day: Number(d),
+          dayLabel: `${Number(d)} ${MONTH_LABELS[prevMonth]}`,
+          services: v.services,
+          gmv: v.gmv,
+        }))
+        .sort((a, b) => a.day - b.day);
+
       // Clients MTD
       const clientMap: Record<string, { services: number; gmv: number }> = {};
       enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
@@ -319,8 +335,10 @@ export function useExecutiveMultiYearData() {
       return {
         monthlyByYear, quarterlyByYear, yearlyTotals,
         dailyCurrent, clientsMTD, weekdayComparison,
+        dailyPrevious,
         localForaneoMonthly, armedMonthly,
         currentYear, currentMonth: currentMonth + 1,
+        prevYear, prevMonth: prevMonth + 1,
       };
     },
     staleTime: 10 * 60 * 1000,
@@ -331,12 +349,15 @@ export function useExecutiveMultiYearData() {
     quarterlyByYear: data?.quarterlyByYear || [],
     yearlyTotals: data?.yearlyTotals || [],
     dailyCurrent: data?.dailyCurrent || [],
+    dailyPrevious: data?.dailyPrevious || [],
     clientsMTD: data?.clientsMTD || [],
     weekdayComparison: data?.weekdayComparison || [],
     localForaneoMonthly: data?.localForaneoMonthly || [],
     armedMonthly: data?.armedMonthly || [],
     currentYear: data?.currentYear || new Date().getFullYear(),
     currentMonth: data?.currentMonth || new Date().getMonth() + 1,
+    prevYear: data?.prevYear || new Date().getFullYear(),
+    prevMonth: data?.prevMonth || new Date().getMonth(),
     loading: isLoading,
     error,
   };

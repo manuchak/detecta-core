@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { DollarSign } from 'lucide-react';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
+
+const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 /** Polynomial least-squares fit (degree n). Returns coefficients [a0, a1, …, an]. */
 function polyFit(xs: number[], ys: number[], degree: number): number[] {
@@ -48,7 +50,13 @@ function evalPoly(coeffs: number[], x: number): number {
 }
 
 export const GmvDailyChart = () => {
-  const { dailyCurrent, loading } = useExecutiveMultiYearData();
+  const { dailyCurrent, dailyPrevious, currentMonth, currentYear, prevMonth, prevYear, loading } = useExecutiveMultiYearData();
+  const [viewMonth, setViewMonth] = useState<'current' | 'previous'>('current');
+
+  const activeData = viewMonth === 'current' ? dailyCurrent : dailyPrevious;
+  const activeMonthLabel = viewMonth === 'current'
+    ? `${MONTH_NAMES[(currentMonth || 1) - 1]} ${currentYear}`
+    : `${MONTH_NAMES[(prevMonth || 1) - 1]} ${prevYear}`;
 
   const formatCurrency = (n: number) => {
     if (n >= 1000000) return `$${(n / 1000000).toFixed(1)}M`;
@@ -57,22 +65,22 @@ export const GmvDailyChart = () => {
   };
 
   const dataWithTrend = useMemo(() => {
-    if (!dailyCurrent?.length) return dailyCurrent;
+    if (!activeData?.length) return activeData;
     // Only fit on days with actual data (gmv > 0)
-    const realPoints = dailyCurrent
+    const realPoints = activeData
       .map((d: any, i: number) => ({ x: i, y: d.gmv }))
       .filter((p: any) => p.y > 0);
-    if (realPoints.length < 3) return dailyCurrent;
+    if (realPoints.length < 3) return activeData;
     const coeffs = polyFit(
       realPoints.map((p: any) => p.x),
       realPoints.map((p: any) => p.y),
       Math.min(3, realPoints.length - 1)
     );
-    return dailyCurrent.map((d: any, i: number) => ({
+    return activeData.map((d: any, i: number) => ({
       ...d,
       gmvTrend: d.gmv > 0 ? Math.max(0, evalPoly(coeffs, i)) : undefined,
     }));
-  }, [dailyCurrent]);
+  }, [activeData]);
 
   if (loading) {
     return (
@@ -92,11 +100,25 @@ export const GmvDailyChart = () => {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />GMV Diario (Mes Actual)
+            <DollarSign className="h-4 w-4" />GMV Diario — {activeMonthLabel}
           </CardTitle>
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border border-border overflow-hidden text-[10px]">
+              <button
+                onClick={() => setViewMonth('previous')}
+                className={`px-2 py-0.5 transition-colors ${viewMonth === 'previous' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              >
+                {MONTH_NAMES[(prevMonth || 1) - 1]}
+              </button>
+              <button
+                onClick={() => setViewMonth('current')}
+                className={`px-2 py-0.5 transition-colors ${viewMonth === 'current' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              >
+                {MONTH_NAMES[(currentMonth || 1) - 1]}
+              </button>
+            </div>
             <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: 'hsl(30 80% 55%)' }} />
-            Tendencia
+            <span className="text-[10px] text-muted-foreground">Tendencia</span>
           </div>
         </div>
       </CardHeader>
