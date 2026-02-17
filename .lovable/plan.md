@@ -1,29 +1,60 @@
 
-## Agregar línea de tendencia polinómica al gráfico GMV Diario
 
-### Qué se hará
+## Corregir gráfico "Comparativo MTD por Día Semana" para comparación justa
 
-Agregar una línea de tendencia punteada (polinómica de grado 3) superpuesta sobre el gráfico de área existente en `GmvDailyChart.tsx`. Esto permite visualizar la dirección general del performance de GMV filtrando el ruido diario.
+### Problema identificado
 
-### Implementación técnica
+El gráfico actual suma todos los servicios del mes anterior completo vs solo los días transcurridos del mes actual. Esto genera una impresión visual falsa de bajo rendimiento cuando en realidad el mes actual va mejor en ritmo diario.
 
-**Archivo:** `src/components/executive/GmvDailyChart.tsx`
+### Solución: Promediar por número de ocurrencias
 
-1. **Calcular regresión polinómica (grado 3):** Implementar una función `polyFit` directamente en el componente que reciba los puntos `(x, y)` del GMV diario y devuelva los coeficientes del polinomio usando mínimos cuadrados (eliminación gaussiana sobre la matriz normal).
+Cambiar la métrica de "total de servicios por día de semana" a "promedio de servicios por día de semana", dividiendo entre cuántas veces aparece cada día en el período.
 
-2. **Generar datos de tendencia:** Crear un campo `gmvTrend` en cada punto de `dailyCurrent` con el valor calculado por el polinomio ajustado.
+### Cambios técnicos
 
-3. **Agregar línea al gráfico:** Usar un componente `Line` de Recharts (importado adicionalmente) con:
-   - `dataKey="gmvTrend"`
-   - `strokeDasharray="6 4"` (punteada)
-   - Color diferenciado (naranja/amber)
-   - Sin dots (`dot={false}`)
-   - `strokeWidth={2}`
+**Archivo 1: `src/hooks/useExecutiveMultiYearData.ts` (lineas 224-237)**
 
-4. **Leyenda visual:** Agregar indicador en el header mostrando qué representa la línea punteada ("Tendencia").
+Cambiar la lógica de acumulación de weekday para también contar las ocurrencias de cada día:
 
-### Resultado visual
+```ts
+// Contar servicios Y ocurrencias de cada día
+const weekdayCurrent: Record<number, number> = {};
+const weekdayPrev: Record<number, number> = {};
+const weekdayCurrentDays: Record<number, Set<string>> = {};
+const weekdayPrevDays: Record<number, Set<string>> = {};
 
-- La línea de área actual se mantiene igual
-- Se superpone una línea punteada suave que muestra la tendencia general del GMV
-- Solo se calcula sobre días con datos reales (GMV > 0)
+enriched.filter(s => s.year === currentYear && s.month === currentMonth).forEach(s => {
+  weekdayCurrent[s.weekdayIndex] = (weekdayCurrent[s.weekdayIndex] || 0) + 1;
+  if (!weekdayCurrentDays[s.weekdayIndex]) weekdayCurrentDays[s.weekdayIndex] = new Set();
+  weekdayCurrentDays[s.weekdayIndex].add(String(s.day));
+});
+
+enriched.filter(s => s.year === prevYear && s.month === prevMonth).forEach(s => {
+  weekdayPrev[s.weekdayIndex] = (weekdayPrev[s.weekdayIndex] || 0) + 1;
+  if (!weekdayPrevDays[s.weekdayIndex]) weekdayPrevDays[s.weekdayIndex] = new Set();
+  weekdayPrevDays[s.weekdayIndex].add(String(s.day));
+});
+
+const weekdayComparison = WEEKDAY_LABELS.map((label, idx) => ({
+  weekday: label,
+  weekdayIndex: idx,
+  currentMTD: weekdayCurrentDays[idx]?.size
+    ? Math.round((weekdayCurrent[idx] || 0) / weekdayCurrentDays[idx].size)
+    : 0,
+  previousMTD: weekdayPrevDays[idx]?.size
+    ? Math.round((weekdayPrev[idx] || 0) / weekdayPrevDays[idx].size)
+    : 0,
+}));
+```
+
+**Archivo 2: `src/components/executive/WeekdayComparisonChart.tsx`**
+
+- Actualizar el titulo a "Promedio de Servicios por Día Semana" para reflejar la nueva métrica
+- Actualizar el tooltip para mostrar "promedio" en lugar de total
+- Agregar subtitulo explicativo: "Servicios promedio por ocurrencia de cada día"
+
+### Resultado esperado
+
+- Si un viernes promedio de febrero tiene 40 servicios vs 35 de enero, las barras reflejarán que febrero va mejor
+- Comparación justa independientemente de cuántos días han pasado
+- El feeling del usuario coincidirá con la realidad de los datos
