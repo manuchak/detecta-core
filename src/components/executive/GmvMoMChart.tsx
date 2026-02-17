@@ -31,12 +31,20 @@ export const GmvMoMChart = () => {
   // Get unique years
   const years = [...new Set(monthlyByYear.map(d => d.year))].sort();
 
-  // Transform: one row per month, columns per year
+  const latestYear = years[years.length - 1];
+
+  // Transform: one row per month, columns per year; skip future months for current year
   const chartData = Array.from({ length: 12 }, (_, m) => {
-    const row: Record<string, string | number> = { month: monthlyByYear.find(d => d.month === m + 1)?.monthLabel || '' };
+    const row: Record<string, string | number | undefined> = { month: monthlyByYear.find(d => d.month === m + 1)?.monthLabel || '' };
     years.forEach(y => {
       const match = monthlyByYear.find(d => d.year === y && d.month === m + 1);
-      row[`y${y}`] = match?.gmv || 0;
+      const val = match?.gmv || 0;
+      // For the latest year, omit months with 0 GMV (future) to avoid misleading drop
+      if (y === latestYear && val === 0) {
+        row[`y${y}`] = undefined;
+      } else {
+        row[`y${y}`] = val;
+      }
     });
     return row;
   });
@@ -71,7 +79,7 @@ export const GmvMoMChart = () => {
               }} />
               <Legend wrapperStyle={{ fontSize: '11px' }} formatter={(v) => <span className="text-foreground">{v}</span>} />
               {years.map((y, i) => (
-                <Line key={y} type="monotone" dataKey={`y${y}`} name={y.toString()} stroke={YEAR_COLORS[i] || YEAR_COLORS[0]} strokeWidth={y === years[years.length - 1] ? 2.5 : 1.5} dot={false} />
+                <Line key={y} type="monotone" dataKey={`y${y}`} name={y.toString()} stroke={YEAR_COLORS[i] || YEAR_COLORS[0]} strokeWidth={y === latestYear ? 2.5 : 1.5} dot={{ fill: YEAR_COLORS[i] || YEAR_COLORS[0], r: 3 }} connectNulls={false} />
               ))}
             </LineChart>
           </ResponsiveContainer>
