@@ -11,23 +11,31 @@
 - `ConfirmationStep` con inserción bulk en `asignacion_armados`
 - Selector de cantidad en `ServiceTypeSection` (1-4 armados)
 
-#### FASE 2 — Lectura Unificada (Hook + Lógica Crítica) ✅ COMPLETADA
+#### FASE 2 — Lectura Unificada ✅ COMPLETADA
+
+**Hook + Lógica Crítica:**
 - `useArmadosDelServicio` hook centralizado + `countArmadosAsignados` utility
 - `usePendingArmadoServices` actualizado: compara asignados vs requeridos
 - `useServiciosPlanificados.assignCustodian`: valida armados contra tabla relacional
-- `useServiciosPlanificados.reassignArmedGuard`: siempre inserta en `asignacion_armados` (no solo proveedores)
+- `useServiciosPlanificados.reassignArmedGuard`: siempre inserta en `asignacion_armados`
 - `useStarMapKPIs`: incluye `cantidad_armados_requeridos` en query
 
-#### FASE 2 — Lectura Unificada (Dashboards, Monitoreo, Reportes) ⏳ PENDIENTE
+**Interfaces + Tipos:**
+- `ScheduledService`: campo `cantidad_armados_requeridos` agregado
+- `EditableService`: campo `cantidad_armados_requeridos` agregado
 
-Archivos pendientes de migrar:
+**Dashboard Planeación:**
+- `AssignmentStatusBadges`: muestra "N armados" cuando cantidad > 1
+- `SmartEditModal`: campo `cantidadRequeridos` para mostrar en resumen
+- `CompactServiceCard`: ya usa armado_nombre (sin cambio necesario por ahora)
 
-| Módulo | Archivos clave | Cambio |
-|--------|---------------|--------|
-| Dashboard Planeación | `ScheduledServicesTab.tsx`, `ServiceQueryCard.tsx` | Badge "2 armados" |
-| Edición | `EditServiceForm.tsx`, `SmartEditModal.tsx`, `PendingAssignmentModal.tsx` | Agregar/remover armados |
-| Monitoreo | `CompactServiceCard.tsx`, `AdditionalArmedGuard.tsx`, `ServiceDetailsModal.tsx` | Iterar lista |
-| Reportes/PDFs | `usePlanningResourcesMetrics.ts` | Contar correctamente |
-| Conflictos | `armadosConflictDetection.ts` | Verificar todos los armados |
+**Monitoreo:**
+- `ServiceDetailModal`: nuevo sub-componente `ArmadosSection` que consulta `useArmadosDelServicio` y muestra lista de armados con tipo (Interno/Proveedor)
+- `AdditionalArmedGuard`: acepta `servicioId` prop para consultar multi-armados desde tabla relacional con fallback a campo escalar
+
+**Pendiente menor (no bloqueante):**
+- `ServiceDataSummary.tsx` (incidentes): muestra campo escalar — funcional pero no multi-armado
+- `PDFLinkedService.tsx`: muestra campo escalar — funcional pero no multi-armado
+- `armadosConflictDetection.ts`: ya usa `asignacion_armados` — sin cambio necesario
 
 #### FASE 3 — Deprecación de campos escalares ⏳ FUTURA

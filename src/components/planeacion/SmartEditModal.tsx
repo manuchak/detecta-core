@@ -59,6 +59,7 @@ export function SmartEditModal({
   // Analyze service state for smart routing
   const hasArmado = service.requiere_armado && service.armado_asignado;
   const hasCustodio = service.custodio_asignado;
+  const cantidadRequeridos = service.cantidad_armados_requeridos || 1;
   const needsArmedAssignment = service.requiere_armado && !service.armado_asignado;
   const needsCustodianAssignment = !hasCustodio;
   const isComplete = hasCustodio && (!service.requiere_armado || hasArmado);
@@ -307,7 +308,9 @@ export function SmartEditModal({
                           </span>
                           {service.requiere_armado && (
                             <span className={`apple-text-caption ${hasArmado ? 'text-success' : 'text-warning'}`}>
-                              | Armado: {hasArmado ? service.armado_asignado : 'Pendiente'}
+                              | Armado: {hasArmado 
+                                ? (cantidadRequeridos > 1 ? `${cantidadRequeridos} armados` : service.armado_asignado)
+                                : 'Pendiente'}
                             </span>
                           )}
                         </div>

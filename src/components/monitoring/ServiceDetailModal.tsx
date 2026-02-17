@@ -17,8 +17,39 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { useServicioDetalle } from "@/hooks/useServicioDetalle";
+import { useArmadosDelServicio } from "@/hooks/useArmadosDelServicio";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+
+// Sub-component for multi-armado display
+function ArmadosSection({ servicioId, fallbackNombre }: { servicioId?: string; fallbackNombre?: string }) {
+  const { data: armados } = useArmadosDelServicio(servicioId);
+  
+  if (armados && armados.length > 0) {
+    return (
+      <div>
+        <span className="text-xs text-muted-foreground">Armado{armados.length > 1 ? 's' : ''}:</span>
+        {armados.map((a, i) => (
+          <p key={a.id} className="font-medium text-foreground">
+            {a.armado_nombre_verificado || `Armado ${i + 1}`}
+            <span className="text-xs text-muted-foreground ml-1">
+              ({a.tipo_asignacion === 'proveedor' ? 'Proveedor' : 'Interno'})
+            </span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  
+  return (
+    <div>
+      <span className="text-xs text-muted-foreground">Armado:</span>
+      <p className="font-medium text-foreground">
+        {fallbackNombre || 'Sin asignar'}
+      </p>
+    </div>
+  );
+}
 
 interface ServiceDetailModalProps {
   serviceId: string | null;
@@ -150,12 +181,7 @@ export const ServiceDetailModal = ({
                     </p>
                   </div>
                   {servicio.requiere_armado && (
-                    <div>
-                      <span className="text-xs text-muted-foreground">Armado:</span>
-                      <p className="font-medium text-foreground">
-                        {servicio.armado_asignado || 'Sin asignar'}
-                      </p>
-                    </div>
+                    <ArmadosSection servicioId={servicio.id_servicio} fallbackNombre={servicio.armado_asignado} />
                   )}
                 </div>
               </div>
