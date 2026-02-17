@@ -36,8 +36,9 @@ import {
 } from 'lucide-react';
 import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics, useClientTableData } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
-import { exportClientAnalyticsToPDF } from '@/utils/pdfExporter';
+import { exportClientAnalyticsPDF } from './pdf/ClientAnalyticsPDFExporter';
 import { toast } from 'sonner';
+import { format as dateFnsFormat } from 'date-fns';
 
 type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom';
 
@@ -83,18 +84,31 @@ export const ClientAnalytics = () => {
   const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '', dateRange);
 
   const handleDownloadPDF = async () => {
-    try {
-      toast.promise(
-        exportClientAnalyticsToPDF(selectedClient || undefined),
+    const periodLabels: Record<string, string> = {
+      current_month: 'MTD - Mes en Curso',
+      current_quarter: 'QTD - Trimestre en Curso',
+      current_year: 'YTD - Año en Curso',
+      custom: `${dateFnsFormat(dateRange.from, 'dd/MM/yyyy')} – ${dateFnsFormat(dateRange.to, 'dd/MM/yyyy')}`,
+    };
+    const dateLabel = periodLabels[dateFilterType] || 'MTD';
+
+    toast.promise(
+      exportClientAnalyticsPDF(
         {
-          loading: 'Generando reporte PDF...',
-          success: 'Reporte descargado exitosamente',
-          error: 'Error al generar el reporte PDF'
-        }
-      );
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-    }
+          dateRange,
+          dateLabel,
+          clientMetrics: clientMetrics ?? null,
+          tableData: filteredAndSortedClients,
+          clientAnalytics: clientAnalytics ?? null,
+        },
+        selectedClient || undefined
+      ),
+      {
+        loading: 'Generando reporte PDF...',
+        success: 'Reporte descargado exitosamente',
+        error: 'Error al generar el reporte PDF',
+      }
+    );
   };
 
   const formatCurrency = (value: number) => {
