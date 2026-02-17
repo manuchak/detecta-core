@@ -123,13 +123,27 @@ export const ExecutiveKPIsBar = () => {
       variation: kpis?.armados.var || 0,
       icon: <Shield className="h-4 w-4" />
     },
+    { 
+      label: 'Clientes Mon.', 
+      value: 'N/D', 
+      variation: 0,
+      icon: <Users className="h-4 w-4" />,
+      showVariation: false
+    },
+    { 
+      label: 'Suscr. Mon.', 
+      value: 'N/D', 
+      variation: 0,
+      icon: <Shield className="h-4 w-4" />,
+      showVariation: false
+    },
   ];
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {[...Array(6)].map((_, i) => (
-          <Card key={i} className="p-4 animate-pulse">
+          <Card key={i} className="p-3 animate-pulse">
             <div className="h-4 bg-muted rounded w-16 mb-2" />
             <div className="h-6 bg-muted rounded w-20" />
           </Card>
@@ -139,7 +153,7 @@ export const ExecutiveKPIsBar = () => {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
       {kpiCards.map((kpi, idx) => (
         <Card key={idx} className="p-4 bg-card border-border/50">
           <div className="flex items-center justify-between mb-2">
