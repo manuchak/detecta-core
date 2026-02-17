@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle, Check, Link2, Trash2 } from 'lucide-react';
+import { Plus, Shield, AlertTriangle, FileText, Loader2, XCircle, Check, Link2, Trash2, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ import {
 import { IncidentReportForm } from './IncidentReportForm';
 import { exportIncidentePDF } from './IncidentPDFExporter';
 import { useIncidenteCronologia } from '@/hooks/useIncidentesOperativos';
+import { supabase } from '@/integrations/supabase/client';
 
 const ESTADOS_BADGE: Record<string, string> = {
   borrador: 'bg-gray-500/10 text-gray-600',
@@ -39,6 +40,7 @@ export const IncidentListPanel: React.FC = () => {
   const [closingIncidentId, setClosingIncidentId] = useState<string | null>(null);
   const [deletingIncidentId, setDeletingIncidentId] = useState<string | null>(null);
   const [firmaCierre, setFirmaCierre] = useState<string | null>(null);
+  const [exportingPDFId, setExportingPDFId] = useState<string | null>(null);
 
   const { userRole, user } = useAuth();
   const canClose = ROLES_CERRAR_INCIDENTE.includes(userRole || '');
@@ -62,6 +64,25 @@ export const IncidentListPanel: React.FC = () => {
   const handleBack = () => {
     setView('list');
     setSelectedIncident(null);
+  };
+
+  const handleExportPDF = async (e: React.MouseEvent, inc: IncidenteOperativo) => {
+    e.stopPropagation();
+    setExportingPDFId(inc.id);
+    try {
+      const { data: cronologia } = await supabase
+        .from('incidentes_cronologia')
+        .select('*')
+        .eq('incidente_id', inc.id)
+        .order('timestamp', { ascending: true });
+      await exportIncidentePDF({ incidente: inc, cronologia: cronologia || [] });
+      toast.success('PDF generado exitosamente');
+    } catch (err: any) {
+      console.error('Error exporting PDF:', err);
+      toast.error('Error al generar el PDF');
+    } finally {
+      setExportingPDFId(null);
+    }
   };
 
   const handleConfirmClose = async () => {
@@ -183,6 +204,19 @@ export const IncidentListPanel: React.FC = () => {
                       <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                         {format(new Date(inc.fecha_incidente), 'dd/MM/yy HH:mm', { locale: es })}
                       </span>
+                      <button
+                          type="button"
+                          title="Descargar PDF"
+                          onClick={(e) => handleExportPDF(e, inc)}
+                          disabled={exportingPDFId === inc.id}
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {exportingPDFId === inc.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileDown className="h-4 w-4" />
+                          )}
+                        </button>
                       {canClose && inc.estado !== 'cerrado' && (
                         <button
                           type="button"
