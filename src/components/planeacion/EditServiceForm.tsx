@@ -80,6 +80,7 @@ export interface EditableService {
   fecha_hora_cita: string;
   tipo_servicio: string;
   requiere_armado: boolean;
+  cantidad_armados_requeridos?: number;
   custodio_asignado?: string;
   armado_asignado?: string;
   observaciones?: string;

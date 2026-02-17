@@ -10,6 +10,7 @@ interface AssignmentStatusBadgesProps {
 
 export function AssignmentStatusBadges({ service, size = 'sm' }: AssignmentStatusBadgesProps) {
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
+  const cantidadRequeridos = service.cantidad_armados_requeridos || 1;
   
   return (
     <div className="flex items-center gap-2">
@@ -31,7 +32,10 @@ export function AssignmentStatusBadges({ service, size = 'sm' }: AssignmentStatu
           }`}
         >
           <Shield className={iconSize} />
-          {service.armado_asignado || 'Pendiente'}
+          {service.armado_asignado 
+            ? (cantidadRequeridos > 1 ? `${cantidadRequeridos} armados` : service.armado_asignado)
+            : 'Pendiente'
+          }
         </Badge>
       )}
     </div>

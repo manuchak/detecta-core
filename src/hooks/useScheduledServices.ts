@@ -24,6 +24,7 @@ export interface ScheduledService {
   estado_planeacion?: string;
   incluye_armado: boolean;
   requiere_armado?: boolean;
+  cantidad_armados_requeridos?: number;
   estado_asignacion?: string;
   auto?: string;
   placa?: string;
