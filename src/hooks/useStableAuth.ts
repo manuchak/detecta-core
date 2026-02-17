@@ -40,6 +40,7 @@ export const useStableAuth = () => {
   
   const initialized = useRef(false);
   const mounted = useRef(true);
+  const lastUserId = useRef<string | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -50,55 +51,67 @@ export const useStableAuth = () => {
 
     console.log('🔧 StableAuth: Initializing...');
 
-    // Actualiza estado de forma síncrona; resolución de rol se hace aparte
-    const updateAuthState = (newSession: Session | null) => {
-      if (!mounted.current) return;
-
-      if (newSession?.user) {
-        setUser(newSession.user);
-        setSession(newSession);
-        setUserRole('unverified');
-        setPermissions(PERMISSIONS_MAP.unverified);
-        setLoading(true);
-      } else {
-        setUser(null);
-        setSession(null);
-        setUserRole('unverified');
-        setPermissions(PERMISSIONS_MAP.unverified);
-        setLoading(false);
-      }
-    };
-
     // Resolver rol de manera segura fuera del callback
     const resolveRoleAndSet = async () => {
       if (!mounted.current) return;
       try {
         const { data } = await supabase.rpc('get_current_user_role_secure');
         const role = (data as UserRole) || 'unverified';
-        setUserRole(role);
-        setPermissions(PERMISSIONS_MAP[role]);
+        if (mounted.current) {
+          setUserRole(role);
+          setPermissions(PERMISSIONS_MAP[role]);
+        }
       } catch (error) {
         console.warn('Failed to get user role:', error);
-        setUserRole('unverified');
-        setPermissions(PERMISSIONS_MAP.unverified);
+        if (mounted.current) {
+          setUserRole('unverified');
+          setPermissions(PERMISSIONS_MAP.unverified);
+        }
       } finally {
         if (mounted.current) setLoading(false);
       }
     };
 
-    // Configurar listener
+    // Configurar listener — distingue token refresh de login genuino
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`🔐 StableAuth: Auth event ${event}`);
-      updateAuthState(session);
+      if (!mounted.current) return;
+
       if (session?.user) {
-        setTimeout(resolveRoleAndSet, 0);
+        const isSameUser = lastUserId.current === session.user.id;
+        const isTokenRefresh = event === 'TOKEN_REFRESHED' || (event === 'SIGNED_IN' && isSameUser);
+
+        setUser(session.user);
+        setSession(session);
+
+        if (!isTokenRefresh) {
+          // Login genuino: resolver rol
+          lastUserId.current = session.user.id;
+          setUserRole('unverified');
+          setPermissions(PERMISSIONS_MAP.unverified);
+          setLoading(true);
+          setTimeout(resolveRoleAndSet, 0);
+        }
+        // Token refresh: no tocar userRole ni loading
+      } else {
+        // Logout
+        setUser(null);
+        setSession(null);
+        setUserRole('unverified');
+        setPermissions(PERMISSIONS_MAP.unverified);
+        setLoading(false);
+        lastUserId.current = null;
       }
     });
 
     // Verificar sesión inicial
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      updateAuthState(currentSession);
+      if (!mounted.current) return;
       if (currentSession?.user) {
+        lastUserId.current = currentSession.user.id;
+        setUser(currentSession.user);
+        setSession(currentSession);
+        setLoading(true);
         setTimeout(resolveRoleAndSet, 0);
       } else {
         setLoading(false);
