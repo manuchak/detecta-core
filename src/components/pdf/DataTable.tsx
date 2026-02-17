@@ -49,7 +49,7 @@ export const DataTable: React.FC<DataTableProps> = ({ columns, data, striped = t
       )}
 
       {/* Header */}
-      <View style={pdfBaseStyles.tableHeaderRow}>
+      <View style={pdfBaseStyles.tableHeaderRow} minPresenceAhead={40}>
         {columns.map((col, i) => (
           <Text key={i} style={[pdfBaseStyles.tableCellHeader, getCellStyle(col)]}>
             {col.header}

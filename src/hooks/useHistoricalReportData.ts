@@ -73,13 +73,13 @@ export function useHistoricalReportData(
   const shouldEnableOperational = enabled && (supportedModules.includes('operational') || supportedModules.includes('projections'));
   const shouldEnableClients = enabled && supportedModules.includes('clients');
 
-  // Fetch data from hooks with enabled control
-  const { cpaDetails, loading: cpaLoading } = useCPADetails({ enabled: shouldEnableCPA });
-  const ltvDetails = useLTVDetails({ enabled: shouldEnableLTV });
+  // Fetch data from hooks with enabled control - pass year for dynamic filtering
+  const { cpaDetails, loading: cpaLoading } = useCPADetails({ enabled: shouldEnableCPA, year: config.year });
+  const ltvDetails = useLTVDetails({ enabled: shouldEnableLTV, year: config.year });
   const retentionDetails = useRetentionDetails({ enabled: shouldEnableRetention });
-  const { engagementDetails, loading: engagementLoading } = useEngagementDetails({ enabled: shouldEnableEngagement });
+  const { engagementDetails, loading: engagementLoading } = useEngagementDetails({ enabled: shouldEnableEngagement, year: config.year });
   const supplyGrowthDetails = useSupplyGrowthDetails({ enabled: shouldEnableSupplyGrowth });
-  const conversionDetails = useConversionRateDetails({ enabled: shouldEnableConversion });
+  const conversionDetails = useConversionRateDetails({ enabled: shouldEnableConversion, year: config.year });
   const { capacityData, loading: capacityLoading } = useServiceCapacity({ enabled: shouldEnableCapacity });
   
   // Client data hooks with year filter
@@ -261,15 +261,15 @@ function generatePeriodLabel(config: HistoricalReportConfig): string {
 
 function transformCPAData(cpaDetails: any, year: number): CPAReportData {
   const costBreakdownArray = cpaDetails?.currentMonthCostBreakdown || [];
-  const yearlyBreakdown = Object.entries(cpaDetails?.costBreakdownByCategory || {}).map(([category, amount]) => ({
+  const yearlyBreakdown = Object.entries(cpaDetails?.costBreakdownByCategory || cpaDetails?.yearlyBreakdown?.costBreakdown || {}).map(([category, amount]) => ({
     category,
     amount: Number(amount) || 0,
-    percentage: cpaDetails?.yearlyData?.totalCosts > 0 
-      ? ((Number(amount) || 0) / cpaDetails.yearlyData.totalCosts) * 100 
+    percentage: (cpaDetails?.yearlyData?.totalCosts || cpaDetails?.yearlyBreakdown?.totalCosts || 0) > 0 
+      ? ((Number(amount) || 0) / (cpaDetails?.yearlyData?.totalCosts || cpaDetails?.yearlyBreakdown?.totalCosts)) * 100 
       : 0,
   }));
 
-  const filteredMonthlyData = (cpaDetails?.monthlyData || []).filter((item: any) => {
+  const filteredMonthlyData = (cpaDetails?.monthlyData || cpaDetails?.yearlyBreakdown?.monthlyData || []).filter((item: any) => {
     const itemYear = parseInt(item.month?.split('-')[0] || '0');
     return itemYear === year;
   });
@@ -277,8 +277,8 @@ function transformCPAData(cpaDetails: any, year: number): CPAReportData {
   return {
     formula: 'CPA = Costos Totales de Adquisición / Número de Custodios Nuevos',
     yearlyData: {
-      totalCosts: cpaDetails?.yearlyData?.totalCosts || 0,
-      newCustodians: cpaDetails?.yearlyData?.newCustodians || 0,
+      totalCosts: cpaDetails?.yearlyData?.totalCosts || cpaDetails?.yearlyBreakdown?.totalCosts || 0,
+      newCustodians: cpaDetails?.yearlyData?.newCustodians || cpaDetails?.yearlyBreakdown?.totalNewCustodians || 0,
       cpaPromedio: cpaDetails?.overallCPA || 0,
       costBreakdown: yearlyBreakdown,
     },
@@ -303,10 +303,8 @@ function transformCPAData(cpaDetails: any, year: number): CPAReportData {
 
 function transformLTVData(ltvDetails: any, year: number): LTVReportData {
   const ltvGeneral = ltvDetails?.yearlyData?.ltvGeneral || 0;
-  const filteredMonthlyBreakdown = (ltvDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
-    const itemYear = parseInt(m.month?.split('-')[0] || '0');
-    return itemYear === year;
-  });
+  // Hook already filters by year, so include all data
+  const filteredMonthlyBreakdown = ltvDetails?.yearlyData?.monthlyBreakdown || [];
   
   return {
     formula: `LTV = Ingreso Promedio Mensual × Tiempo de Vida Promedio (${ltvDetails?.tiempoVidaPromedio?.toFixed(1) || 0} meses)`,
@@ -395,10 +393,8 @@ function transformRetentionData(retentionDetails: any, year: number): RetentionR
 }
 
 function transformEngagementData(engagementDetails: any, year: number): EngagementReportData {
-  const filteredMonthlyEvolution = (engagementDetails?.yearlyData?.monthlyEvolution || []).filter((m: any) => {
-    const itemYear = parseInt(m.month?.split('-')[0] || '0');
-    return itemYear === year;
-  });
+  // Hook already filters by year, so include all monthly data
+  const filteredMonthlyEvolution = engagementDetails?.yearlyData?.monthlyEvolution || [];
 
   return {
     formula: 'Engagement = Total Servicios ÷ Total Custodios Activos',
@@ -456,9 +452,12 @@ function transformSupplyGrowthData(supplyGrowthDetails: any, year: number): Supp
 }
 
 function transformConversionData(conversionDetails: any, year: number): ConversionReportData {
+  // Use monthKey (YYYY-MM format) for filtering instead of month name
   const filteredMonthlyBreakdown = (conversionDetails?.yearlyData?.monthlyBreakdown || []).filter((m: any) => {
-    const itemYear = parseInt(m.month?.split('-')[0] || '0');
-    return itemYear === year;
+    const key = m.monthKey || m.month || '';
+    const itemYear = parseInt(key.split('-')[0] || '0');
+    // If monthKey is available, filter by year; otherwise include all (already filtered by hook)
+    return m.monthKey ? itemYear === year : true;
   });
 
   return {

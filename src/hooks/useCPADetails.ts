@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CPADetailsOptions {
   enabled?: boolean;
+  year?: number;
 }
 
 export interface CPADetails {
@@ -40,17 +41,20 @@ export interface CPADetails {
 }
 
 export const useCPADetails = (options: CPADetailsOptions = {}) => {
-  const { enabled = true } = options;
+  const { enabled = true, year } = options;
+  const targetYear = year || new Date().getFullYear();
+  const startDate = `${targetYear}-01-01`;
+  const endDate = `${targetYear}-12-31`;
 
   // Obtener gastos reales
   const { data: gastosReales, isLoading: gastosLoading } = useQuery({
-    queryKey: ['cpa-details-gastos'],
+    queryKey: ['cpa-details-gastos', targetYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gastos_externos')
         .select('concepto, monto, fecha_gasto')
-        .gte('fecha_gasto', '2025-01-01')
-        .lte('fecha_gasto', '2025-12-31')
+        .gte('fecha_gasto', startDate)
+        .lte('fecha_gasto', endDate)
         .order('fecha_gasto', { ascending: true });
 
       if (error) throw error;
@@ -62,7 +66,7 @@ export const useCPADetails = (options: CPADetailsOptions = {}) => {
 
   // Obtener custodios nuevos por mes
   const { data: custodiosNuevosPorMes, isLoading: custodiosLoading } = useQuery({
-    queryKey: ['cpa-details-custodios'],
+    queryKey: ['cpa-details-custodios', targetYear],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('bypass_rls_get_servicios', { max_records: 10000 });
       
@@ -84,11 +88,11 @@ export const useCPADetails = (options: CPADetailsOptions = {}) => {
         });
       }
       
-      // Agrupar por mes los custodios que tuvieron su primer servicio
+      // Agrupar por mes los custodios que tuvieron su primer servicio en el año target
       const custodiosPorMes = {};
       
       custodiosPrimerServicio.forEach((fechaPrimerServicio, custodio) => {
-        if (fechaPrimerServicio >= new Date('2025-01-01') && fechaPrimerServicio <= new Date('2025-12-31')) {
+        if (fechaPrimerServicio >= new Date(startDate) && fechaPrimerServicio <= new Date(`${endDate}T23:59:59`)) {
           const yearMonth = `${fechaPrimerServicio.getFullYear()}-${String(fechaPrimerServicio.getMonth() + 1).padStart(2, '0')}`;
           
           if (!custodiosPorMes[yearMonth]) {

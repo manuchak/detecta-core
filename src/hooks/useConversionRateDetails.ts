@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, addMonths, isSameYear } from 'date-fns';
 import { es } from 'date-fns/locale';
+
 export interface ConversionRateBreakdown {
   month: string;
+  monthKey: string; // YYYY-MM format for filtering
   leads: number;
   newCustodians: number;
   conversionRate: number;
@@ -29,21 +31,23 @@ export interface ConversionRateDetails {
 
 export interface ConversionRateDetailsOptions {
   enabled?: boolean;
+  year?: number;
 }
 
 export const useConversionRateDetails = (options: ConversionRateDetailsOptions = {}): ConversionRateDetails => {
-  const { enabled = true } = options;
+  const { enabled = true, year } = options;
+  const targetYear = year || new Date().getFullYear();
 
-  // Calcular período dinámico: desde julio 2025 hasta último día del mes actual
+  // Dynamic period: start of target year to end of target year (or current month if same year)
   const today = new Date();
-  const start = startOfMonth(new Date(2025, 6, 1)); // Julio 2025 (mes 6 porque enero = 0)
-  const end = endOfMonth(today);
+  const start = startOfMonth(new Date(targetYear, 0, 1)); // January of target year
+  const end = targetYear === today.getFullYear() ? endOfMonth(today) : endOfMonth(new Date(targetYear, 11, 31));
   const startStr = format(start, 'yyyy-MM-dd');
   const endStr = format(end, 'yyyy-MM-dd');
 
   const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-  // Leads por mes (autenticado)
+  // Leads por mes
   const { data: leadsPorMes = {}, isLoading: leadsLoading } = useQuery<Record<string, number>>({
     queryKey: ['leads-por-mes', startStr, endStr],
     queryFn: async () => {
@@ -69,7 +73,7 @@ export const useConversionRateDetails = (options: ConversionRateDetailsOptions =
     enabled,
   });
 
-  // Custodios nuevos (primer servicio) por mes (autenticado)
+  // Custodios nuevos por mes
   const { data: custodiosNuevosPorMes = {}, isLoading: custodiosLoading } = useQuery<Record<string, number>>({
     queryKey: ['custodios-nuevos-conversion', startStr, endStr],
     queryFn: async () => {
@@ -95,23 +99,15 @@ export const useConversionRateDetails = (options: ConversionRateDetailsOptions =
     if (leadsLoading || custodiosLoading) {
       return {
         yearlyData: {
-          totalLeads: 0,
-          totalNewCustodians: 0,
-          overallConversionRate: 0,
-          monthlyBreakdown: [],
+          totalLeads: 0, totalNewCustodians: 0, overallConversionRate: 0, monthlyBreakdown: [],
         },
-        currentMonthData: {
-          month: '',
-          leads: 0,
-          newCustodians: 0,
-          conversionRate: 0,
-        },
+        currentMonthData: { month: '', leads: 0, newCustodians: 0, conversionRate: 0 },
         periodLabel: '',
         loading: true,
       } as ConversionRateDetails;
     }
 
-    // Construir meses entre start y end (inclusive)
+    // Build months between start and end
     const months: { key: string; date: Date }[] = [];
     for (let d = startOfMonth(start); d <= end; d = addMonths(d, 1)) {
       months.push({ key: format(d, 'yyyy-MM'), date: new Date(d) });
@@ -127,35 +123,30 @@ export const useConversionRateDetails = (options: ConversionRateDetailsOptions =
       totalLeads += leads;
       totalNewCustodians += newCustodians;
       const monthLabel = capitalize(format(date, 'LLLL', { locale: es }));
-      return { month: monthLabel, leads, newCustodians, conversionRate };
+      return { month: monthLabel, monthKey: key, leads, newCustodians, conversionRate };
     });
 
     const overallConversionRate = totalLeads > 0 ? Math.round((totalNewCustodians / totalLeads) * 100 * 100) / 100 : 0;
 
-    // Mes actual (fin del período)
+    // Current month
     const currentMonthKey = format(end, 'yyyy-MM');
     const currentMonthLeads = leadsPorMes[currentMonthKey] ?? 0;
     const currentMonthCustodians = custodiosNuevosPorMes[currentMonthKey] ?? 0;
     const currentMonthConversion = currentMonthLeads > 0 ? Math.round((currentMonthCustodians / currentMonthLeads) * 100 * 100) / 100 : 0;
     const currentMonthLabel = `${capitalize(format(end, 'LLLL', { locale: es }))} ${format(end, 'yyyy')}`;
 
-    // Etiqueta de período
+    // Period label
     const left = capitalize(format(start, isSameYear(start, end) ? 'LLL' : 'LLL yyyy', { locale: es }));
     const right = capitalize(format(end, 'LLL yyyy', { locale: es }));
     const periodLabel = `${left} - ${right}`;
 
     return {
       yearlyData: {
-        totalLeads,
-        totalNewCustodians,
-        overallConversionRate,
-        monthlyBreakdown,
+        totalLeads, totalNewCustodians, overallConversionRate, monthlyBreakdown,
       },
       currentMonthData: {
-        month: currentMonthLabel,
-        leads: currentMonthLeads,
-        newCustodians: currentMonthCustodians,
-        conversionRate: currentMonthConversion,
+        month: currentMonthLabel, leads: currentMonthLeads,
+        newCustodians: currentMonthCustodians, conversionRate: currentMonthConversion,
       },
       periodLabel,
       loading: false,

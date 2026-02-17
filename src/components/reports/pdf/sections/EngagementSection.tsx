@@ -35,7 +35,7 @@ export const EngagementSection: React.FC<Props> = ({ data, periodLabel, logoBase
       />
 
       {chartLabels.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFLineChart labels={chartLabels} series={chartSeries} title="Engagement Mensual" height={170} />
         </View>
       )}

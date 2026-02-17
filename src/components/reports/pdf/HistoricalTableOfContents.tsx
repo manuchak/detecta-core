@@ -32,7 +32,7 @@ export const HistoricalTableOfContents: React.FC<Props> = ({ config, logoBase64 
     <ReportHeader title="Informe Histórico" logoBase64={logoBase64} />
     <ReportFooter />
 
-    <Text style={{ fontSize: 20, fontWeight: 700, color: PDF_COLORS.black, marginBottom: 20 }}>
+    <Text style={{ fontSize: 20, fontWeight: 700, color: PDF_COLORS.black, marginBottom: 20, marginTop: 10 }}>
       Contenido del Informe
     </Text>
 

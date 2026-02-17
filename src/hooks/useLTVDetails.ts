@@ -50,42 +50,46 @@ export interface LTVDetails {
 
 export interface LTVDetailsOptions {
   enabled?: boolean;
+  year?: number;
 }
 
 export const useLTVDetails = (options: LTVDetailsOptions = {}): LTVDetails => {
-  const { enabled = true } = options;
+  const { enabled = true, year } = options;
+  const targetYear = year || new Date().getFullYear();
+  const startDate = `${targetYear}-01-01`;
+  const endDate = `${targetYear}-12-31`;
 
   // Obtener permanencia empírica dinámica
   const { data: dynamicRetention } = useQuery({
     queryKey: ['dynamic-retention-ltv'],
     queryFn: async () => await calculateDynamicRetention(),
-    staleTime: 60 * 60 * 1000, // 1 hora
+    staleTime: 60 * 60 * 1000,
     enabled,
   });
 
   // Obtener servicios completados por mes para calcular LTV
   const { data: serviciosPorMes, isLoading: serviciosLoading } = useQuery({
-    queryKey: ['servicios-ltv-details'],
+    queryKey: ['servicios-ltv-details', targetYear],
     queryFn: async () => {
+      // @ts-ignore
       const { data, error } = await supabase.rpc('bypass_rls_get_servicios', { max_records: 10000 });
       
       if (error) throw error;
       
-      // Agrupar servicios por mes y custodio
       const serviciosPorMes: { [key: string]: { custodios: Set<string>, ingresos: number } } = {};
       
       if (data && data.length > 0) {
         data
-          .filter(servicio => 
+          .filter((servicio: any) => 
             servicio.fecha_hora_cita && 
             servicio.nombre_custodio && 
             servicio.estado?.toLowerCase() === 'finalizado' &&
             servicio.cobro_cliente > 0
           )
-          .forEach(servicio => {
+          .forEach((servicio: any) => {
             const fecha = new Date(servicio.fecha_hora_cita);
-            // Usar el período real de datos (jun-ago 2025)
-            if (fecha >= new Date('2025-06-01') && fecha <= new Date('2025-08-31')) {
+            // Dynamic year filter
+            if (fecha.getFullYear() === targetYear) {
               const yearMonth = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
               
               if (!serviciosPorMes[yearMonth]) {
@@ -101,7 +105,6 @@ export const useLTVDetails = (options: LTVDetailsOptions = {}): LTVDetails => {
           });
       }
       
-      // Convertir Set a array para facilitar el conteo
       const result: { [key: string]: { custodiosActivos: number, ingresos: number } } = {};
       Object.keys(serviciosPorMes).forEach(mes => {
         result[mes] = {
@@ -117,166 +120,112 @@ export const useLTVDetails = (options: LTVDetailsOptions = {}): LTVDetails => {
   });
 
   const ltvDetails = useMemo(() => {
-    // Usar permanencia MEDIANA del calculador dinámico (custodio típico, no promedio inflado)
     const tiempoVidaPromedio = dynamicRetention?.tiempoMedianoPermanencia || 4.83;
 
     if (serviciosLoading || !serviciosPorMes) {
       return {
         yearlyData: {
-          totalCustodios: 0,
-          ingresosTotales: 0,
-          ingresoPromedioPorCustodio: 0,
-          ltvGeneral: 0,
-          monthlyBreakdown: [],
+          totalCustodios: 0, ingresosTotales: 0, ingresoPromedioPorCustodio: 0,
+          ltvGeneral: 0, monthlyBreakdown: [],
         },
         currentMonthData: {
-          month: '',
-          custodiosActivos: 0,
-          ingresosTotales: 0,
-          ingresoPromedioPorCustodio: 0,
-          ltvCalculado: 0,
+          month: '', custodiosActivos: 0, ingresosTotales: 0,
+          ingresoPromedioPorCustodio: 0, ltvCalculado: 0,
         },
         momComparison: {
-          ltvActual: 0,
-          ltvMesAnterior: 0,
-          cambioAbsoluto: 0,
-          cambioRelativo: 0,
-          tendencia: 'stable' as const
+          ltvActual: 0, ltvMesAnterior: 0, cambioAbsoluto: 0,
+          cambioRelativo: 0, tendencia: 'stable' as const
         },
         quarterlyData: [],
-        tiempoVidaPromedio: tiempoVidaPromedio,
+        tiempoVidaPromedio,
         loading: true,
       };
     }
 
-    // Obtener todos los meses del período real de datos
-    const allMonths = ['2025-06', '2025-07', '2025-08'];
-    const monthNames = ['Junio', 'Julio', 'Agosto'];
+    // Build all months dynamically from data
+    const allMonths = Object.keys(serviciosPorMes).sort();
+    const monthNames: Record<string, string> = {
+      '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
+      '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
+      '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+    };
     
-    let totalCustodiosUnicos = new Set<string>();
     let ingresosTotalesAcumulados = 0;
     const monthlyBreakdown: LTVBreakdown[] = [];
 
-    // Calcular datos mensuales y acumular totales
-    allMonths.forEach((month, index) => {
+    allMonths.forEach((month) => {
       const monthData = serviciosPorMes[month] || { custodiosActivos: 0, ingresos: 0 };
       const ingresoPromedioPorCustodio = monthData.custodiosActivos > 0 ? 
         monthData.ingresos / monthData.custodiosActivos : 0;
-      
-      // LTV empírico = Ingreso promedio mensual * permanencia empírica dinámica
       const ltvCalculado = Math.round(ingresoPromedioPorCustodio * tiempoVidaPromedio);
-      
       ingresosTotalesAcumulados += monthData.ingresos;
 
+      const monthNum = month.split('-')[1];
       monthlyBreakdown.push({
-        month: monthNames[index],
+        month: month, // Keep YYYY-MM format
         custodiosActivos: monthData.custodiosActivos,
         ingresosTotales: Math.round(monthData.ingresos),
         ingresoPromedioPorCustodio: Math.round(ingresoPromedioPorCustodio),
-        ltvCalculado: ltvCalculado,
+        ltvCalculado,
       });
     });
 
-    // Calcular totales únicos (para evitar contar el mismo custodio múltiples veces)
     const custodiosUnicosCount = Object.values(serviciosPorMes).reduce((acc, monthData) => {
       return acc + monthData.custodiosActivos;
     }, 0);
 
     const ingresoPromedioPorCustodioGeneral = custodiosUnicosCount > 0 ? 
       ingresosTotalesAcumulados / custodiosUnicosCount : 0;
-    
-    // LTV general usando permanencia empírica dinámica
     const ltvGeneral = Math.round(ingresoPromedioPorCustodioGeneral * tiempoVidaPromedio);
 
-    // Datos del mes actual (Agosto 2025)
-    const currentMonth = '2025-08';
-    const currentMonthData = serviciosPorMes[currentMonth] || { custodiosActivos: 0, ingresos: 0 };
-    const currentIngresoPromedio = currentMonthData.custodiosActivos > 0 ? 
-      currentMonthData.ingresos / currentMonthData.custodiosActivos : 0;
+    // Current month data
+    const lastMonth = allMonths[allMonths.length - 1] || '';
+    const lastMonthData = lastMonth ? (serviciosPorMes[lastMonth] || { custodiosActivos: 0, ingresos: 0 }) : { custodiosActivos: 0, ingresos: 0 };
+    const currentIngresoPromedio = lastMonthData.custodiosActivos > 0 ? 
+      lastMonthData.ingresos / lastMonthData.custodiosActivos : 0;
     const currentLTV = Math.round(currentIngresoPromedio * tiempoVidaPromedio);
+    const lastMonthNum = lastMonth ? lastMonth.split('-')[1] : '';
+    const currentMonthLabel = lastMonthNum ? `${monthNames[lastMonthNum] || lastMonth} ${targetYear}` : '';
 
-    // Calcular comparación MoM (Month-over-Month)
+    // MoM comparison
     const momComparison: LTVComparison = (() => {
       if (monthlyBreakdown.length < 2) {
-        return {
-          ltvActual: currentLTV,
-          ltvMesAnterior: 0,
-          cambioAbsoluto: 0,
-          cambioRelativo: 0,
-          tendencia: 'stable' as const
-        };
+        return { ltvActual: currentLTV, ltvMesAnterior: 0, cambioAbsoluto: 0, cambioRelativo: 0, tendencia: 'stable' as const };
       }
-
       const mesActual = monthlyBreakdown[monthlyBreakdown.length - 1];
       const mesAnterior = monthlyBreakdown[monthlyBreakdown.length - 2];
-      
       const cambioAbsoluto = mesActual.ltvCalculado - mesAnterior.ltvCalculado;
-      const cambioRelativo = mesAnterior.ltvCalculado > 0 
-        ? (cambioAbsoluto / mesAnterior.ltvCalculado) * 100 
-        : 0;
-      
+      const cambioRelativo = mesAnterior.ltvCalculado > 0 ? (cambioAbsoluto / mesAnterior.ltvCalculado) * 100 : 0;
       let tendencia: 'up' | 'down' | 'stable';
-      if (Math.abs(cambioRelativo) < 5) {
-        tendencia = 'stable';
-      } else if (cambioRelativo > 0) {
-        tendencia = 'up';
-      } else {
-        tendencia = 'down';
-      }
-
+      if (Math.abs(cambioRelativo) < 5) tendencia = 'stable';
+      else if (cambioRelativo > 0) tendencia = 'up';
+      else tendencia = 'down';
       return {
-        ltvActual: mesActual.ltvCalculado,
-        ltvMesAnterior: mesAnterior.ltvCalculado,
-        cambioAbsoluto: Math.round(cambioAbsoluto),
-        cambioRelativo: parseFloat(cambioRelativo.toFixed(1)),
-        tendencia
+        ltvActual: mesActual.ltvCalculado, ltvMesAnterior: mesAnterior.ltvCalculado,
+        cambioAbsoluto: Math.round(cambioAbsoluto), cambioRelativo: parseFloat(cambioRelativo.toFixed(1)), tendencia
       };
     })();
 
-    // Calcular datos trimestrales (Quarter-over-Quarter)
+    // Quarterly data - build dynamically
     const quarterlyData: QuarterlyLTV[] = (() => {
-      // Q2 2025: Junio (índice 0)
-      // Q3 2025: Julio-Agosto (índices 1-2)
-      
-      const quarters: QuarterlyLTV[] = [];
-      
-      // Q2 2025 (solo Junio disponible)
-      if (monthlyBreakdown[0]) {
-        quarters.push({
-          quarter: 'Q2 2025',
-          ltvPromedio: monthlyBreakdown[0].ltvCalculado,
-          custodiosPromedio: monthlyBreakdown[0].custodiosActivos,
-          ingresosTotales: monthlyBreakdown[0].ingresosTotales,
-          cambioVsQuarterAnterior: null
-        });
-      }
-      
-      // Q3 2025 (Julio-Agosto)
-      if (monthlyBreakdown.length >= 2) {
-        const q3Months = monthlyBreakdown.slice(1, 3); // Julio y Agosto
-        const q3LtvPromedio = Math.round(
-          q3Months.reduce((sum, m) => sum + m.ltvCalculado, 0) / q3Months.length
-        );
-        const q3CustodiosPromedio = Math.round(
-          q3Months.reduce((sum, m) => sum + m.custodiosActivos, 0) / q3Months.length
-        );
-        const q3IngresosTotales = q3Months.reduce((sum, m) => sum + m.ingresosTotales, 0);
-        
-        // Calcular cambio vs Q2
-        const cambioVsQ2 = quarters[0] 
-          ? ((q3LtvPromedio - quarters[0].ltvPromedio) / quarters[0].ltvPromedio) * 100
-          : null;
-        
-        quarters.push({
-          quarter: 'Q3 2025',
-          ltvPromedio: q3LtvPromedio,
-          custodiosPromedio: q3CustodiosPromedio,
-          ingresosTotales: q3IngresosTotales,
-          cambioVsQuarterAnterior: cambioVsQ2 ? parseFloat(cambioVsQ2.toFixed(1)) : null
-        });
-      }
-      
-      return quarters;
+      const quarters: Record<string, LTVBreakdown[]> = {};
+      monthlyBreakdown.forEach(m => {
+        const monthNum = parseInt(m.month.split('-')[1]);
+        const q = Math.ceil(monthNum / 3);
+        const qKey = `Q${q} ${targetYear}`;
+        if (!quarters[qKey]) quarters[qKey] = [];
+        quarters[qKey].push(m);
+      });
+
+      let prevLtv: number | null = null;
+      return Object.entries(quarters).sort(([a], [b]) => a.localeCompare(b)).map(([qKey, months]) => {
+        const ltvPromedio = Math.round(months.reduce((s, m) => s + m.ltvCalculado, 0) / months.length);
+        const custodiosPromedio = Math.round(months.reduce((s, m) => s + m.custodiosActivos, 0) / months.length);
+        const ingresosTotales = months.reduce((s, m) => s + m.ingresosTotales, 0);
+        const cambio = prevLtv !== null ? parseFloat(((ltvPromedio - prevLtv) / prevLtv * 100).toFixed(1)) : null;
+        prevLtv = ltvPromedio;
+        return { quarter: qKey, ltvPromedio, custodiosPromedio, ingresosTotales, cambioVsQuarterAnterior: cambio };
+      });
     })();
 
     return {
@@ -284,22 +233,22 @@ export const useLTVDetails = (options: LTVDetailsOptions = {}): LTVDetails => {
         totalCustodios: custodiosUnicosCount,
         ingresosTotales: Math.round(ingresosTotalesAcumulados),
         ingresoPromedioPorCustodio: Math.round(ingresoPromedioPorCustodioGeneral),
-        ltvGeneral: ltvGeneral,
+        ltvGeneral,
         monthlyBreakdown,
       },
       currentMonthData: {
-        month: 'Agosto 2025',
-        custodiosActivos: currentMonthData.custodiosActivos,
-        ingresosTotales: Math.round(currentMonthData.ingresos),
+        month: currentMonthLabel,
+        custodiosActivos: lastMonthData.custodiosActivos,
+        ingresosTotales: Math.round(lastMonthData.ingresos),
         ingresoPromedioPorCustodio: Math.round(currentIngresoPromedio),
         ltvCalculado: currentLTV,
       },
       momComparison,
       quarterlyData,
-      tiempoVidaPromedio: tiempoVidaPromedio,
+      tiempoVidaPromedio,
       loading: false,
     };
-  }, [serviciosPorMes, serviciosLoading, dynamicRetention]);
+  }, [serviciosPorMes, serviciosLoading, dynamicRetention, targetYear]);
 
   return {
     ...ltvDetails,

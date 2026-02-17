@@ -31,7 +31,7 @@ export const ProjectionsSection: React.FC<Props> = ({ data, periodLabel, logoBas
       />
 
       {chartLabels.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFLineChart labels={chartLabels} series={chartSeries} title="Forecast vs Real" height={190} />
         </View>
       )}

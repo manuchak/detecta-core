@@ -45,7 +45,7 @@ export const RetentionSection: React.FC<Props> = ({ data, periodLabel, logoBase6
       />
 
       {chartLabels.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFLineChart labels={chartLabels} series={chartSeries} title="Tasa de Retención Mensual" height={170} />
         </View>
       )}

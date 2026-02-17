@@ -49,7 +49,7 @@ export const ClientsSection: React.FC<Props> = ({ data, periodLabel, logoBase64 
 
       {/* Concentration donut */}
       {pieData.length > 0 && (
-        <View style={{ alignItems: 'center', marginVertical: 8 }}>
+        <View wrap={false} style={{ alignItems: 'center', marginVertical: 8 }}>
           <PDFPieChart data={pieData} title="Concentración de Ingresos" innerRadius={30} width={300} height={220} />
         </View>
       )}
