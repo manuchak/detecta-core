@@ -2,10 +2,12 @@ import { format } from 'date-fns';
 import React from 'react';
 import type { HistoricalReportConfig, HistoricalReportData } from '@/types/reports';
 
+/** Detecta logo URL for PDF embedding */
+const LOGO_URL = '/detecta-logo.png';
+
 /**
  * Export a Historical Report as PDF using @react-pdf/renderer.
- * Maintains the same public API: exportHistoricalReportToPDF(config, data)
- * Uses dynamic imports to keep the main bundle lean.
+ * Loads the company logo and passes it through to all pages.
  */
 export const exportHistoricalReportToPDF = async (
   config: HistoricalReportConfig,
@@ -15,12 +17,21 @@ export const exportHistoricalReportToPDF = async (
     document.body.style.cursor = 'wait';
 
     // Dynamic imports for code-splitting
-    const [{ pdf }, { HistoricalReportDocument }] = await Promise.all([
+    const [{ pdf }, { HistoricalReportDocument }, { loadImageAsBase64 }] = await Promise.all([
       import('@react-pdf/renderer'),
       import('@/components/reports/pdf/HistoricalReportDocument'),
+      import('@/components/pdf/utils'),
     ]);
 
-    const doc = React.createElement(HistoricalReportDocument, { config, data }) as any;
+    // Load logo
+    let logoBase64: string | null = null;
+    try {
+      logoBase64 = await loadImageAsBase64(LOGO_URL);
+    } catch {
+      console.warn('Could not load logo for PDF');
+    }
+
+    const doc = React.createElement(HistoricalReportDocument, { config, data, logoBase64 }) as any;
     const blob = await pdf(doc).toBlob();
 
     // Download

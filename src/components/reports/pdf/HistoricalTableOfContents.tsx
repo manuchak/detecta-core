@@ -2,6 +2,7 @@ import React from 'react';
 import { Page, View, Text } from '@react-pdf/renderer';
 import { pdfBaseStyles } from '@/components/pdf/styles';
 import { PDF_COLORS, PDF_FONT_SIZES } from '@/components/pdf/tokens';
+import { ReportHeader } from '@/components/pdf/ReportHeader';
 import { ReportFooter } from '@/components/pdf/ReportFooter';
 import { registerPDFFonts } from '@/components/pdf/fontSetup';
 import type { HistoricalReportConfig } from '@/types/reports';
@@ -23,10 +24,12 @@ const MODULE_INFO: Record<string, { name: string; desc: string }> = {
 
 interface Props {
   config: HistoricalReportConfig;
+  logoBase64?: string | null;
 }
 
-export const HistoricalTableOfContents: React.FC<Props> = ({ config }) => (
+export const HistoricalTableOfContents: React.FC<Props> = ({ config, logoBase64 }) => (
   <Page size="A4" style={pdfBaseStyles.page}>
+    <ReportHeader title="Informe Histórico" logoBase64={logoBase64} />
     <ReportFooter />
 
     <Text style={{ fontSize: 20, fontWeight: 700, color: PDF_COLORS.black, marginBottom: 20 }}>
@@ -36,28 +39,34 @@ export const HistoricalTableOfContents: React.FC<Props> = ({ config }) => (
     {config.modules.map((module, i) => {
       const info = MODULE_INFO[module] ?? { name: module, desc: '' };
       return (
-        <View key={module} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
-          <View
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 10,
-              backgroundColor: PDF_COLORS.red,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 8,
-            }}
-          >
-            <Text style={{ color: PDF_COLORS.white, fontSize: 10, fontWeight: 700 }}>
-              {(i + 1).toString()}
-            </Text>
+        <View key={module}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6, paddingVertical: 8 }}>
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: PDF_COLORS.red,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}
+            >
+              <Text style={{ color: PDF_COLORS.white, fontSize: 10, fontWeight: 700 }}>
+                {(i + 1).toString()}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: 700, color: PDF_COLORS.black }}>{info.name}</Text>
+              <Text style={{ fontSize: PDF_FONT_SIZES.sm, color: PDF_COLORS.gray, marginTop: 2 }}>
+                {info.desc}
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, fontWeight: 700, color: PDF_COLORS.black }}>{info.name}</Text>
-            <Text style={{ fontSize: PDF_FONT_SIZES.sm, color: PDF_COLORS.gray, marginTop: 2 }}>
-              {info.desc}
-            </Text>
-          </View>
+          {/* Divider line between items */}
+          {i < config.modules.length - 1 && (
+            <View style={{ height: 0.5, backgroundColor: PDF_COLORS.borderLight, marginLeft: 32, marginBottom: 2 }} />
+          )}
         </View>
       );
     })}
@@ -66,9 +75,10 @@ export const HistoricalTableOfContents: React.FC<Props> = ({ config }) => (
       style={{
         marginTop: 16,
         padding: 12,
+        paddingLeft: 16,
         backgroundColor: PDF_COLORS.backgroundSubtle,
-        borderWidth: 0.5,
-        borderColor: PDF_COLORS.border,
+        borderLeftWidth: 3,
+        borderLeftColor: PDF_COLORS.red,
         borderRadius: 2,
       }}
     >

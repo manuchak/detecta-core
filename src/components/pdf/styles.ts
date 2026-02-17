@@ -8,7 +8,7 @@ import { PDF_COLORS, PDF_FONT_SIZES, PDF_PAGE_CONFIG, PDF_SPACING } from './toke
 export const pdfBaseStyles = StyleSheet.create({
   // ── Page ──
   page: {
-    fontFamily: 'Inter',
+    fontFamily: 'Poppins',
     fontSize: PDF_FONT_SIZES.base,
     color: PDF_COLORS.black,
     paddingTop: PDF_PAGE_CONFIG.paddingTop,
@@ -135,11 +135,13 @@ export const pdfBaseStyles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: PDF_COLORS.surface,
+    backgroundColor: PDF_COLORS.black,
     borderBottomWidth: 1,
-    borderBottomColor: PDF_COLORS.border,
+    borderBottomColor: PDF_COLORS.black,
     paddingVertical: PDF_SPACING.sm,
     paddingHorizontal: PDF_SPACING.sm,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
   },
   tableRow: {
     flexDirection: 'row',
@@ -159,7 +161,7 @@ export const pdfBaseStyles = StyleSheet.create({
   tableCellHeader: {
     fontSize: PDF_FONT_SIZES.sm,
     fontWeight: 700,
-    color: PDF_COLORS.black,
+    color: PDF_COLORS.white,
   },
   tableCell: {
     fontSize: PDF_FONT_SIZES.sm,

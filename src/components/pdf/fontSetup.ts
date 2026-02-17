@@ -3,7 +3,7 @@ import { Font } from '@react-pdf/renderer';
 let registered = false;
 
 /**
- * Register Inter font for all PDF documents.
+ * Register Poppins font for all PDF documents.
  * Safe to call multiple times — only registers once.
  */
 export function registerPDFFonts() {
@@ -11,18 +11,18 @@ export function registerPDFFonts() {
   registered = true;
 
   Font.register({
-    family: 'Inter',
+    family: 'Poppins',
     fonts: [
       {
-        src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.ttf',
+        src: 'https://fonts.gstatic.com/s/poppins/v22/pxiEyp8kv8JHgFVrFJA.ttf',
         fontWeight: 400,
       },
       {
-        src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hjQ.ttf',
+        src: 'https://fonts.gstatic.com/s/poppins/v22/pxiByp8kv8JHgFVrLEj6V1s.ttf',
         fontWeight: 600,
       },
       {
-        src: 'https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hjQ.ttf',
+        src: 'https://fonts.gstatic.com/s/poppins/v22/pxiByp8kv8JHgFVrLCz7V1s.ttf',
         fontWeight: 700,
       },
     ],
@@ -30,3 +30,6 @@ export function registerPDFFonts() {
 
   Font.registerHyphenationCallback((word) => [word]);
 }
+
+/** Font family constant for use in chart SVGs and inline styles */
+export const PDF_FONT_FAMILY = 'Poppins';

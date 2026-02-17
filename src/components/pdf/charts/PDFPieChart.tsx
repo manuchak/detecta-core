@@ -11,8 +11,10 @@ export interface PDFPieChartProps {
   title?: string;
   showLabels?: boolean;
   showPercentages?: boolean;
-  innerRadius?: number; // >0 = donut
+  innerRadius?: number;
 }
+
+const FONT = 'Poppins';
 
 export const PDFPieChart: React.FC<PDFPieChartProps> = ({
   data,
@@ -34,7 +36,6 @@ export const PDFPieChart: React.FC<PDFPieChartProps> = ({
   const outerR = Math.min(cx, cy) - (showLabels ? 36 : 12);
   const innerR = innerRadius > 0 ? Math.min(innerRadius, outerR - 4) : 0;
 
-  // Build slices
   let currentAngle = 0;
   const slices = data.map((d, i) => {
     const angle = (d.value / total) * 360;
@@ -47,14 +48,13 @@ export const PDFPieChart: React.FC<PDFPieChartProps> = ({
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       {title && (
-        <SvgText x={cx} y={14} style={{ fontSize: 8, fontFamily: 'Inter', fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
+        <SvgText x={cx} y={14} style={{ fontSize: 8, fontFamily: FONT, fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
           {title}
         </SvgText>
       )}
 
       <G>
         {slices.map((s, i) => {
-          // Avoid rendering 0-width slices
           if (s.endAngle - s.startAngle < 0.5) return null;
           const path = describePieSlice(cx, cy, outerR, innerR, s.startAngle, s.endAngle);
           const midAngle = (s.startAngle + s.endAngle) / 2;
@@ -71,7 +71,7 @@ export const PDFPieChart: React.FC<PDFPieChartProps> = ({
                   <SvgText
                     x={labelPos.x}
                     y={labelPos.y + 3}
-                    style={{ fontSize: 5.5, fontFamily: 'Inter' }}
+                    style={{ fontSize: 5.5, fontFamily: FONT }}
                     fill={PDF_COLORS.gray}
                     textAnchor={midAngle > 180 ? 'end' : 'start'}
                   >

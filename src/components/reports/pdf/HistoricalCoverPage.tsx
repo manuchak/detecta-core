@@ -30,9 +30,10 @@ const GRANULARITY_MAP: Record<string, string> = {
 interface Props {
   config: HistoricalReportConfig;
   data: HistoricalReportData;
+  logoBase64?: string | null;
 }
 
-export const HistoricalCoverPage: React.FC<Props> = ({ config, data }) => {
+export const HistoricalCoverPage: React.FC<Props> = ({ config, data, logoBase64 }) => {
   const now = new Date();
   const moduleCount = config.modules.length;
   const moduleSummary =
@@ -46,6 +47,7 @@ export const HistoricalCoverPage: React.FC<Props> = ({ config, data }) => {
       title="Informe Histórico"
       subtitle="Detallado"
       period={data.periodLabel}
+      logoBase64={logoBase64}
       metadata={[
         ['Fecha de generación:', format(now, "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es })],
         ['Módulos incluidos:', moduleSummary],

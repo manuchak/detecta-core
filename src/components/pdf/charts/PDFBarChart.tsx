@@ -25,6 +25,7 @@ export interface PDFBarChartProps {
 }
 
 const MARGIN = { top: 24, right: 12, bottom: 32, left: 44 };
+const FONT = 'Poppins';
 
 export const PDFBarChart: React.FC<PDFBarChartProps> = ({
   data,
@@ -49,12 +50,11 @@ export const PDFBarChart: React.FC<PDFBarChartProps> = ({
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      {/* Title */}
       {title && (
         <SvgText
           x={width / 2}
           y={14}
-          style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: 'Inter', fontWeight: 700 }}
+          style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: FONT, fontWeight: 700 }}
           fill={PDF_COLORS.black}
           textAnchor="middle"
         >
@@ -63,23 +63,20 @@ export const PDFBarChart: React.FC<PDFBarChartProps> = ({
       )}
 
       <G transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-        {/* Grid + Y axis labels */}
         {ticks.map((t) => {
           const y = yScale(t);
           return (
             <G key={`t-${t}`}>
               <Line x1={0} y1={y} x2={plotW} y2={y} stroke={PDF_COLORS.borderLight} strokeWidth={0.5} strokeDasharray="3,3" />
-              <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="end">
+              <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="end">
                 {formatAxisValue(t)}
               </SvgText>
             </G>
           );
         })}
 
-        {/* Baseline */}
         <Line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke={PDF_COLORS.border} strokeWidth={0.8} />
 
-        {/* Bars */}
         {data.map((d, i) => {
           const x = barGap + i * (barW + barGap);
           const barH = Math.max(0, plotH - yScale(d.value));
@@ -91,18 +88,17 @@ export const PDFBarChart: React.FC<PDFBarChartProps> = ({
                 <SvgText
                   x={x + barW / 2}
                   y={yScale(d.value) - 3}
-                  style={{ fontSize: 6, fontFamily: 'Inter', fontWeight: 600 }}
+                  style={{ fontSize: 6, fontFamily: FONT, fontWeight: 600 }}
                   fill={PDF_COLORS.black}
                   textAnchor="middle"
                 >
                   {formatAxisValue(d.value)}
                 </SvgText>
               )}
-              {/* X label */}
               <SvgText
                 x={x + barW / 2}
                 y={plotH + 10}
-                style={{ fontSize: 5.5, fontFamily: 'Inter' }}
+                style={{ fontSize: 5.5, fontFamily: FONT }}
                 fill={PDF_COLORS.gray}
                 textAnchor="middle"
               >

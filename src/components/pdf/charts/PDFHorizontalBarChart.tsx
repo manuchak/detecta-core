@@ -14,6 +14,7 @@ export interface PDFHorizontalBarChartProps {
 }
 
 const MARGIN = { top: 24, right: 40, bottom: 12, left: 80 };
+const FONT = 'Poppins';
 
 export const PDFHorizontalBarChart: React.FC<PDFHorizontalBarChartProps> = ({
   data,
@@ -39,19 +40,18 @@ export const PDFHorizontalBarChart: React.FC<PDFHorizontalBarChartProps> = ({
   return (
     <Svg width={width} height={computedH} viewBox={`0 0 ${width} ${computedH}`}>
       {title && (
-        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: 'Inter', fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
+        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: FONT, fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
           {title}
         </SvgText>
       )}
 
       <G transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-        {/* Vertical grid */}
         {ticks.map((t) => {
           const x = xScale(t);
           return (
             <G key={t}>
               <Line x1={x} y1={0} x2={x} y2={plotH} stroke={PDF_COLORS.borderLight} strokeWidth={0.5} strokeDasharray="3,3" />
-              <SvgText x={x} y={plotH + 10} style={{ fontSize: 6, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="middle">
+              <SvgText x={x} y={plotH + 10} style={{ fontSize: 6, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="middle">
                 {formatAxisValue(t)}
               </SvgText>
             </G>
@@ -67,12 +67,11 @@ export const PDFHorizontalBarChart: React.FC<PDFHorizontalBarChartProps> = ({
           return (
             <G key={i}>
               <Rect x={0} y={y} width={w} height={barH} fill={fill} rx={2} />
-              {/* Label */}
-              <SvgText x={-4} y={y + barH / 2 + 3} style={{ fontSize: 6, fontFamily: 'Inter' }} fill={PDF_COLORS.black} textAnchor="end">
+              <SvgText x={-4} y={y + barH / 2 + 3} style={{ fontSize: 6, fontFamily: FONT }} fill={PDF_COLORS.black} textAnchor="end">
                 {truncateLabel(d.label, 14)}
               </SvgText>
               {showValues && (
-                <SvgText x={w + 4} y={y + barH / 2 + 3} style={{ fontSize: 6, fontFamily: 'Inter', fontWeight: 600 }} fill={PDF_COLORS.black}>
+                <SvgText x={w + 4} y={y + barH / 2 + 3} style={{ fontSize: 6, fontFamily: FONT, fontWeight: 600 }} fill={PDF_COLORS.black}>
                   {formatAxisValue(d.value)}
                 </SvgText>
               )}

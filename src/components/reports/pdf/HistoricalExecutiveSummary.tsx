@@ -1,9 +1,10 @@
 import React from 'react';
 import { Page, View, Text } from '@react-pdf/renderer';
 import { pdfBaseStyles } from '@/components/pdf/styles';
-import { PDF_COLORS } from '@/components/pdf/tokens';
+import { PDF_COLORS, PDF_FONT_SIZES } from '@/components/pdf/tokens';
 import { SectionHeader } from '@/components/pdf/SectionHeader';
 import { KPIRow, type KPIItem } from '@/components/pdf/KPIRow';
+import { InsightBox } from '@/components/pdf/InsightBox';
 import { ReportHeader } from '@/components/pdf/ReportHeader';
 import { ReportFooter } from '@/components/pdf/ReportFooter';
 import { registerPDFFonts } from '@/components/pdf/fontSetup';
@@ -14,9 +15,10 @@ registerPDFFonts();
 
 interface Props {
   data: HistoricalReportData;
+  logoBase64?: string | null;
 }
 
-export const HistoricalExecutiveSummary: React.FC<Props> = ({ data }) => {
+export const HistoricalExecutiveSummary: React.FC<Props> = ({ data, logoBase64 }) => {
   const kpis: KPIItem[] = [];
 
   if (data.cpa?.yearlyData) {
@@ -88,7 +90,7 @@ export const HistoricalExecutiveSummary: React.FC<Props> = ({ data }) => {
 
   return (
     <Page size="A4" style={pdfBaseStyles.page} wrap>
-      <ReportHeader title="Informe Histórico" subtitle={data.periodLabel} />
+      <ReportHeader title="Informe Histórico" subtitle={data.periodLabel} logoBase64={logoBase64} />
       <ReportFooter />
 
       <SectionHeader title="Resumen Ejecutivo" />
@@ -100,18 +102,7 @@ export const HistoricalExecutiveSummary: React.FC<Props> = ({ data }) => {
             Highlights del Período
           </Text>
           {highlights.slice(0, 5).map((h, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: h.positive ? PDF_COLORS.success : PDF_COLORS.danger,
-                  marginRight: 6,
-                }}
-              />
-              <Text style={{ fontSize: 9, color: PDF_COLORS.black }}>{h.text}</Text>
-            </View>
+            <InsightBox key={i} text={h.text} positive={h.positive} />
           ))}
         </View>
       )}

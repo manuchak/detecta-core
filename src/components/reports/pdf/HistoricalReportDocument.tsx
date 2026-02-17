@@ -18,9 +18,10 @@ import type { HistoricalReportConfig, HistoricalReportData } from '@/types/repor
 interface Props {
   config: HistoricalReportConfig;
   data: HistoricalReportData;
+  logoBase64?: string | null;
 }
 
-const SECTION_MAP: Record<string, React.FC<{ data: any; periodLabel: string }>> = {
+const SECTION_MAP: Record<string, React.FC<{ data: any; periodLabel: string; logoBase64?: string | null }>> = {
   cpa: CPASection,
   ltv: LTVSection,
   retention: RetentionSection,
@@ -46,16 +47,16 @@ const DATA_KEY_MAP: Record<string, string> = {
   clients: 'clients',
 };
 
-export const HistoricalReportDocument: React.FC<Props> = ({ config, data }) => (
+export const HistoricalReportDocument: React.FC<Props> = ({ config, data, logoBase64 }) => (
   <Document>
-    <HistoricalCoverPage config={config} data={data} />
-    <HistoricalExecutiveSummary data={data} />
-    <HistoricalTableOfContents config={config} />
+    <HistoricalCoverPage config={config} data={data} logoBase64={logoBase64} />
+    <HistoricalExecutiveSummary data={data} logoBase64={logoBase64} />
+    <HistoricalTableOfContents config={config} logoBase64={logoBase64} />
     {config.modules.map((module) => {
       const Component = SECTION_MAP[module];
       const sectionData = (data as any)[DATA_KEY_MAP[module]];
       if (!Component || !sectionData) return null;
-      return <Component key={module} data={sectionData} periodLabel={data.periodLabel} />;
+      return <Component key={module} data={sectionData} periodLabel={data.periodLabel} logoBase64={logoBase64} />;
     })}
   </Document>
 );

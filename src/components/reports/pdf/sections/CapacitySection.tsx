@@ -1,14 +1,17 @@
 import React from 'react';
+import { View } from '@react-pdf/renderer';
 import { ReportPage } from '@/components/pdf/ReportPage';
 import { SectionHeader } from '@/components/pdf/SectionHeader';
 import { FieldGroup } from '@/components/pdf/FieldGroup';
+import { PDFGaugeChart } from '@/components/pdf/charts';
+import { PDF_COLORS } from '@/components/pdf/tokens';
 import { formatNumber, formatPercent } from '../formatUtils';
 import type { CapacityReportData } from '@/types/reports';
 
-interface Props { data: CapacityReportData; periodLabel: string }
+interface Props { data: CapacityReportData; periodLabel: string; logoBase64?: string | null }
 
-export const CapacitySection: React.FC<Props> = ({ data, periodLabel }) => (
-  <ReportPage title="Informe Histórico" subtitle={periodLabel}>
+export const CapacitySection: React.FC<Props> = ({ data, periodLabel, logoBase64 }) => (
+  <ReportPage title="Informe Histórico" subtitle={periodLabel} logoBase64={logoBase64}>
     <SectionHeader title="Capacidad Operativa" />
 
     <FieldGroup
@@ -20,6 +23,15 @@ export const CapacitySection: React.FC<Props> = ({ data, periodLabel }) => (
         ['En Ruta', formatNumber(data.currentCapacity.unavailable.currentlyOnRoute)],
       ]}
     />
+
+    {/* Gauge chart for utilization */}
+    <View style={{ alignItems: 'center', marginVertical: 10 }}>
+      <PDFGaugeChart
+        value={data.utilizationMetrics.current}
+        label="Utilización Actual"
+        size={140}
+      />
+    </View>
 
     <FieldGroup
       title="Capacidad por Tipo"
