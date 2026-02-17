@@ -1,58 +1,47 @@
 
-## Diagnostico: Hector Reyes Abendano - Checklist bloqueado
 
-### Causa raiz identificada
+## Diagnóstico: Oscar Patiño - Servicio no visible
 
-Hector **no tenia documentos** antes de hoy. El `OnboardingGuard` lo redirigía a `/custodian/onboarding` cada vez que intentaba acceder al portal. Hector subio sus 3 documentos hoy (12:08-12:11 UTC), pero hay dos problemas activos:
+### Causa raíz: Teléfono del profile no coincide con custodios_operativos
 
-1. **Documentos con vigencia de hoy (2026-02-17)**: La licencia y tarjeta de circulacion vencen HOY. Manana el `OnboardingGuard` lo bloqueara de nuevo porque la validacion `fecha_vigencia >= today` fallara.
+| Fuente | Teléfono |
+|--------|----------|
+| Profile (auth / login) | `4462888724` (de "446 288 8724") |
+| Custodios operativos (activo) | `4421862382` |
+| Servicio planificado (hoy 07:00) | `4421862382` |
+| Documentos subidos | `4462888724` |
 
-2. **Cache no se invalida despues del onboarding**: Si Hector subio los documentos en `/custodian/onboarding` pero el `OnboardingGuard` no recibe la actualizacion del query de documentos, queda atrapado en un loop de redireccion.
+El hook `useNextService` busca servicios con el teléfono del profile (`4462888724`), pero el servicio fue asignado usando el teléfono de `custodios_operativos` (`4421862382`). Son numeros completamente diferentes, no es un tema de formato.
 
-### Correccion inmediata (datos)
+### Nota adicional
 
-Actualizar las fechas de vigencia de los documentos de Hector a fechas reales (no la fecha de hoy):
+Oscar tiene un registro **duplicado** en `custodios_operativos`:
+- `53bc9ce0...` con estado `inactivo` (OSCAR LEONARDO PATIÑO TERRAZAS)
+- `94075138...` con estado `activo` (OSCAR LEONARDO PATINO TERRAZAS)
+
+Ambos usan el telefono `4421862382`.
+
+### Correccion requerida (datos - SQL manual)
+
+Actualizar el telefono en `custodios_operativos` para que coincida con el profile de auth, y re-sincronizar el servicio:
 
 ```sql
 -- Ejecutar en Cloud View > Run SQL (Live)
-UPDATE documentos_custodio 
-SET fecha_vigencia = '2027-02-17'  -- 1 año de vigencia
-WHERE custodio_telefono = '5517970534' 
-  AND tipo_documento IN ('licencia_conducir', 'tarjeta_circulacion');
+
+-- 1. Actualizar custodio activo con telefono correcto
+UPDATE custodios_operativos 
+SET telefono = '4462888724'
+WHERE id = '94075138-694c-4900-9dae-87cfba8be05a';
+
+-- 2. Actualizar el servicio de hoy para que use el telefono correcto
+UPDATE servicios_planificados 
+SET custodio_telefono = '4462888724'
+WHERE id = '4d137bbe-1fb5-48d6-b80b-b96f59a02281';
 ```
 
-### Correccion de codigo (prevenir recurrencia)
+Despues de ejecutar esto, Oscar deberia ver su servicio inmediatamente al refrescar la app.
 
-**Archivo: `src/components/custodian/OnboardingGuard.tsx`**
+### Problema sistémico recurrente
 
-1. Agregar invalidacion explicita del query de documentos despues del onboarding, para que al volver del flujo de carga, el guard re-evalúe con datos frescos.
-2. Cambiar la navegacion al onboarding para pasar un `state` que indique el motivo (documentos faltantes vs expirados) para mejor UX.
+Este es el **segundo caso** (despues de Hector) donde el telefono del profile no coincide con el de custodios_operativos. Para prevenir futuros casos, se recomienda crear una validacion automatica o un trigger que sincronice ambas tablas al momento del signup/login del custodio.
 
-**Archivo: `src/hooks/useCustodianDocuments.ts`**
-
-3. Reducir `staleTime` de 5 minutos a 30 segundos para documentos, ya que en flujos de onboarding el cache de 5 minutos causa que el guard no detecte documentos recien subidos.
-
-### Secuencia de implementacion
-
-| Paso | Archivo | Cambio |
-|------|---------|--------|
-| 1 | SQL (manual en Live) | Actualizar fecha_vigencia de Hector a 2027-02-17 |
-| 2 | `OnboardingGuard.tsx` | Agregar `refetchOnMount: 'always'` hint y reducir cache en el contexto del guard |
-| 3 | `useCustodianDocuments.ts` | Reducir `staleTime` a 30s para evitar cache stale durante onboarding |
-
-### Detalles tecnicos
-
-El flujo actual tiene un gap:
-
-```text
-1. Custodio accede a /custodian
-2. OnboardingGuard carga documentos (query con staleTime: 5min)
-3. No tiene docs → redirige a /custodian/onboarding
-4. Sube documentos exitosamente
-5. Navega de vuelta a /custodian
-6. OnboardingGuard usa CACHE de paso 2 (5min sin expirar)
-7. Cache dice "sin documentos" → redirige OTRA VEZ a onboarding
-8. Loop hasta que cache expire
-```
-
-La correccion asegura que al volver del onboarding, el query se re-ejecuta inmediatamente.
