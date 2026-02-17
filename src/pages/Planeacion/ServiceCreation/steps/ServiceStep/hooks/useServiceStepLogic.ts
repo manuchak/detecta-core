@@ -52,6 +52,7 @@ export function useServiceStepLogic() {
   const [hora, setHora] = useState('');
   const [tipoServicio, setTipoServicio] = useState<ServiceStepState['tipoServicio']>('custodia_sin_arma');
   const [requiereArmado, setRequiereArmado] = useState(false);
+  const [cantidadArmadosRequeridos, setCantidadArmadosRequeridos] = useState(1);
   const [esServicioRetorno, setEsServicioRetorno] = useState(false);
   const [gadgets, setGadgets] = useState<Record<string, number>>({});
   const [observaciones, setObservaciones] = useState('');
@@ -92,6 +93,7 @@ export function useServiceStepLogic() {
       setHora(formData.hora || '');
       setTipoServicio((formData.tipoServicio as ServiceStepState['tipoServicio']) || 'custodia_sin_arma');
       setRequiereArmado(formData.requiereArmado || false);
+      setCantidadArmadosRequeridos(formData.cantidadArmadosRequeridos || 1);
       setEsServicioRetorno(formData.esServicioRetorno || false);
       setGadgets(formData.gadgets || {});
       setObservaciones(formData.observaciones || '');
@@ -158,6 +160,7 @@ export function useServiceStepLogic() {
       hora,
       tipoServicio,
       requiereArmado,
+      cantidadArmadosRequeridos,
       esServicioRetorno,
       gadgets,
       observaciones,
@@ -172,6 +175,7 @@ export function useServiceStepLogic() {
     hora, 
     tipoServicio, 
     requiereArmado, 
+    cantidadArmadosRequeridos,
     esServicioRetorno, 
     gadgets, 
     observaciones, 
@@ -192,12 +196,19 @@ export function useServiceStepLogic() {
   const handleRequiereArmadoChange = useCallback((checked: boolean) => {
     setRequiereArmado(checked);
     
-    if (!checked && tipoServicio !== 'custodia_sin_arma') {
-      setTipoServicio('custodia_sin_arma');
+    if (!checked) {
+      setCantidadArmadosRequeridos(1);
+      if (tipoServicio !== 'custodia_sin_arma') {
+        setTipoServicio('custodia_sin_arma');
+      }
     } else if (checked && tipoServicio === 'custodia_sin_arma') {
       setTipoServicio('custodia_armada');
     }
   }, [tipoServicio]);
+
+  const handleCantidadArmadosChange = useCallback((cantidad: number) => {
+    setCantidadArmadosRequeridos(Math.max(1, Math.min(4, cantidad)));
+  }, []);
 
   // Gadget handling
   const handleGadgetChange = useCallback((gadgetId: string, cantidad: number) => {
@@ -389,6 +400,7 @@ export function useServiceStepLogic() {
       hora,
       tipoServicio,
       requiereArmado,
+      cantidadArmadosRequeridos,
       esServicioRetorno,
       gadgets,
       observaciones,
@@ -403,6 +415,7 @@ export function useServiceStepLogic() {
     hora,
     tipoServicio,
     requiereArmado,
+    cantidadArmadosRequeridos,
     esServicioRetorno,
     gadgets,
     observaciones,
@@ -418,6 +431,7 @@ export function useServiceStepLogic() {
     hora,
     tipoServicio,
     requiereArmado,
+    cantidadArmadosRequeridos,
     esServicioRetorno,
     gadgets,
     observaciones,
@@ -430,6 +444,7 @@ export function useServiceStepLogic() {
     setObservaciones,
     handleTipoServicioChange,
     handleRequiereArmadoChange,
+    handleCantidadArmadosChange,
     setEsServicioRetorno,
     handleGadgetChange,
     
