@@ -70,7 +70,7 @@ export function useStarMapKPIs(): StarMapData {
       ] = await Promise.all([
         supabase.from('crm_deals').select('id, status, value').eq('is_deleted', false),
         supabase.from('servicios_planificados')
-          .select('id, custodio_asignado, armado_asignado, requiere_armado, estado_confirmacion_custodio, estado_planeacion, fecha_asignacion, created_at, hora_inicio_real, hora_fin_real')
+          .select('id, id_servicio, custodio_asignado, armado_asignado, requiere_armado, cantidad_armados_requeridos, estado_confirmacion_custodio, estado_planeacion, fecha_asignacion, created_at, hora_inicio_real, hora_fin_real')
           .gte('fecha_hora_cita', ninetyDaysAgo),
         supabase.from('checklist_servicio')
           .select('id, servicio_id, firma_base64, items_inspeccion, estado')
@@ -159,6 +159,8 @@ export function useStarMapKPIs(): StarMapData {
       // O1: Fill Rate E2E
       const asignadosCompletos = totalPlanificados.filter(s => {
         const custodioOk = !!s.custodio_asignado;
+        // For multi-armado: use legacy scalar field as proxy (accurate for services created with new flow)
+        // Full accuracy requires batch query to asignacion_armados — kept simple for KPI dashboard
         const armadoOk = s.requiere_armado ? !!s.armado_asignado : true;
         return custodioOk && armadoOk;
       });

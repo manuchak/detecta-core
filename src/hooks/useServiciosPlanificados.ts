@@ -320,15 +320,24 @@ export function useServiciosPlanificados() {
       // Get current service state to determine final status
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('requiere_armado, armado_asignado')
+        .select('requiere_armado, armado_asignado, cantidad_armados_requeridos, id_servicio')
         .eq('id', serviceId)
         .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
       if (!currentService) throw new Error('Servicio no encontrado');
 
-      // Determine final state based on armed guard requirement
-      const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
+      // Determine final state: check armados asignados vs requeridos
+      let shouldBeConfirmed: boolean;
+      if (!currentService.requiere_armado) {
+        shouldBeConfirmed = true;
+      } else {
+        // Count from asignacion_armados table (source of truth)
+        const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
+        const armadosAsignados = await countArmadosAsignados(currentService.id_servicio);
+        const armadosRequeridos = currentService.cantidad_armados_requeridos || 1;
+        shouldBeConfirmed = armadosAsignados >= armadosRequeridos;
+      }
       const newState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
       
       console.log('📊 Estado del servicio antes de asignar custodio:', {
@@ -635,7 +644,7 @@ export function useServiciosPlanificados() {
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('armado_asignado, armado_id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio')
+        .select('armado_asignado, armado_id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio, cantidad_armados_requeridos')
         .eq('id', serviceId)
         .single();
 
@@ -649,11 +658,33 @@ export function useServiciosPlanificados() {
       
       console.log('✅ Service found:', currentService.id_servicio);
 
-      // If custodian is assigned and we're assigning armed guard, service should be confirmed
-      const shouldBeConfirmed = currentService.custodio_asignado;
+      // Always insert into asignacion_armados (source of truth for multi-armado)
+      const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      
+      await supabase.from('asignacion_armados').insert({
+        servicio_custodia_id: currentService.id_servicio,
+        custodio_id: currentService.custodio_id,
+        armado_id: newArmadoId || null,
+        proveedor_armado_id: assignmentType === 'proveedor' ? providerId : null,
+        tipo_asignacion: assignmentType || 'interno',
+        punto_encuentro: puntoEncuentro || null,
+        hora_encuentro: horaEncuentro ? `${serviceDate}T${horaEncuentro}:00` : null,
+        estado_asignacion: 'pendiente',
+        armado_nombre_verificado: newArmadoName,
+        tarifa_acordada: tarifaAcordada || null,
+        asignado_por: userId,
+        observaciones: nombrePersonal ? `Personal: ${nombrePersonal}` : null
+      });
+
+      // Determine final state using count from asignacion_armados
+      const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
+      const armadosAsignados = await countArmadosAsignados(currentService.id_servicio);
+      const armadosRequeridos = (currentService as any).cantidad_armados_requeridos || 1;
+      const shouldBeConfirmed = currentService.custodio_asignado && armadosAsignados >= armadosRequeridos;
       const finalState = shouldBeConfirmed ? 'confirmado' : currentService.estado_planeacion;
 
-      // Update assignment
+      // Update scalar fields (legacy compat) + state
       const { error: updateError } = await supabase
         .from('servicios_planificados')
         .update({
@@ -665,24 +696,6 @@ export function useServiciosPlanificados() {
         .eq('id', serviceId);
 
       if (updateError) throw updateError;
-
-      // If provider, create asignacion_armados record
-      if (assignmentType === 'proveedor' && providerId && puntoEncuentro && horaEncuentro) {
-        const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
-        await supabase.from('asignacion_armados').insert({
-          servicio_custodia_id: serviceId,
-          custodio_id: currentService.custodio_id,
-          proveedor_armado_id: providerId,
-          tipo_asignacion: 'proveedor',
-          punto_encuentro: puntoEncuentro,
-          hora_encuentro: `${serviceDate}T${horaEncuentro}:00`,
-          estado_asignacion: 'pendiente',
-          armado_nombre_verificado: newArmadoName,
-          tarifa_acordada: tarifaAcordada,
-          asignado_por: (await supabase.auth.getUser()).data.user?.id,
-          observaciones: nombrePersonal ? `Personal: ${nombrePersonal}` : null
-        });
-      }
 
       await logServiceChange({
         serviceId,
