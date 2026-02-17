@@ -14695,6 +14695,7 @@ export type Database = {
           asignado_por: string | null
           auto: string | null
           cancelado_por: string | null
+          cantidad_armados_requeridos: number
           cobro_posicionamiento: boolean | null
           comentarios_adicionales: string | null
           comentarios_planeacion: string | null
@@ -14756,6 +14757,7 @@ export type Database = {
           asignado_por?: string | null
           auto?: string | null
           cancelado_por?: string | null
+          cantidad_armados_requeridos?: number
           cobro_posicionamiento?: boolean | null
           comentarios_adicionales?: string | null
           comentarios_planeacion?: string | null
@@ -14817,6 +14819,7 @@ export type Database = {
           asignado_por?: string | null
           auto?: string | null
           cancelado_por?: string | null
+          cantidad_armados_requeridos?: number
           cobro_posicionamiento?: boolean | null
           comentarios_adicionales?: string | null
           comentarios_planeacion?: string | null
