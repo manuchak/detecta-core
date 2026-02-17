@@ -1,92 +1,82 @@
 
-## Migrar exportación "Análisis de Clientes" a React PDF nativo
+## Mejorar PDF de Análisis de Clientes: Gráfico de Barras, Header con Logo y Correcciones
 
-### Problema actual
+### Problemas identificados en el PDF actual (imagen de referencia)
 
-El PDF generado usa `html2canvas` — una captura de pantalla del DOM de React — lo que produce:
-- Texto superpuesto e ilegible (elementos de UI se renderizan encima de otros)
-- Íconos SVG de Lucide que no se capturan correctamente
-- Controles de UI visibles (filtros, dropdowns, badges de color) que no pertenecen al PDF
-- Solo 1 página sin paginación correcta, con todo comprimido
-- Sin look profesional corporativo (header/footer, fuentes, colores de marca)
-
-### Solución: Documento React PDF nativo
-
-Crear un documento `@react-pdf/renderer` dedicado para el análisis de clientes, usando el mismo design system que ya existe para Incidentes e Histórico.
+1. **Emojis corruptos en KPI labels** — `@react-pdf/renderer` no soporta emojis Unicode (🏆📦💰✅). Al renderizarlos aparece texto superpuesto sobre los valores, ya que el renderer los omite y desplaza el layout.
+2. **Header sin logo** — la barra gris de header muestra el título pero no el logo, porque el `headerBar` tiene `paddingTop: 60` desde la página pero la posición del logo no está alineada correctamente con el texto.
+3. **Gráfico de barras faltante** — se solicitó un `PDFBarChart` con Top 10 clientes por GMV que aún no está implementado.
+4. **Corte de páginas** — la sección "Análisis Foráneo vs Local" aparece cortada al fondo de la página. Falta `minPresenceAhead` y agrupación con `wrap={false}`.
 
 ---
 
-### Archivos a crear
+### Cambios a realizar
 
-**1. `src/components/executive/pdf/ClientAnalyticsPDFDocument.tsx`**
+**Archivo: `src/components/executive/pdf/ClientAnalyticsPDFDocument.tsx`**
 
-Documento principal que recibe los datos ya calculados por los hooks existentes y los presenta con el design system PDF:
+#### 1. Eliminar emojis de los KPI labels
+Reemplazar los 4 labels con texto plano:
+- `'🏆 Mayor GMV'` → `'Mayor GMV'`
+- `'📦 Más Servicios'` → `'Más Servicios'`
+- `'💰 Mejor AOV'` → `'Mejor AOV'`
+- `'✅ Mejor Cumplimiento'` → `'Mejor Cumplimiento'`
 
-- **Página 1 – Dashboard Resumen**: KPIRow con los 4 champions (Mejor AOV, Más Servicios, Mayor GMV, Mejor Cumplimiento) + tabla Top 15 clientes con columnas: Cliente, Servicios, GMV, AOV, Cumplimiento, Crecimiento GMV, Días sin servicio
-- **Página 2 (si hay cliente seleccionado) – Detalle Individual**: Secciones de Actividad Temporal, Tendencia Mensual (tabla con meses), Tipos de Servicio y Performance por Custodio
-
-**2. `src/components/executive/pdf/ClientAnalyticsPDFExporter.ts`**
-
-Función async `exportClientAnalyticsPDF(data, clientName?)` que:
-1. Importa dinámicamente `@react-pdf/renderer`
-2. Recibe `clientMetrics` + `tableData` ya calculados
-3. Carga el logo con `loadImageAsBase64`
-4. Genera el blob y dispara la descarga
-
----
-
-### Archivo a modificar
-
-**`src/components/executive/ClientAnalytics.tsx`**
-
-- Cambiar `handleDownloadPDF` para llamar a la nueva función `exportClientAnalyticsPDF` en lugar de `exportClientAnalyticsToPDF`
-- Pasar los datos ya disponibles en memoria (`clientMetrics`, `tableData`, `clientAnalytics`) — sin queries adicionales
-
----
-
-### Estructura del PDF resultante
-
-**Vista Dashboard (sin cliente seleccionado):**
+#### 2. Agregar PDFBarChart — Top 10 Clientes por GMV
+Insertar el gráfico de barras nativo **entre** los KPI Champions y la tabla Top 15, usando el componente `PDFBarChart` ya disponible en el design system:
 
 ```text
-┌─────────────────────────────────────────────┐
-│ DETECTA logo │ ANÁLISIS DE CLIENTES  │ MTD  │
-├─────────────────────────────────────────────┤
-│ KPI Champions: Mejor AOV | Más Servicios    │
-│              Mayor GMV | Mejor Cumplimiento  │
-├─────────────────────────────────────────────┤
-│ Top 15 Clientes por GMV                     │
-│ ┌──────┬─────┬────────┬─────┬──────┬──────┐│
-│ │Cliente│Svc  │  GMV   │ AOV │Cumpl.│ΔGrow.││
-│ │...    │     │        │     │      │      ││
-│ └──────┴─────┴────────┴─────┴──────┴──────┘│
-│                                             │
-│ Análisis Foráneo vs Local                   │
-│ [Tabla 2 filas]                             │
-└─────────────────────────────────────────────┘
-│ Confidencial │  Generado: 17/02/2026  Pág 1 │
+┌─────────────────────────────────────┐
+│  Champions del Período (KPIRow)     │
+├─────────────────────────────────────┤
+│  Top 10 Clientes por GMV (BarChart) │  ← NUEVO
+│  [barras horizontales con labels]   │
+├─────────────────────────────────────┤
+│  Top 15 Clientes por GMV (tabla)    │
+├─────────────────────────────────────┤
+│  Análisis Foráneo vs Local          │
+└─────────────────────────────────────┘
 ```
 
-**Vista Detalle (con cliente seleccionado):**
-- Página 1: KPIs individuales + Actividad Temporal + Tipos de Servicio
-- Página 2: Tendencia Mensual (12 meses) + Performance por Custodio
+El chart se construye con los primeros 10 registros de `tableData`, mapeando:
+- `label`: nombre del cliente (truncado a 12 chars)
+- `value`: `currentGMV`
+- `color`: usando `getChartColors(10)` del design system
 
----
+Se usará `PDFHorizontalBarChart` (en lugar del vertical) porque los nombres de clientes son largos — esto asegura que los labels sean legibles en el eje Y, al igual que se hace en otros reportes del sistema.
 
-### Datos que se pasan al documento (sin nuevas queries)
+Dimensiones: `width=510, height=200` (aprovechando el ancho completo de la página A4 menos márgenes).
 
-| Fuente | Hook | Datos usados |
-|--------|------|--------------|
-| Dashboard metrics | `clientMetrics` (ya cargado) | topAOV, mostServices, highestGMV, bestCompletion, serviceTypeAnalysis |
-| Tabla de clientes | `tableData` (ya cargado) | Top 15: clientName, currentGMV, currentServices, currentAOV, completionRate, gmvGrowth, daysSinceLastService |
-| Detalle individual | `clientAnalytics` (ya cargado) | monthlyTrend, serviceTypes, custodianPerformance |
+#### 3. Proteger corte de página en secciones pequeñas
+Envolver la sección "Análisis Foráneo vs Local" en un `<View wrap={false}>` para evitar que se parta entre páginas:
+
+```tsx
+<View wrap={false}>
+  <SectionHeader title="Análisis Foráneo vs Local" />
+  <DataTable columns={typeColumns} data={[foraneoRow, localRow]} striped={false} />
+</View>
+```
+
+Agregar también `minPresenceAhead={60}` en el header de la tabla Top 15 para evitar que el encabezado quede huérfano al final de página.
+
+#### 4. Mejorar el header con separación visual de título/subtítulo
+El header actual pone título y subtítulo en la misma línea sin suficiente separación visual. Se mejora con un separador vertical (`|`) y estilos más limpios directamente en el componente para el subtítulo del lado derecho.
 
 ---
 
 ### Resultado esperado
 
-- PDF de 1-2 páginas A4 con header/footer corporativo rojo-negro
-- Tipografía Inter coherente con el resto de reportes
-- Tabla de clientes con columnas bien alineadas, striped, sin superposición
-- KPI cards con acento de color por categoría
-- Sin elementos de UI (botones, filtros, dropdowns) visibles en el PDF
+| Problema | Antes | Después |
+|----------|-------|---------|
+| Emojis en KPI labels | Texto corrupto superpuesto | Labels limpios en texto plano |
+| Logo en header | Sin logo visible | Logo detecta alineado izquierda |
+| Gráfico de barras | No existe | Barras horizontales Top 10 por GMV |
+| Corte de páginas | Foráneo/Local cortado | Sección protegida con wrap={false} |
+
+El PDF resultante tendrá 1 página (sin cliente seleccionado) con el diseño:
+- Header: logo + "ANÁLISIS DE CLIENTES" + fecha a la derecha
+- Línea roja de acento bajo el header
+- KPI Champions (4 tarjetas sin emojis)
+- Gráfico de barras horizontal Top 10 por GMV
+- Tabla Top 15 con columnas correctas
+- Análisis Foráneo vs Local (sin corte)
+- Footer con número de página
