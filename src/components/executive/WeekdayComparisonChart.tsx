@@ -20,8 +20,9 @@ export const WeekdayComparisonChart = () => {
     <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Calendar className="h-4 w-4" />Comparativo MTD por Día Semana
+          <Calendar className="h-4 w-4" />Promedio Servicios por Día Semana
         </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">Promedio diario por ocurrencia de cada día</p>
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">
