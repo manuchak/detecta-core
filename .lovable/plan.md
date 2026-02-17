@@ -1,84 +1,58 @@
 
-## Debug y Optimizacion del Modulo de Planeacion
+## Diagnostico: Hector Reyes Abendano - Checklist bloqueado
 
-Tras una revision exhaustiva del codigo modificado en las Fases 2 y 3, se identificaron **5 problemas** que deben corregirse para mantener la estabilidad y performance del modulo.
+### Causa raiz identificada
 
----
+Hector **no tenia documentos** antes de hoy. El `OnboardingGuard` lo redirigía a `/custodian/onboarding` cada vez que intentaba acceder al portal. Hector subio sus 3 documentos hoy (12:08-12:11 UTC), pero hay dos problemas activos:
 
-### Problema 1 (CRITICO): `assignArmedGuard` no usa logica multi-armado
+1. **Documentos con vigencia de hoy (2026-02-17)**: La licencia y tarjeta de circulacion vencen HOY. Manana el `OnboardingGuard` lo bloqueara de nuevo porque la validacion `fecha_vigencia >= today` fallara.
 
-La mutacion `assignArmedGuard` (lineas 384-429 de `useServiciosPlanificados.ts`) **no fue actualizada** en la Fase 2. Sigue usando solo campos escalares y no inserta en `asignacion_armados`. Mientras que `reassignArmedGuard` SI fue actualizado correctamente.
+2. **Cache no se invalida despues del onboarding**: Si Hector subio los documentos en `/custodian/onboarding` pero el `OnboardingGuard` no recibe la actualizacion del query de documentos, queda atrapado en un loop de redireccion.
 
-Esto significa que cualquier flujo que use `assignArmedGuard` (primera asignacion de armado) **no crea registro en la tabla relacional**, rompiendo la fuente de verdad.
+### Correccion inmediata (datos)
 
-**Correccion**: Alinear `assignArmedGuard` con la misma logica de `reassignArmedGuard`:
-- Insertar en `asignacion_armados`
-- Contar armados asignados vs requeridos para determinar estado
-- Mantener escritura dual en campos escalares
+Actualizar las fechas de vigencia de los documentos de Hector a fechas reales (no la fecha de hoy):
 
----
-
-### Problema 2 (CRITICO): `reassignCustodian` usa scalar check, no multi-armado
-
-En linea 567:
-```
-const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
+```sql
+-- Ejecutar en Cloud View > Run SQL (Live)
+UPDATE documentos_custodio 
+SET fecha_vigencia = '2027-02-17'  -- 1 año de vigencia
+WHERE custodio_telefono = '5517970534' 
+  AND tipo_documento IN ('licencia_conducir', 'tarjeta_circulacion');
 ```
 
-Esto usa el campo escalar `armado_asignado` para determinar si el servicio esta confirmado. Para servicios multi-armado (2+ requeridos), un solo nombre en el campo escalar no refleja si todos los armados estan asignados.
+### Correccion de codigo (prevenir recurrencia)
 
-**Correccion**: Usar `countArmadosAsignados` (igual que en `assignCustodian` y `reassignArmedGuard`):
-```
-const armadosAsignados = await countArmadosAsignados(currentService.id_servicio);
-const armadosRequeridos = currentService.cantidad_armados_requeridos || 1;
-const shouldBeConfirmed = !currentService.requiere_armado || armadosAsignados >= armadosRequeridos;
-```
+**Archivo: `src/components/custodian/OnboardingGuard.tsx`**
 
----
+1. Agregar invalidacion explicita del query de documentos despues del onboarding, para que al volver del flujo de carga, el guard re-evalúe con datos frescos.
+2. Cambiar la navegacion al onboarding para pasar un `state` que indique el motivo (documentos faltantes vs expirados) para mejor UX.
 
-### Problema 3 (PERFORMANCE): N+1 potencial en `AdditionalArmedGuard`
+**Archivo: `src/hooks/useCustodianDocuments.ts`**
 
-El componente `AdditionalArmedGuard` ejecuta `useArmadosDelServicio(servicioId)` -- una query individual por servicio. Actualmente solo se usa en `ScheduledServicesTabSimple.tsx` pero no se renderiza en el map principal (se usa inline solo en Row 3 con datos locales). Sin embargo, el componente esta importado y disponible.
+3. Reducir `staleTime` de 5 minutos a 30 segundos para documentos, ya que en flujos de onboarding el cache de 5 minutos causa que el guard no detecte documentos recien subidos.
 
-El riesgo es que si se usa dentro del `.map()` de servicios, generaria N queries paralelas (una por servicio).
+### Secuencia de implementacion
 
-**Correccion**: Agregar un guard en el componente para que NO ejecute la query cuando `servicioId` no se proporciona y documentar que para uso en listas, se debe pasar datos pre-cargados en vez de IDs individuales. Actualmente no es un problema activo, pero se debe prevenir.
+| Paso | Archivo | Cambio |
+|------|---------|--------|
+| 1 | SQL (manual en Live) | Actualizar fecha_vigencia de Hector a 2027-02-17 |
+| 2 | `OnboardingGuard.tsx` | Agregar `refetchOnMount: 'always'` hint y reducir cache en el contexto del guard |
+| 3 | `useCustodianDocuments.ts` | Reducir `staleTime` a 30s para evitar cache stale durante onboarding |
 
----
+### Detalles tecnicos
 
-### Problema 4 (BUG): `removeAssignment` para armed_guard no limpia `asignacion_armados`
+El flujo actual tiene un gap:
 
-La mutacion `removeAssignment` (lineas 728-808) al remover un armado solo limpia los campos escalares (`armado_asignado`, `armado_id`) pero **no cancela/elimina registros en `asignacion_armados`**. Esto deja registros fantasma en la tabla relacional.
-
-**Correccion**: Cuando `assignmentType === 'armed_guard'`, tambien actualizar registros en `asignacion_armados` con `estado_asignacion = 'cancelado'` para el servicio correspondiente.
-
----
-
-### Problema 5 (BUG): `assignArmedGuard` usa `.single()` sin fallback
-
-En linea 395:
-```
-.eq('id', serviceId)
-.single();
+```text
+1. Custodio accede a /custodian
+2. OnboardingGuard carga documentos (query con staleTime: 5min)
+3. No tiene docs → redirige a /custodian/onboarding
+4. Sube documentos exitosamente
+5. Navega de vuelta a /custodian
+6. OnboardingGuard usa CACHE de paso 2 (5min sin expirar)
+7. Cache dice "sin documentos" → redirige OTRA VEZ a onboarding
+8. Loop hasta que cache expire
 ```
 
-Esto viola la convencion del proyecto (`.maybeSingle()`). Si el servicio no existe, lanza un error no controlado en vez de un mensaje user-friendly.
-
-**Correccion**: Cambiar a `.maybeSingle()` y agregar null-check como en las demas mutaciones.
-
----
-
-### Archivos a Modificar
-
-| Archivo | Cambios |
-|---------|---------|
-| `src/hooks/useServiciosPlanificados.ts` | Fix #1: `assignArmedGuard` multi-armado. Fix #2: `reassignCustodian` count check. Fix #4: `removeAssignment` limpia relacional. Fix #5: `.maybeSingle()` |
-
-### Secuencia
-
-1. Fix `assignArmedGuard` para insertar en `asignacion_armados` y calcular estado (critico)
-2. Fix `reassignCustodian` para usar conteo relacional
-3. Fix `removeAssignment` para cancelar registros en `asignacion_armados`
-4. Fix `.single()` a `.maybeSingle()`
-
-Todos los cambios son en un solo archivo, sin impacto en UI ni nuevas dependencias.
+La correccion asegura que al volver del onboarding, el query se re-ejecuta inmediatamente.
