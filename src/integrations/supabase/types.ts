@@ -14299,6 +14299,7 @@ export type Database = {
       }
       servicios_custodia: {
         Row: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -14342,7 +14343,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -14357,6 +14360,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -14374,8 +14378,10 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }
         Insert: {
+          anio_auto?: string | null
           armado?: string | null
           auto?: string | null
           cantidad_transportes?: string | null
@@ -14419,7 +14425,9 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          marca_auto?: string | null
           metodo_estimacion?: string | null
+          modelo_auto?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -14434,6 +14442,7 @@ export type Database = {
           presentacion?: string | null
           proveedor?: string | null
           puntos_intermedios?: Json | null
+          razon_social?: string | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
@@ -14451,8 +14460,10 @@ export type Database = {
           tipo_unidad?: string | null
           tipo_unidad_adicional?: string | null
           updated_time?: string | null
+          uuid_service?: string | null
         }
         Update: {
+          anio_auto?: string | null
           armado?: string | null
           auto?: string | null
           cantidad_transportes?: string | null
@@ -14496,7 +14507,9 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          marca_auto?: string | null
           metodo_estimacion?: string | null
+          modelo_auto?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -14511,6 +14524,7 @@ export type Database = {
           presentacion?: string | null
           proveedor?: string | null
           puntos_intermedios?: Json | null
+          razon_social?: string | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
@@ -14528,11 +14542,13 @@ export type Database = {
           tipo_unidad?: string | null
           tipo_unidad_adicional?: string | null
           updated_time?: string | null
+          uuid_service?: string | null
         }
         Relationships: []
       }
       servicios_custodia_test: {
         Row: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: number | null
@@ -14576,7 +14592,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -14612,6 +14630,7 @@ export type Database = {
           uuid_service: string | null
         }
         Insert: {
+          anio_auto?: string | null
           armado?: string | null
           auto?: string | null
           cantidad_transportes?: number | null
@@ -14655,7 +14674,9 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          marca_auto?: string | null
           metodo_estimacion?: string | null
+          modelo_auto?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -14691,6 +14712,7 @@ export type Database = {
           uuid_service?: string | null
         }
         Update: {
+          anio_auto?: string | null
           armado?: string | null
           auto?: string | null
           cantidad_transportes?: number | null
@@ -14734,7 +14756,9 @@ export type Database = {
           km_recorridos?: number | null
           km_teorico?: number | null
           local_foraneo?: string | null
+          marca_auto?: string | null
           metodo_estimacion?: string | null
+          modelo_auto?: string | null
           nombre_armado?: string | null
           nombre_cliente?: string | null
           nombre_custodio?: string | null
@@ -17072,6 +17096,7 @@ export type Database = {
       bypass_rls_get_servicios: {
         Args: { max_records?: number }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -17115,7 +17140,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -17130,6 +17157,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -17147,6 +17175,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -17158,6 +17187,7 @@ export type Database = {
       bypass_rls_get_servicios_safe: {
         Args: { max_records?: number }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -17201,7 +17231,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -17216,6 +17248,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -17233,6 +17266,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -17664,6 +17698,7 @@ export type Database = {
       get_all_recent_trips: {
         Args: { days_back?: number }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -17707,7 +17742,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -17722,6 +17759,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -17739,6 +17777,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -18185,6 +18224,7 @@ export type Database = {
       get_gmv_chart_data_secure: {
         Args: { max_records?: number }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -18228,7 +18268,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -18243,6 +18285,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -18260,6 +18303,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -18614,6 +18658,7 @@ export type Database = {
       get_services_by_exact_phone: {
         Args: { p_phone: string }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -18657,7 +18702,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -18672,6 +18719,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -18689,6 +18737,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -18872,6 +18921,7 @@ export type Database = {
       get_user_servicios_secure: {
         Args: { max_records?: number }
         Returns: {
+          anio_auto: string | null
           armado: string | null
           auto: string | null
           cantidad_transportes: string | null
@@ -18915,7 +18965,9 @@ export type Database = {
           km_recorridos: number | null
           km_teorico: number | null
           local_foraneo: string | null
+          marca_auto: string | null
           metodo_estimacion: string | null
+          modelo_auto: string | null
           nombre_armado: string | null
           nombre_cliente: string | null
           nombre_custodio: string | null
@@ -18930,6 +18982,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -18947,6 +19000,7 @@ export type Database = {
           tipo_unidad: string | null
           tipo_unidad_adicional: string | null
           updated_time: string | null
+          uuid_service: string | null
         }[]
         SetofOptions: {
           from: "*"
