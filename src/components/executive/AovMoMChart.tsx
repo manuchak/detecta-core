@@ -19,12 +19,17 @@ export const AovMoMChart = () => {
   }
 
   const prevYear = currentYear - 1;
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-based
+
   const chartData = Array.from({ length: 12 }, (_, m) => {
-    const curr = monthlyByYear.find(d => d.year === currentYear && d.month === m + 1);
-    const prev = monthlyByYear.find(d => d.year === prevYear && d.month === m + 1);
+    const monthNum = m + 1;
+    const curr = monthlyByYear.find(d => d.year === currentYear && d.month === monthNum);
+    const prev = monthlyByYear.find(d => d.year === prevYear && d.month === monthNum);
+    const currVal = Math.round(curr?.aov || 0);
     return {
-      month: curr?.monthLabel || '',
-      [currentYear]: Math.round(curr?.aov || 0),
+      month: curr?.monthLabel || prev?.monthLabel || '',
+      [currentYear]: (currentYear > now.getFullYear() || (currentYear === now.getFullYear() && monthNum > currentMonth)) ? undefined : (currVal === 0 ? undefined : currVal),
       [prevYear]: Math.round(prev?.aov || 0),
     };
   });
@@ -57,7 +62,7 @@ export const AovMoMChart = () => {
               }} />
               <Legend wrapperStyle={{ fontSize: '11px' }} formatter={(v) => <span className="text-foreground">{v}</span>} />
               <Line type="monotone" dataKey={prevYear} name={prevYear.toString()} stroke="hsl(var(--muted-foreground) / 0.6)" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey={currentYear} name={currentYear.toString()} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: 'hsl(var(--primary))', r: 3 }} />
+              <Line type="monotone" dataKey={currentYear} name={currentYear.toString()} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: 'hsl(var(--primary))', r: 3 }} connectNulls={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
