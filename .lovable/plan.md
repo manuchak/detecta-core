@@ -38,4 +38,15 @@
 - `PDFLinkedService.tsx`: muestra campo escalar — funcional pero no multi-armado
 - `armadosConflictDetection.ts`: ya usa `asignacion_armados` — sin cambio necesario
 
-#### FASE 3 — Deprecación de campos escalares ⏳ FUTURA
+
+#### FASE 3 — Deprecación de campos escalares (lectura) ✅ COMPLETADA
+
+**Lecturas migradas a `asignacion_armados`:**
+- `useServicioLookup`: enriquece `ServicioVinculado` con array `armados[]` desde tabla relacional
+- `ServiceDataSummary`: muestra nombres de armados desde relacional con fallback escalar
+- `PDFLinkedService`: ídem para PDFs de incidentes
+- `useServiceTransformations`: comentado como legacy, pendiente de remover en deprecación de escritura
+
+**Pendiente (deprecación escritura — futura):**
+- Dejar de escribir `armado_asignado` / `armado_id` en `servicios_planificados`
+- Migración SQL para limpiar campos escalares
