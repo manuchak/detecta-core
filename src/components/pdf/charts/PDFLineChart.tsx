@@ -21,6 +21,7 @@ export interface PDFLineChartProps {
 }
 
 const MARGIN = { top: 24, right: 16, bottom: 34, left: 44 };
+const FONT = 'Poppins';
 
 export const PDFLineChart: React.FC<PDFLineChartProps> = ({
   labels,
@@ -46,37 +47,33 @@ export const PDFLineChart: React.FC<PDFLineChartProps> = ({
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       {title && (
-        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: 'Inter', fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
+        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: FONT, fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
           {title}
         </SvgText>
       )}
 
       <G transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-        {/* Grid + Y labels */}
         {showGrid &&
           ticks.map((t) => {
             const y = yScale(t);
             return (
               <G key={`g-${t}`}>
                 <Line x1={0} y1={y} x2={plotW} y2={y} stroke={PDF_COLORS.borderLight} strokeWidth={0.5} strokeDasharray="3,3" />
-                <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="end">
+                <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="end">
                   {formatAxisValue(t)}
                 </SvgText>
               </G>
             );
           })}
 
-        {/* Baseline */}
         <Line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke={PDF_COLORS.border} strokeWidth={0.8} />
 
-        {/* X labels */}
         {labels.map((l, i) => (
-          <SvgText key={i} x={i * xStep} y={plotH + 12} style={{ fontSize: 5.5, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="middle">
+          <SvgText key={i} x={i * xStep} y={plotH + 12} style={{ fontSize: 5.5, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="middle">
             {truncateLabel(l, 10)}
           </SvgText>
         ))}
 
-        {/* Series */}
         {series.map((s) => {
           const points = s.data.map((v, i) => ({ x: i * xStep, y: yScale(v) }));
           return (
@@ -91,7 +88,6 @@ export const PDFLineChart: React.FC<PDFLineChartProps> = ({
         })}
       </G>
 
-      {/* Legend */}
       {showLegend && series.length > 1 && (
         <G transform={`translate(${MARGIN.left}, ${height - 10})`}>
           {series.map((s, i) => {
@@ -99,7 +95,7 @@ export const PDFLineChart: React.FC<PDFLineChartProps> = ({
             return (
               <G key={s.name}>
                 <Line x1={lx} y1={0} x2={lx + 12} y2={0} stroke={s.color} strokeWidth={2} />
-                <SvgText x={lx + 16} y={3} style={{ fontSize: 5.5, fontFamily: 'Inter' }} fill={PDF_COLORS.gray}>
+                <SvgText x={lx + 16} y={3} style={{ fontSize: 5.5, fontFamily: FONT }} fill={PDF_COLORS.gray}>
                   {s.name}
                 </SvgText>
               </G>

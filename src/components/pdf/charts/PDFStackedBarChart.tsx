@@ -15,6 +15,7 @@ export interface PDFStackedBarChartProps {
 }
 
 const MARGIN = { top: 24, right: 12, bottom: 34, left: 44 };
+const FONT = 'Poppins';
 
 export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
   labels,
@@ -29,33 +30,29 @@ export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
 
   const plotW = width - MARGIN.left - MARGIN.right;
   const plotH = height - MARGIN.top - MARGIN.bottom;
-
-  // Compute stacked totals per label
   const totals = labels.map((_, li) => series.reduce((sum, s) => sum + (s.data[li] || 0), 0));
   const maxVal = Math.max(...totals, 0);
   const ticks = niceAxisTicks(maxVal);
   const axisMax = ticks[ticks.length - 1] || 1;
   const yScale = scaleLinear([0, axisMax], [plotH, 0]);
-
   const barGap = 4;
   const barW = Math.max(8, (plotW - barGap * (labels.length + 1)) / labels.length);
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       {title && (
-        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: 'Inter', fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
+        <SvgText x={width / 2} y={14} style={{ fontSize: PDF_FONT_SIZES.sm, fontFamily: FONT, fontWeight: 700 }} fill={PDF_COLORS.black} textAnchor="middle">
           {title}
         </SvgText>
       )}
 
       <G transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-        {/* Grid */}
         {ticks.map((t) => {
           const y = yScale(t);
           return (
             <G key={t}>
               <Line x1={0} y1={y} x2={plotW} y2={y} stroke={PDF_COLORS.borderLight} strokeWidth={0.5} strokeDasharray="3,3" />
-              <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="end">
+              <SvgText x={-4} y={y + 3} style={{ fontSize: 6, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="end">
                 {formatAxisValue(t)}
               </SvgText>
             </G>
@@ -64,7 +61,6 @@ export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
 
         <Line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke={PDF_COLORS.border} strokeWidth={0.8} />
 
-        {/* Stacked bars */}
         {labels.map((label, li) => {
           const x = barGap + li * (barW + barGap);
           let cumulative = 0;
@@ -78,11 +74,11 @@ export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
                 return <Rect key={s.name} x={x} y={y} width={barW} height={h} fill={s.color} />;
               })}
               {showValues && (
-                <SvgText x={x + barW / 2} y={yScale(totals[li]) - 3} style={{ fontSize: 6, fontFamily: 'Inter', fontWeight: 600 }} fill={PDF_COLORS.black} textAnchor="middle">
+                <SvgText x={x + barW / 2} y={yScale(totals[li]) - 3} style={{ fontSize: 6, fontFamily: FONT, fontWeight: 600 }} fill={PDF_COLORS.black} textAnchor="middle">
                   {formatAxisValue(totals[li])}
                 </SvgText>
               )}
-              <SvgText x={x + barW / 2} y={plotH + 10} style={{ fontSize: 5.5, fontFamily: 'Inter' }} fill={PDF_COLORS.gray} textAnchor="middle">
+              <SvgText x={x + barW / 2} y={plotH + 10} style={{ fontSize: 5.5, fontFamily: FONT }} fill={PDF_COLORS.gray} textAnchor="middle">
                 {truncateLabel(label, 10)}
               </SvgText>
             </G>
@@ -90,7 +86,6 @@ export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
         })}
       </G>
 
-      {/* Legend */}
       {showLegend && (
         <G transform={`translate(${MARGIN.left}, ${height - 10})`}>
           {series.map((s, i) => {
@@ -98,7 +93,7 @@ export const PDFStackedBarChart: React.FC<PDFStackedBarChartProps> = ({
             return (
               <G key={s.name}>
                 <Rect x={lx} y={-4} width={8} height={8} fill={s.color} rx={1} />
-                <SvgText x={lx + 12} y={3} style={{ fontSize: 5.5, fontFamily: 'Inter' }} fill={PDF_COLORS.gray}>
+                <SvgText x={lx + 12} y={3} style={{ fontSize: 5.5, fontFamily: FONT }} fill={PDF_COLORS.gray}>
                   {s.name}
                 </SvgText>
               </G>

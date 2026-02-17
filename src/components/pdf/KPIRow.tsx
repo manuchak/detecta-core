@@ -8,6 +8,8 @@ export interface KPIItem {
   value: string;
   trend?: string;
   trendUp?: boolean;
+  /** Accent color for left border */
+  accentColor?: string;
 }
 
 interface KPIRowProps {
@@ -15,12 +17,21 @@ interface KPIRowProps {
 }
 
 /**
- * Horizontal row of KPI cards with optional trend indicator.
+ * Horizontal row of KPI cards with colored left accent bar and optional trend.
  */
 export const KPIRow: React.FC<KPIRowProps> = ({ items }) => (
   <View style={pdfBaseStyles.kpiRow}>
     {items.map((kpi, i) => (
-      <View key={i} style={pdfBaseStyles.kpiCard}>
+      <View
+        key={i}
+        style={[
+          pdfBaseStyles.kpiCard,
+          {
+            borderLeftWidth: 3,
+            borderLeftColor: kpi.accentColor || PDF_COLORS.red,
+          },
+        ]}
+      >
         <Text style={pdfBaseStyles.kpiLabel}>{kpi.label}</Text>
         <Text style={pdfBaseStyles.kpiValue}>{kpi.value}</Text>
         {kpi.trend && (

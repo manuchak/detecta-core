@@ -23,6 +23,7 @@ export { SignatureBlock } from './SignatureBlock';
 export { StatusBadge } from './StatusBadge';
 export { CoverPage } from './CoverPage';
 export { ReportPage } from './ReportPage';
+export { InsightBox } from './InsightBox';
 
 // Utilities
 export { loadImageAsBase64 } from './utils';
