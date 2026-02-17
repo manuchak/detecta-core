@@ -15,7 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-const YEARS = [2024, 2025];
+const YEARS = Array.from({ length: currentYear - 2024 + 1 }, (_, i) => 2024 + i);
 const MONTHS = [
   { value: 1, label: 'Enero' }, { value: 2, label: 'Febrero' }, { value: 3, label: 'Marzo' },
   { value: 4, label: 'Abril' }, { value: 5, label: 'Mayo' }, { value: 6, label: 'Junio' },
