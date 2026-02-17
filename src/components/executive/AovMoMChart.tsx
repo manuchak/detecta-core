@@ -1,8 +1,14 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
+
+const fmtShort = (v: number | undefined) => {
+  if (v === undefined || v === null) return '';
+  if (v >= 1000) return `$${(v / 1000).toFixed(1)}K`;
+  return `$${v}`;
+};
 
 export const AovMoMChart = () => {
   const { monthlyByYear, currentYear, loading } = useExecutiveMultiYearData();
@@ -20,16 +26,17 @@ export const AovMoMChart = () => {
 
   const prevYear = currentYear - 1;
   const now = new Date();
-  const currentMonth = now.getMonth() + 1; // 1-based
+  const currentMonth = now.getMonth() + 1;
 
   const chartData = Array.from({ length: 12 }, (_, m) => {
     const monthNum = m + 1;
     const curr = monthlyByYear.find(d => d.year === currentYear && d.month === monthNum);
     const prev = monthlyByYear.find(d => d.year === prevYear && d.month === monthNum);
     const currVal = Math.round(curr?.aov || 0);
+    const isFuture = currentYear > now.getFullYear() || (currentYear === now.getFullYear() && monthNum > currentMonth);
     return {
       month: curr?.monthLabel || prev?.monthLabel || '',
-      [currentYear]: (currentYear > now.getFullYear() || (currentYear === now.getFullYear() && monthNum > currentMonth)) ? undefined : (currVal === 0 ? undefined : currVal),
+      [currentYear]: isFuture ? undefined : (currVal === 0 ? undefined : currVal),
       [prevYear]: Math.round(prev?.aov || 0),
     };
   });
@@ -44,7 +51,7 @@ export const AovMoMChart = () => {
       <CardContent>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+            <LineChart data={chartData} margin={{ top: 18, right: 10, left: 0, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
               <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} width={45} />
               <Tooltip content={({ active, payload, label }) => {
@@ -52,7 +59,7 @@ export const AovMoMChart = () => {
                   return (
                     <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
                       <p className="font-medium text-foreground mb-1">{label}</p>
-                      {payload.map((p, i) => (
+                      {payload.filter(p => p.value !== undefined).map((p, i) => (
                         <p key={i} className="text-sm" style={{ color: p.color }}>{p.name}: {fmt(Number(p.value))}</p>
                       ))}
                     </div>
@@ -62,7 +69,9 @@ export const AovMoMChart = () => {
               }} />
               <Legend wrapperStyle={{ fontSize: '11px' }} formatter={(v) => <span className="text-foreground">{v}</span>} />
               <Line type="monotone" dataKey={prevYear} name={prevYear.toString()} stroke="hsl(var(--muted-foreground) / 0.6)" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey={currentYear} name={currentYear.toString()} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: 'hsl(var(--primary))', r: 3 }} connectNulls={false} />
+              <Line type="monotone" dataKey={currentYear} name={currentYear.toString()} stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ fill: 'hsl(var(--primary))', r: 3 }} connectNulls={false}>
+                <LabelList dataKey={currentYear} position="top" formatter={fmtShort} style={{ fill: 'hsl(var(--foreground))', fontSize: 9, fontWeight: 600 }} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>
