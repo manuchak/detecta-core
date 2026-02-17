@@ -33,7 +33,7 @@ export const ConversionSection: React.FC<Props> = ({ data, periodLabel, logoBase
       />
 
       {chartData.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFBarChart data={chartData} title="Tasa de Conversión Mensual (%)" barColor={PDF_COLORS.orange} height={180} />
         </View>
       )}

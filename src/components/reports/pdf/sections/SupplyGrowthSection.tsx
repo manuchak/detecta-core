@@ -35,7 +35,7 @@ export const SupplyGrowthSection: React.FC<Props> = ({ data, periodLabel, logoBa
       />
 
       {chartLabels.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFStackedBarChart labels={chartLabels} series={chartSeries} title="Nuevos vs Perdidos por Mes" height={190} />
         </View>
       )}

@@ -25,7 +25,7 @@ export const CapacitySection: React.FC<Props> = ({ data, periodLabel, logoBase64
     />
 
     {/* Gauge chart for utilization */}
-    <View style={{ alignItems: 'center', marginVertical: 10 }}>
+    <View wrap={false} style={{ alignItems: 'center', marginVertical: 10 }}>
       <PDFGaugeChart
         value={data.utilizationMetrics.current}
         label="Utilización Actual"

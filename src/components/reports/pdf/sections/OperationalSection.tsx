@@ -41,7 +41,7 @@ export const OperationalSection: React.FC<Props> = ({ data, periodLabel, logoBas
 
       {/* Pie chart of services distribution */}
       {pieData.length > 0 && (
-        <View style={{ alignItems: 'center', marginVertical: 8 }}>
+        <View wrap={false} style={{ alignItems: 'center', marginVertical: 8 }}>
           <PDFPieChart data={pieData} title="Distribución de Servicios" width={280} height={200} />
         </View>
       )}
@@ -56,7 +56,7 @@ export const OperationalSection: React.FC<Props> = ({ data, periodLabel, logoBas
 
       {/* Top clients horizontal bar chart */}
       {topClientsChart.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFHorizontalBarChart data={topClientsChart} title="Top 5 Clientes por GMV" barColor={PDF_COLORS.red} />
         </View>
       )}

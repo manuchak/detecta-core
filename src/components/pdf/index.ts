@@ -24,6 +24,7 @@ export { StatusBadge } from './StatusBadge';
 export { CoverPage } from './CoverPage';
 export { ReportPage } from './ReportPage';
 export { InsightBox } from './InsightBox';
+export { EmptyDataNotice } from './EmptyDataNotice';
 
 // Utilities
 export { loadImageAsBase64 } from './utils';

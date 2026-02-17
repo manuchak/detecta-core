@@ -26,20 +26,24 @@ export interface EngagementDetails {
 
 export interface EngagementDetailsOptions {
   enabled?: boolean;
+  year?: number;
 }
 
 export const useEngagementDetails = (options: EngagementDetailsOptions = {}) => {
-  const { enabled = true } = options;
+  const { enabled = true, year } = options;
+  const targetYear = year || new Date().getFullYear();
+  const startDate = `${targetYear}-01-01`;
+  const endDate = `${targetYear}-12-31`;
 
   // Obtener servicios por mes
   const { data: serviciosPorMes, isLoading: serviciosLoading } = useQuery({
-    queryKey: ['engagement-details-servicios'],
+    queryKey: ['engagement-details-servicios', targetYear],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('servicios_custodia')
         .select('nombre_custodio, fecha_hora_cita')
-        .gte('fecha_hora_cita', '2025-01-01')
-        .lte('fecha_hora_cita', '2025-12-31')
+        .gte('fecha_hora_cita', startDate)
+        .lte('fecha_hora_cita', endDate)
         .not('nombre_custodio', 'is', null)
         .order('fecha_hora_cita', { ascending: true });
 

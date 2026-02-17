@@ -35,7 +35,7 @@ export const LTVSection: React.FC<Props> = ({ data, periodLabel, logoBase64 }) =
       />
 
       {chartData.length > 0 && (
-        <View style={{ marginVertical: 8 }}>
+        <View wrap={false} style={{ marginVertical: 8 }}>
           <PDFBarChart data={chartData} title="LTV Trimestral" barColor={PDF_COLORS.info} height={180} />
         </View>
       )}
