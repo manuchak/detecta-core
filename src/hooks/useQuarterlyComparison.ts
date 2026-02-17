@@ -21,13 +21,13 @@ export function useQuarterlyComparison() {
     queryFn: async () => {
       const now = new Date();
       const currentYear = getYear(now);
-      const years = [currentYear, currentYear - 1];
+      const years = [currentYear, currentYear - 1, currentYear - 2];
       
       // Get services for last 2 years (current vs previous)
       const { data: services, error: servicesError } = await supabase
         .from('servicios_custodia')
         .select('fecha_hora_cita, cobro_cliente')
-        .gte('fecha_hora_cita', format(startOfYear(new Date(years[1], 0, 1)), 'yyyy-MM-dd'))
+        .gte('fecha_hora_cita', format(startOfYear(new Date(years[years.length - 1], 0, 1)), 'yyyy-MM-dd'))
         .lte('fecha_hora_cita', format(endOfYear(new Date(years[0], 0, 1)), 'yyyy-MM-dd'))
         .not('estado', 'eq', 'Cancelado');
 

@@ -1,19 +1,42 @@
 // @ts-nocheck
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp, Target, Star } from 'lucide-react';
-import { UnifiedGMVDashboard } from '@/components/executive/UnifiedGMVDashboard';
-import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
-import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
 import { ExecutiveKPIsBar } from '@/components/executive/ExecutiveKPIsBar';
-import { TopClientsMTD } from '@/components/executive/TopClientsMTD';
-import { ServiceDistributionChart } from '@/components/executive/ServiceDistributionChart';
-import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
-import { QuarterlyServicesChart } from '@/components/executive/QuarterlyServicesChart';
 import { StrategicPlanTracker } from '@/components/executive/StrategicPlanTracker';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
+
+// GMV Block
+import { GmvDailyChart } from '@/components/executive/GmvDailyChart';
+import { GmvAccumulatedCard } from '@/components/executive/GmvAccumulatedCard';
+import { GmvMoMChart } from '@/components/executive/GmvMoMChart';
+import { GmvClientDonut } from '@/components/executive/GmvClientDonut';
+import { GmvByYearChart } from '@/components/executive/GmvByYearChart';
+import { GmvByQuarterChart } from '@/components/executive/GmvByQuarterChart';
+
+// Services Block
+import { QuarterlyServicesChart } from '@/components/executive/QuarterlyServicesChart';
+import { ServicesMoMChart } from '@/components/executive/ServicesMoMChart';
+import { DailyServicesChart } from '@/components/executive/DailyServicesChart';
+import { ServicesYoYChart } from '@/components/executive/ServicesYoYChart';
+import { WeekdayComparisonChart } from '@/components/executive/WeekdayComparisonChart';
+import { CriticalEventsChart } from '@/components/executive/CriticalEventsChart';
+
+// AOV & Clients Block
+import { AovMoMChart } from '@/components/executive/AovMoMChart';
+import { AovByClientChart } from '@/components/executive/AovByClientChart';
+import { ClientServiceDonut } from '@/components/executive/ClientServiceDonut';
+
+// Operational Block
+import { LocalForaneoMoMChart } from '@/components/executive/LocalForaneoMoMChart';
+import { ArmedServicesMoMChart } from '@/components/executive/ArmedServicesMoMChart';
+
+// Existing
+import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
+import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
+import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -29,15 +52,10 @@ const ExecutiveDashboard = () => {
   const currentTab = getInitialTab();
 
   const handleTabChange = (value: string) => {
-    if (value === 'kpis') {
-      navigate('/dashboard/kpis');
-    } else if (value === 'plan') {
-      navigate('/dashboard/plan');
-    } else if (value === 'starmap') {
-      navigate('/dashboard/starmap');
-    } else {
-      navigate('/dashboard');
-    }
+    if (value === 'kpis') navigate('/dashboard/kpis');
+    else if (value === 'plan') navigate('/dashboard/plan');
+    else if (value === 'starmap') navigate('/dashboard/starmap');
+    else navigate('/dashboard');
   };
 
   return (
@@ -55,24 +73,19 @@ const ExecutiveDashboard = () => {
               </p>
             </div>
             
-            {/* Navigation Tabs */}
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="executive" className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Proyecciones
+                  <TrendingUp className="h-4 w-4" />Proyecciones
                 </TabsTrigger>
                 <TabsTrigger value="plan" className="flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Plan 2026
+                  <Target className="h-4 w-4" />Plan 2026
                 </TabsTrigger>
                 <TabsTrigger value="starmap" className="flex items-center gap-2">
-                  <Star className="h-4 w-4" />
-                  StarMap
+                  <Star className="h-4 w-4" />StarMap
                 </TabsTrigger>
                 <TabsTrigger value="kpis" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  KPIs
+                  <BarChart3 className="h-4 w-4" />KPIs
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -82,31 +95,57 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Conditional content based on tab */}
         {currentTab === 'plan' ? (
           <StrategicPlanTracker />
         ) : (
           <>
-            {/* NEW: Executive KPIs Bar (Looker Style - Page 1) */}
+            {/* KPIs Bar (8 metrics) */}
             <ExecutiveKPIsBar />
-
-            {/* Barra de Alertas Críticas */}
             <CriticalAlertsBar />
 
-            {/* Componente Principal Unificado */}
-            <UnifiedGMVDashboard />
-
-            {/* NEW: Grid de 3 columnas con nuevos componentes (Looker Style) */}
+            {/* BLOQUE 1: GMV Principal */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <TopClientsMTD />
-              <ServiceDistributionChart />
-              <QuarterlyServicesChart />
+              <GmvDailyChart />
+              <GmvAccumulatedCard />
+              <GmvMoMChart />
             </div>
 
-            {/* NEW: Panel de Finanzas (Looker Style - Page 3) */}
-            <FinancialSummaryPanel />
+            {/* BLOQUE 2: GMV Desgloses */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <GmvClientDonut />
+              <GmvByYearChart />
+              <GmvByQuarterChart />
+            </div>
 
-            {/* Grid Secundario - Existente */}
+            {/* BLOQUE 3: Servicios */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <QuarterlyServicesChart />
+              <ServicesMoMChart />
+              <DailyServicesChart />
+            </div>
+
+            {/* BLOQUE 4: Servicios Avanzado */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <ServicesYoYChart />
+              <WeekdayComparisonChart />
+              <CriticalEventsChart />
+            </div>
+
+            {/* BLOQUE 5: AOV y Clientes */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <AovMoMChart />
+              <AovByClientChart />
+              <ClientServiceDonut />
+            </div>
+
+            {/* BLOQUE 6: Operacional */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <LocalForaneoMoMChart />
+              <ArmedServicesMoMChart />
+            </div>
+
+            {/* Existentes: Finanzas + Comparativa + Forecast */}
+            <FinancialSummaryPanel />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <AnnualComparisonCard />
               <AdvancedForecastDashboard />

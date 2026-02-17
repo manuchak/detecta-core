@@ -14591,6 +14591,7 @@ export type Database = {
           presentacion: string | null
           proveedor: string | null
           puntos_intermedios: Json | null
+          razon_social: string | null
           requiere_armado: boolean | null
           ruta: string | null
           telefono: string | null
@@ -14669,6 +14670,7 @@ export type Database = {
           presentacion?: string | null
           proveedor?: string | null
           puntos_intermedios?: Json | null
+          razon_social?: string | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
@@ -14747,6 +14749,7 @@ export type Database = {
           presentacion?: string | null
           proveedor?: string | null
           puntos_intermedios?: Json | null
+          razon_social?: string | null
           requiere_armado?: boolean | null
           ruta?: string | null
           telefono?: string | null
