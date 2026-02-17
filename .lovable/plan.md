@@ -1,38 +1,92 @@
 
-## Corregir cálculo de promedios y bug de timezone en gráfico de días de semana
+## Migrar exportación "Análisis de Clientes" a React PDF nativo
 
-### Problema confirmado
+### Problema actual
 
-El gráfico muestra **totales** en vez de **promedios** a pesar de que el código de división está presente. La causa raíz es un **bug de timezone** en el cálculo del `weekdayIndex` que corrompe la agrupación:
+El PDF generado usa `html2canvas` — una captura de pantalla del DOM de React — lo que produce:
+- Texto superpuesto e ilegible (elementos de UI se renderizan encima de otros)
+- Íconos SVG de Lucide que no se capturan correctamente
+- Controles de UI visibles (filtros, dropdowns, badges de color) que no pertenecen al PDF
+- Solo 1 página sin paginación correcta, con todo comprimido
+- Sin look profesional corporativo (header/footer, fuentes, colores de marca)
 
-- **Línea 180-181**: `const d = new Date(fecha); const weekdayIndex = d.getDay();`
-- Esto usa el timezone del navegador para determinar el día de la semana, pero puede causar que el weekdayIndex sea inconsistente con el `day` extraído via CDMX
-- El resultado: los Sets de días únicos (`weekdayPrevDays`) acumulan días de otros weekdays, distorsionando la división
+### Solución: Documento React PDF nativo
 
-**Datos verificados desde la DB:**
-- Dom enero: 66 total / 4 ocurrencias = promedio real **16.5** (el gráfico muestra 66)
-- Vie enero: 140 total / 5 ocurrencias = promedio real **28.0** (el gráfico muestra ~140)
+Crear un documento `@react-pdf/renderer` dedicado para el análisis de clientes, usando el mismo design system que ya existe para Incidentes e Histórico.
 
-### Solución
+---
 
-**Archivo: `src/utils/cdmxDateUtils.ts`**
-- Agregar nueva función `getCDMXWeekday(isoString)` que retorna 0-6 (Dom-Sáb) usando timezone CDMX
-- Usa `formatInTimeZone` con formato `'e'` para obtener el día de semana correcto
+### Archivos a crear
 
-**Archivo: `src/hooks/useExecutiveMultiYearData.ts`**
-- Reemplazar `const weekdayIndex = d.getDay()` (línea 181) con `getCDMXWeekday(fecha)` importado desde cdmxDateUtils
-- Eliminar la variable `d` (línea 180) ya que no se usa para nada más
+**1. `src/components/executive/pdf/ClientAnalyticsPDFDocument.tsx`**
+
+Documento principal que recibe los datos ya calculados por los hooks existentes y los presenta con el design system PDF:
+
+- **Página 1 – Dashboard Resumen**: KPIRow con los 4 champions (Mejor AOV, Más Servicios, Mayor GMV, Mejor Cumplimiento) + tabla Top 15 clientes con columnas: Cliente, Servicios, GMV, AOV, Cumplimiento, Crecimiento GMV, Días sin servicio
+- **Página 2 (si hay cliente seleccionado) – Detalle Individual**: Secciones de Actividad Temporal, Tendencia Mensual (tabla con meses), Tipos de Servicio y Performance por Custodio
+
+**2. `src/components/executive/pdf/ClientAnalyticsPDFExporter.ts`**
+
+Función async `exportClientAnalyticsPDF(data, clientName?)` que:
+1. Importa dinámicamente `@react-pdf/renderer`
+2. Recibe `clientMetrics` + `tableData` ya calculados
+3. Carga el logo con `loadImageAsBase64`
+4. Genera el blob y dispara la descarga
+
+---
+
+### Archivo a modificar
+
+**`src/components/executive/ClientAnalytics.tsx`**
+
+- Cambiar `handleDownloadPDF` para llamar a la nueva función `exportClientAnalyticsPDF` en lugar de `exportClientAnalyticsToPDF`
+- Pasar los datos ya disponibles en memoria (`clientMetrics`, `tableData`, `clientAnalytics`) — sin queries adicionales
+
+---
+
+### Estructura del PDF resultante
+
+**Vista Dashboard (sin cliente seleccionado):**
+
+```text
+┌─────────────────────────────────────────────┐
+│ DETECTA logo │ ANÁLISIS DE CLIENTES  │ MTD  │
+├─────────────────────────────────────────────┤
+│ KPI Champions: Mejor AOV | Más Servicios    │
+│              Mayor GMV | Mejor Cumplimiento  │
+├─────────────────────────────────────────────┤
+│ Top 15 Clientes por GMV                     │
+│ ┌──────┬─────┬────────┬─────┬──────┬──────┐│
+│ │Cliente│Svc  │  GMV   │ AOV │Cumpl.│ΔGrow.││
+│ │...    │     │        │     │      │      ││
+│ └──────┴─────┴────────┴─────┴──────┴──────┘│
+│                                             │
+│ Análisis Foráneo vs Local                   │
+│ [Tabla 2 filas]                             │
+└─────────────────────────────────────────────┘
+│ Confidencial │  Generado: 17/02/2026  Pág 1 │
+```
+
+**Vista Detalle (con cliente seleccionado):**
+- Página 1: KPIs individuales + Actividad Temporal + Tipos de Servicio
+- Página 2: Tendencia Mensual (12 meses) + Performance por Custodio
+
+---
+
+### Datos que se pasan al documento (sin nuevas queries)
+
+| Fuente | Hook | Datos usados |
+|--------|------|--------------|
+| Dashboard metrics | `clientMetrics` (ya cargado) | topAOV, mostServices, highestGMV, bestCompletion, serviceTypeAnalysis |
+| Tabla de clientes | `tableData` (ya cargado) | Top 15: clientName, currentGMV, currentServices, currentAOV, completionRate, gmvGrowth, daysSinceLastService |
+| Detalle individual | `clientAnalytics` (ya cargado) | monthlyTrend, serviceTypes, custodianPerformance |
+
+---
 
 ### Resultado esperado
 
-| Día | Antes (incorrecto) | Después (correcto) |
-|-----|-------------------|-------------------|
-| Dom | 66 | ~17 |
-| Lun | ~105 | ~26 |
-| Mar | ~102 | ~26 |
-| Mié | ~114 | ~29 |
-| Jue | ~134 | ~27 |
-| Vie | ~140 | ~28 |
-| Sáb | ~35 | ~7 |
-
-Los valores ahora reflejarán el volumen diario promedio real, permitiendo una comparación justa mes a mes.
+- PDF de 1-2 páginas A4 con header/footer corporativo rojo-negro
+- Tipografía Inter coherente con el resto de reportes
+- Tabla de clientes con columnas bien alineadas, striped, sin superposición
+- KPI cards con acento de color por categoría
+- Sin elementos de UI (botones, filtros, dropdowns) visibles en el PDF
