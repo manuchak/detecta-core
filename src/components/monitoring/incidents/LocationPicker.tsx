@@ -60,10 +60,29 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
     if (value !== query) setQuery(value || '');
   }, [value]);
 
+  // Default center (CDMX) when no coordinates are provided
+  const DEFAULT_LAT = 19.4326;
+  const DEFAULT_LNG = -99.1332;
+
   // Handle map click - reverse geocode and update
   const handleMapClick = useCallback(async (e: mapboxgl.MapMouseEvent) => {
     const { lng: clickLng, lat: clickLat } = e.lngLat;
-    if (markerRef.current) markerRef.current.setLngLat([clickLng, clickLat]);
+    if (markerRef.current) {
+      markerRef.current.setLngLat([clickLng, clickLat]);
+    } else if (mapRef.current) {
+      // Create marker on first click when none exists
+      const marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([clickLng, clickLat]).addTo(mapRef.current);
+      marker.on('dragend', async () => {
+        const lngLat = marker.getLngLat();
+        setIsReverseGeocoding(true);
+        const { address } = await reverseGeocode(lngLat.lat, lngLat.lng);
+        setIsReverseGeocoding(false);
+        const newZona = address || `${lngLat.lat.toFixed(5)}, ${lngLat.lng.toFixed(5)}`;
+        setQuery(newZona);
+        onChange({ zona: newZona, lat: lngLat.lat, lng: lngLat.lng });
+      });
+      markerRef.current = marker;
+    }
     setIsReverseGeocoding(true);
     const { address } = await reverseGeocode(clickLat, clickLng);
     setIsReverseGeocoding(false);
@@ -74,16 +93,21 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
 
   // Initialize inline map
   useEffect(() => {
-    if (!lat || !lng || !mapContainerRef.current) return;
+    if (!mapContainerRef.current) return;
+    const mapLat = lat || DEFAULT_LAT;
+    const mapLng = lng || DEFAULT_LNG;
+    const hasCoords = !!(lat && lng);
 
     const initMap = async () => {
       const token = await initializeMapboxToken();
       if (!token || !mapContainerRef.current) return;
 
       if (mapRef.current) {
-        mapRef.current.flyTo({ center: [lng, lat], zoom: 14 });
-        if (markerRef.current) markerRef.current.setLngLat([lng, lat]);
-        else markerRef.current = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([lng, lat]).addTo(mapRef.current);
+        mapRef.current.flyTo({ center: [mapLng, mapLat], zoom: hasCoords ? 14 : 11 });
+        if (hasCoords) {
+          if (markerRef.current) markerRef.current.setLngLat([mapLng, mapLat]);
+          else markerRef.current = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([mapLng, mapLat]).addTo(mapRef.current);
+        }
         return;
       }
 
@@ -91,23 +115,29 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [lng, lat],
-        zoom: 14,
+        center: [mapLng, mapLat],
+        zoom: hasCoords ? 14 : 11,
         interactive: true,
       });
 
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-      const marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([lng, lat]).addTo(map);
 
-      marker.on('dragend', async () => {
-        const lngLat = marker.getLngLat();
-        setIsReverseGeocoding(true);
-        const { address } = await reverseGeocode(lngLat.lat, lngLat.lng);
-        setIsReverseGeocoding(false);
-        const newZona = address || `${lngLat.lat.toFixed(5)}, ${lngLat.lng.toFixed(5)}`;
-        setQuery(newZona);
-        onChange({ zona: newZona, lat: lngLat.lat, lng: lngLat.lng });
-      });
+      let marker: mapboxgl.Marker | null = null;
+      if (hasCoords) {
+        marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([mapLng, mapLat]).addTo(map);
+      }
+
+      if (marker) {
+        marker.on('dragend', async () => {
+          const lngLat = marker!.getLngLat();
+          setIsReverseGeocoding(true);
+          const { address } = await reverseGeocode(lngLat.lat, lngLat.lng);
+          setIsReverseGeocoding(false);
+          const newZona = address || `${lngLat.lat.toFixed(5)}, ${lngLat.lng.toFixed(5)}`;
+          setQuery(newZona);
+          onChange({ zona: newZona, lat: lngLat.lat, lng: lngLat.lng });
+        });
+      }
 
       map.on('click', handleMapClick);
 
@@ -123,18 +153,20 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
     };
 
     initMap();
-  }, [lat, lng, handleMapClick, onChange]);
+  }, [lat, lng, handleMapClick, onChange, DEFAULT_LAT, DEFAULT_LNG]);
 
   // Cleanup inline map
   useEffect(() => () => { mapRef.current?.remove(); }, []);
 
   // Initialize expanded map
   useEffect(() => {
-    if (!isExpanded || !lat || !lng) return;
+    if (!isExpanded) return;
+    const expLat = lat || DEFAULT_LAT;
+    const expLng = lng || DEFAULT_LNG;
 
     setExpandedQuery(query);
     setExpandedAddress(query);
-    setExpandedCoords({ lat, lng });
+    setExpandedCoords(lat && lng ? { lat, lng } : null);
 
     // Small delay to let dialog render
     const timeout = setTimeout(async () => {
@@ -146,14 +178,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
       const map = new mapboxgl.Map({
         container: expandedMapContainerRef.current,
         style: 'mapbox://styles/mapbox/streets-v12',
-        center: [lng, lat],
-        zoom: 14,
+        center: [expLng, expLat],
+        zoom: lat && lng ? 14 : 11,
         interactive: true,
         doubleClickZoom: false,
       });
 
       map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-      const marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([lng, lat]).addTo(map);
+      const marker = new mapboxgl.Marker({ color: '#ef4444', draggable: true }).setLngLat([expLng, expLat]).addTo(map);
 
       const updateFromCoords = async (newLat: number, newLng: number) => {
         setIsReverseGeocoding(true);
@@ -296,23 +328,19 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ value, lat, lng,
         )}
       </div>
 
-      {lat && lng && (
-        <>
-          <div className="relative">
-            <div className="rounded-md overflow-hidden border h-48" ref={mapContainerRef} />
-            <button
-              onClick={() => setIsExpanded(true)}
-              className="absolute top-2 left-2 z-10 bg-background/90 border rounded-md p-1.5 hover:bg-accent transition-colors"
-              title="Expandir mapa"
-            >
-              <Maximize2 className="h-3.5 w-3.5 text-foreground" />
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground text-center">
-            Doble clic para expandir el mapa
-          </p>
-        </>
-      )}
+      <div className="relative">
+        <div className="rounded-md overflow-hidden border h-48" ref={mapContainerRef} />
+        <button
+          onClick={() => setIsExpanded(true)}
+          className="absolute top-2 left-2 z-10 bg-background/90 border rounded-md p-1.5 hover:bg-accent transition-colors"
+          title="Expandir mapa"
+        >
+          <Maximize2 className="h-3.5 w-3.5 text-foreground" />
+        </button>
+      </div>
+      <p className="text-[10px] text-muted-foreground text-center">
+        {lat && lng ? 'Doble clic para expandir el mapa' : 'Haz clic en el mapa para seleccionar ubicación'}
+      </p>
 
       {/* Expanded map dialog */}
       <Dialog open={isExpanded} onOpenChange={(open) => { if (!open) handleConfirmExpanded(); }}>

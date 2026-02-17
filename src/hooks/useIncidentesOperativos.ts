@@ -391,3 +391,30 @@ export function useDeleteCronologiaEntry() {
     },
   });
 }
+
+export function useDeleteIncidente() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // First delete associated cronologia entries
+      const { error: cronError } = await supabase
+        .from('incidente_cronologia')
+        .delete()
+        .eq('incidente_id', id);
+      if (cronError) throw cronError;
+
+      // Then delete the incident itself
+      const { error } = await supabase
+        .from('incidentes_operativos')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incidentes-operativos'] });
+      queryClient.invalidateQueries({ queryKey: ['incidentes-resumen'] });
+      queryClient.invalidateQueries({ queryKey: ['incidentes-operativos-recent'] });
+      queryClient.invalidateQueries({ queryKey: ['starmap-kpis'] });
+    },
+  });
+}
