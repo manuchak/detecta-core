@@ -31,6 +31,7 @@ export const PDFTimeline: React.FC<Props> = ({ cronologia, imageCache }) => {
   return (
     <View>
       <SectionHeader title="3. Cronología del Evento" />
+      <View minPresenceAhead={40}></View>
 
       {sorted.length === 0 ? (
         <Text style={s.empty}>Sin entradas registradas en la cronología.</Text>
