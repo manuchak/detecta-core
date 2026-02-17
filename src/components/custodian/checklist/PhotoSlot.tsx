@@ -8,6 +8,7 @@
  import type { AnguloFoto, FotoValidada } from '@/types/checklist';
  import { ANGULO_LABELS } from '@/types/checklist';
  import { getPhotoBlob } from '@/lib/offlineStorage';
+ import { toast } from 'sonner';
  
  interface PhotoSlotProps {
    angle: AnguloFoto;
@@ -51,14 +52,17 @@
  
    const hasPhoto = !!foto;
  
-   const handleCapture = async (file: File) => {
-     setIsCapturing(true);
-     try {
-       await onCapture(angle, file);
-     } finally {
-       setIsCapturing(false);
-     }
-   };
+    const handleCapture = async (file: File) => {
+      setIsCapturing(true);
+      try {
+        await onCapture(angle, file);
+      } catch (error) {
+        console.error('[PhotoSlot] Error capturing photo:', error);
+        toast.error('Error al capturar la foto. Intenta de nuevo.');
+      } finally {
+        setIsCapturing(false);
+      }
+    };
  
    return (
      <div className={cn('relative aspect-square', className)}>
@@ -85,17 +89,22 @@
            <div className="absolute bottom-2 right-2 flex gap-1">
              <button
                type="button"
-                 onClick={() => {
-                   const input = document.createElement('input');
-                   input.type = 'file';
-                   input.accept = 'image/*';
-                   input.capture = 'environment';
-                   input.onchange = (e) => {
-                     const file = (e.target as HTMLInputElement).files?.[0];
-                     if (file) handleCapture(file);
-                   };
-                   input.click();
-                 }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.capture = 'environment';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        handleCapture(file).catch((err) => {
+                          console.error('[PhotoSlot] Retake error:', err);
+                          toast.error('Error al reintentar la foto.');
+                        });
+                      }
+                    };
+                    input.click();
+                  }}
                className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg active:scale-95"
              >
                <RotateCcw className="w-4 h-4" />

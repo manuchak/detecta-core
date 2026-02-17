@@ -69,6 +69,8 @@ export const CustodianSignup = () => {
   const [activeSession, setActiveSession] = useState<{ email: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isCustodian, setIsCustodian] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   
   const { toast } = useToast();
   const { 
@@ -80,17 +82,33 @@ export const CustodianSignup = () => {
     useInvitation 
   } = useInvitationToken(token);
 
-  // Check for active session
+  // Check for active session and role
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setActiveSession({ email: session.user.email || '' });
+        // Check if custodian role
+        try {
+          const { data } = await supabase.rpc('get_current_user_role_secure');
+          if (data === 'custodio') setIsCustodian(true);
+        } catch { /* ignore */ }
       }
       setCheckingSession(false);
     };
     checkSession();
   }, []);
+
+  // Auto-redirect countdown for custodians with active session
+  useEffect(() => {
+    if (!activeSession || !isCustodian) return;
+    if (redirectCountdown <= 0) {
+      navigate('/custodian');
+      return;
+    }
+    const timer = setTimeout(() => setRedirectCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [activeSession, isCustodian, redirectCountdown, navigate]);
 
   // Pre-fill form with invitation data (email is locked from invitation)
   useEffect(() => {
@@ -284,7 +302,7 @@ export const CustodianSignup = () => {
     );
   }
 
-  // Active session detected
+  // Active session detected — auto-redirect for custodians
   if (activeSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -299,17 +317,33 @@ export const CustodianSignup = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {isCustodian && (
+              <Alert className="border-primary bg-primary/5">
+                <Info className="h-4 w-4 text-primary" />
+                <AlertDescription>
+                  Redirigiendo a tu portal en {redirectCountdown}s...
+                </AlertDescription>
+              </Alert>
+            )}
+            <Button 
+              onClick={() => navigate('/custodian')} 
+              className="w-full" 
+              variant="default"
+              size="lg"
+            >
+              <Shield className="mr-2 h-4 w-4" />
+              Ir a mi portal de custodio
+            </Button>
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Para registrar una nueva cuenta de custodio, primero debes cerrar tu sesión actual.
-                Si ya eres custodio, puedes ir directamente a tu portal.
+                ¿Necesitas registrar otra cuenta? Cierra sesión primero.
               </AlertDescription>
             </Alert>
             <Button 
               onClick={handleLogoutAndContinue} 
               className="w-full" 
-              variant="default"
+              variant="outline"
               disabled={loggingOut}
             >
               {loggingOut ? (
@@ -317,15 +351,7 @@ export const CustodianSignup = () => {
               ) : (
                 <LogOut className="mr-2 h-4 w-4" />
               )}
-              Cerrar sesión y continuar registro
-            </Button>
-            <Button 
-              onClick={() => navigate('/custodian')} 
-              className="w-full" 
-              variant="outline"
-            >
-              <Shield className="mr-2 h-4 w-4" />
-              Ir a mi portal de custodio
+              Cerrar sesión y registrar nueva cuenta
             </Button>
           </CardContent>
         </Card>
