@@ -214,18 +214,36 @@ const ClientDetailPage2: React.FC<{
   dateLabel: string;
   analytics: ClientMetrics;
 }> = ({ logoBase64, dateLabel, analytics }) => {
+  const trendData = analytics.monthlyTrend.slice(-12);
+
   const trendCols: DataTableColumn[] = [
-    { header: 'Mes', accessor: 'month', flex: 2 },
-    { header: 'Servicios', accessor: (r) => String(r.services), flex: 1, align: 'right' },
-    { header: 'GMV', accessor: (r) => fmtM(r.gmv), flex: 1, align: 'right' },
-    { header: 'AOV', accessor: (r) => r.services > 0 ? fmt(r.gmv / r.services) : '-', flex: 1, align: 'right' },
+    { header: 'Mes', accessor: 'month', flex: 3 },
+    { header: 'Servicios', accessor: (r) => String(r.services), width: 52, align: 'right' },
+    { header: 'GMV', accessor: (r) => fmtM(r.gmv), width: 60, align: 'right' },
+    { header: 'AOV', accessor: (r) => r.services > 0 ? fmt(r.gmv / r.services) : '—', width: 72, align: 'right' },
+    { header: '% del GMV', accessor: (r) => {
+      const totalGMV = trendData.reduce((s, x) => s + x.gmv, 0);
+      return totalGMV > 0 ? `${((r.gmv / totalGMV) * 100).toFixed(1)}%` : '—';
+    }, width: 52, align: 'right' },
   ];
 
   const custodianCols: DataTableColumn[] = [
     { header: 'Custodio', accessor: 'custodian', flex: 3 },
-    { header: 'Servicios', accessor: (r) => String(r.services), flex: 1, align: 'right' },
-    { header: 'Cumplimiento', accessor: (r) => `${r.completionRate.toFixed(1)}%`, flex: 1, align: 'right' },
-    { header: 'KM Promedio', accessor: (r) => `${r.averageKm.toFixed(0)} km`, flex: 1, align: 'right' },
+    { header: 'Servicios', accessor: (r) => String(r.services), width: 52, align: 'right' },
+    { header: 'Cumplimiento', accessor: (r) => `${r.completionRate.toFixed(1)}%`, width: 72, align: 'right' },
+    { header: 'KM Promedio', accessor: (r) => `${r.averageKm.toFixed(0)} km`, width: 72, align: 'right' },
+  ];
+
+  // Summary row for trend
+  const totalServices = trendData.reduce((s, r) => s + r.services, 0);
+  const totalGMV = trendData.reduce((s, r) => s + r.gmv, 0);
+  const summaryTrend = [
+    ...trendData,
+    {
+      month: 'TOTAL',
+      services: totalServices,
+      gmv: totalGMV,
+    },
   ];
 
   return (
@@ -235,11 +253,17 @@ const ClientDetailPage2: React.FC<{
       logoBase64={logoBase64}
       footerText="Confidencial – Solo para uso interno"
     >
-      <SectionHeader title="Tendencia Mensual (Últimos 12 meses)" />
-      <DataTable columns={trendCols} data={analytics.monthlyTrend} striped />
+      <View minPresenceAhead={40}>
+        <SectionHeader title={`Tendencia Mensual (${trendData.length} meses)`} />
+      </View>
+      <DataTable columns={trendCols} data={summaryTrend} striped />
 
-      <SectionHeader title="Performance por Custodio" />
-      <DataTable columns={custodianCols} data={analytics.custodianPerformance} striped />
+      {analytics.custodianPerformance.length > 0 && (
+        <View wrap={false} style={{ marginTop: 6 }}>
+          <SectionHeader title="Performance por Custodio" />
+          <DataTable columns={custodianCols} data={analytics.custodianPerformance} striped />
+        </View>
+      )}
     </ReportPage>
   );
 };
