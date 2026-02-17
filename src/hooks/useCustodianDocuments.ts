@@ -31,7 +31,7 @@ export function useCustodianDocuments(rawTelefono: string | undefined) {
         return data as DocumentoCustodio[];
       },
       enabled: !!custodioTelefono,
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000, // 30s: evitar cache stale durante onboarding
       refetchOnWindowFocus: false, // v10: Evitar refetch al volver de cámara en móvil
     });
  
