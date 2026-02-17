@@ -1,98 +1,43 @@
 
 
-## Plan: Corregir fuente de datos + Herramienta de Auditoria Excel vs Sistema
+## Corregir DataAuditManager para aceptar Excel con estructura de servicios_custodia
 
-### Problema raiz
+### Problema actual
 
-El hook `useExecutiveMultiYearData` hace un `select` directo a `servicios_custodia` sin paginacion, lo que causa que Supabase devuelva maximo 1,000 filas. Con ~10,000+ servicios por ano, los totales mostrados en los charts son incorrectos (subreportados).
+El componente espera columnas pre-agregadas (Ano, Mes, Servicios, GMV) pero el Excel del usuario tiene registros individuales con estructura similar a `servicios_custodia`, donde `fecha_hora_cita` es el campo de fecha base.
 
-Ya existe un RPC server-side `get_historical_monthly_data` que agrega correctamente en la base de datos y devuelve totales exactos por mes/ano.
+### Solucion
 
----
+Modificar `DataAuditManager.tsx` para soportar dos modos de Excel:
 
-### Parte 1: Corregir useExecutiveMultiYearData
+1. **Modo registros individuales (nuevo):** Detectar columna `fecha_hora_cita`, extraer ano/mes de cada registro, contar filas como servicios, y sumar `cobro_cliente` como GMV
+2. **Modo agregado (existente):** Mantener compatibilidad con Excel que ya tiene columnas Ano/Mes/Servicios/GMV
 
-**Archivo:** `src/hooks/useExecutiveMultiYearData.ts`
+### Cambios tecnicos en `src/components/administration/DataAuditManager.tsx`
 
-Estrategia de refactorizacion:
+**Deteccion de columnas con flexibilidad:**
+- `fecha_hora_cita`: buscar variantes como "fecha hora cita", "fecha_hora_cita", "fecha cita", "appointment"
+- `cobro_cliente`: buscar variantes como "cobro cliente", "cobro_cliente", "gmv", "ingreso", "cobro", "revenue"
 
-| Tipo de dato | Fuente actual (rota) | Fuente nueva |
-|---|---|---|
-| monthlyByYear | Query cruda (1000 filas max) | RPC `get_historical_monthly_data` (server-side, sin limite) |
-| quarterlyByYear | Derivado de monthlyByYear | Derivado del RPC (correcto porque el RPC ya tiene datos completos) |
-| yearlyTotals | Derivado de monthlyByYear | Derivado del RPC |
-| dailyCurrent | Query cruda (mes actual) | Query con `.range(0, 2000)` solo para el mes actual (~30 registros/dia max) |
-| clientsMTD | Query cruda (mes actual) | Query con `.range(0, 2000)` solo para el mes actual |
-| weekdayComparison | Query cruda | Derivado de dailyCurrent + mes anterior con paginacion |
-| localForaneoMonthly | Query cruda | Query separada ultimos 12 meses con paginacion |
-| armedMonthly | Query cruda | Query separada ultimos 12 meses con paginacion |
+**Parseo robusto de fechas:**
+- Strings ISO (`2025-01-15T20:00:00`)
+- Formato `dd/MM/yyyy` y `dd-MM-yyyy`
+- Numeros seriales de Excel
+- Objetos Date nativos de xlsx
 
-Cambios concretos:
+**Logica de agregacion:**
+- Agrupar registros por ano-mes extraido de `fecha_hora_cita`
+- Contar registros por periodo = servicios
+- Sumar `cobro_cliente` por periodo = GMV
 
-1. Reemplazar la query unica monolitica por:
-   - `supabase.rpc('get_historical_monthly_data')` para datos mensuales (fuente de verdad)
-   - Query paginada solo para el mes actual (dailyCurrent, clientsMTD, weekday)
-   - Query paginada para ultimos 2 meses (local/foraneo, armado)
+**Flujo de decision:**
+1. Leer headers del Excel
+2. Buscar columna `fecha_hora_cita` (variantes)
+3. Si existe: modo registros individuales (agregar en frontend)
+4. Si no existe: buscar columnas Ano/Mes (modo actual)
+5. Si ninguno: mostrar error con columnas detectadas
 
-2. Calcular `monthlyByYear`, `quarterlyByYear`, `yearlyTotals` a partir del RPC (datos correctos, ya agregados server-side)
-
-3. Para las queries de detalle, implementar paginacion con loop:
-   ```
-   let allRecords = [];
-   let offset = 0;
-   while (true) {
-     const { data } = await supabase.from(...).range(offset, offset + 999);
-     allRecords.push(...data);
-     if (data.length < 1000) break;
-     offset += 1000;
-   }
-   ```
-
----
-
-### Parte 2: Herramienta de Auditoria en Administracion
-
-**Nueva pestana** en `AdministrationHub.tsx` - "Auditoria de Datos"
-
-Ninguno de los componentes existentes (Metas, Inactividad, Limpieza BDD, Versiones) sirve para esta tarea, por lo que se creara un componente nuevo.
-
-**Archivo nuevo:** `src/components/administration/DataAuditManager.tsx`
-
-Funcionalidad:
-
-1. **Subir Excel** - El usuario sube su archivo Excel de datos validados. El componente lee las columnas esperadas:
-   - Ano, Mes, Servicios, GMV (como minimo)
-   - Acepta variantes de nombres de columna (Year, Ano, year, etc.)
-
-2. **Obtener datos del sistema** - Llama al RPC `get_historical_monthly_data` para obtener los totales del sistema
-
-3. **Comparacion lado a lado** - Tabla con columnas:
-   | Periodo | Servicios Excel | Servicios Sistema | Delta | Delta % | GMV Excel | GMV Sistema | Delta | Delta % | Estado |
-   
-   - Delta = Sistema - Excel
-   - Estado: OK (delta < 1%), Alerta (1-5%), Error (>5%)
-   - Colores: verde/amarillo/rojo segun severidad
-
-4. **Resumen** - Card superior con:
-   - Total de periodos analizados
-   - Periodos con discrepancia
-   - Discrepancia maxima encontrada
-   - Porcentaje de coincidencia global
-
-5. **Exportar resultados** - Boton para descargar la comparacion como Excel
-
-**Archivo modificado:** `src/pages/Administration/AdministrationHub.tsx`
-
-- Agregar 5ta pestana "Auditoria" con icono `FileSearch`
-- Grid de tabs pasa de `grid-cols-4` a `grid-cols-5`
-
----
-
-### Resumen de archivos
-
-| Tipo | Archivo | Cambio |
-|------|---------|--------|
-| Modificacion | `src/hooks/useExecutiveMultiYearData.ts` | Refactorizar para usar RPC + paginacion |
-| Nuevo | `src/components/administration/DataAuditManager.tsx` | Herramienta de auditoria Excel vs Sistema |
-| Modificacion | `src/pages/Administration/AdministrationHub.tsx` | Agregar pestana de Auditoria |
+**UX mejorada:**
+- Indicar que formato se detecto ("Se detectaron X registros individuales, agrupando por mes...")
+- Mostrar mensaje descriptivo del archivo esperado incluyendo ambos formatos aceptados
 
