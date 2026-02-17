@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, Download, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
+import { Upload, Download, CheckCircle, AlertTriangle, XCircle, Loader2, Info } from 'lucide-react';
 import { formatNumber, formatCurrency } from '@/utils/formatUtils';
 import { toast } from 'sonner';
 
@@ -27,7 +27,7 @@ interface ComparisonRow {
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 function normalizeColumnName(name: string): string {
-  return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/_/g, ' ').trim();
 }
 
 function findColumn(headers: string[], variants: string[]): string | null {
@@ -45,6 +45,52 @@ function getStatus(deltaPct: number): 'ok' | 'alert' | 'error' {
   return 'error';
 }
 
+/**
+ * Parse a date value from Excel into { year, month }.
+ * Handles: ISO strings, dd/MM/yyyy, dd-MM-yyyy, Excel serial numbers, native Date objects.
+ */
+function parseExcelDate(value: any): { year: number; month: number } | null {
+  if (!value) return null;
+
+  // Native Date object (xlsx library sometimes returns these)
+  if (value instanceof Date) {
+    return { year: value.getFullYear(), month: value.getMonth() + 1 };
+  }
+
+  // Excel serial number
+  if (typeof value === 'number') {
+    // Excel epoch is 1900-01-01, but has the 1900 leap year bug
+    const excelEpoch = new Date(1899, 11, 30);
+    const d = new Date(excelEpoch.getTime() + value * 86400000);
+    if (!isNaN(d.getTime())) {
+      return { year: d.getFullYear(), month: d.getMonth() + 1 };
+    }
+    return null;
+  }
+
+  const str = String(value).trim();
+
+  // ISO format: 2025-01-15T20:00:00 or 2025-01-15
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    return { year: parseInt(isoMatch[1]), month: parseInt(isoMatch[2]) };
+  }
+
+  // dd/MM/yyyy or dd-MM-yyyy (with optional time)
+  const euMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (euMatch) {
+    return { year: parseInt(euMatch[3]), month: parseInt(euMatch[2]) };
+  }
+
+  // Fallback: try native Date parse
+  const d = new Date(str);
+  if (!isNaN(d.getTime()) && d.getFullYear() > 1970) {
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }
+
+  return null;
+}
+
 const StatusIcon = ({ status }: { status: 'ok' | 'alert' | 'error' }) => {
   if (status === 'ok') return <CheckCircle className="h-4 w-4 text-green-500" />;
   if (status === 'alert') return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
@@ -55,17 +101,18 @@ const DataAuditManager = () => {
   const [comparison, setComparison] = useState<ComparisonRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string>('');
+  const [detectedMode, setDetectedMode] = useState<string>('');
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
     setLoading(true);
+    setDetectedMode('');
 
     try {
-      // Read Excel
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
 
@@ -76,29 +123,77 @@ const DataAuditManager = () => {
       }
 
       const headers = Object.keys(rows[0]);
-      const yearCol = findColumn(headers, ['ano', 'year', 'año']);
-      const monthCol = findColumn(headers, ['mes', 'month']);
-      const servicesCol = findColumn(headers, ['servicios', 'services', 'servicio']);
-      const gmvCol = findColumn(headers, ['gmv', 'ingreso', 'revenue', 'cobro']);
 
-      if (!yearCol || !monthCol || !servicesCol) {
-        toast.error('No se encontraron las columnas requeridas: Año, Mes, Servicios');
+      // Try to detect mode: individual records vs aggregated
+      const dateCol = findColumn(headers, ['fecha hora cita', 'fecha cita', 'fechahoracita', 'appointment', 'fecha']);
+      const yearCol = findColumn(headers, ['ano', 'year']);
+      const monthCol = findColumn(headers, ['mes', 'month']);
+
+      let excelMap: Record<string, { services: number; gmv: number }>;
+
+      if (dateCol) {
+        // === MODE: Individual records ===
+        const gmvCol = findColumn(headers, ['cobro cliente', 'cobro', 'gmv', 'ingreso', 'revenue', 'monto']);
+        
+        excelMap = {};
+        let parsed = 0;
+        let skipped = 0;
+
+        rows.forEach(row => {
+          const dateResult = parseExcelDate(row[dateCol]);
+          if (!dateResult) {
+            skipped++;
+            return;
+          }
+          parsed++;
+          const key = `${dateResult.year}-${dateResult.month}`;
+          if (!excelMap[key]) excelMap[key] = { services: 0, gmv: 0 };
+          excelMap[key].services += 1;
+          if (gmvCol) {
+            const val = parseFloat(String(row[gmvCol] || 0));
+            if (!isNaN(val)) excelMap[key].gmv += val;
+          }
+        });
+
+        const modeMsg = `Modo registros individuales: ${parsed} registros agrupados por mes` +
+          (skipped > 0 ? ` (${skipped} sin fecha válida)` : '') +
+          (gmvCol ? `, GMV desde columna "${gmvCol}"` : ', sin columna de GMV detectada');
+        setDetectedMode(modeMsg);
+        toast.info(modeMsg);
+
+      } else if (yearCol && monthCol) {
+        // === MODE: Aggregated (original) ===
+        const servicesCol = findColumn(headers, ['servicios', 'services', 'servicio']);
+        const gmvCol = findColumn(headers, ['gmv', 'ingreso', 'revenue', 'cobro']);
+
+        if (!servicesCol) {
+          toast.error('Modo agregado detectado pero no se encontró columna de Servicios');
+          setLoading(false);
+          return;
+        }
+
+        excelMap = {};
+        rows.forEach(row => {
+          const year = parseInt(String(row[yearCol]));
+          const month = parseInt(String(row[monthCol]));
+          if (isNaN(year) || isNaN(month)) return;
+          const key = `${year}-${month}`;
+          excelMap[key] = {
+            services: parseInt(String(row[servicesCol] || 0)) || 0,
+            gmv: gmvCol ? parseFloat(String(row[gmvCol] || 0)) || 0 : 0,
+          };
+        });
+
+        setDetectedMode(`Modo agregado: ${Object.keys(excelMap).length} periodos desde columnas "${yearCol}", "${monthCol}"`);
+      } else {
+        // No recognized format
+        toast.error(
+          `No se reconoció el formato. Columnas detectadas: ${headers.join(', ')}. ` +
+          `Se espera "fecha_hora_cita" (registros individuales) o "Año"+"Mes" (agregado).`
+        );
         setLoading(false);
         return;
       }
-
-      // Parse Excel data
-      const excelMap: Record<string, { services: number; gmv: number }> = {};
-      rows.forEach(row => {
-        const year = parseInt(String(row[yearCol]));
-        const month = parseInt(String(row[monthCol]));
-        if (isNaN(year) || isNaN(month)) return;
-        const key = `${year}-${month}`;
-        excelMap[key] = {
-          services: parseInt(String(row[servicesCol] || 0)) || 0,
-          gmv: gmvCol ? parseFloat(String(row[gmvCol] || 0)) || 0 : 0,
-        };
-      });
 
       // Fetch system data via RPC
       const { data: rpcData, error: rpcErr } = await supabase.rpc('get_historical_monthly_data');
@@ -132,7 +227,7 @@ const DataAuditManager = () => {
         const worstPct = Math.max(Math.abs(servicesDeltaPct), Math.abs(gmvDeltaPct));
 
         results.push({
-          period: `${MONTH_LABELS[month - 1]} ${year}`,
+          period: `${MONTH_LABELS[month - 1] || '??'} ${year}`,
           year, month,
           servicesExcel: excel.services,
           servicesSystem: system.services,
@@ -207,6 +302,14 @@ const DataAuditManager = () => {
         )}
       </div>
 
+      {/* Detected mode info */}
+      {detectedMode && (
+        <div className="flex items-start gap-2 p-3 rounded-md bg-muted text-sm text-muted-foreground">
+          <Info className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>{detectedMode}</span>
+        </div>
+      )}
+
       {/* Summary Cards */}
       {comparison.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -223,7 +326,7 @@ const DataAuditManager = () => {
               <CardTitle className="text-sm font-medium text-muted-foreground">Con Discrepancia</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${withDiscrepancy > 0 ? 'text-red-500' : 'text-green-500'}`}>
+              <div className={`text-2xl font-bold ${withDiscrepancy > 0 ? 'text-destructive' : 'text-green-500'}`}>
                 {withDiscrepancy}
               </div>
             </CardContent>
@@ -269,14 +372,14 @@ const DataAuditManager = () => {
             </TableHeader>
             <TableBody>
               {comparison.map((row, i) => (
-                <TableRow key={i} className={row.status === 'error' ? 'bg-red-50 dark:bg-red-950/20' : row.status === 'alert' ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                <TableRow key={i} className={row.status === 'error' ? 'bg-destructive/5' : row.status === 'alert' ? 'bg-yellow-500/5' : ''}>
                   <TableCell className="font-medium">{row.period}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.servicesExcel)}</TableCell>
                   <TableCell className="text-right">{formatNumber(row.servicesSystem)}</TableCell>
                   <TableCell className={`text-right ${row.servicesDelta !== 0 ? 'font-semibold' : ''}`}>
                     {row.servicesDelta > 0 ? '+' : ''}{formatNumber(row.servicesDelta)}
                   </TableCell>
-                  <TableCell className={`text-right ${Math.abs(row.servicesDeltaPct) >= 5 ? 'text-red-500 font-semibold' : Math.abs(row.servicesDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
+                  <TableCell className={`text-right ${Math.abs(row.servicesDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.servicesDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
                     {row.servicesDeltaPct > 0 ? '+' : ''}{row.servicesDeltaPct.toFixed(1)}%
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(row.gmvExcel)}</TableCell>
@@ -284,7 +387,7 @@ const DataAuditManager = () => {
                   <TableCell className={`text-right ${row.gmvDelta !== 0 ? 'font-semibold' : ''}`}>
                     {row.gmvDelta > 0 ? '+' : ''}{formatCurrency(row.gmvDelta)}
                   </TableCell>
-                  <TableCell className={`text-right ${Math.abs(row.gmvDeltaPct) >= 5 ? 'text-red-500 font-semibold' : Math.abs(row.gmvDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
+                  <TableCell className={`text-right ${Math.abs(row.gmvDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.gmvDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
                     {row.gmvDeltaPct > 0 ? '+' : ''}{row.gmvDeltaPct.toFixed(1)}%
                   </TableCell>
                   <TableCell className="text-center"><StatusIcon status={row.status} /></TableCell>
@@ -298,8 +401,11 @@ const DataAuditManager = () => {
       {comparison.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
           <Upload className="h-12 w-12" />
-          <p className="text-lg font-medium">Sube tu Excel de datos validados</p>
-          <p className="text-sm">El archivo debe contener columnas: Año, Mes, Servicios (y opcionalmente GMV)</p>
+          <p className="text-lg font-medium">Sube tu Excel de datos para auditoría</p>
+          <p className="text-sm text-center max-w-md">
+            Acepta dos formatos: registros individuales con columna <strong>fecha_hora_cita</strong> (se agrupan por mes automáticamente), 
+            o datos ya agregados con columnas <strong>Año, Mes, Servicios</strong>.
+          </p>
         </div>
       )}
     </div>
