@@ -382,30 +382,59 @@ export function useServiciosPlanificados() {
   });
 
   const assignArmedGuard = useMutation({
-    mutationFn: async ({ serviceId, armadoName, armadoId }: { 
+    mutationFn: async ({ serviceId, armadoName, armadoId, assignmentType, providerId, puntoEncuentro, horaEncuentro, tarifaAcordada }: { 
       serviceId: string; 
       armadoName: string; 
       armadoId?: string;
+      assignmentType?: 'interno' | 'proveedor';
+      providerId?: string;
+      puntoEncuentro?: string;
+      horaEncuentro?: string;
+      tarifaAcordada?: number;
     }) => {
       // Get current service state to determine final status
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('custodio_asignado, estado_planeacion')
+        .select('custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio, cantidad_armados_requeridos')
         .eq('id', serviceId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
+      if (!currentService) throw new Error('Servicio no encontrado');
 
-      // Determine new state based on custodian assignment
-      const newState = currentService.custodio_asignado 
-        ? 'confirmado'  // If custodian is assigned, mark as confirmed
-        : 'pendiente_asignacion'; // If no custodian, keep pending
-        
+      // Insert into asignacion_armados (source of truth)
+      const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+
+      await supabase.from('asignacion_armados').insert({
+        servicio_custodia_id: currentService.id_servicio,
+        custodio_id: currentService.custodio_id,
+        armado_id: armadoId || null,
+        proveedor_armado_id: assignmentType === 'proveedor' ? providerId : null,
+        tipo_asignacion: assignmentType || 'interno',
+        punto_encuentro: puntoEncuentro || null,
+        hora_encuentro: horaEncuentro ? `${serviceDate}T${horaEncuentro}:00` : null,
+        estado_asignacion: 'pendiente',
+        armado_nombre_verificado: armadoName,
+        tarifa_acordada: tarifaAcordada || null,
+        asignado_por: userId,
+      });
+
+      // Determine final state using count from asignacion_armados
+      const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
+      const armadosAsignados = await countArmadosAsignados(currentService.id_servicio);
+      const armadosRequeridos = currentService.cantidad_armados_requeridos || 1;
+      const shouldBeConfirmed = currentService.custodio_asignado && armadosAsignados >= armadosRequeridos;
+      const newState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
+
       console.log('🛡️ Asignando armado. Estado del servicio:', {
         custodio_asignado: currentService.custodio_asignado,
+        armadosAsignados,
+        armadosRequeridos,
         estado_calculado: newState
       });
 
+      // Update scalar fields (legacy compat) + state
       const { error } = await supabase
         .from('servicios_planificados')
         .update({
@@ -421,6 +450,8 @@ export function useServiciosPlanificados() {
     onSuccess: () => {
       toast.success('Armado asignado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-armado-services'] });
+      queryClient.invalidateQueries({ queryKey: ['armados-del-servicio'] });
     },
     onError: (error) => {
       toast.error('Error al asignar armado');
@@ -548,7 +579,7 @@ export function useServiciosPlanificados() {
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('custodio_asignado, custodio_id, fecha_hora_cita, requiere_armado, armado_asignado')
+        .select('custodio_asignado, custodio_id, fecha_hora_cita, requiere_armado, armado_asignado, id_servicio, cantidad_armados_requeridos')
         .eq('id', serviceId)
         .maybeSingle();
 
@@ -563,8 +594,16 @@ export function useServiciosPlanificados() {
         }
       }
 
-      // Determine final state - maintain confirmado if service was already confirmed and all requirements are met
-      const shouldBeConfirmed = !currentService.requiere_armado || currentService.armado_asignado;
+      // Determine final state using relational count (multi-armado support)
+      let shouldBeConfirmed: boolean;
+      if (!currentService.requiere_armado) {
+        shouldBeConfirmed = true;
+      } else {
+        const { countArmadosAsignados } = await import('@/hooks/useArmadosDelServicio');
+        const armadosAsignados = await countArmadosAsignados(currentService.id_servicio);
+        const armadosRequeridos = currentService.cantidad_armados_requeridos || 1;
+        shouldBeConfirmed = armadosAsignados >= armadosRequeridos;
+      }
       const finalState = shouldBeConfirmed ? 'confirmado' : 'pendiente_asignacion';
 
       // Update assignment
@@ -736,7 +775,7 @@ export function useServiciosPlanificados() {
       // Get current service data
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('custodio_asignado, armado_asignado, requiere_armado, estado_planeacion')
+        .select('custodio_asignado, armado_asignado, requiere_armado, estado_planeacion, id_servicio')
         .eq('id', serviceId)
         .maybeSingle();
 
@@ -763,6 +802,19 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: null
         };
         previousValue = currentService.armado_asignado;
+
+        // Cancel all active records in asignacion_armados for this service
+        if (currentService.id_servicio) {
+          const { error: cancelError } = await supabase
+            .from('asignacion_armados')
+            .update({ estado_asignacion: 'cancelado' })
+            .eq('servicio_custodia_id', currentService.id_servicio)
+            .not('estado_asignacion', 'eq', 'cancelado');
+
+          if (cancelError) {
+            console.error('Error cancelling asignacion_armados records:', cancelError);
+          }
+        }
         
         // If custodian is assigned but armado is removed, mark as confirmed
         if (currentService.custodio_asignado) {
