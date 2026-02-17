@@ -1,35 +1,29 @@
 
-## Corregir orden de clientes en donut de Servicios por Cliente
+## Agregar línea de tendencia polinómica al gráfico GMV Diario
 
-### Problema
+### Qué se hará
 
-La lista `clientsMTD` se genera en `useExecutiveMultiYearData.ts` ordenada por **GMV** (linea 221). Tanto el donut de "GMV por Cliente" como el de "Servicios por Cliente" usan esa misma lista con `.slice(0, 10)` sin re-ordenar. El resultado es que LOGER aparece antes que ASTRA ZENECA a pesar de tener menos servicios, porque LOGER genera mas GMV.
+Agregar una línea de tendencia punteada (polinómica de grado 3) superpuesta sobre el gráfico de área existente en `GmvDailyChart.tsx`. Esto permite visualizar la dirección general del performance de GMV filtrando el ruido diario.
 
-### Solucion
+### Implementación técnica
 
-Modificar `ClientServiceDonut.tsx` para re-ordenar `clientsMTD` por numero de servicios antes de tomar el top 10.
+**Archivo:** `src/components/executive/GmvDailyChart.tsx`
 
-**Archivo:** `src/components/executive/ClientServiceDonut.tsx`
+1. **Calcular regresión polinómica (grado 3):** Implementar una función `polyFit` directamente en el componente que reciba los puntos `(x, y)` del GMV diario y devuelva los coeficientes del polinomio usando mínimos cuadrados (eliminación gaussiana sobre la matriz normal).
 
-Cambiar:
-```ts
-const top10 = clientsMTD.slice(0, 10);
-```
+2. **Generar datos de tendencia:** Crear un campo `gmvTrend` en cada punto de `dailyCurrent` con el valor calculado por el polinomio ajustado.
 
-Por:
-```ts
-const top10 = [...clientsMTD].sort((a, b) => b.services - a.services).slice(0, 10);
-```
+3. **Agregar línea al gráfico:** Usar un componente `Line` de Recharts (importado adicionalmente) con:
+   - `dataKey="gmvTrend"`
+   - `strokeDasharray="6 4"` (punteada)
+   - Color diferenciado (naranja/amber)
+   - Sin dots (`dot={false}`)
+   - `strokeWidth={2}`
 
-Tambien ajustar el calculo de "Otros" para que use la lista completa ordenada por servicios:
-```ts
-const sorted = [...clientsMTD].sort((a, b) => b.services - a.services);
-const top10 = sorted.slice(0, 10);
-const othersSvc = sorted.slice(10).reduce((sum, c) => sum + c.services, 0);
-```
+4. **Leyenda visual:** Agregar indicador en el header mostrando qué representa la línea punteada ("Tendencia").
 
-### Resultado
+### Resultado visual
 
-- El donut de **Servicios por Cliente** mostrara ASTRA ZENECA primero (24%) y LOGER segundo (14%)
-- El donut de **GMV por Cliente** seguira mostrando el orden por GMV (sin cambios)
-- No se modifica ninguna otra tarjeta ni dato
+- La línea de área actual se mantiene igual
+- Se superpone una línea punteada suave que muestra la tendencia general del GMV
+- Solo se calcula sobre días con datos reales (GMV > 0)
