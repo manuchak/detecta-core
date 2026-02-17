@@ -1,10 +1,9 @@
 import React from 'react';
 import { Document, View, Text } from '@react-pdf/renderer';
-import { ReportPage, SectionHeader, DataTable, KPIRow, PDF_COLORS } from '@/components/pdf';
+import { ReportPage, SectionHeader, DataTable, KPIRow, PDF_COLORS, PDFHorizontalBarChart } from '@/components/pdf';
 import type { DataTableColumn } from '@/components/pdf/DataTable';
 import type { ClientDashboardMetrics, ClientTableData, ClientMetrics } from '@/hooks/useClientAnalytics';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { getChartColors } from '@/components/pdf/charts/chartUtils';
 
 interface ClientAnalyticsPDFDocumentProps {
   logoBase64: string | null;
@@ -35,30 +34,36 @@ const DashboardPage: React.FC<{
 }> = ({ logoBase64, dateLabel, clientMetrics, tableData }) => {
   const kpiItems = [
     {
-      label: '🏆 Mayor GMV',
+      label: 'Mayor GMV',
       value: fmtM(clientMetrics.highestGMV.gmv),
       trend: clientMetrics.highestGMV.clientName,
       accentColor: PDF_COLORS.red,
     },
     {
-      label: '📦 Más Servicios',
+      label: 'Mas Servicios',
       value: String(clientMetrics.mostServices.services),
       trend: clientMetrics.mostServices.clientName,
       accentColor: PDF_COLORS.info,
     },
     {
-      label: '💰 Mejor AOV',
+      label: 'Mejor AOV',
       value: fmt(clientMetrics.topAOV.aov),
       trend: clientMetrics.topAOV.clientName,
       accentColor: PDF_COLORS.success,
     },
     {
-      label: '✅ Mejor Cumplimiento',
+      label: 'Mejor Cumplimiento',
       value: `${clientMetrics.bestCompletion.completionRate.toFixed(1)}%`,
       trend: clientMetrics.bestCompletion.clientName,
       accentColor: PDF_COLORS.warning,
     },
   ];
+
+  const top10ChartData = tableData.slice(0, 10).map((d, i) => ({
+    label: d.clientName.length > 14 ? d.clientName.slice(0, 14) : d.clientName,
+    value: d.currentGMV,
+    color: getChartColors(10)[i],
+  }));
 
   const top15 = tableData.slice(0, 15);
 
@@ -100,14 +105,29 @@ const DashboardPage: React.FC<{
       logoBase64={logoBase64}
       footerText="Confidencial – Solo para uso interno"
     >
-      <SectionHeader title="Champions del Período" />
+      <SectionHeader title="Champions del Periodo" />
       <KPIRow items={kpiItems} />
 
-      <SectionHeader title={`Top ${Math.min(top15.length, 15)} Clientes por GMV`} />
+      {top10ChartData.length > 0 && (
+        <View wrap={false}>
+          <SectionHeader title="Top 10 Clientes por GMV" />
+          <PDFHorizontalBarChart
+            data={top10ChartData}
+            width={510}
+            showValues
+          />
+        </View>
+      )}
+
+      <View minPresenceAhead={60}>
+        <SectionHeader title={`Top ${Math.min(top15.length, 15)} Clientes por GMV`} />
+      </View>
       <DataTable columns={clientColumns} data={top15} striped />
 
-      <SectionHeader title="Análisis Foráneo vs Local" />
-      <DataTable columns={typeColumns} data={[foraneoRow, localRow]} striped={false} />
+      <View wrap={false}>
+        <SectionHeader title="Analisis Foraneo vs Local" />
+        <DataTable columns={typeColumns} data={[foraneoRow, localRow]} striped={false} />
+      </View>
     </ReportPage>
   );
 };
