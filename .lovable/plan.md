@@ -1,57 +1,59 @@
 
 
-## Mejoras al Dashboard Ejecutivo: GMV Diario y GMV MoM
+## Mejoras al Formulario de Incidentes Operativos
 
-### Cambio 1: GMV Diario - De barras a linea suavizada
+Se abordan los 3 problemas reportados:
 
-**Archivo:** `src/components/executive/GmvDailyChart.tsx`
+### 1. Mapa no visible en el formulario
 
-- Reemplazar el `BarChart` + `Bar` de Recharts por `AreaChart` + `Area` con `type="monotone"` para lograr la curva suavizada
-- Agregar puntos (`dot`) en cada dia para marcar los hitos diarios
-- Mantener el gradiente debajo de la linea (area fill) para dar contexto visual
-- Conservar el tooltip con la misma informacion (dia, GMV, servicios)
-- Mantener las etiquetas de valor en los puntos mas relevantes
+**Problema:** El `LocationPicker` solo muestra el mapa cuando ya hay coordenadas (`lat` y `lng`). Si no se ha seleccionado una ubicacion mediante busqueda de texto, el mapa nunca aparece. El usuario espera ver un mapa desde el inicio para poder hacer clic y seleccionar ubicacion.
 
-### Cambio 2: Layout - Mas espacio para GMV MoM
+**Solucion:** Modificar `LocationPicker.tsx` para que siempre muestre un mapa inline (centrado en Mexico City por defecto) incluso cuando no hay coordenadas seleccionadas. Cuando el usuario haga clic en el mapa, se colocara un marcador y se hara geocodificacion inversa para obtener la direccion.
 
-**Archivo:** `src/pages/Dashboard/ExecutiveDashboard.tsx`
+**Archivo:** `src/components/monitoring/incidents/LocationPicker.tsx`
+- Cambiar la condicion `{lat && lng && (` (linea 299) para mostrar el mapa siempre
+- Inicializar el mapa con coordenadas por defecto (CDMX: -99.1332, 19.4326) cuando no hay lat/lng
+- Agregar el marcador al hacer clic en el mapa (cuando no hay marcador previo)
+- Mantener toda la funcionalidad existente de busqueda, drag, doble-clic para expandir
 
-El layout actual del Bloque 1 es:
+### 2. UX de firma: Aclarar cuando firmar
 
-```text
-[ GMV Diario (1/3) ] [ YTD Card (1/3) ] [ GMV MoM (1/3) ]
-```
+**Problema:** El pad de firma aparece al final del formulario sin contexto claro. El usuario no sabe que la firma es requerida solo al hacer clic en "Registrar" (no al guardar borrador).
 
-Se cambiara a un layout donde GMV MoM ocupe 2 columnas:
+**Solucion:** Mejorar la UX de la seccion de firma en `IncidentReportForm.tsx`:
+- Agregar un titulo de seccion claro: "Firma de Creacion" con un icono
+- Agregar texto explicativo prominente: "La firma es requerida para cambiar el estado de borrador a abierto. Puedes guardar borrador sin firmar."
+- Resaltar visualmente que "Guardar borrador" no requiere firma vs "Registrar" si la requiere
+- Agregar un indicador visual junto al boton "Registrar" si falta la firma
 
-```text
-[ GMV Diario (1/3) ] [ GMV MoM Multi-Ano (2/3)          ]
-```
+**Archivo:** `src/components/monitoring/incidents/IncidentReportForm.tsx`
+- Lineas 739-746: Agregar CardHeader con titulo y descripcion clara a la tarjeta de firma
+- Linea 564: Agregar indicador visual al boton "Registrar" cuando falta firma
 
-- `GmvDailyChart` mantiene 1 columna (`lg:col-span-1`)
-- `GmvMoMChart` se expande a 2 columnas (`lg:col-span-2`)
-- `GmvAccumulatedCard` (YTD 2026 vs 2025) se reubica dentro de la tarjeta de GMV MoM como un header compacto o se mueve al Bloque 2
+### 3. Eliminar incidentes (rol owner/admin)
 
-Para no perder ninguna informacion, la tarjeta YTD se reubicara al Bloque 2, reemplazando la posicion antes del donut de clientes:
+**Problema:** No existe funcionalidad de eliminar incidentes. Como owner, se necesita poder eliminar incidentes de prueba.
 
-```text
-Bloque 1: [ GMV Diario (1/3) ] [ GMV MoM Multi-Ano (2/3)          ]
-Bloque 2: [ YTD Card (1/3)   ] [ GMV por Cliente (1/3) ] [ GMV por Ano (1/3) ]
-Bloque 3: [ GMV Trimestre     ] [ ... resto igual ...                        ]
-```
+**Solucion:** Agregar hook `useDeleteIncidente` y boton de eliminar en la lista y en el formulario, restringido a roles `admin` y `owner`.
 
-### Detalle tecnico
+**Archivo:** `src/hooks/useIncidentesOperativos.ts`
+- Agregar `useDeleteIncidente()` que elimina de `incidentes_operativos` y sus entradas de cronologia asociadas
 
-**GmvDailyChart.tsx:**
-- Cambiar imports de `BarChart, Bar` a `AreaChart, Area`
-- Agregar gradiente `linearGradient` para el fill del area
-- Usar `type="monotone"` en el `Area` para curva suavizada
-- Configurar `dot={{ fill: 'hsl(var(--primary))', r: 3 }}` para los puntos en cada dia
-- Remover `LabelList` (las etiquetas de barras) ya que en linea suavizada se ven mejor solo en el tooltip
+**Archivo:** `src/components/monitoring/incidents/IncidentListPanel.tsx`
+- Agregar boton de eliminar (icono Trash2) en cada tarjeta de incidente, visible solo para admin/owner
+- Agregar AlertDialog de confirmacion con texto claro ("Esta accion es irreversible")
+- No requiere firma, solo confirmacion
 
-**ExecutiveDashboard.tsx:**
-- Bloque 1: cambiar de 3 columnas iguales a `GmvDailyChart` (1 col) + `GmvMoMChart` (2 cols con `lg:col-span-2`)
-- Bloque 2: agregar `GmvAccumulatedCard` como primera tarjeta, seguida de `GmvClientDonut` y `GmvByYearChart`
-- Mover `GmvByQuarterChart` a un nuevo Bloque 3 o mantenerlo en el existente
+**Archivo:** `src/components/monitoring/incidents/IncidentReportForm.tsx`
+- Agregar boton "Eliminar" en el header del formulario cuando se esta editando, visible solo para admin/owner
+- AlertDialog de confirmacion antes de eliminar
 
-No se elimina ni omite ninguna tarjeta ni dato; solo se reorganiza el orden para dar mas espacio al grafico MoM multi-ano.
+### Resumen de archivos a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/monitoring/incidents/LocationPicker.tsx` | Mostrar mapa siempre, no solo cuando hay coords |
+| `src/components/monitoring/incidents/IncidentReportForm.tsx` | UX de firma mejorada + boton eliminar |
+| `src/hooks/useIncidentesOperativos.ts` | Agregar `useDeleteIncidente` hook |
+| `src/components/monitoring/incidents/IncidentListPanel.tsx` | Boton eliminar en lista (admin/owner) |
+
