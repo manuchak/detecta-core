@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { DollarSign } from 'lucide-react';
 import { useExecutiveMultiYearData } from '@/hooks/useExecutiveMultiYearData';
 
@@ -103,7 +103,7 @@ export const GmvDailyChart = () => {
       <CardContent>
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dataWithTrend} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
+            <ComposedChart data={dataWithTrend} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="gradientDailyGmv" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -128,7 +128,7 @@ export const GmvDailyChart = () => {
               }} />
               <Area type="monotone" dataKey="gmv" fill="url(#gradientDailyGmv)" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 3 }} activeDot={{ r: 5 }} />
               <Line type="monotone" dataKey="gmvTrend" stroke="hsl(30 80% 55%)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls />
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
