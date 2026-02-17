@@ -1,82 +1,56 @@
 
-## Mejorar PDF de Análisis de Clientes: Gráfico de Barras, Header con Logo y Correcciones
 
-### Problemas identificados en el PDF actual (imagen de referencia)
+## Corregir solapamiento de contenido con header en PDF de Incidentes
 
-1. **Emojis corruptos en KPI labels** — `@react-pdf/renderer` no soporta emojis Unicode (🏆📦💰✅). Al renderizarlos aparece texto superpuesto sobre los valores, ya que el renderer los omite y desplaza el layout.
-2. **Header sin logo** — la barra gris de header muestra el título pero no el logo, porque el `headerBar` tiene `paddingTop: 60` desde la página pero la posición del logo no está alineada correctamente con el texto.
-3. **Gráfico de barras faltante** — se solicitó un `PDFBarChart` con Top 10 clientes por GMV que aún no está implementado.
-4. **Corte de páginas** — la sección "Análisis Foráneo vs Local" aparece cortada al fondo de la página. Falta `minPresenceAhead` y agrupación con `wrap={false}`.
+### Problema raiz
+
+El `ReportHeader` usa `position: 'absolute'` dentro de un `<View fixed>`. Esto posiciona el header fuera del flujo del documento. Aunque la pagina tiene `paddingTop: 60`, al hacer wrap a paginas 2+, el contenido de la cronologia (especialmente entradas con imagenes grandes) se solapa con el header fijo porque react-pdf no siempre respeta el padding correctamente en paginas subsiguientes cuando hay elementos absolutamente posicionados combinados con `wrap={false}` en hijos grandes.
+
+### Solucion
+
+Cambiar el header de `position: absolute` a un layout de flujo (flow-based) que reserve espacio real en cada pagina, manteniendo el mismo aspecto visual.
 
 ---
 
-### Cambios a realizar
+### Archivos a modificar
 
-**Archivo: `src/components/executive/pdf/ClientAnalyticsPDFDocument.tsx`**
+**1. `src/components/pdf/ReportHeader.tsx`**
 
-#### 1. Eliminar emojis de los KPI labels
-Reemplazar los 4 labels con texto plano:
-- `'🏆 Mayor GMV'` → `'Mayor GMV'`
-- `'📦 Más Servicios'` → `'Más Servicios'`
-- `'💰 Mejor AOV'` → `'Mejor AOV'`
-- `'✅ Mejor Cumplimiento'` → `'Mejor Cumplimiento'`
+Eliminar `position: 'absolute'` del headerBar. En su lugar, usar un `<View fixed>` que ocupe espacio real en el flujo del documento con dimensiones explicitas, y posicionar los hijos internamente:
 
-#### 2. Agregar PDFBarChart — Top 10 Clientes por GMV
-Insertar el gráfico de barras nativo **entre** los KPI Champions y la tabla Top 15, usando el componente `PDFBarChart` ya disponible en el design system:
+- El wrapper `fixed` mantiene un alto de 52pt (42pt barra + 2pt linea roja + 8pt espacio)
+- La barra gris se posiciona con absolute DENTRO del fixed view (no del page)
+- La linea roja se mantiene debajo
 
-```text
-┌─────────────────────────────────────┐
-│  Champions del Período (KPIRow)     │
-├─────────────────────────────────────┤
-│  Top 10 Clientes por GMV (BarChart) │  ← NUEVO
-│  [barras horizontales con labels]   │
-├─────────────────────────────────────┤
-│  Top 15 Clientes por GMV (tabla)    │
-├─────────────────────────────────────┤
-│  Análisis Foráneo vs Local          │
-└─────────────────────────────────────┘
-```
+Esto asegura que en cada pagina, el header reserva 52pt de espacio antes de que el contenido fluya.
 
-El chart se construye con los primeros 10 registros de `tableData`, mapeando:
-- `label`: nombre del cliente (truncado a 12 chars)
-- `value`: `currentGMV`
-- `color`: usando `getChartColors(10)` del design system
+**2. `src/components/pdf/styles.ts`**
 
-Se usará `PDFHorizontalBarChart` (en lugar del vertical) porque los nombres de clientes son largos — esto asegura que los labels sean legibles en el eje Y, al igual que se hace en otros reportes del sistema.
+Actualizar `headerBar` para quitar `position: 'absolute'` y cambiar a un layout de flujo. Ajustar las propiedades para que la barra ocupe su espacio natural (height fijo, flexDirection row, alignItems center).
 
-Dimensiones: `width=510, height=200` (aprovechando el ancho completo de la página A4 menos márgenes).
+**3. `src/components/pdf/tokens.ts`**
 
-#### 3. Proteger corte de página en secciones pequeñas
-Envolver la sección "Análisis Foráneo vs Local" en un `<View wrap={false}>` para evitar que se parta entre páginas:
+Reducir `paddingTop` de 60 a un valor menor (ej: 10-14pt) ya que el header ahora reserva espacio por si mismo en el flujo. El paddingTop ya no necesita compensar un header absoluto.
 
-```tsx
-<View wrap={false}>
-  <SectionHeader title="Análisis Foráneo vs Local" />
-  <DataTable columns={typeColumns} data={[foraneoRow, localRow]} striped={false} />
-</View>
-```
+**4. `src/components/monitoring/incidents/pdf/PDFTimeline.tsx`**
 
-Agregar también `minPresenceAhead={60}` en el header de la tabla Top 15 para evitar que el encabezado quede huérfano al final de página.
+Agregar `minPresenceAhead={40}` al `SectionHeader` de la cronologia para evitar que el titulo de seccion quede huerfano al final de pagina sin entradas debajo.
 
-#### 4. Mejorar el header con separación visual de título/subtítulo
-El header actual pone título y subtítulo en la misma línea sin suficiente separación visual. Se mejora con un separador vertical (`|`) y estilos más limpios directamente en el componente para el subtítulo del lado derecho.
+**5. `src/components/monitoring/incidents/pdf/IncidentPDFDocument.tsx`**
+
+Envolver las secciones Controls, Resolution y Signatures cada una en `<View wrap={false}>` para que no se partan a mitad de pagina.
 
 ---
 
 ### Resultado esperado
 
-| Problema | Antes | Después |
-|----------|-------|---------|
-| Emojis en KPI labels | Texto corrupto superpuesto | Labels limpios en texto plano |
-| Logo en header | Sin logo visible | Logo detecta alineado izquierda |
-| Gráfico de barras | No existe | Barras horizontales Top 10 por GMV |
-| Corte de páginas | Foráneo/Local cortado | Sección protegida con wrap={false} |
+| Antes | Despues |
+|-------|---------|
+| Texto de cronologia se solapa con header en pag. 2+ | Header reserva espacio real, contenido fluye debajo |
+| Imagenes de cronologia cubren la barra gris y linea roja | Separacion limpia entre header y contenido en cada pagina |
+| Secciones cortas (Controles, Resolucion) pueden partirse entre paginas | Secciones cortas se mantienen agrupadas |
 
-El PDF resultante tendrá 1 página (sin cliente seleccionado) con el diseño:
-- Header: logo + "ANÁLISIS DE CLIENTES" + fecha a la derecha
-- Línea roja de acento bajo el header
-- KPI Champions (4 tarjetas sin emojis)
-- Gráfico de barras horizontal Top 10 por GMV
-- Tabla Top 15 con columnas correctas
-- Análisis Foráneo vs Local (sin corte)
-- Footer con número de página
+### Riesgo
+
+Este cambio afecta `ReportHeader`, `styles.ts` y `tokens.ts` que son compartidos por todos los reportes PDF (Incidentes, Historico, Clientes). Dado que todos sufren el mismo patron de header absoluto, la correccion los beneficia a todos. Se verificara que el paddingTop ajustado no rompa los otros reportes ya que todos usan el mismo `ReportPage` wrapper.
+
