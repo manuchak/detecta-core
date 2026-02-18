@@ -1,33 +1,46 @@
 
 
-# Fix: Mostrar Customer Success y roles faltantes en el dropdown
+# Fix: Agregar `customer_success` al enum `app_role` en la base de datos
 
 ## Problema
 
-El dropdown de "CAMBIAR ROL" en la pagina de roles usa una lista **hardcodeada** dentro de `RoleManager.tsx` (linea 69-73), que NO incluye `customer_success` ni varios otros roles. El hook `useAvailableRoles` que ya corregimos no se usa en este componente.
+El error "Invalid role: customer_success" ocurre porque el rol **no existe en el enum `app_role` de la base de datos**. El dropdown del frontend muestra el rol correctamente, pero al intentar guardarlo en la tabla `user_roles`, PostgreSQL lo rechaza porque no es un valor valido del enum.
+
+### Roles actuales en el enum de la base de datos:
+`owner, admin, supply_admin, bi, monitoring_supervisor, monitoring, supply, soporte, pending, unverified, custodio, ejecutivo_ventas, coordinador_operaciones, tecnico_instalador, planificador, supply_lead`
+
+### Roles faltantes en el enum (usados en el codigo):
+- `customer_success`
+- `capacitacion_admin`
+- `jefe_seguridad`
+- `analista_seguridad`
+- `instalador`
+- `facturacion_admin`
+- `facturacion`
+- `finanzas_admin`
+- `finanzas`
 
 ## Solucion
 
-Actualizar dos secciones en `src/components/settings/roles/RoleManager.tsx`:
+Ejecutar una migracion SQL para agregar los valores faltantes al enum `app_role`:
 
-### 1. Lista de roles disponibles (linea 69-73)
+```sql
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'customer_success';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'capacitacion_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'jefe_seguridad';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'analista_seguridad';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'instalador';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas';
+```
 
-Agregar los roles faltantes: `customer_success`, `capacitacion_admin`, `custodio`, `facturacion_admin`, `facturacion`, `finanzas_admin`, `finanzas`.
+## Cambios necesarios
 
-### 2. Mapa de nombres para display (linea 75-91)
+1. **Migracion de base de datos** -- Agregar los 9 valores faltantes al enum `app_role`
+2. **Sin cambios de codigo** -- El frontend ya tiene los roles configurados correctamente
 
-Agregar las traducciones para los roles nuevos:
-- `customer_success` -> "Customer Success"
-- `capacitacion_admin` -> "Admin Capacitacion"
-- `custodio` -> "Custodio"
-- `facturacion_admin` -> "Admin Facturacion"
-- `facturacion` -> "Facturacion"
-- `finanzas_admin` -> "Admin Finanzas"
-- `finanzas` -> "Finanzas"
+## Resultado esperado
 
-## Archivo a modificar
-
-- `src/components/settings/roles/RoleManager.tsx`
-
-Solo se modifican 2 bloques dentro de este archivo. No se requieren cambios en base de datos ni en otros archivos.
-
+Despues de la migracion, podras asignar el rol "Customer Success" a Alfredo Zuniga y a cualquier otro usuario sin errores.
