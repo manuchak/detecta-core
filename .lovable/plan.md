@@ -1,60 +1,35 @@
 
-# Fix: Supply no puede verificar documentos de custodios
+# Restringir acceso del rol Customer Success a modulos de Operaciones y Supply
 
-## Problema
+## Problema actual
 
-La politica RLS "Staff actualiza documentos" en la tabla `documentos_custodio` solo permite UPDATE a los roles: `admin, owner, planeacion, monitoreo, coordinador`. Los roles de supply (`supply`, `supply_lead`, `supply_admin`) no estan incluidos, por lo que al hacer clic en "Verificar" reciben el error "Error al actualizar el documento".
-
-Adicionalmente, la politica "Staff ve todos los documentos" (SELECT) tampoco incluye los roles de supply, lo que podria causar problemas de visibilidad.
+El rol `customer_success` puede ver los grupos de navegacion "Supply & Talento" y "Operaciones" en la barra lateral porque no esta incluido en `RESTRICTED_NAVIGATION_ROLES` en `navigationConfig.ts`. Aunque algunos sub-modulos tienen listas de roles que excluyen a CS, el grupo completo sigue visible.
 
 ## Solucion
 
-### Cambio 1: Migracion SQL - Actualizar ambas politicas RLS
+### Archivo: `src/config/navigationConfig.ts`
 
-Ejecutar una migracion que modifique las dos politicas para incluir los roles de supply:
+Agregar `customer_success` a `RESTRICTED_NAVIGATION_ROLES` para que solo vea los grupos permitidos:
 
-```sql
--- Actualizar politica de UPDATE
-DROP POLICY IF EXISTS "Staff actualiza documentos" ON public.documentos_custodio;
-CREATE POLICY "Staff actualiza documentos" 
-ON public.documentos_custodio FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM user_roles 
-    WHERE user_roles.user_id = auth.uid() 
-    AND user_roles.role = ANY (ARRAY[
-      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
-      'supply', 'supply_lead', 'supply_admin'
-    ])
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM user_roles 
-    WHERE user_roles.user_id = auth.uid() 
-    AND user_roles.role = ANY (ARRAY[
-      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
-      'supply', 'supply_lead', 'supply_admin'
-    ])
-  )
-);
-
--- Actualizar politica de SELECT
-DROP POLICY IF EXISTS "Staff ve todos los documentos" ON public.documentos_custodio;
-CREATE POLICY "Staff ve todos los documentos"
-ON public.documentos_custodio FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles 
-    WHERE user_id = auth.uid() 
-    AND role IN (
-      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
-      'supply', 'supply_lead', 'supply_admin'
-    )
-  )
-);
+```typescript
+export const RESTRICTED_NAVIGATION_ROLES: Record<string, string[]> = {
+  'monitoring': ['monitoring'],
+  'soporte': ['monitoring'],
+  'customer_success': ['dashboard', 'customer-success', 'capacitacion', 'system'],
+};
 ```
 
-### Sin cambios de codigo
+Esto limita la navegacion del rol CS a:
+- **Dashboard** (incluye CRM Hub, que ya tiene a CS en su lista de roles)
+- **Customer Success** (su modulo principal)
+- **Capacitacion** (LMS, donde ya tiene acceso)
+- **Sistema** (configuracion/settings)
 
-El hook `useVerifyDocument.ts` esta correcto. El problema es exclusivamente de permisos en la base de datos.
+Los grupos **Supply & Talento**, **Operaciones**, **Facturacion**, **Monitoreo & Soporte** y **Seguridad** quedaran ocultos para CS.
+
+### Archivo: `src/components/navigation/GlobalNav.tsx`
+
+Sin cambios necesarios. El GlobalNav ya filtra por la lista `roles` de cada modulo, y CS solo aparece en `customer-success`. Los modulos de operaciones y supply no lo incluyen.
+
+### Sin cambios de base de datos
+Es un cambio exclusivamente de navegacion frontend. Las politicas RLS existentes ya protegen los datos a nivel de backend.
