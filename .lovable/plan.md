@@ -1,46 +1,52 @@
 
 
-# Fix: Agregar `customer_success` al enum `app_role` en la base de datos
+# Fix: Agregar roles faltantes a la funcion `get_available_roles_secure()`
 
 ## Problema
 
-El error "Invalid role: customer_success" ocurre porque el rol **no existe en el enum `app_role` de la base de datos**. El dropdown del frontend muestra el rol correctamente, pero al intentar guardarlo en la tabla `user_roles`, PostgreSQL lo rechaza porque no es un valor valido del enum.
+El error "Invalid role: customer_success" persiste porque la funcion de base de datos `get_available_roles_secure()` tiene una lista **hardcodeada** de roles validos que NO incluye `customer_success` ni otros roles nuevos. Esta funcion es usada por `update_user_role_secure()` para validar el rol antes de asignarlo.
 
-### Roles actuales en el enum de la base de datos:
-`owner, admin, supply_admin, bi, monitoring_supervisor, monitoring, supply, soporte, pending, unverified, custodio, ejecutivo_ventas, coordinador_operaciones, tecnico_instalador, planificador, supply_lead`
+## Roles faltantes en la funcion
 
-### Roles faltantes en el enum (usados en el codigo):
+La funcion actualmente tiene 18 roles. Faltan estos 7:
 - `customer_success`
 - `capacitacion_admin`
-- `jefe_seguridad`
-- `analista_seguridad`
-- `instalador`
 - `facturacion_admin`
 - `facturacion`
 - `finanzas_admin`
 - `finanzas`
 
+(Los roles `jefe_seguridad`, `analista_seguridad`, `instalador` ya estan incluidos)
+
 ## Solucion
 
-Ejecutar una migracion SQL para agregar los valores faltantes al enum `app_role`:
+Ejecutar una migracion SQL para reemplazar la funcion `get_available_roles_secure()` con una version actualizada que incluya todos los roles del enum `app_role`.
 
 ```sql
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'customer_success';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'capacitacion_admin';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'jefe_seguridad';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'analista_seguridad';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'instalador';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion_admin';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas_admin';
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas';
+CREATE OR REPLACE FUNCTION public.get_available_roles_secure()
+RETURNS text[]
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN ARRAY[
+    'owner', 'admin', 'supply_admin', 'capacitacion_admin',
+    'coordinador_operaciones', 'jefe_seguridad', 'analista_seguridad',
+    'supply_lead', 'ejecutivo_ventas', 'custodio', 'bi',
+    'monitoring_supervisor', 'monitoring', 'supply', 'instalador',
+    'planificador', 'soporte', 'facturacion_admin', 'facturacion',
+    'finanzas_admin', 'finanzas', 'customer_success',
+    'pending', 'unverified'
+  ];
+END;
+$$;
 ```
 
-## Cambios necesarios
+## Cambios
 
-1. **Migracion de base de datos** -- Agregar los 9 valores faltantes al enum `app_role`
-2. **Sin cambios de codigo** -- El frontend ya tiene los roles configurados correctamente
+1. **Una migracion SQL** -- Actualizar la funcion `get_available_roles_secure()` para incluir los 6 roles faltantes
+2. **Sin cambios de codigo** -- El frontend ya esta correctamente configurado
 
 ## Resultado esperado
 
-Despues de la migracion, podras asignar el rol "Customer Success" a Alfredo Zuniga y a cualquier otro usuario sin errores.
+Despues de la migracion, podras asignar "Customer Success" a Alfredo Zuniga sin errores.
