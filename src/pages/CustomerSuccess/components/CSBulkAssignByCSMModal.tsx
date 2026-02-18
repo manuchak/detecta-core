@@ -89,7 +89,7 @@ export function CSBulkAssignByCSMModal({ open, onOpenChange, clientes }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose(); }}>
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col max-h-[85vh]">
         <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5 text-primary" />
@@ -100,7 +100,7 @@ export function CSBulkAssignByCSMModal({ open, onOpenChange, clientes }: Props) 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-[380px] max-h-[60vh]">
+        <div className="flex flex-1 overflow-hidden">
           {/* Left panel – CSM list */}
           <div className="w-[220px] border-r flex flex-col bg-muted/30">
             <div className="px-3 py-2 border-b">
@@ -179,15 +179,16 @@ export function CSBulkAssignByCSMModal({ open, onOpenChange, clientes }: Props) 
                 </div>
 
                 {availableClients.length > 0 && (
-                  <div className="flex items-center gap-2 px-4 py-1.5 border-b bg-muted/20">
+                  <div
+                    className="flex items-center gap-2 px-4 py-1.5 border-b bg-muted/20 cursor-pointer select-none"
+                    onClick={handleToggleAll}
+                  >
                     <Checkbox
                       checked={selectedIds.size === availableClients.length && availableClients.length > 0}
-                      onCheckedChange={handleToggleAll}
-                      id="select-all"
                     />
-                    <label htmlFor="select-all" className="text-xs text-muted-foreground cursor-pointer select-none">
+                    <span className="text-xs text-muted-foreground">
                       Seleccionar todos
-                    </label>
+                    </span>
                   </div>
                 )}
 
@@ -207,7 +208,7 @@ export function CSBulkAssignByCSMModal({ open, onOpenChange, clientes }: Props) 
                           )}
                           onClick={() => handleToggle(c.id)}
                         >
-                          <Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => handleToggle(c.id)} />
+                          <Checkbox checked={selectedIds.has(c.id)} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{c.nombre}</p>
                             <p className="text-[11px] text-muted-foreground truncate">
