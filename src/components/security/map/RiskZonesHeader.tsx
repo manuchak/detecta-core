@@ -25,14 +25,12 @@ export function RiskZonesHeader() {
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="flex flex-wrap gap-2">
       {cards.map((c, i) => (
-        <div key={i} className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1.5 border">
-          <c.icon className={`h-3.5 w-3.5 shrink-0 ${c.color || 'text-muted-foreground'}`} />
-          <div>
-            <div className="text-xs font-semibold text-foreground leading-tight">{c.value}</div>
-            <div className="text-[10px] text-muted-foreground leading-tight">{c.label} · {c.sub}</div>
-          </div>
+        <div key={i} className="flex items-center gap-1.5 bg-muted/30 rounded px-2 py-1 border">
+          <c.icon className={`h-3 w-3 shrink-0 ${c.color || 'text-muted-foreground'}`} />
+          <span className="text-xs font-semibold text-foreground leading-none">{c.value}</span>
+          <span className="text-[10px] text-muted-foreground leading-none">{c.label} · {c.sub}</span>
         </div>
       ))}
     </div>

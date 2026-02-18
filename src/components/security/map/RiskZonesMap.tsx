@@ -71,8 +71,8 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         setLoading(false);
         // Multiple resize calls to ensure canvas recalculates after transform compensation
         m.resize();
-        setTimeout(() => m.resize(), 100);
-        setTimeout(() => m.resize(), 500);
+        setTimeout(() => m.resize(), 200);
+        setTimeout(() => m.resize(), 800);
       });
 
       m.on('error', () => {
@@ -311,25 +311,27 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-full">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div
-        ref={mapContainer}
-        className="absolute top-0 left-0 rounded-lg"
-        style={{
-          transform: 'scale(1.4286)',
-          transformOrigin: 'top left',
-          width: '70%',
-          height: '70%',
-        }}
-      />
-      {/* Legend */}
+      {/* Clip wrapper — contains the zoomed map */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          ref={mapContainer}
+          className="rounded-lg"
+          style={{
+            zoom: 1.4286,
+            width: '70%',
+            height: '70%',
+          }}
+        />
+      </div>
+      {/* Legend — outside zoom, absolute position */}
       {mapReady && (
-        <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm">
+        <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm z-[5]">
           <div className="font-semibold text-foreground">Nivel de Riesgo</div>
           {(['extremo', 'alto', 'medio', 'bajo'] as RiskLevel[]).map(level => (
             <div key={level} className="flex items-center gap-2">
