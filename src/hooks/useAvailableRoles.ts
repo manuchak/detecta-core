@@ -40,6 +40,7 @@ export const useAvailableRoles = () => {
             'owner',
             'admin', 
             'supply_admin',
+            'capacitacion_admin',
             'coordinador_operaciones',
             'jefe_seguridad',
             'analista_seguridad',
@@ -52,6 +53,7 @@ export const useAvailableRoles = () => {
             'supply',
             'instalador',
             'soporte',
+            'customer_success',
             'pending',
             'unverified'
           ] as Role[];

@@ -101,6 +101,7 @@ export const UserRoleManager = () => {
       'owner': 'Propietario',
       'admin': 'Administrador',
       'supply_admin': 'Admin Suministros',
+      'capacitacion_admin': 'Admin Capacitación',
       'coordinador_operaciones': 'Coordinador Ops',
       'jefe_seguridad': 'Jefe de Seguridad',
       'analista_seguridad': 'Analista Seguridad',
@@ -113,6 +114,7 @@ export const UserRoleManager = () => {
       'supply': 'Suministros',
       'instalador': 'Instalador',
       'soporte': 'Soporte',
+      'customer_success': 'Customer Success',
       'pending': 'Pendiente',
       'unverified': 'No Verificado'
     };
