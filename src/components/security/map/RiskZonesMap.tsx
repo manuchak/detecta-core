@@ -69,8 +69,10 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         map.current = m;
         setMapReady(true);
         setLoading(false);
-        // Recalculate canvas after zoom compensation is applied
-        setTimeout(() => m.resize(), 150);
+        // Multiple resize calls to ensure canvas recalculates after transform compensation
+        m.resize();
+        setTimeout(() => m.resize(), 100);
+        setTimeout(() => m.resize(), 500);
       });
 
       m.on('error', () => {
@@ -317,13 +319,12 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       )}
       <div
         ref={mapContainer}
-        className="rounded-lg"
+        className="absolute top-0 left-0 rounded-lg"
         style={{
-          zoom: 1 / 0.7,
+          transform: 'scale(1.4286)',
+          transformOrigin: 'top left',
           width: '70%',
           height: '70%',
-          minHeight: '400px',
-          transformOrigin: 'top left',
         }}
       />
       {/* Legend */}
