@@ -49,7 +49,7 @@ const SecurityPage = () => {
           <SecurityDashboard />
         </TabsContent>
 
-        <TabsContent value="routes" className="mt-4 h-[calc(100vh-160px)]">
+        <TabsContent value="routes" className="mt-4 h-[calc(100vh-140px)]">
           <RouteRiskIntelligence />
         </TabsContent>
 
