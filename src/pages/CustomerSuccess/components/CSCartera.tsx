@@ -12,7 +12,8 @@ import { useCSCartera, useDeactivateCliente, useReactivateCliente, type CarteraS
 import { useCreateCSTouchpoint } from '@/hooks/useCSTouchpoints';
 import { useAssignCSM, useBulkAssignCSM, useCSMOptions } from '@/hooks/useAssignCSM';
 import { CSClienteProfileModal } from './CSClienteProfileModal';
-import { UserMinus, UserPlus, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MessageSquarePlus, Users, UserCog } from 'lucide-react';
+import { CSBulkAssignByCSMModal } from './CSBulkAssignByCSMModal';
+import { UserMinus, UserPlus, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MessageSquarePlus, Users, UserCog, UsersRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -31,7 +32,7 @@ const DOT = {
   rojo: 'bg-red-500',
 };
 
-type SortKey = 'nombre' | 'ultimo_servicio' | 'gmv_90d' | 'quejas_abiertas' | 'csat' | 'dias_sin_contacto' | 'servicios_90d';
+type SortKey = 'nombre' | 'ultimo_servicio' | 'gmv_90d' | 'quejas_abiertas' | 'csat' | 'dias_sin_contacto' | 'servicios_90d' | 'ultimo_touchpoint';
 type SortDir = 'asc' | 'desc';
 
 const PAGE_SIZE = 25;
@@ -83,6 +84,7 @@ export function CSCartera() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCsmModal, setBulkCsmModal] = useState(false);
   const [bulkCsmId, setBulkCsmId] = useState('');
+  const [bulkAssignByCSMOpen, setBulkAssignByCSMOpen] = useState(false);
 
   const { data: cartera, isLoading } = useCSCartera();
   const deactivate = useDeactivateCliente();
@@ -247,6 +249,15 @@ export function CSCartera() {
             Asignar CSM ({selectedIds.size})
           </Button>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setBulkAssignByCSMOpen(true)}
+          className="gap-1.5"
+        >
+          <UsersRound className="h-4 w-4" />
+          Asignar por CSM
+        </Button>
       </div>
 
       {/* Segment Filters */}
@@ -319,13 +330,16 @@ export function CSCartera() {
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('dias_sin_contacto')}>
                     <div className="flex items-center justify-center">Días s/c<SortIcon col="dias_sin_contacto" /></div>
                   </TableHead>
+                  <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('ultimo_touchpoint')}>
+                    <div className="flex items-center justify-center">Ult. TP<SortIcon col="ultimo_touchpoint" /></div>
+                  </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {processed.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={12} className="h-24 text-center text-muted-foreground">
                       No hay clientes en este segmento
                     </TableCell>
                   </TableRow>
@@ -396,6 +410,12 @@ export function CSCartera() {
                             {c.dias_sin_contacto}d
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-center text-sm">
+                        {c.ultimo_touchpoint
+                          ? format(new Date(c.ultimo_touchpoint), 'dd/MM/yy')
+                          : <span className="text-muted-foreground">—</span>
+                        }
                       </TableCell>
                       <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
@@ -597,6 +617,13 @@ export function CSCartera() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Assign by CSM Modal */}
+      <CSBulkAssignByCSMModal
+        open={bulkAssignByCSMOpen}
+        onOpenChange={setBulkAssignByCSMOpen}
+        clientes={cartera || []}
+      />
 
       {/* Profile Modal */}
       <CSClienteProfileModal

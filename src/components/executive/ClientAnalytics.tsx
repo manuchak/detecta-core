@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, differenceInDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, differenceInDays, subDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { 
   Search, 
@@ -40,7 +40,7 @@ import { exportClientAnalyticsPDF } from './pdf/ClientAnalyticsPDFExporter';
 import { toast } from 'sonner';
 import { format as dateFnsFormat } from 'date-fns';
 
-type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom';
+type DateFilterType = 'current_month' | 'current_quarter' | 'current_year' | 'custom' | 'last_90d' | 'last_120d' | 'last_180d' | 'last_360d';
 
 interface DateRange {
   from: Date;
@@ -67,6 +67,14 @@ export const ClientAnalytics = () => {
         return { from: startOfQuarter(now), to: yesterday };
       case 'current_year':
         return { from: startOfYear(now), to: yesterday };
+      case 'last_90d':
+        return { from: subDays(now, 90), to: yesterday };
+      case 'last_120d':
+        return { from: subDays(now, 120), to: yesterday };
+      case 'last_180d':
+        return { from: subDays(now, 180), to: yesterday };
+      case 'last_360d':
+        return { from: subDays(now, 360), to: yesterday };
       case 'custom':
         return customDateRange;
       default:
@@ -88,6 +96,10 @@ export const ClientAnalytics = () => {
       current_month: 'MTD - Mes en Curso',
       current_quarter: 'QTD - Trimestre en Curso',
       current_year: 'YTD - Año en Curso',
+      last_90d: 'Últimos 90 días',
+      last_120d: 'Últimos 120 días',
+      last_180d: 'Últimos 180 días',
+      last_360d: 'Últimos 360 días',
       custom: `${dateFnsFormat(dateRange.from, 'dd/MM/yyyy')} – ${dateFnsFormat(dateRange.to, 'dd/MM/yyyy')}`,
     };
     const dateLabel = periodLabels[dateFilterType] || 'MTD';
@@ -147,7 +159,7 @@ export const ClientAnalytics = () => {
       }
     });
 
-    return filtered.slice(0, 15); // Top 15 clients
+    return filtered;
   }, [tableData, searchTerm, sortBy]);
 
   if (isLoading) {
@@ -409,6 +421,10 @@ export const ClientAnalytics = () => {
                 <SelectItem value="current_month">MTD - Mes en Curso</SelectItem>
                 <SelectItem value="current_quarter">QTD - Trimestre en Curso</SelectItem>
                 <SelectItem value="current_year">YTD - Año en Curso</SelectItem>
+                <SelectItem value="last_90d">Últimos 90 días</SelectItem>
+                <SelectItem value="last_120d">Últimos 120 días</SelectItem>
+                <SelectItem value="last_180d">Últimos 180 días</SelectItem>
+                <SelectItem value="last_360d">Últimos 360 días</SelectItem>
                 <SelectItem value="custom">Rango Personalizado</SelectItem>
               </SelectContent>
             </Select>
@@ -649,10 +665,10 @@ export const ClientAnalytics = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            Top 15 Clientes - Análisis de Performance y Tendencias
+            Clientes - Análisis de Performance y Tendencias
           </CardTitle>
           <CardDescription>
-            Tabla completa con métricas de crecimiento, tendencias y alertas
+            Tabla completa con métricas de crecimiento, tendencias y alertas • {filteredAndSortedClients.length} clientes
           </CardDescription>
         </CardHeader>
         <CardContent>
