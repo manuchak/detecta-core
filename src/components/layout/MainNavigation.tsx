@@ -24,7 +24,8 @@ import {
   LogOut,
   User,
   ChevronDown,
-  AlertTriangle
+  AlertTriangle,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -105,6 +106,14 @@ const navigationItems: NavigationItem[] = [
     icon: AlertTriangle,
     route: '/incidentes-rrss',
     roles: ['admin', 'owner', 'supply_admin', 'jefe_seguridad', 'analista_seguridad']
+  },
+  {
+    id: 'seguridad',
+    title: 'Seguridad',
+    description: 'Inteligencia de riesgo ISO 28000',
+    icon: Shield,
+    route: '/seguridad',
+    roles: ['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones']
   }
 ];
 
