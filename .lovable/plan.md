@@ -1,107 +1,69 @@
 
-# Vista de Mapa Interactivo de Zonas de Riesgo (estilo Hermes)
+# Fix: Mapa de Zonas de Riesgo no visible + Ajustes vs Hermes
 
-## Objetivo
-Crear una vista de mapa interactivo similar a la de Hermes, con capas de corredores, segmentos coloreados por riesgo, POIs, puntos seguros, zonas sin cobertura celular, y un panel lateral con los tramos de mayor riesgo.
+## Problema Principal
+El mapa Mapbox no se muestra en el tab "Rutas y Zonas". La vista actual solo renderiza el header con KPIs y la lista de tramos a ancho completo. El layout de 3 columnas con el mapa central no funciona.
 
-## Arquitectura
+**Causa raiz**: El contenedor del mapa depende de `calc(100vh - 280px)` para su altura, pero dentro de un `TabsContent` que no tiene altura explicita, el div del mapa colapsa a 0px de alto. Adicionalmente, el grid `lg:grid-cols-[1fr_2fr_1fr]` requiere breakpoint `lg` (1024px) y el area de contenido dentro del sidebar puede no alcanzarlo.
 
-El proyecto ya tiene todos los datos necesarios:
-- `highwayCorridors.ts`: 26 corredores con waypoints `[lng, lat]`
-- `highwaySegments.ts`: ~65 segmentos granulares (~30km c/u) con nivel de riesgo
-- `highwaySegments.ts > HIGHWAY_POIS`: Puntos de interes (blackspots, casetas, entronques, zonas seguras, industriales)
-- `cellularCoverage.ts`: Zonas sin cobertura celular con poligonos
-- Tabla `safe_points` en Supabase con 18 registros
-- Mapbox ya integrado via edge function `mapbox-token`
+## Diferencias Core vs Hermes
 
-Lo que falta es el **componente de mapa** y la **reestructuracion del tab "Rutas y Zonas"**.
+| Elemento | Hermes (referencia) | Core (actual) |
+|---|---|---|
+| Mapa interactivo | Centro prominente, tema oscuro, lineas coloreadas por riesgo | No visible (height 0) |
+| Layout | Mapa ocupa ~60% del ancho con panel lateral | Solo lista de tramos visible |
+| Capas | Panel de toggles funcional sobre el mapa | Componente existe pero no se ve |
+| Leyenda | Integrada en esquina del mapa | Componente existe pero mapa no renderiza |
+| Segmentos | Panel derecho con filtros y scroll | Funciona pero ocupa todo el ancho |
 
-## Componentes a crear
+## Solucion
 
-### 1. `src/components/security/map/RiskZonesMap.tsx` (Componente principal)
-Mapa Mapbox a pantalla completa con:
-- **Lineas de segmentos** coloreadas por riesgo (rojo=extremo, naranja=alto, amarillo=medio, verde=bajo)
-- **Marcadores de POIs** con iconos por tipo (punto negro, caseta, entronque, industrial)
-- **Circulos de puntos seguros** (verdes) desde la tabla `safe_points`
-- **Poligonos de zonas sin cobertura** (gris semitransparente)
-- **Leyenda** en esquina inferior izquierda (Nivel de Riesgo por Tramo + multiplicadores)
-- **Panel de capas** (toggles) en esquina superior derecha
-- Click en segmento abre popup con detalles + recomendaciones ISO 28000
+### 1. Corregir altura del contenedor del mapa
+En `RouteRiskIntelligence.tsx`:
+- Cambiar el grid container de `style={{ height: 'calc(100vh - 280px)' }}` a una clase con altura fija y responsive
+- Asegurar que el contenedor del mapa tenga `min-height` explicito
+- Usar `md:grid-cols-[1fr_2fr_1fr]` en lugar de `lg:` para activarse antes
 
-### 2. `src/components/security/map/RiskZonesMapLayers.tsx` (Control de capas)
-Panel de toggles similar a Hermes:
-- Tramos (on/off)
-- POIs (on/off)
-- Puntos Seguros (on/off)
-- Zonas sin senal (on/off)
-- Etiquetas (on/off)
+### 2. Ajustar el mapa para ocupar su contenedor
+En `RiskZonesMap.tsx`:
+- Asegurar que el `mapContainer` div tenga `style={{ minHeight: '400px' }}` como fallback
+- Verificar que `h-full` se propague correctamente
 
-### 3. `src/components/security/map/HighRiskSegmentsList.tsx` (Panel lateral derecho)
-Lista scrollable de tramos ordenados por riesgo:
-- Filtros: Todos | Extremo | Alto | Medio | Bajo (con contadores)
-- Cada item muestra: nombre, badge de riesgo, km range, eventos/mes, horario critico
-- Click en item centra el mapa en ese segmento
+### 3. Ajustar SecurityPage para dar altura al TabsContent
+En `SecurityPage.tsx`:
+- Agregar clases de altura al `TabsContent` del tab "routes" para que el contenido del mapa tenga un contexto de altura definido
 
-### 4. `src/components/security/map/RiskZonesHeader.tsx` (Header con KPIs)
-Barra superior con estadisticas rapidas:
-- X zonas H3 monitoreadas
-- X tramos
-- X extremo / X alto
-- X.XXx multiplicador promedio
-
-### 5. Reestructurar `RouteRiskIntelligence.tsx`
-Reemplazar el layout actual (tablas) por el layout de 3 columnas:
-- **Izquierda** (~25%): Leyenda + estadisticas de puntos seguros + zonas sin cobertura
-- **Centro** (~50%): Mapa interactivo
-- **Derecha** (~25%): Lista de tramos de mayor riesgo
+### 4. Panel de capas visible en mobile
+- Cambiar `hidden lg:block` a `hidden md:block` para el panel izquierdo
+- Asegurar que el overlay mobile funcione correctamente
 
 ## Detalle Tecnico
 
-### Renderizado de segmentos en Mapbox
+### `RouteRiskIntelligence.tsx`
 ```typescript
-// Por cada segmento, agregar una linea GeoJSON coloreada
-map.addSource(`segment-${segment.id}`, {
-  type: 'geojson',
-  data: {
-    type: 'Feature',
-    geometry: {
-      type: 'LineString',
-      coordinates: segment.waypoints
-    }
-  }
-});
-map.addLayer({
-  id: `segment-line-${segment.id}`,
-  type: 'line',
-  source: `segment-${segment.id}`,
-  paint: {
-    'line-color': RISK_LEVEL_COLORS[segment.riskLevel],
-    'line-width': 4,
-    'line-opacity': 0.85
-  }
-});
+// Antes:
+<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-3" 
+     style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
+  <div className="hidden lg:block">
+
+// Despues:
+<div className="grid grid-cols-1 md:grid-cols-[240px_1fr_280px] gap-3 h-[calc(100vh-320px)] min-h-[500px]">
+  <div className="hidden md:block">
 ```
 
-### Puntos seguros desde Supabase
-Reutilizar el hook `useSafePoints` existente para obtener coordenadas y plotearlas como circulos verdes en el mapa.
+### `RiskZonesMap.tsx`
+```typescript
+// Asegurar min-height en el contenedor del mapa
+<div ref={mapContainer} className="w-full h-full min-h-[400px] rounded-lg" />
+```
 
-### Zonas sin cobertura
-Renderizar los poligonos de `CELLULAR_DEAD_ZONES` como fills semitransparentes grises.
-
-### Interactividad
-- Hover en segmento: resaltar y mostrar nombre
-- Click en segmento: popup con detalles completos (nombre, km, riesgo, eventos/mes, horario critico, recomendaciones)
-- Click en item del panel derecho: `map.flyTo()` al centro del segmento
+### `SecurityPage.tsx`
+```typescript
+// Dar contexto de altura al tab de rutas
+<TabsContent value="routes" className="mt-4 h-[calc(100vh-200px)]">
+```
 
 ## Archivos a modificar
-1. **Crear** `src/components/security/map/RiskZonesMap.tsx`
-2. **Crear** `src/components/security/map/RiskZonesMapLayers.tsx`
-3. **Crear** `src/components/security/map/HighRiskSegmentsList.tsx`
-4. **Crear** `src/components/security/map/RiskZonesHeader.tsx`
-5. **Modificar** `src/components/security/routes/RouteRiskIntelligence.tsx` - Nuevo layout con mapa + paneles
-
-## Sin dependencias nuevas
-- Mapbox GL JS ya esta instalado (`mapbox-gl ^3.12.0`)
-- Token Mapbox ya configurado via edge function
-- Todos los datos de corredores/segmentos/POIs ya existen en archivos locales
-- Puntos seguros ya en Supabase
+1. `src/components/security/routes/RouteRiskIntelligence.tsx` - Fix grid layout y alturas
+2. `src/components/security/map/RiskZonesMap.tsx` - Min-height en contenedor del mapa
+3. `src/pages/Security/SecurityPage.tsx` - Altura en TabsContent de rutas
