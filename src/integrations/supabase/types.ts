@@ -20114,6 +20114,15 @@ export type Database = {
         | "tecnico_instalador"
         | "planificador"
         | "supply_lead"
+        | "customer_success"
+        | "capacitacion_admin"
+        | "jefe_seguridad"
+        | "analista_seguridad"
+        | "instalador"
+        | "facturacion_admin"
+        | "facturacion"
+        | "finanzas_admin"
+        | "finanzas"
       canal_comunicacion: "whatsapp" | "app" | "telefono" | "email"
       disponibilidad_custodio:
         | "disponible"
@@ -20313,6 +20322,15 @@ export const Constants = {
         "tecnico_instalador",
         "planificador",
         "supply_lead",
+        "customer_success",
+        "capacitacion_admin",
+        "jefe_seguridad",
+        "analista_seguridad",
+        "instalador",
+        "facturacion_admin",
+        "facturacion",
+        "finanzas_admin",
+        "finanzas",
       ],
       canal_comunicacion: ["whatsapp", "app", "telefono", "email"],
       disponibilidad_custodio: [

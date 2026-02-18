@@ -1,0 +1,9 @@
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'customer_success';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'capacitacion_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'jefe_seguridad';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'analista_seguridad';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'instalador';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'facturacion';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas_admin';
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'finanzas';
