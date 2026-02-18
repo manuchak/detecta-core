@@ -160,9 +160,12 @@ serve(async (req) => {
       
       for (const h3Index of hexagons) {
         const baseScore = Math.round(randomInRange(corridor.baseScoreRange[0], corridor.baseScoreRange[1]));
+        const riskLevel = baseScore >= 70 ? 'extremo' : baseScore >= 40 ? 'alto' : baseScore >= 15 ? 'medio' : 'bajo';
+        const priceMultiplier = riskLevel === 'extremo' ? 1.8 : riskLevel === 'alto' ? 1.4 : riskLevel === 'medio' ? 1.15 : 1.0;
         allZones.push({
           h3_index: h3Index, h3_resolution: H3_RESOLUTION, base_score: baseScore,
-          manual_adjustment: 0, event_count: corridor.avgEventsPerHex,
+          manual_adjustment: 0, risk_level: riskLevel, price_multiplier: priceMultiplier,
+          event_count: corridor.avgEventsPerHex,
           last_event_date: randomRecentDate(), last_calculated_at: new Date().toISOString(),
         });
         
