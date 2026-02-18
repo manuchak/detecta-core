@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Save, X, AlertTriangle, MapPin, User, Shield, Loader2 } from 'lucide-react';
+import { RouteRiskBadge } from '@/components/security/routes/RouteRiskBadge';
 import { format } from 'date-fns';
 import { buildCDMXTimestamp, formatCDMXTime, getCDMXDate } from '@/utils/cdmxTimezone';
 import { toast } from 'sonner';
@@ -707,6 +708,11 @@ export function EditServiceForm({
                   {validationErrors.destino}
                 </p>
               )}
+            </div>
+
+            {/* Route Risk Assessment */}
+            <div className="md:col-span-2">
+              <RouteRiskBadge origen={formData.origen} destino={formData.destino} />
             </div>
             
             <div className="space-y-2">
