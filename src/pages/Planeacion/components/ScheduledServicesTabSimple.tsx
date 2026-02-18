@@ -20,6 +20,7 @@ import { CustodianVehicleInfo } from '@/components/planeacion/CustodianVehicleIn
 import { StatusUpdateButton, type OperationalStatus } from '@/components/planeacion/StatusUpdateButton';
 import { HourDivider } from '@/components/planeacion/HourDivider';
 import { UpcomingServiceBadge, getUpcomingHighlightClass } from '@/components/planeacion/UpcomingServiceBadge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, RefreshCw, History, UserCircle, MapPinCheck, Calendar, CircleDot, Building2, Info, Copy, MapPinOff, FileText } from 'lucide-react';
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
@@ -89,6 +90,7 @@ export function ScheduledServicesTab() {
   const handleDateChange = (date: Date) => {
     clearScrollPosition(); // Clear scroll when changing date
     setSelectedDate(date);
+    setClienteFilter(null); // Reset client filter on date change
     localStorage.setItem('planeacion_selected_date', format(date, 'yyyy-MM-dd'));
   };
   
@@ -189,6 +191,9 @@ export function ScheduledServicesTab() {
   
   // Nuevo: Filtro para mostrar solo servicios con Posicionamiento en Falso
   const [showOnlyFalsePositioning, setShowOnlyFalsePositioning] = useState(false);
+
+  // Filtro por cliente del día
+  const [clienteFilter, setClienteFilter] = useState<string | null>(null);
 
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
@@ -561,6 +566,14 @@ export function ScheduledServicesTab() {
       });
     }
     
+    // Apply cliente filter
+    if (clienteFilter) {
+      filteredData = filteredData.filter(service => {
+        const clientName = service.cliente_nombre || 'Sin cliente';
+        return clientName === clienteFilter;
+      });
+    }
+    
     // Apply Folio filter
     if (tipoFolioFilter === 'con_folio') {
       filteredData = filteredData.filter(s => 
@@ -585,7 +598,7 @@ export function ScheduledServicesTab() {
     });
     
     return grouped;
-  }, [summary?.services_data, tipoClienteFilter, tipoFolioFilter, showOnlyFalsePositioning]);
+  }, [summary?.services_data, tipoClienteFilter, tipoFolioFilter, showOnlyFalsePositioning, clienteFilter]);
 
   // Count filtered services
   const filteredCount = useMemo(() => {
@@ -794,7 +807,26 @@ export function ScheduledServicesTab() {
                   PF
                 </Button>
               </div>
-              {(tipoClienteFilter !== 'todos' || tipoFolioFilter !== 'todos') && (
+              
+              {/* Filtro por cliente del día */}
+              <Select
+                value={clienteFilter || '__todos__'}
+                onValueChange={(val) => setClienteFilter(val === '__todos__' ? null : val)}
+              >
+                <SelectTrigger className="h-7 w-[200px] text-xs">
+                  <SelectValue placeholder="Todos los clientes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__todos__">Todos los clientes</SelectItem>
+                  {servicesByClient.map(({ name, count }) => (
+                    <SelectItem key={name} value={name}>
+                      {name} ({count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(tipoClienteFilter !== 'todos' || tipoFolioFilter !== 'todos' || clienteFilter) && (
                 <span className="text-xs text-muted-foreground">
                   ({filteredCount} de {summary.services_data.length})
                 </span>
