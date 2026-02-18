@@ -1,52 +1,65 @@
 
 
-# Fix: Agregar roles faltantes a la funcion `get_available_roles_secure()`
+# Mejoras al modulo Customer Success: Asignacion inversa, touchpoint en cartera, y filtros de analisis
 
-## Problema
+## 1. Submodulo "Asignar Clientes a CSM" en Cartera
 
-El error "Invalid role: customer_success" persiste porque la funcion de base de datos `get_available_roles_secure()` tiene una lista **hardcodeada** de roles validos que NO incluye `customer_success` ni otros roles nuevos. Esta funcion es usada por `update_user_role_secure()` para validar el rol antes de asignarlo.
+**Problema**: Actualmente solo se puede asignar un CSM a un cliente individualmente desde el dropdown en la tabla, lo cual es repetitivo cuando quieres asignar muchos clientes a un mismo CSM.
 
-## Roles faltantes en la funcion
+**Solucion**: Agregar un boton "Asignar por CSM" que abra un modal con flujo inverso:
+- Paso 1: Seleccionar un CSM del dropdown
+- Paso 2: Mostrar lista de clientes sin CSM asignado (o con otro CSM), con checkboxes para seleccion multiple
+- Paso 3: Boton "Asignar X clientes" que use el hook `useBulkAssignCSM` existente
 
-La funcion actualmente tiene 18 roles. Faltan estos 7:
-- `customer_success`
-- `capacitacion_admin`
-- `facturacion_admin`
-- `facturacion`
-- `finanzas_admin`
-- `finanzas`
+Se agregara como un boton nuevo en la barra superior de CSCartera, junto al boton existente de "Mi Cartera".
 
-(Los roles `jefe_seguridad`, `analista_seguridad`, `instalador` ya estan incluidos)
+## 2. Fecha del ultimo touchpoint en la tarjeta del cliente (Cartera)
 
-## Solucion
+**Problema**: En la tabla de cartera no se ve cuando fue el ultimo touchpoint de CS, solo se ve "Dias sin contacto" que combina servicios y touchpoints.
 
-Ejecutar una migracion SQL para reemplazar la funcion `get_available_roles_secure()` con una version actualizada que incluya todos los roles del enum `app_role`.
+**Solucion**: 
+- El hook `useCSCartera` ya calcula `lastTp` (ultimo touchpoint) pero no lo expone en la interfaz `CarteraCliente`
+- Agregar campo `ultimo_touchpoint: string | null` al tipo `CarteraCliente` y exponerlo desde el hook
+- Agregar una columna "Ult. TP" en la tabla de cartera que muestre la fecha formateada
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_available_roles_secure()
-RETURNS text[]
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  RETURN ARRAY[
-    'owner', 'admin', 'supply_admin', 'capacitacion_admin',
-    'coordinador_operaciones', 'jefe_seguridad', 'analista_seguridad',
-    'supply_lead', 'ejecutivo_ventas', 'custodio', 'bi',
-    'monitoring_supervisor', 'monitoring', 'supply', 'instalador',
-    'planificador', 'soporte', 'facturacion_admin', 'facturacion',
-    'finanzas_admin', 'finanzas', 'customer_success',
-    'pending', 'unverified'
-  ];
-END;
-$$;
-```
+## 3. Ampliar Analisis de Clientes con filtros de dias (90-120-180-360)
 
-## Cambios
+**Problema**: El modulo de Analisis Clientes actualmente filtra por MTD/QTD/YTD/Custom, pero no tiene filtros predefinidos de ventanas de dias (ultimos 90, 120, 180, 360 dias) que son mas utiles para CS. Ademas, la tabla solo muestra Top 15 clientes.
 
-1. **Una migracion SQL** -- Actualizar la funcion `get_available_roles_secure()` para incluir los 6 roles faltantes
-2. **Sin cambios de codigo** -- El frontend ya esta correctamente configurado
+**Solucion**:
+- Agregar opciones de filtro de dias al selector de periodo: "Ultimos 90 dias", "Ultimos 120 dias", "Ultimos 180 dias", "Ultimos 360 dias"
+- Cambiar el tipo `DateFilterType` para incluir: `'last_90d' | 'last_120d' | 'last_180d' | 'last_360d'`
+- En el calculo de `dateRange`, agregar los casos correspondientes usando `subDays`
+- Eliminar el limite de Top 15 y mostrar todos los clientes (con paginacion)
 
-## Resultado esperado
+---
 
-Despues de la migracion, podras asignar "Customer Success" a Alfredo Zuniga sin errores.
+## Detalles tecnicos
+
+### Archivos a modificar
+
+1. **`src/pages/CustomerSuccess/components/CSCartera.tsx`**
+   - Agregar boton "Asignar por CSM" en la barra superior
+   - Crear componente `CSBulkAssignByCSMModal` inline o en archivo separado
+   - Agregar columna "Ult. TP" a la tabla
+
+2. **`src/hooks/useCSCartera.ts`**
+   - Agregar campo `ultimo_touchpoint` al tipo `CarteraCliente`
+   - Exponer la fecha del ultimo touchpoint (ya se calcula como `lastTp`)
+
+3. **`src/components/executive/ClientAnalytics.tsx`**
+   - Ampliar `DateFilterType` con `'last_90d' | 'last_120d' | 'last_180d' | 'last_360d'`
+   - Agregar las opciones correspondientes al `Select` de periodo
+   - Calcular los rangos de fecha con `subDays`
+   - Remover el `.slice(0, 15)` y agregar paginacion
+
+### Archivo nuevo
+
+4. **`src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`**
+   - Modal con selector de CSM + lista de clientes con checkboxes
+   - Reutiliza `useCSMOptions` y `useBulkAssignCSM` existentes
+   - Filtra clientes de `useCSCartera` para mostrar los disponibles
+
+### Sin cambios de base de datos
+Toda la data necesaria ya existe. Solo son cambios de frontend.
+
