@@ -21,13 +21,13 @@ export interface CustodioRechazo {
 /**
  * Obtiene la lista de custodios con rechazos vigentes
  */
-export function useRechazosVigentes() {
+export function useRechazosVigentes(options?: { inclujeArmado?: boolean }) {
   return useQuery({
-    queryKey: ['custodio-rechazos-vigentes'],
+    queryKey: ['custodio-rechazos-vigentes', options?.inclujeArmado],
     queryFn: async (): Promise<string[]> => {
       const { data, error } = await supabase
         .from('custodio_rechazos')
-        .select('custodio_id')
+        .select('custodio_id, motivo')
         .gt('vigencia_hasta', new Date().toISOString());
 
       if (error) {
@@ -35,9 +35,18 @@ export function useRechazosVigentes() {
         return []; // Fail-open: don't block assignment if query fails
       }
 
-      // Return unique custodio IDs
-      const uniqueIds = [...new Set((data || []).map(r => r.custodio_id))];
-      console.log(`🚫 ${uniqueIds.length} custodios con rechazos vigentes`);
+      const servicioRequiereArmado = options?.inclujeArmado ?? true;
+      
+      // Filtrado contextual: rechazos con motivo "armado" solo aplican a servicios con armado
+      const rechazosAplicables = (data || []).filter(r => {
+        const motivoLower = (r.motivo || '').toLowerCase();
+        const esRechazoArmado = motivoLower.includes('armado');
+        if (esRechazoArmado && !servicioRequiereArmado) return false;
+        return true;
+      });
+
+      const uniqueIds = [...new Set(rechazosAplicables.map(r => r.custodio_id))];
+      console.log(`🚫 ${uniqueIds.length} custodios con rechazos vigentes (contexto armado: ${servicioRequiereArmado})`);
       return uniqueIds;
     },
     staleTime: 60000, // 1 minute cache
