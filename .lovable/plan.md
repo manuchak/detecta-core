@@ -1,64 +1,67 @@
 
-# Plan: Agregar Seguridad al menú lateral + Seed de Puntos Seguros
+# Fix: Cursos obligatorios aparecen solo en Catálogo
 
-## Problemas detectados
+## Problema
+Un curso marcado como "obligatorio" solo aparece en la pestaña "Catálogo" porque el usuario no tiene una inscripcion activa para ese curso. La lógica actual en `LMSDashboard.tsx` separa cursos asi:
 
-1. **Seguridad no aparece en el sidebar**: El módulo fue agregado al archivo `Sidebar.tsx` (legacy), pero la app usa `UnifiedSidebar` que lee de `src/config/navigationConfig.ts`. Seguridad nunca fue registrada ahí.
-2. **Tabla `safe_points` vacía**: La tabla existe en la base de datos pero tiene 0 registros. No se ejecutó un seed de datos.
+- **Mis Cursos**: cursos con `inscripcion_id` (el usuario ya esta inscrito)
+- **Catalogo**: cursos SIN `inscripcion_id`
 
----
+Como el curso obligatorio no tiene inscripcion, cae en "Catalogo" y muestra boton "Inscribirme", lo cual no tiene sentido para un curso obligatorio.
 
-## Cambios a realizar
+## Solucion
 
-### 1. Agregar grupo y módulo "Seguridad" en navigationConfig.ts
+Dos cambios complementarios:
 
-- Agregar un nuevo grupo `seguridad` en el array `navigationGroups` (entre "Capacitación" y "Sistema").
-- Agregar un módulo `seguridad` en `navigationModules` con:
-  - Path: `/seguridad`
-  - Roles: `admin`, `owner`, `jefe_seguridad`, `analista_seguridad`, `coordinador_operaciones`
-  - Icon: `ShieldAlert`
-  - Group: `seguridad`
+### 1. Mostrar cursos obligatorios sin inscripcion en "Mis Cursos"
+En `src/pages/LMS/LMSDashboard.tsx`, modificar los filtros para que los cursos con `es_obligatorio = true` aparezcan en "Mis Cursos" aunque no tengan inscripcion:
 
-### 2. Seed de puntos seguros
+- `cursosEnProgreso` y el filtro de "Mis Cursos" (`cursos?.filter(c => c.inscripcion_id)`) deben incluir tambien cursos obligatorios sin inscripcion
+- `cursosCatalogo` debe excluir cursos obligatorios: `cursos?.filter(c => !c.inscripcion_id && !c.es_obligatorio)`
 
-Insertar datos realistas de puntos seguros en la tabla `safe_points` mediante migración SQL. Se incluirán entre 15-20 puntos seguros con:
-- Diferentes tipos (gasolinera, hotel, base_militar, tienda_conveniencia, estacionamiento, caseta_peaje)
-- Coordenadas reales en corredores de alto riesgo de México
-- Criterios de evaluación variados (seguridad, iluminación, CCTV, etc.)
-- Distintos niveles de certificación (oro, plata, bronce, precaución)
-- Status de verificación mixtos (verified, pending, legacy)
+### 2. Auto-inscribir al hacer click en curso obligatorio
+En el componente `CourseCard`, cuando un curso es obligatorio y no tiene inscripcion, el boton debe decir "Comenzar" (no "Inscribirme") y al hacer click debe auto-inscribir y navegar al curso.
 
----
+## Detalle tecnico
 
-## Detalles Técnicos
+### Archivo: `src/pages/LMS/LMSDashboard.tsx`
 
-### Archivo: `src/config/navigationConfig.ts`
-
-Agregar import de `ShieldAlert` y:
+Cambios en las lineas 36-52:
 
 ```typescript
-// En navigationGroups (antes de 'system'):
-{ id: 'seguridad', label: 'Seguridad', icon: ShieldAlert },
+// Cursos del usuario: inscritos + obligatorios sin inscripcion
+const misCursos = cursos?.filter(c => 
+  c.inscripcion_id || c.es_obligatorio
+) || [];
 
-// En navigationModules:
-{
-  id: 'seguridad',
-  label: 'Seguridad',
-  icon: ShieldAlert,
-  path: '/seguridad',
-  roles: ['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones'],
-  group: 'seguridad',
-}
+const cursosObligatoriosPendientes = cursos?.filter(c => 
+  c.es_obligatorio && 
+  c.inscripcion_estado !== 'completado'
+) || [];
+
+const cursosEnProgreso = cursos?.filter(c => 
+  c.inscripcion_id && 
+  c.inscripcion_estado === 'en_progreso'
+) || [];
+
+const cursosCompletados = cursos?.filter(c => 
+  c.inscripcion_estado === 'completado'
+) || [];
+
+// Catalogo: solo cursos NO obligatorios sin inscripcion
+const cursosCatalogo = cursos?.filter(c => !c.inscripcion_id && !c.es_obligatorio) || [];
 ```
 
-### Migración SQL: Seed de ~18 puntos seguros
+Actualizar las referencias en "Mis Cursos" tab (lineas 176, 193) para usar `misCursos` en lugar de `cursos?.filter(c => c.inscripcion_id)`.
 
-Insertar registros con coordenadas reales a lo largo de corredores como:
-- México-Querétaro (Oxxo Tepotzotlán, Gasolinera Palmillas)
-- Querétaro-SLP (Hotel City Express SLP)
-- Puebla-Veracruz (Caseta Amozoc)
-- Guadalajara-Manzanillo (Base Militar Colima)
-- CDMX-Puebla (Gasolinera Río Frío)
-- etc.
+### Archivo: `src/components/lms/CourseCard.tsx`
 
-Cada registro incluirá los 12 criterios booleanos de evaluación, score calculado, y nivel de certificación.
+Verificar que el boton de accion para cursos obligatorios sin inscripcion muestre "Comenzar" y llame `onEnroll` seguido de navegacion (o directamente `onStartCourse` que dispare la inscripcion automatica).
+
+### Badge del tab "Mis Cursos"
+
+Actualizar el badge del tab para contar tambien los obligatorios pendientes:
+```typescript
+const misCursosCount = (cursosEnProgreso.length || 0) + 
+  (cursos?.filter(c => c.es_obligatorio && !c.inscripcion_id).length || 0);
+```
