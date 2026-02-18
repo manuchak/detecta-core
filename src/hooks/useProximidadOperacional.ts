@@ -397,19 +397,38 @@ export function useCustodiosConProximidad(
       
       console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios en paralelo`);
 
-      // ── FILTRAR CUSTODIOS CON RECHAZOS VIGENTES ──
+      // ── FILTRAR CUSTODIOS CON RECHAZOS VIGENTES (CONTEXTUAL) ──
       // Query ligera fail-open: si falla, no bloquea asignaciones
+      // Rechazos con motivo "armado" solo excluyen de servicios CON armado
       let custodiosFiltrados = custodiosProcessed;
       try {
         const { data: rechazos } = await supabase
           .from('custodio_rechazos')
-          .select('custodio_id')
+          .select('custodio_id, motivo')
           .gt('vigencia_hasta', new Date().toISOString());
 
         if (rechazos && rechazos.length > 0) {
-          const rechazadosIds = new Set(rechazos.map(r => r.custodio_id));
-          custodiosFiltrados = custodiosProcessed.filter(c => !rechazadosIds.has(c.id));
-          console.log(`🚫 ${rechazadosIds.size} custodios excluidos por rechazos vigentes (${custodiosProcessed.length} → ${custodiosFiltrados.length})`);
+          const servicioRequiereArmado = servicioNuevo?.incluye_armado ?? false;
+          
+          custodiosFiltrados = custodiosProcessed.filter(c => {
+            const rechazosDelCustodio = rechazos.filter(r => r.custodio_id === c.id);
+            if (rechazosDelCustodio.length === 0) return true; // Sin rechazos, pasa
+            
+            // Verificar si TODOS los rechazos son contextuales (solo aplican a armado)
+            const tieneRechazoGeneral = rechazosDelCustodio.some(r => {
+              const motivoLower = (r.motivo || '').toLowerCase();
+              const esRechazoArmado = motivoLower.includes('armado');
+              // Si es rechazo de armado y el servicio NO requiere armado → no excluir por este rechazo
+              if (esRechazoArmado && !servicioRequiereArmado) return false;
+              // Cualquier otro rechazo → excluir
+              return true;
+            });
+            
+            return !tieneRechazoGeneral;
+          });
+          
+          const excluidos = custodiosProcessed.length - custodiosFiltrados.length;
+          console.log(`🚫 ${excluidos} custodios excluidos por rechazos vigentes (${custodiosProcessed.length} → ${custodiosFiltrados.length}, servicio requiere armado: ${servicioRequiereArmado})`);
         }
       } catch (err) {
         console.warn('⚠️ Error fetching rechazos (fail-open, no se filtran):', err);
