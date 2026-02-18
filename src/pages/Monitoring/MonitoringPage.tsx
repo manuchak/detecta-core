@@ -26,6 +26,7 @@ import AdoptionTable from "@/components/monitoring/adoption/AdoptionTable";
 import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigital";
 import { IncidentListPanel } from "@/components/monitoring/incidents";
 import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
+import PerformanceDashboard from "@/components/monitoring/performance/PerformanceDashboard";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -36,7 +37,7 @@ const MonitoringPage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : tabFromUrl === 'incidentes' ? 'incidentes' : 'posicionamiento'
+    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : tabFromUrl === 'incidentes' ? 'incidentes' : tabFromUrl === 'performance' ? 'performance' : 'posicionamiento'
   );
   
   // Sync tab with URL param
@@ -44,6 +45,7 @@ const MonitoringPage = () => {
     if (tabFromUrl === 'checklists') setActiveTab('checklists');
     if (tabFromUrl === 'adopcion') setActiveTab('adopcion');
     if (tabFromUrl === 'incidentes') setActiveTab('incidentes');
+    if (tabFromUrl === 'performance') setActiveTab('performance');
   }, [tabFromUrl]);
   
   // Checklist state
@@ -176,6 +178,7 @@ const MonitoringPage = () => {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
 
         {/* Tab: Posicionamiento */}
@@ -281,6 +284,11 @@ const MonitoringPage = () => {
         {/* Tab: Incidentes */}
         <TabsContent value="incidentes" className="space-y-6 mt-0">
           <IncidentListPanel />
+        </TabsContent>
+
+        {/* Tab: Performance */}
+        <TabsContent value="performance" className="space-y-6 mt-0">
+          <PerformanceDashboard />
         </TabsContent>
       </Tabs>
 
