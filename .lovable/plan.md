@@ -1,76 +1,91 @@
 
-## Trigger inverso: sincronizar telefono desde custodios_operativos hacia profiles
+# Analisis Fishbone y Plan de Correccion
 
-### Contexto
+## Problema 1: Timeout al cargar armados
 
-Actualmente existe `trg_sync_profile_phone` que propaga cambios de telefono de `profiles` a `custodios_operativos` y `servicios_planificados`. Pero cuando se edita el telefono directamente en `custodios_operativos` (por ejemplo desde el panel de admin), el cambio **no se refleja** en `profiles`, causando que el custodio no vea sus servicios al iniciar sesion.
+### Causa Raiz (Fishbone)
+
+```text
+TIMEOUT "canceling statement due to statement timeout"
+|
++-- [Vista armados_disponibles_extendido]
+|   |
+|   +-- Subqueries correlacionadas por cada armado (109 registros)
+|   |   |
+|   |   +-- JOIN: asignacion_armados.servicio_custodia_id (TEXT)
+|   |   |   con servicios_custodia.id (BIGINT) usando cast ::text
+|   |   |   --> El cast IMPIDE uso del indice PK
+|   |   |
+|   |   +-- Escaneo secuencial de 33,165 filas por cada armado
+|   |   |
+|   |   +-- NO existe indice en asignacion_armados.armado_id
+|   |
+|   +-- security_invoker=on (agregado hoy)
+|       --> RLS policies se evaluan DENTRO de la vista
+|       --> Overhead adicional en cada subquery
+```
 
 ### Solucion
 
-Crear una funcion y trigger en `custodios_operativos` que, al detectar un cambio en la columna `telefono`, busque el perfil correspondiente via `email` y actualice `profiles.phone`.
+1. Crear indice en `asignacion_armados.armado_id`
+2. Reescribir la vista usando JOINs laterales o CTEs pre-materializados en lugar de subqueries correlacionadas por fila
+3. Eliminar el cast `sc.id::text` y corregir el tipo de dato de `servicio_custodia_id` a `bigint` (o usar un indice funcional)
 
-### SQL de la migracion
+---
 
-```sql
-CREATE OR REPLACE FUNCTION sync_operativo_phone_to_profile()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  normalized_new TEXT;
-  normalized_old TEXT;
-BEGIN
-  -- Solo actuar si el telefono cambio
-  IF NEW.telefono IS NOT DISTINCT FROM OLD.telefono THEN
-    RETURN NEW;
-  END IF;
+## Problema 2: Abel Cruz no aparece en lista de custodios
 
-  normalized_new := RIGHT(regexp_replace(COALESCE(NEW.telefono, ''), '[^0-9]', '', 'g'), 10);
-  normalized_old := RIGHT(regexp_replace(COALESCE(OLD.telefono, ''), '[^0-9]', '', 'g'), 10);
+### Causa Raiz (Fishbone)
 
-  IF normalized_new = normalized_old OR length(normalized_new) < 10 THEN
-    RETURN NEW;
-  END IF;
-
-  -- Actualizar profiles vinculado por email
-  UPDATE profiles
-  SET phone = normalized_new,
-      updated_at = now()
-  WHERE LOWER(email) = LOWER(NEW.email);
-
-  -- Tambien propagar a servicios_planificados pendientes
-  IF normalized_old != '' AND length(normalized_old) = 10 THEN
-    UPDATE servicios_planificados
-    SET custodio_telefono = normalized_new
-    WHERE custodio_telefono = normalized_old
-      AND fecha_hora_cita >= now()
-      AND estado_planeacion NOT IN ('cancelado', 'completado', 'finalizado');
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_sync_operativo_phone_to_profile ON custodios_operativos;
-CREATE TRIGGER trg_sync_operativo_phone_to_profile
-  AFTER UPDATE OF telefono ON custodios_operativos
-  FOR EACH ROW
-  EXECUTE FUNCTION sync_operativo_phone_to_profile();
+```text
+CUSTODIO INVISIBLE "Abel Cruz no aparece"
+|
++-- [Filtro de rechazos en useProximidadOperacional.ts, linea 400-416]
+|   |
+|   +-- Query: SELECT custodio_id FROM custodio_rechazos
+|   |   WHERE vigencia_hasta > NOW()
+|   |   --> Trae TODOS los rechazos vigentes sin contexto
+|   |
+|   +-- Filtro BLANKET: excluye el custodio de TODAS las listas
+|   |   independientemente del tipo de servicio
+|   |
+|   +-- Abel Cruz tiene rechazo vigente hasta 2026-02-24
+|       Motivo: "No quiere servicio con armado"
+|       --> Deberia excluirse SOLO de servicios con armado
+|       --> Pero se excluye de TODOS los servicios
 ```
 
-### Detalles tecnicos
+### Solucion
 
-- **Vinculacion**: Se usa `LOWER(email)` para encontrar el perfil correspondiente, ya que `custodios_operativos` no tiene columna `user_id`.
-- **SECURITY DEFINER**: Necesario para que el trigger pueda escribir en `profiles` sin depender de los permisos del usuario que dispara el UPDATE.
-- **Proteccion contra loops**: El trigger de `profiles` (`trg_sync_profile_phone`) verifica `IF NEW.phone IS NOT DISTINCT FROM OLD.phone` antes de actuar. Como este trigger inverso escribe el valor normalizado y el trigger de profiles normaliza tambien, al comparar seran iguales y no se disparara un ciclo infinito.
-- **Propagacion a servicios**: Tambien actualiza `servicios_planificados` pendientes con el telefono anterior, igual que hace el trigger directo.
+Modificar el filtro de rechazos para incluir contexto del servicio. El rechazo con motivo "con armado" solo debe excluir al custodio de servicios que requieren armado, no de todos.
 
-### Archivos afectados
+---
 
-Solo se crea una migracion SQL. No se requieren cambios en codigo frontend.
+## Detalle Tecnico de Implementacion
 
-### Riesgo
+### Paso 1: Migracion SQL - Indices y vista optimizada
 
-Bajo. La unica consideracion es el potencial loop entre triggers, que esta resuelto por las guardas `IS NOT DISTINCT FROM` en ambas funciones.
+- Crear `CREATE INDEX idx_asignacion_armados_armado_id ON asignacion_armados(armado_id)`
+- Crear indice funcional para el join con tipo mixto: `CREATE INDEX idx_asignacion_armados_servicio_text ON asignacion_armados(servicio_custodia_id)`
+- Reescribir `armados_disponibles_extendido` usando CTEs pre-agregados en lugar de subqueries correlacionadas:
+
+```text
+Vista actual (lenta):
+  Para CADA armado -> subquery que escanea 33K filas
+
+Vista optimizada:
+  CTE 1: Pre-agregar actividad por armado_id (1 sola pasada)
+  CTE 2: Pre-agregar conteo historico por armado_id (1 sola pasada)
+  SELECT principal: JOIN con CTEs por armado_id
+```
+
+### Paso 2: Correccion del filtro de rechazos en useProximidadOperacional.ts
+
+- Modificar la query de rechazos para traer tambien el campo `motivo` y `servicio_id`
+- En el filtrado, si el motivo contiene "armado" y el servicio actual NO requiere armado, NO excluir al custodio
+- Esto permite que Abel Cruz aparezca en servicios sin armado, respetando su preferencia
+
+### Paso 3: Verificacion
+
+- Confirmar que la vista responde en menos de 2 segundos
+- Confirmar que Abel Cruz aparece en asignaciones de servicios sin armado
