@@ -1,122 +1,102 @@
 
 
-# Fix: Mapa al 100%, capas visibles y aprovechamiento de espacio
+# Neutralizar zoom 0.7 en el Modulo de Seguridad
 
-## Problemas identificados
+## Diagnostico
 
-1. **Mapa no llena su contenedor**: El `transform: scale(1.4286)` con `width/height: 70%` no compensa correctamente el `zoom: 0.7` global -- Mapbox calcula mal el canvas porque `transform` no cambia el layout box, solo lo escala visualmente.
-2. **Capas no se dibujan**: Los tramos, POIs, zonas sin cobertura y puntos seguros se agregan correctamente al mapa, pero el canvas mal calculado puede hacer que no sean visibles o que se rendericen fuera del area visible.
-3. **Espacio desperdiciado debajo del mapa**: La altura del contenedor puede optimizarse mas.
+El `html { zoom: 0.7 }` global (linea 153 de `index.css`) reduce todo al 70%. Para compensar, el mapa usa `zoom: 1.4286` con `width/height: 70%` y multiples `resize()` con timeouts -- un stack de hacks fragil que:
+- Impide que Mapbox calcule correctamente el canvas
+- Desperdicia ~30% del espacio vertical real
+- Hace que las alturas `calc(100vh - Xpx)` sean incorrectas (100vh ya esta escalado)
+- Las capas (tramos, POIs, zonas sin cobertura) no se renderizan bien
 
 ## Solucion
 
-### Enfoque de zoom: Usar CSS `zoom` en vez de `transform`
-
-La propiedad CSS `zoom` (soportada en Chrome/Edge/Safari) SI cambia el layout box, a diferencia de `transform: scale()` que solo escala visualmente. Esto permite que Mapbox calcule el canvas correctamente.
-
-Para Firefox (que no soporta `zoom`), usar `-moz-transform: scale()` como fallback.
+Aplicar `zoom: calc(1 / 0.7)` en el wrapper de `SecurityPage` para que todo dentro opere a escala real (0.7 * 1.4286 = 1.0). Luego:
+- Eliminar TODOS los hacks de zoom del mapa
+- Usar alturas naturales (100vh ya es real)
+- El mapa ocupa su contenedor al 100% nativo
 
 ---
 
 ## Cambios por archivo
 
-### 1. `src/components/security/map/RiskZonesMap.tsx`
+### 1. `src/pages/Security/SecurityPage.tsx`
 
-**Problema principal**: `transform: scale(1.4286)` no cambia el layout -- Mapbox ve un canvas de 70% del tamano real.
+Envolver todo el contenido en un div con `zoom: 1.4286` para neutralizar el 0.7 global. Ajustar alturas a valores reales (ya no necesitan compensacion):
 
-**Solucion**: Volver a usar `zoom: 1/0.7` PERO con `width` y `height` al `calc(100% / 1.4286)` (que es 70%), y agregar un wrapper con `overflow: hidden` que contenga el mapa. Ademas, usar `position: absolute` e `inset: 0` en el wrapper para que ocupe todo el espacio disponible.
+```tsx
+return (
+  <div style={{ zoom: 1 / 0.7 }} className="space-y-4">
+    {/* Header */}
+    <div>
+      <h1 className="text-xl font-bold ...">Modulo de Seguridad</h1>
+      <p className="text-xs ...">...</p>
+    </div>
 
-Estructura final del JSX:
-```
-<div class="relative w-full h-full"> <!-- outer container -->
-  {loading && spinner}
-  <div class="absolute inset-0 overflow-hidden"> <!-- clip wrapper -->
-    <div ref={mapContainer}
-         style={{ zoom: 1.4286, width: '70%', height: '70%' }}
-    /> <!-- mapbox canvas, compensated -->
+    <Tabs ...>
+      <TabsList className="grid w-full grid-cols-5 h-9">
+        {/* tabs con texto mas compacto ya que estamos a escala real */}
+      </TabsList>
+
+      <TabsContent value="routes" className="mt-3 h-[calc(100vh-130px)]">
+        <RouteRiskIntelligence />
+      </TabsContent>
+      ...
+    </Tabs>
   </div>
-  {legend overlay}
-</div>
+);
 ```
 
-Tambien agregar `map.resize()` con timeouts escalonados (0, 200, 800ms) despues del `load` para asegurar que el canvas se recalcule.
+Reducir ligeramente los tamaños de texto/iconos ya que ahora estan a escala 1:1 (antes el zoom 0.7 los hacia mas pequenos).
 
-### 2. `src/components/security/routes/RouteRiskIntelligence.tsx`
+### 2. `src/components/security/map/RiskZonesMap.tsx`
 
-- Cambiar la altura del grid de `h-[calc(100vh-240px)]` a `h-[calc(100vh-200px)]` para usar mas espacio vertical.
-- Reducir `space-y-2` a `space-y-1` para apretar mas el layout.
+**Eliminar todos los hacks de zoom**. El mapa ahora opera en un contexto sin zoom, asi que solo necesita llenar su contenedor:
 
-### 3. `src/pages/Security/SecurityPage.tsx`
+- Quitar el div "clip wrapper" con `overflow-hidden`
+- Quitar los estilos `zoom: 1.4286`, `width: 70%`, `height: 70%`
+- El `mapContainer` pasa a ser simplemente `className="w-full h-full rounded-lg"`
+- Mantener un solo `m.resize()` en el load (sin timeouts escalonados)
+- La leyenda permanece como overlay absoluto normalmente
 
-- Cambiar `h-[calc(100vh-160px)]` a `h-[calc(100vh-140px)]` para maximizar espacio.
+```tsx
+return (
+  <div className="relative w-full h-full">
+    {loading && <Loader />}
+    <div ref={mapContainer} className="w-full h-full rounded-lg" />
+    {mapReady && <Legend />}
+  </div>
+);
+```
+
+### 3. `src/components/security/routes/RouteRiskIntelligence.tsx`
+
+Ajustar la altura del grid a un valor que funcione sin compensacion de zoom:
+
+```tsx
+<div className="grid ... h-[calc(100vh-130px)] min-h-[400px]">
+```
+
+(Antes usaba `100vh-200px` que con el zoom 0.7 era incorrecto)
 
 ### 4. `src/components/security/map/RiskZonesHeader.tsx`
 
-- Cambiar de grid `grid-cols-3` a `flex flex-wrap` inline para que ocupe una sola linea horizontal y ahorre espacio vertical.
+Sin cambios estructurales necesarios -- ya esta compacto. Solo ajustar tamaños de texto/icono si se ven demasiado grandes a escala real.
 
 ---
 
-## Detalle tecnico
+## Resultado esperado
 
-### Compensacion de zoom (RiskZonesMap.tsx)
-
-```tsx
-// Wrapper exterior - llena todo el espacio
-<div className="relative w-full h-full">
-  {loading && (
-    <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  )}
-  
-  {/* Clip wrapper - contiene el mapa escalado */}
-  <div className="absolute inset-0 overflow-hidden">
-    <div
-      ref={mapContainer}
-      style={{
-        zoom: 1.4286,
-        width: '70%',
-        height: '70%',
-      }}
-    />
-  </div>
-  
-  {/* Legend - fuera del zoom, posicion absoluta */}
-  {mapReady && (
-    <div className="absolute bottom-3 left-3 ...">
-      ...legend...
-    </div>
-  )}
-</div>
-```
-
-### Resize escalonado
-
-```typescript
-m.on('load', () => {
-  map.current = m;
-  setMapReady(true);
-  setLoading(false);
-  m.resize();
-  setTimeout(() => m.resize(), 200);
-  setTimeout(() => m.resize(), 800);
-});
-```
-
-### Layout vertical optimizado
-
-```
-SecurityPage TabContent: h-[calc(100vh-140px)]
-  RouteRiskIntelligence: space-y-1
-    Header: flex inline (1 linea)
-    Grid: h-[calc(100vh-200px)]
-      Map | SegmentList(260px)
-```
+- Mapa al 100% de su contenedor sin hacks
+- Capas (tramos, POIs, zonas sin cobertura, puntos seguros) visibles correctamente
+- Todo el espacio vertical aprovechado
+- Codigo mas simple y mantenible (sin compensaciones de zoom)
+- El resto de la app sigue con zoom 0.7 sin afectarse
 
 ## Archivos a modificar
 
-1. `src/components/security/map/RiskZonesMap.tsx` -- Fix zoom con CSS zoom + clip wrapper + resize escalonado
-2. `src/components/security/routes/RouteRiskIntelligence.tsx` -- Aumentar altura del grid
-3. `src/pages/Security/SecurityPage.tsx` -- Aumentar altura del tab content
-4. `src/components/security/map/RiskZonesHeader.tsx` -- Layout inline para ahorrar espacio vertical
+1. `src/pages/Security/SecurityPage.tsx` -- Wrapper con `zoom: 1/0.7`, ajustar tamaños
+2. `src/components/security/map/RiskZonesMap.tsx` -- Eliminar hacks de zoom, mapa nativo
+3. `src/components/security/routes/RouteRiskIntelligence.tsx` -- Ajustar alturas
 
