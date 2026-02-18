@@ -11,7 +11,7 @@ const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
 
   return (
-    <div style={{ zoom: 1 / 0.7 }} className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-[var(--content-height-full)] overflow-hidden">
       <div className="shrink-0 px-0 pt-0 pb-1">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Módulo de Seguridad</h1>
         <p className="text-xs text-muted-foreground mt-0.5">

@@ -98,18 +98,6 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     return () => observer.disconnect();
   }, [mapReady]);
 
-  // Extra resize for zoom compound timing
-  useEffect(() => {
-    if (!mapReady || !map.current) return;
-    const raf = requestAnimationFrame(() => {
-      map.current?.resize();
-    });
-    const t = setTimeout(() => map.current?.resize(), 2000);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t);
-    };
-  }, [mapReady]);
 
   // Add data layers once map is ready
   useEffect(() => {
