@@ -36,6 +36,7 @@ export interface PeriodMetrics {
   fillRate: number;
   onTimeRate: number;
   otifRate: number;
+  checklistsRate: number;
   total: number;
 }
 
@@ -74,6 +75,7 @@ function isOnTime(arrivalISO: string | null, citaISO: string | null): boolean | 
 function computeGroupMetrics(services: MergedService[]): Omit<PeriodMetrics, 'label'> {
   const total = services.length;
   const conCustodio = services.filter(s => s.custodio_asignado).length;
+  const conChecklist = services.filter(s => s.checklistCompleto).length;
   let onTimeCount = 0;
   let otifCount = 0;
   let evaluable = 0;
@@ -91,6 +93,7 @@ function computeGroupMetrics(services: MergedService[]): Omit<PeriodMetrics, 'la
     fillRate: total > 0 ? Math.round((conCustodio / total) * 100) : 0,
     onTimeRate: evaluable > 0 ? Math.round((onTimeCount / evaluable) * 100) : 0,
     otifRate: evaluable > 0 ? Math.round((otifCount / evaluable) * 100) : 0,
+    checklistsRate: total > 0 ? Math.round((conChecklist / total) * 100) : 0,
     total,
   };
 }
