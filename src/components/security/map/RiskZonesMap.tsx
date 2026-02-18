@@ -313,7 +313,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full rounded-lg" />
+      <div ref={mapContainer} className="w-full h-full min-h-[400px] rounded-lg" />
       {/* Legend */}
       {mapReady && (
         <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm">
