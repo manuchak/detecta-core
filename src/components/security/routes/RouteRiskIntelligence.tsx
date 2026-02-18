@@ -36,7 +36,7 @@ export function RouteRiskIntelligence() {
             onSegmentSelect={handleSegmentSelect}
           />
           {/* Layer controls as overlay */}
-          <div className="absolute top-3 left-12 z-10">
+          <div className="absolute top-2 right-2 z-10">
             <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
           </div>
         </div>

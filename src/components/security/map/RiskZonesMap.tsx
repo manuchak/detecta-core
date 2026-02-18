@@ -70,6 +70,9 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         setMapReady(true);
         setLoading(false);
         m.resize();
+        setTimeout(() => m.resize(), 100);
+        setTimeout(() => m.resize(), 500);
+        setTimeout(() => m.resize(), 1000);
       });
 
       m.on('error', () => {
@@ -84,6 +87,16 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       map.current = null;
     };
   }, []);
+
+  // ResizeObserver to force Mapbox canvas recalculation
+  useEffect(() => {
+    if (!mapContainer.current || !map.current) return;
+    const observer = new ResizeObserver(() => {
+      map.current?.resize();
+    });
+    observer.observe(mapContainer.current);
+    return () => observer.disconnect();
+  }, [mapReady]);
 
   // Add data layers once map is ready
   useEffect(() => {
@@ -317,21 +330,21 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
       {/* Legend — outside zoom, absolute position */}
       {mapReady && (
-        <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm z-[5]">
-          <div className="font-semibold text-foreground">Nivel de Riesgo</div>
+        <div className="absolute bottom-2 left-2 bg-background/90 border rounded p-1.5 text-[9px] space-y-0.5 backdrop-blur-sm z-[5]">
+          <div className="font-semibold text-foreground text-[9px]">Nivel de Riesgo</div>
           {(['extremo', 'alto', 'medio', 'bajo'] as RiskLevel[]).map(level => (
-            <div key={level} className="flex items-center gap-2">
-              <div className="w-4 h-1 rounded" style={{ backgroundColor: RISK_LEVEL_COLORS[level] }} />
+            <div key={level} className="flex items-center gap-1">
+              <div className="w-3 h-0.5 rounded" style={{ backgroundColor: RISK_LEVEL_COLORS[level] }} />
               <span className="text-muted-foreground capitalize">{level}</span>
             </div>
           ))}
-          <div className="border-t pt-1 mt-1">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: 'hsl(var(--accent))' }} />
+          <div className="border-t pt-0.5 mt-0.5">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full border border-white" style={{ backgroundColor: 'hsl(var(--accent))' }} />
               <span className="text-muted-foreground">Punto seguro</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded border border-dashed" style={{ backgroundColor: 'hsl(var(--muted) / 0.25)', borderColor: 'hsl(var(--muted-foreground))' }} />
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 h-2.5 rounded border border-dashed" style={{ backgroundColor: 'hsl(var(--muted) / 0.25)', borderColor: 'hsl(var(--muted-foreground))' }} />
               <span className="text-muted-foreground">Sin cobertura</span>
             </div>
           </div>

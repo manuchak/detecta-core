@@ -26,18 +26,18 @@ const LAYER_CONFIG: { key: keyof LayerVisibility; label: string; icon: React.Ele
 
 export function RiskZonesMapLayers({ layers, onToggle }: RiskZonesMapLayersProps) {
   return (
-    <div className="bg-background/90 border rounded-lg p-3 backdrop-blur-sm space-y-2">
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-1">
-        <Layers className="h-3.5 w-3.5" />
+    <div className="bg-background/90 border rounded p-2 backdrop-blur-sm space-y-1">
+      <div className="flex items-center gap-1 text-[9px] font-semibold text-foreground">
+        <Layers className="h-2.5 w-2.5" />
         Capas
       </div>
       {LAYER_CONFIG.map(({ key, label, icon: Icon }) => (
-        <div key={key} className="flex items-center justify-between gap-3">
-          <Label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-            <Icon className="h-3 w-3" />
+        <div key={key} className="flex items-center justify-between gap-2">
+          <Label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
+            <Icon className="h-2.5 w-2.5" />
             {label}
           </Label>
-          <Switch checked={layers[key]} onCheckedChange={() => onToggle(key)} className="scale-75" />
+          <Switch checked={layers[key]} onCheckedChange={() => onToggle(key)} className="scale-[0.6]" />
         </div>
       ))}
     </div>
