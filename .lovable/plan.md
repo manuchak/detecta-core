@@ -1,91 +1,78 @@
 
-# Dashboard de Performance Operativo en Monitoreo
+
+# Performance Historico - Graficos Comparativos MoM, WoW, QoQ, YoY
 
 ## Resumen
 
-Agregar una nueva tab "Performance" al modulo de Monitoreo (`/monitoring?tab=performance`) con KPIs diarios calculados en tiempo real a partir de los datos de `servicios_planificados` y `servicios_custodia`.
+Agregar una seccion de graficos historicos debajo de las tarjetas de KPIs diarios en el dashboard de Performance, siguiendo el estilo visual del dashboard ejecutivo. Los graficos mostraran la evolucion de On Time %, Fill Rate % y OTIF % en diferentes horizontes temporales.
 
-## Metricas a implementar
+## Fuentes de datos
 
-| Metrica | Definicion | Fuente de datos |
-|---|---|---|
-| **Fill Rate** | % de servicios con custodio asignado vs total planificados del dia | `servicios_planificados.custodio_asignado IS NOT NULL / total` |
-| **On Time** | % de servicios donde el custodio llego puntual (hora llegada <= hora cita) | `hora_presentacion` (custodia) o `hora_inicio_real` (planeacion) vs `fecha_hora_cita` |
-| **OTIF** | On Time + In Full: puntual Y con checklist completado | On Time AND `checklist_servicio.estado = 'completo'` |
-| **Checklists completados** | Cantidad y % de servicios con checklist completo | `checklist_servicio` join con servicios del dia |
-| **Custodios activos hoy** | Custodios unicos asignados a servicios del dia | `DISTINCT custodio_asignado` del dia |
-| **Servicios/Custodio** | Promedio de servicios por custodio activo | Total servicios / custodios unicos |
-| **Clientes con problemas On Time** | Top clientes con peor % de puntualidad | Agrupado por `nombre_cliente`, ordenado por % On Time ascendente |
-| **Custodios con problemas On Time** | Top custodios con peor % de puntualidad | Agrupado por `custodio_asignado`, ordenado por % On Time ascendente |
+Los datos historicos se obtendran de:
+- `servicios_planificados`: id_servicio, custodio_asignado (Fill Rate), fecha_hora_cita, hora_inicio_real (fallback puntualidad), fecha_cancelacion
+- `servicios_custodia`: id_servicio, hora_presentacion (puntualidad principal), fecha_hora_cita
+- `checklist_servicio`: servicio_id, estado (OTIF)
 
-## Logica de puntualidad (On Time)
-
-La hora de llegada se determina con esta jerarquia:
-1. `servicios_custodia.hora_presentacion` (hora real de llegada a sitio, campo principal)
-2. `servicios_planificados.hora_inicio_real` (fallback: cuando planeacion marca "en sitio" en el sistema)
-
-Se compara contra `fecha_hora_cita` usando timezone CDMX (`America/Mexico_City`). Un servicio es "On Time" si `hora_llegada <= fecha_hora_cita + 15min` (tolerancia de 15 minutos).
+Datos disponibles: servicios_planificados desde Oct 2025, servicios_custodia con hora_presentacion desde Mar 2025. La comparacion YoY tendra datos limitados (solo 2025-2026).
 
 ## Arquitectura
 
-### Nuevo hook: `src/hooks/usePerformanceDiario.ts`
+### Nuevo hook: `src/hooks/usePerformanceHistorico.ts`
 
-Query que trae los datos del dia actual (en CDMX) desde ambas tablas:
+Un hook dedicado que calcula metricas agregadas por periodo (dia, semana, mes, trimestre). La estrategia es:
 
-1. `servicios_planificados`: todos los servicios del dia (no cancelados)
-2. `servicios_custodia`: join por `id_servicio` para obtener `hora_presentacion`
-3. `checklist_servicio`: join por `servicio_id` para saber si tiene checklist completo
+1. Traer servicios_planificados de los ultimos 12 meses (paginado para evitar el limite de 1000 rows)
+2. Traer servicios_custodia del mismo rango (solo id_servicio + hora_presentacion + fecha_hora_cita)
+3. Traer checklist_servicio del mismo rango (servicio_id + estado)
+4. Merge por id_servicio
+5. Agrupar por periodo y calcular Fill Rate %, On Time %, OTIF % por cada grupo
 
-El hook calcula todas las metricas en el frontend agrupando por cliente y custodio.
+Retorna:
+```text
+{
+  daily: { fecha, fillRate, onTimeRate, otifRate, total }[]        // ultimos 30 dias
+  weekly: { semana, fillRate, onTimeRate, otifRate, total }[]      // ultimas 12 semanas
+  monthly: { mes, year, fillRate, onTimeRate, otifRate, total }[]  // ultimos 12 meses
+  quarterly: { quarter, year, fillRate, onTimeRate, otifRate }[]   // ultimos 4-6 trimestres
+}
+```
 
-### Nuevos componentes
+### Nuevos componentes de grafico
 
 | Archivo | Descripcion |
 |---|---|
-| `src/components/monitoring/performance/PerformanceDashboard.tsx` | Componente principal con las metricas cards + tablas |
-| `src/components/monitoring/performance/PerformanceMetricCards.tsx` | Grid de 6 metric cards (Fill Rate, On Time, OTIF, Checklists, Custodios, Svcs/Custodio) |
-| `src/components/monitoring/performance/OnTimeProblemsTable.tsx` | Tabla reutilizable para "peores clientes" y "peores custodios" |
+| `src/components/monitoring/performance/PerformanceHistoryCharts.tsx` | Contenedor con tabs (WoW / MoM / QoQ / YoY) que renderiza el grafico apropiado |
+| `src/components/monitoring/performance/PerformanceLineChart.tsx` | Componente reutilizable de LineChart con 3 series (Fill Rate, On Time, OTIF) |
 
-### Modificacion: `src/pages/Monitoring/MonitoringPage.tsx`
+### Diseno visual (inspirado en dashboard ejecutivo)
 
-Agregar nueva tab "Performance" al `TabsList` con su `TabsContent` correspondiente.
+- Tabs para seleccionar horizonte: **Semanal (WoW)** | **Mensual (MoM)** | **Trimestral (QoQ)** | **Anual (YoY)**
+- LineChart con 3 lineas de colores diferenciados:
+  - Fill Rate: azul (primary)
+  - On Time: verde (success)
+  - OTIF: amber (warning)
+- Eje Y: 0-100% 
+- Tooltips con los 3 valores + total de servicios del periodo
+- Linea de referencia punteada al 90% (target)
+- Para MoM y YoY: barras agrupadas comparando mismo periodo del ano anterior (cuando haya datos)
 
-## Detalle tecnico
+### Modificacion: `PerformanceDashboard.tsx`
 
-### Estructura del hook
+Agregar `PerformanceHistoryCharts` entre las tarjetas de metricas y las tablas de problemas.
 
-```text
-usePerformanceDiario()
-  |
-  +-- Query 1: servicios_planificados del dia CDMX (no cancelados)
-  |     select: id_servicio, nombre_cliente, custodio_asignado, fecha_hora_cita, hora_inicio_real
-  |
-  +-- Query 2: servicios_custodia del dia CDMX
-  |     select: id_servicio, hora_presentacion, estado
-  |
-  +-- Query 3: checklist_servicio del dia
-  |     select: servicio_id, estado
-  |
-  +-- Merge por id_servicio
-  +-- Calculo de metricas con timezone CDMX
-  +-- Return: { metricas, problemasPorCliente, problemasPorCustodio }
-```
-
-### Tolerancia On Time
-
-Se usa 15 minutos de tolerancia (configurable). Comparacion en UTC ya que ambos timestamps estan en UTC; no necesita conversion para la diferencia, solo para determinar "dia actual" en CDMX.
-
-### Layout del dashboard
+## Layout actualizado
 
 ```text
 +-------------------------------------------+
-| [Fill Rate] [On Time] [OTIF]              |
+| [Fill Rate] [On Time] [OTIF]              |  <- Tarjetas existentes (hoy)
 | [Checklists] [Custodios] [Svcs/Custodio]  |
 +-------------------------------------------+
-| Clientes con problemas  | Custodios con   |
+| Historico de Performance                   |  <- NUEVO
+| [WoW] [MoM] [QoQ] [YoY]                  |
+| [===== LineChart 3 series =====]          |
++-------------------------------------------+
+| Clientes con problemas  | Custodios con   |  <- Tablas existentes
 | de puntualidad           | problemas de    |
-| (tabla top 10)           | puntualidad     |
-|                          | (tabla top 10)  |
 +-------------------------------------------+
 ```
 
@@ -93,14 +80,49 @@ Se usa 15 minutos de tolerancia (configurable). Comparacion en UTC ya que ambos 
 
 | Archivo | Accion |
 |---|---|
-| `src/hooks/usePerformanceDiario.ts` | Crear - Hook con queries y calculos |
-| `src/components/monitoring/performance/PerformanceDashboard.tsx` | Crear - Layout principal |
-| `src/components/monitoring/performance/PerformanceMetricCards.tsx` | Crear - Cards de metricas |
-| `src/components/monitoring/performance/OnTimeProblemsTable.tsx` | Crear - Tablas de problemas |
-| `src/pages/Monitoring/MonitoringPage.tsx` | Modificar - Agregar tab "Performance" |
+| `src/hooks/usePerformanceHistorico.ts` | Crear - Hook con queries paginadas y calculo de metricas historicas |
+| `src/components/monitoring/performance/PerformanceHistoryCharts.tsx` | Crear - Contenedor con tabs + chart |
+| `src/components/monitoring/performance/PerformanceLineChart.tsx` | Crear - LineChart reutilizable con 3 series |
+| `src/components/monitoring/performance/PerformanceDashboard.tsx` | Modificar - Insertar PerformanceHistoryCharts entre cards y tablas |
 
-## Sin cambios en
+## Detalle tecnico del hook
 
-- Schema de base de datos (usa datos existentes)
-- Triggers o RLS
-- Otros hooks o componentes existentes
+### Queries (timezone CDMX)
+
+El rango sera los ultimos 12 meses. Se usara `fetchAllPaginated` (mismo patron del dashboard ejecutivo) para evitar el limite de 1000 rows de Supabase.
+
+```text
+Query 1: servicios_planificados (12 meses)
+  select: id_servicio, custodio_asignado, fecha_hora_cita, hora_inicio_real
+  where: fecha_hora_cita >= 12 meses atras, fecha_cancelacion IS NULL
+
+Query 2: servicios_custodia (12 meses)
+  select: id_servicio, hora_presentacion, fecha_hora_cita
+  where: fecha_hora_cita >= 12 meses atras
+
+Query 3: checklist_servicio (12 meses)
+  select: servicio_id, estado
+  where: created_at >= 12 meses atras
+```
+
+### Agrupacion
+
+Cada servicio mergeado se clasifica en su dia CDMX (usando formatInTimeZone). Luego se agrupa:
+- **Daily**: ultimos 30 dias naturales
+- **Weekly**: ISO week number, ultimas 12 semanas
+- **Monthly**: mes/ano, ultimos 12 meses
+- **Quarterly**: T1-T4/ano
+
+Para cada grupo se calcula:
+- Fill Rate = servicios con custodio_asignado / total * 100
+- On Time = servicios con llegada puntual / servicios evaluables * 100
+- OTIF = servicios puntuales con checklist completo / evaluables * 100
+
+### Tolerancia On Time
+
+Misma logica que el hook diario: hora_presentacion (o hora_inicio_real como fallback) <= fecha_hora_cita + 15 min.
+
+### Cache
+
+staleTime: 10 minutos, refetchInterval: 10 minutos (datos historicos no cambian tan rapido).
+
