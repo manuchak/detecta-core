@@ -1,65 +1,40 @@
 
+# Mejoras al modal "Asignar Clientes a CSM"
 
-# Mejoras al modulo Customer Success: Asignacion inversa, touchpoint en cartera, y filtros de analisis
+## Cambio 1: Filtrar CSMs solo con rol `customer_success`
 
-## 1. Submodulo "Asignar Clientes a CSM" en Cartera
+Actualmente el dropdown de CSM muestra TODOS los usuarios con perfil. Se modificara el hook `useCSMOptions` en `src/hooks/useAssignCSM.ts` para hacer un join con la tabla `user_roles` y solo retornar usuarios que tengan el rol `customer_success` activo.
 
-**Problema**: Actualmente solo se puede asignar un CSM a un cliente individualmente desde el dropdown en la tabla, lo cual es repetitivo cuando quieres asignar muchos clientes a un mismo CSM.
+## Cambio 2: Rediseno del modal con mejor UX
 
-**Solucion**: Agregar un boton "Asignar por CSM" que abra un modal con flujo inverso:
-- Paso 1: Seleccionar un CSM del dropdown
-- Paso 2: Mostrar lista de clientes sin CSM asignado (o con otro CSM), con checkboxes para seleccion multiple
-- Paso 3: Boton "Asignar X clientes" que use el hook `useBulkAssignCSM` existente
+El modal actual usa un Dialog generico con pasos numerados que no aprovechan bien el espacio. Se rediseñara para:
 
-Se agregara como un boton nuevo en la barra superior de CSCartera, junto al boton existente de "Mi Cartera".
-
-## 2. Fecha del ultimo touchpoint en la tarjeta del cliente (Cartera)
-
-**Problema**: En la tabla de cartera no se ve cuando fue el ultimo touchpoint de CS, solo se ve "Dias sin contacto" que combina servicios y touchpoints.
-
-**Solucion**: 
-- El hook `useCSCartera` ya calcula `lastTp` (ultimo touchpoint) pero no lo expone en la interfaz `CarteraCliente`
-- Agregar campo `ultimo_touchpoint: string | null` al tipo `CarteraCliente` y exponerlo desde el hook
-- Agregar una columna "Ult. TP" en la tabla de cartera que muestre la fecha formateada
-
-## 3. Ampliar Analisis de Clientes con filtros de dias (90-120-180-360)
-
-**Problema**: El modulo de Analisis Clientes actualmente filtra por MTD/QTD/YTD/Custom, pero no tiene filtros predefinidos de ventanas de dias (ultimos 90, 120, 180, 360 dias) que son mas utiles para CS. Ademas, la tabla solo muestra Top 15 clientes.
-
-**Solucion**:
-- Agregar opciones de filtro de dias al selector de periodo: "Ultimos 90 dias", "Ultimos 120 dias", "Ultimos 180 dias", "Ultimos 360 dias"
-- Cambiar el tipo `DateFilterType` para incluir: `'last_90d' | 'last_120d' | 'last_180d' | 'last_360d'`
-- En el calculo de `dateRange`, agregar los casos correspondientes usando `subDays`
-- Eliminar el limite de Top 15 y mostrar todos los clientes (con paginacion)
+- **Layout de dos paneles**: CSM a la izquierda (lista compacta con avatares/iniciales), clientes a la derecha
+- **Seleccion de CSM visual**: En lugar de un dropdown, mostrar una lista clickeable de CSMs con indicador de cuantos clientes tienen asignados actualmente
+- **Barra de resumen sticky**: En el footer, mostrar un resumen claro del CSM seleccionado + cantidad de clientes marcados
+- **Badge de conteo**: Mostrar junto a cada CSM cuantos clientes ya tiene asignados
+- **Mejor alineacion**: El modal sera `max-w-2xl` para dar espacio a ambos paneles
 
 ---
 
 ## Detalles tecnicos
 
-### Archivos a modificar
+### `src/hooks/useAssignCSM.ts` - `useCSMOptions()`
+- Cambiar la query para hacer join con `user_roles`:
+```sql
+SELECT p.id, p.display_name 
+FROM profiles p
+INNER JOIN user_roles ur ON ur.user_id = p.id
+WHERE ur.role = 'customer_success' AND ur.is_active = true
+```
+- Esto garantiza que solo aparezcan usuarios con el rol correcto
 
-1. **`src/pages/CustomerSuccess/components/CSCartera.tsx`**
-   - Agregar boton "Asignar por CSM" en la barra superior
-   - Crear componente `CSBulkAssignByCSMModal` inline o en archivo separado
-   - Agregar columna "Ult. TP" a la tabla
-
-2. **`src/hooks/useCSCartera.ts`**
-   - Agregar campo `ultimo_touchpoint` al tipo `CarteraCliente`
-   - Exponer la fecha del ultimo touchpoint (ya se calcula como `lastTp`)
-
-3. **`src/components/executive/ClientAnalytics.tsx`**
-   - Ampliar `DateFilterType` con `'last_90d' | 'last_120d' | 'last_180d' | 'last_360d'`
-   - Agregar las opciones correspondientes al `Select` de periodo
-   - Calcular los rangos de fecha con `subDays`
-   - Remover el `.slice(0, 15)` y agregar paginacion
-
-### Archivo nuevo
-
-4. **`src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`**
-   - Modal con selector de CSM + lista de clientes con checkboxes
-   - Reutiliza `useCSMOptions` y `useBulkAssignCSM` existentes
-   - Filtra clientes de `useCSCartera` para mostrar los disponibles
+### `src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`
+- Redisenar a layout de dos columnas dentro del dialog
+- Panel izquierdo: lista de CSMs (clickeables, con badge de clientes asignados)
+- Panel derecho: lista de clientes con checkboxes (aparece al seleccionar CSM)
+- Footer con boton de accion contextual
+- Ampliar a `max-w-2xl` para acomodar el layout
 
 ### Sin cambios de base de datos
-Toda la data necesaria ya existe. Solo son cambios de frontend.
-
+La tabla `user_roles` ya tiene la columna `is_active` y el rol `customer_success` ya esta en el enum.
