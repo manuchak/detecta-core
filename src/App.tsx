@@ -332,7 +332,7 @@ function App() {
                   path="/crm"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi']}>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi', 'customer_success']}>
                         <UnifiedLayout>
                           <CRMHub />
                         </UnifiedLayout>

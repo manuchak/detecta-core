@@ -444,7 +444,7 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
   // Customer Success
   customer_success: {
     redirect: '/customer-success',
-    modules: ['settings']
+    modules: ['settings', 'crm', 'lms']
   },
 
   // Custodio - Redirige a portal dedicado

@@ -126,7 +126,7 @@ export const navigationModules: NavigationModule[] = [
     icon: Briefcase,
     path: '/crm',
     group: 'dashboard',
-    roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi'],
+    roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi', 'customer_success'],
     matchPaths: ['/crm'],
     children: [
       {
@@ -477,7 +477,7 @@ export const navigationModules: NavigationModule[] = [
     icon: GraduationCap,
     path: '/lms',
     group: 'capacitacion',
-    roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte'],
+    roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte', 'customer_success'],
     children: [
       {
         id: 'lms_cursos',
