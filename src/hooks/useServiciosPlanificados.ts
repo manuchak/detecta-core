@@ -704,7 +704,21 @@ export function useServiciosPlanificados() {
       // Always insert into asignacion_armados (source of truth for multi-armado)
       const serviceDate = new Date(currentService.fecha_hora_cita).toISOString().split('T')[0];
       const userId = (await supabase.auth.getUser()).data.user?.id;
-      
+
+      // Cancel previous active assignments for this service (reassignment = replace, not add)
+      const { error: cancelError } = await supabase
+        .from('asignacion_armados')
+        .update({ 
+          estado_asignacion: 'cancelado',
+          observaciones: `Reemplazado por: ${newArmadoName}. Motivo: ${reason}`
+        })
+        .eq('servicio_custodia_id', currentService.id_servicio)
+        .not('estado_asignacion', 'eq', 'cancelado');
+
+      if (cancelError) {
+        console.error('Error cancelling previous assignments:', cancelError);
+      }
+
       await supabase.from('asignacion_armados').insert({
         servicio_custodia_id: currentService.id_servicio,
         custodio_id: currentService.custodio_id,
