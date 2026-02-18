@@ -1,107 +1,129 @@
 
 
-# Fix: Mapa visible, controles compactos, maximo protagonismo al mapa
+# Fix: Mapa no se renderiza por conflicto de zoom y alturas
 
-## Problema
+## Diagnostico
 
-1. **Mapa no se renderiza**: El `zoom: 1/0.7` en `SecurityPage` cambia las dimensiones del layout box, pero el mapa con `position: absolute; inset: 0` calcula su canvas sobre el contenedor padre que ya esta escalado. Mapbox necesita un `resize()` despues de que el zoom se aplique, pero el timing no funciona correctamente.
+El problema raiz es como CSS `zoom` interactua con unidades `vh`:
 
-2. **Capas y leyenda demasiado grandes**: El panel "Capas" y la leyenda "Nivel de Riesgo" estan a escala normal (porque el zoom ya se neutralizo), ocupando espacio critico sobre el mapa.
+1. `html { zoom: 0.7 }` -- el viewport visual se escala al 70%
+2. `SecurityPage` tiene `zoom: 1/0.7` (1.4286) para compensar
+3. Dentro de ese contexto, `100vh` sigue siendo el viewport height original, pero al multiplicarse por el zoom compuesto (0.7 * 1.4286 = 1.0), las alturas `calc(100vh - Xpx)` terminan desbordando o calculando mal
+4. El contenedor del mapa queda con dimensiones incorrectas, y Mapbox renderiza un canvas de 0px o fuera del area visible
+
+**Evidencia**: Los tiles de Mapbox SI se cargan (network requests exitosos con status 200), pero el canvas no se muestra porque su contenedor no tiene dimensiones correctas.
 
 ## Solucion
 
-### 1. `RiskZonesMap.tsx` - Forzar resize con ResizeObserver + compactar leyenda
+Reemplazar todas las alturas basadas en `100vh` dentro del modulo de seguridad por `100dvh` compensado con las CSS custom properties que ya existen en `index.css` (`--zoom-compensation: 1.4286`). Pero mas importante: **usar altura relativa al contenedor padre** en vez de `vh` absoluto.
 
-**Fix del mapa**: Agregar un `ResizeObserver` en el contenedor del mapa para que cada vez que el contenedor cambie de tamano (incluyendo cuando el zoom se aplica), Mapbox recalcule su canvas. Tambien agregar resizes escalonados (100ms, 500ms, 1000ms) despues del load.
+### Enfoque: Flexbox con `flex-1` en vez de `calc(100vh - X)`
 
-**Leyenda compacta**: Reducir padding, font-size y tamano de indicadores. Usar `text-[9px]` y `p-1.5` en vez de `p-3`.
+En vez de calcular alturas absolutas con `vh`, usar un layout flex vertical donde:
+- El tab content ocupa `h-full` / `flex-1`
+- `RouteRiskIntelligence` usa `flex-1` para llenar el espacio disponible
+- El grid del mapa usa `flex-1 min-h-0` (critico para que flex children con overflow funcionen)
+- El contenedor del mapa hereda la altura del grid naturalmente
 
-### 2. `RiskZonesMapLayers.tsx` - Escala reducida
+Esto elimina la dependencia de `100vh` dentro del zoom compensado.
 
-Reducir el panel de capas: `text-[9px]`, `p-2`, iconos `h-2.5 w-2.5`, switches `scale-[0.6]`, y `gap-1` entre items. El panel pasa de ~200px de ancho a ~140px.
+## Cambios por archivo
 
-### 3. `RouteRiskIntelligence.tsx` - Mover capas a esquina superior derecha
+### 1. `src/pages/Security/SecurityPage.tsx`
 
-Mover las capas de `top-3 left-12` a `top-2 right-2` para no chocar con los controles de navegacion de Mapbox (que estan en top-left).
+- Cambiar el contenedor principal de `space-y-3` a `flex flex-col h-screen`
+- El `zoom: 1/0.7` se mantiene pero con `h-screen` explicito
+- El `TabsContent` de routes usa `flex-1 min-h-0` en vez de `h-[calc(100vh-120px)]`
+- Todos los demas `TabsContent` se mantienen igual
 
-### 4. `SecurityPage.tsx` - Agregar resize trigger
+### 2. `src/components/security/routes/RouteRiskIntelligence.tsx`
 
-Sin cambios estructurales. El `zoom: 1/0.7` se mantiene.
+- Cambiar de `space-y-1 h-full` a `flex flex-col h-full`
+- El grid pasa de `h-[calc(100vh-130px)]` a `flex-1 min-h-0`
+- `min-h-0` es critico: sin esto, flex items no pueden ser menores que su contenido intrinseco
+
+### 3. `src/components/security/map/RiskZonesMap.tsx`
+
+- Sin cambios estructurales al JSX (ya usa `relative w-full h-full` + `absolute inset-0`)
+- Agregar un `useEffect` con `requestAnimationFrame` + `resize()` ademas del ResizeObserver existente, para cubrir el caso donde el mapa se inicializa antes de que el layout flex termine de calcular
+- Agregar un `setTimeout` extra de 2000ms para el caso del zoom compound
+
+### 4. `src/components/security/map/RiskZonesMapLayers.tsx`
+
+- Sin cambios (ya esta compactado)
 
 ## Detalle tecnico
 
-### ResizeObserver para Mapbox (RiskZonesMap.tsx)
+### SecurityPage.tsx - Layout flex vertical
+
+```tsx
+<div style={{ zoom: 1 / 0.7 }} className="flex flex-col h-screen overflow-hidden">
+  {/* Header - tamano fijo */}
+  <div className="shrink-0">
+    <h1>...</h1>
+    <p>...</p>
+  </div>
+
+  {/* Tabs - crece para llenar */}
+  <Tabs className="flex-1 flex flex-col min-h-0">
+    <TabsList className="shrink-0 ...">...</TabsList>
+    
+    <TabsContent value="routes" className="flex-1 min-h-0 mt-3">
+      <RouteRiskIntelligence />
+    </TabsContent>
+  </Tabs>
+</div>
+```
+
+### RouteRiskIntelligence.tsx - Flex sin vh
+
+```tsx
+<div className="flex flex-col h-full">
+  <RiskZonesHeader />  {/* shrink-0 implicitamente */}
+  
+  <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1">
+    <div className="relative rounded-lg overflow-hidden border bg-muted/10">
+      <RiskZonesMap ... />
+      <div className="absolute top-2 right-2 z-10">
+        <RiskZonesMapLayers ... />
+      </div>
+    </div>
+    <div className="border rounded-lg p-3 bg-background overflow-hidden">
+      <HighRiskSegmentsList ... />
+    </div>
+  </div>
+</div>
+```
+
+### RiskZonesMap.tsx - Resize robusto
 
 ```typescript
-// Despues de crear el mapa, observar cambios de tamano
+// Ademas del ResizeObserver existente, agregar:
 useEffect(() => {
-  if (!mapContainer.current || !map.current) return;
-  const observer = new ResizeObserver(() => {
+  if (!mapReady || !map.current) return;
+  // requestAnimationFrame para esperar al layout
+  const raf = requestAnimationFrame(() => {
     map.current?.resize();
   });
-  observer.observe(mapContainer.current);
-  return () => observer.disconnect();
+  // Timeout largo para zoom compound
+  const t = setTimeout(() => map.current?.resize(), 2000);
+  return () => {
+    cancelAnimationFrame(raf);
+    clearTimeout(t);
+  };
 }, [mapReady]);
 ```
 
-Ademas, en el evento `load`:
-```typescript
-m.on('load', () => {
-  map.current = m;
-  setMapReady(true);
-  setLoading(false);
-  m.resize();
-  setTimeout(() => m.resize(), 100);
-  setTimeout(() => m.resize(), 500);
-  setTimeout(() => m.resize(), 1000);
-});
-```
+## Por que esto funciona
 
-### Leyenda compacta (RiskZonesMap.tsx)
-
-```tsx
-<div className="absolute bottom-2 left-2 bg-background/90 border rounded p-1.5 text-[9px] space-y-0.5 backdrop-blur-sm z-[5]">
-  <div className="font-semibold text-foreground text-[9px]">Nivel de Riesgo</div>
-  {levels.map(level => (
-    <div className="flex items-center gap-1">
-      <div className="w-3 h-0.5 rounded" style={{ backgroundColor: color }} />
-      <span className="text-muted-foreground capitalize">{level}</span>
-    </div>
-  ))}
-</div>
-```
-
-### Capas compactas (RiskZonesMapLayers.tsx)
-
-```tsx
-<div className="bg-background/90 border rounded p-2 backdrop-blur-sm space-y-1">
-  <div className="flex items-center gap-1 text-[9px] font-semibold">
-    <Layers className="h-2.5 w-2.5" />
-    Capas
-  </div>
-  {items.map(({ key, label, icon: Icon }) => (
-    <div className="flex items-center justify-between gap-2">
-      <Label className="flex items-center gap-1 text-[9px]">
-        <Icon className="h-2.5 w-2.5" />
-        {label}
-      </Label>
-      <Switch checked={layers[key]} onCheckedChange={...} className="scale-[0.6]" />
-    </div>
-  ))}
-</div>
-```
-
-### Posicion de overlay (RouteRiskIntelligence.tsx)
-
-```tsx
-<div className="absolute top-2 right-2 z-10">
-  <RiskZonesMapLayers ... />
-</div>
-```
+- `h-screen` en el wrapper con `zoom: 1/0.7` le da al contenedor exactamente la altura del viewport (el browser calcula `100vh` correctamente para el elemento raiz)
+- `flex-1 min-h-0` hace que cada nivel del arbol flex se ajuste al espacio disponible sin desbordarse
+- El mapa hereda la altura real del grid cell via `h-full` + `absolute inset-0`
+- No hay ninguna referencia a `100vh` dentro de componentes hijos, eliminando el conflicto de zoom
 
 ## Archivos a modificar
 
-1. `src/components/security/map/RiskZonesMap.tsx` -- ResizeObserver + resize escalonado + leyenda compacta
-2. `src/components/security/map/RiskZonesMapLayers.tsx` -- Escala reducida de todo el panel
-3. `src/components/security/routes/RouteRiskIntelligence.tsx` -- Mover overlay a top-right
+1. `src/pages/Security/SecurityPage.tsx` -- Layout flex vertical con h-screen
+2. `src/components/security/routes/RouteRiskIntelligence.tsx` -- Flex con min-h-0
+3. `src/components/security/map/RiskZonesMap.tsx` -- Resize con requestAnimationFrame
 
