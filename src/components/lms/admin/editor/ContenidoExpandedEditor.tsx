@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, X, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
+import { Loader2, Save, X, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code, Package, Award } from "lucide-react";
 import { MediaUploader } from "@/components/lms/admin/wizard/MediaUploader";
 import { VideoScriptGenerator, type VideoScriptData } from "@/components/lms/admin/wizard/VideoScriptGenerator";
 import { InlineQuizEditor, type QuizQuestionOutline } from "@/components/lms/admin/wizard/InlineQuizEditor";
@@ -23,11 +23,14 @@ const TIPO_ICONS: Record<TipoContenido, React.ReactNode> = {
   quiz: <HelpCircle className="w-4 h-4" />,
   interactivo: <Sparkles className="w-4 h-4" />,
   embed: <Code className="w-4 h-4" />,
+  scorm: <Package className="w-4 h-4" />,
+  certificado_plantilla: <Award className="w-4 h-4" />,
 };
 
 const TIPO_LABELS: Record<TipoContenido, string> = {
   video: 'Video', documento: 'Documento', texto_enriquecido: 'Texto Enriquecido',
   quiz: 'Evaluación', interactivo: 'Interactivo', embed: 'Embed',
+  scorm: 'SCORM', certificado_plantilla: 'Certificado',
 };
 
 interface ContenidoExpandedEditorProps {

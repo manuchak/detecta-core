@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2 } from "lucide-react";
+import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2, Package, Award } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent, type TipoInteractivo, type InteractivoContent } from "@/types/lms";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
@@ -17,6 +17,9 @@ import { cn } from "@/lib/utils";
 import { MediaUploader } from "./wizard/MediaUploader";
 import { useLMSCrearPreguntas, useLMSEliminarPreguntas, fetchPreguntasByIds } from "@/hooks/lms/useLMSAdminPreguntas";
 import { getDocumentType } from "@/utils/documentUtils";
+import { useLMSPlantillas } from "@/hooks/lms/useLMSPlantillas";
+import { type ScormContent, type CertificadoPlantillaContent } from "@/types/lms";
+
 
 interface ContenidoFormData {
   titulo: string;
@@ -56,6 +59,8 @@ const TIPO_ICONS: Record<TipoContenido, React.ReactNode> = {
   embed: <Code className="h-4 w-4" />,
   quiz: <HelpCircle className="h-4 w-4" />,
   interactivo: <Code className="h-4 w-4" />,
+  scorm: <Package className="h-4 w-4" />,
+  certificado_plantilla: <Award className="h-4 w-4" />,
 };
 
 export function LMSContenidoForm({
@@ -98,12 +103,21 @@ export function LMSContenidoForm({
     mostrar_respuestas_correctas: true
   });
 
+  // SCORM
+  const [scormEntryPoint, setScormEntryPoint] = useState("");
+  const [scormVersion, setScormVersion] = useState<'SCORM_1.2' | 'SCORM_2004'>('SCORM_1.2');
+  const [scormHeight, setScormHeight] = useState(600);
+
+  // Certificado plantilla
+  const [certificadoPlantillaId, setCertificadoPlantillaId] = useState("");
+
   // Track deleted question IDs for cleanup
   const [preguntasEliminadas, setPreguntasEliminadas] = useState<string[]>([]);
   const [preguntasOriginales, setPreguntasOriginales] = useState<string[]>([]);
 
   const crearPreguntas = useLMSCrearPreguntas();
   const eliminarPreguntas = useLMSEliminarPreguntas();
+  const { data: plantillas = [] } = useLMSPlantillas();
 
   useEffect(() => {
     if (contenido) {
@@ -170,6 +184,10 @@ export function LMSContenidoForm({
       tiempo_limite_min: null,
       mostrar_respuestas_correctas: true
     });
+    setScormEntryPoint("");
+    setScormVersion('SCORM_1.2');
+    setScormHeight(600);
+    setCertificadoPlantillaId("");
     setActiveTab("contenido");
     setPreguntasEliminadas([]);
     setPreguntasOriginales([]);
@@ -223,7 +241,6 @@ export function LMSContenidoForm({
             }
           } as InteractivoContent;
         }
-        // Otros tipos interactivos (flashcards, etc.) podrían agregarse aquí
         return { tipo: interactivoTipo, data: {} } as InteractivoContent;
       case 'quiz':
         return {
@@ -233,6 +250,21 @@ export function LMSContenidoForm({
           mostrar_respuestas_correctas: quizConfig.mostrar_respuestas_correctas,
           tiempo_limite_min: quizConfig.tiempo_limite_min ?? undefined
         } as QuizContent;
+      case 'scorm': {
+        return {
+          package_url: '',
+          entry_point: scormEntryPoint,
+          version: scormVersion,
+          height: scormHeight,
+        } as ScormContent;
+      }
+      case 'certificado_plantilla': {
+        const plantilla = plantillas.find(p => p.id === certificadoPlantillaId);
+        return {
+          plantilla_id: certificadoPlantillaId,
+          plantilla_nombre: plantilla?.nombre ?? '',
+        } as CertificadoPlantillaContent;
+      }
       default:
         return { html: '' };
     }
@@ -573,6 +605,83 @@ export function LMSContenidoForm({
                             onCheckedChange={(checked) => setQuizConfig({ ...quizConfig, mostrar_respuestas_correctas: checked })}
                           />
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {tipo === 'scorm' && (
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/30 border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Package className="h-4 w-4 text-primary" />
+                      <Label className="text-sm font-medium">Paquete SCORM</Label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">URL del Entry Point (index.html dentro del paquete)</Label>
+                      <Input
+                        value={scormEntryPoint}
+                        onChange={(e) => setScormEntryPoint(e.target.value)}
+                        placeholder="https://storage.../lms-scorm/mi-curso/index.html"
+                        className="h-9 font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Sube el ZIP a Storage → lms-scorm, descomprímelo y pega la URL pública del <code>index.html</code>.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Versión SCORM</Label>
+                        <Select value={scormVersion} onValueChange={(v) => setScormVersion(v as 'SCORM_1.2' | 'SCORM_2004')}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SCORM_1.2">SCORM 1.2</SelectItem>
+                            <SelectItem value="SCORM_2004">SCORM 2004</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Altura del visor (px)</Label>
+                        <Input
+                          type="number"
+                          min={400}
+                          value={scormHeight}
+                          onChange={(e) => setScormHeight(parseInt(e.target.value) || 600)}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {tipo === 'certificado_plantilla' && (
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/30 border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Award className="h-4 w-4 text-amber-500" />
+                      <Label className="text-sm font-medium">Plantilla de Certificado</Label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Selecciona la plantilla</Label>
+                      <Select value={certificadoPlantillaId} onValueChange={setCertificadoPlantillaId}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="— Selecciona una plantilla —" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {plantillas.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nombre}{p.es_default ? ' (predeterminada)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        El alumno verá su nombre, la fecha y el título del curso en la constancia y podrá descargarla en PDF.
+                      </p>
+                    </div>
+                    {certificadoPlantillaId && plantillas.find(p => p.id === certificadoPlantillaId) && (
+                      <div className="p-3 rounded-lg bg-background border text-xs text-muted-foreground">
+                        Variables disponibles: {plantillas.find(p => p.id === certificadoPlantillaId)?.variables_disponibles.map(v => `{{${v}}}`).join(', ')}
                       </div>
                     )}
                   </div>
