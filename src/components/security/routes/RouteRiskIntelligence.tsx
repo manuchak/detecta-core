@@ -27,9 +27,9 @@ export function RouteRiskIntelligence() {
     <div className="space-y-3 h-full">
       <RiskZonesHeader />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-3" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr_280px] gap-3 h-[calc(100vh-320px)] min-h-[500px]">
         {/* Left panel - Layer controls */}
-        <div className="hidden lg:block">
+        <div className="hidden md:block">
           <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
         </div>
 
@@ -41,7 +41,7 @@ export function RouteRiskIntelligence() {
             onSegmentSelect={handleSegmentSelect}
           />
           {/* Mobile layer control overlay */}
-          <div className="absolute top-3 right-3 lg:hidden">
+          <div className="absolute top-3 right-3 md:hidden">
             <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
           </div>
         </div>
