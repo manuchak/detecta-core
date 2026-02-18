@@ -38,7 +38,7 @@ const MobileDashboardLayout = () => {
   const { stats: ticketStats, loading: ticketsLoading, refetch: refetchTicketStats } = useCustodianTickets(profile?.phone);
   const { tickets: allTickets, getRecentlyResolvedTickets, markTicketAsSeen, refetch: refetchTickets } = useCustodianTicketsEnhanced(profile?.phone);
   const { maintenanceStatus, pendingMaintenance, createMaintenance, createBatchMaintenance, loading: maintenanceLoading, refetch: refetchMaintenance } = useCustodianMaintenance(profile?.phone, stats.km_totales);
-   const { service: nextService, checklistStatus, refetch: refetchNextService } = useNextService(profile?.phone);
+   // useNextService moved below after realCustodioId declaration
   const { 
     indisponibilidadesActivas,
     crearIndisponibilidad, 
@@ -55,6 +55,7 @@ const MobileDashboardLayout = () => {
   const [dismissedTickets, setDismissedTickets] = useState<Set<string>>(new Set());
   const [realCustodioId, setRealCustodioId] = useState<string | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const { service: nextService, checklistStatus, refetch: refetchNextService } = useNextService(profile?.phone, realCustodioId);
   
   // Phone update flow state
   const [showPhoneUpdatePrompt, setShowPhoneUpdatePrompt] = useState(false);

@@ -22,23 +22,20 @@ interface NextServiceResult {
   refetch: () => void;
 }
 
-export function useNextService(custodianPhone: string | undefined): NextServiceResult {
+export function useNextService(custodianPhone: string | undefined, custodioId?: string | null): NextServiceResult {
   const query = useQuery({
-    queryKey: ['next-service', custodianPhone],
+    queryKey: ['next-service', custodianPhone, custodioId],
     queryFn: async () => {
-      if (!custodianPhone) return { service: null, checklistStatus: null };
+      if (!custodianPhone && !custodioId) return { service: null, checklistStatus: null };
       
       const now = new Date();
       now.setHours(0, 0, 0, 0);
       const todayISO = now.toISOString();
       
       // Normalizar teléfono usando utilidad centralizada
-      const normalizedPhone = normalizePhone(custodianPhone);
+      const normalizedPhone = custodianPhone ? normalizePhone(custodianPhone) : '';
       
-      // 1. Query servicios_planificados (sistema nuevo con custodio_telefono)
-      const { data: planificados, error: planError } = await supabase
-        .from('servicios_planificados')
-        .select(`
+      const planificadosSelect = `
           id,
           id_servicio,
           nombre_cliente,
@@ -47,12 +44,41 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
           fecha_hora_cita,
           estado_planeacion,
           tipo_servicio
-        `)
-        .eq('custodio_telefono', normalizedPhone)
-        .gte('fecha_hora_cita', todayISO)
-        .not('estado_planeacion', 'in', '(cancelado,completado,finalizado,Cancelado,Completado,Finalizado)')
-        .order('fecha_hora_cita', { ascending: true })
-        .limit(1);
+        `;
+
+      // 1. Query servicios_planificados por teléfono
+      let planificados: any[] | null = null;
+      let planError: any = null;
+
+      if (normalizedPhone) {
+        const result = await supabase
+          .from('servicios_planificados')
+          .select(planificadosSelect)
+          .eq('custodio_telefono', normalizedPhone)
+          .gte('fecha_hora_cita', todayISO)
+          .not('estado_planeacion', 'in', '(cancelado,completado,finalizado,Cancelado,Completado,Finalizado)')
+          .order('fecha_hora_cita', { ascending: true })
+          .limit(1);
+        planificados = result.data;
+        planError = result.error;
+      }
+
+      // 1b. Fallback: si no hay resultados por teléfono, buscar por custodio_id (UUID)
+      if ((!planificados || planificados.length === 0) && custodioId) {
+        console.log('[useNextService] Fallback: buscando por custodio_id', custodioId);
+        const fallback = await supabase
+          .from('servicios_planificados')
+          .select(planificadosSelect)
+          .eq('custodio_id', custodioId)
+          .gte('fecha_hora_cita', todayISO)
+          .not('estado_planeacion', 'in', '(cancelado,completado,finalizado,Cancelado,Completado,Finalizado)')
+          .order('fecha_hora_cita', { ascending: true })
+          .limit(1);
+        if (!fallback.error && fallback.data && fallback.data.length > 0) {
+          planificados = fallback.data;
+          planError = null;
+        }
+      }
 
       if (planError) {
         console.error('Error fetching servicios_planificados:', planError);
@@ -143,7 +169,7 @@ export function useNextService(custodianPhone: string | undefined): NextServiceR
         checklistStatus: (checklist?.estado as 'pendiente' | 'completo') || null
       };
     },
-    enabled: !!custodianPhone,
+    enabled: !!custodianPhone || !!custodioId,
     staleTime: 10000, // 10 segundos
   });
 
