@@ -69,10 +69,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         map.current = m;
         setMapReady(true);
         setLoading(false);
-        // Multiple resize calls to ensure canvas recalculates after transform compensation
         m.resize();
-        setTimeout(() => m.resize(), 200);
-        setTimeout(() => m.resize(), 800);
       });
 
       m.on('error', () => {
@@ -317,18 +314,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      {/* Clip wrapper — contains the zoomed map */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div
-          ref={mapContainer}
-          className="rounded-lg"
-          style={{
-            zoom: 1.4286,
-            width: '70%',
-            height: '70%',
-          }}
-        />
-      </div>
+      <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
       {/* Legend — outside zoom, absolute position */}
       {mapReady && (
         <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm z-[5]">
