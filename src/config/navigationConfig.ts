@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   ShieldCheck,
+  ShieldAlert,
   LayoutDashboard,
   Users, 
   UserCheck,
@@ -57,6 +58,7 @@ export const navigationGroups: NavigationGroup[] = [
   { id: 'customer-success', label: 'Customer Success', icon: HeartHandshake },
   { id: 'monitoring', label: 'Monitoreo & Soporte', icon: Radio },
   { id: 'capacitacion', label: 'Capacitación', icon: GraduationCap },
+  { id: 'seguridad', label: 'Seguridad', icon: ShieldAlert },
   { id: 'system', label: 'Sistema', icon: Settings, defaultCollapsed: true },
 ];
 
@@ -498,6 +500,16 @@ export const navigationModules: NavigationModule[] = [
         icon: BarChart3
       }
     ]
+  },
+
+  // ===== SEGURIDAD GROUP =====
+  {
+    id: 'seguridad',
+    label: 'Seguridad',
+    icon: ShieldAlert,
+    path: '/seguridad',
+    group: 'seguridad',
+    roles: ['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones'],
   },
 
   // ===== SISTEMA GROUP =====
