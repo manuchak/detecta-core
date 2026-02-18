@@ -124,6 +124,7 @@ async function fetchHistoricoData(): Promise<HistoricoData> {
   const twelveMonthsAgo = new Date(now);
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
   const rangeStart = `${formatInTimeZone(twelveMonthsAgo, TIMEZONE_CDMX, 'yyyy-MM-dd')}T00:00:00-06:00`;
+  const rangeEnd = `${formatInTimeZone(now, TIMEZONE_CDMX, 'yyyy-MM-dd')}T23:59:59-06:00`;
 
   // Fetch all 3 tables paginated
   const [planificados, custodias, checklists] = await Promise.all([
@@ -132,6 +133,7 @@ async function fetchHistoricoData(): Promise<HistoricoData> {
         .from('servicios_planificados')
         .select('id_servicio, custodio_asignado, fecha_hora_cita, hora_inicio_real')
         .gte('fecha_hora_cita', rangeStart)
+        .lte('fecha_hora_cita', rangeEnd)
         .is('fecha_cancelacion', null)
         .range(from, to)
     ),
@@ -191,15 +193,18 @@ async function fetchHistoricoData(): Promise<HistoricoData> {
       return { label: `${d[2]}/${d[1]}`, ...computeGroupMetrics(svcs) };
     });
 
+  // Filter out any future services (defense in depth)
+  const pastServices = merged.filter(s => s.diaCDMX <= todayCDMX);
+
   // --- Weekly (last 12 weeks) ---
-  const weeklyGroups = groupBy(merged, s => getISOWeek(s.diaCDMX));
+  const weeklyGroups = groupBy(pastServices, s => getISOWeek(s.diaCDMX));
   const weekly: PeriodMetrics[] = Array.from(weeklyGroups.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-12)
     .map(([week, svcs]) => ({ label: week, ...computeGroupMetrics(svcs) }));
 
   // --- Monthly (last 12 months) ---
-  const monthlyGroups = groupBy(merged, s => s.diaCDMX.substring(0, 7)); // yyyy-MM
+  const monthlyGroups = groupBy(pastServices, s => s.diaCDMX.substring(0, 7)); // yyyy-MM
   const monthly: PeriodMetrics[] = Array.from(monthlyGroups.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-12)
@@ -209,7 +214,7 @@ async function fetchHistoricoData(): Promise<HistoricoData> {
     });
 
   // --- Quarterly ---
-  const quarterlyGroups = groupBy(merged, s => {
+  const quarterlyGroups = groupBy(pastServices, s => {
     const m = parseInt(s.diaCDMX.substring(5, 7));
     const q = Math.ceil(m / 3);
     return `${s.diaCDMX.substring(0, 4)}-Q${q}`;
