@@ -6,9 +6,20 @@ export function useCSMOptions() {
   return useQuery({
     queryKey: ['csm-options'],
     queryFn: async () => {
+      // Get user IDs with active customer_success role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'customer_success')
+        .eq('is_active', true);
+      if (roleError) throw roleError;
+      const csUserIds = (roleData || []).map(r => r.user_id);
+      if (csUserIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, display_name')
+        .in('id', csUserIds)
         .order('display_name');
       if (error) throw error;
       return (data || []).filter(p => p.display_name);
