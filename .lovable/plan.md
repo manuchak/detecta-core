@@ -1,37 +1,67 @@
 
-# Corregir montos visibles para custodios: usar `costo_custodio` en lugar de `cobro_cliente`
+# Agregar "Reportado por" a la UX de exclusiones y rechazos
 
 ## Problema
 
-En el portal de custodios, los montos financieros se obtienen de la columna `cobro_cliente` (lo que se le cobra al cliente final). Los custodios deben ver unicamente el `costo_custodio` (lo que se les paga a ellos).
+Cuando un custodio aparece como excluido (por rechazo o indisponibilidad), el planificador no sabe **quien ejecuto esa accion**: si fue un usuario interno (coordinador, planificador) o si el mismo custodio se puso inactivo. Esto genera confusion operativa como la que reporta Daniela en el screenshot.
 
-## Cambios identificados
+## Datos disponibles
 
-Hay **2 archivos** que necesitan correccion:
+Ambas tablas ya almacenan `reportado_por` (UUID del usuario):
+- `custodio_rechazos.reportado_por` -- usuario que registro el rechazo
+- `custodio_indisponibilidades.reportado_por` -- usuario que registro la indisponibilidad
 
-### 1. `src/hooks/useCustodianServices.ts`
+Los nombres se resuelven contra la tabla `profiles` (campos `display_name`, `email`).
 
-- **Interface `CustodianService`**: Reemplazar `cobro_cliente` por `costo_custodio` (ambas opcionales, tipo `number`)
-- **Query a `servicios_custodia`**: Cambiar el campo seleccionado de `cobro_cliente` a `costo_custodio`
-- **Mapeo de `servicios_planificados`**: Ya tiene `cobro_cliente: undefined`, cambiar a `costo_custodio: undefined`
-- **Calculo de `ingresos_totales`**: Cambiar `s.cobro_cliente` por `s.costo_custodio`
+## Cambios propuestos
 
-### 2. `src/pages/custodian/CustodianDashboard.tsx`
+### 1. Hook `useCustodioRechazos.ts` -- Agregar `reportado_por_nombre` a `RechazadoDetalle`
 
-- **Linea 204-206**: Cambiar la referencia de `service.cobro_cliente` a `service.costo_custodio` y el label de "Cobro" a "Pago"
+- Extender la interface `RechazadoDetalle` con `reportado_por_nombre: string | null`
+- En `useRechazosVigentesDetallados`, agregar `reportado_por` al select de `custodio_rechazos`
+- Resolver los UUIDs de `reportado_por` contra `profiles` (display_name o email) en el mismo queryFn
+- Si `reportado_por` es null, mostrar "Sistema" o "Desconocido"
+
+### 2. Componente `ExcludedCustodiansAlert.tsx` -- Mostrar quien reporto
+
+- Actualizar la interface `RechazadoDetail` para incluir `reportado_por_nombre: string | null`
+- En el mensaje especifico (1 custodio coincide con busqueda), agregar una linea: "Reportado por: [nombre]"
+- Formato: texto gris discreto debajo del motivo
+
+### 3. Hook `useCustodioIndisponibilidades.ts` -- Resolver nombres en indisponibilidades activas
+
+- Extender la query de `indisponibilidadesActivas` para incluir `reportado_por`
+- Resolver el UUID contra `profiles` para mostrar el nombre en el banner de indisponibilidad
+
+### 4. Componente `UnavailabilityStatusBanner.tsx` -- Mostrar quien registro la indisponibilidad
+
+- Agregar prop opcional `reportadoPor: string | null`
+- Mostrar "Reportado por: [nombre]" como texto discreto
 
 ## Detalle tecnico
 
-| Archivo | Linea(s) | Cambio |
-|---|---|---|
-| `useCustodianServices.ts` | 15 | `cobro_cliente?: number` -> `costo_custodio?: number` |
-| `useCustodianServices.ts` | 85 | Select: `cobro_cliente` -> `costo_custodio` |
-| `useCustodianServices.ts` | 128 | Mapping: `cobro_cliente: undefined` -> `costo_custodio: undefined` |
-| `useCustodianServices.ts` | 164 | Stats: `s.cobro_cliente` -> `s.costo_custodio` |
-| `CustodianDashboard.tsx` | 204-206 | Display: `cobro_cliente` -> `costo_custodio`, label "Cobro" -> "Pago" |
+| Archivo | Accion |
+|---|---|
+| `src/hooks/useCustodioRechazos.ts` | Modificar - Agregar `reportado_por` al select, resolver nombre contra `profiles`, extender `RechazadoDetalle` |
+| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ExcludedCustodiansAlert.tsx` | Modificar - Agregar campo `reportado_por_nombre` a interface y mostrarlo en el banner |
+| `src/hooks/useCustodioIndisponibilidades.ts` | Modificar - Resolver `reportado_por` contra `profiles` en la query de activas |
+| `src/components/custodian/UnavailabilityStatusBanner.tsx` | Modificar - Agregar prop `reportadoPor` y mostrarlo |
 
-## Sin impacto en
+## Ejemplo visual del banner mejorado
 
-- Las vistas administrativas (Facturacion, Dashboard ejecutivo, etc.) siguen usando `cobro_cliente` como siempre
-- No hay cambios de base de datos, ambas columnas ya existen en `servicios_custodia`
-- La tarjeta de "Ingresos Totales" en el dashboard del custodio ya esta oculta (comentada en linea 117)
+```text
+"David Diaz" coincide con un custodio excluido
+David Diaz — Rechazo vigente hasta 24 de feb · No quiere servicio con armado
+Reportado por: Daniela Castaneda
+```
+
+Para indisponibilidades:
+
+```text
+Estado: No disponible
+Falla mecanica
+Hasta: lunes, 24 de febrero
+Reportado por: David Diaz (auto-reporte)
+```
+
+Si el `reportado_por` coincide con el custodio (self-service desde el portal), se agrega "(auto-reporte)".
