@@ -9,13 +9,14 @@
   import { useNetworkStatus } from './useNetworkStatus';
   import { withSmartRetry } from '@/lib/retryUtils';
  import {
-   saveDraft,
-   getDraft,
-   deleteDraft,
-   savePhotoBlob,
-   getPhotosByServicio,
-   addToSyncQueue,
-   deletePhotoBlob,
+  saveDraft,
+  getDraft,
+  deleteDraft,
+  savePhotoBlob,
+  getPhotoBlob,
+  getPhotosByServicio,
+  addToSyncQueue,
+  deletePhotoBlob,
  } from '@/lib/offlineStorage';
 import { compressImage, needsCompression } from '@/lib/imageUtils';
 import {
@@ -166,12 +167,20 @@ export function useServiceChecklist({
               maxHeight: 1080,
               quality: 0.7,
             });
-            processedFile = compressed.blob;
-            mimeType = 'image/jpeg';
-            console.log(`[Checklist] Foto ${angle} comprimida: ${compressed.compressionRatio.toFixed(0)}% reducción`);
-          } catch (compressionError) {
-            console.warn('[Checklist] Error comprimiendo foto, usando original:', compressionError);
-          }
+             processedFile = compressed.blob;
+             mimeType = 'image/jpeg';
+             console.log(`[Checklist] Foto ${angle} comprimida: ${compressed.compressionRatio.toFixed(0)}% reducción`);
+           } catch (compressionError) {
+             console.warn('[Checklist] Error comprimiendo foto, usando original:', compressionError);
+           }
+         }
+
+        // Validación post-compresión: rechazar blobs de 0 bytes
+        if (processedFile.size === 0) {
+          toast.error('Error al procesar la foto. Por favor intenta de nuevo.', {
+            description: 'La imagen resultó vacía después de la compresión.',
+          });
+          throw new Error(`Foto ${angle} resultó en 0 bytes después de compresión`);
         }
 
        const coords = await getCurrentPositionSafe();
@@ -282,11 +291,29 @@ export function useServiceChecklist({
               );
 
               if (localPhoto) {
+                // Validar que el blob no esté vacío (0 bytes)
+                let uploadBlob = localPhoto.blob;
+                if (!uploadBlob || uploadBlob.size === 0) {
+                  console.warn(`[Checklist] Blob vacío detectado para foto ${foto.angle}, reintentando lectura desde IndexedDB...`);
+                  const retryPhoto = await getPhotoBlob(foto.localBlobId!);
+                  if (!retryPhoto || !retryPhoto.blob || retryPhoto.blob.size === 0) {
+                    console.error(`[Checklist] Foto ${foto.angle} corrupta (0 bytes) después de retry. Omitiendo upload.`);
+                    toast.error(`Foto ${foto.angle} corrupta (0 bytes). No se pudo subir.`, {
+                      description: 'El custodio deberá retomar esta foto.',
+                    });
+                    fotosConUrl.push({ ...foto, localBlobId: undefined });
+                    await deletePhotoBlob(localPhoto.id);
+                    continue;
+                  }
+                  uploadBlob = retryPhoto.blob;
+                  console.log(`[Checklist] Retry exitoso para foto ${foto.angle}, size: ${uploadBlob.size}`);
+                }
+
                 const fileName = `${servicioId}/${foto.angle}_${Date.now()}.jpg`;
 
                 const { error } = await supabase.storage
                   .from('checklist-evidencias')
-                  .upload(fileName, localPhoto.blob, { upsert: true });
+                  .upload(fileName, uploadBlob, { upsert: true });
 
                 if (error) throw error;
 
