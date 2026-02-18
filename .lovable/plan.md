@@ -1,21 +1,45 @@
 
 
-# Ajustar benchmarks individuales por metrica
+# Hacer Performance la pestaña principal del módulo de Monitoreo
 
-Cambio de configuracion en `src/components/monitoring/performance/PerformanceHistoryCharts.tsx`, lineas 19-22 del array `metrics`:
+## Cambios
 
-| Metrica | Target actual | Target nuevo |
-|---|---|---|
-| Fill Rate | 90% | **99%** |
-| On Time | 90% | **95%** |
-| OTIF | 90% | **95%** |
-| Checklists | 90 | **100%** (pendiente de aplicar) |
+### 1. Cambiar el tab por defecto a "performance" (`MonitoringPage.tsx`)
 
-Cambios en 4 valores del array `metrics`:
-- `fillRate`: `target: 90` -> `target: 99`
-- `onTimeRate`: `target: 90` -> `target: 95`
-- `otifRate`: `target: 90` -> `target: 95`
-- `checklistsRate`: `target: 90` -> `target: 100`
+- **Línea 40**: Cambiar la lógica de `activeTab` para que cuando no hay `tab` en la URL, el valor por defecto sea `'performance'` en vez de `'posicionamiento'`.
 
-Un solo archivo afectado: `src/components/monitoring/performance/PerformanceHistoryCharts.tsx`
+Antes:
+```
+tabFromUrl === 'performance' ? 'performance' : 'posicionamiento'
+```
+
+Después:
+```
+tabFromUrl || 'performance'
+```
+
+(Se simplifica toda la cadena ternaria ya que cualquier valor válido en la URL se respeta, y sin parámetro cae a `'performance'`.)
+
+### 2. Reordenar las pestañas visualmente (`MonitoringPage.tsx`)
+
+Mover el `TabsTrigger` y `TabsContent` de "Performance" al primer lugar en la lista, seguido de Posicionamiento, Checklists, Adopción Digital e Incidentes.
+
+Orden actual: Posicionamiento > Checklists > Adopción > Incidentes > Performance
+
+Orden nuevo: **Performance** > Posicionamiento > Checklists > Adopción > Incidentes
+
+### 3. Actualizar título y descripción del header
+
+Cambiar el título de "Control de Posicionamiento" a algo más general como "Centro de Monitoreo", ya que ahora la vista principal es Performance y el título actual solo aplica a una pestaña.
+
+## Por qué NO drag & drop de tabs
+
+- Solo hay 5 pestañas — el beneficio de reordenar es marginal
+- Requiere persistencia por usuario (localStorage o BD), manejo de nuevas pestañas futuras, y sincronización con la URL
+- Agrega complejidad de mantenimiento desproporcionada al valor que aporta
+- La solución simple (reordenar estáticamente) resuelve el problema real: que Performance sea lo primero que se ve
+
+## Archivo afectado
+
+`src/pages/Monitoring/MonitoringPage.tsx` — cambios en default tab, orden de TabsTrigger/TabsContent, y texto del header.
 
