@@ -16,7 +16,7 @@ import type { EditableService } from './EditServiceModal';
 import { useServiceTransformations } from '@/hooks/useServiceTransformations';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
+import { useRegistrarRechazo, useRechazosVigentesDetallados } from '@/hooks/useCustodioRechazos';
 import { useKapsoWhatsApp } from '@/hooks/useKapsoWhatsApp';
 
 // Componentes modulares de CustodianStep (unificados)
@@ -24,6 +24,7 @@ import { QuickStats } from '@/pages/Planeacion/ServiceCreation/steps/CustodianSt
 import { CustodianSearch } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianSearch';
 import { CustodianList } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianList';
 import { ConflictSection } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ConflictSection';
+import { ExcludedCustodiansAlert } from '@/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ExcludedCustodiansAlert';
 import { useCustodiosConProximidad, type CustodioConProximidad } from '@/hooks/useProximidadOperacional';
 import { 
   type CustodianCommunicationState, 
@@ -124,8 +125,10 @@ export function PendingAssignmentModal({
   
   // Hook for registering rejections
   const registrarRechazo = useRegistrarRechazo();
+  
+  // 🆕 Detailed rejections for exclusion banner
+  const { data: rechazadosDetallados = [] } = useRechazosVigentesDetallados({ inclujeArmado: service?.requiere_armado });
 
-  // Datos del servicio para el hook de proximidad
   const servicioNuevo = useMemo(() => {
     if (!service) return undefined;
     return {
@@ -180,6 +183,19 @@ export function PendingAssignmentModal({
            (categorized.parcialmenteOcupados?.length || 0) + 
            (categorized.ocupados?.length || 0);
   }, [categorized]);
+
+  // 🆕 Exclusion data for banner
+  const rechazadosMatchingSearch = useMemo(() => {
+    if (!searchTerm.trim() || rechazadosDetallados.length === 0) return [];
+    const term = searchTerm.toLowerCase();
+    return rechazadosDetallados.filter(r => r.nombre.toLowerCase().includes(term));
+  }, [searchTerm, rechazadosDetallados]);
+
+  const conflictoCount = categorized?.noDisponibles?.length || 0;
+  const conflictSectionRef = React.useRef<HTMLDivElement>(null);
+  const scrollToConflicts = React.useCallback(() => {
+    conflictSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   // Handler para toggle de filtros
   const handleFilterToggle = (key: keyof CustodianStepFilters) => {
@@ -743,6 +759,15 @@ export function PendingAssignmentModal({
                   totalCount={totalCount}
                 />
                 
+                {/* 🆕 Exclusion Banner */}
+                <ExcludedCustodiansAlert
+                  searchTerm={searchTerm}
+                  rechazadosCount={rechazadosDetallados.length}
+                  conflictoCount={conflictoCount}
+                  rechazadosMatchingSearch={rechazadosMatchingSearch}
+                  onViewConflicts={scrollToConflicts}
+                />
+
                 {/* Lista de custodios */}
                 <CustodianList
                   custodians={filteredCustodians}
@@ -762,6 +787,7 @@ export function PendingAssignmentModal({
                     custodians={categorized.noDisponibles}
                     onOverrideSelect={handleOverrideSelect}
                     forceOpen={filteredCustodians.length === 0 && categorized.noDisponibles.length > 0}
+                    sectionRef={conflictSectionRef}
                   />
                 )}
                 
