@@ -21,6 +21,13 @@ export interface CustodioRechazo {
 /**
  * Obtiene la lista de custodios con rechazos vigentes
  */
+export interface RechazadoDetalle {
+  id: string;
+  nombre: string;
+  vigencia_hasta: string;
+  motivo: string | null;
+}
+
 export function useRechazosVigentes(options?: { inclujeArmado?: boolean }) {
   return useQuery({
     queryKey: ['custodio-rechazos-vigentes', options?.inclujeArmado],
@@ -50,6 +57,62 @@ export function useRechazosVigentes(options?: { inclujeArmado?: boolean }) {
       return uniqueIds;
     },
     staleTime: 60000, // 1 minute cache
+  });
+}
+
+/**
+ * Obtiene detalles de rechazos vigentes (con nombre del custodio) para UX de exclusión
+ */
+export function useRechazosVigentesDetallados(options?: { inclujeArmado?: boolean }) {
+  return useQuery({
+    queryKey: ['custodio-rechazos-vigentes-detallados', options?.inclujeArmado],
+    queryFn: async (): Promise<RechazadoDetalle[]> => {
+      const { data, error } = await supabase
+        .from('custodio_rechazos')
+        .select('custodio_id, motivo, vigencia_hasta')
+        .gt('vigencia_hasta', new Date().toISOString());
+
+      if (error) {
+        console.warn('⚠️ Error fetching detailed rejections:', error);
+        return [];
+      }
+
+      const servicioRequiereArmado = options?.inclujeArmado ?? true;
+      const rechazosAplicables = (data || []).filter(r => {
+        const motivoLower = (r.motivo || '').toLowerCase();
+        const esRechazoArmado = motivoLower.includes('armado');
+        if (esRechazoArmado && !servicioRequiereArmado) return false;
+        return true;
+      });
+
+      // Deduplicate by custodio_id
+      const uniqueMap = new Map<string, typeof rechazosAplicables[0]>();
+      rechazosAplicables.forEach(r => {
+        if (!uniqueMap.has(r.custodio_id)) uniqueMap.set(r.custodio_id, r);
+      });
+
+      // Fetch names from custodios_operativos
+      const ids = [...uniqueMap.keys()];
+      if (ids.length === 0) return [];
+
+      const { data: custodios } = await supabase
+        .from('custodios_operativos')
+        .select('id, nombre')
+        .in('id', ids);
+
+      const nombreMap = new Map((custodios || []).map(c => [c.id, c.nombre]));
+
+      return ids.map(id => {
+        const rechazo = uniqueMap.get(id)!;
+        return {
+          id,
+          nombre: nombreMap.get(id) || 'Desconocido',
+          vigencia_hasta: rechazo.vigencia_hasta,
+          motivo: rechazo.motivo,
+        };
+      });
+    },
+    staleTime: 60000,
   });
 }
 

@@ -18,7 +18,7 @@ import { useServiceCreation } from '../../hooks/useServiceCreation';
 import { useCustodiosConProximidad } from '@/hooks/useProximidadOperacional';
 import { useCustodianStepLogic } from './hooks/useCustodianStepLogic';
 import { useCustodioIndisponibilidades } from '@/hooks/useCustodioIndisponibilidades';
-import { useRechazosVigentes, useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
+import { useRechazosVigentes, useRechazosVigentesDetallados, useRegistrarRechazo } from '@/hooks/useCustodioRechazos';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays } from 'date-fns';
 
@@ -29,6 +29,7 @@ import { CustodianList } from './components/CustodianList';
 import { ConflictSection } from './components/ConflictSection';
 import { SelectedCustodianSummary } from './components/SelectedCustodianSummary';
 import { NoCustodiansAlert } from './components/NoCustodiansAlert';
+import { ExcludedCustodiansAlert } from './components/ExcludedCustodiansAlert';
 import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
 
 // Dialogs (reuse existing)
@@ -53,6 +54,7 @@ export default function CustodianStep() {
   
   // 🆕 Rejection hooks
   const { data: rechazadosIds = [] } = useRechazosVigentes({ inclujeArmado: formData.requiereArmado });
+  const { data: rechazadosDetallados = [] } = useRechazosVigentesDetallados({ inclujeArmado: formData.requiereArmado });
   const { mutateAsync: registrarRechazo } = useRegistrarRechazo();
   
   // ✅ FIX: Use a stable ref to lock the query key once we have valid service data
@@ -162,6 +164,15 @@ export default function CustodianStep() {
            !state.filters.disponibles || 
            !state.filters.parcialmenteOcupados;
   }, [state.searchTerm, state.filters]);
+
+  // 🆕 Compute exclusion data for the alert banner
+  const rechazadosMatchingSearch = useMemo(() => {
+    if (!state.searchTerm.trim() || rechazadosDetallados.length === 0) return [];
+    const term = state.searchTerm.toLowerCase();
+    return rechazadosDetallados.filter(r => r.nombre.toLowerCase().includes(term));
+  }, [state.searchTerm, rechazadosDetallados]);
+
+  const conflictoCount = categorized?.noDisponibles?.length || 0;
 
   // Ref for keyboard navigation and conflict section
   const containerRef = useRef<HTMLDivElement>(null);
@@ -518,7 +529,17 @@ export default function CustodianStep() {
         />
       )}
 
-      {/* Selected Custodian Summary - Expanded with CTAs */}
+      {/* 🆕 Exclusion Banner - Shows why custodians are hidden */}
+      {!state.selectedCustodianId && (
+        <ExcludedCustodiansAlert
+          searchTerm={state.searchTerm}
+          rechazadosCount={rechazadosIds.length}
+          conflictoCount={conflictoCount}
+          rechazadosMatchingSearch={rechazadosMatchingSearch}
+          onViewConflicts={scrollToConflicts}
+        />
+      )}
+
       {state.selectedCustodianId && selectedCustodian && (
         <SelectedCustodianSummary
           custodianName={state.selectedCustodianName}
