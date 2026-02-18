@@ -33,11 +33,9 @@ export default function LMSDashboard() {
   const hasOnboarding = onboardingStatus && onboardingStatus.total_obligatorios > 0;
   const onboardingIncomplete = hasOnboarding && onboardingStatus.porcentaje_completado < 100;
 
-  // Separar cursos por estado
-  const cursosObligatoriosPendientes = cursos?.filter(c => 
-    c.es_obligatorio && 
-    c.inscripcion_id && 
-    c.inscripcion_estado !== 'completado'
+  // Cursos del usuario: inscritos + obligatorios sin inscripcion
+  const misCursos = cursos?.filter(c => 
+    c.inscripcion_id || c.es_obligatorio
   ) || [];
 
   const cursosEnProgreso = cursos?.filter(c => 
@@ -49,7 +47,12 @@ export default function LMSDashboard() {
     c.inscripcion_estado === 'completado'
   ) || [];
 
-  const cursosCatalogo = cursos?.filter(c => !c.inscripcion_id) || [];
+  // Catalogo: solo cursos NO obligatorios sin inscripcion
+  const cursosCatalogo = cursos?.filter(c => !c.inscripcion_id && !c.es_obligatorio) || [];
+
+  // Badge count: en progreso + obligatorios pendientes sin inscripcion
+  const misCursosCount = cursosEnProgreso.length + 
+    (cursos?.filter(c => c.es_obligatorio && !c.inscripcion_id).length || 0);
 
   // Aplicar filtros al catálogo
   const cursosFiltrados = cursosCatalogo.filter(curso => {
@@ -105,7 +108,7 @@ export default function LMSDashboard() {
 
       <div className="container mx-auto px-6 py-8 space-y-8">
         {/* Resumen de progreso por categoría - SIEMPRE VISIBLE arriba de tabs */}
-        {!isLoading && (cursos?.filter(c => c.inscripcion_id).length || 0) > 0 && (
+        {!isLoading && misCursos.length > 0 && (
           <CategoryProgressSummary
             cursos={cursos || []}
             selectedCategory={selectedCategory}
@@ -130,9 +133,9 @@ export default function LMSDashboard() {
             <TabsTrigger value="mis-cursos" className="gap-2">
               <BookOpen className="h-4 w-4" />
               Mis Cursos
-              {cursosEnProgreso.length > 0 && (
+              {misCursosCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/20 rounded-full">
-                  {cursosEnProgreso.length}
+                  {misCursosCount}
                 </span>
               )}
             </TabsTrigger>
@@ -173,7 +176,7 @@ export default function LMSDashboard() {
                 <Skeleton className="h-40 rounded-lg" />
                 <Skeleton className="h-60 rounded-lg" />
               </div>
-            ) : (cursos?.filter(c => c.inscripcion_id).length || 0) === 0 ? (
+            ) : misCursos.length === 0 ? (
               <div className="text-center py-12 bg-muted/30 rounded-lg">
                 <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">
@@ -190,7 +193,7 @@ export default function LMSDashboard() {
               <>
                 {/* Cursos agrupados por categoría */}
                 <CoursesByCategory
-                  cursos={cursos?.filter(c => c.inscripcion_id) || []}
+                  cursos={misCursos}
                   onStartCourse={handleStartCourse}
                   filterCategory={selectedCategory}
                 />

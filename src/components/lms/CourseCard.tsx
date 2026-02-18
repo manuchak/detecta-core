@@ -148,6 +148,14 @@ export function CourseCard({ curso, onStartCourse, onEnroll, isEnrolling }: Cour
               {estado === 'completado' ? 'Ver de nuevo' : 
                estado === 'inscrito' ? 'Comenzar' : 'Continuar'}
             </Button>
+          ) : curso.es_obligatorio ? (
+            <Button 
+              className="w-full"
+              onClick={() => onEnroll?.(curso.id)}
+              disabled={isEnrolling}
+            >
+              {isEnrolling ? 'Inscribiendo...' : 'Comenzar'}
+            </Button>
           ) : (
             <Button 
               className="w-full"
