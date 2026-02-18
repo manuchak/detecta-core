@@ -67,9 +67,10 @@ export const RoleManager = () => {
   const archivedCount = uniqueUsers.filter(u => u.is_active === false).length;
 
   const availableRoles = [
-    'admin', 'supply_admin', 'coordinador_operaciones', 'jefe_seguridad',
-    'analista_seguridad', 'supply_lead', 'ejecutivo_ventas', 'bi',
-    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'planificador', 'soporte'
+    'admin', 'supply_admin', 'capacitacion_admin', 'coordinador_operaciones', 'jefe_seguridad',
+    'analista_seguridad', 'supply_lead', 'ejecutivo_ventas', 'custodio', 'bi',
+    'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'planificador', 'soporte',
+    'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'customer_success'
   ];
 
   const getRoleDisplayName = (role: string) => {
@@ -87,7 +88,14 @@ export const RoleManager = () => {
       'supply': 'Suministros',
       'instalador': 'Instalador',
       'planificador': 'Planificador',
-      'soporte': 'Soporte'
+      'soporte': 'Soporte',
+      'customer_success': 'Customer Success',
+      'capacitacion_admin': 'Admin Capacitación',
+      'custodio': 'Custodio',
+      'facturacion_admin': 'Admin Facturación',
+      'facturacion': 'Facturación',
+      'finanzas_admin': 'Admin Finanzas',
+      'finanzas': 'Finanzas'
     };
     return roleNames[role] || role;
   };
