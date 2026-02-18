@@ -16,10 +16,10 @@ const horizons = [
 type Horizon = (typeof horizons)[number]['value'];
 
 const metrics = [
-  { key: 'fillRate' as const, title: 'Fill Rate', color: 'hsl(var(--primary))', target: 90 },
-  { key: 'onTimeRate' as const, title: 'On Time', color: 'hsl(142 71% 45%)', target: 90 },
-  { key: 'otifRate' as const, title: 'OTIF', color: 'hsl(38 92% 50%)', target: 90 },
-  { key: 'checklistsRate' as const, title: 'Checklists', color: 'hsl(262 83% 58%)', target: 90 },
+  { key: 'fillRate' as const, title: 'Fill Rate', color: 'hsl(var(--primary))', target: 99 },
+  { key: 'onTimeRate' as const, title: 'On Time', color: 'hsl(142 71% 45%)', target: 95 },
+  { key: 'otifRate' as const, title: 'OTIF', color: 'hsl(38 92% 50%)', target: 95 },
+  { key: 'checklistsRate' as const, title: 'Checklists', color: 'hsl(262 83% 58%)', target: 100 },
 ];
 
 export default function PerformanceHistoryCharts() {
