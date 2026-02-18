@@ -1,69 +1,36 @@
 
 
-# Separar graficos historicos de Performance en paneles individuales por metrica
+# Fix: Excluir datos futuros de los graficos historicos de Performance
 
-## Problema actual
+## Problema
 
-El grafico historico de Performance muestra Fill Rate, On Time y OTIF como 3 lineas superpuestas en un solo chart. Esto dificulta leer la tendencia individual de cada metrica, especialmente cuando los valores son similares (ej. todos entre 85-100%). Ademas, la tasa de checklists no aparece en el historico.
+Los graficos de Performance muestran datos de meses futuros (ej. "Ago 2026") porque la query a `servicios_planificados` no tiene filtro de fecha maxima. Solo filtra `gte` (desde 12 meses atras) pero NO filtra `lte` (hasta hoy), asi que incluye todos los servicios planificados a futuro.
 
-## Solucion propuesta
+La vista diaria no se ve afectada porque tiene un filtro explicito `s.diaCDMX <= todayCDMX`, pero las vistas semanal, mensual y trimestral no tienen esta proteccion.
 
-Reemplazar el grafico unico de 3 lineas por **4 paneles individuales** (uno por metrica), cada uno con su propio grafico de linea y horizonte temporal seleccionable. Esto permite analizar cada KPI de forma aislada, similar al formato de la imagen de referencia.
+## Solucion
 
-```text
-+---------------------------+---------------------------+
-|  Fill Rate                |  On Time                  |
-|  [Semanal] [Mensual] ... |  [Semanal] [Mensual] ... |
-|  ~~~~~~~~~~~~~~~~~~~~~~~~ |  ~~~~~~~~~~~~~~~~~~~~~~~~ |
-|  98.7%  99.1%  97.5%     |  91.2%  88.4%  92.0%     |
-+---------------------------+---------------------------+
-|  OTIF                     |  Checklists               |
-|  [Semanal] [Mensual] ... |  [Semanal] [Mensual] ... |
-|  ~~~~~~~~~~~~~~~~~~~~~~~~ |  ~~~~~~~~~~~~~~~~~~~~~~~~ |
-|  85.3%  82.1%  88.9%     |  72.0%  78.5%  81.2%     |
-+---------------------------+---------------------------+
-```
+Dos cambios en `src/hooks/usePerformanceHistorico.ts`:
 
-## Detalles tecnicos
+### 1. Agregar filtro superior en la query de `servicios_planificados`
 
-### 1. Extender `PeriodMetrics` para incluir checklists (hook: `usePerformanceHistorico.ts`)
+Agregar `.lte('fecha_hora_cita', rangeEnd)` donde `rangeEnd` es el final del dia actual en CDMX. Esto evita traer datos de la BD que no necesitamos.
 
-Agregar `checklistsRate` al interface `PeriodMetrics` y a la funcion `computeGroupMetrics`:
+### 2. Filtrar servicios mergeados antes de agrupar (defensa en profundidad)
 
-- Calcular `checklistsRate = (servicios con checklist completo / total) * 100`
-- El dato ya se tiene disponible porque `checklistCompleto` ya existe en `MergedService`
+Aplicar `merged.filter(s => s.diaCDMX <= todayCDMX)` antes de generar las agrupaciones weekly, monthly y quarterly. Esto garantiza que ninguna vista muestre datos futuros, incluso si la query de custodia o checklist trae datos inesperados.
 
-### 2. Crear componente `SingleMetricChart.tsx`
+## Cambios concretos
 
-Un nuevo componente reutilizable que recibe:
-- `data: PeriodMetrics[]` - los mismos datos actuales
-- `dataKey: string` - cual metrica graficar (fillRate, onTimeRate, otifRate, checklistsRate)
-- `title: string` - nombre de la metrica
-- `color: string` - color de la linea
-- `target?: number` - linea de referencia objetivo (ej. 90%)
+| Linea(s) | Cambio |
+|---|---|
+| ~126 | Agregar variable `rangeEnd` con fecha de hoy + 23:59:59 CDMX |
+| ~134 | Agregar `.lte('fecha_hora_cita', rangeEnd)` a query de planificados |
+| ~195-222 | Usar `merged.filter(s => s.diaCDMX <= todayCDMX)` como base para weekly/monthly/quarterly |
 
-Internamente usa un `LineChart` de Recharts con una sola linea, etiquetas de valor al final de cada punto, y linea de target punteada. Altura mas compacta (~200px) para que quepan 4 en grid.
+## Impacto
 
-### 3. Actualizar `PerformanceHistoryCharts.tsx`
-
-Cambiar el layout de un solo chart a un grid 2x2:
-- Mantener los tabs de horizonte temporal (Semanal, Mensual, Trimestral, Diario) compartidos para los 4 charts
-- Cada panel es una `Card` ligera con titulo, icono de color, y el `SingleMetricChart` correspondiente
-- Los 4 graficos comparten el mismo horizonte seleccionado
-
-### 4. Archivos afectados
-
-| Archivo | Accion | Riesgo |
-|---|---|---|
-| `src/hooks/usePerformanceHistorico.ts` | Agregar `checklistsRate` a `PeriodMetrics` y `computeGroupMetrics` | Bajo - campo aditivo, no modifica campos existentes |
-| `src/components/monitoring/performance/SingleMetricChart.tsx` | Nuevo componente | Ninguno - archivo nuevo |
-| `src/components/monitoring/performance/PerformanceHistoryCharts.tsx` | Refactorizar layout a grid 2x2 | Bajo - mismos datos, diferente presentacion |
-| `src/components/monitoring/performance/PerformanceLineChart.tsx` | Sin cambios (se puede conservar o deprecar) | Ninguno |
-
-### 5. Analisis de impacto
-
-- **`PerformanceDashboard.tsx`**: No cambia, sigue renderizando `<PerformanceHistoryCharts />` sin props.
-- **`usePerformanceDiario.ts`**: No se toca. El hook diario es independiente del historico.
-- **`PeriodMetrics` interface**: Se agrega un campo opcional (`checklistsRate`), compatible hacia atras.
-- **No hay cambios de BD, RLS, ni edge functions.**
+- **Ninguno en otros componentes** — solo cambia el hook de datos historicos
+- **Mejora rendimiento** — menos filas traidas de la BD al excluir futuro
+- **No afecta la vista diaria** — ya tenia su propio filtro
 
