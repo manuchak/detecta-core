@@ -4,6 +4,7 @@ import { Shield, Route, BarChart3, ClipboardCheck, Radio } from 'lucide-react';
 import { SecurityDashboard } from '@/components/security/dashboard/SecurityDashboard';
 import { RouteRiskIntelligence } from '@/components/security/routes/RouteRiskIntelligence';
 import { ComplianceTracker } from '@/components/security/compliance/ComplianceTracker';
+import { IncidentAnalytics } from '@/components/security/analytics/IncidentAnalytics';
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
@@ -52,13 +53,7 @@ const SecurityPage = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">
-          <div className="flex items-center justify-center h-64 rounded-lg border border-dashed border-muted-foreground/25">
-            <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">Análisis de Incidentes</p>
-              <p className="text-xs">Fase 3 — Próximamente</p>
-            </div>
-          </div>
+          <IncidentAnalytics />
         </TabsContent>
 
         <TabsContent value="compliance" className="mt-4">
