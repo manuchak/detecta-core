@@ -1926,6 +1926,45 @@ export type Database = {
         }
         Relationships: []
       }
+      capacitaciones_seguridad: {
+        Row: {
+          certificado_url: string | null
+          created_at: string | null
+          created_by: string | null
+          custodio_id: string
+          fecha_completado: string | null
+          fecha_vencimiento: string | null
+          id: string
+          nombre_capacitacion: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          certificado_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custodio_id: string
+          fecha_completado?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          nombre_capacitacion: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          certificado_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custodio_id?: string
+          fecha_completado?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          nombre_capacitacion?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       catalogo_sanciones: {
         Row: {
           activo: boolean | null
@@ -13084,6 +13123,42 @@ export type Database = {
           },
         ]
       }
+      protocolos_seguridad: {
+        Row: {
+          checklist_items: Json | null
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          is_active: boolean | null
+          nombre: string
+          tipo_servicio: string
+          updated_at: string | null
+        }
+        Insert: {
+          checklist_items?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          is_active?: boolean | null
+          nombre: string
+          tipo_servicio: string
+          updated_at?: string | null
+        }
+        Update: {
+          checklist_items?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          is_active?: boolean | null
+          nombre?: string
+          tipo_servicio?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       proveedores: {
         Row: {
           activo: boolean | null
@@ -13749,6 +13824,93 @@ export type Database = {
           },
         ]
       }
+      risk_zone_history: {
+        Row: {
+          change_reason: string | null
+          change_type: string
+          changed_at: string | null
+          changed_by: string | null
+          h3_index: string
+          id: string
+          new_risk_level: string | null
+          new_score: number | null
+          previous_risk_level: string | null
+          previous_score: number | null
+        }
+        Insert: {
+          change_reason?: string | null
+          change_type: string
+          changed_at?: string | null
+          changed_by?: string | null
+          h3_index: string
+          id?: string
+          new_risk_level?: string | null
+          new_score?: number | null
+          previous_risk_level?: string | null
+          previous_score?: number | null
+        }
+        Update: {
+          change_reason?: string | null
+          change_type?: string
+          changed_at?: string | null
+          changed_by?: string | null
+          h3_index?: string
+          id?: string
+          new_risk_level?: string | null
+          new_score?: number | null
+          previous_risk_level?: string | null
+          previous_score?: number | null
+        }
+        Relationships: []
+      }
+      risk_zone_scores: {
+        Row: {
+          base_score: number | null
+          created_at: string | null
+          event_count: number | null
+          final_score: number | null
+          h3_index: string
+          h3_resolution: number | null
+          id: string
+          last_calculated_at: string | null
+          last_event_date: string | null
+          manual_adjustment: number | null
+          price_multiplier: number | null
+          risk_level: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          base_score?: number | null
+          created_at?: string | null
+          event_count?: number | null
+          final_score?: number | null
+          h3_index: string
+          h3_resolution?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          last_event_date?: string | null
+          manual_adjustment?: number | null
+          price_multiplier?: number | null
+          risk_level?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          base_score?: number | null
+          created_at?: string | null
+          event_count?: number | null
+          final_score?: number | null
+          h3_index?: string
+          h3_resolution?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          last_event_date?: string | null
+          manual_adjustment?: number | null
+          price_multiplier?: number | null
+          risk_level?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       roi_custodios: {
         Row: {
           costo_adquisicion: number | null
@@ -13880,6 +14042,108 @@ export type Database = {
           permission_type?: string
           role?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      safe_points: {
+        Row: {
+          address: string | null
+          certification_level: string | null
+          corridor_id: string | null
+          created_at: string | null
+          has_alternate_exit: boolean | null
+          has_cell_signal: boolean | null
+          has_commercial_activity: boolean | null
+          has_employees_24h: boolean | null
+          has_military_nearby: boolean | null
+          has_perimeter_barrier: boolean | null
+          has_restrooms: boolean | null
+          has_security_guard: boolean | null
+          has_visible_cctv: boolean | null
+          id: string
+          is_active: boolean | null
+          is_recognized_chain: boolean | null
+          is_well_lit: boolean | null
+          km_marker: number | null
+          lat: number
+          lng: number
+          name: string
+          notes: string | null
+          photo_url: string | null
+          reported_by: string | null
+          total_score: number | null
+          truck_fits_inside: boolean | null
+          type: string
+          updated_at: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          address?: string | null
+          certification_level?: string | null
+          corridor_id?: string | null
+          created_at?: string | null
+          has_alternate_exit?: boolean | null
+          has_cell_signal?: boolean | null
+          has_commercial_activity?: boolean | null
+          has_employees_24h?: boolean | null
+          has_military_nearby?: boolean | null
+          has_perimeter_barrier?: boolean | null
+          has_restrooms?: boolean | null
+          has_security_guard?: boolean | null
+          has_visible_cctv?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_recognized_chain?: boolean | null
+          is_well_lit?: boolean | null
+          km_marker?: number | null
+          lat: number
+          lng: number
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          reported_by?: string | null
+          total_score?: number | null
+          truck_fits_inside?: boolean | null
+          type: string
+          updated_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          address?: string | null
+          certification_level?: string | null
+          corridor_id?: string | null
+          created_at?: string | null
+          has_alternate_exit?: boolean | null
+          has_cell_signal?: boolean | null
+          has_commercial_activity?: boolean | null
+          has_employees_24h?: boolean | null
+          has_military_nearby?: boolean | null
+          has_perimeter_barrier?: boolean | null
+          has_restrooms?: boolean | null
+          has_security_guard?: boolean | null
+          has_visible_cctv?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          is_recognized_chain?: boolean | null
+          is_well_lit?: boolean | null
+          km_marker?: number | null
+          lat?: number
+          lng?: number
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          reported_by?: string | null
+          total_score?: number | null
+          truck_fits_inside?: boolean | null
+          type?: string
+          updated_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: []
       }
@@ -14083,6 +14347,57 @@ export type Database = {
           target_user_id?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          event_date: string
+          event_type: string
+          h3_index: string
+          h3_resolution: number | null
+          id: string
+          lat: number | null
+          lng: number | null
+          reported_by: string | null
+          severity: string
+          source: string | null
+          updated_at: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          event_date: string
+          event_type: string
+          h3_index: string
+          h3_resolution?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          reported_by?: string | null
+          severity: string
+          source?: string | null
+          updated_at?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          h3_index?: string
+          h3_resolution?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          reported_by?: string | null
+          severity?: string
+          source?: string | null
+          updated_at?: string | null
+          verified?: boolean | null
         }
         Relationships: []
       }
@@ -19417,6 +19732,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Json
       }
+      recalculate_zone_score: { Args: { p_h3_index: string }; Returns: Json }
       recomendar_gps_para_instalacion: {
         Args: {
           p_sensores_requeridos: string[]
