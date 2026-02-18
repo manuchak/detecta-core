@@ -1,129 +1,94 @@
 
 
-# Fix: Mapa no se renderiza por conflicto de zoom y alturas
+# Analisis Fishbone: Por que el mapa no se renderiza
 
-## Diagnostico
+## Diagrama Causa-Raiz
 
-El problema raiz es como CSS `zoom` interactua con unidades `vh`:
+```text
+                                    MAPA NO SE RENDERIZA
+                                           |
+        +------------------+---------------+---------------+------------------+
+        |                  |               |               |                  |
+   CSS ZOOM           LAYOUT          MAPBOX GL       ARQUITECTURA      EVIDENCIA
+   CONFLICT           CHAIN           INTERNALS       DEL PROYECTO      CONTRARIA
+        |                  |               |               |                  |
+  zoom:1/0.7 en      TabsContent     Canvas calcula   Otros mapas       Los tiles SI
+  SecurityPage        no propaga      pixeles con      funcionan SIN     se cargan
+        |             flex height      el zoom del     zoom:1/0.7        (200 OK)
+  Mapbox "ve" un         |            contenedor           |                  |
+  canvas 1.43x       Grid rows           |            Usan variables     El canvas
+  mas grande          son "auto"     devicePixelRatio  --vh-full para     se inicializa
+  de lo real             |            se distorsiona    alturas             (mapReady=true)
+        |             Map container       |                |                  |
+  Tiles se              sin height     Tiles se render   CustodianZone    Legend y Capas
+  renderizan en          explicita     fuera del area   BubbleMap usa     son visibles
+  coordenadas                          visible          calc(var(--vh-    (confirma mount)
+  incorrectas                                           full) - 280px)
+```
 
-1. `html { zoom: 0.7 }` -- el viewport visual se escala al 70%
-2. `SecurityPage` tiene `zoom: 1/0.7` (1.4286) para compensar
-3. Dentro de ese contexto, `100vh` sigue siendo el viewport height original, pero al multiplicarse por el zoom compuesto (0.7 * 1.4286 = 1.0), las alturas `calc(100vh - Xpx)` terminan desbordando o calculando mal
-4. El contenedor del mapa queda con dimensiones incorrectas, y Mapbox renderiza un canvas de 0px o fuera del area visible
+## Causa Raiz Confirmada
 
-**Evidencia**: Los tiles de Mapbox SI se cargan (network requests exitosos con status 200), pero el canvas no se muestra porque su contenedor no tiene dimensiones correctas.
+**CSS `zoom: 1.4286` aplicado al contenedor padre del mapa corrompe los calculos internos de Mapbox GL.**
+
+Mapbox GL JS usa `canvas.getBoundingClientRect()` y `window.devicePixelRatio` para calcular:
+- El tamano del canvas WebGL
+- La posicion de los tiles
+- La proyeccion de coordenadas a pixeles
+
+Cuando un contenedor padre tiene `zoom: 1.4286`, `getBoundingClientRect()` reporta dimensiones escaladas (1.43x mas grandes), pero el canvas fisico NO cambia. Resultado: Mapbox renderiza tiles en coordenadas incorrectas, fuera del area visible, o con un canvas de proporciones equivocadas.
+
+**Prueba definitiva**: Los otros 2 mapas Mapbox del proyecto (CustodianZoneBubbleMap, ArmedZoneBubbleMap) funcionan correctamente porque **NO usan zoom:1/0.7** — usan las CSS variables compensadas (`--vh-full`, `--content-height-with-tabs`).
 
 ## Solucion
 
-Reemplazar todas las alturas basadas en `100vh` dentro del modulo de seguridad por `100dvh` compensado con las CSS custom properties que ya existen en `index.css` (`--zoom-compensation: 1.4286`). Pero mas importante: **usar altura relativa al contenedor padre** en vez de `vh` absoluto.
+Eliminar `zoom: 1/0.7` de SecurityPage y adoptar el mismo patron que usa el resto de la app: CSS variables compensadas para alturas.
 
-### Enfoque: Flexbox con `flex-1` en vez de `calc(100vh - X)`
+### Cambios por archivo
 
-En vez de calcular alturas absolutas con `vh`, usar un layout flex vertical donde:
-- El tab content ocupa `h-full` / `flex-1`
-- `RouteRiskIntelligence` usa `flex-1` para llenar el espacio disponible
-- El grid del mapa usa `flex-1 min-h-0` (critico para que flex children con overflow funcionen)
-- El contenedor del mapa hereda la altura del grid naturalmente
+### 1. `SecurityPage.tsx`
 
-Esto elimina la dependencia de `100vh` dentro del zoom compensado.
-
-## Cambios por archivo
-
-### 1. `src/pages/Security/SecurityPage.tsx`
-
-- Cambiar el contenedor principal de `space-y-3` a `flex flex-col h-screen`
-- El `zoom: 1/0.7` se mantiene pero con `h-screen` explicito
-- El `TabsContent` de routes usa `flex-1 min-h-0` en vez de `h-[calc(100vh-120px)]`
-- Todos los demas `TabsContent` se mantienen igual
-
-### 2. `src/components/security/routes/RouteRiskIntelligence.tsx`
-
-- Cambiar de `space-y-1 h-full` a `flex flex-col h-full`
-- El grid pasa de `h-[calc(100vh-130px)]` a `flex-1 min-h-0`
-- `min-h-0` es critico: sin esto, flex items no pueden ser menores que su contenido intrinseco
-
-### 3. `src/components/security/map/RiskZonesMap.tsx`
-
-- Sin cambios estructurales al JSX (ya usa `relative w-full h-full` + `absolute inset-0`)
-- Agregar un `useEffect` con `requestAnimationFrame` + `resize()` ademas del ResizeObserver existente, para cubrir el caso donde el mapa se inicializa antes de que el layout flex termine de calcular
-- Agregar un `setTimeout` extra de 2000ms para el caso del zoom compound
-
-### 4. `src/components/security/map/RiskZonesMapLayers.tsx`
-
-- Sin cambios (ya esta compactado)
-
-## Detalle tecnico
-
-### SecurityPage.tsx - Layout flex vertical
+- **Quitar** `style={{ zoom: 1 / 0.7 }}`
+- Usar `h-[var(--content-height-full)]` para la altura total (ya compensa zoom 0.7)
+- Mantener flex layout pero sin zoom
 
 ```tsx
-<div style={{ zoom: 1 / 0.7 }} className="flex flex-col h-screen overflow-hidden">
-  {/* Header - tamano fijo */}
-  <div className="shrink-0">
-    <h1>...</h1>
-    <p>...</p>
-  </div>
-
-  {/* Tabs - crece para llenar */}
-  <Tabs className="flex-1 flex flex-col min-h-0">
-    <TabsList className="shrink-0 ...">...</TabsList>
-    
-    <TabsContent value="routes" className="flex-1 min-h-0 mt-3">
-      <RouteRiskIntelligence />
-    </TabsContent>
-  </Tabs>
-</div>
-```
-
-### RouteRiskIntelligence.tsx - Flex sin vh
-
-```tsx
-<div className="flex flex-col h-full">
-  <RiskZonesHeader />  {/* shrink-0 implicitamente */}
-  
-  <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1">
-    <div className="relative rounded-lg overflow-hidden border bg-muted/10">
-      <RiskZonesMap ... />
-      <div className="absolute top-2 right-2 z-10">
-        <RiskZonesMapLayers ... />
-      </div>
+return (
+  <div className="flex flex-col h-[var(--content-height-full)] overflow-hidden">
+    <div className="shrink-0 px-0 pt-0 pb-1">
+      <h1 className="text-xl font-bold ...">Modulo de Seguridad</h1>
+      <p className="text-xs ...">...</p>
     </div>
-    <div className="border rounded-lg p-3 bg-background overflow-hidden">
-      <HighRiskSegmentsList ... />
-    </div>
+
+    <Tabs className="flex-1 flex flex-col min-h-0">
+      <TabsList className="shrink-0 ...">...</TabsList>
+      <TabsContent value="routes" className="flex-1 min-h-0 mt-3">
+        <RouteRiskIntelligence />
+      </TabsContent>
+      {/* otros tabs sin cambio */}
+    </Tabs>
   </div>
-</div>
+);
 ```
 
-### RiskZonesMap.tsx - Resize robusto
+### 2. `RouteRiskIntelligence.tsx`
 
-```typescript
-// Ademas del ResizeObserver existente, agregar:
-useEffect(() => {
-  if (!mapReady || !map.current) return;
-  // requestAnimationFrame para esperar al layout
-  const raf = requestAnimationFrame(() => {
-    map.current?.resize();
-  });
-  // Timeout largo para zoom compound
-  const t = setTimeout(() => map.current?.resize(), 2000);
-  return () => {
-    cancelAnimationFrame(raf);
-    clearTimeout(t);
-  };
-}, [mapReady]);
-```
+Sin cambios significativos. El layout flex actual (`flex flex-col h-full` + `flex-1 min-h-0` en el grid) funciona correctamente cuando el padre tiene una altura real definida por las CSS variables.
+
+### 3. `RiskZonesMap.tsx`
+
+- **Quitar** el useEffect extra de `requestAnimationFrame` + `setTimeout 2000ms` (ya no necesario sin zoom)
+- Mantener el ResizeObserver (buena practica general)
+- El mapa opera en contexto nativo de zoom 0.7 como los demas mapas del proyecto
 
 ## Por que esto funciona
 
-- `h-screen` en el wrapper con `zoom: 1/0.7` le da al contenedor exactamente la altura del viewport (el browser calcula `100vh` correctamente para el elemento raiz)
-- `flex-1 min-h-0` hace que cada nivel del arbol flex se ajuste al espacio disponible sin desbordarse
-- El mapa hereda la altura real del grid cell via `h-full` + `absolute inset-0`
-- No hay ninguna referencia a `100vh` dentro de componentes hijos, eliminando el conflicto de zoom
+- El mapa opera en el mismo contexto CSS que los mapas que SI funcionan
+- `getBoundingClientRect()` reporta dimensiones reales (zoom 0.7 es global, Mapbox lo maneja correctamente porque es uniforme)
+- Las CSS variables `--vh-full` ya compensan el zoom 0.7 para las alturas
+- Zero hacks, patron consistente con el resto del proyecto
 
 ## Archivos a modificar
 
-1. `src/pages/Security/SecurityPage.tsx` -- Layout flex vertical con h-screen
-2. `src/components/security/routes/RouteRiskIntelligence.tsx` -- Flex con min-h-0
-3. `src/components/security/map/RiskZonesMap.tsx` -- Resize con requestAnimationFrame
+1. `src/pages/Security/SecurityPage.tsx` — Quitar zoom, usar CSS variables
+2. `src/components/security/map/RiskZonesMap.tsx` — Quitar resize hacks innecesarios
 
