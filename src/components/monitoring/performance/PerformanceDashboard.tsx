@@ -1,6 +1,7 @@
 import { usePerformanceDiario } from '@/hooks/usePerformanceDiario';
 import PerformanceMetricCards from './PerformanceMetricCards';
 import OnTimeProblemsTable from './OnTimeProblemsTable';
+import PerformanceHistoryCharts from './PerformanceHistoryCharts';
 import { AlertCircle } from 'lucide-react';
 
 const emptyMetrics = {
@@ -34,6 +35,9 @@ export default function PerformanceDashboard() {
     <div className="space-y-6">
       {/* Metric Cards */}
       <PerformanceMetricCards metricas={metricas} loading={isLoading} />
+
+      {/* Historical Charts */}
+      <PerformanceHistoryCharts />
 
       {/* Problem Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
