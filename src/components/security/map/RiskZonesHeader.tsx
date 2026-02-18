@@ -1,0 +1,40 @@
+import React, { useMemo } from 'react';
+import { HIGHWAY_SEGMENTS, getRiskDistribution, type RiskLevel } from '@/lib/security/highwaySegments';
+import { CELLULAR_DEAD_ZONES } from '@/lib/security/cellularCoverage';
+import { MapPin, Route, AlertTriangle, Wifi } from 'lucide-react';
+
+export function RiskZonesHeader() {
+  const stats = useMemo(() => {
+    const dist = getRiskDistribution();
+    const totalKm = HIGHWAY_SEGMENTS.reduce((s, seg) => s + (seg.kmEnd - seg.kmStart), 0);
+    const dzKm = CELLULAR_DEAD_ZONES.reduce((s, dz) => s + dz.estimatedLengthKm, 0);
+    return {
+      totalSegments: HIGHWAY_SEGMENTS.length,
+      extremo: dist.extremo.count,
+      alto: dist.alto.count,
+      totalKm,
+      dzCount: CELLULAR_DEAD_ZONES.length,
+      dzKm,
+    };
+  }, []);
+
+  const cards = [
+    { icon: Route, label: 'Tramos', value: stats.totalSegments, sub: `${stats.totalKm.toLocaleString()} km` },
+    { icon: AlertTriangle, label: 'Extremo / Alto', value: `${stats.extremo} / ${stats.alto}`, sub: 'segmentos', color: 'text-destructive' },
+    { icon: Wifi, label: 'Sin cobertura', value: stats.dzCount, sub: `${stats.dzKm.toLocaleString()} km` },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {cards.map((c, i) => (
+        <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2 border">
+          <c.icon className={`h-4 w-4 shrink-0 ${c.color || 'text-muted-foreground'}`} />
+          <div>
+            <div className="text-sm font-semibold text-foreground">{c.value}</div>
+            <div className="text-[10px] text-muted-foreground">{c.label} · {c.sub}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
