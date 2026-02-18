@@ -424,6 +424,7 @@ const MobileDashboardLayout = () => {
             tipo={currentUnavailability.tipo}
             fechaFin={currentUnavailability.fecha_fin}
             motivo={currentUnavailability.motivo}
+            reportadoPor={currentUnavailability.reportado_por_nombre || undefined}
           />
         )}
 

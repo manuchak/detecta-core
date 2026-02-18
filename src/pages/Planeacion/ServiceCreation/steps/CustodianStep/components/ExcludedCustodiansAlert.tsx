@@ -14,6 +14,7 @@ export interface RechazadoDetail {
   nombre: string;
   vigencia_hasta: string;
   motivo: string | null;
+  reportado_por_nombre: string | null;
 }
 
 interface ExcludedCustodiansAlertProps {
@@ -60,6 +61,11 @@ export function ExcludedCustodiansAlert({
                 </span>
               )}
             </p>
+            {rechazadosMatchingSearch[0].reportado_por_nombre && (
+              <p className="text-xs text-amber-600/70 dark:text-amber-400/70">
+                Reportado por: {rechazadosMatchingSearch[0].reportado_por_nombre}
+              </p>
+            )}
           </div>
         ) : (
           // Generic message: multiple exclusions
