@@ -201,8 +201,8 @@ const DesktopCustodianDashboard = () => {
                         {service.km_recorridos && (
                           <p>Distancia: {service.km_recorridos} km</p>
                         )}
-                        {service.cobro_cliente && (
-                          <p>Cobro: ${service.cobro_cliente.toLocaleString()} MXN</p>
+                        {service.costo_custodio && (
+                          <p>Pago: ${service.costo_custodio.toLocaleString()} MXN</p>
                         )}
                       </div>
                     </div>
