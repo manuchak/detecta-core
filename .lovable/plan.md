@@ -1,40 +1,29 @@
 
-# Mejoras al modal "Asignar Clientes a CSM"
 
-## Cambio 1: Filtrar CSMs solo con rol `customer_success`
+# Fix: Modal "Asignar Clientes a CSM" - Bugs de seleccion y CTA cortado
 
-Actualmente el dropdown de CSM muestra TODOS los usuarios con perfil. Se modificara el hook `useCSMOptions` en `src/hooks/useAssignCSM.ts` para hacer un join con la tabla `user_roles` y solo retornar usuarios que tengan el rol `customer_success` activo.
+## Problemas detectados
 
-## Cambio 2: Rediseno del modal con mejor UX
+### Bug 1: AIRMAR no se selecciona (doble-toggle)
+Al hacer clic en la fila del cliente, se disparan DOS handlers: el `onClick` del `div` contenedor Y el `onCheckedChange` del `Checkbox`. Ambos llaman a `handleToggle`, lo que causa que el cliente se seleccione e inmediatamente se deseleccione (toggle doble). AIRMAR fue el primer clic y por eso no se tilda.
 
-El modal actual usa un Dialog generico con pasos numerados que no aprovechan bien el espacio. Se rediseñara para:
+### Bug 2: CTA cortado
+El `DialogFooter` se corta porque el layout usa `max-h-[60vh]` en el panel central pero el footer queda fuera del flujo controlado, y el `DialogContent` con `overflow-hidden` lo recorta.
 
-- **Layout de dos paneles**: CSM a la izquierda (lista compacta con avatares/iniciales), clientes a la derecha
-- **Seleccion de CSM visual**: En lugar de un dropdown, mostrar una lista clickeable de CSMs con indicador de cuantos clientes tienen asignados actualmente
-- **Barra de resumen sticky**: En el footer, mostrar un resumen claro del CSM seleccionado + cantidad de clientes marcados
-- **Badge de conteo**: Mostrar junto a cada CSM cuantos clientes ya tiene asignados
-- **Mejor alineacion**: El modal sera `max-w-2xl` para dar espacio a ambos paneles
+## Solucion
 
----
+### Archivo: `src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`
 
-## Detalles tecnicos
+1. **Eliminar el `onCheckedChange` del Checkbox** dentro de cada fila de cliente. Dejar solo el `onClick` del div contenedor para evitar el doble-toggle. El checkbox se renderiza como controlado (`checked={...}`) sin handler propio.
 
-### `src/hooks/useAssignCSM.ts` - `useCSMOptions()`
-- Cambiar la query para hacer join con `user_roles`:
-```sql
-SELECT p.id, p.display_name 
-FROM profiles p
-INNER JOIN user_roles ur ON ur.user_id = p.id
-WHERE ur.role = 'customer_success' AND ur.is_active = true
-```
-- Esto garantiza que solo aparezcan usuarios con el rol correcto
+2. **Mismo fix para "Seleccionar todos"**: Mover el handler al div contenedor en lugar de tenerlo duplicado.
 
-### `src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`
-- Redisenar a layout de dos columnas dentro del dialog
-- Panel izquierdo: lista de CSMs (clickeables, con badge de clientes asignados)
-- Panel derecho: lista de clientes con checkboxes (aparece al seleccionar CSM)
-- Footer con boton de accion contextual
-- Ampliar a `max-w-2xl` para acomodar el layout
+3. **Corregir layout del footer**: Cambiar la estructura para que el `DialogContent` use `flex flex-col` y el panel central tenga `flex-1 overflow-hidden` con el footer siempre visible fuera del area scrolleable.
 
-### Sin cambios de base de datos
-La tabla `user_roles` ya tiene la columna `is_active` y el rol `customer_success` ya esta en el enum.
+### Cambios concretos
+
+- Linea 210: Cambiar `<Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => handleToggle(c.id)} />` a `<Checkbox checked={selectedIds.has(c.id)} />` (sin handler)
+- Linea 208: Agregar `e.stopPropagation()` al onClick del div
+- Linea 92: Cambiar el className del DialogContent para usar `flex flex-col` con altura controlada
+- Linea 103: Ajustar el panel central para que respete el espacio del footer
+
