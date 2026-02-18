@@ -1,29 +1,42 @@
 
+# Fix: Cambio de armado duplica el servicio
 
-# Fix: Modal "Asignar Clientes a CSM" - Bugs de seleccion y CTA cortado
+## Problema raiz
 
-## Problemas detectados
-
-### Bug 1: AIRMAR no se selecciona (doble-toggle)
-Al hacer clic en la fila del cliente, se disparan DOS handlers: el `onClick` del `div` contenedor Y el `onCheckedChange` del `Checkbox`. Ambos llaman a `handleToggle`, lo que causa que el cliente se seleccione e inmediatamente se deseleccione (toggle doble). AIRMAR fue el primer clic y por eso no se tilda.
-
-### Bug 2: CTA cortado
-El `DialogFooter` se corta porque el layout usa `max-h-[60vh]` en el panel central pero el footer queda fuera del flujo controlado, y el `DialogContent` con `overflow-hidden` lo recorta.
+En `src/hooks/useServiciosPlanificados.ts`, la mutacion `reassignArmedGuard` (linea 708) solo hace un `INSERT` de un nuevo registro en `asignacion_armados`, pero **nunca cancela ni actualiza el registro anterior**. El resultado es que el servicio queda con 2 asignaciones activas de armado, lo cual causa que las vistas del dashboard lo muestren duplicado (una vez por cada asignacion).
 
 ## Solucion
 
-### Archivo: `src/pages/CustomerSuccess/components/CSBulkAssignByCSMModal.tsx`
+### Archivo: `src/hooks/useServiciosPlanificados.ts`
 
-1. **Eliminar el `onCheckedChange` del Checkbox** dentro de cada fila de cliente. Dejar solo el `onClick` del div contenedor para evitar el doble-toggle. El checkbox se renderiza como controlado (`checked={...}`) sin handler propio.
+Antes del `INSERT` en linea 708, agregar una operacion que cancele las asignaciones activas previas para ese servicio:
 
-2. **Mismo fix para "Seleccionar todos"**: Mover el handler al div contenedor en lugar de tenerlo duplicado.
+1. **Cancelar asignaciones previas**: Ejecutar un `UPDATE` en `asignacion_armados` para poner `estado_asignacion = 'cancelado'` en todos los registros activos del mismo `servicio_custodia_id` (antes de insertar el nuevo).
 
-3. **Corregir layout del footer**: Cambiar la estructura para que el `DialogContent` use `flex flex-col` y el panel central tenga `flex-1 overflow-hidden` con el footer siempre visible fuera del area scrolleable.
+2. **Solo para reasignacion (no para agregar)**: Este comportamiento aplica cuando es una reasignacion (cambiar un armado por otro). Si el servicio requiere multiples armados (`cantidad_armados_requeridos > 1`), solo se debe cancelar la asignacion especifica que se esta reemplazando, no todas.
 
-### Cambios concretos
+### Cambio concreto
 
-- Linea 210: Cambiar `<Checkbox checked={selectedIds.has(c.id)} onCheckedChange={() => handleToggle(c.id)} />` a `<Checkbox checked={selectedIds.has(c.id)} />` (sin handler)
-- Linea 208: Agregar `e.stopPropagation()` al onClick del div
-- Linea 92: Cambiar el className del DialogContent para usar `flex flex-col` con altura controlada
-- Linea 103: Ajustar el panel central para que respete el espacio del footer
+Antes de la linea 708 (`await supabase.from('asignacion_armados').insert({...})`), insertar:
 
+```typescript
+// Cancel previous active assignments for this service (reassignment = replace, not add)
+const { error: cancelError } = await supabase
+  .from('asignacion_armados')
+  .update({ 
+    estado_asignacion: 'cancelado',
+    observaciones: `Reemplazado por: ${newArmadoName}. Motivo: ${reason}`
+  })
+  .eq('servicio_custodia_id', currentService.id_servicio)
+  .not('estado_asignacion', 'eq', 'cancelado');
+
+if (cancelError) {
+  console.error('Error cancelling previous assignments:', cancelError);
+  // Non-blocking: continue with the new assignment
+}
+```
+
+Esto garantiza que al reasignar un armado, el anterior se marca como cancelado y no genera duplicados en el dashboard.
+
+### Sin cambios de base de datos
+Solo es un fix de logica en el frontend.
