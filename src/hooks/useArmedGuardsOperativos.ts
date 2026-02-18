@@ -155,71 +155,68 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const unavailableIds = unavailableGuards?.map(u => u.armado_id) || [];
       console.log('Found unavailable armed guards:', unavailableIds.length);
       
-      // 🆕 Query a la vista unificada que incluye leads de Supply
-      // ⚠️ NO aplicar filtro de zona a nivel de query - traer todos y marcar post-fetch
-      let guardsQuery = supabase
-        .from('armados_disponibles_extendido')
-        .select('*')
-        .eq('estado', 'activo')
-        .order('numero_servicios', { ascending: true })  // Priorizar "nuevos" (0 servicios)
-        .order('score_total', { ascending: false });
+      // 🆕 Use SECURITY DEFINER RPC to avoid RLS overhead on leads table (9K+ rows)
+      // Falls back to direct view query if RPC is unavailable
+      let finalGuardsData: any[] | null = null;
       
-      // Filter out unavailable guards if any found
-      if (unavailableIds.length > 0) {
-        guardsQuery = guardsQuery.not('id', 'in', `(${unavailableIds.join(',')})`);
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('get_armados_disponibles_extendido');
+      
+      if (rpcError) {
+        console.warn('RPC get_armados_disponibles_extendido failed, falling back to view:', rpcError.message);
+        
+        // Fallback: direct view query
+        let guardsQuery = supabase
+          .from('armados_disponibles_extendido')
+          .select('*')
+          .eq('estado', 'activo')
+          .order('numero_servicios', { ascending: true })
+          .order('score_total', { ascending: false });
+        
+        if (unavailableIds.length > 0) {
+          guardsQuery = guardsQuery.not('id', 'in', `(${unavailableIds.join(',')})`);
+        }
+        if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
+          guardsQuery = guardsQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
+        }
+        if (filters?.fecha_programada) {
+          guardsQuery = guardsQuery.eq('disponibilidad', 'disponible');
+        }
+        
+        const { data: viewData, error: viewError } = await guardsQuery;
+        if (viewError) throw viewError;
+        finalGuardsData = viewData;
+      } else {
+        // RPC succeeded - apply client-side filters that would have been applied at query level
+        let guards = rpcData || [];
+        
+        // Filter by estado (RPC already filters activo, but just in case)
+        guards = guards.filter((g: any) => g.estado === 'activo');
+        
+        // Filter out unavailable guards
+        if (unavailableIds.length > 0) {
+          guards = guards.filter((g: any) => !unavailableIds.includes(g.id));
+        }
+        
+        // Apply service type filter
+        if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
+          guards = guards.filter((g: any) => 
+            g.servicios_permitidos?.includes(filters.tipo_servicio)
+          );
+        }
+        
+        // Filter by availability
+        if (filters?.fecha_programada) {
+          guards = guards.filter((g: any) => g.disponibilidad === 'disponible');
+        }
+        
+        finalGuardsData = guards;
       }
-
-      // 🆕 Zone filter is NOT applied at query level for armed guards
-      // Instead, we'll mark zone coverage post-fetch (similar to providers)
-      // This ensures all armed guards are fetched and then sorted by zone proximity
+      
+      // Zone filter info for post-fetch processing
       const zoneFilterInfo = filters?.zona_base?.trim() || null;
       if (zoneFilterInfo) {
         console.log('[Armed] Zone filter will be applied post-fetch for:', zoneFilterInfo);
-      }
-
-      // Apply service type filter (more flexible - skip if no valid type)
-      if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
-        guardsQuery = guardsQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
-      }
-
-      // Filter by availability
-      if (filters?.fecha_programada) {
-        guardsQuery = guardsQuery.eq('disponibilidad', 'disponible');
-      }
-
-      let finalGuardsData: any[] | null = null;
-      const { data: guardsData, error: guardsError } = await guardsQuery;
-
-      if (guardsError) {
-        if (guardsError.message && guardsError.message.toLowerCase().includes('logic tree')) {
-          console.warn('Zone OR parse error detected, retrying without zone filter');
-          // Retry without zone filter but keep the other filters
-          let retryQuery = supabase
-            .from('armados_disponibles_extendido')
-            .select('*')
-            .eq('estado', 'activo')
-            .order('numero_servicios', { ascending: true })
-            .order('score_total', { ascending: false });
-
-          if (filters?.tipo_servicio && ['local', 'foraneo', 'alta_seguridad'].includes(filters.tipo_servicio)) {
-            retryQuery = retryQuery.contains('servicios_permitidos', [filters.tipo_servicio]);
-          }
-          if (filters?.fecha_programada) {
-            retryQuery = retryQuery.eq('disponibilidad', 'disponible');
-          }
-
-          const { data: retryData, error: retryError } = await retryQuery;
-          if (retryError) {
-            console.error('Retry without zone filter failed:', retryError);
-            throw retryError;
-          }
-          finalGuardsData = retryData;
-        } else {
-          console.error('Error loading armed guards:', guardsError);
-          throw guardsError;
-        }
-      } else {
-        finalGuardsData = guardsData;
       }
 
       console.log(`Loaded ${finalGuardsData?.length || 0} armed guards from database`);
