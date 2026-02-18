@@ -5,6 +5,7 @@ import { SecurityDashboard } from '@/components/security/dashboard/SecurityDashb
 import { RouteRiskIntelligence } from '@/components/security/routes/RouteRiskIntelligence';
 import { ComplianceTracker } from '@/components/security/compliance/ComplianceTracker';
 import { IncidentAnalytics } from '@/components/security/analytics/IncidentAnalytics';
+import { ThreatIntelFeed } from '@/components/security/intelligence/ThreatIntelFeed';
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
@@ -61,13 +62,7 @@ const SecurityPage = () => {
         </TabsContent>
 
         <TabsContent value="intelligence" className="mt-4">
-          <div className="flex items-center justify-center h-64 rounded-lg border border-dashed border-muted-foreground/25">
-            <div className="text-center text-muted-foreground">
-              <Radio className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">Inteligencia de Amenazas</p>
-              <p className="text-xs">Fase 4 — Próximamente</p>
-            </div>
-          </div>
+          <ThreatIntelFeed />
         </TabsContent>
       </Tabs>
     </div>
