@@ -1,93 +1,66 @@
 
-# UX: Indicador de Exclusion de Custodios en Busqueda
+# Fix: Visibilidad de servicios cuando custodio_operativo no tiene email
 
-## Problema
+## Diagnostico
 
-Cuando un planificador busca un custodio por nombre (ej: "Alejandro Zavala") y no lo encuentra en la lista, no tiene ninguna retroalimentacion de POR QUE no aparece. El sistema simplemente no lo muestra. Esto genera:
-1. Frustracion inmediata
-2. Escalacion innecesaria por Slack/WhatsApp
-3. Perdida de tiempo operativo
+El custodio JUAN PABLO RIVERA GUTIERREZ no ve su servicio asignado porque:
 
-## Diagnostico tecnico
+1. Su registro en `custodios_operativos` tiene `email = NULL`
+2. Los triggers de sincronizacion de telefono dependen del email como clave de enlace entre `profiles` y `custodios_operativos`
+3. Sin email, la sincronizacion nunca ocurre
+4. El servicio tiene `custodio_telefono = 5537045855` (del operativo), pero el custodio hace login con `profile.phone = 55 4545 3426` (numero diferente)
+5. `useNextService` busca con el telefono del perfil → no encuentra nada
 
-Hay 3 razones por las que un custodio puede no aparecer en la lista de asignacion:
-
-| Razon | Donde se filtra | Visible al planificador? |
+| Tabla | Telefono | Email |
 |---|---|---|
-| Rechazo vigente (7 dias) | `CustodianStep/index.tsx` linea 120: `.filter(c => !rechazadosIds.includes(c.id))` | NO |
-| Conflicto horario / indisponible | Categorizado en `noDisponibles` por `useProximidadOperacional` | Solo si la lista completa queda vacia (NoCustodiansAlert) |
-| No esta activo en BD | RPC `get_custodios_activos_disponibles` lo excluye | NO |
+| `profiles` | `55 4545 3426` (norm: `5545453426`) | `juanpabloriveragutierrez351@gmail.com` |
+| `custodios_operativos` | `5537045855` | `NULL` |
+| `servicios_planificados.custodio_telefono` | `5537045855` | -- |
 
-El `NoCustodiansAlert` actual solo aparece cuando `filteredCustodians.length === 0`. Si hay 3 de 75 resultados (como en la captura), no se muestra nada.
+## Solucion
 
-## Solucion: Banner de exclusion contextual
+### Parte 1: Fix de datos inmediato (manual)
 
-Un banner inline (NO toast) que aparece debajo del search cuando se detecta que hay custodios excluidos por rechazos o en conflicto. El banner:
+Actualizar el email del custodio operativo para que el trigger pueda vincularlo. Esto se puede hacer desde el modulo de Perfiles Operativos o directamente:
 
-1. Solo aparece cuando hay busqueda activa Y hay custodios rechazados o en conflicto
-2. Muestra conteos concretos: "X custodios excluidos por rechazo vigente, Y con conflicto horario"
-3. Permite accion: boton para "Ver en conflictos" que scrollea a la seccion de conflictos
-4. Es un Alert sutil (no destructive), persistente mientras dure la busqueda
-
-### Por que NO un toast
-
-- Los toasts desaparecen en 5 segundos -- el planificador puede no verlo
-- Los toasts no son accionables (no puedes poner un boton "Ver detalles")
-- El problema es contextual a la busqueda, no un evento puntual
-- Un banner inline junto al search es la ubicacion natural donde el ojo ya esta mirando
-
-## Cambios por archivo
-
-### 1. Nuevo componente: `ExcludedCustodiansAlert.tsx`
-
-Ubicacion: `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/`
-
-Componente Alert que recibe:
-- `searchTerm`: string (para saber si hay busqueda activa)
-- `rechazadosCount`: numero de custodios excluidos por rechazo vigente
-- `conflictoCount`: numero de custodios en la categoria `noDisponibles`
-- `rechazadosMatchingSearch`: numero de rechazados cuyo nombre coincide con la busqueda (para el mensaje especifico "El custodio X tiene un rechazo vigente")
-- `onViewConflicts`: callback para scrollear a la seccion de conflictos
-
-Logica de visibilidad:
-- Se oculta si no hay busqueda activa
-- Se oculta si no hay rechazados ni conflictos
-- Muestra mensaje especifico si exactamente 1 rechazado coincide con la busqueda
-- Muestra mensaje generico si hay multiples exclusiones
-
-### 2. Modificar: `CustodianStep/index.tsx`
-
-- Calcular `rechazadosMatchingSearch`: cruzar la lista de `rechazadosIds` con los custodios de `noDisponibles` que coincidan con el searchTerm
-- Insertar `ExcludedCustodiansAlert` entre el `CustodianSearch` y el `CustodianList`
-- Pasar los conteos y la busqueda activa
-
-### 3. Modificar: `PendingAssignmentModal.tsx`
-
-Mismo patron: insertar el `ExcludedCustodiansAlert` en el modal de asignacion pendiente, que comparte los mismos componentes de busqueda.
-
-## Ejemplo visual del banner
-
-Cuando el planificador busca "Zavala" y el custodio tiene rechazo vigente:
-
-```text
-+----------------------------------------------------------+
-| (i) "Zavala" coincide con 1 custodio excluido            |
-|     - ALEJANDRO ZAVALA: Rechazo vigente (vence 24 Feb)   |
-|                                        [Ver detalles]    |
-+----------------------------------------------------------+
+```sql
+UPDATE custodios_operativos 
+SET email = 'juanpabloriveragutierrez351@gmail.com'
+WHERE id = '9902884a-3351-4260-9329-b2f058c053a1';
 ```
 
-Cuando hay exclusiones genericas:
+Despues de esto, el trigger `trg_sync_operativo_phone_to_profile` sincronizara el telefono al perfil, O el trigger `trg_sync_profile_phone` propagara al operativo. Ambos sentidos convergen.
 
-```text
-+----------------------------------------------------------+
-| (i) 5 custodios no visibles: 2 con rechazo vigente,      |
-|     3 con conflicto horario      [Ver en conflictos]     |
-+----------------------------------------------------------+
-```
+### Parte 2: Mejora estructural en `useNextService`
 
-## Impacto esperado
+Agregar un fallback en el hook para que, cuando no encuentre servicios con el telefono del perfil, intente buscar mediante el custodio_id (UUID) vinculado al perfil. Esto cubre los casos donde la sincronizacion no ha ocurrido.
 
-- Elimina escalaciones tipo "no me aparece Zavala" por Slack
-- El planificador entiende inmediatamente la razon y puede tomar accion (esperar que expire el rechazo, asignar con override, contactar a otro)
-- Cero cambios en la logica de negocio -- solo visibilidad
+**Cambio en `useNextService.ts`:**
+
+1. Recibir un parametro adicional opcional `custodioId` (ya disponible en el contexto del dashboard mobile)
+2. Si la busqueda por telefono no devuelve resultados Y se tiene custodioId, hacer una segunda query buscando por `custodio_id` en `servicios_planificados`
+3. Esto actua como red de seguridad sin depender exclusivamente del telefono
+
+**Cambio en `MobileDashboardLayout.tsx`:**
+
+1. Obtener el `custodio_id` del perfil del custodio (ya se tiene el telefono, se puede buscar en `custodios_operativos`)
+2. Pasar ese ID a `useNextService` como fallback
+
+### Parte 3: Auditoria de datos incompletos
+
+Identificar y reportar cuantos custodios operativos activos no tienen email vinculado, para corregirlos proactivamente.
+
+Actualmente solo 1 custodio (ALARCON PADILLA) tiene discrepancia de telefono por formato, y Juan Pablo Rivera no tiene email. Pero conviene crear una consulta de auditoria que el equipo pueda ejecutar periodicamente.
+
+## Archivos a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `src/hooks/useNextService.ts` | Agregar fallback por custodio_id cuando busqueda por telefono falla |
+| `src/components/custodian/MobileDashboardLayout.tsx` | Obtener y pasar custodio_id al hook |
+
+## Consideraciones
+
+- El fix de datos (Parte 1) resuelve el caso inmediato de Juan Pablo Rivera
+- La mejora de codigo (Parte 2) previene que esto vuelva a ocurrir con otros custodios que tengan datos incompletos
+- No se cambia ningun trigger ni logica de sincronizacion existente -- solo se agrega una capa de resiliencia
