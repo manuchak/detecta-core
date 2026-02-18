@@ -461,7 +461,7 @@ export function PendingAssignmentModal({
     setIsAssigning(true);
     try {
       await assignArmedGuard({
-        serviceId: service.id_servicio, // Usar id_servicio (código humano) para consistencia
+        serviceId: service.id, // UUID primary key - la mutación soporta ambos formatos
         armadoName: armedData.armado_nombre,
         armadoId: armedData.armado_id
       });

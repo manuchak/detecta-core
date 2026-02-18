@@ -393,10 +393,14 @@ export function useServiciosPlanificados() {
       tarifaAcordada?: number;
     }) => {
       // Get current service state to determine final status
+      // Detect if serviceId is UUID or human-readable id_servicio
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(serviceId);
+      const filterColumn = isUuid ? 'id' : 'id_servicio';
+
       const { data: currentService, error: fetchError } = await supabase
         .from('servicios_planificados')
-        .select('custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio, cantidad_armados_requeridos')
-        .eq('id', serviceId)
+        .select('id, custodio_asignado, custodio_id, estado_planeacion, fecha_hora_cita, id_servicio, cantidad_armados_requeridos')
+        .eq(filterColumn, serviceId)
         .maybeSingle();
 
       if (fetchError) throw new Error('Error al obtener datos del servicio');
@@ -443,7 +447,7 @@ export function useServiciosPlanificados() {
           fecha_asignacion_armado: new Date().toISOString(),
           estado_planeacion: newState
         })
-        .eq('id', serviceId);
+        .eq('id', currentService.id);
 
       if (error) throw error;
     },
