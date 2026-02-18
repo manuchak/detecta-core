@@ -37,15 +37,12 @@ const MonitoringPage = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [timeWindow, setTimeWindow] = useState(8);
   const [activeTab, setActiveTab] = useState(
-    tabFromUrl === 'checklists' ? 'checklists' : tabFromUrl === 'adopcion' ? 'adopcion' : tabFromUrl === 'incidentes' ? 'incidentes' : tabFromUrl === 'performance' ? 'performance' : 'posicionamiento'
+    tabFromUrl || 'performance'
   );
   
   // Sync tab with URL param
   useEffect(() => {
-    if (tabFromUrl === 'checklists') setActiveTab('checklists');
-    if (tabFromUrl === 'adopcion') setActiveTab('adopcion');
-    if (tabFromUrl === 'incidentes') setActiveTab('incidentes');
-    if (tabFromUrl === 'performance') setActiveTab('performance');
+    if (tabFromUrl) setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
   
   // Checklist state
@@ -140,10 +137,10 @@ const MonitoringPage = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">
-            Control de Posicionamiento
+            Centro de Monitoreo
           </h1>
           <p className="text-muted-foreground">
-            Seguimiento de custodios en ruta hacia sus puntos de origen
+            Panel integral de operaciones, performance y seguimiento
           </p>
         </div>
         <Button 
@@ -160,6 +157,7 @@ const MonitoringPage = () => {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="posicionamiento">Posicionamiento</TabsTrigger>
           <TabsTrigger value="checklists" className="relative">
             Checklists
@@ -178,8 +176,12 @@ const MonitoringPage = () => {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
+
+        {/* Tab: Performance */}
+        <TabsContent value="performance" className="space-y-6 mt-0">
+          <PerformanceDashboard />
+        </TabsContent>
 
         {/* Tab: Posicionamiento */}
         <TabsContent value="posicionamiento" className="space-y-6 mt-0">
@@ -284,11 +286,6 @@ const MonitoringPage = () => {
         {/* Tab: Incidentes */}
         <TabsContent value="incidentes" className="space-y-6 mt-0">
           <IncidentListPanel />
-        </TabsContent>
-
-        {/* Tab: Performance */}
-        <TabsContent value="performance" className="space-y-6 mt-0">
-          <PerformanceDashboard />
         </TabsContent>
       </Tabs>
 
