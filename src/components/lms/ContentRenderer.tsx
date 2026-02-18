@@ -4,9 +4,12 @@ import { EmbedRenderer } from "./EmbedRenderer";
 import { TextoEnriquecidoViewer } from "./TextoEnriquecidoViewer";
 import { QuizComponent } from "./QuizComponent";
 import { InteractivoRenderer } from "./InteractivoRenderer";
+import { SCORMViewer } from "./SCORMViewer";
+import { CertificadoPlantillaViewer } from "./CertificadoPlantillaViewer";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent, InteractivoContent, RespuestaQuiz } from "@/types/lms";
+import type { LMSContenido, VideoContent, DocumentoContent, EmbedContent, TextoEnriquecidoContent, InteractivoContent, ScormContent, CertificadoPlantillaContent, RespuestaQuiz } from "@/types/lms";
+
 
 interface ContentRendererProps {
   contenido: LMSContenido;
@@ -114,6 +117,23 @@ export function ContentRenderer({
         />
       );
 
+    case 'scorm':
+      return (
+        <SCORMViewer
+          content={data as ScormContent}
+          onComplete={onComplete}
+        />
+      );
+
+    case 'certificado_plantilla':
+      return (
+        <CertificadoPlantillaViewer
+          content={data as CertificadoPlantillaContent}
+          inscripcionId={inscripcionId}
+          onComplete={onComplete}
+        />
+      );
+
     default:
       return (
         <Alert variant="destructive">
@@ -125,3 +145,4 @@ export function ContentRenderer({
       );
   }
 }
+

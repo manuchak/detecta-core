@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight, Package, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +20,8 @@ const iconosContenido: Record<TipoContenido, React.ReactNode> = {
   texto_enriquecido: <FileText className="h-4 w-4" />,
   quiz: <HelpCircle className="h-4 w-4" />,
   interactivo: <Sparkles className="h-4 w-4" />,
+  scorm: <Package className="h-4 w-4" />,
+  certificado_plantilla: <Award className="h-4 w-4" />,
 };
 
 export function ModuleSidebar({ 

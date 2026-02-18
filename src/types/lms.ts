@@ -9,7 +9,7 @@ export type LMSCategoria = 'onboarding' | 'procesos' | 'herramientas' | 'complia
 export type LMSNivel = 'basico' | 'intermedio' | 'avanzado';
 
 // Tipos de contenido
-export type TipoContenido = 'video' | 'documento' | 'embed' | 'texto_enriquecido' | 'quiz' | 'interactivo';
+export type TipoContenido = 'video' | 'documento' | 'embed' | 'texto_enriquecido' | 'quiz' | 'interactivo' | 'scorm' | 'certificado_plantilla';
 
 // Tipos de pregunta
 export type TipoPregunta = 'opcion_multiple' | 'verdadero_falso' | 'respuesta_corta' | 'ordenar';
@@ -98,7 +98,9 @@ export type ContenidoData =
   | EmbedContent 
   | TextoEnriquecidoContent 
   | QuizContent 
-  | InteractivoContent;
+  | InteractivoContent
+  | ScormContent
+  | CertificadoPlantillaContent;
 
 export type VideoProvider = 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'facebook' | 'canva' | 'storage';
 
@@ -138,6 +140,22 @@ export interface QuizContent {
 export interface InteractivoContent {
   tipo: TipoInteractivo;
   data: FlashcardsData | TimelineData | DragDropData | HotspotsData | AccordionData | TabsData | VideoInteractivoData | EmbedExternoData;
+}
+
+// SCORM package content
+export interface ScormContent {
+  package_url: string;
+  entry_point: string; // ruta al index.html dentro del paquete
+  version: 'SCORM_1.2' | 'SCORM_2004';
+  width?: number;
+  height?: number;
+}
+
+// Plantilla de certificado intermedia
+export interface CertificadoPlantillaContent {
+  plantilla_id: string;
+  plantilla_nombre: string;
+  personalizar_variables?: Record<string, string>;
 }
 
 // Embed Externo (iframe de terceros como Genially, Canva, H5P)
@@ -421,6 +439,8 @@ export const LMS_TIPOS_CONTENIDO: { value: TipoContenido; label: string; icon: s
   { value: 'texto_enriquecido', label: 'Texto', icon: 'AlignLeft' },
   { value: 'quiz', label: 'Evaluación', icon: 'HelpCircle' },
   { value: 'interactivo', label: 'Interactivo', icon: 'Sparkles' },
+  { value: 'scorm', label: 'SCORM', icon: 'Package' },
+  { value: 'certificado_plantilla', label: 'Certificado', icon: 'Award' },
 ];
 
 export const LMS_ESTADOS_INSCRIPCION: { value: EstadoInscripcion; label: string; color: string }[] = [

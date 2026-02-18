@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Pencil, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code } from "lucide-react";
+import { GripVertical, Pencil, Trash2, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code, Package, Award } from "lucide-react";
 import { useLMSEliminarContenido } from "@/hooks/lms/useLMSAdminContenidos";
 import { ContenidoExpandedEditor } from "./ContenidoExpandedEditor";
 import type { LMSContenido, TipoContenido } from "@/types/lms";
@@ -18,11 +18,14 @@ const TIPO_ICONS: Record<TipoContenido, React.ReactNode> = {
   quiz: <HelpCircle className="w-3.5 h-3.5" />,
   interactivo: <Sparkles className="w-3.5 h-3.5" />,
   embed: <Code className="w-3.5 h-3.5" />,
+  scorm: <Package className="w-3.5 h-3.5" />,
+  certificado_plantilla: <Award className="w-3.5 h-3.5" />,
 };
 
 const TIPO_LABELS: Record<TipoContenido, string> = {
   video: 'Video', documento: 'Documento', texto_enriquecido: 'Texto',
   quiz: 'Quiz', interactivo: 'Interactivo', embed: 'Embed',
+  scorm: 'SCORM', certificado_plantilla: 'Certificado',
 };
 
 interface ContenidoInlineEditorProps {
