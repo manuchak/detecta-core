@@ -11,7 +11,7 @@ interface CustodianService {
   fecha_hora_cita: string;
   estado: string;
   tipo_servicio: string;
-  cobro_cliente?: number;
+  costo_custodio?: number;
 }
 
 interface SimpleServiceCardProps {
@@ -80,9 +80,9 @@ const SimpleServiceCard = ({ service, onClick }: SimpleServiceCardProps) => {
             <span className="text-xs bg-background/50 px-2 py-1 rounded-full text-muted-foreground">
               {service.tipo_servicio || "Custodia"}
             </span>
-            {service.cobro_cliente && (
+            {service.costo_custodio && (
               <span className="text-sm font-semibold text-green-600">
-                ${service.cobro_cliente.toLocaleString()}
+                ${service.costo_custodio.toLocaleString()}
               </span>
             )}
           </div>

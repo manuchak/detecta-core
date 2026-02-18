@@ -12,7 +12,7 @@ interface CustodianService {
   estado: string;
   tipo_servicio: string;
   km_recorridos?: number;
-  cobro_cliente?: number;
+  costo_custodio?: number;
   comentarios_adicionales?: string;
 }
 
@@ -82,7 +82,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
             estado,
             tipo_servicio,
             km_recorridos,
-            cobro_cliente,
+            costo_custodio,
             comentarios_adicionales
           `)
           .or(`telefono.eq.${normalizedPhone},telefono_operador.eq.${normalizedPhone}`)
@@ -125,7 +125,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
         estado: p.estado_planeacion || 'planificado',
         tipo_servicio: p.tipo_servicio || 'custodia',
         km_recorridos: undefined,
-        cobro_cliente: undefined,
+        costo_custodio: undefined,
         comentarios_adicionales: p.comentarios_adicionales ?? undefined,
       }));
 
@@ -161,7 +161,7 @@ export const useCustodianServices = (custodianPhone?: string) => {
         km_totales: merged.reduce((total, s) => total + (s.km_recorridos || 0), 0),
         ingresos_totales: merged
           .filter(s => matchesState(s.estado, COMPLETED_STATES))
-          .reduce((total, s) => total + (s.cobro_cliente || 0), 0)
+          .reduce((total, s) => total + (s.costo_custodio || 0), 0)
       };
 
       setStats(calculatedStats);

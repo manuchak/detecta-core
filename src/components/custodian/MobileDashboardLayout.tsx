@@ -122,7 +122,7 @@ const MobileDashboardLayout = () => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return services
       .filter(s => new Date(s.fecha_hora_cita) >= startOfMonth)
-      .reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      .reduce((sum, s) => sum + (s.costo_custodio || 0), 0);
   }, [services]);
 
   // Get open tickets for urgency calculation - MUST be before any conditional returns
