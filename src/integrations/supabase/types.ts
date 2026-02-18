@@ -17923,6 +17923,47 @@ export type Database = {
           total_servicios_historico: number
         }[]
       }
+      get_armados_disponibles_extendido: {
+        Args: never
+        Returns: {
+          created_at: string
+          disponibilidad: string
+          email: string
+          equipamiento_disponible: string[]
+          es_lead_virtual: boolean
+          estado: string
+          experiencia_anos: number
+          fecha_ultimo_servicio: string
+          fecha_ultimo_servicio_real: string
+          fecha_vencimiento_licencia: string
+          fuente: string
+          id: string
+          lead_estado_original: string
+          lead_id_origen: string
+          licencia_portacion: string
+          nombre: string
+          numero_servicios: number
+          proveedor_id: string
+          rating_promedio: number
+          restricciones_horario: Json
+          score_comunicacion: number
+          score_confiabilidad: number
+          score_disponibilidad: number
+          score_total: number
+          servicios_90dias: number
+          servicios_historico_total: number
+          servicios_permitidos: string[]
+          tasa_confiabilidad: number
+          tasa_confirmacion: number
+          tasa_respuesta: number
+          telefono: string
+          tiene_actividad_90dias: boolean
+          tipo_armado: string
+          updated_at: string
+          zona_base: string
+          zonas_permitidas: string[]
+        }[]
+      }
       get_available_roles_secure: { Args: never; Returns: string[] }
       get_ciudades_safe: {
         Args: { estado_uuid: string }
