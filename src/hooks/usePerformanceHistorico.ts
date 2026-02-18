@@ -178,13 +178,13 @@ async function fetchHistoricoData(): Promise<HistoricoData> {
     };
   });
 
-  // --- Daily (last 30 days) ---
+  // --- Daily (last 15 days) ---
   const todayCDMX = formatInTimeZone(now, TIMEZONE_CDMX, 'yyyy-MM-dd');
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoCDMX = formatInTimeZone(thirtyDaysAgo, TIMEZONE_CDMX, 'yyyy-MM-dd');
+  const fifteenDaysAgo = new Date(now);
+  fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+  const fifteenDaysAgoCDMX = formatInTimeZone(fifteenDaysAgo, TIMEZONE_CDMX, 'yyyy-MM-dd');
 
-  const recentServices = merged.filter(s => s.diaCDMX >= thirtyDaysAgoCDMX && s.diaCDMX <= todayCDMX);
+  const recentServices = merged.filter(s => s.diaCDMX >= fifteenDaysAgoCDMX && s.diaCDMX <= todayCDMX);
   const dailyGroups = groupBy(recentServices, s => s.diaCDMX);
   const daily: PeriodMetrics[] = Array.from(dailyGroups.entries())
     .sort(([a], [b]) => a.localeCompare(b))
