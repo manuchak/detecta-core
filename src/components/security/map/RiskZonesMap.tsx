@@ -69,6 +69,8 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         map.current = m;
         setMapReady(true);
         setLoading(false);
+        // Recalculate canvas after zoom compensation is applied
+        setTimeout(() => m.resize(), 150);
       });
 
       m.on('error', () => {
@@ -307,13 +309,23 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full overflow-hidden">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full min-h-[400px] rounded-lg" />
+      <div
+        ref={mapContainer}
+        className="rounded-lg"
+        style={{
+          zoom: 1 / 0.7,
+          width: '70%',
+          height: '70%',
+          minHeight: '400px',
+          transformOrigin: 'top left',
+        }}
+      />
       {/* Legend */}
       {mapReady && (
         <div className="absolute bottom-3 left-3 bg-background/90 border rounded-lg p-3 text-xs space-y-1.5 backdrop-blur-sm">
@@ -326,11 +338,11 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
           ))}
           <div className="border-t pt-1 mt-1">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500 border border-white" />
+              <div className="w-2.5 h-2.5 rounded-full border border-white" style={{ backgroundColor: 'hsl(var(--accent))' }} />
               <span className="text-muted-foreground">Punto seguro</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded bg-gray-500/25 border border-dashed border-gray-500" />
+              <div className="w-3 h-3 rounded border border-dashed" style={{ backgroundColor: 'hsl(var(--muted) / 0.25)', borderColor: 'hsl(var(--muted-foreground))' }} />
               <span className="text-muted-foreground">Sin cobertura</span>
             </div>
           </div>
