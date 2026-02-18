@@ -461,7 +461,7 @@ export function PendingAssignmentModal({
     setIsAssigning(true);
     try {
       await assignArmedGuard({
-        serviceId: service.id, // Usar UUID interno para asignación de armado
+        serviceId: service.id_servicio, // Usar id_servicio (código humano) para consistencia
         armadoName: armedData.armado_nombre,
         armadoId: armedData.armado_id
       });

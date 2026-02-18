@@ -64,7 +64,7 @@ export function useServicioLookup() {
         const { data: armadosData } = await supabase
           .from('asignacion_armados')
           .select('id, armado_nombre_verificado, tipo_asignacion, estado_asignacion')
-          .eq('servicio_custodia_id', data.id)
+          .eq('servicio_custodia_id', data.id_servicio)
           .not('estado_asignacion', 'eq', 'cancelado')
           .order('created_at', { ascending: true });
         armados = (armadosData as ArmadoVinculado[]) || [];
