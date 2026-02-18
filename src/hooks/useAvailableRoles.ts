@@ -5,6 +5,38 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Role, CreateRoleInput, UpdateRoleInput, DeleteRoleInput } from '@/types/roleTypes';
 
+/**
+ * Complete list of all available roles in the system.
+ * This is the source of truth for the role dropdown — it includes ALL roles
+ * from the app_role enum, not just those with existing user assignments.
+ */
+const ALL_SYSTEM_ROLES: Role[] = [
+  'owner',
+  'admin',
+  'supply_admin',
+  'capacitacion_admin',
+  'coordinador_operaciones',
+  'jefe_seguridad',
+  'analista_seguridad',
+  'supply_lead',
+  'ejecutivo_ventas',
+  'custodio',
+  'bi',
+  'monitoring_supervisor',
+  'monitoring',
+  'supply',
+  'instalador',
+  'soporte',
+  'planificador',
+  'facturacion_admin',
+  'facturacion',
+  'finanzas_admin',
+  'finanzas',
+  'customer_success',
+  'pending',
+  'unverified'
+];
+
 export const useAvailableRoles = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -12,63 +44,23 @@ export const useAvailableRoles = () => {
   const { data: roles, isLoading, error } = useQuery({
     queryKey: ['available-roles'],
     queryFn: async () => {
-      try {
-        console.log('Fetching available roles...');
-        
-        // First verify admin access using the secure function
-        const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
-        
-        if (adminError) {
-          console.error('Error checking admin status:', adminError);
-          throw new Error('No se pudo verificar los permisos de administrador');
-        }
+      // Verify admin access using the secure function
+      const { data: isAdminData, error: adminError } = await supabase.rpc('is_admin_user_secure');
 
-        if (!isAdminData) {
-          throw new Error('Sin permisos para acceder a esta información');
-        }
-
-        // Get roles from user_roles table instead of available_roles
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .order('role', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching roles:', error);
-          // Return default roles as fallback
-          return [
-            'owner',
-            'admin', 
-            'supply_admin',
-            'capacitacion_admin',
-            'coordinador_operaciones',
-            'jefe_seguridad',
-            'analista_seguridad',
-            'supply_lead',
-            'ejecutivo_ventas',
-            'custodio',
-            'bi',
-            'monitoring_supervisor',
-            'monitoring',
-            'supply',
-            'instalador',
-            'soporte',
-            'customer_success',
-            'pending',
-            'unverified'
-          ] as Role[];
-        }
-
-        // Get unique roles
-        const uniqueRoles = [...new Set((data || []).map((item: { role: string }) => item.role))];
-        return uniqueRoles as Role[];
-      } catch (err) {
-        console.error('Error in useAvailableRoles:', err);
-        throw err;
+      if (adminError) {
+        console.error('Error checking admin status:', adminError);
+        throw new Error('No se pudo verificar los permisos de administrador');
       }
+
+      if (!isAdminData) {
+        throw new Error('Sin permisos para acceder a esta información');
+      }
+
+      // Return the complete list of system roles (not dependent on user_roles table)
+      return ALL_SYSTEM_ROLES;
     },
     retry: 1,
-    staleTime: 300000, // 5 minutes
+    staleTime: 300000,
   });
 
   const createRole = useMutation({
