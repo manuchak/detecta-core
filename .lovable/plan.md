@@ -1,69 +1,62 @@
 
-# Fix: Mapa de Zonas de Riesgo no visible + Ajustes vs Hermes
+# Fix: Mapa al 100% del contenedor (compensar zoom 0.7)
 
-## Problema Principal
-El mapa Mapbox no se muestra en el tab "Rutas y Zonas". La vista actual solo renderiza el header con KPIs y la lista de tramos a ancho completo. El layout de 3 columnas con el mapa central no funciona.
-
-**Causa raiz**: El contenedor del mapa depende de `calc(100vh - 280px)` para su altura, pero dentro de un `TabsContent` que no tiene altura explicita, el div del mapa colapsa a 0px de alto. Adicionalmente, el grid `lg:grid-cols-[1fr_2fr_1fr]` requiere breakpoint `lg` (1024px) y el area de contenido dentro del sidebar puede no alcanzarlo.
-
-## Diferencias Core vs Hermes
-
-| Elemento | Hermes (referencia) | Core (actual) |
-|---|---|---|
-| Mapa interactivo | Centro prominente, tema oscuro, lineas coloreadas por riesgo | No visible (height 0) |
-| Layout | Mapa ocupa ~60% del ancho con panel lateral | Solo lista de tramos visible |
-| Capas | Panel de toggles funcional sobre el mapa | Componente existe pero no se ve |
-| Leyenda | Integrada en esquina del mapa | Componente existe pero mapa no renderiza |
-| Segmentos | Panel derecho con filtros y scroll | Funciona pero ocupa todo el ancho |
+## Problema
+La pagina aplica `zoom: 0.7` en `html` (linea 153 de `index.css`). Esto reduce el mapa visualmente y puede causar que Mapbox calcule mal el tamaño del canvas. El mapa necesita renderizarse al 100% real de su contenedor.
 
 ## Solucion
 
-### 1. Corregir altura del contenedor del mapa
-En `RouteRiskIntelligence.tsx`:
-- Cambiar el grid container de `style={{ height: 'calc(100vh - 280px)' }}` a una clase con altura fija y responsive
-- Asegurar que el contenedor del mapa tenga `min-height` explicito
-- Usar `md:grid-cols-[1fr_2fr_1fr]` en lugar de `lg:` para activarse antes
+### Archivo: `src/components/security/map/RiskZonesMap.tsx`
 
-### 2. Ajustar el mapa para ocupar su contenedor
-En `RiskZonesMap.tsx`:
-- Asegurar que el `mapContainer` div tenga `style={{ minHeight: '400px' }}` como fallback
-- Verificar que `h-full` se propague correctamente
+1. **Compensar zoom en el contenedor del mapa**: Aplicar `zoom: var(--zoom-compensation)` (1.4286) al wrapper del mapa para que Mapbox vea el tamaño real del contenedor. Para que el contenedor compensado no desborde su padre, envolver en un div con `overflow: hidden` y ajustar dimensiones inversamente.
 
-### 3. Ajustar SecurityPage para dar altura al TabsContent
-En `SecurityPage.tsx`:
-- Agregar clases de altura al `TabsContent` del tab "routes" para que el contenido del mapa tenga un contexto de altura definido
+   Enfoque concreto: aplicar al div del mapa un estilo inline:
+   ```css
+   zoom: 1.4286;
+   width: 70%;    /* 100% * 0.7 para compensar el zoom inverso */
+   height: 70%;
+   transform-origin: top left;
+   ```
+   
+   Alternativamente (mas limpio): usar la clase CSS ya existente y hacer que el contenedor padre tenga `overflow: hidden` y el mapContainer tenga el zoom de compensacion.
 
-### 4. Panel de capas visible en mobile
-- Cambiar `hidden lg:block` a `hidden md:block` para el panel izquierdo
-- Asegurar que el overlay mobile funcione correctamente
+2. **Llamar `map.resize()`** despues de aplicar la compensacion para que Mapbox recalcule el canvas.
 
-## Detalle Tecnico
+3. **Asegurar que todas las capas se dibujen**: Verificar que la inicializacion de capas (segmentos, POIs, dead zones, safe points) no dependa de condiciones que fallen. Mover la llamada de `map.resize()` al final de la carga de capas.
 
-### `RouteRiskIntelligence.tsx`
-```typescript
-// Antes:
-<div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-3" 
-     style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
-  <div className="hidden lg:block">
+### Detalle tecnico
 
-// Despues:
-<div className="grid grid-cols-1 md:grid-cols-[240px_1fr_280px] gap-3 h-[calc(100vh-320px)] min-h-[500px]">
-  <div className="hidden md:block">
+En el return del componente, cambiar la estructura:
+
+```tsx
+// Wrapper con overflow hidden para contener el mapa compensado
+<div className="relative w-full h-full overflow-hidden">
+  {loading && (...)}
+  {/* El div del mapa con zoom inverso para compensar el 0.7 global */}
+  <div 
+    ref={mapContainer} 
+    className="rounded-lg"
+    style={{
+      zoom: 1 / 0.7,          // ~1.4286 - compensa el zoom global
+      width: `${0.7 * 100}%`, // 70% * 1.4286 zoom = 100% visual
+      height: `${0.7 * 100}%`,
+      transformOrigin: 'top left',
+    }}
+  />
+  {/* Legend y overlays permanecen fuera del contenedor compensado */}
+  {mapReady && (leyenda...)}
+</div>
 ```
 
-### `RiskZonesMap.tsx`
+Y en el efecto de inicializacion, agregar `map.resize()` tras el load:
 ```typescript
-// Asegurar min-height en el contenedor del mapa
-<div ref={mapContainer} className="w-full h-full min-h-[400px] rounded-lg" />
+m.on('load', () => {
+  map.current = m;
+  setMapReady(true);
+  setLoading(false);
+  setTimeout(() => m.resize(), 100); // Recalcular tras render
+});
 ```
 
-### `SecurityPage.tsx`
-```typescript
-// Dar contexto de altura al tab de rutas
-<TabsContent value="routes" className="mt-4 h-[calc(100vh-200px)]">
-```
-
-## Archivos a modificar
-1. `src/components/security/routes/RouteRiskIntelligence.tsx` - Fix grid layout y alturas
-2. `src/components/security/map/RiskZonesMap.tsx` - Min-height en contenedor del mapa
-3. `src/pages/Security/SecurityPage.tsx` - Altura en TabsContent de rutas
+### Archivos a modificar
+- `src/components/security/map/RiskZonesMap.tsx` - Compensar zoom y asegurar capas visibles
