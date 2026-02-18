@@ -22,6 +22,7 @@ export interface CarteraCliente {
   segment: CarteraSegment;
   csm_asignado: string | null;
   csm_nombre: string | null;
+  ultimo_touchpoint: string | null;
 }
 
 function calcSalud(c: { quejas_abiertas: number; dias_sin_contacto: number; servicios_90d: number }): 'verde' | 'amarillo' | 'rojo' {
@@ -123,6 +124,7 @@ export function useCSCartera() {
           segment,
           csm_asignado: (c as any).csm_asignado || null,
           csm_nombre: csmData?.display_name || null,
+          ultimo_touchpoint: lastTp || null,
         };
       });
 
