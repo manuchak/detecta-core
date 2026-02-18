@@ -11,16 +11,16 @@ const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
 
   return (
-    <div style={{ zoom: 1 / 0.7 }} className="space-y-3">
-      <div>
+    <div style={{ zoom: 1 / 0.7 }} className="flex flex-col h-screen overflow-hidden">
+      <div className="shrink-0 px-0 pt-0 pb-1">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Módulo de Seguridad</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Inteligencia de riesgo, cumplimiento y respuesta — ISO 28000 / ISO 31000
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-9">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="shrink-0 grid w-full grid-cols-5 h-9">
           <TabsTrigger value="posture" className="flex items-center gap-1 text-[11px]">
             <Shield className="h-3 w-3" />
             Risk Posture
@@ -47,7 +47,7 @@ const SecurityPage = () => {
           <SecurityDashboard />
         </TabsContent>
 
-        <TabsContent value="routes" className="mt-3 h-[calc(100vh-120px)]">
+        <TabsContent value="routes" className="flex-1 min-h-0 mt-3">
           <RouteRiskIntelligence />
         </TabsContent>
 
