@@ -1,69 +1,33 @@
 
 
-# Agregar acceso del rol `customer_success` a CRM Hub y Capacitacion (LMS)
+# Fix: Mostrar Customer Success y roles faltantes en el dropdown
 
-## Estado actual
+## Problema
 
-El rol `customer_success` ya existe en el sistema y tiene acceso configurado al modulo **Customer Success**. Sin embargo, **no tiene acceso** a:
-- **CRM Hub** (`/crm`)
-- **Capacitacion / LMS** (`/lms`, `/lms/admin`, `/lms/reportes`, etc.)
+El dropdown de "CAMBIAR ROL" en la pagina de roles usa una lista **hardcodeada** dentro de `RoleManager.tsx` (linea 69-73), que NO incluye `customer_success` ni varios otros roles. El hook `useAvailableRoles` que ya corregimos no se usa en este componente.
 
-## Cambios necesarios
+## Solucion
 
-Se debe agregar `'customer_success'` en los arrays de roles permitidos en 4 archivos:
+Actualizar dos secciones en `src/components/settings/roles/RoleManager.tsx`:
 
-### 1. `src/App.tsx` - Rutas protegidas
+### 1. Lista de roles disponibles (linea 69-73)
 
-- **CRM Hub** (linea ~335): Agregar `'customer_success'` al `allowedRoles` de la ruta `/crm`
-- **LMS Dashboard** (linea ~978): La ruta `/lms` no tiene `RoleProtectedRoute` (es accesible a cualquier usuario autenticado), asi que no requiere cambio
-- **LMS Admin** (lineas ~1004, 1016, 1030, 1042, 1054): Estas rutas estan restringidas a `capacitacion_admin`. Agregar `'customer_success'` solo si el rol debe poder administrar cursos. Si solo debe consumir cursos, no se tocan.
+Agregar los roles faltantes: `customer_success`, `capacitacion_admin`, `custodio`, `facturacion_admin`, `facturacion`, `finanzas_admin`, `finanzas`.
 
-### 2. `src/config/navigationConfig.ts` - Menu lateral
+### 2. Mapa de nombres para display (linea 75-91)
 
-- **CRM Hub** (linea ~129): Agregar `'customer_success'` al array `roles` del item CRM Hub
-- **Capacitacion** (linea ~480): Agregar `'customer_success'` al array `roles` del grupo Capacitacion
+Agregar las traducciones para los roles nuevos:
+- `customer_success` -> "Customer Success"
+- `capacitacion_admin` -> "Admin Capacitacion"
+- `custodio` -> "Custodio"
+- `facturacion_admin` -> "Admin Facturacion"
+- `facturacion` -> "Facturacion"
+- `finanzas_admin` -> "Admin Finanzas"
+- `finanzas` -> "Finanzas"
 
-### 3. `src/components/navigation/GlobalNav.tsx` - Navegacion global
+## Archivo a modificar
 
-- **CRM Hub** (linea ~89): No existe entrada de CRM en GlobalNav, pero hay Customer Success. Verificar si CRM aparece aqui o solo en sidebar.
+- `src/components/settings/roles/RoleManager.tsx`
 
-### 4. `src/config/roleHomeConfig.ts` - Modulos del home
+Solo se modifican 2 bloques dentro de este archivo. No se requieren cambios en base de datos ni en otros archivos.
 
-- **customer_success** (linea ~445): Agregar `'crm'` y `'lms'` al array `modules`
-
-## Detalle tecnico
-
-### App.tsx - Ruta CRM
-
-```typescript
-// Linea ~335: Agregar customer_success
-<RoleProtectedRoute allowedRoles={['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi', 'customer_success']}>
-```
-
-### navigationConfig.ts - CRM Hub y LMS
-
-```typescript
-// CRM Hub (~linea 129)
-roles: ['admin', 'owner', 'ejecutivo_ventas', 'coordinador_operaciones', 'supply_admin', 'bi', 'customer_success'],
-
-// Capacitacion (~linea 480)
-roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte', 'customer_success'],
-```
-
-### roleHomeConfig.ts - Modulos accesibles
-
-```typescript
-customer_success: {
-  redirect: '/customer-success',
-  modules: ['settings', 'crm', 'lms']
-},
-```
-
-## Archivos a modificar
-
-1. `src/App.tsx` -- Agregar `customer_success` al `allowedRoles` de `/crm`
-2. `src/config/navigationConfig.ts` -- Agregar `customer_success` a los roles de CRM Hub y Capacitacion
-3. `src/config/roleHomeConfig.ts` -- Agregar modulos `crm` y `lms` al rol
-4. `src/components/navigation/GlobalNav.tsx` -- Si CRM tiene entrada, agregar el rol (verificar)
-
-No se requieren cambios en base de datos ya que el rol `customer_success` ya existe en el enum y en las tablas de roles.
