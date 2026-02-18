@@ -1,91 +1,39 @@
 
-# Analisis Fishbone y Plan de Correccion
 
-## Problema 1: Timeout al cargar armados
+# Filtro por Cliente - Solo clientes del dia
 
-### Causa Raiz (Fishbone)
+## Que se va a hacer
 
-```text
-TIMEOUT "canceling statement due to statement timeout"
-|
-+-- [Vista armados_disponibles_extendido]
-|   |
-|   +-- Subqueries correlacionadas por cada armado (109 registros)
-|   |   |
-|   |   +-- JOIN: asignacion_armados.servicio_custodia_id (TEXT)
-|   |   |   con servicios_custodia.id (BIGINT) usando cast ::text
-|   |   |   --> El cast IMPIDE uso del indice PK
-|   |   |
-|   |   +-- Escaneo secuencial de 33,165 filas por cada armado
-|   |   |
-|   |   +-- NO existe indice en asignacion_armados.armado_id
-|   |
-|   +-- security_invoker=on (agregado hoy)
-|       --> RLS policies se evaluan DENTRO de la vista
-|       --> Overhead adicional en cada subquery
-```
+Agregar un dropdown "Cliente" en la barra de filtros de Servicios Programados. El dropdown mostrara **unicamente** los clientes que tienen servicios programados para el dia seleccionado (no el catalogo completo de clientes del sistema).
 
-### Solucion
+## Impacto en el workflow
 
-1. Crear indice en `asignacion_armados.armado_id`
-2. Reescribir la vista usando JOINs laterales o CTEs pre-materializados en lugar de subqueries correlacionadas por fila
-3. Eliminar el cast `sc.id::text` y corregir el tipo de dato de `servicio_custodia_id` a `bigint` (o usar un indice funcional)
+- **Riesgo: Nulo** - Filtro puramente visual en frontend
+- No modifica queries a BD ni logica de asignacion de custodios/armados
+- Los contadores del header (total, asignados, pendientes) siguen mostrando el total real del dia
+- El filtro se resetea automaticamente al cambiar de fecha
+- El contador "(X de Y)" ya existente se actualizara para reflejar tambien este filtro
 
----
+## Implementacion
 
-## Problema 2: Abel Cruz no aparece en lista de custodios
+### Archivo a modificar
 
-### Causa Raiz (Fishbone)
+`src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx` (unico archivo)
 
-```text
-CUSTODIO INVISIBLE "Abel Cruz no aparece"
-|
-+-- [Filtro de rechazos en useProximidadOperacional.ts, linea 400-416]
-|   |
-|   +-- Query: SELECT custodio_id FROM custodio_rechazos
-|   |   WHERE vigencia_hasta > NOW()
-|   |   --> Trae TODOS los rechazos vigentes sin contexto
-|   |
-|   +-- Filtro BLANKET: excluye el custodio de TODAS las listas
-|   |   independientemente del tipo de servicio
-|   |
-|   +-- Abel Cruz tiene rechazo vigente hasta 2026-02-24
-|       Motivo: "No quiere servicio con armado"
-|       --> Deberia excluirse SOLO de servicios con armado
-|       --> Pero se excluye de TODOS los servicios
-```
+### Cambios especificos
 
-### Solucion
+1. **Nuevo estado**: Agregar `clienteFilter` de tipo `string | null` (null = todos) junto a los demas filtros (linea ~185)
 
-Modificar el filtro de rechazos para incluir contexto del servicio. El rechazo con motivo "con armado" solo debe excluir al custodio de servicios que requieren armado, no de todos.
+2. **Dropdown en la barra de filtros**: Insertar un `Select` (componente shadcn ya existente en el proyecto) despues de los botones Empresarial/PF y antes del separador. Mostrara:
+   - Opcion por defecto: "Todos los clientes"
+   - Lista dinamica generada desde `servicesByClient` (que ya calcula los clientes del dia con su conteo)
+   - Cada opcion mostrara el nombre del cliente y cuantos servicios tiene, ej: "BIMBO (5)"
 
----
+3. **Aplicar filtro**: En el `useMemo` de `groupedServices` (linea ~548), agregar una condicion que filtre por `cliente_nombre` cuando `clienteFilter` no sea null. Se agrega despues de los filtros existentes.
 
-## Detalle Tecnico de Implementacion
+4. **Reset al cambiar fecha**: En `handleDateChange` (linea ~89), resetear `clienteFilter` a null
 
-### Paso 1: Migracion SQL - Indices y vista optimizada
+5. **Actualizar dependencias del useMemo**: Agregar `clienteFilter` al array de dependencias de `groupedServices`
 
-- Crear `CREATE INDEX idx_asignacion_armados_armado_id ON asignacion_armados(armado_id)`
-- Crear indice funcional para el join con tipo mixto: `CREATE INDEX idx_asignacion_armados_servicio_text ON asignacion_armados(servicio_custodia_id)`
-- Reescribir `armados_disponibles_extendido` usando CTEs pre-agregados en lugar de subqueries correlacionadas:
+6. **Actualizar condicion del contador**: El texto "(X de Y)" (linea ~797) se mostrara tambien cuando `clienteFilter` no sea null
 
-```text
-Vista actual (lenta):
-  Para CADA armado -> subquery que escanea 33K filas
-
-Vista optimizada:
-  CTE 1: Pre-agregar actividad por armado_id (1 sola pasada)
-  CTE 2: Pre-agregar conteo historico por armado_id (1 sola pasada)
-  SELECT principal: JOIN con CTEs por armado_id
-```
-
-### Paso 2: Correccion del filtro de rechazos en useProximidadOperacional.ts
-
-- Modificar la query de rechazos para traer tambien el campo `motivo` y `servicio_id`
-- En el filtrado, si el motivo contiene "armado" y el servicio actual NO requiere armado, NO excluir al custodio
-- Esto permite que Abel Cruz aparezca en servicios sin armado, respetando su preferencia
-
-### Paso 3: Verificacion
-
-- Confirmar que la vista responde en menos de 2 segundos
-- Confirmar que Abel Cruz aparece en asignaciones de servicios sin armado
