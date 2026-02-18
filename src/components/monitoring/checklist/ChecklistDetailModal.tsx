@@ -36,6 +36,27 @@ import {
 import { GeoValidationBadge } from '@/components/custodian/checklist/GeoValidationBadge';
 import { PhotoLightbox } from './PhotoLightbox';
 
+function PhotoWithFallback({ src, alt }: { src: string; alt: string }) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-muted text-muted-foreground">
+        <AlertTriangle className="h-4 w-4" />
+        <span className="text-[10px]">Error de carga</span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      loading="lazy"
+      onError={() => setError(true)}
+    />
+  );
+}
+
 interface ChecklistDetailModalProps {
   servicio: ServicioConChecklist | null;
   open: boolean;
@@ -223,30 +244,45 @@ export function ChecklistDetailModal({
                 </h4>
                 {servicio.fotosValidadas.length > 0 ? (
                   <div className="grid grid-cols-2 gap-1.5">
-                    {servicio.fotosValidadas.map((foto, index) => (
-                      <button
-                        key={foto.angle}
-                        className="relative aspect-[4/3] rounded-md overflow-hidden border hover:ring-2 hover:ring-primary transition-all"
-                        onClick={() => setLightboxIndex(index)}
-                      >
-                        <img
-                          src={foto.url || ''}
-                          alt={ANGULO_LABELS[foto.angle]}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
-                          <p className="text-white text-[10px] font-medium leading-tight">
-                            {ANGULO_LABELS[foto.angle]}
-                          </p>
-                          <GeoValidationBadge
-                            validacion={foto.validacion}
-                            distancia={foto.distancia_origen_m}
-                            className="mt-0.5 scale-75 origin-left"
-                          />
-                        </div>
-                      </button>
-                    ))}
+                    {servicio.fotosValidadas.map((foto, index) => {
+                      const isCorrupt = !foto.url;
+                      return (
+                        <button
+                          key={foto.angle}
+                          className={cn(
+                            "relative aspect-[4/3] rounded-md overflow-hidden border transition-all",
+                            isCorrupt
+                              ? "cursor-not-allowed bg-muted"
+                              : "hover:ring-2 hover:ring-primary"
+                          )}
+                          onClick={() => !isCorrupt && setLightboxIndex(index)}
+                          disabled={isCorrupt}
+                        >
+                          {isCorrupt ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-destructive">
+                              <AlertTriangle className="h-5 w-5" />
+                              <span className="text-[10px] font-medium">Archivo corrupto</span>
+                              <span className="text-[9px] text-muted-foreground">0 bytes</span>
+                            </div>
+                          ) : (
+                            <PhotoWithFallback
+                              src={foto.url!}
+                              alt={ANGULO_LABELS[foto.angle]}
+                            />
+                          )}
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
+                            <p className="text-white text-[10px] font-medium leading-tight">
+                              {ANGULO_LABELS[foto.angle]}
+                            </p>
+                            <GeoValidationBadge
+                              validacion={foto.validacion}
+                              distancia={foto.distancia_origen_m}
+                              className="mt-0.5 scale-75 origin-left"
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground text-xs">
