@@ -6,6 +6,7 @@ interface UnavailabilityStatusBannerProps {
   tipo: string;
   fechaFin?: string;
   motivo?: string;
+  reportadoPor?: string | null;
   onCancel?: () => Promise<boolean>;
 }
 
@@ -21,6 +22,7 @@ const UnavailabilityStatusBanner = ({
   tipo,
   fechaFin,
   motivo,
+  reportadoPor,
   onCancel,
 }: UnavailabilityStatusBannerProps) => {
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,11 @@ const UnavailabilityStatusBanner = ({
           {motivo && (
             <p className="text-xs text-muted-foreground mt-1 italic">
               "{motivo}"
+            </p>
+          )}
+          {reportadoPor && (
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Reportado por: {reportadoPor}
             </p>
           )}
         </div>

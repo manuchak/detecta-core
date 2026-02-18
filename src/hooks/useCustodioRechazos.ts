@@ -26,6 +26,7 @@ export interface RechazadoDetalle {
   nombre: string;
   vigencia_hasta: string;
   motivo: string | null;
+  reportado_por_nombre: string | null;
 }
 
 export function useRechazosVigentes(options?: { inclujeArmado?: boolean }) {
@@ -69,7 +70,7 @@ export function useRechazosVigentesDetallados(options?: { inclujeArmado?: boolea
     queryFn: async (): Promise<RechazadoDetalle[]> => {
       const { data, error } = await supabase
         .from('custodio_rechazos')
-        .select('custodio_id, motivo, vigencia_hasta')
+        .select('custodio_id, motivo, vigencia_hasta, reportado_por')
         .gt('vigencia_hasta', new Date().toISOString());
 
       if (error) {
@@ -102,6 +103,24 @@ export function useRechazosVigentesDetallados(options?: { inclujeArmado?: boolea
 
       const nombreMap = new Map((custodios || []).map(c => [c.id, c.nombre]));
 
+      // Resolve reportado_por UUIDs against profiles
+      const reportadorIds = [...new Set(
+        [...uniqueMap.values()]
+          .map(r => r.reportado_por)
+          .filter((id): id is string => !!id)
+      )];
+
+      const reportadorMap = new Map<string, string>();
+      if (reportadorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, email')
+          .in('id', reportadorIds);
+        (profiles || []).forEach(p => {
+          reportadorMap.set(p.id, p.display_name || p.email || 'Usuario');
+        });
+      }
+
       return ids.map(id => {
         const rechazo = uniqueMap.get(id)!;
         return {
@@ -109,6 +128,9 @@ export function useRechazosVigentesDetallados(options?: { inclujeArmado?: boolea
           nombre: nombreMap.get(id) || 'Desconocido',
           vigencia_hasta: rechazo.vigencia_hasta,
           motivo: rechazo.motivo,
+          reportado_por_nombre: rechazo.reportado_por
+            ? (reportadorMap.get(rechazo.reportado_por) || 'Desconocido')
+            : null,
         };
       });
     },

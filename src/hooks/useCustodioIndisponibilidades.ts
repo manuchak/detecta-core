@@ -50,7 +50,30 @@ export const useCustodioIndisponibilidades = () => {
         .order('fecha_inicio', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      const items = data || [];
+
+      // Resolve reportado_por UUIDs against profiles
+      const reportadorIds = [...new Set(
+        items.map((i: any) => i.reportado_por).filter((id: any): id is string => !!id)
+      )];
+
+      if (reportadorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, email')
+          .in('id', reportadorIds);
+
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.display_name || p.email || 'Usuario']));
+
+        return items.map((i: any) => ({
+          ...i,
+          reportado_por_nombre: i.reportado_por
+            ? (profileMap.get(i.reportado_por) || 'Desconocido')
+            : null,
+        }));
+      }
+
+      return items.map((i: any) => ({ ...i, reportado_por_nombre: null }));
     },
   });
 
