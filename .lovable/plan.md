@@ -1,67 +1,36 @@
 
-# Agregar "Reportado por" a la UX de exclusiones y rechazos
+# Fix: Permitir cantidad multiple en "GPS Portatil con Caja Imantada"
 
 ## Problema
 
-Cuando un custodio aparece como excluido (por rechazo o indisponibilidad), el planificador no sabe **quien ejecuto esa accion**: si fue un usuario interno (coordinador, planificador) o si el mismo custodio se puso inactivo. Esto genera confusion operativa como la que reporta Daniela en el screenshot.
+Daniela reporta que al seleccionar "GPS Portatil con Caja Imantada" no puede colocar la cantidad. Esto ocurre porque el gadget esta configurado con `allowMultiple: false` y `maxQuantity: 1`, lo cual oculta el stepper de cantidad y solo muestra un checkbox on/off.
 
-## Datos disponibles
+## Causa raiz
 
-Ambas tablas ya almacenan `reportado_por` (UUID del usuario):
-- `custodio_rechazos.reportado_por` -- usuario que registro el rechazo
-- `custodio_indisponibilidades.reportado_por` -- usuario que registro la indisponibilidad
-
-Los nombres se resuelven contra la tabla `profiles` (campos `display_name`, `email`).
-
-## Cambios propuestos
-
-### 1. Hook `useCustodioRechazos.ts` -- Agregar `reportado_por_nombre` a `RechazadoDetalle`
-
-- Extender la interface `RechazadoDetalle` con `reportado_por_nombre: string | null`
-- En `useRechazosVigentesDetallados`, agregar `reportado_por` al select de `custodio_rechazos`
-- Resolver los UUIDs de `reportado_por` contra `profiles` (display_name o email) en el mismo queryFn
-- Si `reportado_por` es null, mostrar "Sistema" o "Desconocido"
-
-### 2. Componente `ExcludedCustodiansAlert.tsx` -- Mostrar quien reporto
-
-- Actualizar la interface `RechazadoDetail` para incluir `reportado_por_nombre: string | null`
-- En el mensaje especifico (1 custodio coincide con busqueda), agregar una linea: "Reportado por: [nombre]"
-- Formato: texto gris discreto debajo del motivo
-
-### 3. Hook `useCustodioIndisponibilidades.ts` -- Resolver nombres en indisponibilidades activas
-
-- Extender la query de `indisponibilidadesActivas` para incluir `reportado_por`
-- Resolver el UUID contra `profiles` para mostrar el nombre en el banner de indisponibilidad
-
-### 4. Componente `UnavailabilityStatusBanner.tsx` -- Mostrar quien registro la indisponibilidad
-
-- Agregar prop opcional `reportadoPor: string | null`
-- Mostrar "Reportado por: [nombre]" como texto discreto
-
-## Detalle tecnico
-
-| Archivo | Accion |
-|---|---|
-| `src/hooks/useCustodioRechazos.ts` | Modificar - Agregar `reportado_por` al select, resolver nombre contra `profiles`, extender `RechazadoDetalle` |
-| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ExcludedCustodiansAlert.tsx` | Modificar - Agregar campo `reportado_por_nombre` a interface y mostrarlo en el banner |
-| `src/hooks/useCustodioIndisponibilidades.ts` | Modificar - Resolver `reportado_por` contra `profiles` en la query de activas |
-| `src/components/custodian/UnavailabilityStatusBanner.tsx` | Modificar - Agregar prop `reportadoPor` y mostrarlo |
-
-## Ejemplo visual del banner mejorado
+La configuracion del gadget en `GADGET_OPTIONS` tiene:
 
 ```text
-"David Diaz" coincide con un custodio excluido
-David Diaz — Rechazo vigente hasta 24 de feb · No quiere servicio con armado
-Reportado por: Daniela Castaneda
+allowMultiple: false, maxQuantity: 1
 ```
 
-Para indisponibilidades:
+Esto le indica al componente `GadgetQuantitySelector` que NO muestre los botones +/- de cantidad.
 
-```text
-Estado: No disponible
-Falla mecanica
-Hasta: lunes, 24 de febrero
-Reportado por: David Diaz (auto-reporte)
-```
+## Cambio requerido
 
-Si el `reportado_por` coincide con el custodio (self-service desde el portal), se agrega "(auto-reporte)".
+Cambiar `allowMultiple: true` y `maxQuantity: 5` (misma logica que Candado Satelital) en **2 archivos** donde se define esta configuracion:
+
+| Archivo | Linea | Cambio |
+|---|---|---|
+| `src/pages/Planeacion/ServiceCreation/steps/ServiceStep/components/GadgetSection.tsx` | 34-35 | `allowMultiple: true, maxQuantity: 5` |
+| `src/pages/Planeacion/components/workflow/ServiceAutoFillStep.tsx` | 495 | `allowMultiple: true, maxQuantity: 5` |
+
+## Analisis de impacto (por que NO rompe nada)
+
+1. **`handleGadgetChange`** en `useServiceStepLogic.ts` ya maneja cualquier cantidad numerica — almacena `Record<string, number>` sin restricciones por gadget ID.
+2. **Persistencia en BD** — los gadgets se guardan como JSON (`gadgets_seguridad`), por lo que aceptar cantidad > 1 no requiere cambios de esquema.
+3. **`CompactServiceCard.tsx`** — ya muestra correctamente la cantidad junto al nombre del gadget, sin logica especial por tipo.
+4. **`GadgetQuantitySelector`** — el componente ya soporta el stepper cuando `allowMultiple: true`; no requiere cambios.
+
+## Riesgo: Ninguno
+
+Es un cambio de configuracion puro (2 valores booleanos + 2 numeros). No se modifica logica, componentes, ni esquema de base de datos.
