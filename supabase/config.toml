@@ -158,3 +158,12 @@ verify_jwt = false
 
 [functions.cs-voc-analysis]
 verify_jwt = false
+
+[functions.geocode-to-h3]
+verify_jwt = false
+
+[functions.recalculate-zone-scores]
+verify_jwt = false
+
+[functions.seed-risk-zones]
+verify_jwt = false
