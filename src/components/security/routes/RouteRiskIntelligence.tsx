@@ -24,10 +24,10 @@ export function RouteRiskIntelligence() {
   }, []);
 
   return (
-    <div className="space-y-1 h-full">
-      <RiskZonesHeader />
+    <div className="flex flex-col h-full">
+      <div className="shrink-0"><RiskZonesHeader /></div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 h-[calc(100vh-130px)] min-h-[400px]">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1">
         {/* Map with layer overlay */}
         <div className="relative rounded-lg overflow-hidden border bg-muted/10">
           <RiskZonesMap
