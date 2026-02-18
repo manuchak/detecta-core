@@ -31,8 +31,8 @@ const GADGET_OPTIONS = [
     id: 'gps_portatil_caja_imantada', 
     label: 'GPS Portátil con Caja Imantada', 
     description: 'GPS portátil con instalación magnética', 
-    allowMultiple: false, 
-    maxQuantity: 1 
+    allowMultiple: true, 
+    maxQuantity: 5 
   },
 ];
 
