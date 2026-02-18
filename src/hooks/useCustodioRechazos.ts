@@ -110,8 +110,8 @@ export function useRegistrarRechazo() {
 /**
  * Hook combinado para filtrar custodios rechazados de una lista
  */
-export function useFilterRechazados<T extends { id: string }>(custodios: T[]) {
-  const { data: rechazadosIds = [], isLoading } = useRechazosVigentes();
+export function useFilterRechazados<T extends { id: string }>(custodios: T[], options?: { inclujeArmado?: boolean }) {
+  const { data: rechazadosIds = [], isLoading } = useRechazosVigentes(options);
 
   const filtered = custodios.filter(c => !rechazadosIds.includes(c.id));
 

@@ -414,9 +414,6 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const processedGuards = allProcessedGuards;
       console.log(`[Armed] Processed ${processedGuards.length} guards with fail-open strategy`);
 
-      // All processed guards are ready for use
-      console.log(`[Armed] Processed ${processedGuards.length} guards with fail-open strategy`);
-
       // Filter out unavailable guards based on conflict validation (if validation was performed)
       let availableGuards = processedGuards;
       if (filters?.fecha_programada && filters?.hora_ventana_inicio) {
@@ -574,6 +571,8 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
       const fullTimestamp = new Date(`${fechaServicio}T${hours}:${minutes}:00`);
       const timestampISO = fullTimestamp.toISOString();
 
+      // IMPORTANT: servicio_custodia_id must always store id_servicio (human-readable code like "LUCOLLM-92")
+      // NOT the UUID. All queries and views depend on this convention.
       const assignmentData: any = {
         servicio_custodia_id: servicioId,
         custodio_id: custodioId,
@@ -582,7 +581,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
         hora_encuentro: timestampISO,
         estado_asignacion: 'pendiente',
         tarifa_acordada: tarifaAcordada,
-        asignado_por: (await supabase.auth.getUser()).data.user?.id,
+        asignado_por: (await supabase.auth.getUser()).data.user?.id ?? null,
         ...(tipoAsignacion === 'interno' 
           ? { armado_id: armadoFinalId }  // 🆕 Usar ID convertido si aplica
           : { proveedor_armado_id: providerId, armado_id: armadoId }
@@ -629,7 +628,7 @@ export function useArmedGuardsOperativos(filters?: ServiceRequestFilters) {
             assignment_id: data.id,
             armado_id: armadoId,
             proveedor_id: providerId,
-            performed_by: (await supabase.auth.getUser()).data.user?.id,
+            performed_by: assignmentData.asignado_por || 'unknown',
             armado_nombre_real: personalData.nombreCompleto,
             verification_data: personalData.verificacionData,
             security_clearance_level: personalData.verificacionData?.valida ? 'verified' : 'pending',

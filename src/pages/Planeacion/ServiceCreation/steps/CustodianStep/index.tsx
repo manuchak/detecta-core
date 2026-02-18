@@ -52,7 +52,7 @@ export default function CustodianStep() {
   const { crearIndisponibilidad } = useCustodioIndisponibilidades();
   
   // 🆕 Rejection hooks
-  const { data: rechazadosIds = [] } = useRechazosVigentes();
+  const { data: rechazadosIds = [] } = useRechazosVigentes({ inclujeArmado: formData.requiereArmado });
   const { mutateAsync: registrarRechazo } = useRegistrarRechazo();
   
   // ✅ FIX: Use a stable ref to lock the query key once we have valid service data
