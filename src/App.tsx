@@ -63,6 +63,7 @@ const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvit
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
 const MonitoringTVPage = lazy(() => import('@/pages/Monitoring/MonitoringTVPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
+const SecurityPage = lazy(() => import('@/pages/Security/SecurityPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
 const TicketDetailPage = lazy(() => import('@/pages/Tickets/TicketDetailPage'));
 const TicketConfigPage = lazy(() => import('@/pages/Admin/TicketConfigPage'));
@@ -580,6 +581,20 @@ function App() {
                   }
                 />
                 
+                {/* Security Module - Risk Intelligence */}
+                <Route
+                  path="/seguridad"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <SecurityPage />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* ... keep existing code for remaining routes */}
                 <Route
                   path="/installers"

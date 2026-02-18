@@ -5,6 +5,7 @@ import {
   Car,
   Users,
   Shield,
+  ShieldAlert,
   Wrench,
   Package,
   MessageSquare,
@@ -304,6 +305,13 @@ const Sidebar = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) 
       subItems: [
         { title: "Panel de Monitoreo", path: "/monitoring" },
       ]
+    }] : []),
+
+    // Seguridad - inteligencia de riesgo
+    ...(isAdminUser || ['jefe_seguridad', 'analista_seguridad', 'coordinador_operaciones'].includes(userRole || '') ? [{
+      title: "Seguridad",
+      icon: ShieldAlert,
+      path: "/seguridad",
     }] : []),
 
     // Instaladores - solo si tiene permisos
