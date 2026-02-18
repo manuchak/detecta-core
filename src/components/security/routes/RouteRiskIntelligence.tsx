@@ -1,7 +1,8 @@
 import React from 'react';
 import { CorridorRiskTable } from './CorridorRiskTable';
+import { SafePointsManager } from './SafePointsManager';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Route, Info } from 'lucide-react';
+import { Route, Info, MapPin } from 'lucide-react';
 
 export function RouteRiskIntelligence() {
   return (
@@ -15,6 +16,18 @@ export function RouteRiskIntelligence() {
         </CardHeader>
         <CardContent>
           <CorridorRiskTable />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            Puntos Seguros Certificados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SafePointsManager />
         </CardContent>
       </Card>
 
