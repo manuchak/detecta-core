@@ -1,67 +1,107 @@
 
-# Fix: Cursos obligatorios aparecen solo en Catálogo
+# Vista de Mapa Interactivo de Zonas de Riesgo (estilo Hermes)
 
-## Problema
-Un curso marcado como "obligatorio" solo aparece en la pestaña "Catálogo" porque el usuario no tiene una inscripcion activa para ese curso. La lógica actual en `LMSDashboard.tsx` separa cursos asi:
+## Objetivo
+Crear una vista de mapa interactivo similar a la de Hermes, con capas de corredores, segmentos coloreados por riesgo, POIs, puntos seguros, zonas sin cobertura celular, y un panel lateral con los tramos de mayor riesgo.
 
-- **Mis Cursos**: cursos con `inscripcion_id` (el usuario ya esta inscrito)
-- **Catalogo**: cursos SIN `inscripcion_id`
+## Arquitectura
 
-Como el curso obligatorio no tiene inscripcion, cae en "Catalogo" y muestra boton "Inscribirme", lo cual no tiene sentido para un curso obligatorio.
+El proyecto ya tiene todos los datos necesarios:
+- `highwayCorridors.ts`: 26 corredores con waypoints `[lng, lat]`
+- `highwaySegments.ts`: ~65 segmentos granulares (~30km c/u) con nivel de riesgo
+- `highwaySegments.ts > HIGHWAY_POIS`: Puntos de interes (blackspots, casetas, entronques, zonas seguras, industriales)
+- `cellularCoverage.ts`: Zonas sin cobertura celular con poligonos
+- Tabla `safe_points` en Supabase con 18 registros
+- Mapbox ya integrado via edge function `mapbox-token`
 
-## Solucion
+Lo que falta es el **componente de mapa** y la **reestructuracion del tab "Rutas y Zonas"**.
 
-Dos cambios complementarios:
+## Componentes a crear
 
-### 1. Mostrar cursos obligatorios sin inscripcion en "Mis Cursos"
-En `src/pages/LMS/LMSDashboard.tsx`, modificar los filtros para que los cursos con `es_obligatorio = true` aparezcan en "Mis Cursos" aunque no tengan inscripcion:
+### 1. `src/components/security/map/RiskZonesMap.tsx` (Componente principal)
+Mapa Mapbox a pantalla completa con:
+- **Lineas de segmentos** coloreadas por riesgo (rojo=extremo, naranja=alto, amarillo=medio, verde=bajo)
+- **Marcadores de POIs** con iconos por tipo (punto negro, caseta, entronque, industrial)
+- **Circulos de puntos seguros** (verdes) desde la tabla `safe_points`
+- **Poligonos de zonas sin cobertura** (gris semitransparente)
+- **Leyenda** en esquina inferior izquierda (Nivel de Riesgo por Tramo + multiplicadores)
+- **Panel de capas** (toggles) en esquina superior derecha
+- Click en segmento abre popup con detalles + recomendaciones ISO 28000
 
-- `cursosEnProgreso` y el filtro de "Mis Cursos" (`cursos?.filter(c => c.inscripcion_id)`) deben incluir tambien cursos obligatorios sin inscripcion
-- `cursosCatalogo` debe excluir cursos obligatorios: `cursos?.filter(c => !c.inscripcion_id && !c.es_obligatorio)`
+### 2. `src/components/security/map/RiskZonesMapLayers.tsx` (Control de capas)
+Panel de toggles similar a Hermes:
+- Tramos (on/off)
+- POIs (on/off)
+- Puntos Seguros (on/off)
+- Zonas sin senal (on/off)
+- Etiquetas (on/off)
 
-### 2. Auto-inscribir al hacer click en curso obligatorio
-En el componente `CourseCard`, cuando un curso es obligatorio y no tiene inscripcion, el boton debe decir "Comenzar" (no "Inscribirme") y al hacer click debe auto-inscribir y navegar al curso.
+### 3. `src/components/security/map/HighRiskSegmentsList.tsx` (Panel lateral derecho)
+Lista scrollable de tramos ordenados por riesgo:
+- Filtros: Todos | Extremo | Alto | Medio | Bajo (con contadores)
+- Cada item muestra: nombre, badge de riesgo, km range, eventos/mes, horario critico
+- Click en item centra el mapa en ese segmento
 
-## Detalle tecnico
+### 4. `src/components/security/map/RiskZonesHeader.tsx` (Header con KPIs)
+Barra superior con estadisticas rapidas:
+- X zonas H3 monitoreadas
+- X tramos
+- X extremo / X alto
+- X.XXx multiplicador promedio
 
-### Archivo: `src/pages/LMS/LMSDashboard.tsx`
+### 5. Reestructurar `RouteRiskIntelligence.tsx`
+Reemplazar el layout actual (tablas) por el layout de 3 columnas:
+- **Izquierda** (~25%): Leyenda + estadisticas de puntos seguros + zonas sin cobertura
+- **Centro** (~50%): Mapa interactivo
+- **Derecha** (~25%): Lista de tramos de mayor riesgo
 
-Cambios en las lineas 36-52:
+## Detalle Tecnico
 
+### Renderizado de segmentos en Mapbox
 ```typescript
-// Cursos del usuario: inscritos + obligatorios sin inscripcion
-const misCursos = cursos?.filter(c => 
-  c.inscripcion_id || c.es_obligatorio
-) || [];
-
-const cursosObligatoriosPendientes = cursos?.filter(c => 
-  c.es_obligatorio && 
-  c.inscripcion_estado !== 'completado'
-) || [];
-
-const cursosEnProgreso = cursos?.filter(c => 
-  c.inscripcion_id && 
-  c.inscripcion_estado === 'en_progreso'
-) || [];
-
-const cursosCompletados = cursos?.filter(c => 
-  c.inscripcion_estado === 'completado'
-) || [];
-
-// Catalogo: solo cursos NO obligatorios sin inscripcion
-const cursosCatalogo = cursos?.filter(c => !c.inscripcion_id && !c.es_obligatorio) || [];
+// Por cada segmento, agregar una linea GeoJSON coloreada
+map.addSource(`segment-${segment.id}`, {
+  type: 'geojson',
+  data: {
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: segment.waypoints
+    }
+  }
+});
+map.addLayer({
+  id: `segment-line-${segment.id}`,
+  type: 'line',
+  source: `segment-${segment.id}`,
+  paint: {
+    'line-color': RISK_LEVEL_COLORS[segment.riskLevel],
+    'line-width': 4,
+    'line-opacity': 0.85
+  }
+});
 ```
 
-Actualizar las referencias en "Mis Cursos" tab (lineas 176, 193) para usar `misCursos` en lugar de `cursos?.filter(c => c.inscripcion_id)`.
+### Puntos seguros desde Supabase
+Reutilizar el hook `useSafePoints` existente para obtener coordenadas y plotearlas como circulos verdes en el mapa.
 
-### Archivo: `src/components/lms/CourseCard.tsx`
+### Zonas sin cobertura
+Renderizar los poligonos de `CELLULAR_DEAD_ZONES` como fills semitransparentes grises.
 
-Verificar que el boton de accion para cursos obligatorios sin inscripcion muestre "Comenzar" y llame `onEnroll` seguido de navegacion (o directamente `onStartCourse` que dispare la inscripcion automatica).
+### Interactividad
+- Hover en segmento: resaltar y mostrar nombre
+- Click en segmento: popup con detalles completos (nombre, km, riesgo, eventos/mes, horario critico, recomendaciones)
+- Click en item del panel derecho: `map.flyTo()` al centro del segmento
 
-### Badge del tab "Mis Cursos"
+## Archivos a modificar
+1. **Crear** `src/components/security/map/RiskZonesMap.tsx`
+2. **Crear** `src/components/security/map/RiskZonesMapLayers.tsx`
+3. **Crear** `src/components/security/map/HighRiskSegmentsList.tsx`
+4. **Crear** `src/components/security/map/RiskZonesHeader.tsx`
+5. **Modificar** `src/components/security/routes/RouteRiskIntelligence.tsx` - Nuevo layout con mapa + paneles
 
-Actualizar el badge del tab para contar tambien los obligatorios pendientes:
-```typescript
-const misCursosCount = (cursosEnProgreso.length || 0) + 
-  (cursos?.filter(c => c.es_obligatorio && !c.inscripcion_id).length || 0);
-```
+## Sin dependencias nuevas
+- Mapbox GL JS ya esta instalado (`mapbox-gl ^3.12.0`)
+- Token Mapbox ya configurado via edge function
+- Todos los datos de corredores/segmentos/POIs ya existen en archivos locales
+- Puntos seguros ya en Supabase
