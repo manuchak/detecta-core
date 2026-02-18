@@ -24,24 +24,19 @@ export function RouteRiskIntelligence() {
   }, []);
 
   return (
-    <div className="space-y-3 h-full">
+    <div className="space-y-2 h-full">
       <RiskZonesHeader />
 
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr_280px] gap-3 h-[calc(100vh-320px)] min-h-[500px]">
-        {/* Left panel - Layer controls */}
-        <div className="hidden md:block">
-          <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
-        </div>
-
-        {/* Center - Map */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 h-[calc(100vh-240px)] min-h-[400px]">
+        {/* Map with layer overlay */}
         <div className="relative rounded-lg overflow-hidden border bg-muted/10">
           <RiskZonesMap
             layers={layers}
             selectedSegmentId={selectedSegmentId}
             onSegmentSelect={handleSegmentSelect}
           />
-          {/* Mobile layer control overlay */}
-          <div className="absolute top-3 right-3 md:hidden">
+          {/* Layer controls as overlay */}
+          <div className="absolute top-3 left-12 z-10">
             <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
           </div>
         </div>
