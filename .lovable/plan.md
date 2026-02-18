@@ -1,62 +1,63 @@
 
-# Fix: Mapa al 100% del contenedor (compensar zoom 0.7)
+# Maximizar espacio del mapa y asegurar capas visibles
 
-## Problema
-La pagina aplica `zoom: 0.7` en `html` (linea 153 de `index.css`). Esto reduce el mapa visualmente y puede causar que Mapbox calcule mal el tamaño del canvas. El mapa necesita renderizarse al 100% real de su contenedor.
+## Problema actual
+1. El mapa ocupa solo ~60% del espacio disponible verticalmente -- hay mucho espacio desperdiciado debajo
+2. La compensacion de zoom usa `zoom: 1/0.7` con `width/height: 70%` que puede causar problemas de renderizado
+3. Las capas (segmentos, POIs, dead zones, safe points) pueden no dibujarse correctamente
 
-## Solucion
+## Cambios propuestos
 
-### Archivo: `src/components/security/map/RiskZonesMap.tsx`
+### 1. `SecurityPage.tsx` - Maximizar altura del tab
+- Cambiar `h-[calc(100vh-200px)]` a `h-[calc(100vh-160px)]` para dar mas espacio vertical al contenido
 
-1. **Compensar zoom en el contenedor del mapa**: Aplicar `zoom: var(--zoom-compensation)` (1.4286) al wrapper del mapa para que Mapbox vea el tamaño real del contenedor. Para que el contenedor compensado no desborde su padre, envolver en un div con `overflow: hidden` y ajustar dimensiones inversamente.
+### 2. `RouteRiskIntelligence.tsx` - Reorganizar layout
+- Reducir el header a una sola linea compacta (inline con las capas)
+- Cambiar la altura del grid de `h-[calc(100vh-320px)]` a `h-[calc(100vh-240px)]` para aprovechar el espacio que se libera
+- Integrar los controles de capas **dentro** del mapa (como overlay) en vez de en columna separada, asi el mapa ocupa mas ancho
+- Cambiar grid de 3 columnas `[240px_1fr_280px]` a 2 columnas `[1fr_280px]` -- capas van como overlay sobre el mapa
 
-   Enfoque concreto: aplicar al div del mapa un estilo inline:
-   ```css
-   zoom: 1.4286;
-   width: 70%;    /* 100% * 0.7 para compensar el zoom inverso */
-   height: 70%;
-   transform-origin: top left;
-   ```
-   
-   Alternativamente (mas limpio): usar la clase CSS ya existente y hacer que el contenedor padre tenga `overflow: hidden` y el mapContainer tenga el zoom de compensacion.
+### 3. `RiskZonesMap.tsx` - Fix zoom y asegurar capas
+- Reemplazar el enfoque de `zoom: 1/0.7` por `transform: scale(1.4286)` con `transform-origin: top left` y dimensiones `width: 142.86%; height: 142.86%` contenido en un wrapper con `overflow: hidden`. Esto es mas compatible que la propiedad CSS `zoom`
+- Agregar multiples llamadas a `map.resize()` (en load + despues de timeout) para asegurar que Mapbox calcule bien el canvas
+- Mover la leyenda fuera del contenedor con transform para que no se escale
 
-2. **Llamar `map.resize()`** despues de aplicar la compensacion para que Mapbox recalcule el canvas.
+### 4. `RiskZonesHeader.tsx` - Compactar
+- Hacer los cards mas compactos (padding reducido) para que ocupen menos espacio vertical
 
-3. **Asegurar que todas las capas se dibujen**: Verificar que la inicializacion de capas (segmentos, POIs, dead zones, safe points) no dependa de condiciones que fallen. Mover la llamada de `map.resize()` al final de la carga de capas.
+## Detalle tecnico
 
-### Detalle tecnico
+### Layout final (RouteRiskIntelligence)
+```
+[Header KPIs - 1 linea compacta]
+[                                    ]
+[ Mapa (con capas overlay) | Lista  ]
+[                                    ]
+```
 
-En el return del componente, cambiar la estructura:
-
+### Compensacion de zoom (RiskZonesMap)
 ```tsx
-// Wrapper con overflow hidden para contener el mapa compensado
 <div className="relative w-full h-full overflow-hidden">
-  {loading && (...)}
-  {/* El div del mapa con zoom inverso para compensar el 0.7 global */}
-  <div 
-    ref={mapContainer} 
-    className="rounded-lg"
+  <div
+    ref={mapContainer}
+    className="absolute top-0 left-0 rounded-lg"
     style={{
-      zoom: 1 / 0.7,          // ~1.4286 - compensa el zoom global
-      width: `${0.7 * 100}%`, // 70% * 1.4286 zoom = 100% visual
-      height: `${0.7 * 100}%`,
+      transform: 'scale(1.4286)',
       transformOrigin: 'top left',
+      width: '70%',
+      height: '70%',
     }}
   />
-  {/* Legend y overlays permanecen fuera del contenedor compensado */}
-  {mapReady && (leyenda...)}
+  {/* Legend overlay - fuera del transform */}
+  <div className="absolute bottom-3 left-3 ...">...</div>
 </div>
 ```
 
-Y en el efecto de inicializacion, agregar `map.resize()` tras el load:
-```typescript
-m.on('load', () => {
-  map.current = m;
-  setMapReady(true);
-  setLoading(false);
-  setTimeout(() => m.resize(), 100); // Recalcular tras render
-});
-```
+### Capas como overlay sobre el mapa
+En `RouteRiskIntelligence.tsx`, mover `RiskZonesMapLayers` siempre como overlay en la esquina superior izquierda del mapa (posicion absoluta), eliminando la columna izquierda del grid.
 
-### Archivos a modificar
-- `src/components/security/map/RiskZonesMap.tsx` - Compensar zoom y asegurar capas visibles
+## Archivos a modificar
+1. `src/pages/Security/SecurityPage.tsx` - Mas altura al tab
+2. `src/components/security/routes/RouteRiskIntelligence.tsx` - Grid de 2 columnas, capas como overlay
+3. `src/components/security/map/RiskZonesMap.tsx` - Fix zoom con transform, resize multiple
+4. `src/components/security/map/RiskZonesHeader.tsx` - Compactar padding
