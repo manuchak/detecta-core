@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -311,27 +312,29 @@ export function CSCartera() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('nombre')}>
                     <div className="flex items-center">Cliente<SortIcon col="nombre" /></div>
                   </TableHead>
-                  <TableHead>CSM</TableHead>
+                  <TableHead>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><span className="cursor-default">CSM</span></TooltipTrigger><TooltipContent>Customer Success Manager asignado al cliente</TooltipContent></Tooltip></TooltipProvider>
+                  </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('ultimo_servicio')}>
-                    <div className="flex items-center justify-center">Último Serv.<SortIcon col="ultimo_servicio" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">Último Serv.<SortIcon col="ultimo_servicio" /></div></TooltipTrigger><TooltipContent>Fecha del último servicio registrado (legacy o planificado)</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('servicios_90d')}>
-                    <div className="flex items-center justify-center">Serv. 90d<SortIcon col="servicios_90d" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">Serv. 90d<SortIcon col="servicios_90d" /></div></TooltipTrigger><TooltipContent>Cantidad de servicios en los últimos 90 días</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('gmv_90d')}>
-                    <div className="flex items-center justify-center">GMV 90d<SortIcon col="gmv_90d" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">GMV 90d<SortIcon col="gmv_90d" /></div></TooltipTrigger><TooltipContent>Valor bruto de mercancía (cobro al cliente) en los últimos 90 días</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('quejas_abiertas')}>
-                    <div className="flex items-center justify-center">Quejas<SortIcon col="quejas_abiertas" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">Quejas<SortIcon col="quejas_abiertas" /></div></TooltipTrigger><TooltipContent>Número de quejas abiertas (no cerradas) del cliente</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('csat')}>
-                    <div className="flex items-center justify-center">CSAT<SortIcon col="csat" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">CSAT<SortIcon col="csat" /></div></TooltipTrigger><TooltipContent>Promedio de calificación de satisfacción al cierre de quejas</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('dias_sin_contacto')}>
-                    <div className="flex items-center justify-center">Días s/c<SortIcon col="dias_sin_contacto" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">Días s/c<SortIcon col="dias_sin_contacto" /></div></TooltipTrigger><TooltipContent>Días sin contacto: tiempo desde el último servicio o touchpoint (el más reciente)</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort('ultimo_touchpoint')}>
-                    <div className="flex items-center justify-center">Ult. TP<SortIcon col="ultimo_touchpoint" /></div>
+                    <TooltipProvider><Tooltip><TooltipTrigger asChild><div className="flex items-center justify-center">Ult. TP<SortIcon col="ultimo_touchpoint" /></div></TooltipTrigger><TooltipContent>Fecha del último touchpoint registrado por CS (llamada, email, reunión, etc.)</TooltipContent></Tooltip></TooltipProvider>
                   </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
