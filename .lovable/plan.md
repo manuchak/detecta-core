@@ -1,42 +1,60 @@
 
-# Fix: Cambio de armado duplica el servicio
+# Fix: Supply no puede verificar documentos de custodios
 
-## Problema raiz
+## Problema
 
-En `src/hooks/useServiciosPlanificados.ts`, la mutacion `reassignArmedGuard` (linea 708) solo hace un `INSERT` de un nuevo registro en `asignacion_armados`, pero **nunca cancela ni actualiza el registro anterior**. El resultado es que el servicio queda con 2 asignaciones activas de armado, lo cual causa que las vistas del dashboard lo muestren duplicado (una vez por cada asignacion).
+La politica RLS "Staff actualiza documentos" en la tabla `documentos_custodio` solo permite UPDATE a los roles: `admin, owner, planeacion, monitoreo, coordinador`. Los roles de supply (`supply`, `supply_lead`, `supply_admin`) no estan incluidos, por lo que al hacer clic en "Verificar" reciben el error "Error al actualizar el documento".
+
+Adicionalmente, la politica "Staff ve todos los documentos" (SELECT) tampoco incluye los roles de supply, lo que podria causar problemas de visibilidad.
 
 ## Solucion
 
-### Archivo: `src/hooks/useServiciosPlanificados.ts`
+### Cambio 1: Migracion SQL - Actualizar ambas politicas RLS
 
-Antes del `INSERT` en linea 708, agregar una operacion que cancele las asignaciones activas previas para ese servicio:
+Ejecutar una migracion que modifique las dos politicas para incluir los roles de supply:
 
-1. **Cancelar asignaciones previas**: Ejecutar un `UPDATE` en `asignacion_armados` para poner `estado_asignacion = 'cancelado'` en todos los registros activos del mismo `servicio_custodia_id` (antes de insertar el nuevo).
+```sql
+-- Actualizar politica de UPDATE
+DROP POLICY IF EXISTS "Staff actualiza documentos" ON public.documentos_custodio;
+CREATE POLICY "Staff actualiza documentos" 
+ON public.documentos_custodio FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_roles.user_id = auth.uid() 
+    AND user_roles.role = ANY (ARRAY[
+      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
+      'supply', 'supply_lead', 'supply_admin'
+    ])
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM user_roles 
+    WHERE user_roles.user_id = auth.uid() 
+    AND user_roles.role = ANY (ARRAY[
+      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
+      'supply', 'supply_lead', 'supply_admin'
+    ])
+  )
+);
 
-2. **Solo para reasignacion (no para agregar)**: Este comportamiento aplica cuando es una reasignacion (cambiar un armado por otro). Si el servicio requiere multiples armados (`cantidad_armados_requeridos > 1`), solo se debe cancelar la asignacion especifica que se esta reemplazando, no todas.
-
-### Cambio concreto
-
-Antes de la linea 708 (`await supabase.from('asignacion_armados').insert({...})`), insertar:
-
-```typescript
-// Cancel previous active assignments for this service (reassignment = replace, not add)
-const { error: cancelError } = await supabase
-  .from('asignacion_armados')
-  .update({ 
-    estado_asignacion: 'cancelado',
-    observaciones: `Reemplazado por: ${newArmadoName}. Motivo: ${reason}`
-  })
-  .eq('servicio_custodia_id', currentService.id_servicio)
-  .not('estado_asignacion', 'eq', 'cancelado');
-
-if (cancelError) {
-  console.error('Error cancelling previous assignments:', cancelError);
-  // Non-blocking: continue with the new assignment
-}
+-- Actualizar politica de SELECT
+DROP POLICY IF EXISTS "Staff ve todos los documentos" ON public.documentos_custodio;
+CREATE POLICY "Staff ve todos los documentos"
+ON public.documentos_custodio FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles 
+    WHERE user_id = auth.uid() 
+    AND role IN (
+      'admin', 'owner', 'planeacion', 'monitoreo', 'coordinador',
+      'supply', 'supply_lead', 'supply_admin'
+    )
+  )
+);
 ```
 
-Esto garantiza que al reasignar un armado, el anterior se marca como cancelado y no genera duplicados en el dashboard.
+### Sin cambios de codigo
 
-### Sin cambios de base de datos
-Solo es un fix de logica en el frontend.
+El hook `useVerifyDocument.ts` esta correcto. El problema es exclusivamente de permisos en la base de datos.
