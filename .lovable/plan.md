@@ -1,123 +1,86 @@
 
 
-# Integración de Fuentes Twitter + Panel de Inteligencia Carretero
+# Diagnostico y Plan de Correccion: Pipeline Apify + Dashboard de Corredores
 
-## Estrategia de Fuentes
+## Problema Principal: Apify no esta trayendo datos
 
-### Por qué Apify para Twitter (y no Firecrawl)
+### Causa Raiz
 
-Firecrawl busca en Google, y Twitter/X bloquea la indexación de sus contenidos. Un tweet de @monitorcarrete1 publicado hace 20 minutos NUNCA aparecerá en una búsqueda de Firecrawl. Apify tiene scrapers dedicados que acceden directamente a Twitter.
+El secret `APIFY_DEFAULT_ACTOR_ID` esta configurado como una URL completa:
+```
+https://api.apify.com/v2/acts?token=apify_api_vBPNtpkEsm...
+```
 
-**Estrategia dual:**
-- **Apify** (fuente primaria): Scraping directo de cuentas Twitter especializadas
-- **Firecrawl** (complemento): Buscar noticias web que citen estas cuentas
+Esto deberia ser un Actor ID como `apidojo~tweet-scraper` o `quacker/twitter-scraper`.
+
+El codigo detecta que es una URL y usa el fallback `apidojo~tweet-scraper`, pero este actor retorna `{"noResults": true}` porque el input schema que enviamos (`search`, `maxTweets`, `language`, `country`) no coincide con lo que ese actor espera.
+
+**Resultado**: 0 tweets insertados. Toda la data del dia viene de Firecrawl (noticias web).
+
+### Solucion en 3 pasos
+
+**Paso 1: Corregir el secret APIFY_DEFAULT_ACTOR_ID**
+
+Cambiar el valor del secret a un Actor ID valido. La recomendacion es usar `quacker/twitter-scraper` (actor popular y estable para Twitter) o `apidojo/tweet-scraper` en formato correcto.
+
+**Paso 2: Adaptar el input del actor al schema correcto**
+
+El actor `apidojo~tweet-scraper` espera un input diferente al que enviamos. Necesitamos investigar el schema del actor que el usuario tiene configurado y adaptar el body del request.
+
+Cambios en `supabase/functions/apify-data-fetcher/index.ts`:
+- Detectar el actor que se esta usando y adaptar el input body segun su schema
+- Para `quacker/twitter-scraper` el input seria diferente (usa `searchTerms` en lugar de `search`)
+- Para `apidojo~tweet-scraper` el input usa `startUrls` o `searchTerms`
+- Agregar un mapeo de schemas por actor conocido
+
+**Paso 3: Adaptar el parsing de resultados**
+
+Cada actor retorna datos con estructura diferente. Necesitamos un mapper flexible que identifique los campos correctos segun el actor.
 
 ---
 
-## Cambios
+## Problema Secundario: Error en RPC `calcular_score_corredor`
 
-### 1. Apify: Queries para cuentas específicas
+El RPC retorna `character varying` pero el codigo espera `text`. Este error afecta el hook `useCorredoresRiesgo` pero no bloquea el dashboard principal (CorridorStatusPanel usa logica local, no la RPC).
 
-**Archivo:** `supabase/functions/apify-data-fetcher/index.ts`
-
-Modificar el bloque `search` (linea 51-61) para incluir las cuentas especializadas como terminos de busqueda separados por cuenta:
-
-```
-// Grupo 1: Fuentes carreteras especializadas
-'from:monitorcarrete1 bloqueo OR cierre OR accidente OR asalto'
-
-// Grupo 2: Fuentes regionales Jalisco + Michoacan
-'from:jaliscorojo OR from:mimorelia bloqueo OR narcobloqueo OR cierre'
-
-// Grupo 3: Fuentes oficiales/complementarias
-'from:GN_Carreteras OR from:ABORDOMX alerta OR cierre OR bloqueo'
-```
-
-Esto se complementa con el query generico que ya existe (robo trailer, bloqueo, etc.)
-
-### 2. Firecrawl: Queries complementarios de menciones web
-
-**Archivo:** `supabase/functions/firecrawl-incident-search/index.ts`
-
-Agregar 2 queries al array `SEARCH_QUERIES`:
-
-```
-'"@monitorcarrete1" OR "Monitor Carretero" bloqueo OR cierre carretera Mexico'
-'"@jaliscorojo" OR "@mimorelia" bloqueo OR narcobloqueo carretera'
-```
-
-Estos buscan noticias y sitios web que citen o embeben tweets de estas cuentas.
-
-### 3. Panel de Estatus de Corredores (inspirado en reporte de inteligencia)
-
-**Archivo nuevo:** `src/components/incidentes/CorridorStatusPanel.tsx`
-
-Componente tipo tabla-semaforo que muestre el estatus operativo de cada corredor principal:
-
-- Columnas: Corredor | Estatus | Incidentes Activos | Tipo | Ultima Actualizacion
-- Semaforo por fila:
-  - Rojo: Incidentes criticos en ultimas 4h (EVITAR)
-  - Amarillo: Incidentes media/alta en ultimas 24h (PRECAUCION)
-  - Verde: Sin incidentes recientes (OPERAR NORMAL)
-- Cruza incidentes activos con los corredores definidos en `HIGHWAY_CORRIDORS`
-- Formato compacto, escaneable en 10 segundos
-
-### 4. Recomendaciones Operativas Automaticas
-
-**Archivo nuevo:** `src/components/incidentes/OperationalRecommendations.tsx`
-
-Panel que genera recomendaciones automaticas basadas en los datos:
-
-- "EVITAR: Corredor Mexico-Guadalajara — 2 bloqueos activos (hace 45 min)"
-- "PRECAUCION: Morelia-Lazaro Cardenas — incidente de asalto reportado (3h)"
-- "OPERACION NORMAL: Mexico-Queretaro — sin reportes"
-- Telefonos de emergencia: 088 (GN), 074 (CAPUFE)
-- Fuentes recomendadas: @GN_Carreteras, @monitorcarrete1
-
-La logica construye recomendaciones automaticamente:
-- Corredores con incidentes criticos en 4h: genera "EVITAR"
-- Corredores con incidentes media en 24h: genera "PRECAUCION"
-- Corredores sin incidentes: genera "OPERAR NORMAL"
-
-### 5. Integración en la página
-
-**Archivo:** `src/pages/Incidentes/IncidentesRRSSPage.tsx`
-
-Reorganizar layout para priorizar la informacion de decision:
-
-```text
-+-------------------------------------------------------+
-| ALERTA ACTIVA (existente)                              |
-+-------------------------------------------------------+
-| Filtros Operativos (existente)                         |
-+-------------------------------------------------------+
-| ESTATUS DE CORREDORES (nuevo - tabla semaforo)         |
-+---------------------------+---------------------------+
-| RECOMENDACIONES CLAVE     | CORREDORES AFECTADOS      |
-| (nuevo)                   | (existente)               |
-+---------------------------+---------------------------+
-| MAPA + STATS (existente)                               |
-+-------------------------------------------------------+
-| TABLA INCIDENTES (existente)                           |
-+-------------------------------------------------------+
-```
+**Solucion**: Este error es preexistente y no afecta la funcionalidad del tablero de corredores actual. Se puede corregir en un sprint separado.
 
 ---
 
-## Detalle tecnico
+## Estado del Dashboard de Corredores
 
-### Archivos a crear
+El `CorridorStatusPanel` y `OperationalRecommendations` funcionan correctamente con la data disponible. Con los 2 incidentes de hoy (asalto critico en Cordoba-Puebla y proposicion legislativa), el panel deberia mostrar:
 
-| Archivo | Descripcion |
-|---------|-------------|
-| `src/components/incidentes/CorridorStatusPanel.tsx` | Tabla semaforo con estatus por corredor, cruza incidentes con HIGHWAY_CORRIDORS |
-| `src/components/incidentes/OperationalRecommendations.tsx` | Recomendaciones automaticas tipo briefing de inteligencia |
+- **Mexico-Puebla (150D)**: EVITAR o PRECAUCION (el incidente de Cordoba-Puebla tiene coordenadas 19.04, -98.20 que caen dentro del bounding box de este corredor)
+- **Resto de corredores**: OPERAR NORMAL (sin incidentes recientes)
+
+La data de hoy valida que el cruce incidente-corredor por coordenadas funciona, pero para tener un tablero realmente util se necesita el volumen de datos que Apify deberia traer de Twitter.
+
+---
+
+## Detalle Tecnico
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `supabase/functions/apify-data-fetcher/index.ts` | Agregar queries especificos para @monitorcarrete1, @jaliscorojo, @mimorelia, @GN_Carreteras |
-| `supabase/functions/firecrawl-incident-search/index.ts` | 2 queries complementarios para menciones web de cuentas Twitter |
-| `src/pages/Incidentes/IncidentesRRSSPage.tsx` | Integrar CorridorStatusPanel y OperationalRecommendations en layout |
+| `supabase/functions/apify-data-fetcher/index.ts` | Refactorizar el input body para adaptarse al schema real del actor. Agregar mapeo de inputs por tipo de actor (apidojo, quacker, etc.). Mejorar el parsing de resultados con mappers por actor. |
+
+### Accion manual requerida
+
+El usuario debe corregir el secret `APIFY_DEFAULT_ACTOR_ID` para que contenga solo el ID del actor (ej: `quacker/twitter-scraper`) y NO una URL completa con token.
+
+### Flujo corregido
+
+```text
+1. Edge Function lee APIFY_DEFAULT_ACTOR_ID → "quacker/twitter-scraper"
+2. Detecta tipo de actor → selecciona schema de input correcto
+3. Envia queries por cuenta:
+   - from:monitorcarrete1 bloqueo OR cierre
+   - from:jaliscorojo narcobloqueo
+   - from:GN_Carreteras alerta
+4. Actor retorna tweets con URLs y texto
+5. Se insertan en incidentes_rrss → procesamiento AI
+6. CorridorStatusPanel cruza con HIGHWAY_CORRIDORS → semaforo actualizado
+```
 
