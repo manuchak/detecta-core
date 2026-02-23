@@ -37,10 +37,12 @@ const SEARCH_QUERIES = [
   'secuestro operador OR secuestro chofer',
   'accidente tráiler OR volcadura',
   '#AlertaCarretera OR #SeguridadVial',
-  // Fuentes especializadas en inteligencia carretera
-  'from:monitorcarrete1 bloqueo OR cierre OR accidente OR asalto',
-  'from:jaliscorojo OR from:mimorelia bloqueo OR narcobloqueo OR cierre',
-  'from:GN_Carreteras OR from:ABORDOMX alerta OR cierre OR bloqueo',
+  // Handles se separan automáticamente en twitterHandles por buildInput
+  'from:monitorcarrete1',
+  'from:jaliscorojo',
+  'from:mimorelia',
+  'from:GN_Carreteras',
+  'from:ABORDOMX',
 ];
 
 // ---------- quacker/twitter-scraper ----------
@@ -71,13 +73,27 @@ const quackerSchema: ActorSchema = {
 
 // ---------- apidojo~tweet-scraper ----------
 const apidojoSchema: ActorSchema = {
-  buildInput: (queries) => ({
-    startUrls: queries.map((q) => ({
-      url: `https://twitter.com/search?q=${encodeURIComponent(q)}&src=typed_query&f=live`,
-    })),
-    maxItems: 100,
-    customMapFunction: '(object) => { return {...object} }',
-  }),
+  buildInput: (queries) => {
+    const searchTerms: string[] = [];
+    const twitterHandles: string[] = [];
+
+    for (const q of queries) {
+      if (q.startsWith('from:')) {
+        twitterHandles.push(q.replace('from:', '').trim());
+      } else {
+        searchTerms.push(q);
+      }
+    }
+
+    return {
+      searchTerms,
+      twitterHandles,
+      maxItems: 200,
+      sort: 'Latest',
+      tweetLanguage: 'es',
+      includeSearchTerms: true,
+    };
+  },
   parseItem: (item: any) => {
     if (item.noResults) return null;
     const url = item.url || item.tweetUrl || item.link;
