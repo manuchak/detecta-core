@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Users, Truck, Shield, UserCheck } from 'lucide-react';
 import { getCurrentMTDRange, getPreviousMTDRange, getCurrentDay } from '@/utils/mtdDateUtils';
+import { fetchAllPaginated } from '@/utils/supabasePagination';
 
 interface KPIData {
   label: string;
@@ -23,24 +24,25 @@ export const ExecutiveKPIsBar = () => {
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
-      // Current month services (MTD)
-      const { data: currentServices } = await supabase
-        .from('servicios_custodia')
-        .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
-        .gte('fecha_hora_cita', currentRange.start)
-        .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'Cancelado');
-
-      // Previous month services (MTD - same day range)
-      const { data: prevServices } = await supabase
-        .from('servicios_custodia')
-        .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
-        .gte('fecha_hora_cita', prevRange.start)
-        .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'Cancelado');
-
-      const current = currentServices || [];
-      const prev = prevServices || [];
+      // Current month services (MTD) - paginated to avoid 1000-row limit
+      const [current, prev] = await Promise.all([
+        fetchAllPaginated(() =>
+          supabase
+            .from('servicios_custodia')
+            .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
+            .gte('fecha_hora_cita', currentRange.start)
+            .lte('fecha_hora_cita', currentRange.end)
+            .not('estado', 'eq', 'Cancelado')
+        ),
+        fetchAllPaginated(() =>
+          supabase
+            .from('servicios_custodia')
+            .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
+            .gte('fecha_hora_cita', prevRange.start)
+            .lte('fecha_hora_cita', prevRange.end)
+            .not('estado', 'eq', 'Cancelado')
+        ),
+      ]);
 
       // Calculate metrics
       const serviciosCurrent = current.length;
