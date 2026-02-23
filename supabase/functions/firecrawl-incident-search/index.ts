@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Firecrawl connector not configured. Enable it in Project Settings > Connectors.' }),
+        JSON.stringify({ success: false, error: 'Firecrawl connector not configured.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -44,107 +44,144 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json().catch(() => ({}));
-    const timeFilter = body.time_filter || 'qdr:w'; // default: last week
+    const timeFilter = body.time_filter || 'qdr:w';
     const limit = body.limit || 20;
+    const totalSteps = SEARCH_QUERIES.length;
 
-    const stats = { insertados: 0, duplicados: 0, errores: 0, total_resultados: 0 };
+    const encoder = new TextEncoder();
 
-    for (const query of SEARCH_QUERIES) {
-      console.log(`Searching: ${query}`);
+    const stream = new ReadableStream({
+      async start(controller) {
+        const emit = (event: Record<string, unknown>) => {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
+        };
 
-      try {
-        const response = await fetch('https://api.firecrawl.dev/v1/search', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query,
-            limit,
-            lang: 'es',
-            country: 'MX',
-            tbs: timeFilter,
-            scrapeOptions: { formats: ['markdown'] },
-          }),
-        });
+        const globalStats = { insertados: 0, duplicados: 0, errores: 0, total_resultados: 0 };
 
-        const searchData = await response.json();
+        for (let i = 0; i < SEARCH_QUERIES.length; i++) {
+          const query = SEARCH_QUERIES[i];
+          const step = i + 1;
 
-        if (!response.ok) {
-          console.error(`Firecrawl error for query "${query}":`, searchData);
-          stats.errores++;
-          continue;
-        }
+          emit({ step, total_steps: totalSteps, query, status: 'searching' });
 
-        const results = searchData.data || [];
-        stats.total_resultados += results.length;
-        console.log(`Got ${results.length} results for: ${query}`);
-
-        for (const result of results) {
-          const url = result.url;
-          if (!url) continue;
-
-          // Dedup by URL
-          const { data: existing } = await supabase
-            .from('incidentes_rrss')
-            .select('id')
-            .eq('url_publicacion', url)
-            .limit(1);
-
-          if (existing && existing.length > 0) {
-            stats.duplicados++;
-            continue;
-          }
-
-          const textoOriginal = result.markdown || result.description || result.title || '';
-          if (!textoOriginal.trim()) continue;
-
-          const redSocial = detectRedSocial(url);
-
-          const { data: inserted, error: insertError } = await supabase
-            .from('incidentes_rrss')
-            .insert({
-              red_social: redSocial,
-              texto_original: `${result.title || ''}\n\n${textoOriginal}`.trim(),
-              url_publicacion: url,
-              autor: result.title || 'Firecrawl Search',
-              fecha_publicacion: new Date().toISOString(),
-              apify_actor_id: 'firecrawl',
-              procesado: false,
-            })
-            .select('id')
-            .single();
-
-          if (insertError) {
-            console.error(`Insert error for ${url}:`, insertError);
-            stats.errores++;
-            continue;
-          }
-
-          stats.insertados++;
-
-          // Trigger AI processing
           try {
-            await supabase.functions.invoke('procesar-incidente-rrss', {
-              body: { incidente_id: inserted.id },
+            const response = await fetch('https://api.firecrawl.dev/v1/search', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                query,
+                limit,
+                lang: 'es',
+                country: 'MX',
+                tbs: timeFilter,
+                scrapeOptions: { formats: ['markdown'] },
+              }),
             });
-          } catch (procError) {
-            console.error(`Processing error for ${inserted.id}:`, procError);
+
+            const searchData = await response.json();
+
+            if (!response.ok) {
+              console.error(`Firecrawl error for query "${query}":`, searchData);
+              globalStats.errores++;
+              emit({ step, total_steps: totalSteps, query, status: 'error', error: searchData.error || 'API error' });
+              continue;
+            }
+
+            const results = searchData.data || [];
+            globalStats.total_resultados += results.length;
+
+            emit({ step, total_steps: totalSteps, query, status: 'inserting', found: results.length });
+
+            // Batch dedup
+            const urls = results.map((r: any) => r.url).filter(Boolean);
+            let existingUrls: Set<string> = new Set();
+            if (urls.length > 0) {
+              const { data: existing } = await supabase
+                .from('incidentes_rrss')
+                .select('url_publicacion')
+                .in('url_publicacion', urls);
+              existingUrls = new Set((existing || []).map((e: any) => e.url_publicacion));
+            }
+
+            // Prepare batch insert
+            const registros: any[] = [];
+            for (const result of results) {
+              const url = result.url;
+              if (!url) continue;
+              if (existingUrls.has(url)) {
+                globalStats.duplicados++;
+                continue;
+              }
+
+              const textoOriginal = result.markdown || result.description || result.title || '';
+              if (!textoOriginal.trim()) continue;
+
+              registros.push({
+                red_social: detectRedSocial(url),
+                texto_original: `${result.title || ''}\n\n${textoOriginal}`.trim(),
+                url_publicacion: url,
+                autor: result.title || 'Firecrawl Search',
+                fecha_publicacion: new Date().toISOString(),
+                apify_actor_id: 'firecrawl',
+                procesado: false,
+              });
+            }
+
+            let insertedIds: string[] = [];
+            if (registros.length > 0) {
+              const { data: inserted, error: insertError } = await supabase
+                .from('incidentes_rrss')
+                .insert(registros)
+                .select('id');
+
+              if (insertError) {
+                console.error(`Batch insert error for query "${query}":`, insertError);
+                globalStats.errores += registros.length;
+              } else {
+                insertedIds = (inserted || []).map((r: any) => r.id);
+                globalStats.insertados += insertedIds.length;
+              }
+            }
+
+            // Fire-and-forget AI processing
+            for (const id of insertedIds) {
+              supabase.functions.invoke('procesar-incidente-rrss', {
+                body: { incidente_id: id },
+              }).catch((err: any) => console.error(`AI processing error for ${id}:`, err));
+            }
+
+            emit({
+              step,
+              total_steps: totalSteps,
+              query,
+              status: 'done',
+              found: results.length,
+              inserted: insertedIds.length,
+              dupes: results.length - insertedIds.length - (registros.length - insertedIds.length),
+              errors: 0,
+            });
+          } catch (queryError) {
+            console.error(`Error processing query "${query}":`, queryError);
+            globalStats.errores++;
+            emit({ step, total_steps: totalSteps, query, status: 'error', error: String(queryError) });
           }
         }
-      } catch (queryError) {
-        console.error(`Error processing query "${query}":`, queryError);
-        stats.errores++;
-      }
-    }
 
-    console.log('Final stats:', stats);
+        emit({ done: true, stats: globalStats });
+        controller.close();
+      },
+    });
 
-    return new Response(
-      JSON.stringify({ success: true, stats }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(stream, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
+    });
   } catch (error) {
     console.error('Error in firecrawl-incident-search:', error);
     return new Response(
