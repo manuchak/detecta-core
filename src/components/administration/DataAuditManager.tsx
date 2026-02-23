@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Upload, Download, CheckCircle, AlertTriangle, XCircle, Loader2, Info } from 'lucide-react';
 import { formatNumber, formatCurrency } from '@/utils/formatUtils';
 import { toast } from 'sonner';
+import MonthDrillDownDialog from './MonthDrillDownDialog';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 interface ComparisonRow {
   period: string;
@@ -102,7 +104,8 @@ const DataAuditManager = () => {
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string>('');
   const [detectedMode, setDetectedMode] = useState<string>('');
-
+  const [excelRecordsMap, setExcelRecordsMap] = useState<Record<string, string[]>>({});
+  const [drillDown, setDrillDown] = useState<{ year: number; month: number } | null>(null);
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -134,8 +137,10 @@ const DataAuditManager = () => {
       if (dateCol) {
         // === MODE: Individual records ===
         const gmvCol = findColumn(headers, ['cobro cliente', 'cobro', 'gmv', 'ingreso', 'revenue', 'monto']);
+        const idCol = findColumn(headers, ['id servicio', 'idservicio', 'id']);
         
         excelMap = {};
+        const idsMap: Record<string, string[]> = {};
         let parsed = 0;
         let skipped = 0;
 
@@ -153,11 +158,21 @@ const DataAuditManager = () => {
             const val = parseFloat(String(row[gmvCol] || 0));
             if (!isNaN(val)) excelMap[key].gmv += val;
           }
+          if (idCol) {
+            const idVal = String(row[idCol] || '').trim();
+            if (idVal) {
+              if (!idsMap[key]) idsMap[key] = [];
+              idsMap[key].push(idVal);
+            }
+          }
         });
+
+        setExcelRecordsMap(idCol ? idsMap : {});
 
         const modeMsg = `Modo registros individuales: ${parsed} registros agrupados por mes` +
           (skipped > 0 ? ` (${skipped} sin fecha válida)` : '') +
-          (gmvCol ? `, GMV desde columna "${gmvCol}"` : ', sin columna de GMV detectada');
+          (gmvCol ? `, GMV desde columna "${gmvCol}"` : ', sin columna de GMV detectada') +
+          (idCol ? `, IDs desde "${idCol}"` : '');
         setDetectedMode(modeMsg);
         toast.info(modeMsg);
 
@@ -184,6 +199,7 @@ const DataAuditManager = () => {
           };
         });
 
+        setExcelRecordsMap({});
         setDetectedMode(`Modo agregado: ${Object.keys(excelMap).length} periodos desde columnas "${yearCol}", "${monthCol}"`);
       } else {
         // No recognized format
@@ -372,26 +388,36 @@ const DataAuditManager = () => {
             </TableHeader>
             <TableBody>
               {comparison.map((row, i) => (
-                <TableRow key={i} className={row.status === 'error' ? 'bg-destructive/5' : row.status === 'alert' ? 'bg-yellow-500/5' : ''}>
-                  <TableCell className="font-medium">{row.period}</TableCell>
-                  <TableCell className="text-right">{formatNumber(row.servicesExcel)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(row.servicesSystem)}</TableCell>
-                  <TableCell className={`text-right ${row.servicesDelta !== 0 ? 'font-semibold' : ''}`}>
-                    {row.servicesDelta > 0 ? '+' : ''}{formatNumber(row.servicesDelta)}
-                  </TableCell>
-                  <TableCell className={`text-right ${Math.abs(row.servicesDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.servicesDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
-                    {row.servicesDeltaPct > 0 ? '+' : ''}{row.servicesDeltaPct.toFixed(1)}%
-                  </TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.gmvExcel)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.gmvSystem)}</TableCell>
-                  <TableCell className={`text-right ${row.gmvDelta !== 0 ? 'font-semibold' : ''}`}>
-                    {row.gmvDelta > 0 ? '+' : ''}{formatCurrency(row.gmvDelta)}
-                  </TableCell>
-                  <TableCell className={`text-right ${Math.abs(row.gmvDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.gmvDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
-                    {row.gmvDeltaPct > 0 ? '+' : ''}{row.gmvDeltaPct.toFixed(1)}%
-                  </TableCell>
-                  <TableCell className="text-center"><StatusIcon status={row.status} /></TableCell>
-                </TableRow>
+                <TooltipProvider key={i}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TableRow
+                        className={`cursor-pointer ${row.status === 'error' ? 'bg-destructive/5' : row.status === 'alert' ? 'bg-yellow-500/5' : ''}`}
+                        onDoubleClick={() => setDrillDown({ year: row.year, month: row.month })}
+                      >
+                        <TableCell className="font-medium">{row.period}</TableCell>
+                        <TableCell className="text-right">{formatNumber(row.servicesExcel)}</TableCell>
+                        <TableCell className="text-right">{formatNumber(row.servicesSystem)}</TableCell>
+                        <TableCell className={`text-right ${row.servicesDelta !== 0 ? 'font-semibold' : ''}`}>
+                          {row.servicesDelta > 0 ? '+' : ''}{formatNumber(row.servicesDelta)}
+                        </TableCell>
+                        <TableCell className={`text-right ${Math.abs(row.servicesDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.servicesDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
+                          {row.servicesDeltaPct > 0 ? '+' : ''}{row.servicesDeltaPct.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.gmvExcel)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(row.gmvSystem)}</TableCell>
+                        <TableCell className={`text-right ${row.gmvDelta !== 0 ? 'font-semibold' : ''}`}>
+                          {row.gmvDelta > 0 ? '+' : ''}{formatCurrency(row.gmvDelta)}
+                        </TableCell>
+                        <TableCell className={`text-right ${Math.abs(row.gmvDeltaPct) >= 5 ? 'text-destructive font-semibold' : Math.abs(row.gmvDeltaPct) >= 1 ? 'text-yellow-600' : ''}`}>
+                          {row.gmvDeltaPct > 0 ? '+' : ''}{row.gmvDeltaPct.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-center"><StatusIcon status={row.status} /></TableCell>
+                      </TableRow>
+                    </TooltipTrigger>
+                    <TooltipContent>Doble clic para ver detalle de IDs</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ))}
             </TableBody>
           </Table>
@@ -407,6 +433,16 @@ const DataAuditManager = () => {
             o datos ya agregados con columnas <strong>Año, Mes, Servicios</strong>.
           </p>
         </div>
+      )}
+
+      {drillDown && (
+        <MonthDrillDownDialog
+          open={!!drillDown}
+          year={drillDown.year}
+          month={drillDown.month}
+          excelIds={excelRecordsMap[`${drillDown.year}-${drillDown.month}`] || null}
+          onClose={() => setDrillDown(null)}
+        />
       )}
     </div>
   );
