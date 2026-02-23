@@ -1,52 +1,74 @@
 
 
-# Fix: GMV MTD truncado por límite de 1,000 filas en KPIs Bar
+# Plan: Editar y Eliminar Evaluaciones Midot para Supply
 
 ## Problema
 
-La tarjeta "GMV MTD" muestra $4.59M mientras el grafico MoM muestra $4.7M para febrero. La causa raiz es que `ExecutiveKPIsBar.tsx` hace un query directo a `servicios_custodia` **sin paginacion**, lo que trunca los resultados a 1,000 filas (limite por defecto de Supabase). El grafico MoM usa un RPC server-side que no tiene este limite.
+Mariana (rol supply) subio una evaluacion Midot duplicada con fechas distintas y no puede corregir su error porque no existe boton de editar ni eliminar en la interfaz de evaluaciones Midot.
 
-## Solucion
+## Cambios Propuestos
 
-Agregar paginacion al query de `ExecutiveKPIsBar` usando el mismo patron `fetchAllPaginated` que ya existe en `useExecutiveMultiYearData.ts`.
+### 1. Hook: Agregar mutaciones de editar y eliminar (`src/hooks/useEvaluacionesMidot.ts`)
 
-## Cambios
+- **`useUpdateMidot`**: Mutation que recibe el `id` de la evaluacion y los campos actualizados (scores, fecha, notas, PDF). Recalcula `score_global` y `resultado_semaforo` automaticamente.
+- **`useDeleteMidot`**: Mutation que elimina una evaluacion por `id`. Incluye invalidacion del cache.
+- Ambas mutaciones muestran toast de confirmacion/error.
 
-### 1. `src/components/executive/ExecutiveKPIsBar.tsx`
+### 2. UI: Agregar acciones de editar/eliminar en cada tarjeta (`src/components/recruitment/midot/MidotEvaluationTab.tsx`)
 
-- Importar o duplicar la funcion `fetchAllPaginated` desde `useExecutiveMultiYearData`
-- Reemplazar los dos queries directos (current y prev) con llamadas paginadas
-- Esto asegura que todos los servicios del mes se incluyan en el calculo de GMV, servicios, clientes, custodios y armados
+- Agregar botones de **Editar** (icono lapiz) y **Eliminar** (icono basura) en cada `EvaluacionMidotCard`.
+- Los botones solo se muestran para roles autorizados: `supply`, `supply_lead`, `supply_admin`, `admin`, `owner`.
+- **Eliminar** muestra un `AlertDialog` de confirmacion antes de ejecutar.
+- **Editar** abre el formulario `MidotResultForm` pre-llenado con los datos existentes.
 
-**Antes (truncado a 1,000 filas):**
+### 3. Formulario: Soportar modo edicion (`src/components/recruitment/midot/MidotResultForm.tsx`)
+
+- Agregar prop opcional `evaluacionExistente?: EvaluacionMidot` para pre-llenar campos.
+- Si existe, el submit usa `useUpdateMidot` en lugar de `useCreateMidot`.
+- El titulo del formulario cambia a "Editar Evaluacion Midot".
+
+### 4. RLS en Supabase (si es necesario)
+
+- Verificar que las politicas RLS de `evaluaciones_midot` permitan `UPDATE` y `DELETE` para los roles de supply. Si no existen, se deben crear politicas que permitan a usuarios autenticados con roles `supply`, `supply_lead`, `supply_admin`, `admin`, `owner` ejecutar estas operaciones.
+
+## Detalle Tecnico
+
+### Nuevas funciones en `useEvaluacionesMidot.ts`
+
 ```ts
-const { data: currentServices } = await supabase
-  .from('servicios_custodia')
-  .select('id, cobro_cliente, ...')
-  .gte('fecha_hora_cita', currentRange.start)
-  .lte('fecha_hora_cita', currentRange.end)
-  .not('estado', 'eq', 'Cancelado');
+// useDeleteMidot - elimina evaluacion por ID
+export function useDeleteMidot() {
+  // DELETE FROM evaluaciones_midot WHERE id = ?
+  // Invalida queryKey ['evaluaciones-midot', candidato_id]
+}
+
+// useUpdateMidot - actualiza scores, fecha, notas, PDF
+export function useUpdateMidot() {
+  // Recalcula score_global y resultado_semaforo
+  // UPDATE evaluaciones_midot SET ... WHERE id = ?
+  // Invalida queryKey ['evaluaciones-midot', candidato_id]
+}
 ```
 
-**Despues (paginado):**
+### Control de acceso en UI
+
 ```ts
-const currentServices = await fetchAllPaginated(() =>
-  supabase
-    .from('servicios_custodia')
-    .select('id, cobro_cliente, ...')
-    .gte('fecha_hora_cita', currentRange.start)
-    .lte('fecha_hora_cita', currentRange.end)
-    .not('estado', 'eq', 'Cancelado')
-);
+const ROLES_CON_EDICION = ['supply', 'supply_lead', 'supply_admin', 'admin', 'owner'];
+const canEdit = ROLES_CON_EDICION.includes(userRole);
 ```
 
-### 2. Extraer `fetchAllPaginated` a utilidad compartida (opcional pero recomendado)
+### Flujo de eliminacion
 
-Mover la funcion `fetchAllPaginated` de `useExecutiveMultiYearData.ts` a un archivo de utilidad (e.g., `src/utils/supabasePagination.ts`) para reutilizarla en ambos componentes sin duplicar codigo.
+```text
+[Boton Eliminar] -> [AlertDialog: "Seguro que deseas eliminar?"] -> [Confirmar] -> [DELETE] -> [Toast exito]
+```
 
-## Impacto
+## Archivos a Modificar
 
-- Los KPIs (Servicios, GMV MTD, AOV, Clientes, Custodios, Armados) mostraran valores consistentes con el grafico MoM
-- Sin cambios visuales ni de esquema
-- Patron ya probado en el hook multi-year
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useEvaluacionesMidot.ts` | Agregar `useUpdateMidot` y `useDeleteMidot` |
+| `src/components/recruitment/midot/MidotEvaluationTab.tsx` | Botones editar/eliminar con control de rol y AlertDialog |
+| `src/components/recruitment/midot/MidotResultForm.tsx` | Soporte modo edicion con prop `evaluacionExistente` |
+| Supabase RLS | Verificar/crear politicas UPDATE y DELETE para roles supply |
 
