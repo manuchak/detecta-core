@@ -33,6 +33,7 @@ export function IncidentesMap({ incidentes }: IncidentesMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,13 +74,29 @@ export function IncidentesMap({ incidentes }: IncidentesMapProps) {
         mapRef.current = map;
         setLoading(false);
         updateMarkers(map);
+
+        // Staggered resize to compensate for CSS zoom override
+        [100, 300, 1000].forEach(ms =>
+          setTimeout(() => { if (!cancelled && mapRef.current) mapRef.current.resize(); }, ms)
+        );
       });
+
+      // ResizeObserver for continuous correctness
+      if (mapContainer.current) {
+        const ro = new ResizeObserver(() => {
+          mapRef.current?.resize();
+        });
+        ro.observe(mapContainer.current);
+        resizeObserverRef.current = ro;
+      }
     };
 
     init();
 
     return () => {
       cancelled = true;
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       markersRef.current.forEach(m => m.remove());
       markersRef.current = [];
       if (mapRef.current) {
@@ -164,7 +181,7 @@ export function IncidentesMap({ incidentes }: IncidentesMapProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="relative" style={{ height: '360px' }}>
+        <div className="relative" style={{ height: '400px', zoom: 1 }}>
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10 rounded-b-lg">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
