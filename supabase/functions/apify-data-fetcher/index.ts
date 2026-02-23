@@ -45,6 +45,76 @@ const SEARCH_QUERIES = [
   'from:ABORDOMX',
 ];
 
+// ---------- web.harvester/easy-twitter-search-scraper ----------
+const webHarvesterSearchSchema: ActorSchema = {
+  buildInput: (queries) => {
+    // Este actor acepta searchQueries para búsqueda por keywords
+    // Los handles se convierten a queries "from:handle"
+    const searchQueries: string[] = [];
+    for (const q of queries) {
+      if (q.startsWith('from:')) {
+        searchQueries.push(q); // "from:handle" funciona como query de búsqueda
+      } else {
+        searchQueries.push(q);
+      }
+    }
+    return {
+      searchQueries,
+      tweetsDesired: 200,
+      includeUserInfo: true,
+    };
+  },
+  parseItem: (item: any) => {
+    if (item.noResults) return null;
+    const url = item.url || item.tweetUrl;
+    if (!url) return null;
+    return {
+      url,
+      text: item.text || '',
+      author: item.username?.replace('@', '') || item.user?.username || item.fullname || 'Desconocido',
+      createdAt: item.timestamp || item.createdAt || new Date().toISOString(),
+      likes: item.likes || 0,
+      shares: item.retweets || 0,
+      comments: item.replies || 0,
+      media: extractMediaUrls(item),
+      redSocial: 'twitter',
+    };
+  },
+};
+
+// ---------- web.harvester/twitter-scraper (perfiles) ----------
+const webHarvesterProfileSchema: ActorSchema = {
+  buildInput: (queries) => {
+    const handles: string[] = [];
+    for (const q of queries) {
+      if (q.startsWith('from:')) {
+        handles.push(q.replace('from:', '').trim());
+      }
+    }
+    return {
+      handles: handles.length > 0 ? handles : ['monitorcarrete1', 'GN_Carreteras'],
+      tweetsDesired: 200,
+      includeUserInfo: true,
+    };
+  },
+  parseItem: (item: any) => {
+    if (item.noResults) return null;
+    const url = item.url || item.tweetUrl;
+    if (!url) return null;
+    return {
+      url,
+      text: item.text || '',
+      author: item.username?.replace('@', '') || item.user?.username || item.fullname || 'Desconocido',
+      createdAt: item.timestamp || item.createdAt || new Date().toISOString(),
+      likes: item.likes || 0,
+      shares: item.retweets || 0,
+      comments: item.replies || 0,
+      media: extractMediaUrls(item),
+      redSocial: 'twitter',
+    };
+  },
+};
+
 // ---------- quacker/twitter-scraper ----------
 const quackerSchema: ActorSchema = {
   buildInput: (queries) => ({
@@ -142,11 +212,19 @@ const genericSchema: ActorSchema = {
 
 function getActorSchema(actorId: string): ActorSchema {
   const id = actorId.toLowerCase();
-  if (id.includes('quacker') || id.includes('twitter-scraper') && id.includes('quacker')) {
+  if (id.includes('easy-twitter-search-scraper') || (id.includes('web.harvester') && id.includes('search'))) {
+    console.log('🔧 Usando schema: web.harvester/easy-twitter-search-scraper');
+    return webHarvesterSearchSchema;
+  }
+  if (id.includes('web.harvester') && id.includes('twitter-scraper')) {
+    console.log('🔧 Usando schema: web.harvester/twitter-scraper (perfiles)');
+    return webHarvesterProfileSchema;
+  }
+  if (id.includes('quacker')) {
     console.log('🔧 Usando schema: quacker/twitter-scraper');
     return quackerSchema;
   }
-  if (id.includes('apidojo') || id.includes('tweet-scraper') && id.includes('apidojo')) {
+  if (id.includes('apidojo') || id.includes('tweet-scraper')) {
     console.log('🔧 Usando schema: apidojo~tweet-scraper');
     return apidojoSchema;
   }
@@ -173,14 +251,14 @@ serve(async (req) => {
 
     // Obtener Actor ID con fallback
     const envActorId = Deno.env.get('APIFY_DEFAULT_ACTOR_ID');
-    let ACTOR_ID = actor_id || envActorId || 'quacker/twitter-scraper';
+    let ACTOR_ID = actor_id || envActorId || 'web.harvester/easy-twitter-search-scraper';
 
     // Validar que el Actor ID no sea una URL
     if (ACTOR_ID.includes('http://') || ACTOR_ID.includes('https://')) {
       console.error(`❌ ACTOR_ID inválido (contiene URL): "${ACTOR_ID}"`);
       // Intentar extraer token para usarlo si APIFY_API_KEY falla
-      console.log('🔄 Usando fallback: quacker/twitter-scraper');
-      ACTOR_ID = 'quacker/twitter-scraper';
+      console.log('🔄 Usando fallback: web.harvester/easy-twitter-search-scraper');
+      ACTOR_ID = 'web.harvester/easy-twitter-search-scraper';
     }
 
     // Normalizar separadores: "/" → "~" para la API de Apify
