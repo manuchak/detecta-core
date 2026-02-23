@@ -17700,7 +17700,7 @@ export type Database = {
         }[]
       }
       calcular_score_corredor: {
-        Args: { p_carretera: string }
+        Args: { p_carretera?: string }
         Returns: {
           carretera: string
           criticos_30d: number
