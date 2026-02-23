@@ -62,6 +62,45 @@ export const useIncidentesRRSS = (filtros?: {
   });
 };
 
+export interface FrecuenciaIncidente {
+  semana: string;
+  tipo_incidente: string;
+  severidad: string | null;
+  estado: string | null;
+  carretera: string | null;
+  total: number;
+  criticos: number;
+  confianza_promedio: number | null;
+}
+
+export const useIncidentesFrecuencia = () => {
+  return useQuery({
+    queryKey: ['incidentes-frecuencia'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vista_frecuencia_incidentes' as any)
+        .select('*')
+        .order('semana', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data as unknown as FrecuenciaIncidente[];
+    }
+  });
+};
+
+export const useCorredoresRiesgo = () => {
+  return useQuery({
+    queryKey: ['corredores-riesgo'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('calcular_score_corredor' as any, {
+        p_carretera: null
+      });
+      if (error) throw error;
+      return (data as any[]) || [];
+    }
+  });
+};
+
 export const useIncidentesStats = () => {
   return useQuery({
     queryKey: ['incidentes-stats'],

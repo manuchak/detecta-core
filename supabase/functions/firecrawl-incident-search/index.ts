@@ -10,6 +10,9 @@ const SEARCH_QUERIES = [
   '"bloqueo carretera" OR "bloqueo autopista" Mexico',
   '"asalto transportista" OR "secuestro operador" Mexico',
   '"accidente trailer" OR "volcadura" carretera Mexico',
+  '"robo combustible" OR "ordeña diesel" Mexico',
+  '"extorsion transportista" OR "cobro piso" carretera Mexico',
+  '"inseguridad autopista" OR "zona peligrosa" transporte Mexico',
 ];
 
 function detectRedSocial(url: string): string {

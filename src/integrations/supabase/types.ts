@@ -7389,6 +7389,7 @@ export type Database = {
           coordenadas_lat: number | null
           coordenadas_lng: number | null
           created_at: string | null
+          dia_semana_estimado: number | null
           empresa_afectada: string | null
           engagement_comments: number | null
           engagement_likes: number | null
@@ -7401,6 +7402,7 @@ export type Database = {
           geocoding_metodo: string | null
           grupo_delictivo_atribuido: string | null
           hashtags: string[] | null
+          hora_estimada: number | null
           id: string
           keywords_detectados: string[] | null
           media_urls: string[] | null
@@ -7433,6 +7435,7 @@ export type Database = {
           coordenadas_lat?: number | null
           coordenadas_lng?: number | null
           created_at?: string | null
+          dia_semana_estimado?: number | null
           empresa_afectada?: string | null
           engagement_comments?: number | null
           engagement_likes?: number | null
@@ -7445,6 +7448,7 @@ export type Database = {
           geocoding_metodo?: string | null
           grupo_delictivo_atribuido?: string | null
           hashtags?: string[] | null
+          hora_estimada?: number | null
           id?: string
           keywords_detectados?: string[] | null
           media_urls?: string[] | null
@@ -7477,6 +7481,7 @@ export type Database = {
           coordenadas_lat?: number | null
           coordenadas_lng?: number | null
           created_at?: string | null
+          dia_semana_estimado?: number | null
           empresa_afectada?: string | null
           engagement_comments?: number | null
           engagement_likes?: number | null
@@ -7489,6 +7494,7 @@ export type Database = {
           geocoding_metodo?: string | null
           grupo_delictivo_atribuido?: string | null
           hashtags?: string[] | null
+          hora_estimada?: number | null
           id?: string
           keywords_detectados?: string[] | null
           media_urls?: string[] | null
@@ -17223,6 +17229,19 @@ export type Database = {
         }
         Relationships: []
       }
+      vista_frecuencia_incidentes: {
+        Row: {
+          carretera: string | null
+          confianza_promedio: number | null
+          criticos: number | null
+          estado: string | null
+          semana: string | null
+          severidad: string | null
+          tipo_incidente: string | null
+          total: number | null
+        }
+        Relationships: []
+      }
       vw_aging_cuentas_cobrar: {
         Row: {
           cliente_id: string | null
@@ -17651,6 +17670,17 @@ export type Database = {
           roi_percentage: number
           servicios_totales: number
           zona_nombre: string
+        }[]
+      }
+      calcular_score_corredor: {
+        Args: { p_carretera: string }
+        Returns: {
+          carretera: string
+          criticos_30d: number
+          incidentes_30d: number
+          incidentes_7d: number
+          score_riesgo: number
+          total_incidentes: number
         }[]
       }
       calcular_score_urgencia_zona: {

@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, MapPin, TrendingUp, FileWarning } from 'lucide-react';
+import { AlertTriangle, MapPin, TrendingUp, FileWarning, Route, Calendar } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { useIncidentesFrecuencia, useCorredoresRiesgo } from '@/hooks/useIncidentesRRSS';
+import { useMemo } from 'react';
 
 interface StatsData {
   total: number;
@@ -36,17 +39,35 @@ const TIPO_LABELS: Record<string, string> = {
 };
 
 export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
+  const { data: frecuencia } = useIncidentesFrecuencia();
+  const { data: corredores } = useCorredoresRiesgo();
+
+  const tendenciaSemanal = useMemo(() => {
+    if (!frecuencia) return [];
+    const porSemana: Record<string, { semana: string; total: number; criticos: number }> = {};
+    frecuencia.forEach((f) => {
+      const key = f.semana?.substring(0, 10) || 'N/A';
+      if (!porSemana[key]) porSemana[key] = { semana: key, total: 0, criticos: 0 };
+      porSemana[key].total += Number(f.total) || 0;
+      porSemana[key].criticos += Number(f.criticos) || 0;
+    });
+    return Object.values(porSemana).sort((a, b) => a.semana.localeCompare(b.semana)).slice(-8);
+  }, [frecuencia]);
+
+  const topCorredores = useMemo(() => {
+    if (!corredores) return [];
+    return [...corredores]
+      .sort((a: any, b: any) => (b.score_riesgo || 0) - (a.score_riesgo || 0))
+      .slice(0, 5);
+  }, [corredores]);
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <Card key={i}>
-            <CardHeader className="pb-2">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-16" />
-            </CardContent>
+            <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+            <CardContent><Skeleton className="h-8 w-16" /></CardContent>
           </Card>
         ))}
       </div>
@@ -142,6 +163,58 @@ export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Weekly trend chart */}
+      {tendenciaSemanal.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Tendencia Semanal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={tendenciaSemanal}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="semana" tick={{ fontSize: 9 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="criticos" name="Críticos" fill="hsl(0 84% 60%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top corridors by risk */}
+      {topCorredores.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <Route className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Corredores de Mayor Riesgo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {topCorredores.map((c: any) => (
+                <div key={c.carretera} className="flex items-center justify-between text-sm">
+                  <span className="font-medium truncate max-w-[200px]">{c.carretera}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{c.incidentes_7d} / 7d</Badge>
+                    <Badge variant="outline" className="text-xs">{c.incidentes_30d} / 30d</Badge>
+                    <Badge className={
+                      c.score_riesgo >= 70 ? 'bg-red-500 text-white' :
+                      c.score_riesgo >= 40 ? 'bg-orange-500 text-white' :
+                      'bg-green-500 text-white'
+                    }>
+                      Score: {c.score_riesgo}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
