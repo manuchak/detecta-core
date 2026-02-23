@@ -20,6 +20,16 @@ export interface IncidenteRRSS {
   engagement_likes: number;
   engagement_shares: number;
   engagement_comments: number;
+  // Campos criminológicos
+  relevancia_score: number | null;
+  modus_operandi: string | null;
+  firma_criminal: string | null;
+  nivel_organizacion: string | null;
+  vector_ataque: string | null;
+  objetivo_especifico: string | null;
+  indicadores_premeditacion: string[] | null;
+  zona_tipo: string | null;
+  contexto_ambiental: string | null;
 }
 
 export const useIncidentesRRSS = (filtros?: {
@@ -40,17 +50,14 @@ export const useIncidentesRRSS = (filtros?: {
       if (filtros?.tipo && filtros.tipo !== 'todos') {
         query = query.eq('tipo_incidente', filtros.tipo);
       }
-
       if (filtros?.estado) {
         query = query.eq('estado', filtros.estado);
       }
-
       if (filtros?.dias_atras) {
         const fecha = new Date();
         fecha.setDate(fecha.getDate() - filtros.dias_atras);
         query = query.gte('fecha_publicacion', fecha.toISOString());
       }
-
       if (filtros?.solo_geocodificados) {
         query = query.not('coordenadas_lat', 'is', null);
       }
@@ -107,7 +114,7 @@ export const useIncidentesStats = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('incidentes_rrss')
-        .select('tipo_incidente, severidad, geocoding_metodo, procesado')
+        .select('tipo_incidente, severidad, geocoding_metodo, procesado, modus_operandi, nivel_organizacion, indicadores_premeditacion, zona_tipo, relevancia_score')
         .eq('procesado', true);
 
       if (error) throw error;
@@ -117,10 +124,19 @@ export const useIncidentesStats = () => {
         por_tipo: {} as Record<string, number>,
         por_severidad: {} as Record<string, number>,
         geocodificados: 0,
-        por_metodo_geocoding: {} as Record<string, number>
+        por_metodo_geocoding: {} as Record<string, number>,
+        // Criminológicos
+        por_modus_operandi: {} as Record<string, number>,
+        por_nivel_organizacion: {} as Record<string, number>,
+        por_zona_tipo: {} as Record<string, number>,
+        indicadores_frecuentes: {} as Record<string, number>,
+        relevancia_promedio: 0,
       };
 
-      data.forEach((item) => {
+      let relSum = 0;
+      let relCount = 0;
+
+      data.forEach((item: any) => {
         stats.por_tipo[item.tipo_incidente] = (stats.por_tipo[item.tipo_incidente] || 0) + 1;
         if (item.severidad) {
           stats.por_severidad[item.severidad] = (stats.por_severidad[item.severidad] || 0) + 1;
@@ -129,7 +145,28 @@ export const useIncidentesStats = () => {
           stats.geocodificados++;
           stats.por_metodo_geocoding[item.geocoding_metodo] = (stats.por_metodo_geocoding[item.geocoding_metodo] || 0) + 1;
         }
+        if (item.modus_operandi) {
+          const mo = item.modus_operandi.substring(0, 80);
+          stats.por_modus_operandi[mo] = (stats.por_modus_operandi[mo] || 0) + 1;
+        }
+        if (item.nivel_organizacion) {
+          stats.por_nivel_organizacion[item.nivel_organizacion] = (stats.por_nivel_organizacion[item.nivel_organizacion] || 0) + 1;
+        }
+        if (item.zona_tipo) {
+          stats.por_zona_tipo[item.zona_tipo] = (stats.por_zona_tipo[item.zona_tipo] || 0) + 1;
+        }
+        if (item.indicadores_premeditacion && Array.isArray(item.indicadores_premeditacion)) {
+          item.indicadores_premeditacion.forEach((ind: string) => {
+            stats.indicadores_frecuentes[ind] = (stats.indicadores_frecuentes[ind] || 0) + 1;
+          });
+        }
+        if (item.relevancia_score != null) {
+          relSum += item.relevancia_score;
+          relCount++;
+        }
       });
+
+      stats.relevancia_promedio = relCount > 0 ? Math.round(relSum / relCount) : 0;
 
       return stats;
     }

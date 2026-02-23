@@ -70,28 +70,20 @@ serve(async (req) => {
       const ciudadEncontrada = buscarEnDiccionario(ubicacionNormalizada);
       
       if (ciudadEncontrada) {
-        coordenadas = {
-          lat: ciudadEncontrada.lat,
-          lng: ciudadEncontrada.lng
-        };
+        coordenadas = { lat: ciudadEncontrada.lat, lng: ciudadEncontrada.lng };
         estado = ciudadEncontrada.estado;
         geocodingMetodo = 'diccionario';
         confianza = 85;
-        console.log(`📍 Ubicación encontrada en diccionario: ${estado}`);
       } else {
-        console.log('🗺️ Buscando en Mapbox...');
         const mapboxResult = await geocodeWithMapbox(aiAnalysis.ubicacion_detectada);
-        
         if (mapboxResult) {
           coordenadas = { lat: mapboxResult.lat, lng: mapboxResult.lng };
           estado = mapboxResult.estado;
           municipio = mapboxResult.municipio;
           geocodingMetodo = 'mapbox';
           confianza = mapboxResult.confidence;
-          console.log(`📍 Geocoded con Mapbox: ${estado}, ${municipio}`);
         }
       }
-
       carretera = extraerCarretera(incidente.texto_original);
     }
 
@@ -123,14 +115,21 @@ serve(async (req) => {
         grupo_delictivo_atribuido: aiAnalysis.grupo_delictivo,
         hora_estimada: aiAnalysis.hora_estimada ?? null,
         dia_semana_estimado: aiAnalysis.dia_semana_estimado ?? null,
+        // Campos criminológicos avanzados
+        modus_operandi: aiAnalysis.modus_operandi ?? null,
+        firma_criminal: aiAnalysis.firma_criminal ?? null,
+        nivel_organizacion: aiAnalysis.nivel_organizacion ?? null,
+        vector_ataque: aiAnalysis.vector_ataque ?? null,
+        objetivo_especifico: aiAnalysis.objetivo_especifico ?? null,
+        indicadores_premeditacion: aiAnalysis.indicadores_premeditacion ?? null,
+        zona_tipo: aiAnalysis.zona_tipo ?? null,
+        contexto_ambiental: aiAnalysis.contexto_ambiental ?? null,
         procesado: true,
         procesado_at: new Date().toISOString()
       })
       .eq('id', incidente_id);
 
-    if (updateError) {
-      throw updateError;
-    }
+    if (updateError) throw updateError;
 
     console.log(`✅ Incidente ${incidente_id} procesado exitosamente`);
 
@@ -140,7 +139,8 @@ serve(async (req) => {
         incidente_id,
         tipo_incidente: aiAnalysis.tipo_incidente,
         ubicacion: estado,
-        geocoding: geocodingMetodo
+        geocoding: geocodingMetodo,
+        nivel_organizacion: aiAnalysis.nivel_organizacion,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -173,38 +173,39 @@ serve(async (req) => {
 async function analyzeIncidentWithAI(texto: string) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  const systemPrompt = 'Eres un analista de inteligencia especializado en incidentes de seguridad que afectan al transporte de carga en México. Extrae información estructurada de posts de redes sociales.';
+  const systemPrompt = `Eres un analista de inteligencia criminológica especializado en seguridad del transporte de carga en México. 
+Tu análisis se basa en teorías de CRIMINOLOGÍA AMBIENTAL:
 
-  const userPrompt = `Analiza este post sobre un posible incidente de transporte de carga:
+1. **Teoría de Actividades Rutinarias (Cohen & Felson)**: Identifica la convergencia de:
+   - Delincuente motivado (grupo criminal, oportunista, célula local)
+   - Objetivo adecuado (tipo de carga valiosa, unidad sin protección, operador solo)
+   - Ausencia de guardián capaz (tramo sin vigilancia, zona despoblada, horario nocturno)
+
+2. **Patrón Espacial (Brantingham)**: Clasifica la zona como:
+   - Zona de actividad: donde el delincuente opera habitualmente
+   - Zona de búsqueda: fuera de su área habitual, explorando nuevos objetivos
+   - Corredor de escape: ruta de huida post-incidente
+
+3. **Near-Repeat Theory**: Evalúa si el incidente sugiere repetición cercana en tiempo/espacio.
+
+4. **Firma Criminal**: Identifica elementos distintivos que van MÁS ALLÁ de lo necesario para cometer el delito y que revelan la identidad o estilo de un grupo específico.
+
+Extrae información estructurada para inteligencia accionable en seguridad de transporte de carga.`;
+
+  const userPrompt = `Analiza este texto sobre un posible incidente de transporte de carga en México. Extrae TODA la información disponible incluyendo análisis criminológico avanzado:
 
 "${texto}"
 
-Extrae información estructurada siguiendo estas reglas:
-
-1. **Ubicación**: Identifica CUALQUIER mención de ubicación (ciudad, estado, carretera, kilómetro, colonia)
-2. **Tipo de incidente**: Clasifica como uno de estos:
-   - robo_carga: Robo de mercancía del tráiler/camión
-   - robo_unidad: Robo del tractocamión completo
-   - robo_combustible: Ordeña o robo de diésel/gasolina
-   - robo_autopartes: Robo de piezas del vehículo
-   - asalto_transporte: Intento de asalto a transporte
-   - bloqueo_carretera: Bloqueos que afectan circulación
-   - accidente_trailer: Accidentes de tráiler/camión
-   - secuestro_operador: Secuestro o retención del operador/chofer
-   - extorsion: Cobro de piso o extorsión
-   - vandalismo_unidad: Daño intencional a vehículo
-   - otro: Otro tipo de incidente
-   - sin_clasificar: No se puede determinar
-
-3. **Severidad**: 
-   - critica: Víctimas mortales, uso de armas de alto calibre, pérdidas >$1M MXN
-   - alta: Heridos graves, uso de armas, pérdidas >$500K MXN
-   - media: Amenazas, pérdidas moderadas <$500K
-   - baja: Sin violencia, pérdidas menores
-
-4. **Keywords**: Extrae palabras clave relevantes (max 10)
-5. **Entidades**: Grupos delictivos, autoridades mencionadas
-6. **Datos específicos**: Tipo de carga, monto estimado, empresa, víctimas`;
+Instrucciones específicas:
+- tipo_incidente: Clasifica con precisión
+- modus_operandi: Describe el método paso a paso (ej: "interceptación con vehículos bloqueadores en tramo solitario de madrugada")
+- firma_criminal: Patrón distintivo del grupo (ej: "abandono de unidad con mensaje", "uso de drones previo")
+- nivel_organizacion: Evalúa si fue oportunista, célula local organizada, o crimen organizado transnacional
+- vector_ataque: Método específico (emboscada, checkpoint falso, infiltración, halconeo, etc.)
+- objetivo_especifico: Qué buscaban exactamente
+- indicadores_premeditacion: Señales de planeación previa
+- zona_tipo: Tipo de zona geográfica
+- contexto_ambiental: Factores ambientales que facilitaron el evento`;
 
   try {
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -224,7 +225,7 @@ Extrae información estructurada siguiendo estas reglas:
           type: "function",
           function: {
             name: "clasificar_incidente_transporte",
-            description: "Extrae y clasifica información de incidentes de transporte de carga",
+            description: "Extrae y clasifica información de incidentes con análisis criminológico avanzado",
             parameters: {
               type: "object",
               properties: {
@@ -257,10 +258,31 @@ Extrae información estructurada siguiendo estas reglas:
                 num_victimas: { type: "integer", description: "Número de víctimas" },
                 armas_mencionadas: { type: "boolean" },
                 grupo_delictivo: { type: "string", description: "Grupo delictivo atribuido" },
-                hora_estimada: { type: "integer", description: "Hora estimada del incidente (0-23). Extraer del texto si se menciona hora, madrugada=3, mañana=9, tarde=15, noche=21" },
-                dia_semana_estimado: { type: "integer", description: "Día de la semana estimado (0=domingo, 6=sábado). Extraer si se menciona día" }
+                hora_estimada: { type: "integer", description: "Hora estimada del incidente (0-23)" },
+                dia_semana_estimado: { type: "integer", description: "Día de la semana (0=domingo, 6=sábado)" },
+                // ── Campos criminológicos avanzados ──
+                modus_operandi: { type: "string", description: "Descripción detallada del método criminal usado paso a paso" },
+                firma_criminal: { type: "string", description: "Patrón distintivo que va más allá de lo necesario para el delito y sugiere un grupo específico" },
+                nivel_organizacion: {
+                  type: "string",
+                  enum: ["oportunista", "celula_local", "crimen_organizado", "no_determinado"],
+                  description: "Nivel de organización criminal inferido"
+                },
+                vector_ataque: { type: "string", description: "Método de ejecución: emboscada, checkpoint_falso, infiltracion, halconeo, intercepcion, bloqueo_vial, etc." },
+                objetivo_especifico: { type: "string", description: "Qué buscaban: carga específica, unidad completa, operador, combustible, extorsión económica" },
+                indicadores_premeditacion: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Señales de planeación previa: vigilancia, informante, horario específico, conocimiento de ruta, uso de tecnología"
+                },
+                zona_tipo: {
+                  type: "string",
+                  enum: ["urbana", "periurbana", "rural", "carretera_abierta", "punto_critico"],
+                  description: "Tipo de zona geográfica del incidente"
+                },
+                contexto_ambiental: { type: "string", description: "Condiciones facilitadoras: oscuridad, zona despoblada, tramo sin vigilancia, lluvia, neblina, etc." }
               },
-              required: ["tipo_incidente", "severidad", "keywords", "confianza", "resumen"]
+              required: ["tipo_incidente", "severidad", "keywords", "confianza", "resumen", "nivel_organizacion", "zona_tipo"]
             }
           }
         }],
@@ -381,6 +403,14 @@ function clasificarPorKeywords(texto: string) {
     empresa: null,
     num_victimas: null,
     armas_mencionadas: textoLower.includes('arma') || textoLower.includes('pistola'),
-    grupo_delictivo: null
+    grupo_delictivo: null,
+    modus_operandi: null,
+    firma_criminal: null,
+    nivel_organizacion: 'no_determinado',
+    vector_ataque: null,
+    objetivo_especifico: null,
+    indicadores_premeditacion: null,
+    zona_tipo: null,
+    contexto_ambiental: null,
   };
 }

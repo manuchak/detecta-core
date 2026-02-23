@@ -7386,6 +7386,7 @@ export type Database = {
           autor: string | null
           carretera: string | null
           confianza_clasificacion: number | null
+          contexto_ambiental: string | null
           coordenadas_lat: number | null
           coordenadas_lng: number | null
           created_at: string | null
@@ -7398,21 +7399,27 @@ export type Database = {
           error_procesamiento: string | null
           estado: string | null
           fecha_publicacion: string | null
+          firma_criminal: string | null
           geocoding_confianza: number | null
           geocoding_metodo: string | null
           grupo_delictivo_atribuido: string | null
           hashtags: string[] | null
           hora_estimada: number | null
           id: string
+          indicadores_premeditacion: string[] | null
           keywords_detectados: string[] | null
           media_urls: string[] | null
           menciones: string[] | null
+          modus_operandi: string | null
           monto_perdida_estimado: number | null
           municipio: string | null
+          nivel_organizacion: string | null
           num_victimas: number | null
+          objetivo_especifico: string | null
           procesado: boolean | null
           procesado_at: string | null
           red_social: string
+          relevancia_score: number | null
           resumen_ai: string | null
           sentimiento: string | null
           severidad: string | null
@@ -7424,6 +7431,8 @@ export type Database = {
           ubicacion_texto_original: string | null
           updated_at: string | null
           url_publicacion: string | null
+          vector_ataque: string | null
+          zona_tipo: string | null
         }
         Insert: {
           apify_actor_id?: string | null
@@ -7432,6 +7441,7 @@ export type Database = {
           autor?: string | null
           carretera?: string | null
           confianza_clasificacion?: number | null
+          contexto_ambiental?: string | null
           coordenadas_lat?: number | null
           coordenadas_lng?: number | null
           created_at?: string | null
@@ -7444,21 +7454,27 @@ export type Database = {
           error_procesamiento?: string | null
           estado?: string | null
           fecha_publicacion?: string | null
+          firma_criminal?: string | null
           geocoding_confianza?: number | null
           geocoding_metodo?: string | null
           grupo_delictivo_atribuido?: string | null
           hashtags?: string[] | null
           hora_estimada?: number | null
           id?: string
+          indicadores_premeditacion?: string[] | null
           keywords_detectados?: string[] | null
           media_urls?: string[] | null
           menciones?: string[] | null
+          modus_operandi?: string | null
           monto_perdida_estimado?: number | null
           municipio?: string | null
+          nivel_organizacion?: string | null
           num_victimas?: number | null
+          objetivo_especifico?: string | null
           procesado?: boolean | null
           procesado_at?: string | null
           red_social: string
+          relevancia_score?: number | null
           resumen_ai?: string | null
           sentimiento?: string | null
           severidad?: string | null
@@ -7470,6 +7486,8 @@ export type Database = {
           ubicacion_texto_original?: string | null
           updated_at?: string | null
           url_publicacion?: string | null
+          vector_ataque?: string | null
+          zona_tipo?: string | null
         }
         Update: {
           apify_actor_id?: string | null
@@ -7478,6 +7496,7 @@ export type Database = {
           autor?: string | null
           carretera?: string | null
           confianza_clasificacion?: number | null
+          contexto_ambiental?: string | null
           coordenadas_lat?: number | null
           coordenadas_lng?: number | null
           created_at?: string | null
@@ -7490,21 +7509,27 @@ export type Database = {
           error_procesamiento?: string | null
           estado?: string | null
           fecha_publicacion?: string | null
+          firma_criminal?: string | null
           geocoding_confianza?: number | null
           geocoding_metodo?: string | null
           grupo_delictivo_atribuido?: string | null
           hashtags?: string[] | null
           hora_estimada?: number | null
           id?: string
+          indicadores_premeditacion?: string[] | null
           keywords_detectados?: string[] | null
           media_urls?: string[] | null
           menciones?: string[] | null
+          modus_operandi?: string | null
           monto_perdida_estimado?: number | null
           municipio?: string | null
+          nivel_organizacion?: string | null
           num_victimas?: number | null
+          objetivo_especifico?: string | null
           procesado?: boolean | null
           procesado_at?: string | null
           red_social?: string
+          relevancia_score?: number | null
           resumen_ai?: string | null
           sentimiento?: string | null
           severidad?: string | null
@@ -7516,6 +7541,8 @@ export type Database = {
           ubicacion_texto_original?: string | null
           updated_at?: string | null
           url_publicacion?: string | null
+          vector_ataque?: string | null
+          zona_tipo?: string | null
         }
         Relationships: []
       }
