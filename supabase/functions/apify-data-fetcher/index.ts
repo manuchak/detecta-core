@@ -45,58 +45,48 @@ const SEARCH_QUERIES = [
   'from:ABORDOMX',
 ];
 
-// ---------- web.harvester/easy-twitter-search-scraper ----------
-const webHarvesterSearchSchema: ActorSchema = {
+// ---------- scraper_one/x-posts-search (PAY PER EVENT, rating 5.0) ----------
+const scraperOneSchema: ActorSchema = {
   buildInput: (queries) => {
-    // Este actor acepta searchQueries para búsqueda por keywords
-    // Los handles se convierten a queries "from:handle"
-    const searchQueries: string[] = [];
-    for (const q of queries) {
-      if (q.startsWith('from:')) {
-        searchQueries.push(q); // "from:handle" funciona como query de búsqueda
-      } else {
-        searchQueries.push(q);
-      }
-    }
+    // Este actor acepta UN solo query string. Combinamos todo con OR.
+    // Los "from:handle" se incluyen directamente (Twitter search syntax)
+    const combinedQuery = queries.join(' OR ');
     return {
-      searchQueries,
-      tweetsDesired: 200,
-      includeUserInfo: true,
+      query: combinedQuery,
+      resultsCount: 200,
+      timeWindow: 7,
+      searchType: 'latest',
     };
   },
   parseItem: (item: any) => {
     if (item.noResults) return null;
-    const url = item.url || item.tweetUrl;
+    const url = item.postUrl || item.url;
     if (!url) return null;
+    // timestamp viene como epoch millis (1743097211000)
+    const createdAt = item.timestamp
+      ? new Date(item.timestamp).toISOString()
+      : new Date().toISOString();
     return {
       url,
-      text: item.text || '',
-      author: item.username?.replace('@', '') || item.user?.username || item.fullname || 'Desconocido',
-      createdAt: item.timestamp || item.createdAt || new Date().toISOString(),
-      likes: item.likes || 0,
-      shares: item.retweets || 0,
-      comments: item.replies || 0,
-      media: extractMediaUrls(item),
+      text: item.postText || item.text || '',
+      author: item.author?.screenName || item.author?.name || 'Desconocido',
+      createdAt,
+      likes: item.favouriteCount || item.likeCount || 0,
+      shares: item.repostCount || item.retweetCount || 0,
+      comments: item.replyCount || 0,
+      media: (item.media || []).map((m: any) => m.mediaUrlHttps || m.url || '').filter(Boolean),
       redSocial: 'twitter',
     };
   },
 };
 
-// ---------- web.harvester/twitter-scraper (perfiles) ----------
-const webHarvesterProfileSchema: ActorSchema = {
-  buildInput: (queries) => {
-    const handles: string[] = [];
-    for (const q of queries) {
-      if (q.startsWith('from:')) {
-        handles.push(q.replace('from:', '').trim());
-      }
-    }
-    return {
-      handles: handles.length > 0 ? handles : ['monitorcarrete1', 'GN_Carreteras'],
-      tweetsDesired: 200,
-      includeUserInfo: true,
-    };
-  },
+// ---------- web.harvester/easy-twitter-search-scraper ----------
+const webHarvesterSearchSchema: ActorSchema = {
+  buildInput: (queries) => ({
+    searchQueries: queries,
+    tweetsDesired: 200,
+    includeUserInfo: true,
+  }),
   parseItem: (item: any) => {
     if (item.noResults) return null;
     const url = item.url || item.tweetUrl;
@@ -146,7 +136,6 @@ const apidojoSchema: ActorSchema = {
   buildInput: (queries) => {
     const searchTerms: string[] = [];
     const twitterHandles: string[] = [];
-
     for (const q of queries) {
       if (q.startsWith('from:')) {
         twitterHandles.push(q.replace('from:', '').trim());
@@ -154,7 +143,6 @@ const apidojoSchema: ActorSchema = {
         searchTerms.push(q);
       }
     }
-
     return {
       searchTerms,
       twitterHandles,
@@ -198,12 +186,12 @@ const genericSchema: ActorSchema = {
     if (!url) return null;
     return {
       url,
-      text: item.text || item.caption || item.full_text || item.content || item.body || item.description || '',
-      author: item.author?.userName || item.author?.name || item.author?.username || item.user?.screen_name || item.user?.name || item.username || item.userName || 'Desconocido',
-      createdAt: item.createdAt || item.created_at || item.timestamp || new Date().toISOString(),
-      likes: item.likeCount || item.likes || item.favoriteCount || item.favorite_count || 0,
-      shares: item.retweetCount || item.shareCount || item.retweets || item.retweet_count || 0,
-      comments: item.replyCount || item.commentCount || item.replies || item.reply_count || 0,
+      text: item.text || item.postText || item.full_text || item.content || item.body || item.description || '',
+      author: item.author?.screenName || item.author?.userName || item.author?.name || item.user?.screen_name || item.username || 'Desconocido',
+      createdAt: item.createdAt || item.created_at || item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
+      likes: item.favouriteCount || item.likeCount || item.likes || 0,
+      shares: item.repostCount || item.retweetCount || item.retweets || 0,
+      comments: item.replyCount || item.commentCount || item.replies || 0,
       media: extractMediaUrls(item),
       redSocial: detectRedSocial(url, item),
     };
@@ -212,13 +200,13 @@ const genericSchema: ActorSchema = {
 
 function getActorSchema(actorId: string): ActorSchema {
   const id = actorId.toLowerCase();
+  if (id.includes('scraper_one') || id.includes('x-posts-search')) {
+    console.log('🔧 Usando schema: scraper_one/x-posts-search');
+    return scraperOneSchema;
+  }
   if (id.includes('easy-twitter-search-scraper') || (id.includes('web.harvester') && id.includes('search'))) {
     console.log('🔧 Usando schema: web.harvester/easy-twitter-search-scraper');
     return webHarvesterSearchSchema;
-  }
-  if (id.includes('web.harvester') && id.includes('twitter-scraper')) {
-    console.log('🔧 Usando schema: web.harvester/twitter-scraper (perfiles)');
-    return webHarvesterProfileSchema;
   }
   if (id.includes('quacker')) {
     console.log('🔧 Usando schema: quacker/twitter-scraper');
@@ -251,14 +239,14 @@ serve(async (req) => {
 
     // Obtener Actor ID con fallback
     const envActorId = Deno.env.get('APIFY_DEFAULT_ACTOR_ID');
-    let ACTOR_ID = actor_id || envActorId || 'web.harvester/easy-twitter-search-scraper';
+    let ACTOR_ID = actor_id || envActorId || 'scraper_one/x-posts-search';
 
     // Validar que el Actor ID no sea una URL
     if (ACTOR_ID.includes('http://') || ACTOR_ID.includes('https://')) {
       console.error(`❌ ACTOR_ID inválido (contiene URL): "${ACTOR_ID}"`);
       // Intentar extraer token para usarlo si APIFY_API_KEY falla
-      console.log('🔄 Usando fallback: web.harvester/easy-twitter-search-scraper');
-      ACTOR_ID = 'web.harvester/easy-twitter-search-scraper';
+      console.log('🔄 Usando fallback: scraper_one/x-posts-search');
+      ACTOR_ID = 'scraper_one/x-posts-search';
     }
 
     // Normalizar separadores: "/" → "~" para la API de Apify
