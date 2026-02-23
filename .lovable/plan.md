@@ -1,105 +1,92 @@
 
-# Fix: Custodio no puede crear tickets (statement timeout)
 
-## Problema
+# Insertar 52 servicios faltantes del 19 de febrero
 
-Al crear un ticket, se ejecutan 3 triggers BEFORE INSERT. Dos de ellos (`auto_assign_and_set_sla` y `get_least_loaded_agent`) corren como SECURITY INVOKER, lo que significa que usan los permisos RLS del custodio. Esto causa un problema en cadena:
+## Resumen
 
-1. `auto_assign_and_set_sla` llama a `get_least_loaded_agent`
-2. `get_least_loaded_agent` consulta la vista `v_ticket_agent_workload` que hace JOIN con `profiles`, `user_roles` y `tickets`
-3. El custodio tiene acceso RLS muy limitado a estas tablas (solo puede ver su propio perfil y sus propios tickets)
-4. El motor de PostgreSQL genera un plan de ejecucion ineficiente con las politicas RLS anidadas, causando **statement timeout**
+Del Excel con 57 registros, ya existen 5 en la BDD:
+- ALIKRHI-5, ALIKRHI-6, IFCOICM-199, ROEZSAG-1, TEOVTEL-776
 
-Los logs de la base de datos confirman errores repetidos de "canceling statement due to statement timeout".
+Se insertaran los 52 restantes en `servicios_custodia` usando el insert tool (no migracion, es data).
 
-## Solucion
+## Servicios a insertar
 
-### Migracion SQL: Cambiar funciones a SECURITY DEFINER
+Los 52 IDs faltantes incluyen:
+EMEDEME-250, EMEDEME-249, AIESATI-49, AIESATI-48, TEOVTEL-777, SADSSSM-38, SADSSSM-39, MUESMAA-16, MUESMAA-17, ASCAAST-1429, EI&PESL-5, FAEAFCA-230, EI&PESL-4, GTNSDPL-36, GTNSDPL-37, IMOSIEP-77, IMOSIEP-76, FAEAFCA-229, LOERLLO-304, LOERLLO-305, LOERLLO-300, LOERLLO-302, LOERLLO-301, LOERLLO-303, ENCOEME-488, LOERLLO-296, LOERLLO-298, SIGESOR-2, LOERLLO-299, ASCAAST-1428, LOERLLO-297, ASCAAST-1427, SIINSRH-744, ASCAAST-1426, ASCAAST-1421, ASCAAST-1425, ASCAAST-1424, ASCAAST-1420, ASCAAST-1423, ASCAAST-1422, YOCOYTM-276, SIINSRH-742, SIINSRH-743, MOTSMRS-536, IFCOICM-198, PROSPIQ-12, PROSPIQ-11, MOTSMRS-537, MOTSMRS-535, MOTSMRS-534, FAEAFCA-228, LUCOLLM-99
 
-Recrear las dos funciones con `SECURITY DEFINER` para que se ejecuten con permisos elevados del propietario de la funcion, permitiendoles consultar las tablas necesarias sin restricciones RLS:
+## Mapeo de columnas Excel -> DB
 
-```sql
--- 1. get_least_loaded_agent -> SECURITY DEFINER
-CREATE OR REPLACE FUNCTION get_least_loaded_agent(p_departamento VARCHAR)
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_agent_id UUID;
-BEGIN
-  SELECT agent_id INTO v_agent_id
-  FROM v_ticket_agent_workload
-  WHERE role IN (
-    CASE p_departamento
-      WHEN 'finanzas' THEN 'admin'
-      WHEN 'planeacion' THEN 'supply_admin'
-      WHEN 'instaladores' THEN 'supply_lead'
-      WHEN 'supply' THEN 'supply_admin'
-      ELSE 'soporte'
-    END,
-    'admin', 'owner'
-  )
-  ORDER BY tickets_activos ASC, avg_age_hours ASC
-  LIMIT 1;
-  
-  RETURN v_agent_id;
-END;
-$$;
+| Excel | DB Column |
+|-------|-----------|
+| Fecha y hora de cita | fecha_hora_cita |
+| ID del servicio | id_servicio |
+| Estado | estado |
+| Nombre del cliente | nombre_cliente |
+| Folio del cliente | folio_cliente |
+| Comentarios adicional | comentarios_adicionales |
+| Local/foraneo | local_foraneo |
+| Tipo de servicio | tipo_servicio |
+| Ruta | ruta |
+| Origen | origen |
+| Destino | destino |
+| Km teorico | km_teorico |
+| Gadget solicitado | gadget_solicitado |
+| Gadget | gadget |
+| Tipo de gadget | tipo_gadget |
+| Convoy | cantidad_transportes |
+| Nombre del operador transporte | nombre_operador_transporte |
+| Telefono del operador | telefono_operador |
+| Placa de la carga | placa_carga |
+| Tipo de unidad | tipo_unidad |
+| Tipo de carga | tipo_carga |
+| Nombre Operador adicional | nombre_operador_adicional |
+| Telefono Operador Adicional | telefono_operador_adicional |
+| Placa Carga (adicional) | placa_carga_adicional |
+| Tipo unidad (adicional) | tipo_unidad_adicional |
+| Tipo carga (Adicional) | tipo_carga_adicional |
+| Fecha y hora de asignacion | fecha_hora_asignacion |
+| ID Custodio | id_custodio |
+| Nombre de custodio | nombre_custodio |
+| Telefono | telefono |
+| Contacto de emergencia | contacto_emergencia |
+| Telefono de emergencia | telefono_emergencia |
+| Auto | auto |
+| Placa | placa |
+| Armado | armado |
+| Nombre Armado | nombre_armado |
+| Telefono Armado | telefono_armado |
+| Proveedor | proveedor |
+| Hora en punto origen | hora_presentacion |
+| Presentacion | presentacion |
+| Hora de inicio de custodia | hora_inicio_custodia |
+| Hora en punto destino | hora_arribo |
+| Hora fin de servicio | hora_finalizacion |
+| Duracion del servicio | duracion_servicio |
+| ID cotizacion | id_cotizacion |
+| Tiempo estimado | tiempo_estimado |
+| Km recorridos | km_recorridos |
+| km Extras | km_extras |
+| Costo de custodio | costo_custodio |
+| Casetas | casetas |
+| Cobro al cliente | cobro_cliente |
+| Updated time | updated_time |
+| Creado Via | creado_via |
+| Creado por | creado_por |
 
--- 2. auto_assign_and_set_sla -> SECURITY DEFINER
-CREATE OR REPLACE FUNCTION auto_assign_and_set_sla()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_agent_id UUID;
-  v_departamento VARCHAR;
-  v_sla_respuesta INTEGER;
-  v_sla_resolucion INTEGER;
-  v_sla_respuesta_date TIMESTAMP WITH TIME ZONE;
-  v_sla_resolucion_date TIMESTAMP WITH TIME ZONE;
-BEGIN
-  IF NEW.categoria_custodio_id IS NOT NULL THEN
-    SELECT departamento_responsable, sla_horas_respuesta, sla_horas_resolucion
-    INTO v_departamento, v_sla_respuesta, v_sla_resolucion
-    FROM ticket_categorias_custodio
-    WHERE id = NEW.categoria_custodio_id;
-  ELSE
-    v_departamento := 'soporte';
-    v_sla_respuesta := 24;
-    v_sla_resolucion := 72;
-  END IF;
-  
-  IF NEW.assigned_to IS NULL THEN
-    v_agent_id := get_least_loaded_agent(v_departamento);
-    IF v_agent_id IS NOT NULL THEN
-      NEW.assigned_to := v_agent_id;
-    END IF;
-  END IF;
-  
-  v_sla_respuesta_date := NEW.created_at + (v_sla_respuesta || ' hours')::INTERVAL;
-  v_sla_resolucion_date := NEW.created_at + (v_sla_resolucion || ' hours')::INTERVAL;
-  
-  WHILE EXTRACT(DOW FROM v_sla_respuesta_date) IN (0, 6) LOOP
-    v_sla_respuesta_date := v_sla_respuesta_date + INTERVAL '1 day';
-  END LOOP;
-  
-  WHILE EXTRACT(DOW FROM v_sla_resolucion_date) IN (0, 6) LOOP
-    v_sla_resolucion_date := v_sla_resolucion_date + INTERVAL '1 day';
-  END LOOP;
-  
-  NEW.fecha_sla_respuesta := COALESCE(NEW.fecha_sla_respuesta, v_sla_respuesta_date);
-  NEW.fecha_sla_resolucion := COALESCE(NEW.fecha_sla_resolucion, v_sla_resolucion_date);
-  
-  RETURN NEW;
-END;
-$$;
-```
+## Proceso
 
-### Sin cambios de codigo
+1. Ejecutar INSERTs en lotes de ~10 servicios usando el insert tool
+2. Manejar valores NaN como NULL para campos numericos
+3. Convertir "TRUE"/"FALSE" a texto para el campo armado
+4. Verificar conteo final con query de validacion
 
-El codigo del hook `useCustodianTicketsEnhanced.ts` y `MobileTicketWizard.tsx` esta correcto. El problema es exclusivamente de permisos en los triggers de la base de datos.
+## GMV esperado
+
+Los 52 servicios representan aproximadamente $398,806 MXN en cobro al cliente.
+
+## Impacto
+
+- Sin cambios de esquema (solo datos)
+- Sin cambios de codigo
+- Los dashboards y reportes reflejaran automaticamente los nuevos registros
+
