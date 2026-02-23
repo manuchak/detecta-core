@@ -5697,12 +5697,16 @@ export type Database = {
           created_at: string | null
           custodio_telefono: string
           fecha_emision: string | null
+          fecha_rechazo: string | null
           fecha_verificacion: string | null
           fecha_vigencia: string
           foto_url: string | null
           id: string
+          motivo_rechazo: string | null
           notas: string | null
           numero_documento: string | null
+          rechazado: boolean | null
+          rechazado_por: string | null
           tipo_documento: string
           updated_at: string | null
           verificado: boolean | null
@@ -5712,12 +5716,16 @@ export type Database = {
           created_at?: string | null
           custodio_telefono: string
           fecha_emision?: string | null
+          fecha_rechazo?: string | null
           fecha_verificacion?: string | null
           fecha_vigencia: string
           foto_url?: string | null
           id?: string
+          motivo_rechazo?: string | null
           notas?: string | null
           numero_documento?: string | null
+          rechazado?: boolean | null
+          rechazado_por?: string | null
           tipo_documento: string
           updated_at?: string | null
           verificado?: boolean | null
@@ -5727,12 +5735,16 @@ export type Database = {
           created_at?: string | null
           custodio_telefono?: string
           fecha_emision?: string | null
+          fecha_rechazo?: string | null
           fecha_verificacion?: string | null
           fecha_vigencia?: string
           foto_url?: string | null
           id?: string
+          motivo_rechazo?: string | null
           notas?: string | null
           numero_documento?: string | null
+          rechazado?: boolean | null
+          rechazado_por?: string | null
           tipo_documento?: string
           updated_at?: string | null
           verificado?: boolean | null
@@ -18543,12 +18555,16 @@ export type Database = {
           created_at: string | null
           custodio_telefono: string
           fecha_emision: string | null
+          fecha_rechazo: string | null
           fecha_verificacion: string | null
           fecha_vigencia: string
           foto_url: string | null
           id: string
+          motivo_rechazo: string | null
           notas: string | null
           numero_documento: string | null
+          rechazado: boolean | null
+          rechazado_por: string | null
           tipo_documento: string
           updated_at: string | null
           verificado: boolean | null

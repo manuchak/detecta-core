@@ -13,6 +13,10 @@ export interface CustodianDocument {
   verificado_por: string | null;
   fecha_verificacion: string | null;
   notas: string | null;
+  rechazado: boolean;
+  motivo_rechazo: string | null;
+  rechazado_por: string | null;
+  fecha_rechazo: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,7 +48,8 @@ export function useCustodianDocStats(telefono: string | null) {
   const stats = {
     total: documents?.length || 0,
     verificados: documents?.filter(d => d.verificado).length || 0,
-    pendientes: documents?.filter(d => !d.verificado).length || 0,
+    pendientes: documents?.filter(d => !d.verificado && !d.rechazado).length || 0,
+    rechazados: documents?.filter(d => d.rechazado).length || 0,
     porVencer: documents?.filter(d => {
       if (!d.fecha_vigencia) return false;
       const vencimiento = new Date(d.fecha_vigencia);
