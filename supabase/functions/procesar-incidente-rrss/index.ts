@@ -121,6 +121,8 @@ serve(async (req) => {
         num_victimas: aiAnalysis.num_victimas,
         armas_mencionadas: aiAnalysis.armas_mencionadas,
         grupo_delictivo_atribuido: aiAnalysis.grupo_delictivo,
+        hora_estimada: aiAnalysis.hora_estimada ?? null,
+        dia_semana_estimado: aiAnalysis.dia_semana_estimado ?? null,
         procesado: true,
         procesado_at: new Date().toISOString()
       })
@@ -254,7 +256,9 @@ Extrae información estructurada siguiendo estas reglas:
                 empresa: { type: "string", description: "Empresa afectada si se menciona" },
                 num_victimas: { type: "integer", description: "Número de víctimas" },
                 armas_mencionadas: { type: "boolean" },
-                grupo_delictivo: { type: "string", description: "Grupo delictivo atribuido" }
+                grupo_delictivo: { type: "string", description: "Grupo delictivo atribuido" },
+                hora_estimada: { type: "integer", description: "Hora estimada del incidente (0-23). Extraer del texto si se menciona hora, madrugada=3, mañana=9, tarde=15, noche=21" },
+                dia_semana_estimado: { type: "integer", description: "Día de la semana estimado (0=domingo, 6=sábado). Extraer si se menciona día" }
               },
               required: ["tipo_incidente", "severidad", "keywords", "confianza", "resumen"]
             }
