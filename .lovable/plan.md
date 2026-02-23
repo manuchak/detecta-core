@@ -1,61 +1,58 @@
 
-# Fix: Apify `apidojo/tweet-scraper` Input Schema
 
-## Problema Confirmado
+# Plan: Cambiar a Actor de Twitter Confiable
 
-Segun la documentacion oficial del actor `apidojo/tweet-scraper`, el input actual es **incorrecto**. El codigo envia `startUrls` con URLs de busqueda de Twitter construidas manualmente, pero el actor espera campos separados:
+## Diagnostico Final
 
-| Campo actual (incorrecto) | Campo correcto (documentacion) |
-|---|---|
-| `startUrls: [{url: "https://twitter.com/search?q=..."}]` | `searchTerms: ["robo trailer", "bloqueo"]` |
-| (no enviado) | `twitterHandles: ["monitorcarrete1", "GN_Carreteras"]` |
-| (no enviado) | `sort: "Latest"` |
-| (no enviado) | `tweetLanguage: "es"` |
-| (no enviado) | `includeSearchTerms: true` |
+El actor `apidojo/tweet-scraper` retorna `{"noResults": true}` para TODAS las busquedas, a pesar de que nuestro codigo envia el input correcto. Esto se confirma en los logs de la Edge Function:
 
-El actor al recibir URLs de busqueda que ya no funcionan en Twitter/X, retorna `{"noResults": true}` o datos demo.
+- Input enviado: `searchTerms` + `twitterHandles` (formato correcto segun documentacion)
+- Output recibido: `Keys: ["noResults"]` -- el actor no logra conectarse a Twitter/X
+- Todas las ejecuciones: exactamente 10 items vacios en 2-3 segundos = datos placeholder
+- Tu saldo de Apify esta disponible ($4.20 restantes), no es un problema de creditos
 
-## Solucion
+## Solucion Propuesta
 
-### Cambio en `supabase/functions/apify-data-fetcher/index.ts`
+Cambiar al actor **`web.harvester/twitter-scraper`** que tiene mejor calificacion (4.9 vs 4.4), 7.1K usuarios activos, y es mantenido activamente. Tambien agregar soporte para probar rapidamente multiples actores.
 
-Refactorizar `apidojoSchema.buildInput` para usar los campos correctos segun la documentacion oficial:
+### Cambios en `supabase/functions/apify-data-fetcher/index.ts`
+
+1. **Agregar schema para `web.harvester/twitter-scraper`**: Nuevo schema con su formato de input/output especifico
+2. **Cambiar el fallback default**: De `quacker/twitter-scraper` (deprecated) a `web.harvester/twitter-scraper`
+3. **Mejorar `getActorSchema`**: Agregar deteccion del nuevo actor
+4. **Agregar `customMapFunction`** al schema de apidojo como respaldo (la documentacion oficial lo incluye)
+
+### Actualizacion del Secret
+
+- Actualizar `APIFY_DEFAULT_ACTOR_ID` de `apidojo/tweet-scraper` a `web.harvester/twitter-scraper`
+
+### Validacion
+
+- Desplegar la Edge Function actualizada
+- Ejecutar con `force_run: true` usando el nuevo actor
+- Verificar que los items retornados contengan tweets reales (no `noResults`)
+
+## Detalle Tecnico
 
 ```text
-ANTES (incorrecto):
-  startUrls: [
-    {url: "https://twitter.com/search?q=robo+trailer..."},
-    ...
-  ]
+ANTES:
+  Actor: apidojo/tweet-scraper
+  Resultado: {"noResults": true} x 10 items (datos vacios)
 
-DESPUES (correcto segun docs):
-  searchTerms: ["robo trailer OR robo camion", "bloqueo carretera", ...],
-  twitterHandles: ["monitorcarrete1", "jaliscorojo", "GN_Carreteras", ...],
-  maxItems: 200,
-  sort: "Latest",
-  tweetLanguage: "es",
-  includeSearchTerms: true
+DESPUES:
+  Actor: web.harvester/twitter-scraper (4.9 rating, mantenido activamente)
+  Schema de input adaptado a su documentacion
+  Fallback: apidojo/tweet-scraper como respaldo secundario
 ```
 
-### Logica de separacion de queries
+### Nuevo schema (web.harvester):
 
-Las queries que contienen `from:usuario` se extraeran automaticamente al array `twitterHandles` (sin el prefijo `from:`). Las demas van a `searchTerms` como strings planos.
+El actor `web.harvester/twitter-scraper` usa un input diferente que se investigara de su documentacion al momento de implementar. Se agregara como nuevo schema en el registro de actores.
 
-### Campos de la documentacion oficial utilizados
-
-- **searchTerms** (array): Terminos de busqueda como strings
-- **twitterHandles** (array): Handles de Twitter sin @
-- **maxItems** (integer): Maximo de resultados (200)
-- **sort** (string): "Latest" para tweets recientes
-- **tweetLanguage** (string): "es" para espanol
-- **includeSearchTerms** (boolean): true para saber que query genero cada tweet
-
-### Sin cambios necesarios en el parser
-
-El `parseItem` del `apidojoSchema` ya contempla los campos de salida correctos (`full_text`, `user.screen_name`, `created_at`, `favorite_count`, `retweet_count`). Solo necesita el fix del input.
-
-## Archivo a modificar
+### Archivos a modificar
 
 | Archivo | Cambio |
-|---|---|
-| `supabase/functions/apify-data-fetcher/index.ts` | Reemplazar `apidojoSchema.buildInput` (lineas 73-80) para usar `searchTerms` + `twitterHandles` en lugar de `startUrls`. Tambien limpiar `SEARCH_QUERIES` para separar handles de busquedas. |
+|---------|--------|
+| `supabase/functions/apify-data-fetcher/index.ts` | Agregar schema `webHarvesterSchema`, actualizar `getActorSchema`, cambiar fallback default |
+| Secret `APIFY_DEFAULT_ACTOR_ID` | Actualizar a `web.harvester/twitter-scraper` |
+
