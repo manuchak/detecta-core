@@ -38,9 +38,12 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
   
   // Verificar documentos vencidos
   const expiredDocs = getExpiredDocuments();
+
+  // Verificar documentos rechazados
+  const rejectedDocs = documents.filter(d => (d as any).rechazado === true);
   
-  // Solo puede proceder si tiene todos los documentos Y ninguno vencido
-  const canProceed = missingDocs.length === 0 && expiredDocs.length === 0;
+  // Solo puede proceder si tiene todos los documentos, ninguno vencido, y ninguno rechazado
+  const canProceed = missingDocs.length === 0 && expiredDocs.length === 0 && rejectedDocs.length === 0;
  
   const handleUpload = async () => {
     console.log('[StepDocuments] Iniciando upload:', { 
@@ -101,7 +104,14 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
        </div>
  
         {/* Status summary */}
-        {missingDocs.length > 0 ? (
+        {rejectedDocs.length > 0 ? (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+            <p className="text-sm text-destructive">
+              Tienes {rejectedDocs.length} documento(s) rechazado(s). Revisa el motivo y vuelve a subir.
+            </p>
+          </div>
+        ) : missingDocs.length > 0 ? (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
             <p className="text-sm text-amber-700 dark:text-amber-400">
