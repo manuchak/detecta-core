@@ -19,6 +19,10 @@ const SEARCH_QUERIES = [
   'site:elfinanciero.com.mx robo transporte carga carretera Mexico',
   '"secretariado ejecutivo" robo transporte OR "incidencia delictiva" carretera',
   '"alerta vial" OR "cierre carretero" OR "peligro carretera" transporte carga Mexico',
+  // Narcobloqueos y violencia regional
+  '"narcobloqueo" OR "narco bloqueo" Jalisco OR Michoacan OR Tamaulipas OR Guanajuato',
+  '"quema vehiculos" OR "jornada violencia" OR "quema de vehiculos" carretera Mexico',
+  '"cierre autopista" OR "cierre carretera" OR "paro transportistas" Mexico',
 ];
 
 function detectRedSocial(url: string): string {

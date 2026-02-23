@@ -35,7 +35,10 @@ export interface IncidenteRRSS {
 export const useIncidentesRRSS = (filtros?: {
   tipo?: string;
   estado?: string;
+  estado_geografico?: string;
+  carretera?: string;
   dias_atras?: number;
+  horas_atras?: number;
   solo_geocodificados?: boolean;
 }) => {
   return useQuery({
@@ -53,7 +56,17 @@ export const useIncidentesRRSS = (filtros?: {
       if (filtros?.estado) {
         query = query.eq('estado', filtros.estado);
       }
-      if (filtros?.dias_atras) {
+      if (filtros?.estado_geografico) {
+        query = query.ilike('estado', `%${filtros.estado_geografico}%`);
+      }
+      if (filtros?.carretera) {
+        query = query.ilike('carretera', `%${filtros.carretera}%`);
+      }
+      if (filtros?.horas_atras) {
+        const fecha = new Date();
+        fecha.setHours(fecha.getHours() - filtros.horas_atras);
+        query = query.gte('fecha_publicacion', fecha.toISOString());
+      } else if (filtros?.dias_atras) {
         const fecha = new Date();
         fecha.setDate(fecha.getDate() - filtros.dias_atras);
         query = query.gte('fecha_publicacion', fecha.toISOString());
@@ -65,6 +78,46 @@ export const useIncidentesRRSS = (filtros?: {
       const { data, error } = await query;
       if (error) throw error;
       return data as IncidenteRRSS[];
+    }
+  });
+};
+
+// Hook para incidentes activos (últimas 4 horas) - usado por el banner
+export const useIncidentesActivos = () => {
+  return useQuery({
+    queryKey: ['incidentes-activos-4h'],
+    queryFn: async () => {
+      const hace4h = new Date();
+      hace4h.setHours(hace4h.getHours() - 4);
+
+      const { data, error } = await supabase
+        .from('incidentes_rrss')
+        .select('*')
+        .eq('procesado', true)
+        .gte('fecha_publicacion', hace4h.toISOString())
+        .order('fecha_publicacion', { ascending: false });
+
+      if (error) throw error;
+      return data as IncidenteRRSS[];
+    },
+    refetchInterval: 60000, // Refrescar cada minuto
+  });
+};
+
+// Hook para obtener carreteras únicas de la BD
+export const useCarreterasDisponibles = () => {
+  return useQuery({
+    queryKey: ['carreteras-disponibles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('incidentes_rrss')
+        .select('carretera')
+        .eq('procesado', true)
+        .not('carretera', 'is', null);
+
+      if (error) throw error;
+      const unique = [...new Set((data || []).map((d: any) => d.carretera).filter(Boolean))];
+      return unique.sort() as string[];
     }
   });
 };
