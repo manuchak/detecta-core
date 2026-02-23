@@ -1,101 +1,150 @@
 
 
-# Rediseno de Ficha de Incidente para Stakeholder de Seguridad
+# Evaluacion como Product Owner: Pipeline de Inteligencia para Head de Seguridad
 
-## Problemas Detectados
+## User Persona: Head de Seguridad / Director de Operaciones de Custodia
 
-### 1. Fecha incorrecta (critico)
-La ficha muestra **"23 feb 2026 14:20"** (fecha de scraping) pero el contenido real tiene fechas como **"2026-02-20"** y **"2026-01-18"**. Aunque ya implementamos extraccion de fecha de metadatos, este registro entro antes del fix o los metadatos no tenian fecha. Ademas, el contenido es una **pagina indice del gobierno** (no un incidente real) -- lo que confirma que el filtro AI de calidad aun no descarto este tipo de contenido.
-
-### 2. Contenido basura (critico)
-El "Texto Original" muestra HTML sin limpiar: breadcrumbs (`[Inicio](https://...)`), controles de fuente (`Aa+Aa-`), navegacion del sitio. Esto no es util para un Head de Seguridad. El scraper esta almacenando paginas indice completas en lugar de articulos especificos.
-
-### 3. "sin clasificar" + "baja" = fallo del pipeline AI
-Esta ficha no fue clasificada ni enriquecida -- no tiene modus operandi, firma criminal, ni analisis criminologico. Un stakeholder de seguridad veria esto como ruido.
-
-### 4. Panel de detalle insuficiente para un Head de Seguridad
-El panel expandido actual solo muestra:
-- Texto original (crudo)
-- Keywords
-- Autor
-- Engagement (likes/shares/comments)
-
-**Falta completamente** la inteligencia criminologica que ya esta en la base de datos:
-- Modus operandi
-- Firma criminal
-- Nivel de organizacion
-- Vector de ataque
-- Objetivo especifico
-- Indicadores de premeditacion
-- Zona tipo
-- Contexto ambiental
-- Relevancia score
+**Necesidad principal del dia:** "Hoy hay bloqueos en Jalisco y Michoacan. Necesito saber en 30 segundos si autorizo o no los movimientos programados en esos corredores."
 
 ---
 
-## Solucion
+## Evaluacion del Estado Actual: GAPS CRITICOS
 
-### Parte 1: Rediseno completo del panel de detalle expandido
+### GAP 1: No se puede filtrar por entidad federativa (BLOQUEANTE)
 
-Convertir el area expandible de una simple seccion de texto a una **ficha de inteligencia estructurada** con secciones claras:
+El filtro "Estado" en la pagina NO filtra por estado geografico (Jalisco, Michoacan). Filtra por **estado del registro** (nuevo, validado, descartado). Un Head de Seguridad que quiere ver "todo lo de Jalisco hoy" no puede hacerlo.
 
+- **Hook:** `useIncidentesRRSS` filtra `estado` contra el campo de estado del registro, no contra la columna `estado` geografico (que si existe en la BD)
+- **Page:** `ESTADOS_INCIDENTE` lista "Nuevo", "Validado", "Descartado" -- no entidades federativas
+
+### GAP 2: No hay filtro temporal adecuado para operacion del dia
+
+El unico filtro temporal es "Dias hacia atras" con un input numerico (default 30 dias). Un Head de Seguridad necesita presets rapidos:
+- "Ultimas 4 horas" (situacion activa)
+- "Hoy" (briefing matutino)
+- "Ultimas 24h" (turno)
+- "Esta semana"
+
+30 dias de datos es ruido para una decision operativa del dia.
+
+### GAP 3: No hay banner de situacion activa
+
+Cuando hay bloqueos AHORA MISMO, la pagina muestra una tabla plana sin urgencia visual. No hay:
+- Alerta prominente tipo "3 BLOQUEOS ACTIVOS EN JALISCO - hace 23 min"
+- Indicador de "situacion activa" vs "historico"
+- Conteo de eventos criticos de las ultimas horas
+
+### GAP 4: No hay conexion "incidente -> decision de ruta"
+
+La pagina muestra incidentes como fichas informativas pero no responde la pregunta operativa: "Esto afecta mis rutas programadas?" No hay:
+- Filtro por corredor/carretera especifica
+- Indicador de "afecta X servicios programados"
+- Boton de "No autorizar movimientos en este corredor"
+
+### GAP 5: Queries de scraping no cubren el vocabulario real
+
+Los bloqueos de Jalisco/Michoacan se reportan como "narcobloqueo", "quema de vehiculos", "jornada de violencia". Estos terminos no estan en los 12 queries actuales.
+
+### GAP 6: El mapa sigue como placeholder "Fase 2"
+
+Para un Head de Seguridad, un mapa con los incidentes de HOY geocodificados es la herramienta numero uno de decision. Sigue siendo un div gris.
+
+### GAP 7: Filtro de "Estado" del registro esta mal nombrado
+
+El label dice "Estado" pero filtra por estatus del registro. Esto confunde al usuario que piensa que filtrara por entidad federativa.
+
+---
+
+## Plan de Implementacion: Pagina de Decision Operativa
+
+### Cambio 1: Panel de Situacion Activa (hero banner)
+
+Agregar un componente `ActiveSituationBanner` al tope de la pagina que muestre:
+- Conteo de incidentes criticos de las ultimas 4 horas
+- Las entidades federativas mas afectadas
+- Tipo de incidente predominante
+- Timestamp de ultima actualizacion
+- Color: rojo si hay criticos, ambar si solo media, verde si limpio
+
+**Archivo nuevo:** `src/components/incidentes/ActiveSituationBanner.tsx`
+
+### Cambio 2: Filtros rediseñados para operacion
+
+Reemplazar la seccion de filtros con presets operativos:
+
+- **Temporalidad:** Botones rapidos "4h", "Hoy", "24h", "7d", "30d" (en lugar de solo input numerico)
+- **Entidad Federativa:** Dropdown con los 32 estados de Mexico (filtrando contra la columna `estado` geografico de la BD)
+- **Carretera/Corredor:** Dropdown con las carreteras detectadas en la BD
+- Renombrar el filtro actual de "Estado" a "Estatus del registro"
+
+**Archivos:**
+- `src/pages/Incidentes/IncidentesRRSSPage.tsx` - Rediseno de filtros
+- `src/hooks/useIncidentesRRSS.ts` - Agregar filtros `estado_geografico` y `carretera`, y nuevo parametro `horas_atras` como alternativa a `dias_atras`
+
+### Cambio 3: Mapa de incidentes activos
+
+Reemplazar el placeholder "Fase 2" con un mapa Mapbox real que muestre los incidentes geocodificados del periodo filtrado, con:
+- Marcadores coloreados por severidad
+- Popup con resumen AI al hacer click
+- Cluster para zonas con multiples incidentes
+
+**Archivo nuevo:** `src/components/incidentes/IncidentesMap.tsx`
+**Modificar:** `src/pages/Incidentes/IncidentesRRSSPage.tsx`
+
+### Cambio 4: Queries de scraping ampliados
+
+Agregar al array `SEARCH_QUERIES`:
 ```
-+-------------------------------------------------------+
-| RESUMEN AI                                             |
-| "Robo de carga en autopista Mexico-Queretaro..."       |
-+---------------------------+---------------------------+
-| ANALISIS CRIMINOLOGICO    | CONTEXTO GEOGRAFICO       |
-| Modus Operandi: ...       | Zona: carretera_abierta   |
-| Firma Criminal: ...       | Municipio: ...             |
-| Nivel Org: [badge color]  | Carretera: ...             |
-| Vector Ataque: ...        | Contexto Ambiental: ...    |
-| Objetivo: ...             | Coords: [GPS badge]        |
-+---------------------------+---------------------------+
-| INDICADORES PREMEDITACION | RELEVANCIA                |
-| [badge] [badge] [badge]   | Score: 85/100 [progress]  |
-+---------------------------+---------------------------+
-| TEXTO ORIGINAL (colapsable, secundario)                |
-+-------------------------------------------------------+
+"narcobloqueo" OR "narco bloqueo" Jalisco OR Michoacan OR Mexico
+"quema vehiculos" OR "jornada violencia" carretera Mexico
+"cierre autopista" OR "cierre carretera" OR "paro transportistas" Mexico
 ```
 
-- El resumen AI va primero y prominente (es lo que lee un director)
-- Los campos criminologicos se muestran en grid de 2 columnas
-- El texto original pasa a ser secundario, colapsable
-- Nivel de organizacion usa badge con color (rojo=crimen organizado, naranja=celula local, verde=oportunista)
-- Relevancia score se muestra como barra de progreso
-- Indicadores de premeditacion como badges
+**Archivo:** `supabase/functions/firecrawl-incident-search/index.ts`
 
-### Parte 2: Limpieza visual del texto original
+### Cambio 5: Indicador de corredores afectados
 
-Aplicar una funcion de sanitizacion al texto antes de mostrarlo:
-- Eliminar patrones de navegacion web (`[text](url)` markdown links)
-- Eliminar controles de UI (`Aa+Aa-`)
-- Eliminar breadcrumbs numerados (`1. [Inicio]...`)
-- Truncar a los primeros 500 caracteres con "ver mas"
+Agregar un componente compacto que cruce los incidentes activos con los corredores de `HIGHWAY_CORRIDORS` y muestre: "Corredores afectados ahora: Mexico-Guadalajara (2 bloqueos), Morelia-Lazaro Cardenas (1 asalto)"
 
-### Parte 3: Indicador visual de calidad en la fila principal
-
-Agregar a la fila de la tabla:
-- Badge de relevancia score (color segun rango)
-- Icono de alerta si `relevancia_score < 40` para que el usuario sepa que es contenido de baja calidad
+**Archivo nuevo:** `src/components/incidentes/AffectedCorridors.tsx`
 
 ---
 
 ## Detalle tecnico
 
-### Archivo a modificar
+### Archivos a crear
+
+| Archivo | Descripcion |
+|---------|-------------|
+| `src/components/incidentes/ActiveSituationBanner.tsx` | Banner de situacion activa con conteos de ultimas 4h |
+| `src/components/incidentes/IncidentesMap.tsx` | Mapa Mapbox con incidentes geocodificados |
+| `src/components/incidentes/AffectedCorridors.tsx` | Panel de corredores con incidentes activos cruzado con highway segments |
+
+### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/incidentes/IncidentesTable.tsx` | Rediseno completo del `CollapsibleContent` con grid de inteligencia criminologica, funcion de limpieza de texto, badge de relevancia en fila principal |
+| `src/pages/Incidentes/IncidentesRRSSPage.tsx` | Layout: banner arriba, filtros con presets temporales + estado geografico + carretera, mapa real, panel de corredores afectados |
+| `src/hooks/useIncidentesRRSS.ts` | Agregar filtros `estado_geografico`, `carretera`, `horas_atras`; nuevo hook `useIncidentesActivos` para ultimas 4h |
+| `supabase/functions/firecrawl-incident-search/index.ts` | 3 queries adicionales con vocabulario de narcobloqueos y cierres |
 
-### Cambios especificos en IncidentesTable.tsx
+### Layout resultante de la pagina
 
-1. **Funcion `sanitizarTexto(texto)`**: Limpia markdown links, breadcrumbs, controles UI del texto scraped
-2. **Fila principal (lineas 80-143)**: Agregar columna de relevancia score con badge coloreado
-3. **Panel expandido (lineas 144-180)**: Reemplazar completamente con layout de ficha de inteligencia:
-   - Seccion superior: Resumen AI destacado
-   - Grid 2 columnas: Analisis Criminologico | Contexto Geografico
-   - Seccion inferior: Indicadores de premeditacion + Texto original colapsable
-4. **Header de tabla (lineas 64-74)**: Agregar columna "Relevancia"
+```text
++-------------------------------------------------------+
+| [!] SITUACION ACTIVA: 3 incidentes criticos (4h)      |
+| Jalisco (2) · Michoacan (1) · Tipo: Bloqueo carretera |
++-------------------------------------------------------+
+| Filtros: [4h] [Hoy] [24h] [7d] [30d]                 |
+| Estado: [Jalisco v] Carretera: [Todas v] Tipo: [...v] |
++-------------------------------------------------------+
+| Corredores Afectados                                   |
+| Mexico-Guadalajara: 2 bloqueos | Morelia-LC: 1 asalto |
++---------------------------+---------------------------+
+| Mapa de Incidentes        | Stats / Charts            |
+| [Mapbox con marcadores]   | [Cards de stats]          |
++---------------------------+---------------------------+
+| Tabla de Incidentes (ficha de inteligencia expandible) |
++-------------------------------------------------------+
+```
 
