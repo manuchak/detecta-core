@@ -6,6 +6,142 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================
+// ACTOR SCHEMA REGISTRY
+// Maps known Apify actors to their input schema and result parser
+// ============================================================
+
+interface ActorSchema {
+  buildInput: (searchQueries: string[]) => Record<string, unknown>;
+  parseItem: (item: Record<string, unknown>) => ParsedTweet | null;
+}
+
+interface ParsedTweet {
+  url: string;
+  text: string;
+  author: string;
+  createdAt: string;
+  likes: number;
+  shares: number;
+  comments: number;
+  media: string[];
+  redSocial: string;
+}
+
+const SEARCH_QUERIES = [
+  'robo tráiler OR robo camión OR robo tractocamión',
+  'roban carga OR roban mercancía',
+  'ordeña OR robo combustible OR robo diésel',
+  'asalto transportista OR asaltan chofer',
+  'bloqueo carretera OR bloqueo autopista',
+  'secuestro operador OR secuestro chofer',
+  'accidente tráiler OR volcadura',
+  '#AlertaCarretera OR #SeguridadVial',
+  // Fuentes especializadas en inteligencia carretera
+  'from:monitorcarrete1 bloqueo OR cierre OR accidente OR asalto',
+  'from:jaliscorojo OR from:mimorelia bloqueo OR narcobloqueo OR cierre',
+  'from:GN_Carreteras OR from:ABORDOMX alerta OR cierre OR bloqueo',
+];
+
+// ---------- quacker/twitter-scraper ----------
+const quackerSchema: ActorSchema = {
+  buildInput: (queries) => ({
+    searchTerms: queries,
+    maxTweets: 100,
+    tweetLanguage: 'es',
+    addUserInfo: true,
+    scrapeTweetReplies: false,
+  }),
+  parseItem: (item: any) => {
+    const url = item.url || item.tweetUrl || item.link;
+    if (!url || item.noResults) return null;
+    return {
+      url,
+      text: item.text || item.full_text || item.content || '',
+      author: item.author?.userName || item.author?.name || item.username || item.user?.screen_name || 'Desconocido',
+      createdAt: item.createdAt || item.created_at || item.timestamp || new Date().toISOString(),
+      likes: item.likeCount || item.likes || item.favoriteCount || 0,
+      shares: item.retweetCount || item.shareCount || item.retweets || 0,
+      comments: item.replyCount || item.commentCount || item.replies || 0,
+      media: extractMediaUrls(item),
+      redSocial: 'twitter',
+    };
+  },
+};
+
+// ---------- apidojo~tweet-scraper ----------
+const apidojoSchema: ActorSchema = {
+  buildInput: (queries) => ({
+    startUrls: queries.map((q) => ({
+      url: `https://twitter.com/search?q=${encodeURIComponent(q)}&src=typed_query&f=live`,
+    })),
+    maxItems: 100,
+    customMapFunction: '(object) => { return {...object} }',
+  }),
+  parseItem: (item: any) => {
+    if (item.noResults) return null;
+    const url = item.url || item.tweetUrl || item.link;
+    if (!url) return null;
+    return {
+      url,
+      text: item.full_text || item.text || item.content || '',
+      author: item.user?.screen_name || item.user?.name || item.username || 'Desconocido',
+      createdAt: item.created_at || item.createdAt || item.timestamp || new Date().toISOString(),
+      likes: item.favorite_count || item.likeCount || 0,
+      shares: item.retweet_count || item.retweetCount || 0,
+      comments: item.reply_count || item.replyCount || 0,
+      media: extractMediaUrls(item),
+      redSocial: 'twitter',
+    };
+  },
+};
+
+// ---------- Generic / unknown actor fallback ----------
+const genericSchema: ActorSchema = {
+  buildInput: (queries) => ({
+    search: queries.join(' OR '),
+    searchTerms: queries,
+    maxTweets: 100,
+    maxItems: 100,
+    language: 'es',
+    country: 'MX',
+  }),
+  parseItem: (item: any) => {
+    if (item.noResults) return null;
+    const url = item.url || item.postUrl || item.tweetUrl || item.twitterUrl || item.link || item.permalink;
+    if (!url) return null;
+    return {
+      url,
+      text: item.text || item.caption || item.full_text || item.content || item.body || item.description || '',
+      author: item.author?.userName || item.author?.name || item.author?.username || item.user?.screen_name || item.user?.name || item.username || item.userName || 'Desconocido',
+      createdAt: item.createdAt || item.created_at || item.timestamp || new Date().toISOString(),
+      likes: item.likeCount || item.likes || item.favoriteCount || item.favorite_count || 0,
+      shares: item.retweetCount || item.shareCount || item.retweets || item.retweet_count || 0,
+      comments: item.replyCount || item.commentCount || item.replies || item.reply_count || 0,
+      media: extractMediaUrls(item),
+      redSocial: detectRedSocial(url, item),
+    };
+  },
+};
+
+function getActorSchema(actorId: string): ActorSchema {
+  const id = actorId.toLowerCase();
+  if (id.includes('quacker') || id.includes('twitter-scraper') && id.includes('quacker')) {
+    console.log('🔧 Usando schema: quacker/twitter-scraper');
+    return quackerSchema;
+  }
+  if (id.includes('apidojo') || id.includes('tweet-scraper') && id.includes('apidojo')) {
+    console.log('🔧 Usando schema: apidojo~tweet-scraper');
+    return apidojoSchema;
+  }
+  console.log('🔧 Usando schema: genérico (actor desconocido)');
+  return genericSchema;
+}
+
+// ============================================================
+// MAIN HANDLER
+// ============================================================
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -18,83 +154,69 @@ serve(async (req) => {
     }
 
     const { actor_id, force_run = false } = await req.json().catch(() => ({}));
-    
-    // Obtener Actor ID con fallback por defecto
+
+    // Obtener Actor ID con fallback
     const envActorId = Deno.env.get('APIFY_DEFAULT_ACTOR_ID');
-    let ACTOR_ID = actor_id || envActorId || 'apidojo~tweet-scraper';
-    
-    // Validar que el Actor ID no sea una URL (error común de configuración)
+    let ACTOR_ID = actor_id || envActorId || 'quacker/twitter-scraper';
+
+    // Validar que el Actor ID no sea una URL
     if (ACTOR_ID.includes('http://') || ACTOR_ID.includes('https://')) {
       console.error(`❌ ACTOR_ID inválido (contiene URL): "${ACTOR_ID}"`);
-      console.log('🔄 Usando fallback: apidojo~tweet-scraper');
-      ACTOR_ID = 'apidojo~tweet-scraper';
-    }
-    
-    // Validar formato correcto (username~actor-name)
-    if (!ACTOR_ID.includes('~') && !ACTOR_ID.includes('/')) {
-      console.warn(`⚠️ ACTOR_ID podría tener formato incorrecto: "${ACTOR_ID}"`);
+      // Intentar extraer token para usarlo si APIFY_API_KEY falla
+      console.log('🔄 Usando fallback: quacker/twitter-scraper');
+      ACTOR_ID = 'quacker/twitter-scraper';
     }
 
+    // Normalizar separadores: "/" → "~" para la API de Apify
+    const ACTOR_ID_API = ACTOR_ID.replace('/', '~');
+
     console.log(`🔄 Iniciando fetch de Apify Actor: ${ACTOR_ID}`);
-    console.log(`📡 Env APIFY_DEFAULT_ACTOR_ID: ${envActorId ? envActorId.substring(0, 20) + '...' : 'no configurado'}`);
+    console.log(`📡 Env APIFY_DEFAULT_ACTOR_ID: ${envActorId ? envActorId.substring(0, 30) + '...' : 'no configurado'}`);
+
+    // Seleccionar schema correcto
+    const schema = getActorSchema(ACTOR_ID);
 
     let datasetId: string;
 
     if (force_run) {
-      console.log('🚀 Ejecutando Actor...');
+      const inputBody = schema.buildInput(SEARCH_QUERIES);
+      console.log('🚀 Ejecutando Actor con input:', JSON.stringify(inputBody).substring(0, 500));
+
       const runResponse = await fetch(
-        `https://api.apify.com/v2/acts/${ACTOR_ID}/runs?token=${APIFY_API_KEY}`,
+        `https://api.apify.com/v2/acts/${ACTOR_ID_API}/runs?token=${APIFY_API_KEY}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            search: [
-              'robo tráiler OR robo camión OR robo tractocamión',
-              'roban carga OR roban mercancía',
-              'ordeña OR robo combustible OR robo diésel',
-              'asalto transportista OR asaltan chofer',
-              'bloqueo carretera OR bloqueo autopista',
-              'secuestro operador OR secuestro chofer',
-              'accidente tráiler OR volcadura',
-              'robo autopartes camión',
-              '#AlertaCarretera OR #SeguridadVial',
-              // Fuentes especializadas en inteligencia carretera
-              'from:monitorcarrete1 bloqueo OR cierre OR accidente OR asalto',
-              'from:jaliscorojo OR from:mimorelia bloqueo OR narcobloqueo OR cierre',
-              'from:GN_Carreteras OR from:ABORDOMX alerta OR cierre OR bloqueo'
-            ].join(' OR '),
-            maxTweets: 100,
-            language: 'es',
-            country: 'MX'
-          })
+          body: JSON.stringify(inputBody),
         }
       );
 
       if (!runResponse.ok) {
-        throw new Error(`Error ejecutando Actor: ${runResponse.statusText}`);
+        const errorBody = await runResponse.text();
+        console.error(`❌ Error ejecutando Actor (${runResponse.status}): ${errorBody.substring(0, 500)}`);
+        throw new Error(`Error ejecutando Actor: ${runResponse.status} ${runResponse.statusText}`);
       }
 
       const runData = await runResponse.json();
       datasetId = runData.data.defaultDatasetId;
-      
-      console.log('⏳ Esperando a que termine la ejecución...');
+
+      console.log(`⏳ Run ID: ${runData.data.id}, Dataset: ${datasetId}`);
       await waitForRun(runData.data.id, APIFY_API_KEY);
-      
     } else {
       console.log('📥 Obteniendo último dataset...');
       const runsResponse = await fetch(
-        `https://api.apify.com/v2/acts/${ACTOR_ID}/runs?token=${APIFY_API_KEY}&limit=1&status=SUCCEEDED`
+        `https://api.apify.com/v2/acts/${ACTOR_ID_API}/runs?token=${APIFY_API_KEY}&limit=1&status=SUCCEEDED`
       );
-      
+
       if (!runsResponse.ok) {
         throw new Error(`Error obteniendo runs: ${runsResponse.statusText}`);
       }
-      
+
       const runsData = await runsResponse.json();
       if (!runsData.data.items || runsData.data.items.length === 0) {
-        throw new Error('No hay runs exitosos del Actor');
+        throw new Error('No hay runs exitosos del Actor. Usa force_run=true para ejecutar uno nuevo.');
       }
-      
+
       datasetId = runsData.data.items[0].defaultDatasetId;
     }
 
@@ -110,26 +232,11 @@ serve(async (req) => {
     const items = await itemsResponse.json();
     console.log(`✅ Descargados ${items.length} items`);
 
-    // LOGGING EXTENSIVO: Mostrar estructura del primer item
+    // Log estructura del primer item para diagnóstico
     if (items.length > 0) {
       console.log('📋 ===== ESTRUCTURA DE ITEMS =====');
-      console.log(`📋 Keys del primer item: ${JSON.stringify(Object.keys(items[0]))}`);
-      console.log(`📋 Ejemplo item (primeros 1000 chars): ${JSON.stringify(items[0]).substring(0, 1000)}`);
-      
-      // Buscar campos de URL disponibles
-      const urlFields = ['url', 'postUrl', 'tweetUrl', 'twitterUrl', 'link', 'permalink'];
-      const foundUrlFields = urlFields.filter(field => items[0][field] !== undefined);
-      console.log(`📋 Campos de URL encontrados: ${foundUrlFields.length > 0 ? foundUrlFields.join(', ') : 'NINGUNO'}`);
-      
-      // Buscar campos de texto disponibles
-      const textFields = ['text', 'caption', 'full_text', 'content', 'body', 'description'];
-      const foundTextFields = textFields.filter(field => items[0][field] !== undefined);
-      console.log(`📋 Campos de texto encontrados: ${foundTextFields.length > 0 ? foundTextFields.join(', ') : 'NINGUNO'}`);
-      
-      // Buscar campos de autor disponibles
-      console.log(`📋 Campo author: ${JSON.stringify(items[0].author || 'NO EXISTE')}`);
-      console.log(`📋 Campo user: ${JSON.stringify(items[0].user || 'NO EXISTE')}`);
-      console.log(`📋 Campo username: ${items[0].username || 'NO EXISTE'}`);
+      console.log(`📋 Keys: ${JSON.stringify(Object.keys(items[0]))}`);
+      console.log(`📋 Primer item (500 chars): ${JSON.stringify(items[0]).substring(0, 500)}`);
     }
 
     const supabase = createClient(
@@ -144,42 +251,34 @@ serve(async (req) => {
       errores: 0,
       sin_url: 0,
       sin_texto: 0,
-      procesados_ai: 0
+      no_results_skipped: 0,
+      procesados_ai: 0,
     };
 
     for (const item of items) {
       try {
-        // Buscar URL en múltiples campos posibles
-        const url = item.url || item.postUrl || item.tweetUrl || item.twitterUrl || item.link || item.permalink;
-        
-        if (!url) {
-          results.sin_url++;
-          console.warn(`⚠️ Item #${results.sin_url} sin URL. Keys disponibles: ${Object.keys(item).slice(0, 10).join(', ')}`);
+        // Parse con el schema del actor
+        const parsed = schema.parseItem(item);
+
+        if (!parsed) {
+          if (item.noResults) {
+            results.no_results_skipped++;
+          } else {
+            results.sin_url++;
+            console.warn(`⚠️ Item sin URL parseable. Keys: ${Object.keys(item).slice(0, 8).join(', ')}`);
+          }
           continue;
         }
 
-        // Buscar texto en múltiples campos posibles
-        const texto = item.text || item.caption || item.full_text || item.content || item.body || item.description || '';
-        
-        if (!texto) {
+        if (!parsed.text) {
           results.sin_texto++;
-          console.warn(`⚠️ Item sin texto pero con URL: ${url.substring(0, 50)}`);
         }
 
-        // Buscar autor de forma flexible
-        const autor = item.author?.userName || 
-                     item.author?.name || 
-                     item.author?.username ||
-                     item.user?.screen_name || 
-                     item.user?.name ||
-                     item.username || 
-                     item.userName ||
-                     'Desconocido';
-
+        // Check duplicado
         const { data: existente } = await supabase
           .from('incidentes_rrss')
           .select('id')
-          .eq('url_publicacion', url)
+          .eq('url_publicacion', parsed.url)
           .single();
 
         if (existente) {
@@ -190,20 +289,20 @@ serve(async (req) => {
         const { data: incidente, error } = await supabase
           .from('incidentes_rrss')
           .insert({
-            red_social: detectRedSocial(url, item),
+            red_social: parsed.redSocial,
             apify_actor_id: ACTOR_ID,
-            url_publicacion: url,
-            autor: autor,
-            fecha_publicacion: item.createdAt || item.created_at || item.timestamp || new Date().toISOString(),
-            texto_original: texto,
-            hashtags: extractHashtags(texto),
-            menciones: extractMentions(texto),
-            media_urls: extractMediaUrls(item),
-            engagement_likes: item.likeCount || item.likes || item.favoriteCount || 0,
-            engagement_shares: item.retweetCount || item.shareCount || item.retweets || 0,
-            engagement_comments: item.replyCount || item.commentCount || item.replies || 0,
+            url_publicacion: parsed.url,
+            autor: parsed.author,
+            fecha_publicacion: parsed.createdAt,
+            texto_original: parsed.text,
+            hashtags: extractHashtags(parsed.text),
+            menciones: extractMentions(parsed.text),
+            media_urls: parsed.media,
+            engagement_likes: parsed.likes,
+            engagement_shares: parsed.shares,
+            engagement_comments: parsed.comments,
             tipo_incidente: 'sin_clasificar',
-            procesado: false
+            procesado: false,
           })
           .select()
           .single();
@@ -215,20 +314,17 @@ serve(async (req) => {
         }
 
         results.insertados++;
-        console.log(`✅ Insertado incidente ${incidente.id} - ${autor}`);
+        console.log(`✅ Insertado ${incidente.id} — @${parsed.author}`);
 
-        // Invocar procesamiento AI de forma asíncrona
-        supabase.functions.invoke('procesar-incidente-rrss', {
-          body: { incidente_id: incidente.id }
-        }).then(({ data, error }) => {
-          if (error) {
-            console.error('Error en procesamiento AI:', error);
-          } else {
-            console.log(`🤖 Incidente ${incidente.id} procesado por AI`);
-            results.procesados_ai++;
-          }
-        });
-
+        // AI processing async
+        supabase.functions
+          .invoke('procesar-incidente-rrss', {
+            body: { incidente_id: incidente.id },
+          })
+          .then(({ error }) => {
+            if (error) console.error('AI error:', error);
+            else results.procesados_ai++;
+          });
       } catch (itemError) {
         console.error('❌ Error procesando item:', itemError);
         results.errores++;
@@ -236,23 +332,19 @@ serve(async (req) => {
     }
 
     console.log('📊 ===== RESULTADOS FINALES =====');
-    console.log(`📊 Total items: ${results.total}`);
-    console.log(`📊 Insertados: ${results.insertados}`);
-    console.log(`📊 Duplicados: ${results.duplicados}`);
-    console.log(`📊 Sin URL: ${results.sin_url}`);
-    console.log(`📊 Sin texto: ${results.sin_texto}`);
-    console.log(`📊 Errores: ${results.errores}`);
+    console.log(`📊 Total: ${results.total} | Insertados: ${results.insertados} | Duplicados: ${results.duplicados}`);
+    console.log(`📊 Sin URL: ${results.sin_url} | noResults: ${results.no_results_skipped} | Errores: ${results.errores}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Procesamiento completado',
         stats: results,
-        dataset_id: datasetId
+        dataset_id: datasetId,
+        actor_used: ACTOR_ID,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('❌ Error:', error);
     return new Response(
@@ -262,21 +354,22 @@ serve(async (req) => {
   }
 });
 
+// ============================================================
+// HELPERS
+// ============================================================
+
 async function waitForRun(runId: string, apiKey: string, maxWait = 120000) {
   const startTime = Date.now();
   while (Date.now() - startTime < maxWait) {
-    const response = await fetch(
-      `https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`
-    );
+    const response = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`);
     const data = await response.json();
-    
-    if (data.data.status === 'SUCCEEDED') {
-      return;
-    } else if (data.data.status === 'FAILED') {
-      throw new Error('Actor run failed');
+
+    if (data.data.status === 'SUCCEEDED') return;
+    if (data.data.status === 'FAILED' || data.data.status === 'ABORTED') {
+      throw new Error(`Actor run ${data.data.status}: ${JSON.stringify(data.data.statusMessage || '')}`);
     }
-    
-    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
   throw new Error('Timeout esperando Actor run');
 }
@@ -286,27 +379,26 @@ function detectRedSocial(url: string, item: any): string {
   if (url?.includes('facebook.com') || url?.includes('fb.com')) return 'facebook';
   if (url?.includes('instagram.com')) return 'instagram';
   if (url?.includes('tiktok.com')) return 'tiktok';
-  // Fallback basado en estructura del item
   if (item.retweetCount !== undefined || item.tweetId) return 'twitter';
-  if (item.fbId || item.facebookId) return 'facebook';
   return 'desconocido';
 }
 
 function extractHashtags(text: string): string[] {
   if (!text) return [];
-  return (text.match(/#[\w\u00C0-\u017F]+/g) || []).map(h => h.toLowerCase());
+  return (text.match(/#[\w\u00C0-\u017F]+/g) || []).map((h) => h.toLowerCase());
 }
 
 function extractMentions(text: string): string[] {
   if (!text) return [];
-  return (text.match(/@[\w\u00C0-\u017F]+/g) || []).map(m => m.toLowerCase());
+  return (text.match(/@[\w\u00C0-\u017F]+/g) || []).map((m) => m.toLowerCase());
 }
 
 function extractMediaUrls(item: any): string[] {
   const urls: string[] = [];
   if (item.photos) urls.push(...(Array.isArray(item.photos) ? item.photos : [item.photos]));
   if (item.videos) urls.push(...(Array.isArray(item.videos) ? item.videos : [item.videos]));
-  if (item.media) urls.push(...(Array.isArray(item.media) ? item.media.map((m: any) => m.url || m) : [item.media]));
+  if (item.media)
+    urls.push(...(Array.isArray(item.media) ? item.media.map((m: any) => m.url || m) : [item.media]));
   if (item.images) urls.push(...(Array.isArray(item.images) ? item.images : [item.images]));
   return urls.filter(Boolean);
 }
