@@ -12,7 +12,8 @@ const corsHeaders = {
 // ============================================================
 
 interface ActorSchema {
-  buildInput: (searchQueries: string[]) => Record<string, unknown>;
+  // buildInput puede retornar UN input o ARRAY de inputs (para multi-run)
+  buildInput: (searchQueries: string[]) => Record<string, unknown> | Record<string, unknown>[];
   parseItem: (item: Record<string, unknown>) => ParsedTweet | null;
 }
 
@@ -28,35 +29,27 @@ interface ParsedTweet {
   redSocial: string;
 }
 
+// Queries cortas (max 30 chars para scraper_one/x-posts-search)
+// Limitadas a 5 para caber en el timeout de Edge Function (~60s)
 const SEARCH_QUERIES = [
-  'robo tráiler OR robo camión OR robo tractocamión',
-  'roban carga OR roban mercancía',
-  'ordeña OR robo combustible OR robo diésel',
-  'asalto transportista OR asaltan chofer',
-  'bloqueo carretera OR bloqueo autopista',
-  'secuestro operador OR secuestro chofer',
-  'accidente tráiler OR volcadura',
-  '#AlertaCarretera OR #SeguridadVial',
-  // Handles se separan automáticamente en twitterHandles por buildInput
-  'from:monitorcarrete1',
-  'from:jaliscorojo',
-  'from:mimorelia',
+  'robo tráiler',
+  'robo carga',
+  'asalto transportista',
+  'bloqueo carretera',
   'from:GN_Carreteras',
-  'from:ABORDOMX',
 ];
 
 // ---------- scraper_one/x-posts-search (PAY PER EVENT, rating 5.0) ----------
+// Limite: max 30 chars por query → ejecuta múltiples runs
 const scraperOneSchema: ActorSchema = {
   buildInput: (queries) => {
-    // Este actor acepta UN solo query string. Combinamos todo con OR.
-    // Los "from:handle" se incluyen directamente (Twitter search syntax)
-    const combinedQuery = queries.join(' OR ');
-    return {
-      query: combinedQuery,
-      resultsCount: 200,
+    // Retorna ARRAY de inputs, uno por query (max 30 chars cada uno)
+    return queries.map(q => ({
+      query: q.substring(0, 30),
+      resultsCount: 20,
       timeWindow: 7,
       searchType: 'latest',
-    };
+    }));
   },
   parseItem: (item: any) => {
     if (item.noResults) return null;
@@ -258,32 +251,48 @@ serve(async (req) => {
     // Seleccionar schema correcto
     const schema = getActorSchema(ACTOR_ID);
 
-    let datasetId: string;
+    let datasetIds: string[] = [];
 
     if (force_run) {
-      const inputBody = schema.buildInput(SEARCH_QUERIES);
-      console.log('🚀 Ejecutando Actor con input:', JSON.stringify(inputBody).substring(0, 500));
+      const inputResult = schema.buildInput(SEARCH_QUERIES);
+      const inputs = Array.isArray(inputResult) ? inputResult : [inputResult];
+      
+      console.log(`🚀 Ejecutando ${inputs.length} run(s) para Actor ${ACTOR_ID}`);
 
-      const runResponse = await fetch(
-        `https://api.apify.com/v2/acts/${ACTOR_ID_API}/runs?token=${APIFY_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(inputBody),
-        }
-      );
+      // Ejecutar todos los runs en paralelo
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
+        const batch = inputs.slice(i, i + BATCH_SIZE);
+        const runPromises = batch.map(async (inputBody, idx) => {
+          console.log(`🔄 Run ${i + idx + 1}/${inputs.length}: ${JSON.stringify(inputBody).substring(0, 100)}`);
+          const runResponse = await fetch(
+            `https://api.apify.com/v2/acts/${ACTOR_ID_API}/runs?token=${APIFY_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(inputBody),
+            }
+          );
 
-      if (!runResponse.ok) {
-        const errorBody = await runResponse.text();
-        console.error(`❌ Error ejecutando Actor (${runResponse.status}): ${errorBody.substring(0, 500)}`);
-        throw new Error(`Error ejecutando Actor: ${runResponse.status} ${runResponse.statusText}`);
+          if (!runResponse.ok) {
+            const errorBody = await runResponse.text();
+            console.error(`❌ Error run ${i + idx + 1} (${runResponse.status}): ${errorBody.substring(0, 200)}`);
+            return null;
+          }
+
+          const runData = await runResponse.json();
+          console.log(`⏳ Run ${i + idx + 1} ID: ${runData.data.id}`);
+          await waitForRun(runData.data.id, APIFY_API_KEY);
+          return runData.data.defaultDatasetId as string;
+        });
+
+        const results = await Promise.all(runPromises);
+        datasetIds.push(...results.filter(Boolean) as string[]);
       }
 
-      const runData = await runResponse.json();
-      datasetId = runData.data.defaultDatasetId;
-
-      console.log(`⏳ Run ID: ${runData.data.id}, Dataset: ${datasetId}`);
-      await waitForRun(runData.data.id, APIFY_API_KEY);
+      if (datasetIds.length === 0) {
+        throw new Error('Ningún run completó exitosamente');
+      }
     } else {
       console.log('📥 Obteniendo último dataset...');
       const runsResponse = await fetch(
@@ -299,20 +308,27 @@ serve(async (req) => {
         throw new Error('No hay runs exitosos del Actor. Usa force_run=true para ejecutar uno nuevo.');
       }
 
-      datasetId = runsData.data.items[0].defaultDatasetId;
+      datasetIds = [runsData.data.items[0].defaultDatasetId];
     }
 
-    console.log(`📦 Descargando items del dataset ${datasetId}...`);
-    const itemsResponse = await fetch(
-      `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_API_KEY}&clean=true`
-    );
-
-    if (!itemsResponse.ok) {
-      throw new Error(`Error obteniendo items: ${itemsResponse.statusText}`);
+    // Descargar items de todos los datasets
+    let allItems: any[] = [];
+    for (const dsId of datasetIds) {
+      console.log(`📦 Descargando items del dataset ${dsId}...`);
+      const itemsResponse = await fetch(
+        `https://api.apify.com/v2/datasets/${dsId}/items?token=${APIFY_API_KEY}&clean=true`
+      );
+      if (itemsResponse.ok) {
+        const items = await itemsResponse.json();
+        console.log(`✅ Dataset ${dsId}: ${items.length} items`);
+        allItems.push(...items);
+      } else {
+        console.error(`❌ Error descargando dataset ${dsId}`);
+      }
     }
 
-    const items = await itemsResponse.json();
-    console.log(`✅ Descargados ${items.length} items`);
+    const items = allItems;
+    console.log(`✅ Total descargados: ${items.length} items de ${datasetIds.length} dataset(s)`);
 
     // Log estructura del primer item para diagnóstico
     if (items.length > 0) {
@@ -328,6 +344,7 @@ serve(async (req) => {
 
     const results = {
       total: items.length,
+      insertados: 0,
       insertados: 0,
       duplicados: 0,
       errores: 0,
@@ -422,7 +439,7 @@ serve(async (req) => {
         success: true,
         message: 'Procesamiento completado',
         stats: results,
-        dataset_id: datasetId,
+        dataset_ids: datasetIds,
         actor_used: ACTOR_ID,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
