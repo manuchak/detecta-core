@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, MapPin, TrendingUp, FileWarning, Route, Calendar } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { AlertTriangle, MapPin, TrendingUp, FileWarning, Route, Calendar, Crosshair, Shield, Eye } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useIncidentesFrecuencia, useCorredoresRiesgo } from '@/hooks/useIncidentesRRSS';
 import { useMemo } from 'react';
 
@@ -12,6 +12,11 @@ interface StatsData {
   por_severidad: Record<string, number>;
   geocodificados: number;
   por_metodo_geocoding: Record<string, number>;
+  por_modus_operandi?: Record<string, number>;
+  por_nivel_organizacion?: Record<string, number>;
+  por_zona_tipo?: Record<string, number>;
+  indicadores_frecuentes?: Record<string, number>;
+  relevancia_promedio?: number;
 }
 
 interface IncidentesStatsProps {
@@ -38,6 +43,15 @@ const TIPO_LABELS: Record<string, string> = {
   sin_clasificar: 'Sin Clasificar',
 };
 
+const NIVEL_ORG_LABELS: Record<string, string> = {
+  oportunista: 'Oportunista',
+  celula_local: 'Célula Local',
+  crimen_organizado: 'Crimen Organizado',
+  no_determinado: 'No Determinado',
+};
+
+const NIVEL_ORG_COLORS = ['hsl(142 76% 36%)', 'hsl(38 92% 50%)', 'hsl(0 84% 60%)', 'hsl(215 20% 65%)'];
+
 export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
   const { data: frecuencia } = useIncidentesFrecuencia();
   const { data: corredores } = useCorredoresRiesgo();
@@ -60,6 +74,28 @@ export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
       .sort((a: any, b: any) => (b.score_riesgo || 0) - (a.score_riesgo || 0))
       .slice(0, 5);
   }, [corredores]);
+
+  const nivelOrgData = useMemo(() => {
+    if (!stats?.por_nivel_organizacion) return [];
+    return Object.entries(stats.por_nivel_organizacion).map(([key, value]) => ({
+      name: NIVEL_ORG_LABELS[key] || key,
+      value,
+    }));
+  }, [stats]);
+
+  const topModusOperandi = useMemo(() => {
+    if (!stats?.por_modus_operandi) return [];
+    return Object.entries(stats.por_modus_operandi)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6);
+  }, [stats]);
+
+  const topIndicadores = useMemo(() => {
+    if (!stats?.indicadores_frecuentes) return [];
+    return Object.entries(stats.indicadores_frecuentes)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8);
+  }, [stats]);
 
   if (loading) {
     return (
@@ -89,7 +125,9 @@ export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.total || 0}</div>
-            <p className="text-xs text-muted-foreground">Detectados en RRSS</p>
+            <p className="text-xs text-muted-foreground">
+              Relevancia promedio: {stats?.relevancia_promedio || 0}/100
+            </p>
           </CardContent>
         </Card>
 
@@ -163,6 +201,79 @@ export function IncidentesStats({ stats, loading }: IncidentesStatsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── Inteligencia Criminológica ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Nivel de Organización Criminal */}
+        {nivelOrgData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center gap-2">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Nivel de Organización Criminal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={nivelOrgData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={70}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {nivelOrgData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={NIVEL_ORG_COLORS[index % NIVEL_ORG_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modus Operandi más frecuentes */}
+        {topModusOperandi.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center gap-2">
+              <Crosshair className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Modus Operandi Frecuentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {topModusOperandi.map(([mo, count]) => (
+                  <div key={mo} className="flex items-start justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground truncate max-w-[280px]" title={mo}>{mo}</span>
+                    <Badge variant="outline" className="shrink-0">{count}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Indicadores de Premeditación */}
+      {topIndicadores.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center gap-2">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Indicadores de Premeditación más Comunes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {topIndicadores.map(([ind, count]) => (
+                <Badge key={ind} variant="secondary" className="text-xs">
+                  {ind} ({count})
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Weekly trend chart */}
       {tendenciaSemanal.length > 0 && (
