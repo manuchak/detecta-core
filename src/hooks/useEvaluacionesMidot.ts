@@ -96,3 +96,76 @@ export function useCreateMidot() {
     },
   });
 }
+
+export interface UpdateMidotInput {
+  id: string;
+  candidato_id: string;
+  score_integridad: number;
+  score_honestidad: number;
+  score_lealtad: number;
+  reporte_pdf_url?: string;
+  notas?: string;
+  fecha_evaluacion: string;
+}
+
+export function useUpdateMidot() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateMidotInput) => {
+      const score_global = Math.round(
+        (input.score_integridad + input.score_honestidad + input.score_lealtad) / 3
+      );
+      const resultado_semaforo = calcularSemaforo(score_global);
+
+      const { data, error } = await supabase
+        .from('evaluaciones_midot')
+        .update({
+          score_integridad: input.score_integridad,
+          score_honestidad: input.score_honestidad,
+          score_lealtad: input.score_lealtad,
+          score_global,
+          resultado_semaforo,
+          reporte_pdf_url: input.reporte_pdf_url || null,
+          notas: input.notas || null,
+          fecha_evaluacion: input.fecha_evaluacion,
+        })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones-midot', variables.candidato_id] });
+      toast({ title: 'Evaluación actualizada', description: 'Los cambios se guardaron correctamente.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'No se pudo actualizar la evaluación', variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteMidot() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, candidato_id }: { id: string; candidato_id: string }) => {
+      const { error } = await supabase
+        .from('evaluaciones_midot')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return { candidato_id };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['evaluaciones-midot', result.candidato_id] });
+      toast({ title: 'Evaluación eliminada', description: 'La evaluación Midot fue eliminada.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'No se pudo eliminar la evaluación', variant: 'destructive' });
+    },
+  });
+}

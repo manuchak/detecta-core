@@ -1,23 +1,39 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useEvaluacionesMidot, EvaluacionMidot } from '@/hooks/useEvaluacionesMidot';
+import { useEvaluacionesMidot, useDeleteMidot, EvaluacionMidot } from '@/hooks/useEvaluacionesMidot';
 import { MidotResultForm } from './MidotResultForm';
 import { MidotBadge } from './MidotBadge';
-import { Loader2, Plus, ShieldCheck, ExternalLink, Calendar } from 'lucide-react';
+import { Loader2, Plus, ShieldCheck, ExternalLink, Calendar, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { useUserRole } from '@/hooks/useUserRole';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface MidotEvaluationTabProps {
   candidatoId: string;
   candidatoNombre: string;
 }
 
+const ROLES_CON_EDICION = ['supply', 'supply_lead', 'supply_admin', 'admin', 'owner'];
+
 export function MidotEvaluationTab({ candidatoId, candidatoNombre }: MidotEvaluationTabProps) {
   const { data: evaluaciones, isLoading } = useEvaluacionesMidot(candidatoId);
+  const { primaryRole } = useUserRole();
   const [showForm, setShowForm] = useState(false);
+  const [editingEval, setEditingEval] = useState<EvaluacionMidot | null>(null);
+
+  const canEdit = !!primaryRole && ROLES_CON_EDICION.includes(primaryRole);
 
   if (isLoading) {
     return (
@@ -27,8 +43,14 @@ export function MidotEvaluationTab({ candidatoId, candidatoNombre }: MidotEvalua
     );
   }
 
-  if (showForm) {
-    return <MidotResultForm candidatoId={candidatoId} onSuccess={() => setShowForm(false)} />;
+  if (showForm || editingEval) {
+    return (
+      <MidotResultForm
+        candidatoId={candidatoId}
+        evaluacionExistente={editingEval ?? undefined}
+        onSuccess={() => { setShowForm(false); setEditingEval(null); }}
+      />
+    );
   }
 
   if (!evaluaciones || evaluaciones.length === 0) {
@@ -60,13 +82,27 @@ export function MidotEvaluationTab({ candidatoId, candidatoNombre }: MidotEvalua
       </div>
 
       {evaluaciones.map((ev) => (
-        <EvaluacionMidotCard key={ev.id} evaluacion={ev} />
+        <EvaluacionMidotCard
+          key={ev.id}
+          evaluacion={ev}
+          canEdit={canEdit}
+          onEdit={() => setEditingEval(ev)}
+        />
       ))}
     </div>
   );
 }
 
-function EvaluacionMidotCard({ evaluacion }: { evaluacion: EvaluacionMidot }) {
+function EvaluacionMidotCard({
+  evaluacion,
+  canEdit,
+  onEdit,
+}: {
+  evaluacion: EvaluacionMidot;
+  canEdit: boolean;
+  onEdit: () => void;
+}) {
+  const deleteMidot = useDeleteMidot();
   const scores = [
     { label: 'Integridad', value: evaluacion.score_integridad },
     { label: 'Honestidad', value: evaluacion.score_honestidad },
@@ -110,6 +146,44 @@ function EvaluacionMidotCard({ evaluacion }: { evaluacion: EvaluacionMidot }) {
 
         {evaluacion.notas && (
           <p className="text-xs text-muted-foreground border-t pt-2">{evaluacion.notas}</p>
+        )}
+
+        {canEdit && (
+          <div className="flex items-center gap-2 border-t pt-2">
+            <Button size="sm" variant="ghost" onClick={onEdit} className="h-7 px-2 text-xs">
+              <Pencil className="h-3 w-3 mr-1" />
+              Editar
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive">
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Eliminar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar evaluación Midot?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente esta evaluación.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteMidot.mutate({
+                      id: evaluacion.id,
+                      candidato_id: evaluacion.candidato_id,
+                    })}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteMidot.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </CardContent>
     </Card>

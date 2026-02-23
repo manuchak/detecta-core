@@ -6,21 +6,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useCreateMidot } from '@/hooks/useEvaluacionesMidot';
+import { useCreateMidot, useUpdateMidot, EvaluacionMidot } from '@/hooks/useEvaluacionesMidot';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Upload, FileText, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MidotResultFormProps {
   candidatoId: string;
+  evaluacionExistente?: EvaluacionMidot;
   onSuccess?: () => void;
 }
 
-export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps) {
+export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }: MidotResultFormProps) {
   const createMidot = useCreateMidot();
-  const [scores, setScores] = useState({ integridad: 50, honestidad: 50, lealtad: 50 });
-  const [notas, setNotas] = useState('');
-  const [fechaEvaluacion, setFechaEvaluacion] = useState(new Date().toISOString().split('T')[0]);
+  const updateMidot = useUpdateMidot();
+  const isEditMode = !!evaluacionExistente;
+
+  const [scores, setScores] = useState({
+    integridad: evaluacionExistente?.score_integridad ?? 50,
+    honestidad: evaluacionExistente?.score_honestidad ?? 50,
+    lealtad: evaluacionExistente?.score_lealtad ?? 50,
+  });
+  const [notas, setNotas] = useState(evaluacionExistente?.notas ?? '');
+  const [fechaEvaluacion, setFechaEvaluacion] = useState(
+    evaluacionExistente?.fecha_evaluacion?.split('T')[0] ?? new Date().toISOString().split('T')[0]
+  );
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -41,7 +51,7 @@ export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps
   };
 
   const handleSubmit = async () => {
-    let pdfUrl: string | undefined;
+    let pdfUrl: string | undefined = evaluacionExistente?.reporte_pdf_url ?? undefined;
 
     if (pdfFile) {
       setUploading(true);
@@ -62,25 +72,41 @@ export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps
       setUploading(false);
     }
 
-    await createMidot.mutateAsync({
-      candidato_id: candidatoId,
-      score_integridad: scores.integridad,
-      score_honestidad: scores.honestidad,
-      score_lealtad: scores.lealtad,
-      reporte_pdf_url: pdfUrl,
-      notas: notas || undefined,
-      fecha_evaluacion: fechaEvaluacion,
-    });
+    if (isEditMode) {
+      await updateMidot.mutateAsync({
+        id: evaluacionExistente.id,
+        candidato_id: candidatoId,
+        score_integridad: scores.integridad,
+        score_honestidad: scores.honestidad,
+        score_lealtad: scores.lealtad,
+        reporte_pdf_url: pdfUrl,
+        notas: notas || undefined,
+        fecha_evaluacion: fechaEvaluacion,
+      });
+    } else {
+      await createMidot.mutateAsync({
+        candidato_id: candidatoId,
+        score_integridad: scores.integridad,
+        score_honestidad: scores.honestidad,
+        score_lealtad: scores.lealtad,
+        reporte_pdf_url: pdfUrl,
+        notas: notas || undefined,
+        fecha_evaluacion: fechaEvaluacion,
+      });
+    }
 
     onSuccess?.();
   };
 
-  const isSubmitting = createMidot.isPending || uploading;
+  const isSubmitting = createMidot.isPending || updateMidot.isPending || uploading;
+  const pdfReady = isEditMode ? (!!pdfFile || !!evaluacionExistente?.reporte_pdf_url) : !!pdfFile;
 
   return (
     <Card>
       <CardHeader className="pb-4">
-        <CardTitle className="text-base">Registrar Evaluación Midot</CardTitle>
+        <CardTitle className="text-base">
+          {isEditMode ? 'Editar Evaluación Midot' : 'Registrar Evaluación Midot'}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Fecha */}
@@ -124,7 +150,7 @@ export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps
 
         {/* PDF Upload */}
         <div className="space-y-1.5">
-          <Label>Reporte PDF (obligatorio)</Label>
+          <Label>{isEditMode ? 'Reporte PDF (cambiar opcional)' : 'Reporte PDF (obligatorio)'}</Label>
           <div className="flex items-center gap-2">
             <label className="flex-1 cursor-pointer">
               <div className={cn(
@@ -135,6 +161,11 @@ export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps
                   <>
                     <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                     <span className="truncate">{pdfFile.name}</span>
+                  </>
+                ) : isEditMode && evaluacionExistente?.reporte_pdf_url ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground truncate">PDF actual — click para cambiar</span>
                   </>
                 ) : (
                   <>
@@ -162,11 +193,11 @@ export function MidotResultForm({ candidatoId, onSuccess }: MidotResultFormProps
         {/* Submit */}
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || !pdfFile}
+          disabled={isSubmitting || !pdfReady}
           className="w-full"
         >
           {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-          Guardar Evaluación
+          {isEditMode ? 'Guardar Cambios' : 'Guardar Evaluación'}
         </Button>
       </CardContent>
     </Card>
