@@ -119,12 +119,28 @@ Deno.serve(async (req) => {
               const textoOriginal = result.markdown || result.description || result.title || '';
               if (!textoOriginal.trim()) continue;
 
+              // Extract real publication date from metadata
+              const meta = result.metadata || {};
+              const rawDate = meta.publishedTime || meta.published_time || meta.datePublished
+                || meta.date_published || meta.article_published_time || meta.ogArticlePublishedTime
+                || meta.modifiedTime || meta.dateModified || null;
+
+              let fechaPublicacion = new Date().toISOString();
+              if (rawDate) {
+                try {
+                  const parsed = new Date(rawDate);
+                  if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 2000) {
+                    fechaPublicacion = parsed.toISOString();
+                  }
+                } catch { /* fallback to current date */ }
+              }
+
               registros.push({
                 red_social: detectRedSocial(url),
                 texto_original: `${result.title || ''}\n\n${textoOriginal}`.trim(),
                 url_publicacion: url,
                 autor: result.title || 'Firecrawl Search',
-                fecha_publicacion: new Date().toISOString(),
+                fecha_publicacion: fechaPublicacion,
                 apify_actor_id: 'firecrawl',
                 procesado: false,
               });
