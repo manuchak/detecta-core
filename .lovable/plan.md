@@ -1,74 +1,86 @@
 
 
-# Plan: Editar y Eliminar Evaluaciones Midot para Supply
+# Plan: Drill-Down por Mes en Herramienta de Auditoría
 
 ## Problema
 
-Mariana (rol supply) subio una evaluacion Midot duplicada con fechas distintas y no puede corregir su error porque no existe boton de editar ni eliminar en la interfaz de evaluaciones Midot.
+Al ver la tabla de auditoría con discrepancias entre Excel y sistema, no hay forma de saber **cuales IDs especificos** faltan o sobran en cada lado. Se necesita hacer doble clic en un mes para ver el detalle y poder exportar esa lista para reconciliar contra la fuente Excel.
 
-## Cambios Propuestos
+## Solucion
 
-### 1. Hook: Agregar mutaciones de editar y eliminar (`src/hooks/useEvaluacionesMidot.ts`)
+Agregar un modal de detalle que se abre al hacer doble clic en cualquier fila de la tabla de auditoría. El modal muestra tres listas: IDs solo en Excel (faltantes en sistema), IDs solo en sistema (faltantes en Excel), e IDs en ambos. Incluye boton de exportar a Excel.
 
-- **`useUpdateMidot`**: Mutation que recibe el `id` de la evaluacion y los campos actualizados (scores, fecha, notas, PDF). Recalcula `score_global` y `resultado_semaforo` automaticamente.
-- **`useDeleteMidot`**: Mutation que elimina una evaluacion por `id`. Incluye invalidacion del cache.
-- Ambas mutaciones muestran toast de confirmacion/error.
+## Cambios
 
-### 2. UI: Agregar acciones de editar/eliminar en cada tarjeta (`src/components/recruitment/midot/MidotEvaluationTab.tsx`)
+### 1. Guardar datos individuales del Excel en estado (`DataAuditManager.tsx`)
 
-- Agregar botones de **Editar** (icono lapiz) y **Eliminar** (icono basura) en cada `EvaluacionMidotCard`.
-- Los botones solo se muestran para roles autorizados: `supply`, `supply_lead`, `supply_admin`, `admin`, `owner`.
-- **Eliminar** muestra un `AlertDialog` de confirmacion antes de ejecutar.
-- **Editar** abre el formulario `MidotResultForm` pre-llenado con los datos existentes.
+Actualmente el componente solo guarda los totales agregados por mes. Se necesita guardar tambien los `id_servicio` individuales parseados del Excel para poder compararlos despues.
 
-### 3. Formulario: Soportar modo edicion (`src/components/recruitment/midot/MidotResultForm.tsx`)
+- Nuevo estado: `excelRecordsMap` - un `Map<string, string[]>` donde key = `"year-month"` y value = array de `id_servicio`
+- Solo se puebla cuando el Excel tiene columna `id_servicio` (modo registros individuales)
 
-- Agregar prop opcional `evaluacionExistente?: EvaluacionMidot` para pre-llenar campos.
-- Si existe, el submit usa `useUpdateMidot` en lugar de `useCreateMidot`.
-- El titulo del formulario cambia a "Editar Evaluacion Midot".
+### 2. Crear componente `MonthDrillDownDialog.tsx`
 
-### 4. RLS en Supabase (si es necesario)
+Nuevo componente que recibe:
+- `year` y `month` del periodo seleccionado
+- `excelIds: string[]` - IDs del Excel para ese mes
+- `onClose` - callback para cerrar
 
-- Verificar que las politicas RLS de `evaluaciones_midot` permitan `UPDATE` y `DELETE` para los roles de supply. Si no existen, se deben crear politicas que permitan a usuarios autenticados con roles `supply`, `supply_lead`, `supply_admin`, `admin`, `owner` ejecutar estas operaciones.
-
-## Detalle Tecnico
-
-### Nuevas funciones en `useEvaluacionesMidot.ts`
-
-```ts
-// useDeleteMidot - elimina evaluacion por ID
-export function useDeleteMidot() {
-  // DELETE FROM evaluaciones_midot WHERE id = ?
-  // Invalida queryKey ['evaluaciones-midot', candidato_id]
-}
-
-// useUpdateMidot - actualiza scores, fecha, notas, PDF
-export function useUpdateMidot() {
-  // Recalcula score_global y resultado_semaforo
-  // UPDATE evaluaciones_midot SET ... WHERE id = ?
-  // Invalida queryKey ['evaluaciones-midot', candidato_id]
-}
-```
-
-### Control de acceso en UI
-
-```ts
-const ROLES_CON_EDICION = ['supply', 'supply_lead', 'supply_admin', 'admin', 'owner'];
-const canEdit = ROLES_CON_EDICION.includes(userRole);
-```
-
-### Flujo de eliminacion
+Al abrirse:
+1. Consulta `servicios_custodia` con `fetchAllPaginated` filtrando por el rango del mes (en timezone CDMX)
+2. Extrae los `id_servicio` del sistema
+3. Calcula tres conjuntos:
+   - **Solo en Excel** (faltantes en BDD): IDs presentes en Excel pero no en sistema
+   - **Solo en Sistema** (faltantes en Excel): IDs en sistema pero no en Excel
+   - **En ambos**: IDs que coinciden
+4. Muestra las tres listas en tabs dentro del Dialog
+5. Boton "Exportar Detalle" genera un Excel con 3 hojas (una por cada conjunto)
 
 ```text
-[Boton Eliminar] -> [AlertDialog: "Seguro que deseas eliminar?"] -> [Confirmar] -> [DELETE] -> [Toast exito]
++------------------------------------------+
+|  Detalle: Feb 2026                    [X] |
+|------------------------------------------|
+| [Solo Excel (41)] [Solo Sistema (0)] ... |
+|------------------------------------------|
+| ID_SERVICIO                              |
+| EMEDEME-250                             |
+| TEOVTEL-777                             |
+| SADSSSM-38                              |
+| ...                                      |
+|------------------------------------------|
+| [Exportar Detalle]                       |
++------------------------------------------+
 ```
 
-## Archivos a Modificar
+### 3. Evento doble clic en tabla (`DataAuditManager.tsx`)
+
+- Agregar `onDoubleClick` en cada `TableRow`
+- Al hacer doble clic, abrir `MonthDrillDownDialog` con los datos del mes seleccionado
+- Agregar `cursor-pointer` y tooltip "Doble clic para ver detalle" en las filas
+- Si el Excel fue subido en modo agregado (sin IDs individuales), mostrar solo los IDs del sistema sin comparacion
+
+## Archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/hooks/useEvaluacionesMidot.ts` | Agregar `useUpdateMidot` y `useDeleteMidot` |
-| `src/components/recruitment/midot/MidotEvaluationTab.tsx` | Botones editar/eliminar con control de rol y AlertDialog |
-| `src/components/recruitment/midot/MidotResultForm.tsx` | Soporte modo edicion con prop `evaluacionExistente` |
-| Supabase RLS | Verificar/crear politicas UPDATE y DELETE para roles supply |
+| `src/components/administration/DataAuditManager.tsx` | Guardar IDs individuales del Excel, agregar doble clic, integrar dialog |
+| `src/components/administration/MonthDrillDownDialog.tsx` | **Nuevo** - Dialog con detalle de IDs y exportacion |
 
+## Flujo
+
+```text
+1. Usuario sube Excel con registros individuales (columna id_servicio + fecha_hora_cita)
+2. Se muestra tabla de comparacion por mes (existente)
+3. Usuario hace doble clic en "Feb 2026" (delta -41)
+4. Se abre dialog que consulta servicios_custodia para Feb 2026
+5. Muestra: 41 IDs solo en Excel, 0 solo en sistema, 603 en ambos
+6. Usuario exporta lista de faltantes a Excel
+7. Con esa lista reconcilia contra la fuente original
+```
+
+## Notas Tecnicas
+
+- La consulta de detalle usa `fetchAllPaginated` para evitar truncamiento a 1,000 filas
+- El filtro de fecha usa timezone CDMX (`America/Mexico_City`) con offset `-06:00`
+- Se busca la columna `id_servicio` en el Excel con variantes: `id_servicio`, `id servicio`, `idservicio`, `id`
+- Si el Excel no tiene columna de ID, el drill-down solo muestra los IDs del sistema (sin comparacion)
