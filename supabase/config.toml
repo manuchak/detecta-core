@@ -167,3 +167,6 @@ verify_jwt = false
 
 [functions.seed-risk-zones]
 verify_jwt = false
+
+[functions.firecrawl-incident-search]
+verify_jwt = false
