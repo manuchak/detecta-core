@@ -1,111 +1,107 @@
 
 
-# Plan: Rechazo de Documentos por Supply
+# Plan: Integrar Firecrawl Search como Fuente de Incidentes RRSS
 
-## Problema
+## Contexto
 
-El equipo de supply (ej. Mariana) revisa los documentos subidos por custodios desde el portal, pero solo puede "Verificar" o "Desmarcar". No existe la opcion de **rechazar** un documento indicando el motivo (foto borrosa, documento equivocado, informacion incorrecta), ni forma de que el custodio sepa que debe volver a subir.
+El sistema ya tiene un pipeline funcional con Apify (`apify-data-fetcher`) que busca tweets sobre incidentes de transporte. Firecrawl tiene un conector nativo en Lovable con capacidad de **Search** que puede buscar en toda la web (Google-indexed), incluyendo posts de X.com, noticias, Facebook y otros medios. Esto amplía la cobertura mas alla de solo Twitter.
 
-## Solucion
+## Ventajas de Firecrawl vs Apify Solo
 
-Agregar un estado "rechazado" a los documentos del custodio, un boton de rechazo con motivo obligatorio en la interfaz de supply, y un indicador visual en el portal del custodio para que sepa que debe corregir su documento.
+| Aspecto | Apify (actual) | Firecrawl Search |
+|---------|---------------|-----------------|
+| Setup | Requiere API key externa | Conector nativo Lovable |
+| Cobertura | Solo Twitter/X | Web completa (noticias, RRSS indexadas, foros) |
+| Filtro temporal | Limitado | `tbs` parameter (hora, dia, semana, mes) |
+| Contenido | Tweets crudos | Markdown limpio + metadata |
+| Costo | Apify credits | Firecrawl credits |
+
+La estrategia es usar **ambos en paralelo**: Apify para tweets directos de X.com y Firecrawl para el resto de la web.
 
 ## Cambios
 
-### 1. Migracion: Agregar columna `rechazado` y `motivo_rechazo`
+### 1. Conectar Firecrawl
 
-Agregar dos columnas a `documentos_custodio`:
-- `rechazado` (boolean, default false) - indica si fue rechazado por staff
-- `motivo_rechazo` (text, nullable) - razon del rechazo
-- `rechazado_por` (uuid, nullable) - quien rechazo
-- `fecha_rechazo` (timestamptz, nullable) - cuando se rechazo
+Antes de implementar, se debe activar el conector de Firecrawl desde Project Settings > Connectors. Esto hara disponible `FIRECRAWL_API_KEY` como variable de entorno en las edge functions.
 
-Logica: un documento puede estar en 3 estados:
-- **Pendiente**: `verificado = false AND rechazado = false`
-- **Verificado**: `verificado = true`
-- **Rechazado**: `rechazado = true`
+### 2. Crear Edge Function `firecrawl-incident-search`
 
-Al rechazar, se pone `verificado = false` automaticamente. Al verificar, se limpia `rechazado = false`.
+Nueva edge function que:
+1. Ejecuta multiples busquedas con queries especificos de transporte de carga en Mexico
+2. Parsea los resultados y extrae datos relevantes
+3. Inserta en `incidentes_rrss` (misma tabla que Apify) evitando duplicados por URL
+4. Invoca `procesar-incidente-rrss` para clasificacion AI (mismo flujo existente)
 
-### 2. Hook: Agregar mutacion de rechazo (`useVerifyDocument.ts`)
+Queries de busqueda:
+- `"robo trailer" OR "robo carga" Mexico` (filtro: ultima semana)
+- `"bloqueo carretera" OR "bloqueo autopista" Mexico`
+- `"asalto transportista" OR "secuestro operador" Mexico`
+- `"accidente trailer" OR "volcadura" carretera Mexico`
 
-Agregar `useRejectDocument` al mismo archivo, que:
-- Recibe `docId`, `motivo_rechazo` y `rechazadoPor`
-- Hace UPDATE: `rechazado = true`, `verificado = false`, `motivo_rechazo`, `rechazado_por`, `fecha_rechazo`
-- Invalida el cache de documentos del custodio
-- Muestra toast de confirmacion
+Parametros de Firecrawl Search:
+- `lang: "es"`, `country: "MX"`
+- `tbs: "qdr:d"` (ultimo dia) o `"qdr:w"` (ultima semana)
+- `scrapeOptions: { formats: ["markdown"] }` para obtener contenido completo
+- `limit: 20` por query
 
-### 3. UI Supply: Boton "Rechazar" con dialogo de motivo (`DocumentacionTab.tsx`)
+### 3. Actualizar UI - Agregar boton Firecrawl en `TriggerApifyFetch.tsx`
 
-En la seccion de documentos del custodio (portal), agregar:
-- Boton rojo "Rechazar" junto al boton "Verificar" (solo visible para documentos no verificados y no rechazados)
-- Al hacer clic, abre un `AlertDialog` con un textarea para el motivo (obligatorio)
-- Opciones rapidas como chips: "Foto ilegible", "Documento incorrecto", "Fecha no visible", "Documento vencido"
-- Boton "Confirmar Rechazo"
-- Si el documento ya esta rechazado, mostrar badge rojo "Rechazado" con el motivo visible
+Agregar un tercer boton "Buscar en Web (Firecrawl)" junto a los botones existentes de Apify. Este boton invoca la nueva edge function.
 
-### 4. UI Custodio: Indicador de rechazo en portal
+### 4. Detectar red social desde URL de resultados
 
-En `StepDocuments.tsx` y el portal del custodio:
-- Si un documento tiene `rechazado = true`, mostrarlo con borde rojo y el motivo del rechazo
-- El boton cambia a "Volver a subir" para que el custodio corrija
-- Al subir nuevo documento, se limpia el estado de rechazo automaticamente
-
-### 5. Stats: Incluir rechazados en las metricas
-
-Actualizar `useCustodianDocStats` para incluir:
-- `rechazados`: documentos con `rechazado = true`
-- Mostrar tarjeta adicional en el resumen de DocumentacionTab
+La funcion `detectRedSocial` existente ya maneja Twitter, Facebook, Instagram y TikTok. Los resultados de Firecrawl Search tambien pueden incluir sitios de noticias, asi que se agrega deteccion para fuentes como:
+- Portales de noticias: `"noticias"`
+- Blogs/foros: `"web"`
+- Gobierno: `"gobierno"`
 
 ## Detalle Tecnico
 
-### Migracion SQL
-
-```sql
-ALTER TABLE public.documentos_custodio 
-  ADD COLUMN IF NOT EXISTS rechazado boolean DEFAULT false,
-  ADD COLUMN IF NOT EXISTS motivo_rechazo text,
-  ADD COLUMN IF NOT EXISTS rechazado_por uuid,
-  ADD COLUMN IF NOT EXISTS fecha_rechazo timestamptz;
-```
-
-### Nuevo hook `useRejectDocument`
-
-```ts
-export function useRejectDocument(telefono: string | null) {
-  return useMutation({
-    mutationFn: async ({ docId, motivoRechazo, rechazadoPor }) => {
-      await supabase.from('documentos_custodio').update({
-        rechazado: true,
-        verificado: false,
-        motivo_rechazo: motivoRechazo,
-        rechazado_por: rechazadoPor,
-        fecha_rechazo: new Date().toISOString()
-      }).eq('id', docId);
-    }
-  });
-}
-```
-
-### Flujo de estados
+### Edge Function `firecrawl-incident-search/index.ts`
 
 ```text
-[Custodio sube doc] --> Pendiente
-     |
-     +--> [Supply verifica] --> Verificado
-     |
-     +--> [Supply rechaza + motivo] --> Rechazado
-              |
-              +--> [Custodio ve motivo, sube nuevo] --> Pendiente (ciclo)
+1. Leer FIRECRAWL_API_KEY del entorno
+2. Para cada query de busqueda:
+   a. POST a https://api.firecrawl.dev/v1/search
+   b. Para cada resultado:
+      - Verificar que URL no exista en incidentes_rrss (dedup)
+      - Insertar en incidentes_rrss con red_social detectada
+      - Invocar procesar-incidente-rrss para AI
+3. Retornar stats (insertados, duplicados, errores)
 ```
 
-## Archivos a Modificar
+### Flujo completo
+
+```text
+[Boton "Buscar en Web"] 
+    --> firecrawl-incident-search (edge function)
+        --> Firecrawl Search API (multiples queries)
+            --> Resultados web (noticias, RRSS, foros)
+                --> INSERT incidentes_rrss (dedup por URL)
+                    --> procesar-incidente-rrss (AI: clasificar + geocodificar)
+                        --> Mapa de calor actualizado
+```
+
+### Mapeo de campos Firecrawl a incidentes_rrss
+
+| Campo Firecrawl | Campo incidentes_rrss |
+|-----------------|----------------------|
+| `result.url` | `url_publicacion` |
+| `result.title` | (parte de texto_original) |
+| `result.markdown` | `texto_original` |
+| `result.description` | (fallback si no hay markdown) |
+| Detectado de URL | `red_social` |
+| `"firecrawl"` | `apify_actor_id` (reutilizado como source_id) |
+
+## Archivos
 
 | Archivo | Cambio |
 |---------|--------|
-| Nueva migracion SQL | Agregar columnas rechazado, motivo_rechazo, rechazado_por, fecha_rechazo |
-| `src/pages/PerfilesOperativos/hooks/useVerifyDocument.ts` | Agregar `useRejectDocument`, limpiar rechazo al verificar |
-| `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx` | Boton rechazar con dialog de motivo, badges de estado, chips rapidos |
-| `src/pages/PerfilesOperativos/hooks/useCustodianDocsForProfile.ts` | Agregar `rechazados` a stats |
-| `src/components/custodian/checklist/StepDocuments.tsx` | Mostrar motivo de rechazo y boton "Volver a subir" |
+| `supabase/functions/firecrawl-incident-search/index.ts` | **Nuevo** - Edge function de busqueda |
+| `src/lib/api/firecrawl.ts` | **Nuevo** - Cliente API frontend |
+| `src/components/incidentes/TriggerApifyFetch.tsx` | Agregar boton "Buscar en Web (Firecrawl)" |
+
+## Prerequisito
+
+Conectar Firecrawl desde Project Settings > Connectors antes de implementar.
 
