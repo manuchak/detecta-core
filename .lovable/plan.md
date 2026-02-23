@@ -1,46 +1,61 @@
 
-# Plan de Corrección: Pipeline Apify + Errores de Base de Datos
+# Fix: Apify `apidojo/tweet-scraper` Input Schema
 
-He realizado un diagnóstico exhaustivo tras el intento fallido de ejecución (error 404). El problema es que el secreto `APIFY_DEFAULT_ACTOR_ID` actualmente contiene el **Token de API** en lugar del **ID del Actor**.
+## Problema Confirmado
 
-## 1. Corrección de Configuración (Secrets)
+Segun la documentacion oficial del actor `apidojo/tweet-scraper`, el input actual es **incorrecto**. El codigo envia `startUrls` con URLs de busqueda de Twitter construidas manualmente, pero el actor espera campos separados:
 
-El primer paso es asegurar que las credenciales estén en el lugar correcto.
-- **APIFY_DEFAULT_ACTOR_ID**: Se debe actualizar a `apidojo/tweet-scraper` (como confirmaste).
-- **APIFY_API_KEY**: Se verificará que contenga el token `apify_api_vBPN...`.
+| Campo actual (incorrecto) | Campo correcto (documentacion) |
+|---|---|
+| `startUrls: [{url: "https://twitter.com/search?q=..."}]` | `searchTerms: ["robo trailer", "bloqueo"]` |
+| (no enviado) | `twitterHandles: ["monitorcarrete1", "GN_Carreteras"]` |
+| (no enviado) | `sort: "Latest"` |
+| (no enviado) | `tweetLanguage: "es"` |
+| (no enviado) | `includeSearchTerms: true` |
 
-## 2. Corrección de Error RPC (SQL)
+El actor al recibir URLs de busqueda que ya no funcionan en Twitter/X, retorna `{"noResults": true}` o datos demo.
 
-He detectado un error técnico en la función `calcular_score_corredor` que está bloqueando la carga de algunos indicadores en el dashboard.
-- **Problema**: Discrepancia de tipos entre `character varying` (columna de la tabla) y `text` (definición de la función).
-- **Solución**: Actualizaré el retorno de la función para que coincida exactamente con los tipos de la tabla `incidentes_rrss`.
+## Solucion
 
-## 3. Pruebas y Validación
+### Cambio en `supabase/functions/apify-data-fetcher/index.ts`
 
-Una vez aplicados los cambios:
-- **Ejecutar Fetch**: Realizaré un `force_run` de la función de Apify para confirmar que ya puede extraer tweets de `@monitorcarrete1` y otras fuentes.
-- **Validar Tablero**: Verificaré que el incidente crítico de hoy en la **México-Puebla** (Córdoba-Puebla) se refleje correctamente como estatus **ROJO / EVITAR** en el panel de corredores.
+Refactorizar `apidojoSchema.buildInput` para usar los campos correctos segun la documentacion oficial:
 
-## Detalle Técnico de los Cambios
+```text
+ANTES (incorrecto):
+  startUrls: [
+    {url: "https://twitter.com/search?q=robo+trailer..."},
+    ...
+  ]
 
-### SQL (RPC)
-```sql
-CREATE OR REPLACE FUNCTION calcular_score_corredor(p_carretera text DEFAULT NULL)
-RETURNS TABLE (
-  carretera character varying, -- Cambio de text a varchar
-  total_incidentes bigint,
-  incidentes_7d bigint,
-  incidentes_30d bigint,
-  criticos_30d bigint,
-  score_riesgo numeric
-) AS $$
--- ... (lógica existente con casts explícitos si es necesario)
-$$ LANGUAGE plpgsql;
+DESPUES (correcto segun docs):
+  searchTerms: ["robo trailer OR robo camion", "bloqueo carretera", ...],
+  twitterHandles: ["monitorcarrete1", "jaliscorojo", "GN_Carreteras", ...],
+  maxItems: 200,
+  sort: "Latest",
+  tweetLanguage: "es",
+  includeSearchTerms: true
 ```
 
-### Edge Function (Apify)
-La lógica de la función ya está preparada para manejar el ID `apidojo/tweet-scraper` y convertirlo internamente al formato `apidojo~tweet-scraper` que requiere la API de Apify. Solo falta el valor correcto del secreto.
+### Logica de separacion de queries
 
----
+Las queries que contienen `from:usuario` se extraeran automaticamente al array `twitterHandles` (sin el prefijo `from:`). Las demas van a `searchTerms` como strings planos.
 
-¿Procedo con la actualización de los secretos y la corrección de la base de datos?
+### Campos de la documentacion oficial utilizados
+
+- **searchTerms** (array): Terminos de busqueda como strings
+- **twitterHandles** (array): Handles de Twitter sin @
+- **maxItems** (integer): Maximo de resultados (200)
+- **sort** (string): "Latest" para tweets recientes
+- **tweetLanguage** (string): "es" para espanol
+- **includeSearchTerms** (boolean): true para saber que query genero cada tweet
+
+### Sin cambios necesarios en el parser
+
+El `parseItem` del `apidojoSchema` ya contempla los campos de salida correctos (`full_text`, `user.screen_name`, `created_at`, `favorite_count`, `retweet_count`). Solo necesita el fix del input.
+
+## Archivo a modificar
+
+| Archivo | Cambio |
+|---|---|
+| `supabase/functions/apify-data-fetcher/index.ts` | Reemplazar `apidojoSchema.buildInput` (lineas 73-80) para usar `searchTerms` + `twitterHandles` en lugar de `startUrls`. Tambien limpiar `SEARCH_QUERIES` para separar handles de busquedas. |
