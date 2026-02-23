@@ -1,86 +1,111 @@
 
 
-# Plan: Drill-Down por Mes en Herramienta de Auditoría
+# Plan: Rechazo de Documentos por Supply
 
 ## Problema
 
-Al ver la tabla de auditoría con discrepancias entre Excel y sistema, no hay forma de saber **cuales IDs especificos** faltan o sobran en cada lado. Se necesita hacer doble clic en un mes para ver el detalle y poder exportar esa lista para reconciliar contra la fuente Excel.
+El equipo de supply (ej. Mariana) revisa los documentos subidos por custodios desde el portal, pero solo puede "Verificar" o "Desmarcar". No existe la opcion de **rechazar** un documento indicando el motivo (foto borrosa, documento equivocado, informacion incorrecta), ni forma de que el custodio sepa que debe volver a subir.
 
 ## Solucion
 
-Agregar un modal de detalle que se abre al hacer doble clic en cualquier fila de la tabla de auditoría. El modal muestra tres listas: IDs solo en Excel (faltantes en sistema), IDs solo en sistema (faltantes en Excel), e IDs en ambos. Incluye boton de exportar a Excel.
+Agregar un estado "rechazado" a los documentos del custodio, un boton de rechazo con motivo obligatorio en la interfaz de supply, y un indicador visual en el portal del custodio para que sepa que debe corregir su documento.
 
 ## Cambios
 
-### 1. Guardar datos individuales del Excel en estado (`DataAuditManager.tsx`)
+### 1. Migracion: Agregar columna `rechazado` y `motivo_rechazo`
 
-Actualmente el componente solo guarda los totales agregados por mes. Se necesita guardar tambien los `id_servicio` individuales parseados del Excel para poder compararlos despues.
+Agregar dos columnas a `documentos_custodio`:
+- `rechazado` (boolean, default false) - indica si fue rechazado por staff
+- `motivo_rechazo` (text, nullable) - razon del rechazo
+- `rechazado_por` (uuid, nullable) - quien rechazo
+- `fecha_rechazo` (timestamptz, nullable) - cuando se rechazo
 
-- Nuevo estado: `excelRecordsMap` - un `Map<string, string[]>` donde key = `"year-month"` y value = array de `id_servicio`
-- Solo se puebla cuando el Excel tiene columna `id_servicio` (modo registros individuales)
+Logica: un documento puede estar en 3 estados:
+- **Pendiente**: `verificado = false AND rechazado = false`
+- **Verificado**: `verificado = true`
+- **Rechazado**: `rechazado = true`
 
-### 2. Crear componente `MonthDrillDownDialog.tsx`
+Al rechazar, se pone `verificado = false` automaticamente. Al verificar, se limpia `rechazado = false`.
 
-Nuevo componente que recibe:
-- `year` y `month` del periodo seleccionado
-- `excelIds: string[]` - IDs del Excel para ese mes
-- `onClose` - callback para cerrar
+### 2. Hook: Agregar mutacion de rechazo (`useVerifyDocument.ts`)
 
-Al abrirse:
-1. Consulta `servicios_custodia` con `fetchAllPaginated` filtrando por el rango del mes (en timezone CDMX)
-2. Extrae los `id_servicio` del sistema
-3. Calcula tres conjuntos:
-   - **Solo en Excel** (faltantes en BDD): IDs presentes en Excel pero no en sistema
-   - **Solo en Sistema** (faltantes en Excel): IDs en sistema pero no en Excel
-   - **En ambos**: IDs que coinciden
-4. Muestra las tres listas en tabs dentro del Dialog
-5. Boton "Exportar Detalle" genera un Excel con 3 hojas (una por cada conjunto)
+Agregar `useRejectDocument` al mismo archivo, que:
+- Recibe `docId`, `motivo_rechazo` y `rechazadoPor`
+- Hace UPDATE: `rechazado = true`, `verificado = false`, `motivo_rechazo`, `rechazado_por`, `fecha_rechazo`
+- Invalida el cache de documentos del custodio
+- Muestra toast de confirmacion
 
-```text
-+------------------------------------------+
-|  Detalle: Feb 2026                    [X] |
-|------------------------------------------|
-| [Solo Excel (41)] [Solo Sistema (0)] ... |
-|------------------------------------------|
-| ID_SERVICIO                              |
-| EMEDEME-250                             |
-| TEOVTEL-777                             |
-| SADSSSM-38                              |
-| ...                                      |
-|------------------------------------------|
-| [Exportar Detalle]                       |
-+------------------------------------------+
+### 3. UI Supply: Boton "Rechazar" con dialogo de motivo (`DocumentacionTab.tsx`)
+
+En la seccion de documentos del custodio (portal), agregar:
+- Boton rojo "Rechazar" junto al boton "Verificar" (solo visible para documentos no verificados y no rechazados)
+- Al hacer clic, abre un `AlertDialog` con un textarea para el motivo (obligatorio)
+- Opciones rapidas como chips: "Foto ilegible", "Documento incorrecto", "Fecha no visible", "Documento vencido"
+- Boton "Confirmar Rechazo"
+- Si el documento ya esta rechazado, mostrar badge rojo "Rechazado" con el motivo visible
+
+### 4. UI Custodio: Indicador de rechazo en portal
+
+En `StepDocuments.tsx` y el portal del custodio:
+- Si un documento tiene `rechazado = true`, mostrarlo con borde rojo y el motivo del rechazo
+- El boton cambia a "Volver a subir" para que el custodio corrija
+- Al subir nuevo documento, se limpia el estado de rechazo automaticamente
+
+### 5. Stats: Incluir rechazados en las metricas
+
+Actualizar `useCustodianDocStats` para incluir:
+- `rechazados`: documentos con `rechazado = true`
+- Mostrar tarjeta adicional en el resumen de DocumentacionTab
+
+## Detalle Tecnico
+
+### Migracion SQL
+
+```sql
+ALTER TABLE public.documentos_custodio 
+  ADD COLUMN IF NOT EXISTS rechazado boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS motivo_rechazo text,
+  ADD COLUMN IF NOT EXISTS rechazado_por uuid,
+  ADD COLUMN IF NOT EXISTS fecha_rechazo timestamptz;
 ```
 
-### 3. Evento doble clic en tabla (`DataAuditManager.tsx`)
+### Nuevo hook `useRejectDocument`
 
-- Agregar `onDoubleClick` en cada `TableRow`
-- Al hacer doble clic, abrir `MonthDrillDownDialog` con los datos del mes seleccionado
-- Agregar `cursor-pointer` y tooltip "Doble clic para ver detalle" en las filas
-- Si el Excel fue subido en modo agregado (sin IDs individuales), mostrar solo los IDs del sistema sin comparacion
+```ts
+export function useRejectDocument(telefono: string | null) {
+  return useMutation({
+    mutationFn: async ({ docId, motivoRechazo, rechazadoPor }) => {
+      await supabase.from('documentos_custodio').update({
+        rechazado: true,
+        verificado: false,
+        motivo_rechazo: motivoRechazo,
+        rechazado_por: rechazadoPor,
+        fecha_rechazo: new Date().toISOString()
+      }).eq('id', docId);
+    }
+  });
+}
+```
 
-## Archivos
+### Flujo de estados
+
+```text
+[Custodio sube doc] --> Pendiente
+     |
+     +--> [Supply verifica] --> Verificado
+     |
+     +--> [Supply rechaza + motivo] --> Rechazado
+              |
+              +--> [Custodio ve motivo, sube nuevo] --> Pendiente (ciclo)
+```
+
+## Archivos a Modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `src/components/administration/DataAuditManager.tsx` | Guardar IDs individuales del Excel, agregar doble clic, integrar dialog |
-| `src/components/administration/MonthDrillDownDialog.tsx` | **Nuevo** - Dialog con detalle de IDs y exportacion |
+| Nueva migracion SQL | Agregar columnas rechazado, motivo_rechazo, rechazado_por, fecha_rechazo |
+| `src/pages/PerfilesOperativos/hooks/useVerifyDocument.ts` | Agregar `useRejectDocument`, limpiar rechazo al verificar |
+| `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx` | Boton rechazar con dialog de motivo, badges de estado, chips rapidos |
+| `src/pages/PerfilesOperativos/hooks/useCustodianDocsForProfile.ts` | Agregar `rechazados` a stats |
+| `src/components/custodian/checklist/StepDocuments.tsx` | Mostrar motivo de rechazo y boton "Volver a subir" |
 
-## Flujo
-
-```text
-1. Usuario sube Excel con registros individuales (columna id_servicio + fecha_hora_cita)
-2. Se muestra tabla de comparacion por mes (existente)
-3. Usuario hace doble clic en "Feb 2026" (delta -41)
-4. Se abre dialog que consulta servicios_custodia para Feb 2026
-5. Muestra: 41 IDs solo en Excel, 0 solo en sistema, 603 en ambos
-6. Usuario exporta lista de faltantes a Excel
-7. Con esa lista reconcilia contra la fuente original
-```
-
-## Notas Tecnicas
-
-- La consulta de detalle usa `fetchAllPaginated` para evitar truncamiento a 1,000 filas
-- El filtro de fecha usa timezone CDMX (`America/Mexico_City`) con offset `-06:00`
-- Se busca la columna `id_servicio` en el Excel con variantes: `id_servicio`, `id servicio`, `idservicio`, `id`
-- Si el Excel no tiene columna de ID, el drill-down solo muestra los IDs del sistema (sin comparacion)
