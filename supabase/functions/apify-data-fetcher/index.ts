@@ -57,7 +57,11 @@ serve(async (req) => {
               'secuestro operador OR secuestro chofer',
               'accidente tráiler OR volcadura',
               'robo autopartes camión',
-              '#AlertaCarretera OR #SeguridadVial'
+              '#AlertaCarretera OR #SeguridadVial',
+              // Fuentes especializadas en inteligencia carretera
+              'from:monitorcarrete1 bloqueo OR cierre OR accidente OR asalto',
+              'from:jaliscorojo OR from:mimorelia bloqueo OR narcobloqueo OR cierre',
+              'from:GN_Carreteras OR from:ABORDOMX alerta OR cierre OR bloqueo'
             ].join(' OR '),
             maxTweets: 100,
             language: 'es',

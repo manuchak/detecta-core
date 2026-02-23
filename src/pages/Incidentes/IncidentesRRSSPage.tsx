@@ -10,6 +10,8 @@ import { IncidentesTable } from '@/components/incidentes/IncidentesTable';
 import { ActiveSituationBanner } from '@/components/incidentes/ActiveSituationBanner';
 import { IncidentesMap } from '@/components/incidentes/IncidentesMap';
 import { AffectedCorridors } from '@/components/incidentes/AffectedCorridors';
+import { CorridorStatusPanel } from '@/components/incidentes/CorridorStatusPanel';
+import { OperationalRecommendations } from '@/components/incidentes/OperationalRecommendations';
 import { useIncidentesRRSS, useIncidentesStats, useIncidentesActivos, useCarreterasDisponibles } from '@/hooks/useIncidentesRRSS';
 import { AlertTriangle, Filter } from 'lucide-react';
 
@@ -200,8 +202,14 @@ export default function IncidentesRRSSPage() {
         </CardContent>
       </Card>
 
-      {/* Corredores Afectados */}
-      <AffectedCorridors incidentes={incidentes || []} />
+      {/* Estatus de Corredores — tabla semáforo */}
+      <CorridorStatusPanel incidentes={incidentes || []} />
+
+      {/* Recomendaciones + Corredores Afectados */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <OperationalRecommendations incidentes={incidentes || []} />
+        <AffectedCorridors incidentes={incidentes || []} />
+      </div>
 
       {/* Mapa + Stats lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

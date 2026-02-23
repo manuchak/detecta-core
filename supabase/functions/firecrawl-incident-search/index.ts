@@ -23,6 +23,9 @@ const SEARCH_QUERIES = [
   '"narcobloqueo" OR "narco bloqueo" Jalisco OR Michoacan OR Tamaulipas OR Guanajuato',
   '"quema vehiculos" OR "jornada violencia" OR "quema de vehiculos" carretera Mexico',
   '"cierre autopista" OR "cierre carretera" OR "paro transportistas" Mexico',
+  // Menciones web de cuentas Twitter especializadas
+  '"@monitorcarrete1" OR "Monitor Carretero" bloqueo OR cierre carretera Mexico',
+  '"@jaliscorojo" OR "@mimorelia" bloqueo OR narcobloqueo carretera',
 ];
 
 function detectRedSocial(url: string): string {
