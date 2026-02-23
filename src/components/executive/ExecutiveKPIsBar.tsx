@@ -18,7 +18,7 @@ export const ExecutiveKPIsBar = () => {
   const currentDay = getCurrentDay();
   
   const { data: kpis, isLoading } = useQuery({
-    queryKey: ['executive-kpis-bar'],
+    queryKey: ['executive-kpis-bar-v2'],
     queryFn: async () => {
       const now = new Date();
       const currentRange = getCurrentMTDRange(now);
