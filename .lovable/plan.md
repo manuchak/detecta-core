@@ -1,94 +1,136 @@
 
 
-# Plan: Automatizacion cada 3 horas + Mejoras de Inteligencia BI/Criminologia
+# Plan: Filtro AI de Calidad + Inteligencia Criminologica Avanzada
 
-## Validacion actual del sistema
+## Problema actual
 
-**SI, el scraping ya se almacena como fichas de eventos.** La tabla `incidentes_rrss` funciona como un registro estructurado con 30+ campos por incidente: tipo, severidad, ubicacion, coordenadas, keywords, grupo delictivo, tipo de carga, monto de perdida, etc. La funcion `procesar-incidente-rrss` enriquece cada registro con AI (clasificacion, geocoding, resumen). La deduplicacion por URL ya esta implementada.
-
----
-
-## Parte 1: CRON automatico cada 3 horas
-
-Crear un job `pg_cron` que invoque la edge function `firecrawl-incident-search` cada 3 horas automaticamente.
-
-**Implementacion:**
-- Ejecutar un SQL via el insert tool (no migracion) que registre un `cron.schedule` llamando a `net.http_post` contra la edge function cada 3 horas
-- El schedule sera `0 */3 * * *` (minuto 0 de cada 3 horas)
-- La deduplicacion por URL ya existente evita insertar noticias repetidas
+El scraping actual inserta TODO lo que Firecrawl devuelve sin validar relevancia. Muchos resultados pueden ser noticias tangenciales, articulos de opinion, o contenido no relacionado con criminalidad vial. Ademas, el analisis AI actual extrae datos basicos pero no identifica patrones criminologicos avanzados como modus operandi, firma criminal, o patron geografico-temporal.
 
 ---
 
-## Parte 2: Tabla de frecuencia y patrones (Vista materializada)
+## Parte 1: Filtro AI de relevancia pre-insercion (Gate de Calidad)
 
-Crear una vista SQL `vista_frecuencia_incidentes` que consolide:
-- Conteo por tipo de incidente, por semana/mes
-- Conteo por estado/municipio
-- Tendencia temporal (semana actual vs anterior)
-- Severidad promedio por zona
+Antes de insertar en la base de datos, pasar cada resultado por un filtro AI rapido que determine si el contenido es realmente un incidente relevante para inteligencia criminal de transporte de carga.
 
-Esto permite consultar patrones sin recalcular cada vez.
+**Archivo:** `supabase/functions/firecrawl-incident-search/index.ts`
 
-**Migracion SQL:**
+**Logica:**
+- Despues de obtener resultados de Firecrawl y antes del batch insert, enviar los textos en lotes al AI Gateway
+- El AI asigna un `relevancia_score` (0-100) y un booleano `es_incidente_real`
+- Solo se insertan registros con `es_incidente_real = true` y `relevancia_score >= 40`
+- Criterios de descarte: articulos de opinion, noticias repetitivas sin datos nuevos, contenido publicitario, noticias de otros paises, incidentes no relacionados con transporte
+
+**Tool call al AI:**
+```
+Funcion: "filtrar_relevancia_incidente"
+Parametros:
+  - es_incidente_real (boolean): Es un incidente criminal real que afecta transporte de carga en Mexico?
+  - relevancia_score (0-100): Que tan relevante es para inteligencia de seguridad en transporte
+  - motivo_descarte (string): Si se descarta, por que
+```
+
+- Se procesan en batch de hasta 5 textos por llamada AI para eficiencia
+- Se agrega el campo `relevancia_score` al registro insertado para trazabilidad
+
+---
+
+## Parte 2: Analisis criminologico avanzado en procesamiento AI
+
+Enriquecer el prompt del AI en `procesar-incidente-rrss` para extraer inteligencia criminologica de nivel profesional.
+
+**Archivo:** `supabase/functions/procesar-incidente-rrss/index.ts`
+
+**Nuevos campos a extraer via tool calling:**
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `modus_operandi` | string | Descripcion del metodo usado (ej: "interception en carretera con vehiculos bloqueadores") |
+| `firma_criminal` | string | Patron distintivo que sugiere un grupo especifico (ej: "uso de drones para vigilancia previa") |
+| `nivel_organizacion` | enum | `oportunista`, `celula_local`, `crimen_organizado`, `no_determinado` |
+| `vector_ataque` | string | Como se ejecuto (emboscada, checkpoint falso, infiltracion, etc.) |
+| `objetivo_especifico` | string | Que buscaban (carga especifica, unidad, operador, combustible) |
+| `indicadores_premeditacion` | array[string] | Senales de planeacion previa (vigilancia, informante, horario especifico) |
+| `zona_tipo` | enum | `urbana`, `periurbana`, `rural`, `carretera_abierta`, `punto_critico` |
+| `contexto_ambiental` | string | Condiciones que facilitaron el evento (oscuridad, zona despoblada, tramo sin vigilancia) |
+
+**Cambios al system prompt:**
+Agregar instrucciones de criminologia ambiental:
+- Teoria de Actividades Rutinarias: identificar convergencia de delincuente motivado + objetivo adecuado + ausencia de guardian capaz
+- Patron espacial: clasificar si es zona de actividad, zona de busqueda, o corredor de escape
+- Near-repeat: vincular con incidentes previos similares en zona/tiempo
+
+---
+
+## Parte 3: Migracion de base de datos
+
+Agregar columnas para los nuevos campos criminologicos en `incidentes_rrss`:
+
 ```sql
-CREATE OR REPLACE VIEW vista_frecuencia_incidentes AS
-SELECT
-  date_trunc('week', fecha_publicacion) AS semana,
-  tipo_incidente,
-  severidad,
-  estado,
-  carretera,
-  COUNT(*) AS total,
-  COUNT(*) FILTER (WHERE severidad IN ('alta','critica')) AS criticos,
-  AVG(confianza_clasificacion) AS confianza_promedio
-FROM incidentes_rrss
-WHERE procesado = true
-GROUP BY 1, 2, 3, 4, 5;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS relevancia_score INTEGER;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS modus_operandi TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS firma_criminal TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS nivel_organizacion TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS vector_ataque TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS objetivo_especifico TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS indicadores_premeditacion TEXT[];
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS zona_tipo TEXT;
+ALTER TABLE incidentes_rrss ADD COLUMN IF NOT EXISTS contexto_ambiental TEXT;
 ```
 
 ---
 
-## Parte 3: Mejoras propuestas basadas en BI y Criminologia Ambiental
+## Parte 4: Subir limite de resultados y agregar fuentes especializadas
 
-Dado que el negocio es **custodia y transporte de carga**, estas mejoras aplican directamente:
+**Archivo:** `supabase/functions/firecrawl-incident-search/index.ts`
 
-### 3a. Hotspot temporal (Near-Repeat Theory)
-Agregar campos `hora_incidente` y `dia_semana` extraidos por AI para identificar ventanas horarias de riesgo. La teoria de near-repeat en criminologia ambiental dice que un evento predice eventos similares cercanos en tiempo y espacio.
-
-**Cambio:** Agregar columnas `hora_estimada` (INTEGER 0-23) y `dia_semana_estimado` (INTEGER 0-6) a la tabla, y que el AI las extraiga del texto.
-
-### 3b. Queries de busqueda ampliados
-Los 4 queries actuales son limitados. Agregar queries especificos para:
-- `"robo combustible" OR "ordeña diesel" Mexico`
-- `"extorsion transportista" OR "cobro piso" carretera Mexico`
-- `"inseguridad autopista" OR "zona peligrosa" transporte Mexico`
-
-### 3c. Score de riesgo por corredor
-Crear una funcion RPC que calcule un score de riesgo por carretera basado en frecuencia, severidad y recencia de incidentes, aprovechando el sistema de scoring H3 ya existente en el modulo de seguridad.
-
-### 3d. Alertas automaticas por umbral
-Crear un trigger que detecte cuando una zona/carretera supera N incidentes criticos en 7 dias y genere una alerta en `alertas_sistema_nacional`.
+- Cambiar `limit` default de 20 a 50
+- Agregar queries de fuentes especializadas:
+  - `site:t21.com.mx robo OR asalto OR bloqueo OR inseguridad`
+  - `site:tyt.com.mx OR site:canacar.com.mx robo carga inseguridad`
+  - `site:elfinanciero.com.mx robo transporte carga carretera Mexico`
+  - `"secretariado ejecutivo" robo transporte OR "incidencia delictiva" carretera`
+  - `"alerta vial" OR "cierre carretero" OR "peligro carretera" transporte carga Mexico`
+- Actualizar `detectRedSocial` para reconocer fuentes especializadas como tipo `transporte` o `logistica`
 
 ---
 
-## Detalle tecnico
+## Parte 5: Visualizacion de inteligencia criminologica en UI
 
-### Archivos a modificar/crear
+**Archivo:** `src/components/incidentes/IncidentesStats.tsx`
+
+- Agregar card de "Modus Operandi mas frecuentes" con conteo
+- Agregar card de "Nivel de Organizacion Criminal" (pie/donut chart)
+- Mostrar indicadores de premeditacion mas comunes
+
+**Archivo:** `src/hooks/useIncidentesRRSS.ts`
+
+- Agregar query para estadisticas de modus operandi y nivel de organizacion
+
+---
+
+## Resumen de archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| SQL (insert tool) | Crear cron job `pg_cron` cada 3 horas |
-| SQL (migracion) | Vista `vista_frecuencia_incidentes` + columnas hora/dia + trigger de alertas |
-| `supabase/functions/firecrawl-incident-search/index.ts` | Agregar 3 queries de busqueda adicionales |
-| `supabase/functions/procesar-incidente-rrss/index.ts` | Extraer hora_estimada y dia_semana del texto via AI |
-| `src/hooks/useIncidentesRRSS.ts` | Nuevo hook `useIncidentesFrecuencia` para la vista |
-| `src/components/incidentes/IncidentesStats.tsx` | Agregar mini-chart de tendencia semanal y breakdown por corredor |
+| SQL (migracion) | 9 columnas nuevas en `incidentes_rrss` |
+| `supabase/functions/firecrawl-incident-search/index.ts` | Filtro AI pre-insert + limit 50 + queries especializadas + deteccion fuentes |
+| `supabase/functions/procesar-incidente-rrss/index.ts` | Prompt criminologico avanzado + 8 campos nuevos en tool call + update |
+| `src/hooks/useIncidentesRRSS.ts` | Stats de modus operandi y organizacion |
+| `src/components/incidentes/IncidentesStats.tsx` | Cards de inteligencia criminologica |
 
-### Secuencia de implementacion
+## Flujo resultante
 
-1. Migracion DB: vista + columnas + trigger alertas
-2. Cron job (insert tool)
-3. Queries ampliados en edge function
-4. AI extraccion hora/dia en procesar-incidente
-5. Hook + UI de frecuencia/tendencia
+```text
+Firecrawl Search (50 results/query x 12 queries)
+        |
+   AI Relevance Filter (descarta irrelevantes)
+        |
+   Dedup por URL (descarta repetidos)
+        |
+   INSERT en incidentes_rrss
+        |
+   AI Criminologico (modus operandi, firma, organizacion)
+        |
+   Dashboard con inteligencia accionable
+```
 
