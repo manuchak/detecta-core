@@ -1,167 +1,78 @@
 
 
-# Blindar Flujo de Supply: Contratos Digitales, Capacitacion y Estudios Socioeconomicos
+# Configurar API Directa de X.com para Feed de Inteligencia
 
-## Problema
+## Contexto
 
-El equipo de Supply no puede avanzar en la liberacion porque:
-1. Los **contratos** (5 documentos legales) se manejan en fisico -- no hay forma de generarlos, firmarlos digitalmente y registrarlos dentro del sistema
-2. La **capacitacion** requiere completar quizzes en linea, pero el equipo la imparte de forma presencial -- necesitan poder marcarla como completada manualmente
-3. No se pueden **eliminar contratos** generados incorrectamente
-4. No existe modulo de **estudios socioeconomicos** para evaluar el contexto del custodio
+Actualmente el pipeline de inteligencia usa:
+- **Apify** (scraper_one, quacker, etc.) -- frecuentemente bloqueado por X, resultados inconsistentes
+- **Firecrawl** -- solo captura noticias web que citan Twitter, no tweets directos
 
----
+Con credenciales directas de la API de X.com, se elimina la dependencia de scrapers y se obtienen datos confiables en tiempo real.
 
-## Fase 1: Actualizar Plantillas de Contratos
+## Plan
 
-### Nuevos tipos de contrato
+### 1. Agregar los 4 Secrets de Twitter/X
 
-Los 5 documentos subidos se mapean asi:
+Se solicitaran las credenciales una por una usando el sistema de secrets de Supabase:
+- `TWITTER_CONSUMER_KEY` (API Key)
+- `TWITTER_CONSUMER_SECRET` (API Key Secret)
+- `TWITTER_ACCESS_TOKEN`
+- `TWITTER_ACCESS_TOKEN_SECRET`
 
-| Documento DOCX | Tipo en sistema | Nuevo? |
-|---|---|---|
-| Convenio de Confidencialidad | `confidencialidad` | Ya existe -- actualizar plantilla HTML |
-| Aviso de Privacidad | `aviso_privacidad` | Ya existe -- actualizar plantilla HTML |
-| Contrato Propietario de Vehiculo | `prestacion_servicios_propietario` | NUEVO |
-| Contrato No Propietario | `prestacion_servicios_no_propietario` | NUEVO |
-| Anexo GPS | `anexo_gps` | NUEVO |
+### 2. Nueva Edge Function: `twitter-incident-search`
 
-### Cambios
+Endpoint: `api.x.com/2` (Twitter API v2)
 
-**Migracion SQL:**
-- Agregar los 3 nuevos valores al CHECK constraint de `tipo_contrato` en `contratos_candidato`
-- Insertar las 5 plantillas HTML (contenido convertido de los DOCX) en `plantillas_contrato`
-- Las plantillas usaran variables interpolables: `{{nombre_completo}}`, `{{curp}}`, `{{direccion}}`, `{{fecha_actual}}`, `{{marca_vehiculo}}`, `{{modelo_vehiculo}}`, `{{placas}}`, `{{numero_serie}}`, etc.
+**Funcionalidad:**
+- Usa OAuth 1.0a (firma HMAC-SHA1) para autenticarse con la API de X
+- Busca tweets recientes usando el endpoint `GET /2/tweets/search/recent`
+- Queries optimizadas para seguridad en transporte:
+  - `robo trailer OR robo carga -is:retweet lang:es`
+  - `bloqueo carretera OR narcobloqueo -is:retweet lang:es`
+  - `asalto transportista OR secuestro operador -is:retweet lang:es`
+  - `from:GN_Carreteras OR from:monitorcarrete1 OR from:jaliscorojo`
+- Parametros: `tweet.fields=created_at,public_metrics,geo,entities` y `user.fields=username,name`
+- Deduplicacion contra `incidentes_rrss.url_publicacion` existentes
+- Inserta en `incidentes_rrss` con el mismo schema que usa apify-data-fetcher
+- Dispara `procesar-incidente-rrss` para clasificacion AI asincrona (pipeline existente)
 
-**`src/hooks/useContratosCandidato.ts`:**
-- Actualizar `TipoContrato` con los 3 nuevos tipos
-- Actualizar `CONTRATO_LABELS` con las etiquetas
-- Actualizar `CONTRATOS_REQUERIDOS` para incluir los 5 contratos obligatorios
-- Agregar mutacion `useEliminarContrato` para eliminar contratos mal subidos (con politica RLS para supply)
-- Actualizar `getDatosInterpolacion` para incluir datos vehiculares
+**Estructura de la firma OAuth 1.0a:**
+- Genera nonce, timestamp, y firma HMAC-SHA1 en Deno usando `crypto.subtle`
+- NO incluye parametros del body en la firma (solo query params para GET)
+- Header: `Authorization: OAuth oauth_consumer_key="...", oauth_token="...", ...`
 
-**`src/components/recruitment/contracts/ContractsTab.tsx`:**
-- Agregar boton de eliminar junto a cada contrato no firmado
-- Dialog de confirmacion antes de eliminar
-- Logica condicional: mostrar contrato propietario o no propietario segun `vehiculo_propio` del candidato
+### 3. Registrar en config.toml
 
-**`src/components/recruitment/contracts/ContractGenerateDialog.tsx`:**
-- Agregar campos de datos vehiculares cuando el tipo es `prestacion_servicios_propietario` o `anexo_gps`
-
----
-
-## Fase 2: Capacitacion Manual por Supply
-
-### Problema
-El modulo de capacitacion actual requiere que el candidato complete quizzes online. Supply hace capacitacion presencial y necesita marcarla como completada manualmente.
-
-### Cambios
-
-**Migracion SQL:**
-- Agregar columnas a `progreso_capacitacion`:
-  - `completado_manual boolean DEFAULT false`
-  - `completado_manual_por uuid REFERENCES auth.users`
-  - `completado_manual_fecha timestamptz`
-  - `completado_manual_notas text`
-
-**`src/hooks/useCapacitacion.ts`:**
-- Agregar mutacion `useMarcarCapacitacionManual` que marca todos los modulos como completados manualmente
-- Actualizar `calcularProgresoGeneral` para considerar `completado_manual` como equivalente a quiz aprobado
-
-**`src/components/leads/evaluaciones/TrainingTab.tsx`:**
-- Agregar boton "Marcar como Completada (Presencial)" visible solo para roles supply
-- Dialog con campo de notas y confirmacion
-- Badge visual que distingue entre "Completada Online" y "Completada Presencial"
-
----
-
-## Fase 3: Estudios Socioeconomicos
-
-### Contexto
-Los estudios socioeconomicos son investigaciones de campo sobre el entorno del candidato (vivienda, familia, referencias vecinales, situacion economica). Actualmente se hacen en papel o por proveedores externos.
-
-### Modelo de datos
-
-**Nueva tabla: `estudios_socioeconomicos`**
-```text
-- id uuid PK
-- candidato_id uuid FK -> candidatos_custodios
-- proveedor: 'interno' | 'externo'
-- nombre_proveedor text (si externo)
-- fecha_estudio date
-- estado: 'pendiente' | 'en_proceso' | 'completado' | 'rechazado'
-- resultado_general: 'favorable' | 'con_observaciones' | 'desfavorable'
-- score_vivienda int (1-10)
-- score_entorno int (1-10)
-- score_familiar int (1-10)
-- score_economico int (1-10)
-- score_referencias int (1-10)
-- score_global decimal (promedio)
-- observaciones text
-- recomendacion text
-- archivo_url text (PDF del estudio completo)
-- realizado_por uuid FK -> auth.users
-- created_at, updated_at
+```toml
+[functions.twitter-incident-search]
+verify_jwt = false
 ```
 
-**RLS:** Acceso para roles supply, supply_lead, supply_admin, admin, owner.
+### 4. Integracion con Pipeline Existente
 
-### UI
+La funcion reutiliza exactamente el mismo flujo post-insercion:
+1. Inserta tweet en `incidentes_rrss` (red_social = 'twitter', procesado = false)
+2. Llama a `procesar-incidente-rrss` para clasificacion AI
+3. Los datos aparecen automaticamente en:
+   - ThreatIntelFeed (modulo seguridad)
+   - TVAlertTicker (monitoreo TV)
+   - IncidentesMap (mapa de incidentes)
 
-**Nuevo componente: `src/components/recruitment/socioeconomico/SocioeconomicoTab.tsx`**
-- Formulario para registrar el estudio con los 5 scores (barras de 1-10)
-- Semaforo visual basado en score_global: Verde (>=7), Ambar (5-6.9), Rojo (<5)
-- Upload de PDF del estudio completo
-- Historial de estudios previos si existen
-
-**Nuevo badge: `SocioeconomicoBadge.tsx`**
-- Indicador visual en el panel de evaluacion del candidato
-
-**Integracion en `CandidateEvaluationPanel.tsx`:**
-- Nueva pestana "Socioeconomico" con icono Home/Shield
-
----
-
-## Fase 4: Integrar en Smart Gates de Liberacion
-
-### Cambios en `LiberacionChecklistModal.tsx`
-
-Agregar validaciones al gate system:
-
-**Yellow gates (advertencia):**
-- "Contratos no completados" -- si los contratos requeridos no estan todos firmados
-- "Capacitacion no completada" -- si la capacitacion no esta marcada como completada (online o manual)
-- "Estudio socioeconomico pendiente" -- si no hay estudio o esta en proceso
-
-**Red gates (bloqueo):**
-- "Estudio socioeconomico desfavorable" -- si el resultado es desfavorable
-
-Esto requiere nuevos hooks en el modal para consultar el progreso de contratos, capacitacion y socioeconomico del candidato.
-
----
+No se requieren cambios en frontend -- los hooks existentes (`useIncidentesRRSS`, `useThreatIntelligence`) ya consumen de `incidentes_rrss`.
 
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
 |---|---|
-| Nueva migracion SQL | Tipos contrato, plantillas HTML, tabla socioeconomicos, columnas capacitacion manual |
-| `src/hooks/useContratosCandidato.ts` | Nuevos tipos, eliminar contrato, datos vehiculares |
-| `src/hooks/useCapacitacion.ts` | Mutacion completado manual |
-| `src/hooks/useEstudioSocioeconomico.ts` | NUEVO: CRUD completo |
-| `src/components/recruitment/contracts/ContractsTab.tsx` | Boton eliminar, logica propietario/no-propietario |
-| `src/components/recruitment/contracts/ContractGenerateDialog.tsx` | Campos vehiculares |
-| `src/components/leads/evaluaciones/TrainingTab.tsx` | Boton completado manual |
-| `src/components/recruitment/socioeconomico/SocioeconomicoTab.tsx` | NUEVO |
-| `src/components/recruitment/socioeconomico/SocioeconomicoBadge.tsx` | NUEVO |
-| `src/components/recruitment/CandidateEvaluationPanel.tsx` | Agregar tab socioeconomico |
-| `src/components/liberacion/LiberacionChecklistModal.tsx` | Smart gates para contratos, capacitacion, socioeconomico |
-| `src/integrations/supabase/types.ts` | Tipos generados |
+| Secrets (4) | TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET |
+| `supabase/functions/twitter-incident-search/index.ts` | NUEVO: Edge function con OAuth 1.0a y busqueda v2 |
+| `supabase/config.toml` | Agregar entrada verify_jwt = false |
 
-## Orden de implementacion
+## Limitaciones de la API (Basic tier)
 
-1. Migracion SQL (todo junto)
-2. Fase 1: Contratos (tipos + plantillas + eliminar + vehiculares)
-3. Fase 2: Capacitacion manual
-4. Fase 3: Estudios socioeconomicos
-5. Fase 4: Smart gates actualizados
+- **10,000 tweets/mes** en lectura (Basic $200/mo) o **1,500,000** (Pro)
+- `search/recent` solo busca tweets de los ultimos **7 dias**
+- Rate limit: 450 requests / 15 min (app-level)
+- La funcion implementara control de rate limit y paginacion con `next_token`
 
