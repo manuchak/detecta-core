@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getCDMXMonth, getCDMXYear, getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
+import { fetchAllPaginated } from '@/utils/supabasePagination';
 
 // Daily trend data for DoD chart
 export interface DailyTrendData {
@@ -209,9 +210,7 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         query = query.gte('fecha_hora_cita', defaultStartDate);
       }
       
-      const { data: services, error: servicesError } = await query;
-
-      if (servicesError) throw servicesError;
+      const services = await fetchAllPaginated(() => query);
 
       // NUEVA CONSULTA: Obtener datos del año anterior para comparaciones YoY
       let prevYearServices: typeof services = [];
@@ -220,14 +219,16 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevYearStartDate = `${yearToCompare - 1}-01-01`;
       const prevYearEndDate = `${yearToCompare}-01-01`;
       
-      const { data: prevYearData, error: prevYearError } = await supabase
-        .from('servicios_custodia')
-        .select(selectColumns)
-        .gte('fecha_hora_cita', prevYearStartDate)
-        .lt('fecha_hora_cita', prevYearEndDate);
-      
-      if (!prevYearError && prevYearData) {
-        prevYearServices = prevYearData;
+      try {
+        prevYearServices = await fetchAllPaginated(() =>
+          supabase
+            .from('servicios_custodia')
+            .select(selectColumns)
+            .gte('fecha_hora_cita', prevYearStartDate)
+            .lt('fecha_hora_cita', prevYearEndDate)
+        );
+      } catch (e) {
+        console.warn('[useOperationalMetrics] prev year query failed:', e);
       }
 
       const now = new Date();
