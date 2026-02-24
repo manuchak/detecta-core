@@ -31,7 +31,7 @@ export function useCSRetentionMetrics() {
       // Fetch servicios from both tables for NRR and churn calculation
       const cutoff6m = format(subMonths(now, 6), 'yyyy-MM-dd');
       const [legacyRes, planRes] = await Promise.all([
-        supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
+        supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m).not('estado', 'eq', 'Cancelado'),
         supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita').gte('fecha_hora_cita', cutoff6m),
       ]);
       if (legacyRes.error) throw legacyRes.error;

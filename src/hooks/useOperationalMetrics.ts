@@ -272,9 +272,10 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const totalKm = completedServicesWithKm.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);
       const averageKmPerService = completedServicesWithKm.length > 0 ? totalKm / completedServicesWithKm.length : 0;
 
-      // GMV calculations - CORREGIDO: Solo de servicios completados
-      const totalGMV = completedServicesArray.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
-      const averageAOV = completedServices > 0 ? totalGMV / completedServices : 0;
+      // GMV calculations — Canonical: all non-cancelled services (not just completed)
+      const nonCancelledServices = services?.filter(s => s.estado?.toLowerCase() !== 'cancelado') || [];
+      const totalGMV = nonCancelledServices.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
+      const averageAOV = nonCancelledServices.length > 0 ? totalGMV / nonCancelledServices.length : 0;
 
       // Current month metrics (MTD) - Usar funciones UTC para datos de DB
       // CORREGIDO: Usar reportYear en lugar de currentYear
@@ -294,8 +295,8 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
         s.estado?.toLowerCase() !== 'cancelado'
       );
       const servicesThisMonth = currentMonthNonCancelled.length;
-      // GMV del mes actual solo de completados
-      const gmvThisMonth = currentMonthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      // GMV del mes actual — canonical: non-cancelled
+      const gmvThisMonth = currentMonthNonCancelled.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
 
       // Previous month MTD (same day range)
       const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
@@ -398,9 +399,10 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const prevMonthCompletionRate = previousMonthMTDServices.length > 0 ? 
         (prevMonthCompleted / previousMonthMTDServices.length) * 100 : 0;
 
-      // Previous month AOV - Solo de completados
-      const prevMonthGMV = prevMonthCompletedServices.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
-      const prevMonthAOV = prevMonthCompletedServices.length > 0 ? prevMonthGMV / prevMonthCompletedServices.length : 0;
+      // Previous month GMV — canonical: non-cancelled
+      const prevMonthNonCancelled = previousMonthMTDServices.filter(s => s.estado?.toLowerCase() !== 'cancelado');
+      const prevMonthGMV = prevMonthNonCancelled.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
+      const prevMonthAOV = prevMonthNonCancelled.length > 0 ? prevMonthGMV / prevMonthNonCancelled.length : 0;
 
       // Previous month Km average
       const prevMonthCompletedWithKm = previousMonthMTDServices.filter(s => 
@@ -417,8 +419,8 @@ export const useOperationalMetrics = (options?: OperationalMetricsOptions) => {
       const currentMonthCompletionRate = currentMonthServices.length > 0 ? 
         (currentMonthCompletedCount / currentMonthServices.length) * 100 : 0;
       
-      // AOV del mes actual solo de completados
-      const currentMonthAOV = currentMonthCompletedServices.length > 0 ? gmvThisMonth / currentMonthCompletedServices.length : 0;
+      // AOV del mes actual — canonical: non-cancelled
+      const currentMonthAOV = currentMonthNonCancelled.length > 0 ? gmvThisMonth / currentMonthNonCancelled.length : 0;
 
       const currentMonthCompletedWithKm = currentMonthCompletedServices.filter(s => s.km_recorridos > 0);
       const currentMonthTotalKm = currentMonthCompletedWithKm.reduce((sum, s) => sum + (s.km_recorridos || 0), 0);

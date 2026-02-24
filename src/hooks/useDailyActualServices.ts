@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 import { getCDMXDayOfMonth } from '@/utils/cdmxDateUtils';
+import { fetchAllPaginated } from '@/utils/supabasePagination';
+import { parseCobroCanonical } from '@/services/gmvMTDService';
 
 export interface DailyActualData {
   date: string;
@@ -17,18 +19,15 @@ export const useDailyActualServices = (year: number = 2025, month: number = 12) 
       const startDate = startOfMonth(new Date(year, month - 1));
       const endDate = endOfMonth(new Date(year, month - 1));
       
-      const { data, error } = await supabase
-        .from('servicios_custodia')
-        .select('fecha_hora_cita, cobro_cliente')
-        .gte('fecha_hora_cita', format(startDate, 'yyyy-MM-dd'))
-        .lt('fecha_hora_cita', format(new Date(year, month, 1), 'yyyy-MM-dd'))
-        .neq('estado', 'Cancelado')
-        .gt('cobro_cliente', 0);
-
-      if (error) {
-        console.error('Error fetching daily actual services:', error);
-        throw error;
-      }
+      // Canonical filter: NOT Cancelado, paginated, no cobro_cliente > 0 filter
+      const data = await fetchAllPaginated<{ fecha_hora_cita: string; cobro_cliente: number | null }>(() =>
+        supabase
+          .from('servicios_custodia')
+          .select('fecha_hora_cita, cobro_cliente')
+          .gte('fecha_hora_cita', format(startDate, 'yyyy-MM-dd'))
+          .lt('fecha_hora_cita', format(new Date(year, month, 1), 'yyyy-MM-dd'))
+          .not('estado', 'eq', 'Cancelado')
+      );
 
       // Group by day
       const dailyMap = new Map<number, { services: number; gmv: number }>();
@@ -39,15 +38,13 @@ export const useDailyActualServices = (year: number = 2025, month: number = 12) 
         dailyMap.set(day, { services: 0, gmv: 0 });
       }
 
-      // Aggregate actual data - using CDMX timezone to avoid off-by-one errors
-      data?.forEach(service => {
-        // Use CDMX timezone extraction to correctly attribute services
-        // Services after 18:00 CDMX were incorrectly counted as next day with getUTCDate()
+      // Aggregate actual data - using CDMX timezone and canonical parseFloat
+      data.forEach(service => {
         const day = getCDMXDayOfMonth(service.fecha_hora_cita);
         const existing = dailyMap.get(day) || { services: 0, gmv: 0 };
         dailyMap.set(day, {
           services: existing.services + 1,
-          gmv: existing.gmv + (service.cobro_cliente || 0)
+          gmv: existing.gmv + parseCobroCanonical(service.cobro_cliente)
         });
       });
 

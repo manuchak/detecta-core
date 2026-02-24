@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, eachDayOfInterval, subDays } from 'date-fns';
 import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
 import { fetchTarifasKm, calcularCostoEscalonado, type TarifaKmRango } from '@/utils/tarifasKmUtils';
+import { fetchAllPaginated } from '@/utils/supabasePagination';
+import { parseCobroCanonical } from '@/services/gmvMTDService';
 
 export interface DailyMargin {
   fecha: string;
@@ -69,34 +71,34 @@ export function useFinancialMetrics() {
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
-      // Get services current month (MTD) with all cost fields
-      const { data: serviciosCurrent, error: currentError } = await supabase
-        .from('servicios_custodia')
-        .select('fecha_hora_cita, cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
-        .gte('fecha_hora_cita', currentRange.start)
-        .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'Cancelado');
+      // Get services current month (MTD) with all cost fields - PAGINATED
+      const serviciosCurrent = await fetchAllPaginated<ServicioConCostos>(() =>
+        supabase
+          .from('servicios_custodia')
+          .select('fecha_hora_cita, cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
+          .gte('fecha_hora_cita', currentRange.start)
+          .lte('fecha_hora_cita', currentRange.end)
+          .not('estado', 'eq', 'Cancelado')
+      );
 
-      if (currentError) throw currentError;
+      // Get services previous month (MTD - same day range) - PAGINATED
+      const serviciosPrevious = await fetchAllPaginated<Omit<ServicioConCostos, 'fecha_hora_cita'>>(() =>
+        supabase
+          .from('servicios_custodia')
+          .select('cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
+          .gte('fecha_hora_cita', prevRange.start)
+          .lte('fecha_hora_cita', prevRange.end)
+          .not('estado', 'eq', 'Cancelado')
+      );
 
-      // Get services previous month (MTD - same day range)
-      const { data: serviciosPrevious, error: prevError } = await supabase
-        .from('servicios_custodia')
-        .select('cobro_cliente, costo_custodio, casetas, nombre_armado, km_recorridos')
-        .gte('fecha_hora_cita', prevRange.start)
-        .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'Cancelado');
-
-      if (prevError) throw prevError;
-
-      // Calculate GMV totals
-      const gmvMTD = (serviciosCurrent || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
-      const gmvAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
+      // Calculate GMV totals using canonical parsing
+      const gmvMTD = serviciosCurrent.reduce((sum, s) => sum + parseCobroCanonical(s.cobro_cliente), 0);
+      const gmvAnterior = serviciosPrevious.reduce((sum, s) => sum + parseCobroCanonical(s.cobro_cliente), 0);
       const gmvVariacion = gmvAnterior > 0 ? ((gmvMTD - gmvAnterior) / gmvAnterior) * 100 : 0;
 
       // Calculate costs from servicios_custodia (costo_custodio + casetas + costo_armado)
-      const costosMTD = (serviciosCurrent || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos, tarifas).total, 0);
-      const costosAnterior = (serviciosPrevious || []).reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos, tarifas).total, 0);
+      const costosMTD = serviciosCurrent.reduce((sum, s) => sum + calcularCostosDesglosados(s, tarifas).total, 0);
+      const costosAnterior = serviciosPrevious.reduce((sum, s) => sum + calcularCostosDesglosados(s as ServicioConCostos, tarifas).total, 0);
       const costosVariacion = costosAnterior > 0 ? ((costosMTD - costosAnterior) / costosAnterior) * 100 : 0;
 
       // Calculate margin
@@ -122,11 +124,11 @@ export function useFinancialMetrics() {
       const costosCasetasByDay: Record<string, number> = {};
       const costosArmadosByDay: Record<string, number> = {};
       
-      (serviciosCurrent || []).forEach(s => {
+      (serviciosCurrent).forEach(s => {
         const fecha = s.fecha_hora_cita ? format(new Date(s.fecha_hora_cita), 'yyyy-MM-dd') : null;
         if (fecha) {
-          const desglose = calcularCostosDesglosados(s as ServicioConCostos, tarifas);
-          gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseFloat(String(s.cobro_cliente || 0));
+          const desglose = calcularCostosDesglosados(s, tarifas);
+          gmvByDay[fecha] = (gmvByDay[fecha] || 0) + parseCobroCanonical(s.cobro_cliente);
           costosCustodiosByDay[fecha] = (costosCustodiosByDay[fecha] || 0) + desglose.custodio;
           costosCasetasByDay[fecha] = (costosCasetasByDay[fecha] || 0) + desglose.casetas;
           costosArmadosByDay[fecha] = (costosArmadosByDay[fecha] || 0) + desglose.armado;
