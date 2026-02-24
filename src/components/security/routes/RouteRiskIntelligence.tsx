@@ -18,6 +18,10 @@ export function RouteRiskIntelligence() {
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
 
+  const toggleLayer = useCallback((key: keyof LayerVisibility) => {
+    setLayers(prev => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
   const handleSegmentSelect = useCallback((seg: HighwaySegment | null) => {
     setSelectedSegmentId(seg?.id || null);
   }, []);
