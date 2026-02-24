@@ -1,87 +1,58 @@
 
 
-# Migrar Edge Function a TypeScript XDK oficial de X.com
+# Automatizar la alimentación del feed de inteligencia vía Twitter/X API
 
-## Por que migrar
+## Problema actual
 
-Nuestra Edge Function `twitter-incident-search` tiene ~80 lineas de codigo manual para OAuth 1.0a (nonce, HMAC-SHA1, firma). El SDK oficial `@xdevplatform/xdk` v0.4.0 reemplaza todo eso con 4 lineas y agrega paginacion automatica, rate limit handling, y tipos completos.
+La Edge Function `twitter-incident-search` existe y funciona correctamente: busca tweets, los inserta en `incidentes_rrss`, y dispara `procesar-incidente-rrss` para clasificación AI. Sin embargo, **no hay nada que la ejecute automáticamente**. Solo se puede invocar manualmente desde Configuracion > Twitter/X.
 
-## Comparacion
+## Solución
 
-```text
-HOY (manual)                          CON XDK
-─────────────────────────────         ─────────────────────────────
-percentEncode()                       (eliminado)
-generateNonce()                       (eliminado)
-hmacSha1()                            (eliminado)
-buildOAuthHeader() (~40 lineas)       new OAuth1({apiKey, apiSecret, accessToken, accessTokenSecret})
-fetch manual + query string           client.posts.searchRecent({query, ...})
-parseo manual de response             Tipos automaticos (data, includes, meta)
-rate limit via headers                paginator.rateLimited
-sin paginacion                        for await (const tweet of paginator)
-```
+### 1. Crear pg_cron job para ejecución automática cada 3 horas
 
-## Cambios
-
-### 1. Actualizar Edge Function
-
-**Archivo: `supabase/functions/twitter-incident-search/index.ts`**
-
-- Eliminar las funciones manuales: `percentEncode`, `generateNonce`, `hmacSha1`, `buildOAuthHeader` (~80 lineas)
-- Importar `Client`, `OAuth1` desde `@xdevplatform/xdk` via esm.sh
-- Crear cliente con OAuth 1.0a:
+**Migración SQL:**
 
 ```text
-const oauth1 = new OAuth1({
-  apiKey: consumerKey,
-  apiSecret: consumerSecret,
-  accessToken,
-  accessTokenSecret
-});
-const client = new Client({ oauth1 });
+SELECT cron.schedule(
+  'twitter-incident-search-auto',
+  '0 */3 * * *',   -- Cada 3 horas
+  $$
+  SELECT net.http_post(
+    url := 'https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/twitter-incident-search',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
+    ),
+    body := '{"max_results": 25}'::jsonb
+  );
+  $$
+);
 ```
 
-- Reemplazar `fetch` manual por `client.posts.searchRecent()`:
+Esto ejecutará la búsqueda automáticamente a las 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00 y 21:00 UTC cada día.
 
-```text
-const response = await client.posts.searchRecent(query, {
-  maxResults: 25,
-  tweetfields: ['created_at', 'public_metrics', 'geo', 'entities', 'author_id'],
-  userfields: ['username', 'name'],
-  expansions: ['author_id', 'attachments.media_keys'],
-  mediafields: ['url', 'preview_image_url', 'type'],
-});
-```
+### 2. Agregar botón "Actualizar desde X" en la página de Incidentes RRSS
 
-- Mantener toda la logica de negocio intacta: queries dinamicos desde BD, deduplicacion, insert en `incidentes_rrss`, invocacion de `procesar-incidente-rrss`, registro en `twitter_api_usage`
-- Agregar manejo de rate limit usando try/catch del SDK en lugar de parseo manual de headers
+**Archivo: página o componente principal de `/incidentes-rrss`**
 
-### 2. Compatibilidad con Deno
+- Agregar un botón con icono de Twitter/X junto a los controles existentes
+- Al hacer clic, invoca `twitter-incident-search` directamente
+- Muestra toast con resultados (tweets nuevos insertados)
+- Reutiliza el hook `useRunTwitterSearch` que ya existe en `useTwitterConfig.ts`
 
-El XDK usa pure JavaScript crypto (no depende de Node.js crypto nativo), por lo que funciona en Deno via esm.sh:
+### 3. Indicador de última ejecución
 
-```text
-import { Client, OAuth1 } from "https://esm.sh/@xdevplatform/xdk@0.4.0";
-```
+Mostrar en la página de incidentes cuándo fue la última búsqueda exitosa, consultando el registro más reciente de `twitter_api_usage`.
 
-No se requieren cambios en `package.json` del proyecto principal ya que el SDK solo se usa en la Edge Function.
+## Archivos a crear/modificar
 
-## Archivos a modificar
-
-| Archivo | Accion |
+| Archivo | Acción |
 |---|---|
-| `supabase/functions/twitter-incident-search/index.ts` | Refactorizar: eliminar OAuth manual, usar XDK |
+| Migración SQL | pg_cron schedule cada 3 horas |
+| Componente de la página `/incidentes-rrss` | Agregar botón "Actualizar desde X" y timestamp de última ejecución |
 
-## Lo que NO cambia
+## Resultado esperado
 
-- Queries dinamicos desde `twitter_monitored_accounts`
-- Deduplicacion contra `incidentes_rrss`
-- Pipeline de clasificacion AI (`procesar-incidente-rrss`)
-- Registro de uso en `twitter_api_usage`
-- UI de gestion en Settings
-- Ningun archivo frontend
-
-## Beneficio futuro
-
-El XDK soporta **Filtered Stream** (`client.stream.postsSample()`), lo que en el futuro permitiria monitoreo en tiempo real sin polling, reduciendo llamadas a la API y costos.
-
+- El feed se alimenta automáticamente cada 3 horas sin intervención manual
+- Desde la página de incidentes se puede forzar una actualización inmediata
+- Se ve claramente cuándo fue la última vez que se consultó la API
