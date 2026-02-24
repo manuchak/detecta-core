@@ -1,13 +1,26 @@
 /**
  * ExcludedCustodiansAlert - Inline banner showing why custodians are excluded from search
  * Only visible when there's an active search AND excluded custodians exist
+ * Now includes "Levantar Penalidad" action for analysts
  */
 
-import { Info, Eye } from 'lucide-react';
+import { useState } from 'react';
+import { Info, Eye, ShieldOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useSuspenderRechazo } from '@/hooks/useCustodioRechazos';
 
 export interface RechazadoDetail {
   id: string;
@@ -33,6 +46,9 @@ export function ExcludedCustodiansAlert({
   rechazadosMatchingSearch,
   onViewConflicts,
 }: ExcludedCustodiansAlertProps) {
+  const [confirmTarget, setConfirmTarget] = useState<RechazadoDetail | null>(null);
+  const suspenderRechazo = useSuspenderRechazo();
+
   // Only show when there's an active search AND exclusions exist
   if (!searchTerm.trim()) return null;
   if (rechazadosCount === 0 && conflictoCount === 0) return null;
@@ -40,61 +56,104 @@ export function ExcludedCustodiansAlert({
   const totalExcluded = rechazadosCount + conflictoCount;
   const hasMatchingRechazados = rechazadosMatchingSearch.length > 0;
 
+  const handleConfirmSuspend = async () => {
+    if (!confirmTarget) return;
+    await suspenderRechazo.mutateAsync({
+      rechazoId: confirmTarget.id,
+      custodioNombre: confirmTarget.nombre,
+    });
+    setConfirmTarget(null);
+  };
+
   return (
-    <Alert className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30">
-      <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-      <AlertDescription className="text-amber-800 dark:text-amber-200">
-        {hasMatchingRechazados && rechazadosMatchingSearch.length === 1 ? (
-          // Specific message: exactly 1 rejected custodian matches search
-          <div className="space-y-1">
-            <p className="font-medium">
-              "{searchTerm}" coincide con un custodio excluido
-            </p>
-            <p className="text-sm text-amber-700 dark:text-amber-300">
-              <span className="font-semibold">{rechazadosMatchingSearch[0].nombre}</span>
-              {' — '}
-              Rechazo vigente hasta{' '}
-              {format(new Date(rechazadosMatchingSearch[0].vigencia_hasta), "d 'de' MMM", { locale: es })}
-              {rechazadosMatchingSearch[0].motivo && (
-                <span className="text-amber-600 dark:text-amber-400">
-                  {' · '}{rechazadosMatchingSearch[0].motivo}
-                </span>
-              )}
-            </p>
-            {rechazadosMatchingSearch[0].reportado_por_nombre && (
-              <p className="text-xs text-amber-600/70 dark:text-amber-400/70">
-                Reportado por: {rechazadosMatchingSearch[0].reportado_por_nombre}
+    <>
+      <Alert className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30">
+        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <AlertDescription className="text-amber-800 dark:text-amber-200">
+          {hasMatchingRechazados && rechazadosMatchingSearch.length === 1 ? (
+            // Specific message: exactly 1 rejected custodian matches search
+            <div className="space-y-1">
+              <p className="font-medium">
+                "{searchTerm}" coincide con un custodio excluido
               </p>
-            )}
-          </div>
-        ) : (
-          // Generic message: multiple exclusions
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p>
-              <span className="font-medium">{totalExcluded} custodio{totalExcluded > 1 ? 's' : ''} no visible{totalExcluded > 1 ? 's' : ''}</span>
-              {': '}
-              {rechazadosCount > 0 && (
-                <span>{rechazadosCount} con rechazo vigente</span>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                <span className="font-semibold">{rechazadosMatchingSearch[0].nombre}</span>
+                {' — '}
+                Rechazo vigente hasta{' '}
+                {format(new Date(rechazadosMatchingSearch[0].vigencia_hasta), "d 'de' MMM", { locale: es })}
+                {rechazadosMatchingSearch[0].motivo && (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    {' · '}{rechazadosMatchingSearch[0].motivo}
+                  </span>
+                )}
+              </p>
+              {rechazadosMatchingSearch[0].reportado_por_nombre && (
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70">
+                  Reportado por: {rechazadosMatchingSearch[0].reportado_por_nombre}
+                </p>
               )}
-              {rechazadosCount > 0 && conflictoCount > 0 && ', '}
-              {conflictoCount > 0 && (
-                <span>{conflictoCount} con conflicto horario</span>
-              )}
-            </p>
-            {conflictoCount > 0 && onViewConflicts && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="gap-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/50 h-7 px-2"
-                onClick={onViewConflicts}
+                className="gap-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/50 h-7 px-2 mt-1"
+                onClick={() => setConfirmTarget(rechazadosMatchingSearch[0])}
+                disabled={suspenderRechazo.isPending}
               >
-                <Eye className="h-3.5 w-3.5" />
-                Ver en conflictos
+                <ShieldOff className="h-3.5 w-3.5" />
+                Levantar Penalidad
               </Button>
-            )}
-          </div>
-        )}
-      </AlertDescription>
-    </Alert>
+            </div>
+          ) : (
+            // Generic message: multiple exclusions
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p>
+                <span className="font-medium">{totalExcluded} custodio{totalExcluded > 1 ? 's' : ''} no visible{totalExcluded > 1 ? 's' : ''}</span>
+                {': '}
+                {rechazadosCount > 0 && (
+                  <span>{rechazadosCount} con rechazo vigente</span>
+                )}
+                {rechazadosCount > 0 && conflictoCount > 0 && ', '}
+                {conflictoCount > 0 && (
+                  <span>{conflictoCount} con conflicto horario</span>
+                )}
+              </p>
+              {conflictoCount > 0 && onViewConflicts && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/50 h-7 px-2"
+                  onClick={onViewConflicts}
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Ver en conflictos
+                </Button>
+              )}
+            </div>
+          )}
+        </AlertDescription>
+      </Alert>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Levantar penalidad de rechazo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a levantar la penalidad de <strong>{confirmTarget?.nombre}</strong>. 
+              Aparecerá de nuevo en la lista de custodios disponibles de forma inmediata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSuspend}
+              disabled={suspenderRechazo.isPending}
+            >
+              {suspenderRechazo.isPending ? 'Levantando...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

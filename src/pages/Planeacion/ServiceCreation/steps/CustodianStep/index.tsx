@@ -10,7 +10,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { User, ArrowLeft, ArrowRight, Keyboard, RefreshCw, ShieldAlert, Loader2 } from 'lucide-react';
+import { User, ArrowLeft, ArrowRight, Keyboard, RefreshCw, ShieldAlert, Loader2, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -31,6 +31,7 @@ import { SelectedCustodianSummary } from './components/SelectedCustodianSummary'
 import { NoCustodiansAlert } from './components/NoCustodiansAlert';
 import { ExcludedCustodiansAlert } from './components/ExcludedCustodiansAlert';
 import ReportUnavailabilityCard from '@/components/custodian/ReportUnavailabilityCard';
+import { RechazosVigentesPanel } from '@/components/planeacion/RechazosVigentesPanel';
 
 // Dialogs (reuse existing)
 import { CustodianContactDialog } from '@/pages/Planeacion/components/dialogs/CustodianContactDialog';
@@ -253,6 +254,7 @@ export default function CustodianStep() {
   // Unavailability dialog state
   const [unavailabilityDialogOpen, setUnavailabilityDialogOpen] = useState(false);
   const [unavailabilityCustodian, setUnavailabilityCustodian] = useState<CustodioConProximidad | null>(null);
+  const [showRechazosPanel, setShowRechazosPanel] = useState(false);
   
   // Handle contact button click
   const handleContact = (custodio: CustodioConProximidad, method: 'whatsapp' | 'llamada') => {
@@ -474,15 +476,31 @@ export default function CustodianStep() {
             <User className="h-6 w-6 text-primary" />
             Asignar Custodio
           </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-muted-foreground"
-            onClick={() => setShowShortcuts(!showShortcuts)}
-          >
-            <Keyboard className="h-3.5 w-3.5" />
-            Atajos
-          </Button>
+          <div className="flex items-center gap-2">
+            {rechazadosIds.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-xs text-muted-foreground relative"
+                onClick={() => setShowRechazosPanel(true)}
+              >
+                <Ban className="h-3.5 w-3.5" />
+                Rechazos
+                <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                  {rechazadosIds.length}
+                </Badge>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-muted-foreground"
+              onClick={() => setShowShortcuts(!showShortcuts)}
+            >
+              <Keyboard className="h-3.5 w-3.5" />
+              Atajos
+            </Button>
+          </div>
         </div>
         <p className="text-muted-foreground">
           Selecciona y contacta al custodio disponible para este servicio
@@ -651,6 +669,12 @@ export default function CustodianStep() {
           onReportUnavailability={handleUnavailabilitySubmit}
         />
       )}
+      {/* Rechazos Vigentes Panel */}
+      <RechazosVigentesPanel
+        open={showRechazosPanel}
+        onOpenChange={setShowRechazosPanel}
+        inclujeArmado={formData.requiereArmado}
+      />
     </div>
   );
 }

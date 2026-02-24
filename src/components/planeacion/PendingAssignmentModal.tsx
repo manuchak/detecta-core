@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import { RechazosVigentesPanel } from '@/components/planeacion/RechazosVigentesPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, MapPin, Shield, Calendar, CheckCircle2, Circle, CheckCircle, AlertCircle } from 'lucide-react';
+import { User, MapPin, Shield, Calendar, CheckCircle2, Circle, CheckCircle, AlertCircle, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SimplifiedArmedAssignment } from '@/components/planeacion/SimplifiedArmedAssignment';
@@ -122,6 +123,7 @@ export function PendingAssignmentModal({
   const [showUnavailabilityDialog, setShowUnavailabilityDialog] = useState(false);
   const [rejectionCustodian, setRejectionCustodian] = useState<CustodioConProximidad | null>(null);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
+  const [showRechazosPanel, setShowRechazosPanel] = useState(false);
   
   // Hook for registering rejections
   const registrarRechazo = useRegistrarRechazo();
@@ -746,6 +748,24 @@ export function PendingAssignmentModal({
               </TabsList>
 
               <TabsContent value="custodian" className="space-y-4">
+                {/* Rechazos button */}
+                {rechazadosDetallados.length > 0 && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs text-muted-foreground"
+                      onClick={() => setShowRechazosPanel(true)}
+                    >
+                      <Ban className="h-3.5 w-3.5" />
+                      Rechazos
+                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">
+                        {rechazadosDetallados.length}
+                      </Badge>
+                    </Button>
+                  </div>
+                )}
+                
                 {/* Stats rápidos */}
                 <QuickStats categorized={categorized} isLoading={isLoadingCustodians} />
                 
@@ -851,6 +871,13 @@ export function PendingAssignmentModal({
         }}
         onConfirm={handleRejectionConfirm}
         guardName={rejectionCustodian?.nombre || ''}
+      />
+      
+      {/* Rechazos Vigentes Panel */}
+      <RechazosVigentesPanel
+        open={showRechazosPanel}
+        onOpenChange={setShowRechazosPanel}
+        inclujeArmado={service?.requiere_armado}
       />
     </>
   );
