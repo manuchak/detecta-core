@@ -61,7 +61,6 @@ async function buildOAuthHeader(
     oauth_version: '1.0',
   };
 
-  // Combine oauth + query params for signature base (NO body params for GET)
   const allParams: Record<string, string> = { ...oauthParams, ...queryParams };
   const paramString = Object.keys(allParams)
     .sort()
@@ -82,13 +81,12 @@ async function buildOAuthHeader(
   return `OAuth ${headerParts}`;
 }
 
-// ── Search queries ──────────────────────────────────────────────────
+// ── Keyword queries (siempre se ejecutan) ───────────────────────────
 
-const SEARCH_QUERIES = [
+const KEYWORD_QUERIES = [
   'robo trailer OR robo carga -is:retweet lang:es',
   'bloqueo carretera OR narcobloqueo -is:retweet lang:es',
   'asalto transportista OR secuestro operador -is:retweet lang:es',
-  'from:GN_Carreteras OR from:monitorcarrete1 OR from:jaliscorojo',
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -128,18 +126,32 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Optional: accept specific query index or custom query from body
-    let queryFilter: number[] | null = null;
-    let maxResults = 25; // conservative default for Basic tier
+    let maxResults = 25;
     try {
       const body = await req.json();
-      if (body.queries) queryFilter = body.queries;
       if (body.max_results) maxResults = Math.min(body.max_results, 100);
     } catch { /* no body is fine */ }
 
-    const queriesToRun = queryFilter
-      ? SEARCH_QUERIES.filter((_, i) => queryFilter!.includes(i))
-      : SEARCH_QUERIES;
+    // ── Build queries dynamically from DB ──────────────────────────
+    const { data: monitoredAccounts } = await supabase
+      .from('twitter_monitored_accounts')
+      .select('username')
+      .eq('activa', true);
+
+    const queriesToRun = [...KEYWORD_QUERIES];
+
+    if (monitoredAccounts && monitoredAccounts.length > 0) {
+      // Split into chunks of 5 accounts per query (Twitter OR limit)
+      const chunks: string[][] = [];
+      for (let i = 0; i < monitoredAccounts.length; i += 5) {
+        chunks.push(monitoredAccounts.slice(i, i + 5).map((a: any) => a.username));
+      }
+      for (const chunk of chunks) {
+        queriesToRun.push(chunk.map((u) => `from:${u}`).join(' OR '));
+      }
+    }
+
+    console.log(`📋 Queries a ejecutar: ${queriesToRun.length} (${monitoredAccounts?.length ?? 0} cuentas activas)`);
 
     const results = {
       total_tweets: 0,
@@ -165,13 +177,8 @@ serve(async (req) => {
       };
 
       const authHeader = await buildOAuthHeader(
-        'GET',
-        searchUrl,
-        queryParams,
-        consumerKey,
-        consumerSecret,
-        accessToken,
-        accessTokenSecret,
+        'GET', searchUrl, queryParams,
+        consumerKey, consumerSecret, accessToken, accessTokenSecret,
       );
 
       const qs = Object.entries(queryParams)
@@ -180,15 +187,12 @@ serve(async (req) => {
 
       const response = await fetch(`${searchUrl}?${qs}`, {
         method: 'GET',
-        headers: {
-          Authorization: authHeader,
-        },
+        headers: { Authorization: authHeader },
       });
 
-      // Rate limit check
       const remaining = response.headers.get('x-rate-limit-remaining');
       if (remaining && parseInt(remaining) <= 2) {
-        console.warn('⚠️ Rate limit casi agotado, deteniendo búsquedas');
+        console.warn('⚠️ Rate limit casi agotado');
         results.rate_limited = true;
       }
 
@@ -213,7 +217,6 @@ serve(async (req) => {
         continue;
       }
 
-      // Build user lookup map from includes
       const usersMap: Record<string, { username: string; name: string }> = {};
       if (data.includes?.users) {
         for (const u of data.includes.users) {
@@ -221,7 +224,6 @@ serve(async (req) => {
         }
       }
 
-      // Build media lookup from includes
       const mediaMap: Record<string, string> = {};
       if (data.includes?.media) {
         for (const m of data.includes.media) {
@@ -235,7 +237,6 @@ serve(async (req) => {
         const user = usersMap[tweet.author_id] || { username: 'unknown', name: 'Unknown' };
         const tweetUrl = buildTweetUrl(user.username, tweet.id);
 
-        // Deduplication
         const { data: existente } = await supabase
           .from('incidentes_rrss')
           .select('id')
@@ -247,7 +248,6 @@ serve(async (req) => {
           continue;
         }
 
-        // Extract media URLs
         const mediaUrls: string[] = [];
         if (tweet.attachments?.media_keys) {
           for (const mk of tweet.attachments.media_keys) {
@@ -286,20 +286,27 @@ serve(async (req) => {
         results.insertados++;
         console.log(`✅ Insertado ${incidente.id} — @${user.username}: ${tweet.text.substring(0, 60)}...`);
 
-        // AI processing async
         supabase.functions
-          .invoke('procesar-incidente-rrss', {
-            body: { incidente_id: incidente.id },
-          })
+          .invoke('procesar-incidente-rrss', { body: { incidente_id: incidente.id } })
           .then(({ error: aiError }) => {
             if (aiError) console.error('AI error:', aiError);
             else results.procesados_ai++;
           });
       }
 
-      // Respect rate limits between queries
       if (results.rate_limited) break;
     }
+
+    // ── Register usage in twitter_api_usage ─────────────────────────
+    const today = new Date().toISOString().split('T')[0];
+    await supabase.from('twitter_api_usage').insert({
+      fecha: today,
+      tweets_leidos: results.total_tweets,
+      queries_ejecutadas: results.queries_ejecutadas,
+      tweets_insertados: results.insertados,
+      tweets_duplicados: results.duplicados,
+      rate_limited: results.rate_limited,
+    });
 
     console.log('📊 Resultados finales:', JSON.stringify(results));
 

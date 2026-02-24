@@ -16538,6 +16538,72 @@ export type Database = {
         }
         Relationships: []
       }
+      twitter_api_usage: {
+        Row: {
+          created_at: string
+          fecha: string
+          id: string
+          queries_ejecutadas: number
+          rate_limited: boolean
+          tweets_duplicados: number
+          tweets_insertados: number
+          tweets_leidos: number
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          id?: string
+          queries_ejecutadas?: number
+          rate_limited?: boolean
+          tweets_duplicados?: number
+          tweets_insertados?: number
+          tweets_leidos?: number
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          id?: string
+          queries_ejecutadas?: number
+          rate_limited?: boolean
+          tweets_duplicados?: number
+          tweets_insertados?: number
+          tweets_leidos?: number
+        }
+        Relationships: []
+      }
+      twitter_monitored_accounts: {
+        Row: {
+          activa: boolean
+          agregada_por: string | null
+          categoria: string
+          created_at: string
+          display_name: string | null
+          id: string
+          notas: string | null
+          username: string
+        }
+        Insert: {
+          activa?: boolean
+          agregada_por?: string | null
+          categoria?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          notas?: string | null
+          username: string
+        }
+        Update: {
+          activa?: boolean
+          agregada_por?: string | null
+          categoria?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          notas?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           archive_reason: string | null
