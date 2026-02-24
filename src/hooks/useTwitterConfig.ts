@@ -145,6 +145,8 @@ export function useRunTwitterSearch() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['twitter-api-usage'] });
+      qc.invalidateQueries({ queryKey: ['incidentes-rrss'] });
+      qc.invalidateQueries({ queryKey: ['incidentes-stats'] });
       toast.success(`Búsqueda completada: ${data?.insertados ?? 0} tweets nuevos`);
     },
     onError: (e: any) => toast.error(`Error: ${e.message}`),

@@ -13,7 +13,10 @@ import { AffectedCorridors } from '@/components/incidentes/AffectedCorridors';
 import { CorridorStatusPanel } from '@/components/incidentes/CorridorStatusPanel';
 import { OperationalRecommendations } from '@/components/incidentes/OperationalRecommendations';
 import { useIncidentesRRSS, useIncidentesStats, useIncidentesActivos, useCarreterasDisponibles } from '@/hooks/useIncidentesRRSS';
-import { AlertTriangle, Filter } from 'lucide-react';
+import { useRunTwitterSearch, useTwitterApiUsage } from '@/hooks/useTwitterConfig';
+import { AlertTriangle, Filter, RefreshCw, Twitter } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const TIPOS_INCIDENTE = [
   { value: 'all', label: 'Todos los tipos' },
@@ -78,6 +81,14 @@ export default function IncidentesRRSSPage() {
   const { data: incidentesActivos, isLoading: activosLoading } = useIncidentesActivos();
   const { data: carreteras } = useCarreterasDisponibles();
 
+  const twitterSearch = useRunTwitterSearch();
+  const { data: twitterUsage } = useTwitterApiUsage();
+
+  const lastRun = twitterUsage?.[0];
+  const lastRunTime = lastRun?.created_at
+    ? formatDistanceToNow(new Date(lastRun.created_at), { addSuffix: true, locale: es })
+    : null;
+
   return (
     <div className="space-y-4 p-6">
       {/* Header */}
@@ -89,9 +100,31 @@ export default function IncidentesRRSSPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             Dashboard operativo de seguridad para transporte de carga
+            {lastRunTime && (
+              <span className="ml-2 text-xs">
+                · Última consulta X: {lastRunTime}
+                {lastRun && ` (${lastRun.tweets_insertados} nuevos)`}
+              </span>
+            )}
           </p>
         </div>
-        <TriggerApifyFetch />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => twitterSearch.mutate()}
+            disabled={twitterSearch.isPending}
+            className="gap-2"
+          >
+            {twitterSearch.isPending ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Twitter className="h-4 w-4" />
+            )}
+            Actualizar desde X
+          </Button>
+          <TriggerApifyFetch />
+        </div>
       </div>
 
       {/* Banner de Situación Activa */}
