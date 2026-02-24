@@ -1,80 +1,68 @@
 
 
-# Ticker de alertas operacionales: solo eventos accionables para el videowall
+# Solución definitiva para el mapa de Rutas y Zonas en Seguridad
 
-## Problema actual
+## Diagnóstico
 
-El ticker muestra **todos** los incidentes sin distinguir entre eventos operacionales urgentes (bloqueos, saqueos, asaltos activos) y contenido informativo general (estadisticas, noticias generales, reportes historicos). Para el equipo que monitorea el videowall, solo importan eventos **en curso o recientes** que puedan afectar tramos carreteros.
+El token de Mapbox se carga correctamente (los logs lo confirman), pero el canvas del mapa se renderiza con **0px de altura** porque la cadena de alturas CSS está rota en dos puntos:
 
-## Solucion: Filtrado por tipo de incidente + relevancia operacional
-
-La clasificacion AI ya asigna un `tipo_incidente` a cada tweet. Aprovecharemos esto para crear dos niveles de prioridad en el ticker.
-
-### Tipos de incidente accionables (prioridad alta - se muestran siempre)
-
-| tipo_incidente | Descripcion |
-|---|---|
-| bloqueo_carretera | Bloqueos, narcobloqueos, cierres viales |
-| robo_carga | Robo de carga en transito |
-| robo_unidad | Robo de trailer/camion completo |
-| asalto_transporte | Asaltos a transportistas en ruta |
-| secuestro_operador | Secuestro de chofer/operador |
-| accidente_trailer | Volcaduras, accidentes que cierran vias |
-
-### Tipos excluidos del ticker (no accionables para operaciones en tiempo real)
-
-| tipo_incidente | Razon |
-|---|---|
-| robo_combustible | Generalmente reportado post-hecho |
-| robo_autopartes | No afecta tramos en tiempo real |
-| extorsion | Patron cronico, no evento puntual |
-| vandalismo_unidad | Bajo impacto operacional |
-| otro / sin_clasificar | Ruido, estadisticas, noticias generales |
-
-### Filtro adicional por keywords de accion inmediata
-
-Ademas del `tipo_incidente`, agregar un regex para detectar frases que indican **eventos activos** en el texto:
-
-```
-bloqueo|narcobloqueo|cierran|cortaron|saqueo|rapiña|balacera|enfrentamiento|persecucion|emboscada|desvio|cerrada|no pasar|precaucion
+```text
+SecurityPage (h-[var(--content-height-full)]) -- OK
+  └─ Tabs (flex-1 flex flex-col min-h-0) -- OK
+       └─ TabsContent (flex-1 min-h-0 mt-3) -- PROBLEMA 1: no tiene "flex flex-col"
+            └─ RouteRiskIntelligence (flex flex-col h-full) -- h-full no se resuelve
+                 └─ grid (flex-1 min-h-0) -- flex-1 no funciona sin padre flex
+                      └─ Map wrapper (min-h-[400px]) -- el min-h se ignora en grid sin height
+                           └─ Map div (absolute inset-0) -- 0px porque padre no tiene altura
 ```
 
-Esto captura tweets clasificados como `otro` o `sin_clasificar` que si son relevantes operacionalmente.
+**Problema 1**: `TabsContent` con `flex-1 min-h-0` participa como flex child del Tabs, pero no es un flex container. Entonces `h-full` de `RouteRiskIntelligence` no se propaga.
 
-## Cambios tecnicos
+**Problema 2**: La columna del mapa en el grid usa `min-h-[400px]` pero el mapa interior usa `absolute inset-0`, que depende de que el padre tenga una altura computada real. Con el layout flex roto, el padre colapsa.
 
-### Archivo: `src/components/monitoring/tv/TVAlertTicker.tsx`
+## Corrección (2 archivos)
 
-1. **Definir conjunto de tipos accionables**:
-   - `ACTIONABLE_TYPES = ['bloqueo_carretera', 'robo_carga', 'robo_unidad', 'asalto_transporte', 'secuestro_operador', 'accidente_trailer']`
+### 1. `src/pages/Security/SecurityPage.tsx` (línea 50)
 
-2. **Agregar regex de eventos activos**:
-   - `ACTIVE_EVENT_KEYWORDS` para detectar lenguaje de evento en curso
+Agregar `flex flex-col` al TabsContent de "routes" para que propague la altura a su hijo:
 
-3. **Reemplazar la logica de filtrado actual**:
-   - Primer filtro: incidentes cuyo `tipo_incidente` esta en ACTIONABLE_TYPES
-   - Segundo filtro: incidentes de otros tipos pero que contienen keywords de evento activo en `resumen_ai`
-   - Eliminar el backfill con incidentes no relacionados (ya no se rellenan con contenido generico)
-   - Mantener el orden por severidad y luego por fecha
+```
+// Antes:
+<TabsContent value="routes" className="flex-1 min-h-0 mt-3">
 
-4. **Reducir ventana temporal a 24h**:
-   - Con el filtro mas inteligente, 24h es suficiente. Si no hay nada en 24h, mostrar "Sin alertas activas" (que es la situacion real)
+// Después:
+<TabsContent value="routes" className="flex-1 flex flex-col min-h-0 mt-3">
+```
 
-5. **Mejorar el mensaje vacio**:
-   - Cambiar "Sin alertas de ruta recientes" por "Sin incidentes activos en corredores" para reflejar que es un indicador positivo
+### 2. `src/components/security/routes/RouteRiskIntelligence.tsx` (línea 32)
 
-### Archivo: `src/hooks/useIncidentesRRSS.ts`
+Reemplazar `min-h-[400px]` por una altura explícita calculada con CSS para que el contenedor del mapa siempre tenga dimensiones reales, y mantener `zoom: 1` para la corrección de distorsión de Mapbox:
 
-- Sin cambios necesarios. El filtrado se hace en el componente despues de recibir los datos.
+```
+// Antes:
+<div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[400px]" style={{ zoom: 1 }}>
+
+// Después:
+<div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px] h-full" style={{ zoom: 1 }}>
+```
+
+Y asegurar que el grid padre use `flex-1` correctamente:
+
+```
+// Antes:
+<div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1">
+
+// Después:
+<div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1" style={{ minHeight: 0 }}>
+```
+
+## Por qué esta solución es definitiva
+
+1. **Cadena de alturas CSS ininterrumpida**: Cada nivel de la jerarquía propaga correctamente la altura desde `--content-height-full` hasta el canvas de Mapbox
+2. **min-h-[420px] + h-full**: Garantiza que el mapa nunca colapse a 0px (el min-h como fallback) pero crezca hasta llenar el espacio disponible (h-full)
+3. **zoom: 1 se mantiene**: Respeta el patrón estándar del proyecto para neutralizar la distorsión del canvas de Mapbox
+4. **ResizeObserver ya existe**: El componente `RiskZonesMap` ya tiene el observer con resize() escalonado, así que una vez que el contenedor tenga altura real, el mapa se renderizará correctamente
 
 ## Resultado esperado
 
-El ticker mostrara exclusivamente:
-- Bloqueos y narcobloqueos activos
-- Robos de carga/unidad reportados en las ultimas horas
-- Asaltos y secuestros de operadores
-- Accidentes que cierran tramos
-- Cualquier evento con lenguaje de urgencia operacional
-
-No mostrara: estadisticas semanales, noticias generales de seguridad, reportes historicos, ni contenido informativo sin impacto inmediato en ruta.
-
+El mapa se renderizará ocupando toda la altura disponible del tab "Rutas y Zonas", mostrando los tramos carreteros con sus colores de riesgo, POIs, puntos seguros y zonas sin cobertura celular.
