@@ -71,7 +71,7 @@ export const IncidentListPanel: React.FC = () => {
     setExportingPDFId(inc.id);
     try {
       const { data: cronologia } = await supabase
-        .from('incidentes_cronologia')
+        .from('incidente_cronologia')
         .select('*')
         .eq('incidente_id', inc.id)
         .order('timestamp', { ascending: true });
