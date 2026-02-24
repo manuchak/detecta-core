@@ -1,85 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { Client, OAuth1 } from "https://esm.sh/@xdevplatform/xdk@0.4.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const TWITTER_API_BASE = 'https://api.x.com/2';
-
-// ── OAuth 1.0a helpers ──────────────────────────────────────────────
-
-function percentEncode(str: string): string {
-  return encodeURIComponent(str)
-    .replace(/!/g, '%21')
-    .replace(/\*/g, '%2A')
-    .replace(/'/g, '%27')
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29');
-}
-
-function generateNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  const arr = new Uint8Array(32);
-  crypto.getRandomValues(arr);
-  for (const byte of arr) {
-    result += chars[byte % chars.length];
-  }
-  return result;
-}
-
-async function hmacSha1(key: string, data: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(key),
-    { name: 'HMAC', hash: 'SHA-1' },
-    false,
-    ['sign'],
-  );
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
-}
-
-async function buildOAuthHeader(
-  method: string,
-  url: string,
-  queryParams: Record<string, string>,
-  consumerKey: string,
-  consumerSecret: string,
-  accessToken: string,
-  accessTokenSecret: string,
-): Promise<string> {
-  const oauthParams: Record<string, string> = {
-    oauth_consumer_key: consumerKey,
-    oauth_nonce: generateNonce(),
-    oauth_signature_method: 'HMAC-SHA1',
-    oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-    oauth_token: accessToken,
-    oauth_version: '1.0',
-  };
-
-  const allParams: Record<string, string> = { ...oauthParams, ...queryParams };
-  const paramString = Object.keys(allParams)
-    .sort()
-    .map((k) => `${percentEncode(k)}=${percentEncode(allParams[k])}`)
-    .join('&');
-
-  const signatureBase = `${method.toUpperCase()}&${percentEncode(url)}&${percentEncode(paramString)}`;
-  const signingKey = `${percentEncode(consumerSecret)}&${percentEncode(accessTokenSecret)}`;
-  const signature = await hmacSha1(signingKey, signatureBase);
-
-  oauthParams['oauth_signature'] = signature;
-
-  const headerParts = Object.keys(oauthParams)
-    .sort()
-    .map((k) => `${percentEncode(k)}="${percentEncode(oauthParams[k])}"`)
-    .join(', ');
-
-  return `OAuth ${headerParts}`;
-}
 
 // ── Keyword queries (siempre se ejecutan) ───────────────────────────
 
@@ -122,6 +48,15 @@ serve(async (req) => {
       throw new Error('Missing Twitter API credentials in environment');
     }
 
+    // ── XDK OAuth 1.0a client ───────────────────────────────────────
+    const oauth1 = new OAuth1({
+      apiKey: consumerKey,
+      apiSecret: consumerSecret,
+      accessToken,
+      accessTokenSecret,
+    });
+    const xClient = new Client({ oauth1 });
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -141,7 +76,6 @@ serve(async (req) => {
     const queriesToRun = [...KEYWORD_QUERIES];
 
     if (monitoredAccounts && monitoredAccounts.length > 0) {
-      // Split into chunks of 5 accounts per query (Twitter OR limit)
       const chunks: string[][] = [];
       for (let i = 0; i < monitoredAccounts.length; i += 5) {
         chunks.push(monitoredAccounts.slice(i, i + 5).map((a: any) => a.username));
@@ -166,132 +100,111 @@ serve(async (req) => {
     for (const query of queriesToRun) {
       console.log(`🔍 Buscando: "${query}"`);
 
-      const searchUrl = `${TWITTER_API_BASE}/tweets/search/recent`;
-      const queryParams: Record<string, string> = {
-        query,
-        max_results: maxResults.toString(),
-        'tweet.fields': 'created_at,public_metrics,geo,entities,author_id',
-        'user.fields': 'username,name',
-        expansions: 'author_id,attachments.media_keys',
-        'media.fields': 'url,preview_image_url,type',
-      };
+      try {
+        const response = await xClient.posts.searchRecent(query, {
+          maxResults,
+          tweetfields: ['created_at', 'public_metrics', 'geo', 'entities', 'author_id'],
+          userfields: ['username', 'name'],
+          expansions: ['author_id', 'attachments.media_keys'],
+          mediafields: ['url', 'preview_image_url', 'type'],
+        });
 
-      const authHeader = await buildOAuthHeader(
-        'GET', searchUrl, queryParams,
-        consumerKey, consumerSecret, accessToken, accessTokenSecret,
-      );
+        results.queries_ejecutadas++;
 
-      const qs = Object.entries(queryParams)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-        .join('&');
-
-      const response = await fetch(`${searchUrl}?${qs}`, {
-        method: 'GET',
-        headers: { Authorization: authHeader },
-      });
-
-      const remaining = response.headers.get('x-rate-limit-remaining');
-      if (remaining && parseInt(remaining) <= 2) {
-        console.warn('⚠️ Rate limit casi agotado');
-        results.rate_limited = true;
-      }
-
-      if (response.status === 429) {
-        console.warn('🛑 Rate limited por Twitter API');
-        results.rate_limited = true;
-        break;
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ Twitter API error [${response.status}]: ${errorText}`);
-        results.errores++;
-        continue;
-      }
-
-      const data = await response.json();
-      results.queries_ejecutadas++;
-
-      if (!data.data || data.data.length === 0) {
-        console.log('📭 Sin resultados para esta query');
-        continue;
-      }
-
-      const usersMap: Record<string, { username: string; name: string }> = {};
-      if (data.includes?.users) {
-        for (const u of data.includes.users) {
-          usersMap[u.id] = { username: u.username, name: u.name };
-        }
-      }
-
-      const mediaMap: Record<string, string> = {};
-      if (data.includes?.media) {
-        for (const m of data.includes.media) {
-          mediaMap[m.media_key] = m.url || m.preview_image_url || '';
-        }
-      }
-
-      for (const tweet of data.data) {
-        results.total_tweets++;
-
-        const user = usersMap[tweet.author_id] || { username: 'unknown', name: 'Unknown' };
-        const tweetUrl = buildTweetUrl(user.username, tweet.id);
-
-        const { data: existente } = await supabase
-          .from('incidentes_rrss')
-          .select('id')
-          .eq('url_publicacion', tweetUrl)
-          .single();
-
-        if (existente) {
-          results.duplicados++;
+        if (!response.data || response.data.length === 0) {
+          console.log('📭 Sin resultados para esta query');
           continue;
         }
 
-        const mediaUrls: string[] = [];
-        if (tweet.attachments?.media_keys) {
-          for (const mk of tweet.attachments.media_keys) {
-            if (mediaMap[mk]) mediaUrls.push(mediaMap[mk]);
+        // Build user lookup map from includes
+        const usersMap: Record<string, { username: string; name: string }> = {};
+        if (response.includes?.users) {
+          for (const u of response.includes.users) {
+            usersMap[u.id] = { username: u.username, name: u.name };
           }
         }
 
-        const metrics = tweet.public_metrics || {};
-
-        const { data: incidente, error } = await supabase
-          .from('incidentes_rrss')
-          .insert({
-            red_social: 'twitter',
-            url_publicacion: tweetUrl,
-            autor: user.username,
-            fecha_publicacion: tweet.created_at,
-            texto_original: tweet.text,
-            hashtags: extractHashtags(tweet.text),
-            menciones: extractMentions(tweet.text),
-            media_urls: mediaUrls.length > 0 ? mediaUrls : null,
-            engagement_likes: metrics.like_count || 0,
-            engagement_shares: metrics.retweet_count || 0,
-            engagement_comments: metrics.reply_count || 0,
-            tipo_incidente: 'sin_clasificar',
-            procesado: false,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('❌ Error insertando:', error.message);
-          results.errores++;
-          continue;
+        // Build media lookup map from includes
+        const mediaMap: Record<string, string> = {};
+        if (response.includes?.media) {
+          for (const m of response.includes.media) {
+            mediaMap[m.media_key] = m.url || m.preview_image_url || '';
+          }
         }
 
-        results.insertados++;
-        console.log(`✅ Insertado ${incidente.id} — @${user.username}: ${tweet.text.substring(0, 60)}...`);
+        for (const tweet of response.data) {
+          results.total_tweets++;
 
-        supabase.functions
-          .invoke('procesar-incidente-rrss', { body: { incidente_id: incidente.id } })
-          .then(({ error: aiError }) => {
-            if (aiError) console.error('AI error:', aiError);
-            else results.procesados_ai++;
-          });
+          const user = usersMap[tweet.author_id] || { username: 'unknown', name: 'Unknown' };
+          const tweetUrl = buildTweetUrl(user.username, tweet.id);
+
+          const { data: existente } = await supabase
+            .from('incidentes_rrss')
+            .select('id')
+            .eq('url_publicacion', tweetUrl)
+            .single();
+
+          if (existente) {
+            results.duplicados++;
+            continue;
+          }
+
+          const mediaUrls: string[] = [];
+          if (tweet.attachments?.media_keys) {
+            for (const mk of tweet.attachments.media_keys) {
+              if (mediaMap[mk]) mediaUrls.push(mediaMap[mk]);
+            }
+          }
+
+          const metrics = tweet.public_metrics || {};
+
+          const { data: incidente, error } = await supabase
+            .from('incidentes_rrss')
+            .insert({
+              red_social: 'twitter',
+              url_publicacion: tweetUrl,
+              autor: user.username,
+              fecha_publicacion: tweet.created_at,
+              texto_original: tweet.text,
+              hashtags: extractHashtags(tweet.text),
+              menciones: extractMentions(tweet.text),
+              media_urls: mediaUrls.length > 0 ? mediaUrls : null,
+              engagement_likes: metrics.like_count || 0,
+              engagement_shares: metrics.retweet_count || 0,
+              engagement_comments: metrics.reply_count || 0,
+              tipo_incidente: 'sin_clasificar',
+              procesado: false,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            console.error('❌ Error insertando:', error.message);
+            results.errores++;
+            continue;
+          }
+
+          results.insertados++;
+          console.log(`✅ Insertado ${incidente.id} — @${user.username}: ${tweet.text.substring(0, 60)}...`);
+
+          supabase.functions
+            .invoke('procesar-incidente-rrss', { body: { incidente_id: incidente.id } })
+            .then(({ error: aiError }) => {
+              if (aiError) console.error('AI error:', aiError);
+              else results.procesados_ai++;
+            });
+        }
+      } catch (err: unknown) {
+        // Handle rate limiting from XDK
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        if (errorMessage.includes('429') || errorMessage.toLowerCase().includes('rate limit')) {
+          console.warn('🛑 Rate limited por Twitter API');
+          results.rate_limited = true;
+          break;
+        }
+        console.error(`❌ Error en query "${query}":`, errorMessage);
+        results.errores++;
+        continue;
       }
 
       if (results.rate_limited) break;
