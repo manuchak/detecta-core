@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TriggerApifyFetch } from '@/components/incidentes/TriggerApifyFetch';
-import { IncidentesStats } from '@/components/incidentes/IncidentesStats';
+import { IncidentesStatsKPIs } from '@/components/incidentes/IncidentesStatsKPIs';
+import { IncidentesAnalisisPanel } from '@/components/incidentes/IncidentesAnalisisPanel';
 import { IncidentesTable } from '@/components/incidentes/IncidentesTable';
 import { ActiveSituationBanner } from '@/components/incidentes/ActiveSituationBanner';
 import { IncidentesMap } from '@/components/incidentes/IncidentesMap';
@@ -14,7 +16,7 @@ import { CorridorStatusPanel } from '@/components/incidentes/CorridorStatusPanel
 import { OperationalRecommendations } from '@/components/incidentes/OperationalRecommendations';
 import { useIncidentesRRSS, useIncidentesStats, useIncidentesActivos, useCarreterasDisponibles } from '@/hooks/useIncidentesRRSS';
 import { useRunTwitterSearch, useTwitterApiUsage } from '@/hooks/useTwitterConfig';
-import { AlertTriangle, Filter, RefreshCw, Twitter } from 'lucide-react';
+import { RefreshCw, Twitter, Shield } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -89,26 +91,42 @@ export default function IncidentesRRSSPage() {
     ? formatDistanceToNow(new Date(lastRun.created_at), { addSuffix: true, locale: es })
     : null;
 
+  // Status pill: count critical active incidents
+  const alertCount = useMemo(() => {
+    if (!incidentesActivos) return 0;
+    return incidentesActivos.filter((i: any) => i.severidad === 'critica' || i.severidad === 'alta').length;
+  }, [incidentesActivos]);
+
   return (
     <div className="space-y-4 p-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <AlertTriangle className="h-7 w-7 text-destructive" />
-            Inteligencia de Incidentes
-          </h1>
+      {/* ═══ Executive Header ═══ */}
+      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Shield className="h-6 w-6" />
+              Centro de Inteligencia
+            </h1>
+            {alertCount > 0 ? (
+              <Badge variant="destructive" className="text-xs font-semibold">
+                {alertCount} alerta{alertCount !== 1 ? 's' : ''} activa{alertCount !== 1 ? 's' : ''}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">Sin alertas</Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
-            Dashboard operativo de seguridad para transporte de carga
+            Dashboard operativo · Seguridad en transporte de carga
             {lastRunTime && (
-              <span className="ml-2 text-xs">
-                · Última consulta X: {lastRunTime}
+              <span className="ml-2">
+                · X: {lastRunTime}
                 {lastRun && ` (${lastRun.tweets_insertados} nuevos)`}
               </span>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -121,149 +139,124 @@ export default function IncidentesRRSSPage() {
             ) : (
               <Twitter className="h-4 w-4" />
             )}
-            Actualizar desde X
+            X / Twitter
           </Button>
           <TriggerApifyFetch />
         </div>
-      </div>
+      </header>
 
-      {/* Banner de Situación Activa */}
+      {/* ═══ Active Situation Banner ═══ */}
       <ActiveSituationBanner incidentes={incidentesActivos} isLoading={activosLoading} />
 
-      {/* Filtros Operativos */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filtros Operativos
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Presets temporales */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Label className="text-xs text-muted-foreground shrink-0">Periodo:</Label>
-            {PRESETS_TEMPORALES.map(preset => (
-              <Button
-                key={preset.label}
-                variant={horasAtras === preset.horas && preset.label !== '24h' || (horasAtras === 24 && preset.label === 'Hoy') ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 text-xs px-3"
-                onClick={() => setHorasAtras(preset.horas)}
-              >
-                {preset.label}
-              </Button>
+      {/* ═══ Inline Filter Toolbar ═══ */}
+      <div className="flex flex-wrap items-center gap-2 py-2 border-b">
+        {/* Temporal presets */}
+        {PRESETS_TEMPORALES.map(preset => (
+          <Button
+            key={preset.label}
+            variant={horasAtras === preset.horas && preset.label !== '24h' || (horasAtras === 24 && preset.label === 'Hoy') ? 'default' : 'outline'}
+            size="sm"
+            className="h-7 text-xs px-3"
+            onClick={() => setHorasAtras(preset.horas)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+
+        <div className="w-px h-5 bg-border mx-1" />
+
+        <Select value={filtroEstadoGeo} onValueChange={setFiltroEstadoGeo}>
+          <SelectTrigger className="h-7 text-xs w-[140px]">
+            <SelectValue placeholder="Entidad" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las entidades</SelectItem>
+            {ESTADOS_MX.map(edo => (
+              <SelectItem key={edo} value={edo}>{edo}</SelectItem>
             ))}
-          </div>
+          </SelectContent>
+        </Select>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Entidad Federativa */}
-            <div className="space-y-1">
-              <Label className="text-xs">Entidad Federativa</Label>
-              <Select value={filtroEstadoGeo} onValueChange={setFiltroEstadoGeo}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las entidades</SelectItem>
-                  {ESTADOS_MX.map(edo => (
-                    <SelectItem key={edo} value={edo}>{edo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Select value={filtroCarretera} onValueChange={setFiltroCarretera}>
+          <SelectTrigger className="h-7 text-xs w-[140px]">
+            <SelectValue placeholder="Carretera" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {(carreteras || []).map(c => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            {/* Carretera */}
-            <div className="space-y-1">
-              <Label className="text-xs">Carretera / Corredor</Label>
-              <Select value={filtroCarretera} onValueChange={setFiltroCarretera}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Todas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las carreteras</SelectItem>
-                  {(carreteras || []).map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+          <SelectTrigger className="h-7 text-xs w-[140px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPOS_INCIDENTE.map(tipo => (
+              <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            {/* Tipo de Incidente */}
-            <div className="space-y-1">
-              <Label className="text-xs">Tipo de Incidente</Label>
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_INCIDENTE.map(tipo => (
-                    <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Select value={filtroEstatus} onValueChange={setFiltroEstatus}>
+          <SelectTrigger className="h-7 text-xs w-[110px]">
+            <SelectValue placeholder="Estatus" />
+          </SelectTrigger>
+          <SelectContent>
+            {ESTATUS_REGISTRO.map(e => (
+              <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            {/* Estatus del registro */}
-            <div className="space-y-1">
-              <Label className="text-xs">Estatus del Registro</Label>
-              <Select value={filtroEstatus} onValueChange={setFiltroEstatus}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ESTATUS_REGISTRO.map(e => (
-                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Solo geocodificados */}
-            <div className="flex items-end pb-1">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="geocodificados"
-                  checked={soloGeocodificados}
-                  onCheckedChange={(checked) => setSoloGeocodificados(checked as boolean)}
-                />
-                <Label htmlFor="geocodificados" className="cursor-pointer text-xs">
-                  Solo geocodificados
-                </Label>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Estatus de Corredores — tabla semáforo */}
-      <CorridorStatusPanel incidentes={incidentes || []} />
-
-      {/* Recomendaciones + Corredores Afectados */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <OperationalRecommendations incidentes={incidentes || []} />
-        <AffectedCorridors incidentes={incidentes || []} />
-      </div>
-
-      {/* Mapa + Stats lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <IncidentesMap incidentes={incidentes || []} />
-        <div className="space-y-4">
-          <IncidentesStats stats={stats} loading={statsLoading} />
+        <div className="flex items-center gap-1.5 ml-1">
+          <Checkbox
+            id="geocodificados"
+            checked={soloGeocodificados}
+            onCheckedChange={(checked) => setSoloGeocodificados(checked as boolean)}
+          />
+          <Label htmlFor="geocodificados" className="cursor-pointer text-xs text-muted-foreground">
+            Solo GPS
+          </Label>
         </div>
       </div>
 
-      {/* Tabla de Incidentes */}
+      {/* ═══ Zone 1: Map (60%) + Recommendations (40%) ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3">
+          <IncidentesMap incidentes={incidentes || []} />
+        </div>
+        <div className="lg:col-span-2 space-y-4">
+          <OperationalRecommendations incidentes={incidentes || []} />
+          <AffectedCorridors incidentes={incidentes || []} />
+        </div>
+      </div>
+
+      {/* ═══ Zone 2: Corridor Status ═══ */}
+      <CorridorStatusPanel incidentes={incidentes || []} />
+
+      {/* ═══ Zone 3: KPIs ═══ */}
+      <IncidentesStatsKPIs stats={stats} loading={statsLoading} />
+
+      {/* ═══ Zone 4: Incidents Table ═══ */}
       <Card>
-        <CardHeader>
-          <CardTitle>Incidentes Detectados</CardTitle>
-          <CardDescription>
-            {incidentes?.length || 0} incidentes encontrados
-          </CardDescription>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">Incidentes Detectados</CardTitle>
+            <Badge variant="outline" className="text-xs font-mono">
+              {incidentes?.length || 0}
+            </Badge>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <IncidentesTable data={incidentes || []} loading={isLoading} />
         </CardContent>
       </Card>
+
+      {/* ═══ Zone 5: Analysis (collapsible) ═══ */}
+      <IncidentesAnalisisPanel stats={stats} loading={statsLoading} />
     </div>
   );
 }
