@@ -32,7 +32,7 @@ export function RouteRiskIntelligence() {
 
       <div className={`grid grid-cols-1 ${panelOpen ? 'md:grid-cols-[1fr_260px]' : ''} gap-3 flex-1 min-h-0 mt-1`} style={{ minHeight: 0, gridTemplateRows: '1fr' }}>
         {/* Map with layer overlay */}
-        <div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px]" style={{ zoom: 1 }}>
+        <div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px] h-full" style={{ zoom: 1 }}>
           <RiskZonesMap
             layers={layers}
             selectedSegmentId={selectedSegmentId}
