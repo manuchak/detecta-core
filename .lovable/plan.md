@@ -1,58 +1,95 @@
 
 
-# Automatizar la alimentación del feed de inteligencia vía Twitter/X API
+# Rediseno del Dashboard de Inteligencia de Incidentes
 
-## Problema actual
+## Diagnostico UX actual
 
-La Edge Function `twitter-incident-search` existe y funciona correctamente: busca tweets, los inserta en `incidentes_rrss`, y dispara `procesar-incidente-rrss` para clasificación AI. Sin embargo, **no hay nada que la ejecute automáticamente**. Solo se puede invocar manualmente desde Configuracion > Twitter/X.
+Tras analizar los 8 componentes que conforman esta pagina, identifico estos problemas clave para los stakeholders (Head of Security, Directores de Operaciones):
 
-## Solución
+### Problemas detectados
 
-### 1. Crear pg_cron job para ejecución automática cada 3 horas
+1. **Header debil**: El titulo con un icono generico de AlertTriangle no comunica urgencia ni autoridad. Los botones de accion (Actualizar desde X, TriggerApifyFetch) estan mezclados sin jerarquia visual.
 
-**Migración SQL:**
+2. **TriggerApifyFetch es un Card completo en el header**: Este componente renderiza un Card con CardHeader + 3 botones + panel de progreso directamente en la zona de acciones del header. Ocupa espacio excesivo y rompe la jerarquia visual.
+
+3. **Filtros demasiado prominentes**: Los filtros ocupan una Card completa con titulo "Filtros Operativos" que compite visualmente con el contenido importante. Para un directivo, los filtros son herramientas secundarias, no contenido principal.
+
+4. **Layout vertical sin priorizacion**: Todo esta apilado verticalmente sin distinguir que es critico vs. informativo. El mapa y las stats estan al mismo nivel que las recomendaciones.
+
+5. **Tabla de incidentes en Card generica**: No tiene filtros inline, ni indicadores de estado rapido, ni acciones batch.
+
+6. **Falta de "glanceability"**: Un stakeholder deberia entender la situacion en 5 segundos. Actualmente necesita hacer scroll para encontrar la informacion clave.
+
+---
+
+## Rediseno propuesto
+
+### 1. Header ejecutivo con barra de estado
+
+Reemplazar el header actual por un diseno tipo "command center":
+- Titulo limpio sin icono de alerta generico
+- Subtitulo con timestamp de ultima actualizacion (ya existe, pero darle mas prominencia)
+- Botones de accion agrupados en un dropdown o toolbar compacta
+- **Status pill** que muestre el estado general del sistema (ej: "3 alertas activas" o "Sin incidentes")
+
+### 2. Barra de acciones colapsable
+
+Mover TriggerApifyFetch y el boton de Twitter a una barra de herramientas colapsable:
+- Un boton principal "Actualizar fuentes" que abre un popover/dropdown con las 3 opciones (Twitter, Apify dataset, Firecrawl web)
+- El panel de progreso de Firecrawl se muestra como un banner temporal debajo del header cuando esta activo
+- Reduce el ruido visual cuando no se esta actualizando
+
+### 3. Filtros como toolbar inline
+
+Reemplazar la Card de filtros por una toolbar horizontal compacta:
+- Presets temporales como chips/toggle group (ya los tiene, pero sacarlos de la Card)
+- Dropdowns en una sola linea horizontal
+- Sin titulo ni Card wrapper
+- Colapsable en mobile
+
+### 4. Layout de "Situation Room" con 3 zonas
+
+Reorganizar el contenido en 3 zonas claras:
 
 ```text
-SELECT cron.schedule(
-  'twitter-incident-search-auto',
-  '0 */3 * * *',   -- Cada 3 horas
-  $$
-  SELECT net.http_post(
-    url := 'https://yydzzeljaewsfhmilnhm.supabase.co/functions/v1/twitter-incident-search',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
-    ),
-    body := '{"max_results": 25}'::jsonb
-  );
-  $$
-);
++--------------------------------------------------+
+|  BANNER DE SITUACION ACTIVA (ya existe, mantener) |
++--------------------------------------------------+
+|  [4h] [Hoy] [24h] [7d] [30d]  | Entidad | Tipo  |  <-- Filtros inline
++--------------------------------------------------+
+|  MAPA (60%)          |  RECOMENDACIONES (40%)     |  <-- Zona 1: Vista rapida
+|  Grande, prominente  |  Operativas + Corredores   |
++--------------------------------------------------+
+|  SEMAFORO CORREDORES (full width)                 |  <-- Zona 2: Estado operativo
++--------------------------------------------------+
+|  KPIs compactos (4 cards)                         |  <-- Zona 3: Metricas
++--------------------------------------------------+
+|  TABLA DE INCIDENTES (full width)                 |  <-- Zona 4: Detalle
++--------------------------------------------------+
 ```
 
-Esto ejecutará la búsqueda automáticamente a las 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00 y 21:00 UTC cada día.
+### 5. KPIs como metric cards compactas
 
-### 2. Agregar botón "Actualizar desde X" en la página de Incidentes RRSS
+Simplificar IncidentesStats: las 4 cards superiores (Total, Geocodificados, Severidad, Metodo) se mantienen pero con diseno mas limpio. Los graficos (pie chart, bar chart) se mueven a una seccion "Analisis" debajo de la tabla, accesible via tab o accordion.
 
-**Archivo: página o componente principal de `/incidentes-rrss`**
+### 6. Tabla mejorada
 
-- Agregar un botón con icono de Twitter/X junto a los controles existentes
-- Al hacer clic, invoca `twitter-incident-search` directamente
-- Muestra toast con resultados (tweets nuevos insertados)
-- Reutiliza el hook `useRunTwitterSearch` que ya existe en `useTwitterConfig.ts`
+- Agregar conteo de resultados como badge en el header de la tabla
+- Mejorar contraste de badges de severidad
+- Row highlighting para incidentes criticos (fondo rojo tenue)
 
-### 3. Indicador de última ejecución
+---
 
-Mostrar en la página de incidentes cuándo fue la última búsqueda exitosa, consultando el registro más reciente de `twitter_api_usage`.
+## Archivos a modificar
 
-## Archivos a crear/modificar
-
-| Archivo | Acción |
+| Archivo | Cambio |
 |---|---|
-| Migración SQL | pg_cron schedule cada 3 horas |
-| Componente de la página `/incidentes-rrss` | Agregar botón "Actualizar desde X" y timestamp de última ejecución |
+| `src/pages/Incidentes/IncidentesRRSSPage.tsx` | Reestructurar layout completo: header, filtros inline, reordenar secciones, agregar seccion de analisis colapsable |
+| `src/components/incidentes/TriggerApifyFetch.tsx` | Refactorizar a version compacta: eliminar Card wrapper, exponer solo botones + progreso inline |
+| `src/components/incidentes/IncidentesStats.tsx` | Separar en 2 componentes: KPIs compactos (top) y AnalisisPanel (graficos, abajo) |
+| `src/components/incidentes/IncidentesTable.tsx` | Agregar row highlighting para incidentes criticos |
 
-## Resultado esperado
+## Nota sobre build errors
 
-- El feed se alimenta automáticamente cada 3 horas sin intervención manual
-- Desde la página de incidentes se puede forzar una actualización inmediata
-- Se ve claramente cuándo fue la última vez que se consultó la API
+Los errores de `gl-matrix` en `node_modules` son de una dependencia transitiva de Mapbox GL y no afectan la ejecucion. Se resolvera agregando `skipLibCheck: true` en tsconfig si no esta ya presente.
+
