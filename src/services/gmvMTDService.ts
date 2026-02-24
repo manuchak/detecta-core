@@ -22,11 +22,35 @@ export interface MTDServiceRecord {
   nombre_cliente: string | null;
   nombre_custodio: string | null;
   nombre_armado: string | null;
+  id_custodio: string | null;
   fecha_hora_cita: string | null;
   estado: string | null;
 }
 
-const CANONICAL_SELECT = 'id, cobro_cliente, nombre_cliente, nombre_custodio, nombre_armado, fecha_hora_cita, estado';
+const CANONICAL_SELECT = 'id, cobro_cliente, nombre_cliente, nombre_custodio, nombre_armado, id_custodio, fecha_hora_cita, estado';
+
+/**
+ * Record de asignacion_armados para separar internos vs proveedor
+ */
+interface AssignmentRecord {
+  armado_id: string | null;
+  tipo_asignacion: string;
+  servicio_custodia_id: string | null;
+}
+
+/**
+ * Fetch asignaciones de armados para el rango MTD, excluyendo canceladas
+ */
+async function fetchMTDAssignments(range: MTDRange): Promise<AssignmentRecord[]> {
+  return fetchAllPaginated<AssignmentRecord>(() =>
+    supabase
+      .from('asignacion_armados')
+      .select('armado_id, tipo_asignacion, servicio_custodia_id')
+      .gte('created_at', range.start)
+      .lte('created_at', range.end + 'T23:59:59')
+      .not('estado_asignacion', 'eq', 'cancelado')
+  );
+}
 
 /**
  * Parseo canónico de cobro_cliente — siempre usar esta función
@@ -109,9 +133,13 @@ export interface UnifiedMTDResult {
   clientesMTD: number;
   clientesPrevMTD: number;
   clientesVariacion: number;
-  // Custodios
+  // Custodios (DISTINCT por id_custodio UUID, fallback nombre normalizado)
   custodiosMTD: number;
-  armadosMTD: number;
+  // Armados internos (DISTINCT armado_id from asignacion_armados tipo_asignacion='interno')
+  armadosInternosMTD: number;
+  armadosMTD: number; // legacy compat
+  // Servicios con proveedor externo
+  serviciosProveedorExternoMTD: number;
   // By client
   gmvByClient: ClientGMVAggregate[];
   gmvByClientPrev: ClientGMVAggregate[];
@@ -122,9 +150,10 @@ export async function fetchUnifiedMTDMetrics(): Promise<UnifiedMTDResult> {
   const currentRange = getCurrentMTDRange(now);
   const prevRange = getPreviousMTDRange(now);
 
-  const [currentServices, previousServices] = await Promise.all([
+  const [currentServices, previousServices, currentAssignments] = await Promise.all([
     fetchMTDServices(currentRange),
     fetchMTDServices(prevRange),
+    fetchMTDAssignments(currentRange),
   ]);
 
   const gmvMTD = calculateGMV(currentServices);
@@ -141,7 +170,32 @@ export async function fetchUnifiedMTDMetrics(): Promise<UnifiedMTDResult> {
   const clientesMTD = new Set(currentServices.map(s => s.nombre_cliente).filter(Boolean)).size;
   const clientesPrevMTD = new Set(previousServices.map(s => s.nombre_cliente).filter(Boolean)).size;
 
-  const custodiosMTD = new Set(currentServices.map(s => s.nombre_custodio).filter(Boolean)).size;
+  // Custodios: DISTINCT por id_custodio (UUID), fallback a nombre normalizado
+  const custodioIdentifiers = new Set<string>();
+  currentServices.forEach(s => {
+    if (s.id_custodio) {
+      custodioIdentifiers.add(s.id_custodio);
+    } else if (s.nombre_custodio) {
+      custodioIdentifiers.add(s.nombre_custodio.trim().toLowerCase());
+    }
+  });
+  const custodiosMTD = custodioIdentifiers.size;
+
+  // Armados internos: DISTINCT armado_id from asignacion_armados where tipo='interno'
+  const armadosInternosMTD = new Set(
+    currentAssignments
+      .filter(a => a.tipo_asignacion === 'interno' && a.armado_id)
+      .map(a => a.armado_id)
+  ).size;
+
+  // Servicios con proveedor externo: DISTINCT servicio_custodia_id where tipo='proveedor'
+  const serviciosProveedorExternoMTD = new Set(
+    currentAssignments
+      .filter(a => a.tipo_asignacion === 'proveedor' && a.servicio_custodia_id)
+      .map(a => a.servicio_custodia_id)
+  ).size;
+
+  // Legacy: mantener armadosMTD para backward compat
   const armadosMTD = new Set(currentServices.map(s => s.nombre_armado).filter(Boolean)).size;
 
   const gmvByClient = aggregateByClient(currentServices);
@@ -163,7 +217,9 @@ export async function fetchUnifiedMTDMetrics(): Promise<UnifiedMTDResult> {
     clientesPrevMTD,
     clientesVariacion: calcVar(clientesMTD, clientesPrevMTD),
     custodiosMTD,
+    armadosInternosMTD,
     armadosMTD,
+    serviciosProveedorExternoMTD,
     gmvByClient,
     gmvByClientPrev,
   };
@@ -174,10 +230,11 @@ export async function fetchUnifiedMTDMetrics(): Promise<UnifiedMTDResult> {
     totalRows: serviciosMTD,
     prevRows: serviciosPrevMTD,
     gmvMTD: gmvMTD.toFixed(2),
-    gmvPrevMTD: gmvPrevMTD.toFixed(2),
-    variacion: result.gmvVariacion.toFixed(1) + '%',
+    custodiosMTD,
+    armadosInternosMTD,
+    serviciosProveedorExternoMTD,
+    armadosLegacy: armadosMTD,
     filter: "NOT estado = 'Cancelado'",
-    pagination: 'fetchAllPaginated (no 1000-row limit)',
   });
 
   return result;

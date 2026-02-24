@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Users, Truck, Shield, UserCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Users, Truck, Shield, UserCheck, Building2 } from 'lucide-react';
 import { useUnifiedMTDMetrics } from '@/hooks/useUnifiedMTDMetrics';
 
 interface KPIData {
@@ -15,9 +15,11 @@ export const ExecutiveKPIsBar = () => {
   const {
     serviciosMTD, serviciosPrevMTD,
     gmvMTD, gmvVariacion,
-    aovMTD, aovPrevMTD,
-    clientesMTD, clientesPrevMTD,
-    custodiosMTD, armadosMTD,
+    aovMTD,
+    clientesMTD,
+    custodiosMTD,
+    armadosInternosMTD,
+    serviciosProveedorExternoMTD,
     data, loading
   } = useUnifiedMTDMetrics();
 
@@ -33,8 +35,17 @@ export const ExecutiveKPIsBar = () => {
     return `$${new Intl.NumberFormat('es-MX').format(Math.round(n))}`;
   };
 
-  const custodiosPrev = data ? new Set(data.previousServices.map(s => s.nombre_custodio).filter(Boolean)).size : 0;
-  const armadosPrev = data ? new Set(data.previousServices.map(s => s.nombre_armado).filter(Boolean)).size : 0;
+  const custodiosPrev = data ? (() => {
+    const ids = new Set<string>();
+    data.previousServices.forEach(s => {
+      if ((s as any).id_custodio) ids.add((s as any).id_custodio);
+      else if (s.nombre_custodio) ids.add(s.nombre_custodio.trim().toLowerCase());
+    });
+    return ids.size;
+  })() : 0;
+
+  const aovPrevMTD = data && data.serviciosPrevMTD > 0 ? data.gmvPrevMTD / data.serviciosPrevMTD : 0;
+  const clientesPrevMTD = data?.clientesPrevMTD ?? 0;
 
   const kpiCards: KPIData[] = [
     { 
@@ -69,23 +80,24 @@ export const ExecutiveKPIsBar = () => {
       icon: <UserCheck className="h-4 w-4" />
     },
     { 
-      label: 'Armados', 
-      value: armadosMTD.toString(), 
-      variation: calcVar(armadosMTD, armadosPrev),
-      icon: <Shield className="h-4 w-4" />
+      label: 'Armados Int.', 
+      value: armadosInternosMTD.toString(), 
+      variation: 0,
+      icon: <Shield className="h-4 w-4" />,
+      showVariation: false
+    },
+    { 
+      label: 'Svcs. Prov. Ext.', 
+      value: serviciosProveedorExternoMTD.toString(), 
+      variation: 0,
+      icon: <Building2 className="h-4 w-4" />,
+      showVariation: false
     },
     { 
       label: 'Clientes Mon.', 
       value: 'N/D', 
       variation: 0,
       icon: <Users className="h-4 w-4" />,
-      showVariation: false
-    },
-    { 
-      label: 'Suscr. Mon.', 
-      value: 'N/D', 
-      variation: 0,
-      icon: <Shield className="h-4 w-4" />,
       showVariation: false
     },
   ];
