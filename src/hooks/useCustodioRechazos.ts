@@ -193,6 +193,68 @@ export function useRegistrarRechazo() {
 }
 
 /**
+ * Suspende (levanta) una penalidad de rechazo expirándola inmediatamente
+ */
+export function useSuspenderRechazo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      rechazoId,
+      custodioNombre,
+    }: {
+      rechazoId: string;
+      custodioNombre: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userName = user?.email || 'Usuario';
+      const ahora = new Date().toISOString();
+
+      // First get current motivo to append audit trail
+      const { data: current } = await supabase
+        .from('custodio_rechazos')
+        .select('motivo')
+        .eq('id', rechazoId)
+        .single();
+
+      const motivoActualizado = `${current?.motivo || 'Sin motivo'} | Suspendido por ${userName} el ${ahora.split('T')[0]}`;
+
+      const { data, error } = await supabase
+        .from('custodio_rechazos')
+        .update({
+          vigencia_hasta: ahora,
+          motivo: motivoActualizado,
+        })
+        .eq('id', rechazoId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error suspending rejection:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['custodio-rechazos-vigentes'] });
+      queryClient.invalidateQueries({ queryKey: ['custodio-rechazos-vigentes-detallados'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-con-proximidad-equitativo'] });
+      queryClient.invalidateQueries({ queryKey: ['custodios-operativos-disponibles'] });
+
+      toast.success('Penalidad levantada', {
+        description: `${variables.custodioNombre} aparecerá de nuevo en la lista de disponibles`,
+      });
+    },
+    onError: () => {
+      toast.error('Error al levantar penalidad', {
+        description: 'No se pudo suspender el rechazo. Intenta nuevamente.',
+      });
+    },
+  });
+}
+
+/**
  * Hook combinado para filtrar custodios rechazados de una lista
  */
 export function useFilterRechazados<T extends { id: string }>(custodios: T[], options?: { inclujeArmado?: boolean }) {
