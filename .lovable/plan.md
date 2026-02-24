@@ -1,82 +1,47 @@
 
 
-# Interfaz para Suspender Penalidades por Rechazo
+# Fix: Mapa de Tramos Carreteros No Visible en Modulo de Seguridad
 
-## Contexto del Problema
+## Causa Raiz
 
-La tabla `custodio_rechazos` tiene vigencia fija de 7 dias. Cuando un analista registra un rechazo por motivos temporales (ej: "buscando casa con su hijo" por 1 dia), el custodio queda excluido los 7 dias completos. No existe forma de levantar la penalidad anticipadamente.
+El proyecto usa `zoom: 0.7` global en `html` (src/index.css linea 153) para densidad de informacion. Esto **distorsiona el canvas de Mapbox GL JS** porque el motor calcula coordenadas y dimensiones basandose en el tamano real del contenedor, pero CSS zoom cambia el tamano visual sin que Mapbox lo sepa.
 
-### Restricciones actuales
+Otros mapas del sistema ya tienen el fix aplicado:
+- `IncidentesMap.tsx`: usa `style={{ height: '400px', zoom: 1 }}`
+- `ShiftServicesMap.tsx`: misma estrategia
+- Dialogs/Sheets: usan `zoom: 1.428571` (que es `1/0.7`) para compensar
 
-- La tabla solo tiene politicas RLS para SELECT e INSERT -- **no hay politica UPDATE** (no se puede modificar `vigencia_hasta`)
-- No existe UI para gestionar rechazos vigentes
-
----
+**El RiskZonesMap NO tiene ninguna compensacion de zoom.** Ademas, su contenedor padre en `RouteRiskIntelligence.tsx` depende de altura por Flexbox (`flex-1`) que puede colapsar a 0px cuando la cadena de alturas se rompe por el zoom distorsionado.
 
 ## Solucion
 
-### 1. Migracion SQL: Agregar politica UPDATE
+### Archivo 1: `src/components/security/routes/RouteRiskIntelligence.tsx`
 
-Crear una politica RLS que permita a usuarios con acceso a planeacion actualizar rechazos (para poder expirar la vigencia):
-
-```sql
-CREATE POLICY "Planeacion puede actualizar rechazos" 
-ON public.custodio_rechazos
-FOR UPDATE USING (puede_acceder_planeacion());
-```
-
-### 2. Hook: `useSuspenderRechazo` (en `src/hooks/useCustodioRechazos.ts`)
-
-Agregar una mutacion al archivo existente que:
-- Reciba el `id` del rechazo
-- Haga UPDATE de `vigencia_hasta` a `NOW()` (expira inmediatamente)
-- Invalide las queries de rechazos vigentes y custodios disponibles
-- Registre quien levanto la penalidad (via campo `motivo` append: " | Suspendido por [usuario] el [fecha]")
-
-### 3. Boton "Levantar Penalidad" en ExcludedCustodiansAlert
-
-Modificar `ExcludedCustodiansAlert.tsx` para agregar un boton junto al detalle del rechazo individual (caso de 1 match):
+Agregar `style={{ zoom: 1 }}` al contenedor del mapa y un `min-h` de seguridad para que el mapa nunca colapse a 0:
 
 ```text
-ANTES:
-  "linares" coincide con un custodio excluido
-  ROBERTO LINARES MACIAS -- Rechazo vigente hasta 24 de feb...
-  Reportado por: Daniela Michelle Castaneda Almaguer
+ANTES (linea 32):
+<div className="relative rounded-lg overflow-hidden border bg-muted/10">
 
 DESPUES:
-  "linares" coincide con un custodio excluido
-  ROBERTO LINARES MACIAS -- Rechazo vigente hasta 24 de feb...
-  Reportado por: Daniela Michelle Castaneda Almaguer
-  [Levantar Penalidad]  <-- boton nuevo
+<div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[400px]" style={{ zoom: 1 }}>
 ```
 
-Al hacer click:
-- Dialog de confirmacion: "Vas a levantar la penalidad de ROBERTO LINARES MACIAS. Aparecera de nuevo en la lista de custodios disponibles. Confirmar?"
-- Al confirmar, ejecuta la mutacion que expira el rechazo
-- La lista de custodios se refresca automaticamente y el custodio aparece disponible
+Esto neutraliza el zoom global para todo el area del mapa (incluyendo la leyenda y los controles de capas que estan como overlays absolutos dentro del mismo contenedor).
 
-### 4. Panel de Gestion de Rechazos Vigentes (nuevo componente)
+### Archivo 2: `src/components/security/map/RiskZonesMap.tsx`
 
-Crear `src/components/planeacion/RechazosVigentesPanel.tsx`:
-- Tabla con todos los rechazos vigentes: Nombre, Motivo, Vigencia hasta, Reportado por
-- Boton "Levantar" por fila con la misma logica de confirmacion
-- Accesible desde un boton en la toolbar de CustodianStep y PendingAssignmentModal (icono de escudo/ban con badge de conteo)
+Ningun cambio estructural necesario. El componente ya tiene:
+- ResizeObserver (linea 94)
+- Staggered resize calls (lineas 73-75)
+- Container con `absolute inset-0` (linea 331)
 
----
+Estos mecanismos ya son correctos; solo necesitan que el contenedor padre tenga el zoom neutralizado para funcionar.
 
-## Archivos a modificar/crear
+## Por que esta es la solucion de raiz
 
-| Archivo | Cambio |
-|---------|--------|
-| Nueva migracion SQL | Politica UPDATE en `custodio_rechazos` |
-| `src/hooks/useCustodioRechazos.ts` | Agregar mutacion `useSuspenderRechazo` |
-| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/ExcludedCustodiansAlert.tsx` | Agregar boton "Levantar Penalidad" con dialog de confirmacion |
-| `src/components/planeacion/RechazosVigentesPanel.tsx` | Nuevo: panel de gestion de rechazos vigentes |
-| `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/index.tsx` | Agregar boton para abrir RechazosVigentesPanel |
-| `src/components/planeacion/PendingAssignmentModal.tsx` | Agregar boton para abrir RechazosVigentesPanel |
+Las soluciones anteriores intentaban compensar con `m.resize()` repetidos, pero el problema fundamental es que Mapbox calcula su canvas en un contexto de zoom 0.7x. El unico fix real es que el contenedor del mapa opere a `zoom: 1`, igual que todos los otros mapas del sistema. Esto es consistente con el patron documentado en la memoria del proyecto (`mapbox-zoom-distortion-neutralization`).
 
-## Seguridad
+## Resultado esperado
 
-- Solo usuarios con acceso a planeacion (`puede_acceder_planeacion()`) pueden levantar penalidades
-- Se registra quien levanto la penalidad en el campo `motivo` como audit trail
-- La accion requiere confirmacion explicita via dialog
+El mapa de tramos carreteros sera visible inmediatamente con todos sus layers (segmentos de riesgo, POIs, puntos seguros, zonas muertas), interactivo (click en segmentos), y con coordenadas correctas (popups alineados al cursor).
