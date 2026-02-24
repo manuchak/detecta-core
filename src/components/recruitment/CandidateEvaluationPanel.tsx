@@ -24,11 +24,14 @@ import { TrainingTab } from '@/components/leads/evaluaciones/TrainingTab';
 import { TrainingProgressBadge } from '@/components/leads/evaluaciones/TrainingProgressBadge';
 import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab';
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
+import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
+import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 import { useLatestMidot } from '@/hooks/useEvaluacionesMidot';
 import { useLatestToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
+import { useLatestEstudioSocioeconomico } from '@/hooks/useEstudioSocioeconomico';
 import { 
   MessageSquare, 
   Shield, 
@@ -46,7 +49,8 @@ import {
   GraduationCap,
   Cpu,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Home
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -66,7 +70,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { data: latestPsicometrico } = useLatestEvaluacionPsicometrica(candidatoId);
   const { data: latestToxicologia } = useLatestToxicologia(candidatoId);
   const latestMidot = useLatestMidot(candidatoId);
-
+  const latestSocioeconomico = useLatestEstudioSocioeconomico(candidatoId);
   const latestInterview = interviews?.[0];
 
   // Calculate completion progress
@@ -175,6 +179,11 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
               <span>GPS</span>
               <InstallationProgressBadge candidatoId={candidatoId} size="sm" />
             </TabsTrigger>
+            <TabsTrigger value="socioeconomico" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
+              <Home className="h-3.5 w-3.5" />
+              <span>Socio</span>
+              {latestSocioeconomico && <SocioeconomicoBadge estudio={latestSocioeconomico} size="sm" />}
+            </TabsTrigger>
 
             {/* INFO */}
             <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
@@ -270,6 +279,10 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
           <TabsContent value="installation" className="mt-4">
             <InstallationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+          </TabsContent>
+
+          <TabsContent value="socioeconomico" className="mt-4">
+            <SocioeconomicoTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
           </TabsContent>
 
           <TabsContent value="timeline" className="mt-4">
