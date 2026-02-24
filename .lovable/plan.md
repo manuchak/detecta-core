@@ -1,78 +1,103 @@
 
 
-# Configurar API Directa de X.com para Feed de Inteligencia
+# Gestion de Cuentas Twitter/X y Monitoreo de Consumo API
 
-## Contexto
+## Resumen
 
-Actualmente el pipeline de inteligencia usa:
-- **Apify** (scraper_one, quacker, etc.) -- frecuentemente bloqueado por X, resultados inconsistentes
-- **Firecrawl** -- solo captura noticias web que citan Twitter, no tweets directos
+Crear una tabla `twitter_monitored_accounts` para gestionar cuentas de X.com a monitorear, un panel UI en Settings para administrarlas, y un tracker de consumo de la API para controlar costos. La Edge Function `twitter-incident-search` leera las cuentas de la tabla en lugar de tenerlas hardcodeadas.
 
-Con credenciales directas de la API de X.com, se elimina la dependencia de scrapers y se obtienen datos confiables en tiempo real.
+---
 
-## Plan
+## Fase 1: Tabla de Cuentas Monitoreadas
 
-### 1. Agregar los 4 Secrets de Twitter/X
+**Nueva tabla: `twitter_monitored_accounts`**
 
-Se solicitaran las credenciales una por una usando el sistema de secrets de Supabase:
-- `TWITTER_CONSUMER_KEY` (API Key)
-- `TWITTER_CONSUMER_SECRET` (API Key Secret)
-- `TWITTER_ACCESS_TOKEN`
-- `TWITTER_ACCESS_TOKEN_SECRET`
-
-### 2. Nueva Edge Function: `twitter-incident-search`
-
-Endpoint: `api.x.com/2` (Twitter API v2)
-
-**Funcionalidad:**
-- Usa OAuth 1.0a (firma HMAC-SHA1) para autenticarse con la API de X
-- Busca tweets recientes usando el endpoint `GET /2/tweets/search/recent`
-- Queries optimizadas para seguridad en transporte:
-  - `robo trailer OR robo carga -is:retweet lang:es`
-  - `bloqueo carretera OR narcobloqueo -is:retweet lang:es`
-  - `asalto transportista OR secuestro operador -is:retweet lang:es`
-  - `from:GN_Carreteras OR from:monitorcarrete1 OR from:jaliscorojo`
-- Parametros: `tweet.fields=created_at,public_metrics,geo,entities` y `user.fields=username,name`
-- Deduplicacion contra `incidentes_rrss.url_publicacion` existentes
-- Inserta en `incidentes_rrss` con el mismo schema que usa apify-data-fetcher
-- Dispara `procesar-incidente-rrss` para clasificacion AI asincrona (pipeline existente)
-
-**Estructura de la firma OAuth 1.0a:**
-- Genera nonce, timestamp, y firma HMAC-SHA1 en Deno usando `crypto.subtle`
-- NO incluye parametros del body en la firma (solo query params para GET)
-- Header: `Authorization: OAuth oauth_consumer_key="...", oauth_token="...", ...`
-
-### 3. Registrar en config.toml
-
-```toml
-[functions.twitter-incident-search]
-verify_jwt = false
+```text
+- id uuid PK DEFAULT gen_random_uuid()
+- username text NOT NULL UNIQUE (sin @, ej: "GN_Carreteras")
+- display_name text (nombre legible)
+- categoria: 'gobierno' | 'periodismo' | 'monitoreo' | 'seguridad' | 'otro'
+- activa boolean DEFAULT true
+- notas text
+- agregada_por uuid FK -> auth.users
+- created_at timestamptz DEFAULT now()
 ```
 
-### 4. Integracion con Pipeline Existente
+**Nueva tabla: `twitter_api_usage`**
 
-La funcion reutiliza exactamente el mismo flujo post-insercion:
-1. Inserta tweet en `incidentes_rrss` (red_social = 'twitter', procesado = false)
-2. Llama a `procesar-incidente-rrss` para clasificacion AI
-3. Los datos aparecen automaticamente en:
-   - ThreatIntelFeed (modulo seguridad)
-   - TVAlertTicker (monitoreo TV)
-   - IncidentesMap (mapa de incidentes)
+```text
+- id uuid PK DEFAULT gen_random_uuid()
+- fecha date NOT NULL
+- tweets_leidos int DEFAULT 0
+- queries_ejecutadas int DEFAULT 0
+- tweets_insertados int DEFAULT 0
+- tweets_duplicados int DEFAULT 0
+- rate_limited boolean DEFAULT false
+- created_at timestamptz DEFAULT now()
+```
 
-No se requieren cambios en frontend -- los hooks existentes (`useIncidentesRRSS`, `useThreatIntelligence`) ya consumen de `incidentes_rrss`.
+**Seed inicial** con las cuentas mencionadas previamente:
+- GN_Carreteras (Guardia Nacional Carreteras) - gobierno
+- monitorcarrete1 (Monitor de Carreteras) - monitoreo
+- jaliscorojo (Jalisco Rojo) - periodismo
+- mimorelia (Mi Morelia) - periodismo
+
+---
+
+## Fase 2: Panel de Gestion en Settings
+
+**Nuevo componente: `src/components/settings/TwitterAccountsManager.tsx`**
+
+Ubicado en la tab "Inteligencia Artificial" o como nueva tab "Twitter/X" en Settings.
+
+Funcionalidad:
+- Lista de cuentas monitoreadas con toggle activa/inactiva
+- Formulario para agregar nuevas cuentas (username + categoria + notas)
+- Boton eliminar cuenta
+- Indicador de categoria con badge de color
+- Boton "Ejecutar busqueda ahora" que invoca `twitter-incident-search`
+- Panel de estadisticas de consumo mensual:
+  - Tweets leidos este mes / limite (10,000 Basic)
+  - Barra de progreso visual
+  - Costo estimado proporcional
+  - Historial diario de consumo en tabla
+
+---
+
+## Fase 3: Actualizar Edge Function
+
+**Modificar `supabase/functions/twitter-incident-search/index.ts`:**
+
+En lugar de los queries hardcodeados en `SEARCH_QUERIES`, la funcion:
+1. Consulta `twitter_monitored_accounts` donde `activa = true`
+2. Construye el query `from:` dinamicamente con las cuentas activas
+3. Mantiene los queries de keywords (robo, bloqueo, asalto) como estan
+4. Al finalizar, inserta un registro en `twitter_api_usage` con las estadisticas de la ejecucion
+
+---
+
+## Fase 4: Integracion en Settings
+
+**Modificar `src/pages/Settings/Settings.tsx`:**
+- Agregar nueva tab "Twitter/X" con icono de X
+- Renderizar `TwitterAccountsManager`
+
+---
 
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
 |---|---|
-| Secrets (4) | TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET |
-| `supabase/functions/twitter-incident-search/index.ts` | NUEVO: Edge function con OAuth 1.0a y busqueda v2 |
-| `supabase/config.toml` | Agregar entrada verify_jwt = false |
+| Migracion SQL | Tablas `twitter_monitored_accounts`, `twitter_api_usage`, seed de cuentas iniciales |
+| `src/components/settings/TwitterAccountsManager.tsx` | NUEVO: UI completa de gestion |
+| `src/hooks/useTwitterConfig.ts` | NUEVO: hooks para CRUD cuentas y lectura de usage |
+| `supabase/functions/twitter-incident-search/index.ts` | Leer cuentas de BD + registrar usage |
+| `src/pages/Settings/Settings.tsx` | Agregar tab Twitter/X |
 
-## Limitaciones de la API (Basic tier)
+## Detalle tecnico: Calculo de costos
 
-- **10,000 tweets/mes** en lectura (Basic $200/mo) o **1,500,000** (Pro)
-- `search/recent` solo busca tweets de los ultimos **7 dias**
-- Rate limit: 450 requests / 15 min (app-level)
-- La funcion implementara control de rate limit y paginacion con `next_token`
+- Basic tier: $200/mes por 10,000 tweets
+- Costo por tweet: $0.02
+- El panel mostrara: `tweets_leidos_mes * $0.02` como costo estimado
+- Alerta visual cuando el consumo supere 80% del limite mensual
 
