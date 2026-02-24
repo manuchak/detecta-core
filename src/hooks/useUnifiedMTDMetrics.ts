@@ -37,6 +37,8 @@ export function useUnifiedMTDMetrics() {
     clientesMTD: data?.clientesMTD ?? 0,
     custodiosMTD: data?.custodiosMTD ?? 0,
     armadosMTD: data?.armadosMTD ?? 0,
+    armadosInternosMTD: data?.armadosInternosMTD ?? 0,
+    serviciosProveedorExternoMTD: data?.serviciosProveedorExternoMTD ?? 0,
     gmvByClient: data?.gmvByClient ?? [],
     gmvByClientPrev: data?.gmvByClientPrev ?? [],
   };
