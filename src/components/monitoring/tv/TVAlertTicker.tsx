@@ -24,15 +24,19 @@ const severityLabel: Record<string, string> = {
   baja: 'BAJA',
 };
 
+const ROAD_KEYWORDS = /carretera|autopista|tramo|corredor|libramiento|trailer|tráiler|volcadura|autopista|peaje|caseta|entronque|camión|tractocamión/i;
+
+const isRoadRelated = (inc: IncidenteRRSS) =>
+  !!inc.carretera || ROAD_KEYWORDS.test(inc.resumen_ai || '') || ROAD_KEYWORDS.test(inc.texto_original || '');
+
 const TVAlertTicker = () => {
-  const { data: incidentes } = useIncidentesRRSS({ dias_atras: 1 });
+  const { data: incidentes } = useIncidentesRRSS({ dias_atras: 3 });
 
   const sorted = useMemo(() => {
     if (!incidentes || incidentes.length === 0) return [];
 
-    // Separate highway incidents from the rest
-    const conCarretera = incidentes.filter((i) => !!i.carretera);
-    const sinCarretera = incidentes.filter((i) => !i.carretera);
+    const conCarretera = incidentes.filter(isRoadRelated);
+    const sinCarretera = incidentes.filter((i) => !isRoadRelated(i));
 
     const bySeverity = (a: IncidenteRRSS, b: IncidenteRRSS) =>
       (severityOrder[a.severidad || 'baja'] ?? 3) - (severityOrder[b.severidad || 'baja'] ?? 3);
@@ -40,11 +44,9 @@ const TVAlertTicker = () => {
     conCarretera.sort(bySeverity);
     sinCarretera.sort(bySeverity);
 
-    // Prioritize highway incidents; fill up to 20 with others if needed
-    const MIN_HIGHWAY = 5;
     const result = [...conCarretera];
-    if (result.length < MIN_HIGHWAY) {
-      result.push(...sinCarretera.slice(0, MIN_HIGHWAY - result.length));
+    if (result.length < 5) {
+      result.push(...sinCarretera.slice(0, 5 - result.length));
     }
     return result.slice(0, 20);
   }, [incidentes]);

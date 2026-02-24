@@ -43,6 +43,7 @@ export const useIncidentesRRSS = (filtros?: {
 }) => {
   return useQuery({
     queryKey: ['incidentes-rrss', filtros],
+    refetchInterval: filtros?.dias_atras && filtros.dias_atras >= 2 ? 120000 : undefined,
     queryFn: async () => {
       let query = supabase
         .from('incidentes_rrss')
