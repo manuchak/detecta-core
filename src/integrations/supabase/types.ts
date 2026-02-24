@@ -16604,6 +16604,36 @@ export type Database = {
         }
         Relationships: []
       }
+      twitter_search_keywords: {
+        Row: {
+          activa: boolean
+          categoria: string
+          created_at: string
+          es_predeterminada: boolean
+          id: string
+          notas: string | null
+          query_text: string
+        }
+        Insert: {
+          activa?: boolean
+          categoria?: string
+          created_at?: string
+          es_predeterminada?: boolean
+          id?: string
+          notas?: string | null
+          query_text: string
+        }
+        Update: {
+          activa?: boolean
+          categoria?: string
+          created_at?: string
+          es_predeterminada?: boolean
+          id?: string
+          notas?: string | null
+          query_text?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           archive_reason: string | null

@@ -152,3 +152,80 @@ export function useRunTwitterSearch() {
     onError: (e: any) => toast.error(`Error: ${e.message}`),
   });
 }
+
+// ── Twitter Search Keywords ─────────────────────────────────────────
+
+export interface TwitterSearchKeyword {
+  id: string;
+  query_text: string;
+  categoria: string;
+  activa: boolean;
+  es_predeterminada: boolean;
+  notas: string | null;
+  created_at: string;
+}
+
+export function useTwitterKeywords() {
+  return useAuthenticatedQuery<TwitterSearchKeyword[]>(
+    ['twitter-search-keywords'],
+    async () => {
+      const { data, error } = await supabase
+        .from('twitter_search_keywords')
+        .select('*')
+        .order('categoria', { ascending: true })
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data as unknown as TwitterSearchKeyword[];
+    },
+    { config: 'standard' }
+  );
+}
+
+export function useAddTwitterKeyword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (kw: { query_text: string; categoria: string; notas: string }) => {
+      const { error } = await supabase.from('twitter_search_keywords').insert({
+        query_text: kw.query_text,
+        categoria: kw.categoria,
+        notas: kw.notas || null,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['twitter-search-keywords'] });
+      toast.success('Palabra clave agregada');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useToggleTwitterKeyword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, activa }: { id: string; activa: boolean }) => {
+      const { error } = await supabase
+        .from('twitter_search_keywords')
+        .update({ activa } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['twitter-search-keywords'] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+}
+
+export function useDeleteTwitterKeyword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('twitter_search_keywords').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['twitter-search-keywords'] });
+      toast.success('Palabra clave eliminada');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+}
