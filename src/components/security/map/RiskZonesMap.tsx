@@ -328,7 +328,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
-      <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+      <div ref={mapContainer} className="w-full h-full rounded-lg" />
       {/* Legend — outside zoom, absolute position */}
       {mapReady && (
         <div className="absolute bottom-2 left-2 bg-background/90 border rounded p-1.5 text-[9px] space-y-0.5 backdrop-blur-sm z-[5]">
