@@ -128,14 +128,43 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         data: { type: 'FeatureCollection', features: segmentFeatures },
       });
 
+      // Glow layer (underneath main line for visibility)
+      m.addLayer({
+        id: 'segments-glow',
+        type: 'line',
+        source: 'segments',
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': 12,
+          'line-opacity': 0.25,
+          'line-blur': 6,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+
+      // Main segment line (thicker + higher opacity)
       m.addLayer({
         id: 'segments-line',
         type: 'line',
         source: 'segments',
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 6, 4],
-          'line-opacity': 0.85,
+          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 8, 5],
+          'line-opacity': 0.95,
+        },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+
+      // Selected segment outline (white border highlight)
+      m.addLayer({
+        id: 'segments-selected-outline',
+        type: 'line',
+        source: 'segments',
+        filter: ['==', ['get', 'id'], ''],
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': 10,
+          'line-opacity': 0.6,
         },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
@@ -296,7 +325,9 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     const set = (id: string, visible: boolean) => {
       if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
     };
+    set('segments-glow', layers.segments);
     set('segments-line', layers.segments);
+    set('segments-selected-outline', layers.segments);
     set('segments-labels', layers.labels);
     set('pois-circle', layers.pois);
     set('safe-points-circle', layers.safePoints);
@@ -306,11 +337,21 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
 
   // Fly to selected segment
   useEffect(() => {
-    if (!mapReady || !map.current || !selectedSegmentId) return;
+    if (!mapReady || !map.current) return;
+    const m = map.current;
+
+    // Update selected outline filter
+    if (m.getLayer('segments-selected-outline')) {
+      m.setFilter('segments-selected-outline', selectedSegmentId
+        ? ['==', ['get', 'id'], selectedSegmentId]
+        : ['==', ['get', 'id'], '']);
+    }
+
+    if (!selectedSegmentId) return;
     const seg = HIGHWAY_SEGMENTS.find(s => s.id === selectedSegmentId);
     if (!seg) return;
     const mid = seg.waypoints[Math.floor(seg.waypoints.length / 2)];
-    map.current.flyTo({ center: mid, zoom: 9, duration: 1200 });
+    m.flyTo({ center: mid, zoom: 9, duration: 1200 });
   }, [mapReady, selectedSegmentId]);
 
   if (error) {
