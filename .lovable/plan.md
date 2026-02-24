@@ -1,70 +1,138 @@
 
-# Solucion definitiva para el mapa de Rutas y Zonas
 
-## Diagnostico raiz
+# Mejoras UI para el mapa de Rutas y Zonas de Riesgo
 
-El mapa de Mapbox no renderiza tiles (area blanca) a pesar de que:
-- El contenedor tiene dimensiones visibles (la leyenda y controles se muestran)
-- El token se carga correctamente (`mapReady = true`)
-- Los `resize()` escalonados se ejecutan
+## Estado actual (confirmado por screenshot)
 
-El problema es una combinacion de dos factores:
+- El mapa Mapbox renderiza tiles correctamente (fondo oscuro visible)
+- Los controles de capas funcionan (panel superior derecho)
+- La lista de tramos funciona con filtros y scroll (panel derecho)
+- Los tramos carreteros se renderizan como lineas GeoJSON pero son **dificiles de ver** a zoom 5 (lineas de 4px sobre mapa de todo Mexico)
+- El header de estadisticas funciona
+- La leyenda aparece en la esquina inferior izquierda del mapa
 
-### 1. CSS Grid no propaga altura a hijos con `h-full`
+## Problemas identificados
 
-El grid en `RouteRiskIntelligence` usa `flex-1` para obtener altura, pero **no tiene `grid-template-rows: 1fr`**. Sin esto, la fila del grid es `auto` y su altura se basa en el contenido. Como el contenido del mapa es `absolute inset-0` (no contribuye altura), la celda colapsa a `min-h-[420px]` en vez de llenar el espacio disponible. Y `h-full` en el wrapper no se resuelve correctamente dentro de una celda grid con altura `auto`.
+1. **Tramos poco visibles**: Las lineas de 4px son muy delgadas a nivel nacional, especialmente con opacidad 0.85 sobre el tema oscuro
+2. **Espacio desaprovechado**: El panel derecho de 260px es fijo incluso en pantallas grandes
+3. **Sin feedback visual al seleccionar tramo desde la lista**: El mapa hace flyTo pero no resalta el tramo seleccionado visualmente
+4. **Error de build gl-matrix**: Persiste en el typecheck aunque `skipLibCheck: true` esta en todos los tsconfig (esto es un issue del build system de Lovable, no bloquea el runtime)
 
-### 2. `absolute inset-0` es fragil con `zoom: 1`
+## Mejoras propuestas
 
-El patron `absolute inset-0` para el canvas de Mapbox depende de que el padre tenga dimensiones explicitas. Con `zoom: 1` neutralizando el zoom global de 0.7, las dimensiones reportadas al canvas pueden ser inconsistentes. El componente `IncidentesMap` (que SI funciona) usa un patron diferente: **altura explicita** + `w-full h-full` sin posicionamiento absoluto.
+### 1. Tramos mas visibles y con mejor contraste
 
-## Solucion: Alinear con el patron que funciona
+**Archivo: `src/components/security/map/RiskZonesMap.tsx`**
 
-Replicar el patron probado de `IncidentesMap` pero con altura dinamica en vez de fija.
-
-### Cambio 1: `RouteRiskIntelligence.tsx`
-
-- Agregar `grid-template-rows: 1fr` al grid para que la fila se estire
-- Eliminar `h-full` del wrapper del mapa (el grid stretch lo maneja)
-- Mantener `min-h-[420px]` como fallback
-
-```tsx
-// Grid con row explicita
-<div 
-  className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1" 
-  style={{ minHeight: 0, gridTemplateRows: '1fr' }}
->
-  <div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px]" style={{ zoom: 1 }}>
-```
-
-### Cambio 2: `RiskZonesMap.tsx`
-
-- Cambiar el map container de `absolute inset-0` a `w-full h-full` (patron de IncidentesMap)
-- Esto elimina la dependencia de que el padre tenga un height explicitamente computado
+- Aumentar `line-width` de 4 a 5 (base) y de 6 a 8 (hover)
+- Aumentar `line-opacity` de 0.85 a 0.95
+- Agregar un efecto de "glow" con una capa duplicada debajo (linea mas gruesa y difusa del mismo color) para que los tramos resalten contra el fondo oscuro
+- Agregar una capa de "highlight" para el tramo seleccionado (linea pulsante o de mayor grosor con borde blanco)
 
 ```tsx
-// Antes:
-<div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+// Capa de glow (debajo de la linea principal)
+m.addLayer({
+  id: 'segments-glow',
+  type: 'line',
+  source: 'segments',
+  paint: {
+    'line-color': ['get', 'color'],
+    'line-width': 12,
+    'line-opacity': 0.25,
+    'line-blur': 6,
+  },
+  layout: { 'line-cap': 'round', 'line-join': 'round' },
+});
 
-// Despues:
-<div ref={mapContainer} className="w-full h-full rounded-lg" />
+// Linea principal mas gruesa
+paint: {
+  'line-color': ['get', 'color'],
+  'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 8, 5],
+  'line-opacity': 0.95,
+}
 ```
 
-### Cambio 3: Resolver el error de build `gl-matrix`
+### 2. Resaltar tramo seleccionado en el mapa
 
-Agregar `skipLibCheck: true` a `tsconfig.node.json` para eliminar los errores de tipado de `gl-matrix` (dependencia transitiva de `mapbox-gl`) que aparecen en el build.
+**Archivo: `src/components/security/map/RiskZonesMap.tsx`**
+
+Cuando `selectedSegmentId` cambia, ademas del `flyTo`, aplicar un filtro visual al tramo:
+- Agregar una capa `segments-selected` con borde blanco grueso que solo muestra el tramo activo
+- Usar un filtro GeoJSON `['==', ['get', 'id'], selectedSegmentId]`
+
+```tsx
+// Capa de seleccion (borde blanco + linea del color)
+m.addLayer({
+  id: 'segments-selected-outline',
+  type: 'line',
+  source: 'segments',
+  filter: ['==', ['get', 'id'], ''],
+  paint: {
+    'line-color': '#ffffff',
+    'line-width': 10,
+    'line-opacity': 0.6,
+  },
+});
+```
+
+Y en el efecto de `selectedSegmentId`:
+```tsx
+if (m.getLayer('segments-selected-outline')) {
+  m.setFilter('segments-selected-outline', selectedSegmentId 
+    ? ['==', ['get', 'id'], selectedSegmentId] 
+    : ['==', ['get', 'id'], '']);
+}
+```
+
+### 3. Panel lateral colapsable para maximizar mapa
+
+**Archivo: `src/components/security/routes/RouteRiskIntelligence.tsx`**
+
+- Agregar un boton toggle para colapsar/expandir el panel de tramos
+- Cuando esta colapsado, el mapa ocupa el 100% del ancho
+- El boton se posiciona como overlay en la esquina superior derecha del mapa (debajo de los controles de capas)
+
+```tsx
+const [panelOpen, setPanelOpen] = useState(true);
+
+// Grid cambia de 1fr_260px a 1fr cuando esta colapsado
+<div className={`grid grid-cols-1 ${panelOpen ? 'md:grid-cols-[1fr_260px]' : ''} ...`}>
+  ...
+  {panelOpen && (
+    <div className="border rounded-lg p-3 bg-background overflow-hidden">
+      <HighRiskSegmentsList ... />
+    </div>
+  )}
+</div>
+
+// Boton toggle como overlay
+<button onClick={() => setPanelOpen(!panelOpen)} 
+  className="absolute top-2 left-12 z-10 ...">
+  {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
+</button>
+```
+
+### 4. Visibility de capas glow/selected sincronizada con toggle de layers
+
+**Archivo: `src/components/security/map/RiskZonesMap.tsx`**
+
+Las nuevas capas (`segments-glow`, `segments-selected-outline`) deben respetar el toggle de la capa `segments`:
+
+```tsx
+set('segments-glow', layers.segments);
+set('segments-selected-outline', layers.segments);
+```
 
 ## Archivos a modificar
 
-| Archivo | Cambio |
+| Archivo | Cambios |
 |---|---|
-| `src/components/security/routes/RouteRiskIntelligence.tsx` | Agregar `gridTemplateRows: '1fr'`, quitar `h-full` del wrapper |
-| `src/components/security/map/RiskZonesMap.tsx` | Map div: `absolute inset-0` -> `w-full h-full` |
-| `tsconfig.node.json` | Agregar `skipLibCheck: true` |
+| `src/components/security/map/RiskZonesMap.tsx` | Capa glow, lineas mas gruesas, capa de seleccion, sync con layer toggles |
+| `src/components/security/routes/RouteRiskIntelligence.tsx` | Panel lateral colapsable con boton toggle |
 
-## Por que esta vez es definitiva
+## Resultado esperado
 
-1. Replica el patron exacto de `IncidentesMap` que funciona correctamente en produccion
-2. `gridTemplateRows: '1fr'` garantiza que la fila del grid se estire al espacio disponible
-3. `w-full h-full` no depende de que el padre tenga un height computado explicito como `absolute inset-0`
-4. El `zoom: 1` se mantiene para neutralizar el zoom global, pero ya no hay dependencia de posicionamiento absoluto para el canvas
+- Tramos carreteros claramente visibles con efecto glow que resalta contra el fondo oscuro
+- Al hacer click en un tramo de la lista, se resalta visualmente en el mapa con borde blanco
+- Panel lateral colapsable para maximizar el area del mapa cuando se necesita vision completa
+- Todas las mejoras respetan los toggles de capas existentes
