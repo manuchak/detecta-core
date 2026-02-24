@@ -1,10 +1,7 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Users, Truck, Shield, UserCheck } from 'lucide-react';
-import { getCurrentMTDRange, getPreviousMTDRange, getCurrentDay } from '@/utils/mtdDateUtils';
-import { fetchAllPaginated } from '@/utils/supabasePagination';
+import { useUnifiedMTDMetrics } from '@/hooks/useUnifiedMTDMetrics';
 
 interface KPIData {
   label: string;
@@ -15,67 +12,16 @@ interface KPIData {
 }
 
 export const ExecutiveKPIsBar = () => {
-  const currentDay = getCurrentDay();
-  
-  const { data: kpis, isLoading } = useQuery({
-    queryKey: ['executive-kpis-bar-v2'],
-    queryFn: async () => {
-      const now = new Date();
-      const currentRange = getCurrentMTDRange(now);
-      const prevRange = getPreviousMTDRange(now);
+  const {
+    serviciosMTD, serviciosPrevMTD,
+    gmvMTD, gmvVariacion,
+    aovMTD, aovPrevMTD,
+    clientesMTD, clientesPrevMTD,
+    custodiosMTD, armadosMTD,
+    data, loading
+  } = useUnifiedMTDMetrics();
 
-      // Current month services (MTD) - paginated to avoid 1000-row limit
-      const [current, prev] = await Promise.all([
-        fetchAllPaginated(() =>
-          supabase
-            .from('servicios_custodia')
-            .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
-            .gte('fecha_hora_cita', currentRange.start)
-            .lte('fecha_hora_cita', currentRange.end)
-            .not('estado', 'eq', 'Cancelado')
-        ),
-        fetchAllPaginated(() =>
-          supabase
-            .from('servicios_custodia')
-            .select('id, cobro_cliente, nombre_custodio, nombre_armado, nombre_cliente')
-            .gte('fecha_hora_cita', prevRange.start)
-            .lte('fecha_hora_cita', prevRange.end)
-            .not('estado', 'eq', 'Cancelado')
-        ),
-      ]);
-
-      // Calculate metrics
-      const serviciosCurrent = current.length;
-      const serviciosPrev = prev.length;
-      
-      const gmvCurrent = current.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
-      const gmvPrev = prev.reduce((sum, s) => sum + parseFloat(String(s.cobro_cliente || 0)), 0);
-      
-      const aovCurrent = serviciosCurrent > 0 ? gmvCurrent / serviciosCurrent : 0;
-      const aovPrev = serviciosPrev > 0 ? gmvPrev / serviciosPrev : 0;
-      
-      const clientesCurrent = new Set(current.map(s => s.nombre_cliente).filter(Boolean)).size;
-      const clientesPrev = new Set(prev.map(s => s.nombre_cliente).filter(Boolean)).size;
-      
-      const custodiosCurrent = new Set(current.map(s => s.nombre_custodio).filter(Boolean)).size;
-      const custodiosPrev = new Set(prev.map(s => s.nombre_custodio).filter(Boolean)).size;
-      
-      const armadosCurrent = new Set(current.map(s => s.nombre_armado).filter(Boolean)).size;
-      const armadosPrev = new Set(prev.map(s => s.nombre_armado).filter(Boolean)).size;
-
-      const calcVar = (curr: number, prev: number) => prev > 0 ? ((curr - prev) / prev) * 100 : 0;
-
-      return {
-        servicios: { value: serviciosCurrent, var: calcVar(serviciosCurrent, serviciosPrev) },
-        gmv: { value: gmvCurrent, var: calcVar(gmvCurrent, gmvPrev) },
-        aov: { value: aovCurrent, var: calcVar(aovCurrent, aovPrev) },
-        clientes: { value: clientesCurrent, var: calcVar(clientesCurrent, clientesPrev) },
-        custodios: { value: custodiosCurrent, var: calcVar(custodiosCurrent, custodiosPrev) },
-        armados: { value: armadosCurrent, var: calcVar(armadosCurrent, armadosPrev) },
-      };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const calcVar = (curr: number, prev: number) => prev > 0 ? ((curr - prev) / prev) * 100 : 0;
 
   const formatCurrency = (n: number) => {
     if (n >= 1000000) return `$${(n / 1000000).toFixed(2)}M`;
@@ -87,42 +33,45 @@ export const ExecutiveKPIsBar = () => {
     return `$${new Intl.NumberFormat('es-MX').format(Math.round(n))}`;
   };
 
+  const custodiosPrev = data ? new Set(data.previousServices.map(s => s.nombre_custodio).filter(Boolean)).size : 0;
+  const armadosPrev = data ? new Set(data.previousServices.map(s => s.nombre_armado).filter(Boolean)).size : 0;
+
   const kpiCards: KPIData[] = [
     { 
       label: 'Servicios', 
-      value: kpis?.servicios.value.toString() || '0', 
-      variation: kpis?.servicios.var || 0,
+      value: serviciosMTD.toString(), 
+      variation: calcVar(serviciosMTD, serviciosPrevMTD),
       icon: <Truck className="h-4 w-4" />
     },
     { 
       label: 'GMV MTD', 
-      value: formatCurrency(kpis?.gmv.value || 0), 
-      variation: kpis?.gmv.var || 0,
+      value: formatCurrency(gmvMTD), 
+      variation: gmvVariacion,
       icon: <DollarSign className="h-4 w-4" />
     },
     { 
       label: 'AOV', 
-      value: formatInteger(kpis?.aov.value || 0), 
-      variation: kpis?.aov.var || 0,
+      value: formatInteger(aovMTD), 
+      variation: calcVar(aovMTD, aovPrevMTD),
       icon: <TrendingUp className="h-4 w-4" />,
       showVariation: false
     },
     { 
       label: 'Clientes', 
-      value: kpis?.clientes.value.toString() || '0', 
-      variation: kpis?.clientes.var || 0,
+      value: clientesMTD.toString(), 
+      variation: calcVar(clientesMTD, clientesPrevMTD),
       icon: <Users className="h-4 w-4" />
     },
     { 
       label: 'Custodios', 
-      value: kpis?.custodios.value.toString() || '0', 
-      variation: kpis?.custodios.var || 0,
+      value: custodiosMTD.toString(), 
+      variation: calcVar(custodiosMTD, custodiosPrev),
       icon: <UserCheck className="h-4 w-4" />
     },
     { 
       label: 'Armados', 
-      value: kpis?.armados.value.toString() || '0', 
-      variation: kpis?.armados.var || 0,
+      value: armadosMTD.toString(), 
+      variation: calcVar(armadosMTD, armadosPrev),
       icon: <Shield className="h-4 w-4" />
     },
     { 
@@ -141,7 +90,7 @@ export const ExecutiveKPIsBar = () => {
     },
   ];
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {[...Array(6)].map((_, i) => (

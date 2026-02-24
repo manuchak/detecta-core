@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentMTDRange, getPreviousMTDRange } from '@/utils/mtdDateUtils';
+import { fetchAllPaginated } from '@/utils/supabasePagination';
+import { parseCobroCanonical } from '@/services/gmvMTDService';
 
 export interface ClientGMVData {
   cliente: string;
@@ -18,31 +20,31 @@ export function useTopClientsMTD() {
       const currentRange = getCurrentMTDRange(now);
       const prevRange = getPreviousMTDRange(now);
 
-      // Get current month services (MTD)
-      const { data: currentMonth, error: currentError } = await supabase
-        .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente, fecha_hora_cita')
-        .gte('fecha_hora_cita', currentRange.start)
-        .lte('fecha_hora_cita', currentRange.end)
-        .not('estado', 'eq', 'cancelado');
-
-      if (currentError) throw currentError;
-
-      // Get previous month services (MTD - same day range)
-      const { data: previousMonth, error: prevError } = await supabase
-        .from('servicios_custodia')
-        .select('nombre_cliente, cobro_cliente')
-        .gte('fecha_hora_cita', prevRange.start)
-        .lte('fecha_hora_cita', prevRange.end)
-        .not('estado', 'eq', 'cancelado');
-
-      if (prevError) throw prevError;
+      // Paginated queries with canonical filters
+      const [currentMonth, previousMonth] = await Promise.all([
+        fetchAllPaginated(() =>
+          supabase
+            .from('servicios_custodia')
+            .select('nombre_cliente, cobro_cliente, fecha_hora_cita')
+            .gte('fecha_hora_cita', currentRange.start)
+            .lte('fecha_hora_cita', currentRange.end)
+            .not('estado', 'eq', 'Cancelado')
+        ),
+        fetchAllPaginated(() =>
+          supabase
+            .from('servicios_custodia')
+            .select('nombre_cliente, cobro_cliente')
+            .gte('fecha_hora_cita', prevRange.start)
+            .lte('fecha_hora_cita', prevRange.end)
+            .not('estado', 'eq', 'Cancelado')
+        ),
+      ]);
 
       // Aggregate by client - current month
       const currentByClient: Record<string, { gmv: number; count: number }> = {};
       (currentMonth || []).forEach(s => {
         const cliente = s.nombre_cliente || 'Sin nombre';
-        const monto = parseFloat(String(s.cobro_cliente || 0));
+        const monto = parseCobroCanonical(s.cobro_cliente);
         if (!currentByClient[cliente]) {
           currentByClient[cliente] = { gmv: 0, count: 0 };
         }
@@ -54,7 +56,7 @@ export function useTopClientsMTD() {
       const previousByClient: Record<string, number> = {};
       (previousMonth || []).forEach(s => {
         const cliente = s.nombre_cliente || 'Sin nombre';
-        const monto = parseFloat(String(s.cobro_cliente || 0));
+        const monto = parseCobroCanonical(s.cobro_cliente);
         previousByClient[cliente] = (previousByClient[cliente] || 0) + monto;
       });
 
@@ -77,6 +79,13 @@ export function useTopClientsMTD() {
         .slice(0, 10);
 
       const totalGMV = clients.reduce((sum, c) => sum + c.gmvActual, 0);
+
+      console.log('[GMV-AUDIT] TopClientsMTD:', {
+        totalClients: clients.length,
+        totalGMV: totalGMV.toFixed(2),
+        filter: "NOT estado = 'Cancelado'",
+        pagination: 'fetchAllPaginated',
+      });
 
       return { clients, totalGMV };
     },
