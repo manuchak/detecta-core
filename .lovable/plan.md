@@ -1,68 +1,70 @@
 
+# Solucion definitiva para el mapa de Rutas y Zonas
 
-# Solución definitiva para el mapa de Rutas y Zonas en Seguridad
+## Diagnostico raiz
 
-## Diagnóstico
+El mapa de Mapbox no renderiza tiles (area blanca) a pesar de que:
+- El contenedor tiene dimensiones visibles (la leyenda y controles se muestran)
+- El token se carga correctamente (`mapReady = true`)
+- Los `resize()` escalonados se ejecutan
 
-El token de Mapbox se carga correctamente (los logs lo confirman), pero el canvas del mapa se renderiza con **0px de altura** porque la cadena de alturas CSS está rota en dos puntos:
+El problema es una combinacion de dos factores:
 
-```text
-SecurityPage (h-[var(--content-height-full)]) -- OK
-  └─ Tabs (flex-1 flex flex-col min-h-0) -- OK
-       └─ TabsContent (flex-1 min-h-0 mt-3) -- PROBLEMA 1: no tiene "flex flex-col"
-            └─ RouteRiskIntelligence (flex flex-col h-full) -- h-full no se resuelve
-                 └─ grid (flex-1 min-h-0) -- flex-1 no funciona sin padre flex
-                      └─ Map wrapper (min-h-[400px]) -- el min-h se ignora en grid sin height
-                           └─ Map div (absolute inset-0) -- 0px porque padre no tiene altura
+### 1. CSS Grid no propaga altura a hijos con `h-full`
+
+El grid en `RouteRiskIntelligence` usa `flex-1` para obtener altura, pero **no tiene `grid-template-rows: 1fr`**. Sin esto, la fila del grid es `auto` y su altura se basa en el contenido. Como el contenido del mapa es `absolute inset-0` (no contribuye altura), la celda colapsa a `min-h-[420px]` en vez de llenar el espacio disponible. Y `h-full` en el wrapper no se resuelve correctamente dentro de una celda grid con altura `auto`.
+
+### 2. `absolute inset-0` es fragil con `zoom: 1`
+
+El patron `absolute inset-0` para el canvas de Mapbox depende de que el padre tenga dimensiones explicitas. Con `zoom: 1` neutralizando el zoom global de 0.7, las dimensiones reportadas al canvas pueden ser inconsistentes. El componente `IncidentesMap` (que SI funciona) usa un patron diferente: **altura explicita** + `w-full h-full` sin posicionamiento absoluto.
+
+## Solucion: Alinear con el patron que funciona
+
+Replicar el patron probado de `IncidentesMap` pero con altura dinamica en vez de fija.
+
+### Cambio 1: `RouteRiskIntelligence.tsx`
+
+- Agregar `grid-template-rows: 1fr` al grid para que la fila se estire
+- Eliminar `h-full` del wrapper del mapa (el grid stretch lo maneja)
+- Mantener `min-h-[420px]` como fallback
+
+```tsx
+// Grid con row explicita
+<div 
+  className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1" 
+  style={{ minHeight: 0, gridTemplateRows: '1fr' }}
+>
+  <div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px]" style={{ zoom: 1 }}>
 ```
 
-**Problema 1**: `TabsContent` con `flex-1 min-h-0` participa como flex child del Tabs, pero no es un flex container. Entonces `h-full` de `RouteRiskIntelligence` no se propaga.
+### Cambio 2: `RiskZonesMap.tsx`
 
-**Problema 2**: La columna del mapa en el grid usa `min-h-[400px]` pero el mapa interior usa `absolute inset-0`, que depende de que el padre tenga una altura computada real. Con el layout flex roto, el padre colapsa.
+- Cambiar el map container de `absolute inset-0` a `w-full h-full` (patron de IncidentesMap)
+- Esto elimina la dependencia de que el padre tenga un height explicitamente computado
 
-## Corrección (2 archivos)
-
-### 1. `src/pages/Security/SecurityPage.tsx` (línea 50)
-
-Agregar `flex flex-col` al TabsContent de "routes" para que propague la altura a su hijo:
-
-```
+```tsx
 // Antes:
-<TabsContent value="routes" className="flex-1 min-h-0 mt-3">
+<div ref={mapContainer} className="absolute inset-0 rounded-lg" />
 
-// Después:
-<TabsContent value="routes" className="flex-1 flex flex-col min-h-0 mt-3">
+// Despues:
+<div ref={mapContainer} className="w-full h-full rounded-lg" />
 ```
 
-### 2. `src/components/security/routes/RouteRiskIntelligence.tsx` (línea 32)
+### Cambio 3: Resolver el error de build `gl-matrix`
 
-Reemplazar `min-h-[400px]` por una altura explícita calculada con CSS para que el contenedor del mapa siempre tenga dimensiones reales, y mantener `zoom: 1` para la corrección de distorsión de Mapbox:
+Agregar `skipLibCheck: true` a `tsconfig.node.json` para eliminar los errores de tipado de `gl-matrix` (dependencia transitiva de `mapbox-gl`) que aparecen en el build.
 
-```
-// Antes:
-<div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[400px]" style={{ zoom: 1 }}>
+## Archivos a modificar
 
-// Después:
-<div className="relative rounded-lg overflow-hidden border bg-muted/10 min-h-[420px] h-full" style={{ zoom: 1 }}>
-```
+| Archivo | Cambio |
+|---|---|
+| `src/components/security/routes/RouteRiskIntelligence.tsx` | Agregar `gridTemplateRows: '1fr'`, quitar `h-full` del wrapper |
+| `src/components/security/map/RiskZonesMap.tsx` | Map div: `absolute inset-0` -> `w-full h-full` |
+| `tsconfig.node.json` | Agregar `skipLibCheck: true` |
 
-Y asegurar que el grid padre use `flex-1` correctamente:
+## Por que esta vez es definitiva
 
-```
-// Antes:
-<div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1">
-
-// Después:
-<div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-3 flex-1 min-h-0 mt-1" style={{ minHeight: 0 }}>
-```
-
-## Por qué esta solución es definitiva
-
-1. **Cadena de alturas CSS ininterrumpida**: Cada nivel de la jerarquía propaga correctamente la altura desde `--content-height-full` hasta el canvas de Mapbox
-2. **min-h-[420px] + h-full**: Garantiza que el mapa nunca colapse a 0px (el min-h como fallback) pero crezca hasta llenar el espacio disponible (h-full)
-3. **zoom: 1 se mantiene**: Respeta el patrón estándar del proyecto para neutralizar la distorsión del canvas de Mapbox
-4. **ResizeObserver ya existe**: El componente `RiskZonesMap` ya tiene el observer con resize() escalonado, así que una vez que el contenedor tenga altura real, el mapa se renderizará correctamente
-
-## Resultado esperado
-
-El mapa se renderizará ocupando toda la altura disponible del tab "Rutas y Zonas", mostrando los tramos carreteros con sus colores de riesgo, POIs, puntos seguros y zonas sin cobertura celular.
+1. Replica el patron exacto de `IncidentesMap` que funciona correctamente en produccion
+2. `gridTemplateRows: '1fr'` garantiza que la fila del grid se estire al espacio disponible
+3. `w-full h-full` no depende de que el padre tenga un height computado explicito como `absolute inset-0`
+4. El `zoom: 1` se mantiene para neutralizar el zoom global, pero ya no hay dependencia de posicionamiento absoluto para el canvas
