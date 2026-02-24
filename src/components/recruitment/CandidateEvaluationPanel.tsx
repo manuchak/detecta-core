@@ -32,6 +32,8 @@ import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicomet
 import { useLatestMidot } from '@/hooks/useEvaluacionesMidot';
 import { useLatestToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
 import { useLatestEstudioSocioeconomico } from '@/hooks/useEstudioSocioeconomico';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { 
   MessageSquare, 
   Shield, 
@@ -71,6 +73,19 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { data: latestToxicologia } = useLatestToxicologia(candidatoId);
   const latestMidot = useLatestMidot(candidatoId);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(candidatoId);
+  const { data: candidatoData } = useQuery({
+    queryKey: ['candidato-vehiculo', candidatoId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('candidatos_custodios')
+        .select('vehiculo_propio')
+        .eq('id', candidatoId)
+        .single();
+      return data;
+    },
+    enabled: !!candidatoId,
+  });
+  const vehiculoPropio = candidatoData?.vehiculo_propio ?? false;
   const latestInterview = interviews?.[0];
 
   // Calculate completion progress
@@ -270,7 +285,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           </TabsContent>
 
           <TabsContent value="contracts" className="mt-4">
-            <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+            <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} />
           </TabsContent>
 
           <TabsContent value="training" className="mt-4">
