@@ -32,7 +32,8 @@ const CANONICAL_SELECT = 'id, cobro_cliente, nombre_cliente, nombre_custodio, no
  * Parseo canónico de cobro_cliente — siempre usar esta función
  */
 export const parseCobroCanonical = (cobro: unknown): number => {
-  return parseFloat(String(cobro || 0)) || 0;
+  const val = parseFloat(String(cobro || 0)) || 0;
+  return val > 0 ? val : 0; // Solo positivos, consistente con RPC CASE WHEN cobro_cliente > 0
 };
 
 /**

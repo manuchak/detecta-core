@@ -1,4 +1,5 @@
 import { startOfMonth, subMonths, format, min } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 /**
  * Utility para cálculos de fecha MTD (Month-To-Date)
@@ -14,10 +15,12 @@ export interface MTDRange {
  * Obtiene el rango del mes actual desde día 1 hasta hoy
  */
 export function getCurrentMTDRange(now: Date = new Date()): MTDRange {
-  const start = startOfMonth(now);
+  const cdmxNow = formatInTimeZone(now, 'America/Mexico_City', 'yyyy-MM-dd');
+  const cdmxYear = parseInt(cdmxNow.substring(0, 4));
+  const cdmxMonth = parseInt(cdmxNow.substring(5, 7));
   return {
-    start: format(start, 'yyyy-MM-dd'),
-    end: format(now, 'yyyy-MM-dd')
+    start: `${cdmxYear}-${String(cdmxMonth).padStart(2, '0')}-01`,
+    end: cdmxNow
   };
 }
 
@@ -26,18 +29,21 @@ export function getCurrentMTDRange(now: Date = new Date()): MTDRange {
  * Esto permite comparaciones justas MTD vs MTD
  */
 export function getPreviousMTDRange(now: Date = new Date()): MTDRange {
-  const currentDay = now.getDate();
+  const cdmxNow = formatInTimeZone(now, 'America/Mexico_City', 'yyyy-MM-dd');
+  const currentDay = parseInt(cdmxNow.substring(8, 10));
+  
   const prevMonthDate = subMonths(now, 1);
-  const prevMonthStart = startOfMonth(prevMonthDate);
+  const cdmxPrev = formatInTimeZone(prevMonthDate, 'America/Mexico_City', 'yyyy-MM-dd');
+  const prevYear = parseInt(cdmxPrev.substring(0, 4));
+  const prevMonth = parseInt(cdmxPrev.substring(5, 7));
   
   // Día equivalente del mes anterior (o último día si el mes anterior es más corto)
-  const prevMonthLastDay = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0).getDate();
+  const prevMonthLastDay = new Date(prevYear, prevMonth, 0).getDate();
   const equivalentDay = Math.min(currentDay, prevMonthLastDay);
-  const prevMonthEnd = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth(), equivalentDay);
 
   return {
-    start: format(prevMonthStart, 'yyyy-MM-dd'),
-    end: format(prevMonthEnd, 'yyyy-MM-dd')
+    start: `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`,
+    end: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(equivalentDay).padStart(2, '0')}`
   };
 }
 
