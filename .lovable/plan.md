@@ -1,44 +1,99 @@
 
 
-# Mejorar TVAlertTicker con noticias destacadas de X.com relevantes a carreteras
+# Enriquecer palabras clave de busqueda en Twitter y agregar UI de gestion
 
 ## Situacion actual
 
-El `TVAlertTicker` ya consume datos de `incidentes_rrss` (alimentados por el pipeline de Twitter/X), pero tiene dos limitaciones:
+La Edge Function `twitter-incident-search` tiene solo **3 queries hardcodeadas**:
+- `robo trailer OR robo carga`
+- `bloqueo carretera OR narcobloqueo`
+- `asalto transportista OR secuestro operador`
 
-1. **Sin filtro de relevancia**: Muestra todos los incidentes de las ultimas 24 horas sin priorizar los que afectan tramos carreteros
-2. **Sin contexto visual**: No distingue entre un bloqueo critico en la Mexico-Queretaro y un incidente menor sin ubicacion
+Esto es insuficiente para el modelo de negocio de seguridad en corredores carreteros. Ademas, no existe forma de agregar o modificar palabras clave desde la interfaz.
+
+---
 
 ## Cambios propuestos
 
-### 1. Filtrar y priorizar incidentes carreteros
+### 1. Nueva tabla `twitter_search_keywords`
 
-Modificar `TVAlertTicker.tsx` para:
-- Filtrar primero incidentes que tengan `carretera` poblada (son los que afectan tramos)
-- Ordenar por severidad (critica > alta > media > baja)
-- Si hay menos de 5 incidentes con carretera, complementar con los demas para que el ticker no quede vacio
-- Agregar etiqueta "X" o icono de fuente para indicar que viene de redes sociales
+Crear una tabla en Supabase para almacenar palabras clave configurables:
 
-### 2. Mejorar la presentacion visual para TV
+| Columna | Tipo | Descripcion |
+|---|---|---|
+| id | uuid PK | Identificador |
+| query_text | text NOT NULL | Frase de busqueda (ej: "robo trailer OR robo carga") |
+| categoria | text | Categoria tematica (robo_carga, bloqueos, violencia_vial, etc.) |
+| activa | boolean DEFAULT true | Si se incluye en las busquedas |
+| es_predeterminada | boolean DEFAULT false | Si es una keyword del sistema (no eliminable) |
+| notas | text | Descripcion de que busca esta keyword |
+| created_at | timestamptz | Fecha de creacion |
 
-- Hacer el ticker mas alto (de h-9 a h-10) para mejor legibilidad a distancia
-- Agregar un label fijo "ALERTAS CARRETERAS" a la izquierda del marquee como ancla visual
-- Mostrar la severidad como texto (CRITICA, ALTA) junto al dot de color
-- Incluir el estado geografico cuando este disponible (ej: "Jalisco - Mex-Guadalajara")
-- Tipografia ligeramente mas grande (de text-sm a text-base) para legibilidad en videowall
+### 2. Semillas: Keywords enriquecidas para el modelo de negocio
 
-### 3. Indicador de fuente y frescura
+Insertar las siguientes frases de busqueda predeterminadas organizadas por categoria:
 
-- Mostrar un icono de X/Twitter sutil para indicar la fuente
-- Agregar hace cuanto se publico (ej: "hace 2h")
+**Robo de carga y vehiculos**
+- `robo trailer OR robo carga -is:retweet lang:es`
+- `robo tractocamion OR robo contenedor -is:retweet lang:es`
+- `pirataje carretero OR robo autopista carga -is:retweet lang:es`
 
-## Archivo a modificar
+**Bloqueos y narcobloqueos**
+- `bloqueo carretera OR narcobloqueo -is:retweet lang:es`
+- `bloqueo autopista OR cierre carretero -is:retweet lang:es`
+- `quema vehiculos carretera OR ponchallanta -is:retweet lang:es`
+
+**Violencia contra operadores**
+- `asalto transportista OR secuestro operador -is:retweet lang:es`
+- `balacera carretera OR emboscada autopista -is:retweet lang:es`
+- `extorsion transportista OR cobro piso carretera -is:retweet lang:es`
+
+**Accidentes e infraestructura**
+- `volcadura trailer OR accidente carretera -is:retweet lang:es`
+- `derrumbe carretera OR puente colapsado -is:retweet lang:es`
+- `derrame toxico carretera OR incendio autopista -is:retweet lang:es`
+
+**Inhibidores y tecnologia criminal**
+- `inhibidor senal GPS OR jammer camion -is:retweet lang:es`
+
+### 3. UI de gestion de palabras clave
+
+Agregar una nueva seccion en `TwitterAccountsManager.tsx` (debajo de Cuentas Monitoreadas) con:
+
+- Card "Palabras Clave de Busqueda" con tabla que muestra las keywords activas
+- Cada fila muestra: query, categoria (badge de color), switch activa/inactiva, boton eliminar
+- Las keywords predeterminadas (`es_predeterminada = true`) no se pueden eliminar, solo desactivar
+- Formulario para agregar nuevas keywords con campos: query_text, categoria (select), notas
+- Indicador del total de queries activas (importante para el consumo de API)
+
+### 4. Actualizar Edge Function
+
+Modificar `twitter-incident-search/index.ts` para:
+- Leer keywords activas de la tabla `twitter_search_keywords` en lugar del array hardcodeado `KEYWORD_QUERIES`
+- Mantener un fallback minimo si la tabla esta vacia (las 3 queries originales)
+
+### 5. Hook de datos
+
+Crear funciones en `useTwitterConfig.ts`:
+- `useTwitterKeywords()` - leer keywords
+- `useAddTwitterKeyword()` - agregar
+- `useToggleTwitterKeyword()` - activar/desactivar
+- `useDeleteTwitterKeyword()` - eliminar (solo no predeterminadas)
+
+---
+
+## Archivos a crear/modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/monitoring/tv/TVAlertTicker.tsx` | Filtrar por carretera, priorizar por severidad, mejorar tipografia y layout para TV |
+| **Migration SQL** | Crear tabla `twitter_search_keywords` con RLS + insertar semillas |
+| `src/hooks/useTwitterConfig.ts` | Agregar hooks para CRUD de keywords |
+| `src/components/settings/TwitterAccountsManager.tsx` | Agregar seccion de gestion de keywords |
+| `supabase/functions/twitter-incident-search/index.ts` | Leer keywords de DB en vez de array hardcodeado |
 
-## Resultado esperado
+---
 
-El ticker inferior del videowall mostrara exclusivamente (o prioritariamente) las noticias de X.com que mencionan tramos carreteros, con severidad visible y contexto geografico, permitiendo al equipo de monitoreo identificar amenazas operativas de un vistazo.
+## Nota sobre consumo de API
+
+Cada keyword genera una query a la API de Twitter. Con 13 keywords predeterminadas + cuentas monitoreadas, se ejecutaran ~15-18 queries por ciclo. A 25 tweets/query, esto consume ~375-450 tweets del limite mensual de 10,000 por ejecucion. Con el cron cada 3 horas (8 ejecuciones/dia), el consumo estimado seria ~3,000-3,600 tweets/dia. Se agregara una nota de advertencia en la UI cuando haya muchas keywords activas.
 
