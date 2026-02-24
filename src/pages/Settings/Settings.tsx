@@ -6,6 +6,7 @@ import { RoleManager } from "@/components/settings/roles/RoleManager";
 import { WhatsAppManager } from "@/components/settings/WhatsAppManager";
 import { SandboxSettings } from "@/components/settings/SandboxSettings";
 import { KapsoConfig } from "@/components/settings/KapsoConfig";
+import { TwitterAccountsManager } from "@/components/settings/TwitterAccountsManager";
 import AIConnectionTest from "@/components/siercp/AIConnectionTest";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,7 @@ const Settings = () => {
         <TabsList className="mb-6 flex-wrap">
           <TabsTrigger value="roles">Roles y Usuarios</TabsTrigger>
           <TabsTrigger value="permissions">Permisos Avanzados</TabsTrigger>
+          <TabsTrigger value="twitter">Twitter/X</TabsTrigger>
           <TabsTrigger value="kapso">WhatsApp Kapso</TabsTrigger>
           <TabsTrigger value="whatsapp">Bot WhatsApp (Legacy)</TabsTrigger>
           <TabsTrigger value="ia">Inteligencia Artificial</TabsTrigger>
@@ -68,6 +70,10 @@ const Settings = () => {
 
         <TabsContent value="permissions">
           <PermissionsManager />
+        </TabsContent>
+
+        <TabsContent value="twitter">
+          <TwitterAccountsManager />
         </TabsContent>
 
         <TabsContent value="kapso">
