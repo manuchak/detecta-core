@@ -7,9 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ── Keyword queries (siempre se ejecutan) ───────────────────────────
-
-const KEYWORD_QUERIES = [
+// ── Fallback keyword queries (si la tabla está vacía) ───────────────
+const FALLBACK_KEYWORD_QUERIES = [
   'robo trailer OR robo carga -is:retweet lang:es',
   'bloqueo carretera OR narcobloqueo -is:retweet lang:es',
   'asalto transportista OR secuestro operador -is:retweet lang:es',
@@ -68,12 +67,23 @@ serve(async (req) => {
     } catch { /* no body is fine */ }
 
     // ── Build queries dynamically from DB ──────────────────────────
+    // 1. Read active keywords from DB
+    const { data: dbKeywords } = await supabase
+      .from('twitter_search_keywords')
+      .select('query_text')
+      .eq('activa', true);
+
+    const keywordQueries = dbKeywords && dbKeywords.length > 0
+      ? dbKeywords.map((k: any) => k.query_text)
+      : FALLBACK_KEYWORD_QUERIES;
+
+    // 2. Read active monitored accounts
     const { data: monitoredAccounts } = await supabase
       .from('twitter_monitored_accounts')
       .select('username')
       .eq('activa', true);
 
-    const queriesToRun = [...KEYWORD_QUERIES];
+    const queriesToRun = [...keywordQueries];
 
     if (monitoredAccounts && monitoredAccounts.length > 0) {
       const chunks: string[][] = [];
