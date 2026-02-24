@@ -1,103 +1,87 @@
 
 
-# Gestion de Cuentas Twitter/X y Monitoreo de Consumo API
+# Migrar Edge Function a TypeScript XDK oficial de X.com
 
-## Resumen
+## Por que migrar
 
-Crear una tabla `twitter_monitored_accounts` para gestionar cuentas de X.com a monitorear, un panel UI en Settings para administrarlas, y un tracker de consumo de la API para controlar costos. La Edge Function `twitter-incident-search` leera las cuentas de la tabla en lugar de tenerlas hardcodeadas.
+Nuestra Edge Function `twitter-incident-search` tiene ~80 lineas de codigo manual para OAuth 1.0a (nonce, HMAC-SHA1, firma). El SDK oficial `@xdevplatform/xdk` v0.4.0 reemplaza todo eso con 4 lineas y agrega paginacion automatica, rate limit handling, y tipos completos.
 
----
-
-## Fase 1: Tabla de Cuentas Monitoreadas
-
-**Nueva tabla: `twitter_monitored_accounts`**
+## Comparacion
 
 ```text
-- id uuid PK DEFAULT gen_random_uuid()
-- username text NOT NULL UNIQUE (sin @, ej: "GN_Carreteras")
-- display_name text (nombre legible)
-- categoria: 'gobierno' | 'periodismo' | 'monitoreo' | 'seguridad' | 'otro'
-- activa boolean DEFAULT true
-- notas text
-- agregada_por uuid FK -> auth.users
-- created_at timestamptz DEFAULT now()
+HOY (manual)                          CON XDK
+─────────────────────────────         ─────────────────────────────
+percentEncode()                       (eliminado)
+generateNonce()                       (eliminado)
+hmacSha1()                            (eliminado)
+buildOAuthHeader() (~40 lineas)       new OAuth1({apiKey, apiSecret, accessToken, accessTokenSecret})
+fetch manual + query string           client.posts.searchRecent({query, ...})
+parseo manual de response             Tipos automaticos (data, includes, meta)
+rate limit via headers                paginator.rateLimited
+sin paginacion                        for await (const tweet of paginator)
 ```
 
-**Nueva tabla: `twitter_api_usage`**
+## Cambios
+
+### 1. Actualizar Edge Function
+
+**Archivo: `supabase/functions/twitter-incident-search/index.ts`**
+
+- Eliminar las funciones manuales: `percentEncode`, `generateNonce`, `hmacSha1`, `buildOAuthHeader` (~80 lineas)
+- Importar `Client`, `OAuth1` desde `@xdevplatform/xdk` via esm.sh
+- Crear cliente con OAuth 1.0a:
 
 ```text
-- id uuid PK DEFAULT gen_random_uuid()
-- fecha date NOT NULL
-- tweets_leidos int DEFAULT 0
-- queries_ejecutadas int DEFAULT 0
-- tweets_insertados int DEFAULT 0
-- tweets_duplicados int DEFAULT 0
-- rate_limited boolean DEFAULT false
-- created_at timestamptz DEFAULT now()
+const oauth1 = new OAuth1({
+  apiKey: consumerKey,
+  apiSecret: consumerSecret,
+  accessToken,
+  accessTokenSecret
+});
+const client = new Client({ oauth1 });
 ```
 
-**Seed inicial** con las cuentas mencionadas previamente:
-- GN_Carreteras (Guardia Nacional Carreteras) - gobierno
-- monitorcarrete1 (Monitor de Carreteras) - monitoreo
-- jaliscorojo (Jalisco Rojo) - periodismo
-- mimorelia (Mi Morelia) - periodismo
+- Reemplazar `fetch` manual por `client.posts.searchRecent()`:
 
----
+```text
+const response = await client.posts.searchRecent(query, {
+  maxResults: 25,
+  tweetfields: ['created_at', 'public_metrics', 'geo', 'entities', 'author_id'],
+  userfields: ['username', 'name'],
+  expansions: ['author_id', 'attachments.media_keys'],
+  mediafields: ['url', 'preview_image_url', 'type'],
+});
+```
 
-## Fase 2: Panel de Gestion en Settings
+- Mantener toda la logica de negocio intacta: queries dinamicos desde BD, deduplicacion, insert en `incidentes_rrss`, invocacion de `procesar-incidente-rrss`, registro en `twitter_api_usage`
+- Agregar manejo de rate limit usando try/catch del SDK en lugar de parseo manual de headers
 
-**Nuevo componente: `src/components/settings/TwitterAccountsManager.tsx`**
+### 2. Compatibilidad con Deno
 
-Ubicado en la tab "Inteligencia Artificial" o como nueva tab "Twitter/X" en Settings.
+El XDK usa pure JavaScript crypto (no depende de Node.js crypto nativo), por lo que funciona en Deno via esm.sh:
 
-Funcionalidad:
-- Lista de cuentas monitoreadas con toggle activa/inactiva
-- Formulario para agregar nuevas cuentas (username + categoria + notas)
-- Boton eliminar cuenta
-- Indicador de categoria con badge de color
-- Boton "Ejecutar busqueda ahora" que invoca `twitter-incident-search`
-- Panel de estadisticas de consumo mensual:
-  - Tweets leidos este mes / limite (10,000 Basic)
-  - Barra de progreso visual
-  - Costo estimado proporcional
-  - Historial diario de consumo en tabla
+```text
+import { Client, OAuth1 } from "https://esm.sh/@xdevplatform/xdk@0.4.0";
+```
 
----
+No se requieren cambios en `package.json` del proyecto principal ya que el SDK solo se usa en la Edge Function.
 
-## Fase 3: Actualizar Edge Function
-
-**Modificar `supabase/functions/twitter-incident-search/index.ts`:**
-
-En lugar de los queries hardcodeados en `SEARCH_QUERIES`, la funcion:
-1. Consulta `twitter_monitored_accounts` donde `activa = true`
-2. Construye el query `from:` dinamicamente con las cuentas activas
-3. Mantiene los queries de keywords (robo, bloqueo, asalto) como estan
-4. Al finalizar, inserta un registro en `twitter_api_usage` con las estadisticas de la ejecucion
-
----
-
-## Fase 4: Integracion en Settings
-
-**Modificar `src/pages/Settings/Settings.tsx`:**
-- Agregar nueva tab "Twitter/X" con icono de X
-- Renderizar `TwitterAccountsManager`
-
----
-
-## Archivos a crear/modificar
+## Archivos a modificar
 
 | Archivo | Accion |
 |---|---|
-| Migracion SQL | Tablas `twitter_monitored_accounts`, `twitter_api_usage`, seed de cuentas iniciales |
-| `src/components/settings/TwitterAccountsManager.tsx` | NUEVO: UI completa de gestion |
-| `src/hooks/useTwitterConfig.ts` | NUEVO: hooks para CRUD cuentas y lectura de usage |
-| `supabase/functions/twitter-incident-search/index.ts` | Leer cuentas de BD + registrar usage |
-| `src/pages/Settings/Settings.tsx` | Agregar tab Twitter/X |
+| `supabase/functions/twitter-incident-search/index.ts` | Refactorizar: eliminar OAuth manual, usar XDK |
 
-## Detalle tecnico: Calculo de costos
+## Lo que NO cambia
 
-- Basic tier: $200/mes por 10,000 tweets
-- Costo por tweet: $0.02
-- El panel mostrara: `tweets_leidos_mes * $0.02` como costo estimado
-- Alerta visual cuando el consumo supere 80% del limite mensual
+- Queries dinamicos desde `twitter_monitored_accounts`
+- Deduplicacion contra `incidentes_rrss`
+- Pipeline de clasificacion AI (`procesar-incidente-rrss`)
+- Registro de uso en `twitter_api_usage`
+- UI de gestion en Settings
+- Ningun archivo frontend
+
+## Beneficio futuro
+
+El XDK soporta **Filtered Stream** (`client.stream.postsSample()`), lo que en el futuro permitiria monitoreo en tiempo real sin polling, reduciendo llamadas a la API y costos.
 
