@@ -152,7 +152,10 @@ export function IncidentesTable({ data, loading }: IncidentesTableProps) {
             return (
               <Collapsible key={incidente.id} asChild>
                 <>
-                  <TableRow className="cursor-pointer hover:bg-muted/50">
+                    <TableRow className={`cursor-pointer hover:bg-muted/50 ${
+                      incidente.severidad === 'critica' ? 'bg-destructive/5 hover:bg-destructive/10' :
+                      incidente.severidad === 'alta' ? 'bg-warning/5 hover:bg-warning/10' : ''
+                    }`}>
                     <TableCell>
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => toggleRow(incidente.id)}>
