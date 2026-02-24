@@ -24,31 +24,35 @@ const severityLabel: Record<string, string> = {
   baja: 'BAJA',
 };
 
-const ROAD_KEYWORDS = /carretera|autopista|tramo|corredor|libramiento|trailer|tráiler|volcadura|autopista|peaje|caseta|entronque|camión|tractocamión/i;
+const ACTIONABLE_TYPES = new Set([
+  'bloqueo_carretera',
+  'robo_carga',
+  'robo_unidad',
+  'asalto_transporte',
+  'secuestro_operador',
+  'accidente_trailer',
+]);
 
-const isRoadRelated = (inc: IncidenteRRSS) =>
-  !!inc.carretera || ROAD_KEYWORDS.test(inc.resumen_ai || '') || ROAD_KEYWORDS.test(inc.texto_original || '');
+const ACTIVE_EVENT_KEYWORDS = /bloqueo|narcobloqueo|cierran|cortaron|saqueo|rapiña|balacera|enfrentamiento|persecucion|persecución|emboscada|desvio|desvío|cerrada|no pasar|precaucion|precaución/i;
+
+const isActionable = (inc: IncidenteRRSS) => {
+  if (ACTIONABLE_TYPES.has(inc.tipo_incidente || '')) return true;
+  const text = `${inc.resumen_ai || ''} ${inc.texto_original || ''}`;
+  return ACTIVE_EVENT_KEYWORDS.test(text);
+};
 
 const TVAlertTicker = () => {
-  const { data: incidentes } = useIncidentesRRSS({ dias_atras: 3 });
+  const { data: incidentes } = useIncidentesRRSS({ dias_atras: 1 });
 
   const sorted = useMemo(() => {
     if (!incidentes || incidentes.length === 0) return [];
 
-    const conCarretera = incidentes.filter(isRoadRelated);
-    const sinCarretera = incidentes.filter((i) => !isRoadRelated(i));
-
-    const bySeverity = (a: IncidenteRRSS, b: IncidenteRRSS) =>
-      (severityOrder[a.severidad || 'baja'] ?? 3) - (severityOrder[b.severidad || 'baja'] ?? 3);
-
-    conCarretera.sort(bySeverity);
-    sinCarretera.sort(bySeverity);
-
-    const result = [...conCarretera];
-    if (result.length < 5) {
-      result.push(...sinCarretera.slice(0, 5 - result.length));
-    }
-    return result.slice(0, 20);
+    return incidentes
+      .filter(isActionable)
+      .sort((a, b) =>
+        (severityOrder[a.severidad || 'baja'] ?? 3) - (severityOrder[b.severidad || 'baja'] ?? 3)
+      )
+      .slice(0, 20);
   }, [incidentes]);
 
   // All hooks must be before any early return
@@ -76,7 +80,7 @@ const TVAlertTicker = () => {
         <span className="text-[10px] font-bold tracking-widest text-amber-400/60 uppercase shrink-0">
           ALERTAS CARRETERAS
         </span>
-        <span className="text-gray-500 text-sm">Sin alertas de ruta recientes</span>
+        <span className="text-gray-500 text-sm">Sin incidentes activos en corredores</span>
       </div>
     );
   }
