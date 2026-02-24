@@ -170,3 +170,6 @@ verify_jwt = false
 
 [functions.firecrawl-incident-search]
 verify_jwt = false
+
+[functions.twitter-incident-search]
+verify_jwt = false
