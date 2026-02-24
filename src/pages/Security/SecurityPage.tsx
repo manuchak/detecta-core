@@ -47,7 +47,7 @@ const SecurityPage = () => {
           <SecurityDashboard />
         </TabsContent>
 
-        <TabsContent value="routes" className="flex-1 min-h-0 mt-3">
+        <TabsContent value="routes" className="flex-1 flex flex-col min-h-0 mt-3">
           <RouteRiskIntelligence />
         </TabsContent>
 
