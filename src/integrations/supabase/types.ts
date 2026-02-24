@@ -5993,6 +5993,94 @@ export type Database = {
         }
         Relationships: []
       }
+      estudios_socioeconomicos: {
+        Row: {
+          archivo_url: string | null
+          candidato_id: string
+          created_at: string
+          estado: string
+          fecha_estudio: string | null
+          id: string
+          nombre_proveedor: string | null
+          observaciones: string | null
+          proveedor: string
+          realizado_por: string | null
+          recomendacion: string | null
+          resultado_general: string | null
+          score_economico: number | null
+          score_entorno: number | null
+          score_familiar: number | null
+          score_global: number | null
+          score_referencias: number | null
+          score_vivienda: number | null
+          updated_at: string
+        }
+        Insert: {
+          archivo_url?: string | null
+          candidato_id: string
+          created_at?: string
+          estado?: string
+          fecha_estudio?: string | null
+          id?: string
+          nombre_proveedor?: string | null
+          observaciones?: string | null
+          proveedor?: string
+          realizado_por?: string | null
+          recomendacion?: string | null
+          resultado_general?: string | null
+          score_economico?: number | null
+          score_entorno?: number | null
+          score_familiar?: number | null
+          score_global?: number | null
+          score_referencias?: number | null
+          score_vivienda?: number | null
+          updated_at?: string
+        }
+        Update: {
+          archivo_url?: string | null
+          candidato_id?: string
+          created_at?: string
+          estado?: string
+          fecha_estudio?: string | null
+          id?: string
+          nombre_proveedor?: string | null
+          observaciones?: string | null
+          proveedor?: string
+          realizado_por?: string | null
+          recomendacion?: string | null
+          resultado_general?: string | null
+          score_economico?: number | null
+          score_entorno?: number | null
+          score_familiar?: number | null
+          score_global?: number | null
+          score_referencias?: number | null
+          score_vivienda?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos_custodios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_candidato_evaluaciones_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudios_socioeconomicos_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "v_capacitacion_progreso_candidato"
+            referencedColumns: ["candidato_id"]
+          },
+        ]
+      }
       evaluaciones_instaladores: {
         Row: {
           calificacion_comunicacion: number

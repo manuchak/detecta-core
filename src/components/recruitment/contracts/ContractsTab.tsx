@@ -4,20 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { 
   FileSignature, 
   Plus, 
   CheckCircle, 
   Clock, 
   Eye,
   Loader2,
-  Send
+  Send,
+  Trash2
 } from 'lucide-react';
 import { 
   useContratosCandidato,
   usePlantillasContrato,
   useContratosProgress,
+  useEliminarContrato,
   CONTRATO_LABELS,
-  CONTRATOS_REQUERIDOS,
+  getContratosRequeridosParaCandidato,
   TipoContrato,
   EstadoContrato
 } from '@/hooks/useContratosCandidato';
@@ -30,6 +42,7 @@ import { es } from 'date-fns/locale';
 interface Props {
   candidatoId: string;
   candidatoNombre: string;
+  vehiculoPropio?: boolean;
 }
 
 const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.ElementType; label: string }> = {
@@ -41,15 +54,19 @@ const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.Element
   vencido: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Vencido' }
 };
 
-export function ContractsTab({ candidatoId, candidatoNombre }: Props) {
+export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = false }: Props) {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
   const [signContrato, setSignContrato] = useState<any>(null);
   const [previewContrato, setPreviewContrato] = useState<any>(null);
+  const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato } | null>(null);
 
   const { data: contratos, isLoading } = useContratosCandidato(candidatoId);
   const { data: plantillas } = usePlantillasContrato();
-  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId);
+  const { firmados, totalRequeridos, porcentaje, contratosFaltantes } = useContratosProgress(candidatoId, vehiculoPropio);
+  const eliminarContrato = useEliminarContrato();
+
+  const contratosRequeridos = getContratosRequeridosParaCandidato(vehiculoPropio);
 
   const getContratoPorTipo = (tipo: TipoContrato) => {
     return contratos?.find(c => c.tipo_contrato === tipo && c.estado !== 'rechazado' && c.estado !== 'vencido');
@@ -58,6 +75,12 @@ export function ContractsTab({ candidatoId, candidatoNombre }: Props) {
   const handleGenerar = (tipo: TipoContrato) => {
     setSelectedTipo(tipo);
     setGenerateDialogOpen(true);
+  };
+
+  const handleEliminar = async () => {
+    if (!deleteContrato) return;
+    await eliminarContrato.mutateAsync({ contratoId: deleteContrato.id, candidatoId });
+    setDeleteContrato(null);
   };
 
   if (isLoading) {
@@ -88,7 +111,7 @@ export function ContractsTab({ candidatoId, candidatoNombre }: Props) {
 
       {/* Contracts Grid */}
       <div className="space-y-4">
-        {CONTRATOS_REQUERIDOS.map((tipo) => {
+        {contratosRequeridos.map((tipo) => {
           const contrato = getContratoPorTipo(tipo);
           const plantilla = plantillas?.find(p => p.tipo_contrato === tipo);
           const estadoConfig = contrato ? ESTADO_CONFIG[contrato.estado] : null;
@@ -136,13 +159,24 @@ export function ContractsTab({ candidatoId, candidatoNombre }: Props) {
                       </Button>
 
                       {!contrato.firmado && contrato.estado !== 'rechazado' && (
-                        <Button 
-                          size="sm"
-                          onClick={() => setSignContrato(contrato)}
-                        >
-                          <FileSignature className="h-3 w-3 mr-1" />
-                          Firmar
-                        </Button>
+                        <>
+                          <Button 
+                            size="sm"
+                            onClick={() => setSignContrato(contrato)}
+                          >
+                            <FileSignature className="h-3 w-3 mr-1" />
+                            Firmar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteContrato({ id: contrato.id, tipo: contrato.tipo_contrato as TipoContrato })}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Eliminar
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -165,6 +199,28 @@ export function ContractsTab({ candidatoId, candidatoNombre }: Props) {
           );
         })}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteContrato} onOpenChange={(open) => !open && setDeleteContrato(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar contrato?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará el {deleteContrato ? CONTRATO_LABELS[deleteContrato.tipo] : ''} generado. 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleEliminar}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Generate Dialog */}
       {selectedTipo && (

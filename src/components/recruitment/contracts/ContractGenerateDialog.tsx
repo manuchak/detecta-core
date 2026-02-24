@@ -13,6 +13,9 @@ import {
 } from '@/hooks/useContratosCandidato';
 import { supabase } from '@/integrations/supabase/client';
 
+// Tipos que requieren datos vehiculares
+const TIPOS_VEHICULARES: TipoContrato[] = ['prestacion_servicios_propietario', 'prestacion_servicios_no_propietario', 'anexo_gps'];
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -35,9 +38,9 @@ export function ContractGenerateDialog({
   const generarContrato = useGenerarContrato();
 
   const plantilla = plantillas?.find(p => p.tipo_contrato === tipoContrato);
+  const requiereDatosVehiculares = TIPOS_VEHICULARES.includes(tipoContrato);
 
   useEffect(() => {
-    // Cargar datos del candidato
     const loadCandidatoData = async () => {
       const { data: candidato } = await supabase
         .from('candidatos_custodios')
@@ -75,9 +78,19 @@ export function ContractGenerateDialog({
 
   const variablesRequeridas = plantilla?.variables_requeridas || [];
 
+  // Campos vehiculares adicionales si el tipo lo requiere
+  const camposVehiculares = requiereDatosVehiculares ? [
+    'marca_vehiculo', 'modelo_vehiculo', 'numero_serie', 'placas', 
+    'color_vehiculo', 'numero_motor', 'clave_vehicular',
+    'numero_licencia', 'licencia_expedida_por'
+  ] : [];
+
+  // Combinar variables requeridas con campos vehiculares
+  const todosLosCampos = [...new Set([...variablesRequeridas, ...camposVehiculares])];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSignature className="h-5 w-5" />
@@ -90,7 +103,15 @@ export function ContractGenerateDialog({
             Verifica los datos que se incluirán en el contrato:
           </p>
 
-          {variablesRequeridas.map((variable) => (
+          {requiereDatosVehiculares && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                Este contrato requiere datos del vehículo. Completa los campos marcados.
+              </p>
+            </div>
+          )}
+
+          {todosLosCampos.map((variable) => (
             <div key={variable} className="space-y-1">
               <Label htmlFor={variable} className="text-sm capitalize">
                 {variable.replace(/_/g, ' ')}

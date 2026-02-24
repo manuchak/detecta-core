@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   ModuloCapacitacion, 
   PreguntaQuiz, 
@@ -12,6 +13,7 @@ import {
 export const useCapacitacion = (candidatoId?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Fetch todos los módulos activos
   const { data: modulos, isLoading: loadingModulos } = useQuery({
@@ -126,10 +128,8 @@ export const useCapacitacion = (candidatoId?: string) => {
     }): Promise<ResultadoQuiz> => {
       if (!candidatoId) throw new Error('Candidato ID requerido');
 
-      // Obtener preguntas para validar respuestas
       const preguntas = await fetchPreguntas(moduloId);
       
-      // Calcular resultado
       let correctas = 0;
       const respuestasEvaluadas = respuestas.map(r => {
         const pregunta = preguntas.find(p => p.id === r.pregunta_id);
@@ -145,7 +145,6 @@ export const useCapacitacion = (candidatoId?: string) => {
       const puntaje = Math.round((correctas / preguntas.length) * 100);
       const aprobado = puntaje >= QUIZ_MIN_SCORE;
 
-      // Obtener progreso actual para mantener mejor puntaje
       const { data: progresoActual } = await supabase
         .from('progreso_capacitacion')
         .select('quiz_intentos, quiz_mejor_puntaje')
@@ -156,7 +155,6 @@ export const useCapacitacion = (candidatoId?: string) => {
       const intentos = (progresoActual?.quiz_intentos || 0) + 1;
       const mejorPuntaje = Math.max(puntaje, progresoActual?.quiz_mejor_puntaje || 0);
 
-      // Actualizar progreso
       const { error } = await supabase
         .from('progreso_capacitacion')
         .upsert({
@@ -204,15 +202,47 @@ export const useCapacitacion = (candidatoId?: string) => {
     }
   });
 
+  // Marcar capacitación como completada manualmente (presencial)
+  const marcarCapacitacionManual = useMutation({
+    mutationFn: async ({ notas }: { notas?: string }) => {
+      if (!candidatoId || !modulos) throw new Error('Datos requeridos');
+
+      // Upsert all modules as manually completed
+      const upserts = modulos.map(modulo => ({
+        candidato_id: candidatoId,
+        modulo_id: modulo.id,
+        completado_manual: true,
+        completado_manual_por: user?.id,
+        completado_manual_fecha: new Date().toISOString(),
+        completado_manual_notas: notas || null,
+        contenido_completado: true,
+        quiz_aprobado: true,
+        fecha_completado_contenido: new Date().toISOString(),
+        fecha_aprobacion_quiz: new Date().toISOString(),
+      }));
+
+      for (const upsert of upserts) {
+        const { error } = await supabase
+          .from('progreso_capacitacion')
+          .upsert(upsert, { onConflict: 'candidato_id,modulo_id' });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['progreso-capacitacion', candidatoId] });
+      toast({ title: 'Capacitación completada', description: 'Todos los módulos fueron marcados como completados (presencial)' });
+    }
+  });
+
   // Calcular progreso general
   const calcularProgresoGeneral = () => {
     if (!modulos || !progreso) return null;
 
     const modulosObligatorios = modulos.filter(m => m.es_obligatorio);
-    const aprobados = progreso.filter(p => p.quiz_aprobado).length;
+    const aprobados = progreso.filter(p => p.quiz_aprobado || (p as any).completado_manual).length;
     const aprobadosObligatorios = progreso.filter(p => {
       const modulo = modulos.find(m => m.id === p.modulo_id);
-      return p.quiz_aprobado && modulo?.es_obligatorio;
+      return (p.quiz_aprobado || (p as any).completado_manual) && modulo?.es_obligatorio;
     }).length;
 
     return {
@@ -233,6 +263,7 @@ export const useCapacitacion = (candidatoId?: string) => {
     iniciarContenido,
     completarContenido,
     enviarQuiz,
+    marcarCapacitacionManual,
     calcularProgresoGeneral
   };
 };

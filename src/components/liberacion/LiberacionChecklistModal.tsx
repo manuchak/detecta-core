@@ -35,6 +35,9 @@ import { LiberacionWarningsDialog } from './LiberacionWarningsDialog';
 import { LiberacionSuccessModal } from './LiberacionSuccessModal';
 import { useDocumentosCandidato, TipoDocumento } from '@/hooks/useDocumentosCandidato';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
+import { useContratosProgress } from '@/hooks/useContratosCandidato';
+import { useCapacitacion } from '@/hooks/useCapacitacion';
+import { useLatestEstudioSocioeconomico } from '@/hooks/useEstudioSocioeconomico';
 import { usePersistedForm } from '@/hooks/usePersistedForm';
 import { useCandidatoUbicacion } from '@/hooks/useCandidatoUbicacion';
 import { useEstadosYCiudades } from '@/hooks/useEstadosYCiudades';
@@ -86,6 +89,9 @@ const LiberacionChecklistModal = ({
   // Hooks para obtener datos del workflow anterior
   const { data: documentosExistentes } = useDocumentosCandidato(initialLiberacion.candidato_id);
   const { data: evaluacionPsicometrica } = useLatestEvaluacionPsicometrica(initialLiberacion.candidato_id);
+  const { isComplete: contratosCompletos } = useContratosProgress(initialLiberacion.candidato_id, initialLiberacion.candidato?.vehiculo_propio ?? false);
+  const { calcularProgresoGeneral } = useCapacitacion(initialLiberacion.candidato_id);
+  const latestSocioeconomico = useLatestEstudioSocioeconomico(initialLiberacion.candidato_id);
   
   // Hook para obtener ubicación desde leads (entrevista)
   const { data: ubicacionCandidato, isLoading: loadingUbicacion } = useCandidatoUbicacion(initialLiberacion.candidato_id);
@@ -387,6 +393,8 @@ const LiberacionChecklistModal = ({
   };
 
   // ============ GATE SYSTEM ============
+  const progresoCapacitacion = calcularProgresoGeneral();
+
   const gates = useMemo(() => {
     const red: string[] = [];
     const yellow: string[] = [];
@@ -401,6 +409,10 @@ const LiberacionChecklistModal = ({
     }
     if (!liberacion.documentacion_licencia) {
       red.push('Licencia faltante');
+    }
+    // Estudio socioeconómico desfavorable = RED
+    if (latestSocioeconomico?.resultado_general === 'desfavorable') {
+      red.push('Estudio socioeconómico desfavorable');
     }
 
     // YELLOW gates (allow with justification)
@@ -418,6 +430,18 @@ const LiberacionChecklistModal = ({
     if (!liberacion.documentacion_domicilio) {
       yellow.push('Comprobante domicilio faltante');
     }
+    // Contratos no completados = YELLOW
+    if (!contratosCompletos) {
+      yellow.push('Contratos no completados');
+    }
+    // Capacitación no completada = YELLOW
+    if (!progresoCapacitacion?.capacitacion_completa) {
+      yellow.push('Capacitación no completada');
+    }
+    // Estudio socioeconómico pendiente = YELLOW
+    if (!latestSocioeconomico || latestSocioeconomico.estado === 'pendiente' || latestSocioeconomico.estado === 'en_proceso') {
+      yellow.push('Estudio socioeconómico pendiente');
+    }
 
     // GREEN gates (informative, no block)
     if (liberacion.gps_pendiente || !liberacion.instalacion_gps_completado) {
@@ -432,7 +456,7 @@ const LiberacionChecklistModal = ({
 
     const canLiberate = red.length === 0;
     return { red, yellow, green, canLiberate };
-  }, [liberacion]);
+  }, [liberacion, contratosCompletos, progresoCapacitacion, latestSocioeconomico]);
 
   const handleLiberar = async () => {
     if (!gates.canLiberate) {

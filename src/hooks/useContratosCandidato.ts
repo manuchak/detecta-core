@@ -8,7 +8,10 @@ export type TipoContrato =
   | 'prestacion_servicios'
   | 'codigo_conducta'
   | 'aviso_privacidad'
-  | 'responsiva_equipo';
+  | 'responsiva_equipo'
+  | 'prestacion_servicios_propietario'
+  | 'prestacion_servicios_no_propietario'
+  | 'anexo_gps';
 
 export type EstadoContrato = 'pendiente' | 'enviado' | 'visto' | 'firmado' | 'rechazado' | 'vencido';
 
@@ -52,18 +55,35 @@ export interface PlantillaContrato {
 }
 
 export const CONTRATO_LABELS: Record<TipoContrato, string> = {
-  confidencialidad: 'Contrato de Confidencialidad',
+  confidencialidad: 'Convenio de Confidencialidad',
   prestacion_servicios: 'Contrato de Prestación de Servicios',
   codigo_conducta: 'Código de Conducta',
   aviso_privacidad: 'Aviso de Privacidad',
-  responsiva_equipo: 'Responsiva de Equipo'
+  responsiva_equipo: 'Responsiva de Equipo',
+  prestacion_servicios_propietario: 'Contrato Custodio Propietario',
+  prestacion_servicios_no_propietario: 'Contrato Custodio No Propietario',
+  anexo_gps: 'Anexo GPS'
 };
 
 export const CONTRATOS_REQUERIDOS: TipoContrato[] = [
   'confidencialidad',
-  'codigo_conducta',
-  'aviso_privacidad'
+  'aviso_privacidad',
+  'anexo_gps'
 ];
+
+// Contratos condicionales: se muestran según vehiculo_propio
+export const CONTRATOS_CONDICIONALES: { propietario: TipoContrato; noPropietario: TipoContrato } = {
+  propietario: 'prestacion_servicios_propietario',
+  noPropietario: 'prestacion_servicios_no_propietario'
+};
+
+/** Devuelve la lista completa de contratos requeridos para un candidato */
+export function getContratosRequeridosParaCandidato(vehiculoPropio: boolean): TipoContrato[] {
+  return [
+    ...CONTRATOS_REQUERIDOS,
+    vehiculoPropio ? CONTRATOS_CONDICIONALES.propietario : CONTRATOS_CONDICIONALES.noPropietario
+  ];
+}
 
 export function useContratosCandidato(candidatoId: string) {
   return useQuery({
@@ -114,7 +134,6 @@ export function useGenerarContrato() {
       plantillaId: string;
       datosInterpolados: Record<string, string>;
     }) => {
-      // Obtener plantilla
       const { data: plantilla, error: plantillaError } = await supabase
         .from('plantillas_contrato')
         .select('*')
@@ -123,13 +142,11 @@ export function useGenerarContrato() {
 
       if (plantillaError || !plantilla) throw new Error('Plantilla no encontrada');
 
-      // Interpolar variables en el HTML
       let contenidoHtml = plantilla.contenido_html;
       Object.entries(datosInterpolados).forEach(([key, value]) => {
         contenidoHtml = contenidoHtml.replace(new RegExp(`{{${key}}}`, 'g'), value);
       });
 
-      // Crear contrato
       const { data: contrato, error: insertError } = await supabase
         .from('contratos_candidato')
         .insert({
@@ -160,6 +177,30 @@ export function useGenerarContrato() {
   });
 }
 
+export function useEliminarContrato() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contratoId, candidatoId }: { contratoId: string; candidatoId: string }) => {
+      const { error } = await supabase
+        .from('contratos_candidato')
+        .delete()
+        .eq('id', contratoId);
+
+      if (error) throw error;
+      return { candidatoId };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['contratos-candidato', result.candidatoId] });
+      toast.success('Contrato eliminado');
+    },
+    onError: (error) => {
+      console.error('Error eliminando contrato:', error);
+      toast.error('Error al eliminar el contrato');
+    }
+  });
+}
+
 export function useFirmarContrato() {
   const queryClient = useQueryClient();
 
@@ -177,7 +218,7 @@ export function useFirmarContrato() {
         body: {
           contrato_id: contratoId,
           firma_data_url: firmaDataUrl,
-          firma_ip: 'N/A', // En producción se capturaría
+          firma_ip: 'N/A',
           firma_user_agent: navigator.userAgent
         }
       });
@@ -218,17 +259,18 @@ export function useMarcarVisto() {
   });
 }
 
-export function useContratosProgress(candidatoId: string) {
+export function useContratosProgress(candidatoId: string, vehiculoPropio: boolean = false) {
   const { data: contratos } = useContratosCandidato(candidatoId);
 
+  const requeridos = getContratosRequeridosParaCandidato(vehiculoPropio);
   const contratosFirmados = contratos?.filter(c => c.firmado) || [];
-  const totalRequeridos = CONTRATOS_REQUERIDOS.length;
-  const firmados = CONTRATOS_REQUERIDOS.filter(tipo => 
+  const totalRequeridos = requeridos.length;
+  const firmados = requeridos.filter(tipo => 
     contratosFirmados.some(c => c.tipo_contrato === tipo)
   ).length;
   const porcentaje = Math.round((firmados / totalRequeridos) * 100);
 
-  const contratosFaltantes = CONTRATOS_REQUERIDOS.filter(tipo => 
+  const contratosFaltantes = requeridos.filter(tipo => 
     !contratosFirmados.some(c => c.tipo_contrato === tipo)
   );
 
@@ -250,6 +292,20 @@ export function getDatosInterpolacion(candidato: {
   telefono?: string;
   curp?: string;
   direccion?: string;
+  // Datos vehiculares
+  marca_vehiculo?: string;
+  modelo_vehiculo?: string;
+  numero_serie?: string;
+  placas?: string;
+  color_vehiculo?: string;
+  numero_motor?: string;
+  clave_vehicular?: string;
+  verificacion_vehicular?: string;
+  tarjeta_circulacion?: string;
+  poliza_seguro?: string;
+  aseguradora?: string;
+  numero_licencia?: string;
+  licencia_expedida_por?: string;
 }): Record<string, string> {
   const hoy = new Date();
   return {
@@ -262,6 +318,20 @@ export function getDatosInterpolacion(candidato: {
       day: 'numeric' 
     }),
     email: candidato.email || '',
-    telefono: candidato.telefono || ''
+    telefono: candidato.telefono || '',
+    // Datos vehiculares
+    marca_vehiculo: candidato.marca_vehiculo || '[MARCA]',
+    modelo_vehiculo: candidato.modelo_vehiculo || '[MODELO]',
+    numero_serie: candidato.numero_serie || '[NUM_SERIE]',
+    placas: candidato.placas || '[PLACAS]',
+    color_vehiculo: candidato.color_vehiculo || '[COLOR]',
+    numero_motor: candidato.numero_motor || '[NUM_MOTOR]',
+    clave_vehicular: candidato.clave_vehicular || '[CLAVE_VEHICULAR]',
+    verificacion_vehicular: candidato.verificacion_vehicular || '[VERIFICACION]',
+    tarjeta_circulacion: candidato.tarjeta_circulacion || '[TARJETA_CIRC]',
+    poliza_seguro: candidato.poliza_seguro || '[POLIZA]',
+    aseguradora: candidato.aseguradora || '[ASEGURADORA]',
+    numero_licencia: candidato.numero_licencia || '[NUM_LICENCIA]',
+    licencia_expedida_por: candidato.licencia_expedida_por || '[EXPEDIDA_POR]',
   };
 }
