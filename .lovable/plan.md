@@ -1,80 +1,50 @@
 
-# Auditoria: Conteo de Custodios y Armados en KPIs
 
-## Hallazgo
+# Fix: Habilitar PDF de Incidentes para Monitoristas
 
-El conteo actual en `gmvMTDService.ts` (lineas 144-145) es:
+## Diagnostico
 
-```text
-custodiosMTD = new Set(services.map(s => s.nombre_custodio).filter(Boolean)).size  --> 124
-armadosMTD   = new Set(services.map(s => s.nombre_armado).filter(Boolean)).size    --> 62
-```
+La funcionalidad de crear incidentes y descargar PDFs **ya existe** en la interfaz. Los monitoristas (role `monitoring`) tienen acceso completo:
 
-### Problema con Custodios
-El conteo por `nombre_custodio` (texto libre) ya es DISTINCT, pero puede inflarse si:
-- El mismo custodio aparece con variaciones de nombre ("Juan Perez" vs "Juan Pérez" vs "JUAN PEREZ")
-- No se usa UUID (`id_custodio`) que es el identificador unico real
+- **RLS**: La funcion `es_staff_incidentes()` incluye el rol `monitoring` -- pueden leer, crear, actualizar y eliminar incidentes y cronologia.
+- **UI**: El boton "Nuevo Reporte" y el icono de descarga PDF estan disponibles sin restriccion de rol.
 
-### Problema con Armados
-El campo `nombre_armado` en `servicios_custodia` es texto libre que mezcla:
-- Armados internos (personal propio)
-- Personal de proveedores externos
+### Bug encontrado: Tabla incorrecta en la descarga PDF desde la lista
 
-No existe campo `tipo_asignacion_armado` en `servicios_custodia`, por lo que no se puede distinguir interno vs externo solo con esa tabla. Se necesita cruzar con `asignacion_armados` (que tiene `tipo_asignacion: 'interno' | 'proveedor'`).
-
----
-
-## Plan de Remediacion
-
-### Archivo 1: `src/services/gmvMTDService.ts`
-
-**Cambios:**
-
-1. Agregar `id_custodio` al SELECT canonico para hacer DISTINCT por UUID en lugar de nombre
-2. Agregar una funcion auxiliar que consulte `asignacion_armados` para el rango MTD y separe internos vs proveedor
-3. Exponer 3 metricas nuevas en `UnifiedMTDResult`:
-   - `custodiosMTD`: DISTINCT por `id_custodio` (UUID). Fallback a `nombre_custodio` normalizado (trim + lowercase) si UUID es null
-   - `armadosInternosMTD`: DISTINCT armado_id donde `tipo_asignacion = 'interno'` en `asignacion_armados`
-   - `serviciosProveedorExternoMTD`: COUNT de servicios donde `tipo_asignacion = 'proveedor'` en `asignacion_armados`
-
-**Detalle de la query de asignacion_armados:**
+En `IncidentListPanel.tsx` linea 74, el codigo que descarga el PDF desde la lista de incidentes consulta una tabla que **no existe**:
 
 ```text
-SELECT armado_id, tipo_asignacion, servicio_custodia_id
-FROM asignacion_armados
-WHERE created_at >= MTD_start AND created_at <= MTD_end
-  AND estado_asignacion NOT IN ('cancelado')
+INCORRECTO:  supabase.from('incidentes_cronologia')   <-- tabla inexistente (plural)
+CORRECTO:    supabase.from('incidente_cronologia')     <-- tabla real (singular)
 ```
 
-Luego en JS:
-- `armadosInternosMTD` = new Set(assignments.filter(a => a.tipo_asignacion === 'interno').map(a => a.armado_id)).size
-- `serviciosProveedorExternoMTD` = new Set(assignments.filter(a => a.tipo_asignacion === 'proveedor').map(a => a.servicio_custodia_id)).size
+Esto causa que el PDF se genere con **cronologia vacia** (0 entradas en la timeline), porque la query falla silenciosamente o retorna datos vacios.
 
-### Archivo 2: `src/hooks/useUnifiedMTDMetrics.ts`
+Nota: Dentro del formulario de edicion (`IncidentReportForm.tsx`), el PDF funciona correctamente porque usa el hook `useIncidenteCronologia` que apunta a la tabla correcta.
 
-Exponer los nuevos campos: `armadosInternosMTD`, `serviciosProveedorExternoMTD`, y el `custodiosMTD` corregido.
+## Cambio requerido
 
-### Archivo 3: `src/components/executive/ExecutiveKPIsBar.tsx`
+### Archivo: `src/components/monitoring/incidents/IncidentListPanel.tsx`
 
-Cambios en las tarjetas:
+Linea 74: Corregir el nombre de la tabla de `'incidentes_cronologia'` a `'incidente_cronologia'`.
 
-| Tarjeta actual | Cambio |
-|----------------|--------|
-| **Custodios: 124** | Usar `custodiosMTD` basado en UUID (numero probablemente bajara) |
-| **Armados: 62** | Renombrar a "Armados Int." y usar `armadosInternosMTD` (solo internos) |
-| *(nueva)* | Agregar tarjeta "Svcs. Prov. Ext." con `serviciosProveedorExternoMTD` y icono diferenciado |
+```typescript
+// ANTES
+const { data: cronologia } = await supabase
+  .from('incidentes_cronologia')   // BUG: tabla inexistente
+  .select('*')
+  .eq('incidente_id', inc.id)
+  .order('timestamp', { ascending: true });
 
-La tarjeta de proveedores externos reemplazara una de las dos tarjetas placeholder ("Clientes Mon." o "Suscr. Mon." que muestran N/D).
-
-### Resultado esperado
-
-```text
-ANTES:
-  Custodios: 124 (nombre_custodio, puede tener duplicados por variantes de texto)
-  Armados: 62 (mezcla internos + externos)
-
-DESPUES:
-  Custodios: ~X (distinct por id_custodio UUID, numero real sin duplicados)
-  Armados Int.: ~Y (solo tipo_asignacion='interno', distinct por armado_id)
-  Svcs. Prov. Ext.: ~Z (servicios atendidos por proveedores externos)
+// DESPUES
+const { data: cronologia } = await supabase
+  .from('incidente_cronologia')    // CORRECTO: tabla real
+  .select('*')
+  .eq('incidente_id', inc.id)
+  .order('timestamp', { ascending: true });
 ```
+
+## Resultado esperado
+
+- Los monitoristas podran descargar PDFs completos (con cronologia, evidencias fotograficas y firmas) directamente desde el icono de descarga en la lista de incidentes.
+- La creacion de incidentes ya funciona correctamente y no requiere cambios.
