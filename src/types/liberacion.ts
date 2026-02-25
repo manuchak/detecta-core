@@ -21,7 +21,7 @@ export interface CustodioLiberacion {
   documentacion_licencia: boolean;
   documentacion_antecedentes: boolean;
   documentacion_domicilio: boolean;
-  documentacion_curp: boolean;
+  documentacion_curp?: boolean; // DEPRECADO: ya no se usa en UI
   documentacion_rfc: boolean;
   documentacion_completa: boolean;
   fecha_documentacion_completa?: string;

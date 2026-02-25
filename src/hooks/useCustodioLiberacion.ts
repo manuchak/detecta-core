@@ -367,7 +367,6 @@ export const useCustodioLiberacion = () => {
       liberacion.documentacion_licencia,
       liberacion.documentacion_antecedentes,
       liberacion.documentacion_domicilio,
-      liberacion.documentacion_curp,
       liberacion.documentacion_rfc
     ].filter(Boolean).length;
     
@@ -391,11 +390,11 @@ export const useCustodioLiberacion = () => {
     
     // Total calculado SIN psicométricos (4 componentes en lugar de 5)
     const total = Math.round(
-      (documentacion / 6 * 100 + toxicologicos + vehiculo + gps) / 4
+      (documentacion / 5 * 100 + toxicologicos + vehiculo + gps) / 4
     );
     
     return {
-      documentacion: Math.round((documentacion / 6) * 100),
+      documentacion: Math.round((documentacion / 5) * 100),
       psicometricos, // Se muestra pero NO afecta el total
       toxicologicos,
       vehiculo: Math.round(vehiculo),
