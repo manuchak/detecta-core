@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/lms/admin/RichTextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, X, Play, FileText, AlignLeft, HelpCircle, Sparkles, Code, Package, Award } from "lucide-react";
 import { MediaUploader } from "@/components/lms/admin/wizard/MediaUploader";
@@ -258,19 +259,12 @@ export function ContenidoExpandedEditor({ contenido, cursoId, cursoTitulo, modul
 
       {contenido.tipo === 'texto_enriquecido' && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Contenido</Label>
-            <Button size="sm" variant="outline" onClick={handleGenerateText} disabled={aiLoading} className="h-7 text-xs">
-              {aiLoading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-              Generar con IA
-            </Button>
-          </div>
-          <Textarea
+          <Label className="text-xs">Contenido</Label>
+          <RichTextEditor
             value={textoHtml}
-            onChange={e => setTextoHtml(e.target.value)}
-            rows={8}
-            className="text-sm font-mono"
-            placeholder="HTML del contenido enriquecido..."
+            onChange={setTextoHtml}
+            onGenerateAI={handleGenerateText}
+            aiLoading={aiLoading}
           />
         </div>
       )}
