@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/lms/admin/RichTextEditor";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Play, FileText, AlignLeft, HelpCircle, Sparkles, X, Check, Clock, Loader2, Save } from "lucide-react";
@@ -197,30 +197,12 @@ export function ContentEditor({ contenido, onUpdate, onClose, moduloTitulo, curs
 
       {contenido.tipo === 'texto_enriquecido' && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Contenido</Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateText}
-              disabled={aiLoading}
-              className="h-7 text-xs gap-1"
-            >
-              {aiLoading ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Sparkles className="w-3 h-3" />
-              )}
-              Generar con IA
-            </Button>
-          </div>
-          <Textarea
-            placeholder="Escribe el contenido aquí..."
+          <Label className="text-xs">Contenido</Label>
+          <RichTextEditor
             value={html}
-            onChange={(e) => setHtml(e.target.value)}
-            rows={6}
-            className="text-sm resize-none"
+            onChange={setHtml}
+            onGenerateAI={handleGenerateText}
+            aiLoading={aiLoading}
           />
         </div>
       )}
