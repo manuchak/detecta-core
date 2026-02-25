@@ -21,7 +21,8 @@ import {
   Eye,
   Loader2,
   Send,
-  Trash2
+  Trash2,
+  Upload
 } from 'lucide-react';
 import { 
   useContratosCandidato,
@@ -36,6 +37,7 @@ import {
 import { ContractGenerateDialog } from './ContractGenerateDialog';
 import { ContractSignDialog } from './ContractSignDialog';
 import { ContractPreviewDialog } from './ContractPreviewDialog';
+import { ContractUploadDialog } from './ContractUploadDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -56,6 +58,7 @@ const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.Element
 
 export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = false }: Props) {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
   const [signContrato, setSignContrato] = useState<any>(null);
   const [previewContrato, setPreviewContrato] = useState<any>(null);
@@ -75,6 +78,11 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
   const handleGenerar = (tipo: TipoContrato) => {
     setSelectedTipo(tipo);
     setGenerateDialogOpen(true);
+  };
+
+  const handleUpload = (tipo: TipoContrato) => {
+    setSelectedTipo(tipo);
+    setUploadDialogOpen(true);
   };
 
   const handleEliminar = async () => {
@@ -116,6 +124,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
           const plantilla = plantillas?.find(p => p.tipo_contrato === tipo);
           const estadoConfig = contrato ? ESTADO_CONFIG[contrato.estado] : null;
           const IconComponent = estadoConfig?.icon || FileSignature;
+          const esFisico = (contrato as any)?.es_documento_fisico;
 
           return (
             <Card key={tipo} className={contrato?.firmado ? 'border-l-4 border-l-green-500' : ''}>
@@ -125,12 +134,19 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
                     <FileSignature className="h-4 w-4" />
                     {CONTRATO_LABELS[tipo]}
                   </span>
-                  {estadoConfig && (
-                    <Badge className={estadoConfig.color}>
-                      <IconComponent className="h-3 w-3 mr-1" />
-                      {estadoConfig.label}
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {esFisico && (
+                      <Badge variant="outline" className="text-xs">
+                        📄 Documento físico
+                      </Badge>
+                    )}
+                    {estadoConfig && (
+                      <Badge className={estadoConfig.color}>
+                        <IconComponent className="h-3 w-3 mr-1" />
+                        {estadoConfig.label}
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -138,7 +154,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
                   <div className="space-y-3">
                     {contrato.fecha_envio && (
                       <p className="text-xs text-muted-foreground">
-                        Enviado: {format(new Date(contrato.fecha_envio), "d MMM yyyy HH:mm", { locale: es })}
+                        {esFisico ? 'Subido' : 'Enviado'}: {format(new Date(contrato.fecha_envio), "d MMM yyyy HH:mm", { locale: es })}
                       </p>
                     )}
 
@@ -180,19 +196,27 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
                       )}
                     </div>
                   </div>
-                ) : plantilla ? (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => handleGenerar(tipo)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Generar Contrato
-                  </Button>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    No hay plantilla disponible
-                  </p>
+                  <div className="flex gap-2">
+                    {plantilla && (
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => handleGenerar(tipo)}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Generar Contrato
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      className={plantilla ? '' : 'flex-1'}
+                      onClick={() => handleUpload(tipo)}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Subir Firmado
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -231,6 +255,17 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
           candidatoNombre={candidatoNombre}
           tipoContrato={selectedTipo}
           onSuccess={() => setGenerateDialogOpen(false)}
+        />
+      )}
+
+      {/* Upload Dialog */}
+      {selectedTipo && (
+        <ContractUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          candidatoId={candidatoId}
+          tipoContrato={selectedTipo}
+          onSuccess={() => setUploadDialogOpen(false)}
         />
       )}
 

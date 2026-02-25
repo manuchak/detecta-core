@@ -36,6 +36,7 @@ export interface ContratoCandidato {
   enviado_por?: string;
   fecha_envio?: string;
   visto_at?: string;
+  es_documento_fisico?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -71,13 +72,11 @@ export const CONTRATOS_REQUERIDOS: TipoContrato[] = [
   'anexo_gps'
 ];
 
-// Contratos condicionales: se muestran según vehiculo_propio
 export const CONTRATOS_CONDICIONALES: { propietario: TipoContrato; noPropietario: TipoContrato } = {
   propietario: 'prestacion_servicios_propietario',
   noPropietario: 'prestacion_servicios_no_propietario'
 };
 
-/** Devuelve la lista completa de contratos requeridos para un candidato */
 export function getContratosRequeridosParaCandidato(vehiculoPropio: boolean): TipoContrato[] {
   return [
     ...CONTRATOS_REQUERIDOS,
@@ -259,6 +258,129 @@ export function useMarcarVisto() {
   });
 }
 
+// Hook para subir contratos físicos escaneados
+export function useSubirContratoFisico() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      candidatoId,
+      tipoContrato,
+      archivo
+    }: {
+      candidatoId: string;
+      tipoContrato: TipoContrato;
+      archivo: File;
+    }) => {
+      // Comprimir imagen si es JPG/PNG
+      let fileToUpload: File | Blob = archivo;
+      if (archivo.type.startsWith('image/') && archivo.type !== 'image/svg+xml') {
+        try {
+          fileToUpload = await compressImage(archivo);
+        } catch {
+          // Fallback al archivo original si falla la compresión
+          fileToUpload = archivo;
+        }
+      }
+
+      // Sanitizar nombre de archivo
+      const ext = archivo.name.split('.').pop()?.toLowerCase() || 'pdf';
+      const timestamp = Date.now();
+      const sanitizedName = `${tipoContrato}_${timestamp}.${ext}`;
+      const filePath = `${candidatoId}/${sanitizedName}`;
+
+      // Subir a storage
+      const { error: uploadError } = await supabase.storage
+        .from('contratos-escaneados')
+        .upload(filePath, fileToUpload, {
+          contentType: archivo.type,
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Verificar que el archivo existe (Verify-Before-Commit)
+      const { data: files } = await supabase.storage
+        .from('contratos-escaneados')
+        .list(candidatoId, { search: sanitizedName });
+
+      if (!files || files.length === 0) {
+        throw new Error('El archivo no se subió correctamente');
+      }
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('contratos-escaneados')
+        .getPublicUrl(filePath);
+
+      // Insertar registro en contratos_candidato
+      const { data: contrato, error: insertError } = await supabase
+        .from('contratos_candidato')
+        .insert({
+          candidato_id: candidatoId,
+          tipo_contrato: tipoContrato,
+          plantilla_id: null,
+          version_plantilla: 0,
+          firmado: true,
+          firma_timestamp: new Date().toISOString(),
+          pdf_url: urlData.publicUrl,
+          estado: 'firmado',
+          es_documento_fisico: true,
+          enviado_por: user?.id,
+          fecha_envio: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      return contrato as ContratoCandidato;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['contratos-candidato', variables.candidatoId] });
+      toast.success('Contrato físico subido correctamente');
+    },
+    onError: (error) => {
+      console.error('Error subiendo contrato físico:', error);
+      toast.error('Error al subir el contrato físico');
+    }
+  });
+}
+
+// Compresión de imagen siguiendo el estándar del proyecto
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      const maxWidth = 1920;
+      const maxHeight = 1080;
+      let { width, height } = img;
+
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('No canvas context')); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error('Compression failed')),
+        'image/jpeg',
+        0.7
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
 export function useContratosProgress(candidatoId: string, vehiculoPropio: boolean = false) {
   const { data: contratos } = useContratosCandidato(candidatoId);
 
@@ -290,9 +412,11 @@ export function getDatosInterpolacion(candidato: {
   nombre: string;
   email?: string;
   telefono?: string;
-  curp?: string;
   direccion?: string;
-  // Datos vehiculares
+  // Licencia
+  numero_licencia?: string;
+  licencia_expedida_por?: string;
+  // Vehículo
   marca_vehiculo?: string;
   modelo_vehiculo?: string;
   numero_serie?: string;
@@ -302,36 +426,73 @@ export function getDatosInterpolacion(candidato: {
   clave_vehicular?: string;
   verificacion_vehicular?: string;
   tarjeta_circulacion?: string;
-  poliza_seguro?: string;
+  // Factura
+  numero_factura?: string;
+  fecha_factura?: string;
+  factura_emitida_a?: string;
+  // Seguro
+  numero_poliza?: string;
   aseguradora?: string;
-  numero_licencia?: string;
-  licencia_expedida_por?: string;
+  fecha_poliza?: string;
+  poliza_emitida_a?: string;
+  tipo_poliza?: string;
+  // Bancarios
+  banco?: string;
+  numero_cuenta?: string;
+  clabe?: string;
+  beneficiario?: string;
+  // No propietario
+  nombre_propietario_vehiculo?: string;
+}, analista?: {
+  nombre: string;
+  email: string;
 }): Record<string, string> {
   const hoy = new Date();
+  const fechaFormateada = hoy.toLocaleDateString('es-MX', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
   return {
-    nombre_completo: candidato.nombre || '',
-    curp: candidato.curp || '[CURP_PENDIENTE]',
-    direccion: candidato.direccion || '[DIRECCION_PENDIENTE]',
-    fecha_actual: hoy.toLocaleDateString('es-MX', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    }),
-    email: candidato.email || '',
+    nombre_completo: candidato.nombre || '[PENDIENTE]',
+    direccion: candidato.direccion || '[PENDIENTE]',
+    fecha_actual: fechaFormateada,
+    fecha_contratacion: fechaFormateada,
+    email_custodio: candidato.email || '[PENDIENTE]',
     telefono: candidato.telefono || '',
-    // Datos vehiculares
-    marca_vehiculo: candidato.marca_vehiculo || '[MARCA]',
-    modelo_vehiculo: candidato.modelo_vehiculo || '[MODELO]',
-    numero_serie: candidato.numero_serie || '[NUM_SERIE]',
-    placas: candidato.placas || '[PLACAS]',
-    color_vehiculo: candidato.color_vehiculo || '[COLOR]',
-    numero_motor: candidato.numero_motor || '[NUM_MOTOR]',
-    clave_vehicular: candidato.clave_vehicular || '[CLAVE_VEHICULAR]',
-    verificacion_vehicular: candidato.verificacion_vehicular || '[VERIFICACION]',
-    tarjeta_circulacion: candidato.tarjeta_circulacion || '[TARJETA_CIRC]',
-    poliza_seguro: candidato.poliza_seguro || '[POLIZA]',
-    aseguradora: candidato.aseguradora || '[ASEGURADORA]',
-    numero_licencia: candidato.numero_licencia || '[NUM_LICENCIA]',
-    licencia_expedida_por: candidato.licencia_expedida_por || '[EXPEDIDA_POR]',
+    // Licencia
+    numero_licencia: candidato.numero_licencia || '[PENDIENTE]',
+    licencia_expedida_por: candidato.licencia_expedida_por || '[PENDIENTE]',
+    // Vehículo
+    marca_vehiculo: candidato.marca_vehiculo || '[PENDIENTE]',
+    modelo_vehiculo: candidato.modelo_vehiculo || '[PENDIENTE]',
+    numero_serie: candidato.numero_serie || '[PENDIENTE]',
+    placas: candidato.placas || '[PENDIENTE]',
+    color_vehiculo: candidato.color_vehiculo || '[PENDIENTE]',
+    numero_motor: candidato.numero_motor || '[PENDIENTE]',
+    clave_vehicular: candidato.clave_vehicular || '[PENDIENTE]',
+    verificacion_vehicular: candidato.verificacion_vehicular || '[PENDIENTE]',
+    tarjeta_circulacion: candidato.tarjeta_circulacion || '[PENDIENTE]',
+    // Factura
+    numero_factura: candidato.numero_factura || '[PENDIENTE]',
+    fecha_factura: candidato.fecha_factura || '[PENDIENTE]',
+    factura_emitida_a: candidato.factura_emitida_a || '[PENDIENTE]',
+    // Seguro
+    numero_poliza: candidato.numero_poliza || '[PENDIENTE]',
+    aseguradora: candidato.aseguradora || '[PENDIENTE]',
+    fecha_poliza: candidato.fecha_poliza || '[PENDIENTE]',
+    poliza_emitida_a: candidato.poliza_emitida_a || '[PENDIENTE]',
+    tipo_poliza: candidato.tipo_poliza || '[PENDIENTE]',
+    // Bancarios
+    banco: candidato.banco || '[PENDIENTE]',
+    numero_cuenta: candidato.numero_cuenta || '[PENDIENTE]',
+    clabe: candidato.clabe || '[PENDIENTE]',
+    beneficiario: candidato.beneficiario || '[PENDIENTE]',
+    // No propietario
+    nombre_propietario_vehiculo: candidato.nombre_propietario_vehiculo || '[PENDIENTE]',
+    // Analista
+    nombre_analista: analista?.nombre || '[PENDIENTE]',
+    email_analista: analista?.email || '[PENDIENTE]',
   };
 }
