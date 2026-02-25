@@ -17,7 +17,6 @@ export function TrueFalseQuestion({
   mostrarResultado = false,
   disabled = false,
 }: TrueFalseQuestionProps) {
-  // Asegurar que tenemos las opciones de verdadero/falso
   const opcionVerdadero = opciones.find(o => 
     o.texto.toLowerCase() === 'verdadero' || 
     o.texto.toLowerCase() === 'true' ||
@@ -42,25 +41,34 @@ export function TrueFalseQuestion({
         onClick={() => !disabled && onSelect(opcion.id)}
         disabled={disabled}
         className={cn(
-          "flex-1 p-6 rounded-2xl transition-all duration-200",
-          "border-2 flex flex-col items-center justify-center gap-3",
-          "min-h-[140px]",
+          "flex-1 p-8 rounded-2xl transition-all duration-300",
+          "border-2 flex flex-col items-center justify-center gap-4",
+          "min-h-[160px] group",
           disabled && "cursor-default",
-          !disabled && "hover:border-primary/50 hover:bg-primary/5",
-          !mostrarResultado && isSelected && "border-primary bg-primary/10 shadow-lg",
+          // Default
           !mostrarResultado && !isSelected && "border-border bg-card",
+          !mostrarResultado && !isSelected && !disabled && (
+            isTrue 
+              ? "hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10 hover:scale-[1.03]" 
+              : "hover:border-red-400 hover:shadow-lg hover:shadow-red-500/10 hover:scale-[1.03]"
+          ),
+          // Selected
+          !mostrarResultado && isSelected && isTrue && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-lg",
+          !mostrarResultado && isSelected && !isTrue && "border-red-500 bg-red-50 dark:bg-red-950/30 shadow-lg",
+          // Review
           showCorrect && "border-green-500 bg-green-50 dark:bg-green-950/30",
           showIncorrect && "border-red-500 bg-red-50 dark:bg-red-950/30",
-          mostrarResultado && !showCorrect && !showIncorrect && "border-border bg-card opacity-60"
+          mostrarResultado && !showCorrect && !showIncorrect && "border-border bg-card opacity-50"
         )}
       >
         {/* Icon */}
         <div
           className={cn(
-            "w-12 h-12 rounded-full flex items-center justify-center",
-            "transition-all duration-200",
-            !mostrarResultado && isSelected && (isTrue ? "bg-green-500" : "bg-red-500"),
+            "w-16 h-16 rounded-2xl flex items-center justify-center",
+            "transition-all duration-300",
             !mostrarResultado && !isSelected && "bg-muted",
+            !mostrarResultado && !isSelected && !disabled && "group-hover:scale-110",
+            !mostrarResultado && isSelected && (isTrue ? "bg-emerald-500" : "bg-red-500"),
             showCorrect && "bg-green-500",
             showIncorrect && "bg-red-500",
             mostrarResultado && !showCorrect && !showIncorrect && "bg-muted"
@@ -68,14 +76,14 @@ export function TrueFalseQuestion({
         >
           {isTrue ? (
             <Check className={cn(
-              "w-6 h-6",
+              "w-8 h-8 transition-colors",
               (isSelected && !mostrarResultado) || showCorrect || showIncorrect
                 ? "text-white"
                 : "text-muted-foreground"
             )} />
           ) : (
             <X className={cn(
-              "w-6 h-6",
+              "w-8 h-8 transition-colors",
               (isSelected && !mostrarResultado) || showCorrect || showIncorrect
                 ? "text-white"
                 : "text-muted-foreground"
@@ -85,8 +93,9 @@ export function TrueFalseQuestion({
 
         {/* Text */}
         <span className={cn(
-          "text-lg font-semibold",
-          isSelected && !mostrarResultado && "text-primary",
+          "text-xl font-bold",
+          !mostrarResultado && isSelected && isTrue && "text-emerald-700 dark:text-emerald-300",
+          !mostrarResultado && isSelected && !isTrue && "text-red-700 dark:text-red-300",
           showCorrect && "text-green-700 dark:text-green-300",
           showIncorrect && "text-red-700 dark:text-red-300"
         )}>
