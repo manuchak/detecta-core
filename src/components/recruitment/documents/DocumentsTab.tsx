@@ -159,7 +159,7 @@ export function DocumentsTab({ candidatoId, candidatoNombre }: Props) {
                         Ver
                       </Button>
 
-                      {!documento.ocr_procesado && documento.estado_validacion === 'pendiente' && (
+                      {!documento.ocr_procesado && (documento.estado_validacion === 'pendiente' || documento.estado_validacion === 'procesando') && (
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -167,7 +167,7 @@ export function DocumentsTab({ candidatoId, candidatoNombre }: Props) {
                           disabled={procesarOCR.isPending}
                         >
                           <Scan className="h-3 w-3 mr-1" />
-                          Procesar OCR
+                          {documento.estado_validacion === 'procesando' ? 'Reintentar OCR' : 'Procesar OCR'}
                         </Button>
                       )}
 

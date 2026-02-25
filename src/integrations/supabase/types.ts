@@ -1820,6 +1820,7 @@ export type Database = {
           clave_vehicular: string | null
           color_vehiculo: string | null
           created_at: string | null
+          curp: string | null
           direccion: string | null
           disponibilidad_horarios: Json | null
           email: string | null
@@ -1867,6 +1868,7 @@ export type Database = {
           clave_vehicular?: string | null
           color_vehiculo?: string | null
           created_at?: string | null
+          curp?: string | null
           direccion?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null
@@ -1914,6 +1916,7 @@ export type Database = {
           clave_vehicular?: string | null
           color_vehiculo?: string | null
           created_at?: string | null
+          curp?: string | null
           direccion?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null

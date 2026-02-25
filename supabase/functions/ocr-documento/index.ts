@@ -90,8 +90,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Parse body ONCE at the top to avoid double-consumption
+  let documento_id: string | undefined;
+  let imagen_url: string | undefined;
+
   try {
-    const { documento_id, imagen_url } = await req.json();
+    const body = await req.json();
+    documento_id = body.documento_id;
+    imagen_url = body.imagen_url;
     
     console.log(`[OCR] Procesando documento: ${documento_id}`);
     console.log(`[OCR] URL de imagen: ${imagen_url}`);
@@ -230,6 +236,42 @@ serve(async (req) => {
       throw updateError;
     }
 
+    // Sincronizar datos OCR a candidatos_custodios
+    try {
+      // Obtener candidato_id del documento
+      const { data: docData } = await supabase
+        .from('documentos_candidato')
+        .select('candidato_id')
+        .eq('id', documento_id)
+        .single();
+
+      if (docData?.candidato_id) {
+        const updatePayload: Record<string, any> = {};
+
+        // Sincronizar CURP
+        const curpExtraido = ocrResult.datos_extraidos?.curp;
+        if (curpExtraido && curpExtraido.length === 18) {
+          updatePayload.curp = curpExtraido;
+        }
+
+        // Sincronizar dirección desde INE o comprobante de domicilio
+        const direccionExtraida = ocrResult.datos_extraidos?.domicilio || ocrResult.datos_extraidos?.direccion_completa;
+        if (direccionExtraida) {
+          updatePayload.direccion = direccionExtraida;
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          console.log(`[OCR] Sincronizando datos a candidato ${docData.candidato_id}:`, updatePayload);
+          await supabase
+            .from('candidatos_custodios')
+            .update(updatePayload)
+            .eq('id', docData.candidato_id);
+        }
+      }
+    } catch (syncError) {
+      console.error('[OCR] Error sincronizando datos a candidato (no crítico):', syncError);
+    }
+
     console.log(`[OCR] Documento ${documento_id} procesado con éxito. Confianza: ${ocrResult.confianza}%`);
 
     return new Response(JSON.stringify({
@@ -249,23 +291,23 @@ serve(async (req) => {
   } catch (error) {
     console.error('[OCR] Error:', error);
     
-    // Si tenemos documento_id, actualizar con error
-    try {
-      const { documento_id } = await req.json().catch(() => ({}));
-      if (documento_id) {
+    // Use documento_id from the already-parsed body (no second req.json())
+    if (documento_id) {
+      try {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         await supabase
           .from('documentos_candidato')
           .update({
-            estado_validacion: 'invalido',
+            estado_validacion: 'pendiente',
             ocr_error: error.message,
-            ocr_procesado: true,
-            ocr_fecha_proceso: new Date().toISOString()
+            ocr_procesado: false,
+            updated_at: new Date().toISOString()
           })
           .eq('id', documento_id);
+        console.log(`[OCR] Documento ${documento_id} revertido a pendiente tras error`);
+      } catch (e) {
+        console.error('[OCR] Error actualizando estado de error:', e);
       }
-    } catch (e) {
-      console.error('[OCR] Error actualizando estado de error:', e);
     }
 
     return new Response(JSON.stringify({

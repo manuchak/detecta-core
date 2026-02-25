@@ -122,6 +122,7 @@ export function ContractGenerateDialog({
           email: candidato.email || undefined,
           telefono: candidato.telefono || undefined,
           direccion: candidato.direccion || undefined,
+          curp: (candidato as any).curp || undefined,
           numero_licencia: candidato.numero_licencia || undefined,
           licencia_expedida_por: candidato.licencia_expedida_por || undefined,
           marca_vehiculo: candidato.marca_vehiculo || undefined,
@@ -191,6 +192,7 @@ export function ContractGenerateDialog({
           {/* Datos Personales - siempre visible */}
           <CollapsibleSection title="Datos Personales" icon={<User className="h-4 w-4" />}>
             <FieldInput label="Nombre completo" value={datos.nombre_completo || ''} onChange={v => updateField('nombre_completo', v)} />
+            <FieldInput label="CURP" value={datos.curp || ''} onChange={v => updateField('curp', v)} />
             {!esContratoSimple && (
               <FieldInput label="Dirección (igual a INE)" value={datos.direccion || ''} onChange={v => updateField('direccion', v)} />
             )}
