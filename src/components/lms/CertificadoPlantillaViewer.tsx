@@ -1,10 +1,12 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Award, Download, CheckCircle, Loader2 } from "lucide-react";
+import { Award, Download, CheckCircle, Loader2, Trophy, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { CertificadoPlantillaContent } from "@/types/lms";
+import { CertificatePDFDocument, type CertificatePDFData } from "./pdf/CertificatePDFDocument";
+import { loadImageAsBase64 } from "@/components/pdf/utils";
 
 interface CertificadoPlantillaViewerProps {
   content: CertificadoPlantillaContent;
@@ -13,35 +15,24 @@ interface CertificadoPlantillaViewerProps {
   onComplete?: () => void;
 }
 
-interface PlantillaData {
-  plantilla_html: string;
-  estilos_css?: string;
-  nombre: string;
-}
-
-function substituteVariables(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
-}
-
 export function CertificadoPlantillaViewer({
   content,
   inscripcionId,
   cursoTitulo,
   onComplete,
 }: CertificadoPlantillaViewerProps) {
-  const certRef = useRef<HTMLDivElement>(null);
-  const [plantilla, setPlantilla] = useState<PlantillaData | null>(null);
-  const [renderedHtml, setRenderedHtml] = useState<string>('');
   const [userName, setUserName] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [marked, setMarked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [fechaCompletado, setFechaCompletado] = useState('');
+  const [codigoVerificacion, setCodigoVerificacion] = useState('');
+  const [plantillaNombre, setPlantillaNombre] = useState('');
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        // Obtener datos del usuario actual
         const { data: { user } } = await supabase.auth.getUser();
         const uid = user?.id;
 
@@ -58,66 +49,56 @@ export function CertificadoPlantillaViewer({
         }
         setUserName(nombre);
 
-        // Cargar plantilla
-        const { data: plantillaData, error } = await supabase
+        const fecha = new Date().toLocaleDateString('es-MX', {
+          year: 'numeric', month: 'long', day: 'numeric',
+        });
+        setFechaCompletado(fecha);
+        setCodigoVerificacion(inscripcionId?.slice(0, 8).toUpperCase() ?? 'N/A');
+
+        // Load plantilla name
+        const { data: plantillaData } = await supabase
           .from('lms_certificados_plantillas')
-          .select('nombre, plantilla_html, estilos_css')
+          .select('nombre')
           .eq('id', content.plantilla_id)
           .single();
-
-        if (error || !plantillaData) {
-          toast.error('No se encontró la plantilla de certificado');
-          return;
-        }
-
-        setPlantilla(plantillaData as PlantillaData);
-
-        // Sustituir variables
-        const vars: Record<string, string> = {
-          nombre_usuario: nombre,
-          titulo_curso: cursoTitulo || content.plantilla_nombre || 'Curso',
-          fecha_completado: new Date().toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }),
-          calificacion: '100',
-          duracion_curso: '',
-          codigo_verificacion: inscripcionId?.slice(0, 8).toUpperCase() ?? 'N/A',
-          ...content.personalizar_variables,
-        };
-
-        const html = substituteVariables((plantillaData as PlantillaData).plantilla_html, vars);
-        setRenderedHtml(html);
+        setPlantillaNombre(plantillaData?.nombre ?? content.plantilla_nombre ?? 'Constancia');
       } catch (err) {
-        console.error('Error loading certificate template:', err);
-        toast.error('Error al cargar la plantilla');
+        console.error('Error loading certificate data:', err);
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [content.plantilla_id, cursoTitulo, inscripcionId]);
+  }, [content.plantilla_id, inscripcionId]);
+
+  const titulo = cursoTitulo || content.plantilla_nombre || 'Curso';
 
   const handleDownload = async () => {
-    if (!certRef.current) return;
     setDownloading(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
+      const { pdf } = await import('@react-pdf/renderer');
 
-      const canvas = await html2canvas(certRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-      });
+      let logoBase64: string | null = null;
+      try {
+        logoBase64 = await loadImageAsBase64('/lovable-uploads/detecta-logo.png');
+      } catch { /* logo optional */ }
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2],
-      });
+      const pdfData: CertificatePDFData = {
+        nombreUsuario: userName,
+        tituloCurso: titulo,
+        calificacion: 100,
+        fechaCompletado,
+        codigoVerificacion,
+        logoBase64,
+      };
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
-      pdf.save(`certificado-${userName.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+      const blob = await pdf(<CertificatePDFDocument {...pdfData} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificado-${userName.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
       toast.success('Certificado descargado');
     } catch (err) {
       console.error('Error generating PDF:', err);
@@ -142,54 +123,117 @@ export function CertificadoPlantillaViewer({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Award className="h-5 w-5 text-amber-500" />
-          <span className="font-medium text-sm">Constancia: {plantilla?.nombre ?? content.plantilla_nombre}</span>
+    <div className="space-y-5">
+      {/* Congratulations banner */}
+      <div className="text-center py-4">
+        <div className="inline-flex items-center gap-2 mb-2">
+          <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
+          <span className="text-lg font-semibold text-foreground">¡Felicidades!</span>
+          <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
         </div>
-        <div className="flex items-center gap-2">
-          {marked && (
-            <Badge className="gap-1 bg-green-100 text-green-800 border-green-200">
-              <CheckCircle className="h-3 w-3" />
-              Visto
-            </Badge>
-          )}
-          <Button size="sm" variant="outline" onClick={handleDownload} disabled={downloading || !renderedHtml}>
-            {downloading ? (
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-1.5" />
-            )}
-            Descargar PDF
-          </Button>
-          {!marked && (
-            <Button size="sm" onClick={handleMarkComplete}>
-              <CheckCircle className="h-4 w-4 mr-1.5" />
-              Marcar como visto
-            </Button>
-          )}
+        <p className="text-sm text-muted-foreground">
+          Has completado exitosamente este módulo
+        </p>
+      </div>
+
+      {/* Certificate card */}
+      <div className="relative mx-auto max-w-2xl">
+        {/* Outer golden glow */}
+        <div className="absolute -inset-1 bg-gradient-to-br from-amber-200/40 via-yellow-100/30 to-amber-200/40 rounded-2xl blur-sm" />
+
+        {/* Certificate body */}
+        <div className="relative bg-gradient-to-br from-amber-50/80 via-white to-amber-50/60 border-2 border-amber-300/60 rounded-xl p-8 shadow-lg">
+          {/* Inner decorative border */}
+          <div className="border border-amber-200/50 rounded-lg p-6 text-center space-y-5">
+
+            {/* Trophy icon */}
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center shadow-md">
+                <Trophy className="h-8 w-8 text-white" />
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <h2 className="text-xl font-bold tracking-widest text-foreground uppercase">
+                Certificado de Finalización
+              </h2>
+              <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent mx-auto mt-3" />
+            </div>
+
+            {/* Certifies */}
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+              Se certifica que
+            </p>
+
+            {/* Student name */}
+            <h3 className="text-3xl font-serif italic text-foreground">
+              {userName}
+            </h3>
+
+            {/* Course */}
+            <div>
+              <p className="text-sm text-muted-foreground">
+                ha completado satisfactoriamente el curso
+              </p>
+              <p className="text-lg font-semibold text-foreground mt-1">
+                «{titulo}»
+              </p>
+            </div>
+
+            {/* Details row */}
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <div className="text-center">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Calificación</span>
+                <span className="font-bold text-lg text-amber-600">100%</span>
+              </div>
+              <div className="w-px h-8 bg-amber-300/50" />
+              <div className="text-center">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Fecha</span>
+                <span className="font-medium text-foreground">{fechaCompletado}</span>
+              </div>
+            </div>
+
+            {/* Seal */}
+            <div className="flex justify-center">
+              <div className="w-14 h-14 rounded-full border-2 border-amber-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full border border-amber-300 flex items-center justify-center">
+                  <Award className="h-5 w-5 text-amber-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Verification code */}
+            <p className="text-[10px] text-muted-foreground font-mono tracking-widest">
+              Código: {codigoVerificacion}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Certificate preview */}
-      {renderedHtml ? (
-        <>
-          {plantilla?.estilos_css && (
-            <style dangerouslySetInnerHTML={{ __html: plantilla.estilos_css }} />
+      {/* Action buttons */}
+      <div className="flex items-center justify-center gap-3">
+        {marked && (
+          <Badge className="gap-1 bg-green-100 text-green-800 border-green-200">
+            <CheckCircle className="h-3 w-3" />
+            Visto
+          </Badge>
+        )}
+        <Button size="sm" variant="outline" onClick={handleDownload} disabled={downloading}>
+          {downloading ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4 mr-1.5" />
           )}
-          <div
-            ref={certRef}
-            className="border rounded-xl overflow-hidden shadow-sm bg-white"
-            dangerouslySetInnerHTML={{ __html: renderedHtml }}
-          />
-        </>
-      ) : (
-        <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-          No se pudo renderizar la plantilla.
-        </div>
-      )}
+          Descargar PDF
+        </Button>
+        {!marked && (
+          <Button size="sm" onClick={handleMarkComplete}>
+            <CheckCircle className="h-4 w-4 mr-1.5" />
+            Marcar como visto
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
