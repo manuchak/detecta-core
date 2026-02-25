@@ -22,6 +22,7 @@ export function CertificadoPlantillaViewer({
   onComplete,
 }: CertificadoPlantillaViewerProps) {
   const [userName, setUserName] = useState('');
+  const [calificacion, setCalificacion] = useState(100);
   const [downloading, setDownloading] = useState(false);
   const [marked, setMarked] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -40,11 +41,11 @@ export function CertificadoPlantillaViewer({
         if (uid) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('display_name, nombre_completo')
+            .select('display_name')
             .eq('id', uid)
             .maybeSingle();
           if (profile) {
-            nombre = (profile as any).display_name || (profile as any).nombre_completo || nombre;
+            nombre = (profile as any).display_name || nombre;
           }
         }
         setUserName(nombre);
@@ -54,6 +55,18 @@ export function CertificadoPlantillaViewer({
         });
         setFechaCompletado(fecha);
         setCodigoVerificacion(inscripcionId?.slice(0, 8).toUpperCase() ?? 'N/A');
+
+        // Load calificacion real from inscripcion
+        if (inscripcionId) {
+          const { data: inscripcion } = await supabase
+            .from('lms_inscripciones')
+            .select('calificacion_final, progreso_porcentaje')
+            .eq('id', inscripcionId)
+            .maybeSingle();
+          if (inscripcion) {
+            setCalificacion((inscripcion as any).calificacion_final ?? (inscripcion as any).progreso_porcentaje ?? 100);
+          }
+        }
 
         // Load plantilla name
         const { data: plantillaData } = await supabase
@@ -86,7 +99,7 @@ export function CertificadoPlantillaViewer({
       const pdfData: CertificatePDFData = {
         nombreUsuario: userName,
         tituloCurso: titulo,
-        calificacion: 100,
+        calificacion,
         fechaCompletado,
         codigoVerificacion,
         logoBase64,
@@ -185,7 +198,7 @@ export function CertificadoPlantillaViewer({
             <div className="flex items-center justify-center gap-6 text-sm">
               <div className="text-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Calificación</span>
-                <span className="font-bold text-lg text-amber-600">100%</span>
+                <span className="font-bold text-lg text-amber-600">{calificacion}%</span>
               </div>
               <div className="w-px h-8 bg-amber-300/50" />
               <div className="text-center">
