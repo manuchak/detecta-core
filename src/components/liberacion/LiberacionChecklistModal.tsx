@@ -143,7 +143,7 @@ const LiberacionChecklistModal = ({
         lib.documentacion_licencia ||
         lib.documentacion_antecedentes ||
         lib.documentacion_domicilio ||
-        lib.documentacion_curp ||
+        
         lib.documentacion_rfc ||
         lib.psicometricos_completado ||
         lib.toxicologicos_completado ||
@@ -175,7 +175,7 @@ const LiberacionChecklistModal = ({
       documentacion_licencia: tiposValidos.includes('licencia_frente') || tiposValidos.includes('licencia_reverso'),
       documentacion_antecedentes: tiposValidos.includes('carta_antecedentes'),
       documentacion_domicilio: tiposValidos.includes('comprobante_domicilio'),
-      documentacion_curp: tiposValidos.includes('curp'),
+      
       documentacion_rfc: tiposValidos.includes('rfc'),
       count: documentosValidos.length
     };
@@ -256,7 +256,7 @@ const LiberacionChecklistModal = ({
         documentacion_licencia: prev.liberacion.documentacion_licencia || docPrefillData.documentacion_licencia,
         documentacion_antecedentes: prev.liberacion.documentacion_antecedentes || docPrefillData.documentacion_antecedentes,
         documentacion_domicilio: prev.liberacion.documentacion_domicilio || docPrefillData.documentacion_domicilio,
-        documentacion_curp: prev.liberacion.documentacion_curp || docPrefillData.documentacion_curp,
+        
         documentacion_rfc: prev.liberacion.documentacion_rfc || docPrefillData.documentacion_rfc,
       }
     }));
@@ -449,9 +449,6 @@ const LiberacionChecklistModal = ({
     }
     if (!liberacion.documentacion_rfc) {
       green.push('RFC faltante');
-    }
-    if (!liberacion.documentacion_curp) {
-      green.push('CURP faltante');
     }
 
     const canLiberate = red.length === 0;
@@ -716,7 +713,7 @@ const LiberacionChecklistModal = ({
                     { field: 'documentacion_licencia', label: 'Licencia' },
                     { field: 'documentacion_antecedentes', label: 'Antecedentes penales' },
                     { field: 'documentacion_domicilio', label: 'Comprobante domicilio' },
-                    { field: 'documentacion_curp', label: 'CURP' },
+                    
                     { field: 'documentacion_rfc', label: 'RFC' },
                   ].map(({ field, label }) => (
                     <div key={field} className="flex items-center space-x-2">
