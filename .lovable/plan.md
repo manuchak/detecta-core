@@ -1,108 +1,91 @@
 
 
-# Editor de Texto Enriquecido (WYSIWYG) para LMS
+# Fix Build Error + Rediseno Visual de Quiz (estilo Genially)
 
-## Problema
+## Parte 1: Fix del Build Error (TextStyle import)
 
-Actualmente, el editor de contenido tipo "texto_enriquecido" es un simple `<Textarea>` donde el creador del curso debe escribir HTML crudo. Esto produce textos planos sin formato visual, lo que es antipedagogico y limita completamente al creador de cursos.
+El error se debe a que `@tiptap/extension-text-style` v3 no tiene export default -- `TextStyle` y `Color` son named exports.
 
-## Solucion
+### Archivo: `src/components/lms/admin/RichTextEditor.tsx`
 
-Integrar **TipTap** (editor WYSIWYG basado en ProseMirror, el estandar de la industria para React) con una barra de herramientas completa para formateo visual.
-
-## Dependencias a instalar
-
-- `@tiptap/react` - Core del editor para React
-- `@tiptap/starter-kit` - Extensiones basicas (bold, italic, headings, lists, blockquotes, code)
-- `@tiptap/extension-underline` - Subrayado
-- `@tiptap/extension-text-align` - Alineacion de texto
-- `@tiptap/extension-image` - Insercion de imagenes
-- `@tiptap/extension-link` - Hipervinculos
-- `@tiptap/extension-text-style` - Estilos de texto (color, font)
-- `@tiptap/extension-color` - Colores de texto
-- `@tiptap/extension-highlight` - Resaltado/marcador
-- `@tiptap/extension-table` - Tablas
-- `@tiptap/extension-table-row` - Filas de tabla
-- `@tiptap/extension-table-cell` - Celdas de tabla
-- `@tiptap/extension-table-header` - Headers de tabla
-- `@tiptap/extension-placeholder` - Placeholder text
-
-## Cambios
-
-### 1. Nuevo componente: `src/components/lms/admin/RichTextEditor.tsx`
-
-Componente reutilizable que encapsula TipTap con una barra de herramientas con los siguientes controles:
-
+Cambiar las lineas 7-8:
 ```text
-Barra de herramientas:
-[H1] [H2] [H3] | [B] [I] [U] [S] | [Color] [Highlight] |
-[Align L] [Align C] [Align R] | [UL] [OL] [Blockquote] |
-[Link] [Imagen] [Tabla] [Separador] | [Limpiar formato]
+// Antes:
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+
+// Despues:
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-text-style';
 ```
 
-Funcionalidades clave:
-- **Tipografia**: H1, H2, H3, parrafos
-- **Formato inline**: Negrita, cursiva, subrayado, tachado
-- **Color**: Color de texto y resaltado/marcador
-- **Alineacion**: Izquierda, centro, derecha
-- **Listas**: Con vinetas y numeradas
-- **Bloques**: Citas (blockquote), separador horizontal
-- **Media**: Insertar imagenes por URL o subir al storage (reutilizando MediaUploader)
-- **Links**: Insertar/editar hipervinculos
-- **Tablas**: Insertar tablas con controles de filas/columnas
-- **Boton IA**: "Generar con IA" integrado en la barra
+Se elimina la dependencia de `@tiptap/extension-color` (que solo re-exporta desde text-style).
 
-El componente recibe `value` (HTML string) y `onChange` (callback con HTML).
+---
 
-### 2. Modificar `ContentEditor.tsx` (wizard de creacion)
+## Parte 2: Rediseno Visual del Quiz del Alumno (estilo Genially)
 
-Reemplazar el `<Textarea>` del caso `texto_enriquecido` (lineas 198-226) por el nuevo `<RichTextEditor>`:
+Genially se destaca por una experiencia de quiz visualmente inmersiva: fondos con gradientes, tarjetas de opciones grandes y coloridas con letras (A, B, C, D), animaciones de feedback, y un diseno centrado en la pantalla completa. Nuestro quiz actual es funcional pero plano -- tarjetas blancas con bordes grises y radio buttons pequenos.
 
-```tsx
-// Antes: <Textarea value={html} onChange={...} />
-// Despues: <RichTextEditor value={html} onChange={setHtml} onGenerateAI={handleGenerateText} aiLoading={aiLoading} />
-```
+### Principios de diseno a replicar de Genially:
+- **Opciones como tarjetas grandes** con letras identificadoras (A, B, C, D) en circulos de color
+- **Feedback visual inmediato** con animaciones de check/X
+- **Barra de progreso mas visual** con colores del tema
+- **Pantalla de resultados gamificada** con animaciones y confetti visual
+- **Tipografia mas grande y legible** para contexto pedagogico
+- **Gradientes y colores** en lugar de bordes grises planos
 
-### 3. Modificar `ContenidoExpandedEditor.tsx` (editor de curso existente)
+### Archivos a modificar:
 
-Reemplazar el `<Textarea>` del caso `texto_enriquecido` (lineas 259-276) por el mismo `<RichTextEditor>`:
+#### 2A. `MultipleChoiceQuestion.tsx` - Rediseno completo
+- Opciones como tarjetas grandes en grid 2x2 (si hay 4 opciones) o lista
+- Cada opcion con letra identificadora (A, B, C, D) en circulo de color unico
+- Colores distintos por opcion: Azul (A), Naranja (B), Verde (C), Morado (D)
+- Al hover: efecto de elevacion (shadow + scale)
+- Al seleccionar: borde solido del color de la opcion + fondo suave
+- En review: animacion de shake para incorrecta, pulse para correcta
+- Tamano de texto mas grande (text-base en lugar de text-sm)
 
-```tsx
-// Antes: <Textarea value={textoHtml} onChange={...} className="font-mono" />
-// Despues: <RichTextEditor value={textoHtml} onChange={setTextoHtml} onGenerateAI={handleGenerateText} aiLoading={aiLoading} />
-```
+#### 2B. `TrueFalseQuestion.tsx` - Mejora visual
+- Botones mas grandes con iconos prominentes
+- Gradientes suaves en los botones
+- Animaciones de transicion mas suaves
 
-### 4. Actualizar `TextoEnriquecidoViewer.tsx` (visor del alumno)
+#### 2C. `QuizComponent.tsx` - Mejoras de layout
+- Pregunta con numero grande y prominente (ej: "Pregunta 3 de 10")
+- Indicadores de navegacion con colores mas vivos
+- Barra de progreso con gradiente
+- Max-width ampliado a 3xl para mas espacio
+- Puntos mostrados como badge visual
+- Card con fondo con gradiente sutil en el header
 
-Mejorar los estilos CSS del viewer para soportar los nuevos elementos que TipTap genera:
-- Agregar estilos para `text-align` (center, right)
-- Agregar estilos para `<u>` (subrayado), `<s>` (tachado)
-- Agregar estilos para `<mark>` (resaltado)
-- Mejorar estilos de tablas (nested selectors en lugar de `>` directo)
-- Mejorar el espaciado general para mejor legibilidad pedagogica
+#### 2D. `QuizResults.tsx` - Pantalla gamificada
+- Score con animacion de conteo (de 0 a N%)
+- Circulo de progreso SVG animado en lugar del Progress bar lineal
+- Estrellas o iconografia segun el puntaje (1-3 estrellas)
+- Colores mas vivos y celebratorios
+- Stats en tarjetas con iconos de color
 
-### 5. Estilos del editor en `src/index.css`
+#### 2E. `QuestionRenderer.tsx`
+- Sin cambios estructurales, solo pasa los props
 
-Agregar estilos base para el area editable de TipTap (`.ProseMirror`):
-- Estilos de tipografia consistentes con el viewer
-- Focus ring
-- Placeholder styling
-- Min-height del area editable
+---
 
 ## Archivos a crear/modificar
 
 | Archivo | Accion |
 |---|---|
-| `src/components/lms/admin/RichTextEditor.tsx` | **Nuevo** - Editor WYSIWYG con TipTap |
-| `src/components/lms/admin/wizard/ContentEditor.tsx` | Reemplazar Textarea por RichTextEditor |
-| `src/components/lms/admin/editor/ContenidoExpandedEditor.tsx` | Reemplazar Textarea por RichTextEditor |
-| `src/components/lms/TextoEnriquecidoViewer.tsx` | Mejorar estilos para nuevo HTML |
-| `src/index.css` | Estilos base de ProseMirror |
+| `src/components/lms/admin/RichTextEditor.tsx` | Fix imports de TextStyle/Color |
+| `src/components/lms/quiz/MultipleChoiceQuestion.tsx` | Rediseno con tarjetas coloridas A/B/C/D |
+| `src/components/lms/quiz/TrueFalseQuestion.tsx` | Mejora visual con gradientes |
+| `src/components/lms/QuizComponent.tsx` | Layout mejorado, header con gradiente, pregunta prominente |
+| `src/components/lms/quiz/QuizResults.tsx` | Pantalla gamificada con circulo SVG animado y estrellas |
 
-## Notas
+## Orden de implementacion
 
-- TipTap genera HTML estandar que es compatible con el viewer existente (usa `dangerouslySetInnerHTML`)
-- La generacion con IA sigue funcionando igual: genera HTML que se inyecta en el editor
-- Las imagenes insertadas pueden ser por URL o subidas al storage existente del proyecto
-- No se requieren cambios en la base de datos: el campo `contenido->html` sigue siendo un string HTML
+1. Fix build error (RichTextEditor imports)
+2. MultipleChoiceQuestion rediseno
+3. TrueFalseQuestion mejoras
+4. QuizComponent layout
+5. QuizResults gamificacion
 
