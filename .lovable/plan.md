@@ -1,89 +1,24 @@
 
 
-# Mejorar Labels de Tramos Carreteros en el Mapa
+# Eliminar CURP del Checklist de Documentacion de Liberacion
 
-## Estado actual
+## Cambios
 
-La capa `segments-labels` ya existe (lineas 172-187 de RiskZonesMap.tsx) pero tiene styling basico:
-- `text-size: 10` fijo (muy pequeno a zoom bajo, no escala)
-- `symbol-placement: 'line-center'` (solo un label por linea, al centro)
-- Halo negro de 1px (poco contraste en mapa oscuro)
-- `text-allow-overlap: false` (correcto, evita colision)
-- Desactivada por defecto (`labels: false` en el estado inicial)
+Se eliminara el campo CURP de todos los puntos donde se usa en el flujo de liberacion. El campo seguira existiendo en la base de datos pero no se mostrara ni se contabilizara en la UI.
 
-El toggle "Etiquetas" ya existe en el panel de capas.
+### 1. `src/types/liberacion.ts`
+- Eliminar la propiedad `documentacion_curp` de la interfaz `CustodioLiberacion` (o marcarla como opcional/deprecada).
 
-## Mejoras propuestas
+### 2. `src/components/liberacion/LiberacionChecklistModal.tsx`
+- **Linea ~146**: Quitar `lib.documentacion_curp` de la validacion de datos pre-existentes.
+- **Linea ~178**: Quitar `documentacion_curp: tiposValidos.includes('curp')` del prefill de documentos.
+- **Linea ~259**: Quitar `documentacion_curp` del merge de datos.
+- **Lineas ~453-455**: Quitar el gate verde "CURP faltante" de la validacion de liberacion.
+- **Linea ~719**: Quitar la fila `{ field: 'documentacion_curp', label: 'CURP' }` del checklist visual.
 
-### Archivo: `src/components/security/map/RiskZonesMap.tsx`
+### 3. `src/hooks/useCustodioLiberacion.ts`
+- **Linea ~370**: Quitar `liberacion.documentacion_curp` del array de calculo de progreso de documentacion. El total de documentos pasara de 6 a 5.
 
-**1. Labels con zoom interpolado y mejor legibilidad**
-
-Reemplazar la capa `segments-labels` actual con una version mejorada:
-
-```tsx
-m.addLayer({
-  id: 'segments-labels',
-  type: 'symbol',
-  source: 'segments',
-  layout: {
-    'symbol-placement': 'line',           // A lo largo de la linea (no solo centro)
-    'text-field': ['get', 'name'],
-    'text-size': [
-      'interpolate', ['linear'], ['zoom'],
-      5, 8,     // Zoom nacional: 8px
-      7, 10,    // Zoom regional: 10px
-      9, 12,    // Zoom estatal: 12px
-      12, 14,   // Zoom local: 14px
-    ],
-    'text-allow-overlap': false,
-    'text-ignore-placement': false,
-    'text-anchor': 'center',
-    'text-offset': [0, -1],               // Separar del trazo
-    'text-max-angle': 30,                 // Limitar curvatura del texto
-    'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
-    'symbol-spacing': 250,                // Repetir cada 250px para tramos largos
-  },
-  paint: {
-    'text-color': '#ffffff',
-    'text-halo-color': 'rgba(0, 0, 0, 0.85)',
-    'text-halo-width': 2,                 // Halo mas grueso para contraste
-    'text-halo-blur': 1,
-  },
-});
-```
-
-**2. Activar labels por defecto**
-
-Cambiar el estado inicial en `RouteRiskIntelligence.tsx`:
-
-```tsx
-const [layers, setLayers] = useState<LayerVisibility>({
-  segments: true,
-  pois: true,
-  safePoints: true,
-  deadZones: true,
-  labels: true,  // Cambiar de false a true
-});
-```
-
-## Cambios clave vs actual
-
-| Propiedad | Antes | Despues |
-|---|---|---|
-| `symbol-placement` | `line-center` (1 label) | `line` (repetido a lo largo) |
-| `text-size` | `10` fijo | Interpolacion 8-14px segun zoom |
-| `text-halo-width` | `1` | `2` con blur |
-| `text-offset` | ninguno | `[0, -1]` (separado del trazo) |
-| `text-font` | default | DIN Pro Medium (Mapbox nativo) |
-| `symbol-spacing` | default | `250` (repetir en tramos largos) |
-| `text-max-angle` | ninguno | `30` (texto mas recto) |
-| Labels activos por defecto | No | Si |
-
-## Archivos a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/components/security/map/RiskZonesMap.tsx` | Mejorar styling de capa `segments-labels` |
-| `src/components/security/routes/RouteRiskIntelligence.tsx` | Cambiar `labels: false` a `labels: true` |
+### Nota
+La columna en la base de datos (`documentacion_curp`) no se elimina, simplemente se ignora en la UI. Esto evita migraciones y mantiene compatibilidad.
 
