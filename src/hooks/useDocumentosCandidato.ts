@@ -11,7 +11,11 @@ export type TipoDocumento =
   | 'curp' 
   | 'rfc' 
   | 'comprobante_domicilio'
-  | 'carta_antecedentes';
+  | 'carta_antecedentes'
+  | 'portacion_arma'
+  | 'registro_arma';
+
+export type TipoOperativoDoc = 'custodio' | 'armado';
 
 export type EstadoValidacion = 'pendiente' | 'procesando' | 'valido' | 'invalido' | 'requiere_revision';
 
@@ -52,10 +56,12 @@ export const DOCUMENTO_LABELS: Record<TipoDocumento, string> = {
   curp: 'CURP',
   rfc: 'RFC / Constancia de Situación Fiscal',
   comprobante_domicilio: 'Comprobante de Domicilio',
-  carta_antecedentes: 'Carta de Antecedentes No Penales'
+  carta_antecedentes: 'Carta de Antecedentes No Penales',
+  portacion_arma: 'Licencia de Portación de Arma',
+  registro_arma: 'Registro del Arma'
 };
 
-export const DOCUMENTOS_REQUERIDOS: TipoDocumento[] = [
+export const DOCUMENTOS_REQUERIDOS_CUSTODIO: TipoDocumento[] = [
   'ine_frente',
   'ine_reverso',
   'licencia_frente',
@@ -65,6 +71,24 @@ export const DOCUMENTOS_REQUERIDOS: TipoDocumento[] = [
   'comprobante_domicilio',
   'carta_antecedentes'
 ];
+
+export const DOCUMENTOS_REQUERIDOS_ARMADO: TipoDocumento[] = [
+  'ine_frente',
+  'ine_reverso',
+  'portacion_arma',
+  'registro_arma',
+  'curp',
+  'rfc',
+  'comprobante_domicilio',
+  'carta_antecedentes'
+];
+
+/** @deprecated Use DOCUMENTOS_REQUERIDOS_CUSTODIO or DOCUMENTOS_REQUERIDOS_ARMADO */
+export const DOCUMENTOS_REQUERIDOS: TipoDocumento[] = DOCUMENTOS_REQUERIDOS_CUSTODIO;
+
+export function getDocumentosRequeridos(tipoOperativo: TipoOperativoDoc = 'custodio'): TipoDocumento[] {
+  return tipoOperativo === 'armado' ? DOCUMENTOS_REQUERIDOS_ARMADO : DOCUMENTOS_REQUERIDOS_CUSTODIO;
+}
 
 export function useDocumentosCandidato(candidatoId: string) {
   return useQuery({
@@ -255,15 +279,16 @@ export function useDeleteDocumento() {
   });
 }
 
-export function useDocumentosProgress(candidatoId: string) {
+export function useDocumentosProgress(candidatoId: string, tipoOperativo: TipoOperativoDoc = 'custodio') {
   const { data: documentos } = useDocumentosCandidato(candidatoId);
+  const listaRequeridos = getDocumentosRequeridos(tipoOperativo);
 
   const documentosValidos = documentos?.filter(d => d.estado_validacion === 'valido') || [];
-  const totalRequeridos = DOCUMENTOS_REQUERIDOS.length;
-  const completados = documentosValidos.length;
+  const totalRequeridos = listaRequeridos.length;
+  const completados = documentosValidos.filter(d => listaRequeridos.includes(d.tipo_documento)).length;
   const porcentaje = Math.round((completados / totalRequeridos) * 100);
 
-  const documentosFaltantes = DOCUMENTOS_REQUERIDOS.filter(tipo => 
+  const documentosFaltantes = listaRequeridos.filter(tipo => 
     !documentosValidos.some(d => d.tipo_documento === tipo)
   );
 

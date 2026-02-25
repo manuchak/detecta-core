@@ -61,11 +61,12 @@ interface Props {
   candidatoId: string;
   candidatoNombre: string;
   currentState?: string;
+  tipoOperativo?: 'custodio' | 'armado';
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, currentState, isOpen, onClose }: Props) {
+export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, currentState, tipoOperativo = 'custodio', isOpen, onClose }: Props) {
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const { data: interviews, isLoading: loadingInterviews } = useStructuredInterviews(candidatoId);
   const { data: riskChecklist, isLoading: loadingRisk } = useRiskChecklist(candidatoId);
@@ -281,7 +282,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           </TabsContent>
 
           <TabsContent value="documents" className="mt-4">
-            <DocumentsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
+            <DocumentsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} tipoOperativo={tipoOperativo} />
           </TabsContent>
 
           <TabsContent value="contracts" className="mt-4">

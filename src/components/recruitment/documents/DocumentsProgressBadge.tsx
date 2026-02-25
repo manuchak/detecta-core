@@ -1,14 +1,15 @@
 import { Badge } from '@/components/ui/badge';
 import { FileText, CheckCircle } from 'lucide-react';
-import { useDocumentosProgress } from '@/hooks/useDocumentosCandidato';
+import { useDocumentosProgress, TipoOperativoDoc } from '@/hooks/useDocumentosCandidato';
 
 interface Props {
   candidatoId: string;
   size?: 'sm' | 'default';
+  tipoOperativo?: TipoOperativoDoc;
 }
 
-export function DocumentsProgressBadge({ candidatoId, size = 'default' }: Props) {
-  const { completados, totalRequeridos, isComplete } = useDocumentosProgress(candidatoId);
+export function DocumentsProgressBadge({ candidatoId, size = 'default', tipoOperativo = 'custodio' }: Props) {
+  const { completados, totalRequeridos, isComplete } = useDocumentosProgress(candidatoId, tipoOperativo);
 
   if (size === 'sm') {
     return (

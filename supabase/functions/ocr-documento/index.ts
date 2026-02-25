@@ -69,6 +69,27 @@ Para Carta de Antecedentes No Penales:
 - resultado: "SIN ANTECEDENTES" o descripción
 - autoridad_emisora: Autoridad que emite
 
+Para Licencia de Portación de Arma:
+- nombre_completo: Nombre del titular
+- numero_permiso: Número de permiso o licencia
+- tipo_arma: Tipo de arma autorizada (corta, larga, etc.)
+- calibre: Calibre autorizado
+- fecha_expedicion: Fecha de expedición
+- fecha_vencimiento: Fecha de vencimiento
+- autoridad_emisora: SEDENA u otra autoridad
+- modalidad: Individual o colectiva
+
+Para Registro de Arma:
+- nombre_completo: Nombre del titular del registro
+- numero_registro: Número de registro del arma
+- marca_arma: Marca del arma
+- modelo_arma: Modelo del arma
+- calibre: Calibre del arma
+- numero_serie_arma: Número de serie del arma
+- tipo_arma: Tipo (pistola, revólver, etc.)
+- fecha_registro: Fecha de registro
+- autoridad_emisora: SEDENA u otra autoridad
+
 INSTRUCCIONES:
 1. Analiza la imagen cuidadosamente
 2. Extrae SOLO los campos visibles en el documento
@@ -79,7 +100,7 @@ INSTRUCCIONES:
 
 Responde ÚNICAMENTE con un JSON válido con esta estructura:
 {
-  "tipo_documento_detectado": "ine|licencia|curp|comprobante_domicilio|rfc|carta_antecedentes",
+  "tipo_documento_detectado": "ine|licencia|curp|comprobante_domicilio|rfc|carta_antecedentes|portacion_arma|registro_arma",
   "datos_extraidos": { ... campos según tipo ... },
   "confianza": 0-100,
   "observaciones": "notas sobre legibilidad o problemas detectados"

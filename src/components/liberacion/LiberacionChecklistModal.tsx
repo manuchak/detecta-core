@@ -169,10 +169,13 @@ const LiberacionChecklistModal = ({
     if (documentosValidos.length === 0) return null;
 
     const tiposValidos = documentosValidos.map(d => d.tipo_documento);
+    const esArmado = liberacion.tipo_operativo === 'armado';
     
     return {
       documentacion_ine: tiposValidos.includes('ine_frente') || tiposValidos.includes('ine_reverso'),
-      documentacion_licencia: tiposValidos.includes('licencia_frente') || tiposValidos.includes('licencia_reverso'),
+      documentacion_licencia: esArmado 
+        ? (tiposValidos.includes('portacion_arma') || tiposValidos.includes('registro_arma'))
+        : (tiposValidos.includes('licencia_frente') || tiposValidos.includes('licencia_reverso')),
       documentacion_antecedentes: tiposValidos.includes('carta_antecedentes'),
       documentacion_domicilio: tiposValidos.includes('comprobante_domicilio'),
       
