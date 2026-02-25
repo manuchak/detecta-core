@@ -13,7 +13,7 @@ export function RouteRiskIntelligence() {
     pois: true,
     safePoints: true,
     deadZones: true,
-    labels: false,
+    labels: true,
   });
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
