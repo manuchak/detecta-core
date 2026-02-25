@@ -142,6 +142,13 @@ export default function CursoViewer() {
       marcarCompletado.mutate({ 
         contenidoId: contenidoActualId,
         tipoContenido: contenidoActual.tipo as 'video' | 'documento' | 'texto_enriquecido' | 'embed' | 'quiz'
+      }, {
+        onSuccess: () => {
+          // Auto-avanzar al siguiente contenido
+          if (hasNext) {
+            setContenidoActualId(todosLosContenidos[indiceActual + 1].id);
+          }
+        }
       });
     }
   };
