@@ -1812,69 +1812,144 @@ export type Database = {
       }
       candidatos_custodios: {
         Row: {
+          aseguradora: string | null
+          banco: string | null
+          beneficiario: string | null
           calificacion_inicial: number | null
+          clabe: string | null
+          clave_vehicular: string | null
+          color_vehiculo: string | null
           created_at: string | null
+          direccion: string | null
           disponibilidad_horarios: Json | null
           email: string | null
           estado_detallado: string | null
           estado_proceso: string | null
           expectativa_ingresos: number | null
           experiencia_seguridad: boolean | null
+          factura_emitida_a: string | null
           fecha_contacto: string | null
+          fecha_factura: string | null
+          fecha_poliza: string | null
           fuente_reclutamiento: string | null
           id: string
           inversion_inicial_disponible: number | null
           is_test: boolean | null
+          licencia_expedida_por: string | null
+          marca_vehiculo: string | null
+          modelo_vehiculo: string | null
           nombre: string
+          nombre_propietario_vehiculo: string | null
           notas_recruiter: string | null
+          numero_cuenta: string | null
+          numero_factura: string | null
+          numero_licencia: string | null
+          numero_motor: string | null
+          numero_poliza: string | null
+          numero_serie: string | null
+          placas_vehiculo: string | null
+          poliza_emitida_a: string | null
+          tarjeta_circulacion: string | null
           telefono: string | null
+          tipo_poliza: string | null
           ubicacion_residencia: unknown
           updated_at: string | null
           vehiculo_propio: boolean | null
+          verificacion_vehicular: string | null
           zona_preferida_id: string | null
         }
         Insert: {
+          aseguradora?: string | null
+          banco?: string | null
+          beneficiario?: string | null
           calificacion_inicial?: number | null
+          clabe?: string | null
+          clave_vehicular?: string | null
+          color_vehiculo?: string | null
           created_at?: string | null
+          direccion?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null
           estado_detallado?: string | null
           estado_proceso?: string | null
           expectativa_ingresos?: number | null
           experiencia_seguridad?: boolean | null
+          factura_emitida_a?: string | null
           fecha_contacto?: string | null
+          fecha_factura?: string | null
+          fecha_poliza?: string | null
           fuente_reclutamiento?: string | null
           id?: string
           inversion_inicial_disponible?: number | null
           is_test?: boolean | null
+          licencia_expedida_por?: string | null
+          marca_vehiculo?: string | null
+          modelo_vehiculo?: string | null
           nombre: string
+          nombre_propietario_vehiculo?: string | null
           notas_recruiter?: string | null
+          numero_cuenta?: string | null
+          numero_factura?: string | null
+          numero_licencia?: string | null
+          numero_motor?: string | null
+          numero_poliza?: string | null
+          numero_serie?: string | null
+          placas_vehiculo?: string | null
+          poliza_emitida_a?: string | null
+          tarjeta_circulacion?: string | null
           telefono?: string | null
+          tipo_poliza?: string | null
           ubicacion_residencia?: unknown
           updated_at?: string | null
           vehiculo_propio?: boolean | null
+          verificacion_vehicular?: string | null
           zona_preferida_id?: string | null
         }
         Update: {
+          aseguradora?: string | null
+          banco?: string | null
+          beneficiario?: string | null
           calificacion_inicial?: number | null
+          clabe?: string | null
+          clave_vehicular?: string | null
+          color_vehiculo?: string | null
           created_at?: string | null
+          direccion?: string | null
           disponibilidad_horarios?: Json | null
           email?: string | null
           estado_detallado?: string | null
           estado_proceso?: string | null
           expectativa_ingresos?: number | null
           experiencia_seguridad?: boolean | null
+          factura_emitida_a?: string | null
           fecha_contacto?: string | null
+          fecha_factura?: string | null
+          fecha_poliza?: string | null
           fuente_reclutamiento?: string | null
           id?: string
           inversion_inicial_disponible?: number | null
           is_test?: boolean | null
+          licencia_expedida_por?: string | null
+          marca_vehiculo?: string | null
+          modelo_vehiculo?: string | null
           nombre?: string
+          nombre_propietario_vehiculo?: string | null
           notas_recruiter?: string | null
+          numero_cuenta?: string | null
+          numero_factura?: string | null
+          numero_licencia?: string | null
+          numero_motor?: string | null
+          numero_poliza?: string | null
+          numero_serie?: string | null
+          placas_vehiculo?: string | null
+          poliza_emitida_a?: string | null
+          tarjeta_circulacion?: string | null
           telefono?: string | null
+          tipo_poliza?: string | null
           ubicacion_residencia?: unknown
           updated_at?: string | null
           vehiculo_propio?: boolean | null
+          verificacion_vehicular?: string | null
           zona_preferida_id?: string | null
         }
         Relationships: [
@@ -2844,6 +2919,7 @@ export type Database = {
           created_at: string | null
           datos_interpolados: Json | null
           enviado_por: string | null
+          es_documento_fisico: boolean | null
           estado: string | null
           fecha_envio: string | null
           firma_data_url: string | null
@@ -2868,6 +2944,7 @@ export type Database = {
           created_at?: string | null
           datos_interpolados?: Json | null
           enviado_por?: string | null
+          es_documento_fisico?: boolean | null
           estado?: string | null
           fecha_envio?: string | null
           firma_data_url?: string | null
@@ -2892,6 +2969,7 @@ export type Database = {
           created_at?: string | null
           datos_interpolados?: Json | null
           enviado_por?: string | null
+          es_documento_fisico?: boolean | null
           estado?: string | null
           fecha_envio?: string | null
           firma_data_url?: string | null
