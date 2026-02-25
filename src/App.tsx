@@ -122,6 +122,7 @@ const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoEditar'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
+import LMSZoomReset from '@/components/lms/LMSZoomReset';
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
 const CustomerSuccessPage = lazy(() => import('@/pages/CustomerSuccess/CustomerSuccessPage'));
 const StarMapPage = lazy(() => import('@/pages/StarMap/StarMapPage'));
@@ -980,7 +981,7 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <UnifiedLayout>
-                        <LMSDashboard />
+                        <LMSZoomReset><LMSDashboard /></LMSZoomReset>
                       </UnifiedLayout>
                     </ProtectedRoute>
                   }
@@ -991,7 +992,7 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <UnifiedLayout>
-                        <CursoViewer />
+                        <LMSZoomReset><CursoViewer /></LMSZoomReset>
                       </UnifiedLayout>
                     </ProtectedRoute>
                   }
@@ -1003,19 +1004,19 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
-                          <LMSAdmin />
+                          <LMSZoomReset><LMSAdmin /></LMSZoomReset>
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
-              />
+                />
                 <Route
                   path="/lms/reportes"
                   element={
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
-                          <LMSReportes />
+                          <LMSZoomReset><LMSReportes /></LMSZoomReset>
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
@@ -1029,7 +1030,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
-                          <LMSAdminCursoNuevo />
+                          <LMSZoomReset><LMSAdminCursoNuevo /></LMSZoomReset>
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
@@ -1041,7 +1042,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
-                          <LMSCursoDetalle />
+                          <LMSZoomReset><LMSCursoDetalle /></LMSZoomReset>
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
@@ -1053,7 +1054,7 @@ function App() {
                     <ProtectedRoute>
                       <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
                         <UnifiedLayout>
-                          <LMSAdminCursoEditar />
+                          <LMSZoomReset><LMSAdminCursoEditar /></LMSZoomReset>
                         </UnifiedLayout>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
