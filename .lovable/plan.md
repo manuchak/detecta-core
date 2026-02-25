@@ -1,110 +1,46 @@
 
 
-# Rediseno del Certificado: Vista en App + PDF Nativo
+# Fix: Certificado muestra 100% en vez de la calificacion real
 
 ## Problema
 
-El certificado actual tiene dos problemas criticos:
+La calificacion en el certificado esta **hardcodeada en 100%** en dos lugares del componente `CertificadoPlantillaViewer.tsx`:
+- Linea 89: `calificacion: 100` (para el PDF)
+- Linea 188: texto `100%` (para la vista en pantalla)
 
-1. **Vista en la app**: Muestra texto plano sin formato ("Certificado de Finalizacion / admin / Certificado Estandar..."). No transmite ningun sentido de logro ni celebracion.
-2. **PDF descargable**: Usa `html2canvas + jsPDF` (screenshot del HTML), lo cual genera PDFs de baja calidad. No aprovecha el sistema de diseno PDF nativo (`@react-pdf/renderer`) que ya existe en el proyecto.
+El componente nunca consulta la calificacion real del alumno desde `lms_inscripciones.calificacion_final`.
+
+Ademas, hay un bug secundario: se consulta `nombre_completo` en la tabla `profiles`, pero esa columna no existe (error 400 visible en los network requests).
 
 ## Solucion
 
-### 1. Nuevo componente de vista en app (`CertificadoPlantillaViewer.tsx`)
+### Archivo: `src/components/lms/CertificadoPlantillaViewer.tsx`
 
-Redisenar completamente la preview del certificado dentro del curso para que transmita logro:
+1. **Agregar estado para calificacion**: `const [calificacion, setCalificacion] = useState(100);`
 
-- **Fondo con gradiente** dorado/ambar sutil que evoque "diploma"
-- **Borde decorativo** doble con color dorado
-- **Icono de trofeo/medalla** prominente en la parte superior con animacion de entrada
-- **Nombre del alumno** en tipografia grande serif/cursiva
-- **Titulo del curso** destacado con comillas tipograficas
-- **Sello circular** con el logo de Detecta y borde dorado
-- **Datos complementarios** (calificacion, fecha, codigo) en layout elegante
-- **Mensaje de felicitacion** motivacional en la parte superior
-- **Confetti o estrellas decorativas** sutiles en el fondo
-
-### 2. Nuevo documento PDF nativo (`CertificatePDFDocument.tsx`)
-
-Crear un componente `@react-pdf/renderer` que genere un PDF profesional:
-
-- Reutilizar tokens del sistema de diseno (`PDF_COLORS`, `PDF_FONT_SIZES`, `registerPDFFonts`)
-- Pagina unica landscape con diseno de diploma
-- Barra decorativa roja superior e inferior (estilo CoverPage)
-- Logo corporativo centrado en la parte superior
-- Titulo "CERTIFICADO DE FINALIZACION" en tipografia display
-- Nombre del alumno en tipografia hero
-- Detalle del curso, calificacion y fecha
-- Sello decorativo SVG nativo (circulo con borde + icono)
-- Codigo de verificacion en fuente monoespaciada
-- Firma institucional
-
-### 3. Actualizar descarga PDF (`CertificadoPlantillaViewer.tsx`)
-
-Reemplazar el flujo `html2canvas + jsPDF` por:
+2. **Consultar la inscripcion** dentro del `useEffect` existente para obtener `calificacion_final`:
+```tsx
+if (inscripcionId) {
+  const { data: inscripcion } = await supabase
+    .from('lms_inscripciones')
+    .select('calificacion_final, progreso_porcentaje')
+    .eq('id', inscripcionId)
+    .maybeSingle();
+  if (inscripcion) {
+    setCalificacion(inscripcion.calificacion_final ?? inscripcion.progreso_porcentaje ?? 100);
+  }
+}
 ```
-import(@react-pdf/renderer).pdf(CertificatePDFDocument).toBlob()
-```
-Mismo patron usado en `historicalReportPdfExporter.ts`.
 
-### 4. Actualizar `CertificadoViewer.tsx` (dialogo de "Mis Certificados")
+3. **Usar el estado** en la vista (linea 188): reemplazar `100%` por `{calificacion}%`
 
-Actualizar el viewer del dialogo para que tambien use el nuevo diseno visual en lugar del layout basico actual. Reemplazar la impresion via `window.open` por descarga PDF nativa.
+4. **Usar el estado** en el PDF (linea 89): reemplazar `calificacion: 100` por `calificacion`
 
-## Archivos a crear/modificar
+5. **Fix bug secundario**: Quitar `nombre_completo` del select de profiles (linea 43), dejando solo `display_name`
 
-| Archivo | Accion |
+## Archivos a modificar
+
+| Archivo | Cambio |
 |---|---|
-| `src/components/lms/pdf/CertificatePDFDocument.tsx` | **Crear** - Documento PDF nativo con react-pdf |
-| `src/components/lms/CertificadoPlantillaViewer.tsx` | **Modificar** - Redisenar vista in-app + migrar descarga a react-pdf |
-| `src/components/lms/certificados/CertificadoViewer.tsx` | **Modificar** - Redisenar dialogo + migrar impresion a descarga PDF nativa |
-
-## Diseno visual detallado
-
-### Vista in-app (CertificadoPlantillaViewer)
-```text
-+--------------------------------------------------+
-|  *** Felicidades! ***                             |
-|  Has completado exitosamente este modulo          |
-|                                                   |
-| +----------------------------------------------+ |
-| |  =========================================   | |
-| |  ||                                     ||   | |
-| |  ||         [Logo Detecta]              ||   | |
-| |  ||                                     ||   | |
-| |  ||    CERTIFICADO DE FINALIZACION      ||   | |
-| |  ||    ─────────────────────────        ||   | |
-| |  ||    Se certifica que                 ||   | |
-| |  ||                                     ||   | |
-| |  ||      Juan Perez Garcia             ||   | |
-| |  ||     (tipografia grande serif)       ||   | |
-| |  ||                                     ||   | |
-| |  ||  ha completado satisfactoriamente   ||   | |
-| |  ||  "Seguridad Logistica Integral"     ||   | |
-| |  ||                                     ||   | |
-| |  ||  Calificacion: 100%  |  25/02/2026  ||   | |
-| |  ||                                     ||   | |
-| |  ||         [Sello circular]            ||   | |
-| |  ||    Codigo: 07FA761B                 ||   | |
-| |  =========================================   | |
-| +----------------------------------------------+ |
-|                                                   |
-|  [Descargar PDF]  [Marcar como visto / Continuar] |
-+--------------------------------------------------+
-```
-
-### PDF nativo (landscape A4)
-- Barras decorativas roja/negra superior e inferior (estilo CoverPage existente)
-- Fondo blanco con borde decorativo gris claro
-- Logo corporativo centrado
-- Tipografia Poppins (ya registrada en el sistema)
-- Circulo decorativo SVG como sello
-- Layout centrado vertical y horizontalmente
-
-## Orden de implementacion
-
-1. Crear `CertificatePDFDocument.tsx` (PDF nativo)
-2. Redisenar `CertificadoPlantillaViewer.tsx` (vista in-app + descarga)
-3. Actualizar `CertificadoViewer.tsx` (dialogo)
+| `src/components/lms/CertificadoPlantillaViewer.tsx` | Obtener calificacion real de la inscripcion, fix query profiles |
 
