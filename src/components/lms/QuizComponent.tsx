@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Send, Clock, HelpCircle, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Clock, HelpCircle, Loader2, Sparkles } from "lucide-react";
 import { useLMSPreguntas, calcularPuntaje, useLMSGuardarQuiz, puedeReintentar } from "@/hooks/useLMSQuiz";
 import { QuestionRenderer } from "./quiz/QuestionRenderer";
 import { QuizResults } from "./quiz/QuizResults";
@@ -42,10 +42,8 @@ export function QuizComponent({
   const mejorPuntaje = progresoActual?.quiz_mejor_puntaje;
   const puedeIntentar = puedeReintentar(intentosUsados, quizData.intentos_permitidos);
 
-  // Aleatorizar preguntas si está configurado
   const preguntasOrdenadas = useMemo(() => {
     if (!preguntas) return [];
-    // Por ahora no aleatorizamos, se puede añadir después
     return preguntas;
   }, [preguntas]);
 
@@ -102,7 +100,6 @@ export function QuizComponent({
         onComplete();
       }
     } catch (error) {
-      // El hook ya muestra toast de error
       console.error('Error al guardar quiz:', error);
     }
   };
@@ -148,22 +145,23 @@ export function QuizComponent({
   // Intro screen
   if (estado === 'intro') {
     return (
-      <Card className="max-w-lg mx-auto">
-        <CardHeader className="text-center pb-2">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <HelpCircle className="w-8 h-8 text-primary" />
+      <Card className="max-w-lg mx-auto overflow-hidden">
+        {/* Gradient header */}
+        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Sparkles className="w-10 h-10 text-primary" />
           </div>
-          <CardTitle className="text-xl">{contenido.titulo}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6 text-center">
+          <CardTitle className="text-2xl">{contenido.titulo}</CardTitle>
+        </div>
+        <CardContent className="space-y-6 text-center pt-6">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div className="p-4 rounded-xl bg-muted">
-              <p className="text-2xl font-bold">{preguntasOrdenadas.length}</p>
-              <p className="text-muted-foreground">Preguntas</p>
+            <div className="p-5 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900">
+              <p className="text-3xl font-bold text-blue-600">{preguntasOrdenadas.length}</p>
+              <p className="text-blue-600/70 text-sm mt-1">Preguntas</p>
             </div>
-            <div className="p-4 rounded-xl bg-muted">
-              <p className="text-2xl font-bold">{quizData.puntuacion_minima}%</p>
-              <p className="text-muted-foreground">Para aprobar</p>
+            <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900">
+              <p className="text-3xl font-bold text-amber-600">{quizData.puntuacion_minima}%</p>
+              <p className="text-amber-600/70 text-sm mt-1">Para aprobar</p>
             </div>
           </div>
 
@@ -175,15 +173,13 @@ export function QuizComponent({
           )}
 
           {intentosUsados > 0 && (
-            <div className="p-4 rounded-xl bg-muted space-y-1">
+            <div className="p-4 rounded-2xl bg-muted space-y-1">
               <p className="text-sm text-muted-foreground">
                 Intentos: {intentosUsados}
                 {quizData.intentos_permitidos > 0 && ` de ${quizData.intentos_permitidos}`}
               </p>
               {mejorPuntaje !== undefined && (
-                <p className="text-sm font-medium">
-                  Mejor puntaje: {mejorPuntaje}%
-                </p>
+                <p className="text-sm font-medium">Mejor puntaje: {mejorPuntaje}%</p>
               )}
             </div>
           )}
@@ -198,9 +194,7 @@ export function QuizComponent({
           </Button>
 
           {!puedeIntentar && (
-            <p className="text-sm text-destructive">
-              Has agotado todos los intentos permitidos.
-            </p>
+            <p className="text-sm text-destructive">Has agotado todos los intentos permitidos.</p>
           )}
         </CardContent>
       </Card>
@@ -240,19 +234,29 @@ export function QuizComponent({
   const resultadoRespuesta = resultado?.detalles.find(d => d.pregunta_id === pregunta?.id);
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader className="pb-4">
+    <Card className="max-w-3xl mx-auto overflow-hidden">
+      {/* Header with gradient */}
+      <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-transparent">
         {/* Progress bar */}
         <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Pregunta {preguntaActual + 1} de {preguntasOrdenadas.length}</span>
-            <span>{Math.round(progresoPorcentaje)}%</span>
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-bold text-primary">
+              Pregunta {preguntaActual + 1} <span className="text-sm font-normal text-muted-foreground">de {preguntasOrdenadas.length}</span>
+            </span>
+            {pregunta && (
+              <span className="text-xs font-medium px-3 py-1 rounded-full bg-primary/10 text-primary">
+                {pregunta.puntos} pto{pregunta.puntos !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
-          <Progress value={progresoPorcentaje} className="h-2" />
+          <Progress
+            value={progresoPorcentaje}
+            className="h-2.5 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-primary/70"
+          />
         </div>
 
         {/* Question indicators */}
-        <div className="flex gap-1.5 justify-center pt-4 flex-wrap">
+        <div className="flex gap-1.5 justify-center pt-3 flex-wrap">
           {preguntasOrdenadas.map((p, idx) => {
             const tieneRespuesta = !!respuestas[p.id];
             const esActual = idx === preguntaActual;
@@ -263,9 +267,9 @@ export function QuizComponent({
                 key={p.id}
                 onClick={() => setPreguntaActual(idx)}
                 className={cn(
-                  "w-8 h-8 rounded-full text-xs font-medium transition-all",
-                  esActual && "ring-2 ring-primary ring-offset-2",
-                  !esReview && tieneRespuesta && "bg-primary text-primary-foreground",
+                  "w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200",
+                  esActual && "ring-2 ring-primary ring-offset-2 scale-110",
+                  !esReview && tieneRespuesta && "bg-primary text-primary-foreground shadow-sm",
                   !esReview && !tieneRespuesta && "bg-muted text-muted-foreground",
                   esReview && resultadoPregunta?.es_correcta && "bg-green-500 text-white",
                   esReview && resultadoPregunta && !resultadoPregunta.es_correcta && "bg-red-500 text-white"
@@ -278,18 +282,13 @@ export function QuizComponent({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         {/* Question */}
         {pregunta && (
           <>
-            <div className="space-y-2">
-              <p className="text-lg font-medium leading-relaxed">
-                {pregunta.pregunta}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {pregunta.puntos} punto{pregunta.puntos !== 1 ? 's' : ''}
-              </p>
-            </div>
+            <p className="text-xl font-semibold leading-relaxed">
+              {pregunta.pregunta}
+            </p>
 
             {/* Answer options */}
             <QuestionRenderer
@@ -303,13 +302,9 @@ export function QuizComponent({
 
             {/* Explanation (only in review) */}
             {esReview && pregunta.explicacion && (
-              <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
-                  Explicación:
-                </p>
-                <p className="text-sm text-blue-600 dark:text-blue-400">
-                  {pregunta.explicacion}
-                </p>
+              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">Explicación:</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">{pregunta.explicacion}</p>
               </div>
             )}
           </>
@@ -317,44 +312,24 @@ export function QuizComponent({
 
         {/* Navigation */}
         <div className="flex justify-between pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={handleAnterior}
-            disabled={preguntaActual === 0}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Anterior
+          <Button variant="outline" onClick={handleAnterior} disabled={preguntaActual === 0}>
+            <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
           </Button>
 
           {esReview ? (
             preguntaActual === preguntasOrdenadas.length - 1 ? (
-              <Button onClick={() => setEstado('results')}>
-                Ver Resultados
-              </Button>
+              <Button onClick={() => setEstado('results')}>Ver Resultados</Button>
             ) : (
-              <Button onClick={handleSiguiente}>
-                Siguiente
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+              <Button onClick={handleSiguiente}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
             )
           ) : (
             preguntaActual === preguntasOrdenadas.length - 1 ? (
-              <Button 
-                onClick={handleEnviar}
-                disabled={guardarQuiz.isPending}
-              >
-                {guardarQuiz.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4 mr-2" />
-                )}
+              <Button onClick={handleEnviar} disabled={guardarQuiz.isPending}>
+                {guardarQuiz.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
                 Enviar Quiz
               </Button>
             ) : (
-              <Button onClick={handleSiguiente}>
-                Siguiente
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+              <Button onClick={handleSiguiente}>Siguiente <ChevronRight className="w-4 h-4 ml-1" /></Button>
             )
           )}
         </div>
