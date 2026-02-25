@@ -23,8 +23,9 @@ import {
   useDeleteDocumento,
   useDocumentosProgress,
   DOCUMENTO_LABELS,
-  DOCUMENTOS_REQUERIDOS,
+  getDocumentosRequeridos,
   TipoDocumento,
+  TipoOperativoDoc,
   EstadoValidacion
 } from '@/hooks/useDocumentosCandidato';
 import { DocumentUploadDialog } from './DocumentUploadDialog';
@@ -33,6 +34,7 @@ import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 interface Props {
   candidatoId: string;
   candidatoNombre: string;
+  tipoOperativo?: TipoOperativoDoc;
 }
 
 const ESTADO_CONFIG: Record<EstadoValidacion, { color: string; icon: React.ElementType; label: string }> = {
@@ -43,13 +45,14 @@ const ESTADO_CONFIG: Record<EstadoValidacion, { color: string; icon: React.Eleme
   requiere_revision: { color: 'bg-amber-500/20 text-amber-700', icon: AlertCircle, label: 'Requiere Revisión' }
 };
 
-export function DocumentsTab({ candidatoId, candidatoNombre }: Props) {
+export function DocumentsTab({ candidatoId, candidatoNombre, tipoOperativo = 'custodio' }: Props) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoDocumento | null>(null);
   const [previewDoc, setPreviewDoc] = useState<any>(null);
 
+  const documentosRequeridos = getDocumentosRequeridos(tipoOperativo);
   const { data: documentos, isLoading } = useDocumentosCandidato(candidatoId);
-  const { completados, totalRequeridos, porcentaje, documentosFaltantes } = useDocumentosProgress(candidatoId);
+  const { completados, totalRequeridos, porcentaje, documentosFaltantes } = useDocumentosProgress(candidatoId, tipoOperativo);
   const procesarOCR = useProcesarOCR();
   const validarDocumento = useValidarDocumento();
   const deleteDocumento = useDeleteDocumento();
@@ -105,7 +108,7 @@ export function DocumentsTab({ candidatoId, candidatoNombre }: Props) {
 
       {/* Document Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {DOCUMENTOS_REQUERIDOS.map((tipo) => {
+        {documentosRequeridos.map((tipo) => {
           const documento = getDocumentoPorTipo(tipo);
           const estadoConfig = documento ? ESTADO_CONFIG[documento.estado_validacion] : null;
           const IconComponent = estadoConfig?.icon || FileText;

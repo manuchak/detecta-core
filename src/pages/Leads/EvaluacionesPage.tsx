@@ -374,6 +374,7 @@ export default function EvaluacionesPage() {
           candidatoId={selectedCandidato.id}
           candidatoNombre={selectedCandidato.nombre}
           currentState={selectedCandidato.estado_detallado || selectedCandidato.estado_proceso || 'lead'}
+          tipoOperativo={tipoOperativo === 'armados' ? 'armado' : 'custodio'}
           isOpen={!!selectedCandidato}
           onClose={() => setSelectedCandidato(null)}
         />
