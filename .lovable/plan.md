@@ -1,91 +1,85 @@
 
 
-# Fix Build Error + Rediseno Visual de Quiz (estilo Genially)
+# Fix Build Error + Rediseño Flashcards (estilo Quizlet/Anki)
 
-## Parte 1: Fix del Build Error (TextStyle import)
+## Parte 1: Fix Build Error en RichTextEditor
 
-El error se debe a que `@tiptap/extension-text-style` v3 no tiene export default -- `TextStyle` y `Color` son named exports.
+Las extensiones `Table`, `TableRow`, `TableCell` y `TableHeader` de TipTap v3 NO tienen export default. Solo tienen named exports.
 
 ### Archivo: `src/components/lms/admin/RichTextEditor.tsx`
 
-Cambiar las lineas 7-8:
+Cambiar lineas 10-13 de default imports a named imports:
+
 ```text
 // Antes:
-import TextStyle from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
 
 // Despues:
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-text-style';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
 ```
 
-Se elimina la dependencia de `@tiptap/extension-color` (que solo re-exporta desde text-style).
-
 ---
 
-## Parte 2: Rediseno Visual del Quiz del Alumno (estilo Genially)
+## Parte 2: Rediseno del FlashcardsViewer
 
-Genially se destaca por una experiencia de quiz visualmente inmersiva: fondos con gradientes, tarjetas de opciones grandes y coloridas con letras (A, B, C, D), animaciones de feedback, y un diseno centrado en la pantalla completa. Nuestro quiz actual es funcional pero plano -- tarjetas blancas con bordes grises y radio buttons pequenos.
+Inspirado en Quizlet y Anki, transformar el viewer de un componente pasivo a uno activo con auto-evaluacion.
 
-### Principios de diseno a replicar de Genially:
-- **Opciones como tarjetas grandes** con letras identificadoras (A, B, C, D) en circulos de color
-- **Feedback visual inmediato** con animaciones de check/X
-- **Barra de progreso mas visual** con colores del tema
-- **Pantalla de resultados gamificada** con animaciones y confetti visual
-- **Tipografia mas grande y legible** para contexto pedagogico
-- **Gradientes y colores** en lugar de bordes grises planos
+### Archivo: `src/components/lms/interactivo/FlashcardsViewer.tsx`
 
-### Archivos a modificar:
+Cambios principales:
 
-#### 2A. `MultipleChoiceQuestion.tsx` - Rediseno completo
-- Opciones como tarjetas grandes en grid 2x2 (si hay 4 opciones) o lista
-- Cada opcion con letra identificadora (A, B, C, D) en circulo de color unico
-- Colores distintos por opcion: Azul (A), Naranja (B), Verde (C), Morado (D)
-- Al hover: efecto de elevacion (shadow + scale)
-- Al seleccionar: borde solido del color de la opcion + fondo suave
-- En review: animacion de shake para incorrecta, pulse para correcta
-- Tamano de texto mas grande (text-base en lugar de text-sm)
+**A. Auto-evaluacion por tarjeta (patron Anki/Quizlet)**
+- Despues de voltear, mostrar 3 botones: "No la se" (rojo), "Casi" (amarillo), "La se" (verde)
+- Trackear el estado de dominio de cada tarjeta en estado local
+- Solo permitir completar cuando TODAS esten marcadas como "La se"
 
-#### 2B. `TrueFalseQuestion.tsx` - Mejora visual
-- Botones mas grandes con iconos prominentes
-- Gradientes suaves en los botones
-- Animaciones de transicion mas suaves
+**B. Diseno visual mejorado de la tarjeta**
+- Tarjeta mas grande (min-h-[350px]) con sombra prominente y bordes redondeados (rounded-2xl)
+- Frente: fondo con gradiente sutil, tipografia mas grande (text-xl), icono de rotacion animado
+- Reverso: fondo diferenciado con color (bg-blue-50 dark:bg-blue-950/30), borde de color
+- Animacion 3D de volteo mas fluida con perspective aumentado
 
-#### 2C. `QuizComponent.tsx` - Mejoras de layout
-- Pregunta con numero grande y prominente (ej: "Pregunta 3 de 10")
-- Indicadores de navegacion con colores mas vivos
-- Barra de progreso con gradiente
-- Max-width ampliado a 3xl para mas espacio
-- Puntos mostrados como badge visual
-- Card con fondo con gradiente sutil en el header
+**C. Barra de progreso de dominio (no de "vistas")**
+- Reemplazar los dots por una barra segmentada con colores:
+  - Rojo = "No la se"
+  - Amarillo = "Casi"  
+  - Verde = "La se"
+  - Gris = "Sin revisar"
+- Contador textual: "3 de 6 dominadas"
 
-#### 2D. `QuizResults.tsx` - Pantalla gamificada
-- Score con animacion de conteo (de 0 a N%)
-- Circulo de progreso SVG animado en lugar del Progress bar lineal
-- Estrellas o iconografia segun el puntaje (1-3 estrellas)
-- Colores mas vivos y celebratorios
-- Stats en tarjetas con iconos de color
+**D. Controles mejorados**
+- Boton de shuffle (mezclar tarjetas)
+- Atajos de teclado: Espacio = voltear, Flechas = navegar, 1/2/3 = auto-evaluar
+- Hint de atajos visible en la UI
 
-#### 2E. `QuestionRenderer.tsx`
-- Sin cambios estructurales, solo pasa los props
+**E. Indicador visual de interactividad**
+- Icono de RotateCcw animado (pulse suave) en el centro-inferior de la tarjeta frontal
+- Texto "Toca para voltear" con icono, mas grande y visible
 
----
+**F. Resumen final**
+- Al completar todas las tarjetas, mostrar un mini resumen:
+  - Cuantas acerto a la primera
+  - Cuantas necesitaron repaso
+  - Boton "Repasar las dificiles" que filtra solo las marcadas como "No la se" o "Casi"
 
-## Archivos a crear/modificar
+### Archivo: `src/types/lms.ts`
+- Sin cambios necesarios: FlashcardsData ya soporta la estructura actual
+
+## Archivos a modificar
 
 | Archivo | Accion |
 |---|---|
-| `src/components/lms/admin/RichTextEditor.tsx` | Fix imports de TextStyle/Color |
-| `src/components/lms/quiz/MultipleChoiceQuestion.tsx` | Rediseno con tarjetas coloridas A/B/C/D |
-| `src/components/lms/quiz/TrueFalseQuestion.tsx` | Mejora visual con gradientes |
-| `src/components/lms/QuizComponent.tsx` | Layout mejorado, header con gradiente, pregunta prominente |
-| `src/components/lms/quiz/QuizResults.tsx` | Pantalla gamificada con circulo SVG animado y estrellas |
+| `src/components/lms/admin/RichTextEditor.tsx` | Fix named imports de Table/TableRow/TableCell/TableHeader |
+| `src/components/lms/interactivo/FlashcardsViewer.tsx` | Rediseno completo con auto-evaluacion y UX mejorado |
 
 ## Orden de implementacion
 
-1. Fix build error (RichTextEditor imports)
-2. MultipleChoiceQuestion rediseno
-3. TrueFalseQuestion mejoras
-4. QuizComponent layout
-5. QuizResults gamificacion
+1. Fix build error (imports)
+2. Rediseno FlashcardsViewer
 
