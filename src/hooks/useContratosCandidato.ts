@@ -61,8 +61,8 @@ export const CONTRATO_LABELS: Record<TipoContrato, string> = {
   codigo_conducta: 'Código de Conducta',
   aviso_privacidad: 'Aviso de Privacidad',
   responsiva_equipo: 'Responsiva de Equipo',
-  prestacion_servicios_propietario: 'Contrato Custodio Propietario',
-  prestacion_servicios_no_propietario: 'Contrato Custodio No Propietario',
+  prestacion_servicios_propietario: 'Contrato Custodio',
+  prestacion_servicios_no_propietario: 'Contrato Custodio',
   anexo_gps: 'Anexo GPS'
 };
 
@@ -413,6 +413,7 @@ export function getDatosInterpolacion(candidato: {
   email?: string;
   telefono?: string;
   direccion?: string;
+  curp?: string;
   // Licencia
   numero_licencia?: string;
   licencia_expedida_por?: string;
@@ -456,7 +457,8 @@ export function getDatosInterpolacion(candidato: {
 
   return {
     nombre_completo: candidato.nombre || '[PENDIENTE]',
-    direccion: candidato.direccion || '[PENDIENTE]',
+    curp: candidato.curp || '[CURP_PENDIENTE]',
+    direccion: candidato.direccion || '[DIRECCION_PENDIENTE]',
     fecha_actual: fechaFormateada,
     fecha_contratacion: fechaFormateada,
     email_custodio: candidato.email || '[PENDIENTE]',

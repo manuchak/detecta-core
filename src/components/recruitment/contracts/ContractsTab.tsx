@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -56,13 +57,16 @@ const ESTADO_CONFIG: Record<EstadoContrato, { color: string; icon: React.Element
   vencido: { color: 'bg-muted text-muted-foreground', icon: Clock, label: 'Vencido' }
 };
 
-export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = false }: Props) {
+export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: initialVehiculoPropio = false }: Props) {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoContrato | null>(null);
   const [signContrato, setSignContrato] = useState<any>(null);
   const [previewContrato, setPreviewContrato] = useState<any>(null);
   const [deleteContrato, setDeleteContrato] = useState<{ id: string; tipo: TipoContrato } | null>(null);
+  const [esNoPropietario, setEsNoPropietario] = useState(!initialVehiculoPropio);
+
+  const vehiculoPropio = !esNoPropietario;
 
   const { data: contratos, isLoading } = useContratosCandidato(candidatoId);
   const { data: plantillas } = usePlantillasContrato();
@@ -120,6 +124,8 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
       {/* Contracts Grid */}
       <div className="space-y-4">
         {contratosRequeridos.map((tipo) => {
+          // For unified "Contrato Custodio" card: show checkbox for propietario/no-propietario
+          const isContratoServicio = tipo === 'prestacion_servicios_propietario' || tipo === 'prestacion_servicios_no_propietario';
           const contrato = getContratoPorTipo(tipo);
           const plantilla = plantillas?.find(p => p.tipo_contrato === tipo);
           const estadoConfig = contrato ? ESTADO_CONFIG[contrato.estado] : null;
@@ -132,7 +138,7 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
                 <CardTitle className="text-sm flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <FileSignature className="h-4 w-4" />
-                    {CONTRATO_LABELS[tipo]}
+                    {isContratoServicio ? 'Contrato Custodio' : CONTRATO_LABELS[tipo]}
                   </span>
                   <div className="flex items-center gap-1">
                     {esFisico && (
@@ -150,6 +156,18 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio = fa
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {isContratoServicio && !contrato && (
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+                    <Checkbox
+                      id={`no-propietario-${tipo}`}
+                      checked={esNoPropietario}
+                      onCheckedChange={(checked) => setEsNoPropietario(!!checked)}
+                    />
+                    <label htmlFor={`no-propietario-${tipo}`} className="text-xs cursor-pointer">
+                      El custodio NO es propietario del vehículo
+                    </label>
+                  </div>
+                )}
                 {contrato ? (
                   <div className="space-y-3">
                     {contrato.fecha_envio && (
