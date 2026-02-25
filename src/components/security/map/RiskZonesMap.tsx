@@ -174,15 +174,28 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         type: 'symbol',
         source: 'segments',
         layout: {
-          'symbol-placement': 'line-center',
+          'symbol-placement': 'line',
           'text-field': ['get', 'name'],
-          'text-size': 10,
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            5, 8,
+            7, 10,
+            9, 12,
+            12, 14,
+          ],
           'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-anchor': 'center',
+          'text-offset': [0, -1],
+          'text-max-angle': 30,
+          'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+          'symbol-spacing': 250,
         },
         paint: {
           'text-color': '#ffffff',
-          'text-halo-color': '#000000',
-          'text-halo-width': 1,
+          'text-halo-color': 'rgba(0, 0, 0, 0.85)',
+          'text-halo-width': 2,
+          'text-halo-blur': 1,
         },
       });
     }
