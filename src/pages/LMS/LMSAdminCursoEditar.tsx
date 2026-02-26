@@ -35,7 +35,7 @@ export default function LMSAdminCursoEditar() {
     <LMSCursoEditor
       curso={curso}
       onBack={() => navigate(-1)}
-      onSuccess={() => navigate(`/lms/admin/cursos/${cursoId}`)}
+      onSuccess={() => {}}
     />
   );
 }

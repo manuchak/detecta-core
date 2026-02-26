@@ -295,7 +295,7 @@ export function LMSCursoWizard({ onBack }: LMSCursoWizardProps) {
       // Clear draft on successful creation
       clearDraft(true);
       
-      navigate(`/lms/admin/cursos/${nuevoCurso.id}`);
+      navigate(`/lms/admin/cursos/${nuevoCurso.id}/editar`);
     } catch (error) {
       // Error handled by mutation - draft persists
     }
