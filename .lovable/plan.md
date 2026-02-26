@@ -1,47 +1,59 @@
 
-# Fix: Duplicacion de servicios en dashboard de planeacion
+# Habilitar edicion y eliminacion de referencias
 
 ## Problema
-La funcion SQL `get_real_planned_services_summary` hace un `LEFT JOIN` directo a `asignacion_armados` (linea 63-64). Cuando un servicio tiene mas de un armado activo (estado 'confirmado' o 'pendiente'), el JOIN produce multiples filas por servicio, causando duplicacion en el dashboard.
+El equipo de Supply no puede editar ni borrar las referencias que ya capturaron. Solo existe el boton "Validar" para referencias pendientes, pero no hay opciones de editar datos o eliminar registros incorrectos/duplicados.
 
-## Solucion
-Reemplazar el `LEFT JOIN` directo por un `LEFT JOIN LATERAL` con `LIMIT 1`, que selecciona solo el armado mas reciente (o confirmado primero) por servicio. Esto mantiene la relacion 1:1 entre servicios y filas del resultado.
+## Cambios
 
-## Cambio
+### 1. ReferencesTab.tsx - Agregar estado y callbacks para editar/eliminar
 
-### Nueva migracion SQL
+- Agregar estado `editingRef` para controlar que referencia se esta editando
+- Pasar callbacks `onEdit` y `onDelete` al componente `ReferenceCard`
+- Conectar `onEdit` para abrir el `ReferenceForm` con datos precargados
+- Conectar `onDelete` con el hook `useDeleteReferencia` existente, con confirmacion via `AlertDialog`
 
-Recrear la funcion `get_real_planned_services_summary` con este cambio en el CTE `services_json`:
+### 2. ReferenceCard (dentro de ReferencesTab.tsx) - Botones de editar/eliminar
 
-```sql
--- Antes (causa duplicacion):
-LEFT JOIN public.asignacion_armados aa 
-  ON sp.id_servicio = aa.servicio_custodia_id 
-  AND aa.estado_asignacion IN ('confirmado', 'pendiente')
+- Agregar iconos `Pencil` y `Trash2` como botones junto al boton "Validar"
+- Los botones seran visibles siempre (no solo en estado pendiente)
+- Incluir un `AlertDialog` para confirmar la eliminacion antes de ejecutarla
 
--- Despues (1 armado por servicio):
-LEFT JOIN LATERAL (
-  SELECT a.armado_id, a.armado_nombre_verificado
-  FROM public.asignacion_armados a
-  WHERE a.servicio_custodia_id = sp.id_servicio
-    AND a.estado_asignacion IN ('confirmado', 'pendiente')
-  ORDER BY 
-    CASE a.estado_asignacion WHEN 'confirmado' THEN 0 ELSE 1 END,
-    a.created_at DESC
-  LIMIT 1
-) aa ON true
+### 3. ReferenceForm.tsx - Soportar modo edicion
+
+- Agregar prop opcional `editingReferencia` con los datos existentes
+- Cuando se pasa una referencia existente, precargar los campos del formulario
+- Cambiar el titulo del dialog a "Editar Referencia" cuando aplique
+- En `handleSubmit`, si hay referencia existente, usar update en vez de create
+- Cambiar el texto del boton de "Agregar Referencia" a "Guardar Cambios"
+
+### 4. useReferencias.ts - Agregar mutation de actualizacion
+
+- Crear `useUpdateReferencia` que haga `.update()` en `referencias_candidato` por `id`
+- Invalidar queries de referencias al completar
+- Mostrar toast de exito/error
+
+## Detalle tecnico
+
+### Nuevo hook `useUpdateReferencia`
+```typescript
+// Actualiza campos editables: nombre, relacion, empresa, cargo, telefono, email, tiempo_conocido
+// No toca campos de validacion (resultado, validador_id, etc.)
 ```
 
-La logica de prioridad:
-1. Primero armados con estado 'confirmado'
-2. Luego 'pendiente'
-3. Dentro del mismo estado, el mas reciente (`created_at DESC`)
+### Flujo de edicion
+1. Usuario hace clic en icono de lapiz en la tarjeta
+2. Se abre `ReferenceForm` con datos precargados
+3. Al guardar, se ejecuta `useUpdateReferencia` en vez de `useCreateReferencia`
+4. Se cierra el dialog y se refrescan las queries
 
-## Archivos
-- **1 migracion SQL nueva** - Recrea la funcion con el lateral join
-- **0 archivos de codigo** - El frontend ya consume el resultado correctamente, solo recibe datos duplicados
+### Flujo de eliminacion
+1. Usuario hace clic en icono de basura
+2. Aparece `AlertDialog` pidiendo confirmacion
+3. Al confirmar, se ejecuta `useDeleteReferencia` (ya existe)
+4. Se refrescan las queries
 
-## Impacto
-- Elimina la duplicacion visual inmediatamente
-- No afecta el conteo de `service_stats` (ese CTE ya es correcto, no tiene el JOIN)
-- Retrocompatible: los campos `armado_nombre`, `armado_id`, `armado_asignado` siguen poblados igual
+## Archivos modificados
+- `src/hooks/useReferencias.ts` - Agregar `useUpdateReferencia`
+- `src/components/recruitment/references/ReferenceForm.tsx` - Soportar modo edicion
+- `src/components/recruitment/references/ReferencesTab.tsx` - Botones edit/delete y logica
