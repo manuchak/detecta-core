@@ -190,7 +190,7 @@ export function LMSCursosLista() {
               key={curso.id}
               curso={curso}
               onEditar={() => navigate(`/lms/admin/cursos/${curso.id}/editar`)}
-              onVer={() => navigate(`/lms/admin/cursos/${curso.id}`)}
+              onVer={() => navigate(`/lms/admin/cursos/${curso.id}/editar`)}
               onPreview={() => navigate(`/lms/admin/cursos/${curso.id}/preview`)}
               onEliminar={() => setCursoAEliminar(curso)}
               onArchivar={() => setCursoAArchivar(curso)}

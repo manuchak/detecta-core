@@ -127,7 +127,7 @@ const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoEditar'));
 const LMSAdminCursoPreview = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoPreview'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
-const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
+// LMSCursoDetalle removed — route redirects to editor
 import LMSZoomReset from '@/components/lms/LMSZoomReset';
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
 const CustomerSuccessPage = lazy(() => import('@/pages/CustomerSuccess/CustomerSuccessPage'));
@@ -1068,11 +1068,7 @@ function App() {
                   path="/lms/admin/cursos/:cursoId"
                   element={
                     <ProtectedRoute>
-                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
-                        <UnifiedLayout>
-                          <LMSZoomReset><LMSCursoDetalle /></LMSZoomReset>
-                        </UnifiedLayout>
-                      </RoleProtectedRoute>
+                      <Navigate to="editar" replace />
                     </ProtectedRoute>
                   }
                 />
