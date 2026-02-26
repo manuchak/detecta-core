@@ -34,7 +34,10 @@ export default function PerfilForense() {
   const tipo = location.pathname.includes('/armado/') ? 'armado' : 'custodio';
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'info';
+  const isCustodio = tipo === 'custodio';
+  const validArmadoTabs = ['info', 'economics', 'evaluaciones', 'historico', 'notas'];
+  const rawTab = searchParams.get('tab') || 'info';
+  const activeTab = !isCustodio && !validArmadoTabs.includes(rawTab) ? 'info' : rawTab;
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
   };
@@ -79,10 +82,12 @@ export default function PerfilForense() {
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Información</span>
           </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Performance</span>
-          </TabsTrigger>
+          {isCustodio && (
+            <TabsTrigger value="performance" className="flex items-center gap-1.5">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Performance</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="economics" className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Economics</span>
@@ -91,26 +96,34 @@ export default function PerfilForense() {
             <ClipboardCheck className="h-4 w-4" />
             <span className="hidden sm:inline">Evaluaciones</span>
           </TabsTrigger>
-          <TabsTrigger value="documentacion" className="flex items-center gap-1.5">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Docs</span>
-          </TabsTrigger>
-          <TabsTrigger value="capacitacion" className="flex items-center gap-1.5">
-            <GraduationCap className="h-4 w-4" />
-            <span className="hidden sm:inline">LMS</span>
-          </TabsTrigger>
-          <TabsTrigger value="cumplimiento" className="flex items-center gap-1.5">
-            <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Cumplimiento</span>
-          </TabsTrigger>
+          {isCustodio && (
+            <TabsTrigger value="documentacion" className="flex items-center gap-1.5">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Docs</span>
+            </TabsTrigger>
+          )}
+          {isCustodio && (
+            <TabsTrigger value="capacitacion" className="flex items-center gap-1.5">
+              <GraduationCap className="h-4 w-4" />
+              <span className="hidden sm:inline">LMS</span>
+            </TabsTrigger>
+          )}
+          {isCustodio && (
+            <TabsTrigger value="cumplimiento" className="flex items-center gap-1.5">
+              <Shield className="h-4 w-4" />
+              <span className="hidden sm:inline">Cumplimiento</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="historico" className="flex items-center gap-1.5">
             <History className="h-4 w-4" />
             <span className="hidden sm:inline">Histórico</span>
           </TabsTrigger>
-          <TabsTrigger value="calificaciones" className="flex items-center gap-1.5">
-            <Star className="h-4 w-4" />
-            <span className="hidden sm:inline">Ratings</span>
-          </TabsTrigger>
+          {isCustodio && (
+            <TabsTrigger value="calificaciones" className="flex items-center gap-1.5">
+              <Star className="h-4 w-4" />
+              <span className="hidden sm:inline">Ratings</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="notas" className="flex items-center gap-1.5">
             <StickyNote className="h-4 w-4" />
             <span className="hidden sm:inline">Notas</span>
@@ -121,20 +134,22 @@ export default function PerfilForense() {
           <InformacionPersonalTab profile={profile} tipo={tipo} />
         </TabsContent>
         
-        <TabsContent value="performance">
-          <PerformanceServiciosTab 
-            custodioId={id!} 
-            nombre={profile.nombre} 
-            profile={custodioProfile || undefined}
-          />
-        </TabsContent>
+        {isCustodio && (
+          <TabsContent value="performance">
+            <PerformanceServiciosTab 
+              custodioId={id!} 
+              nombre={profile.nombre} 
+              profile={custodioProfile || undefined}
+            />
+          </TabsContent>
+        )}
         
         <TabsContent value="economics">
           <EconomicsTab nombre={profile.nombre} tipo={tipo} />
         </TabsContent>
         
         <TabsContent value="evaluaciones">
-          {tipo === 'custodio' ? (
+          {isCustodio ? (
             <EvaluacionesTab 
               candidatoId={candidatoId} 
               candidatoNombre={profile.nombre} 
@@ -147,21 +162,27 @@ export default function PerfilForense() {
           )}
         </TabsContent>
         
-        <TabsContent value="documentacion">
-          <DocumentacionTab candidatoId={candidatoId} telefono={profile.telefono || null} />
-        </TabsContent>
+        {isCustodio && (
+          <TabsContent value="documentacion">
+            <DocumentacionTab candidatoId={candidatoId} telefono={profile.telefono || null} />
+          </TabsContent>
+        )}
         
-        <TabsContent value="capacitacion">
-          <CapacitacionTab userId={candidatoId} />
-        </TabsContent>
+        {isCustodio && (
+          <TabsContent value="capacitacion">
+            <CapacitacionTab userId={candidatoId} />
+          </TabsContent>
+        )}
         
-        <TabsContent value="cumplimiento">
-          <CumplimientoTab 
-            custodioId={id!} 
-            telefono={profile.telefono || null}
-            nombre={profile.nombre}
-          />
-        </TabsContent>
+        {isCustodio && (
+          <TabsContent value="cumplimiento">
+            <CumplimientoTab 
+              custodioId={id!} 
+              telefono={profile.telefono || null}
+              nombre={profile.nombre}
+            />
+          </TabsContent>
+        )}
         
         <TabsContent value="historico">
           <HistoricoTab 
@@ -171,14 +192,16 @@ export default function PerfilForense() {
           />
         </TabsContent>
         
-        <TabsContent value="calificaciones">
-          <CalificacionesTab
-            custodioId={id!}
-            nombre={profile.nombre}
-            telefono={profile.telefono || null}
-            profile={custodioProfile || undefined}
-          />
-        </TabsContent>
+        {isCustodio && (
+          <TabsContent value="calificaciones">
+            <CalificacionesTab
+              custodioId={id!}
+              nombre={profile.nombre}
+              telefono={profile.telefono || null}
+              profile={custodioProfile || undefined}
+            />
+          </TabsContent>
+        )}
         
         <TabsContent value="notas">
           <NotasTab operativoId={id!} operativoTipo={tipo} />
