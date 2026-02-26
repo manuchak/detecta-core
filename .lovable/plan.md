@@ -1,79 +1,47 @@
 
-
-# Agregar AI Features al Dialog LMSContenidoForm (Video)
+# Consolidar vista de curso: Eliminar LMSCursoDetalle y redirigir al Editor
 
 ## Problema
-Las features de AI para video (titulo con IA, descripcion, thumbnail, deteccion de provider) solo se agregaron al `ContenidoExpandedEditor` del editor inline nuevo. El dialog `LMSContenidoForm` que se usa en la vista `LMSCursoDetalle` (la que el usuario esta viendo) no tiene ninguna de estas features.
+Existen dos vistas paralelas para gestionar un curso:
+- **LMSCursoDetalle** (`/lms/admin/cursos/:cursoId`) - Vista antigua con ModuloCard basicas, sin drag & drop, sin AI
+- **LMSCursoEditor** (`/lms/admin/cursos/:cursoId/editar`) - Editor inline con todas las features (drag & drop, AI, preview card, toggle activo)
+
+Mantener ambas genera confusion y duplicacion de codigo.
+
+## Solucion
+Eliminar la ruta intermedia y redirigir directamente al editor. La vista "detalle" se vuelve redundante porque el editor ya tiene todas las features y mejor UX.
 
 ## Cambios
 
-### Archivo: `src/components/lms/admin/LMSContenidoForm.tsx`
+### 1. Redirigir la ruta `/lms/admin/cursos/:cursoId` al editor
+**Archivo:** `src/App.tsx`
+- Reemplazar el componente `LMSCursoDetalle` en la ruta `/lms/admin/cursos/:cursoId` por un `Navigate` a `/lms/admin/cursos/:cursoId/editar`
+- Eliminar la importacion lazy de `LMSCursoDetalle`
 
-**Nuevas importaciones:**
-- `AIGenerateButton` de `../wizard/AIGenerateButton`
-- `VideoScriptGenerator` y `VideoScriptData` de `../wizard/VideoScriptGenerator`
-- `ImageIcon` de lucide-react
-- `Badge` de `@/components/ui/badge`
-- `Textarea` ya esta importado
+### 2. Actualizar navegaciones que apuntan a la vista antigua
+**Archivos afectados:**
+- `src/components/lms/admin/LMSCursosLista.tsx` - Cambiar `onVer` de `/cursos/${id}` a `/cursos/${id}/editar`
+- `src/components/lms/admin/LMSCursoWizard.tsx` - Cambiar redirect post-creacion a `/editar`
+- `src/pages/LMS/LMSAdminCursoEditar.tsx` - Cambiar `onSuccess` para quedarse en el editor en vez de volver a la vista antigua
+- `src/pages/LMS/LMSAdminCursoPreview.tsx` - Cambiar boton "Volver" a `/editar`
 
-**Nuevo estado:**
-- `videoDescription` - descripcion/notas del video
-- `videoThumbnail` - URL del thumbnail generado
-- `videoProvider` - provider detectado automaticamente
-- `videoScript` - guion generado por IA
-- Estados de loading/success para cada boton AI (titulo, descripcion, thumbnail)
+### 3. Agregar metricas del curso al EditorHeader
+Las metricas (modulos, contenidos, duracion, nivel) que se pierden al eliminar LMSCursoDetalle se integran como badges compactos en el `EditorHeader` existente.
 
-**Nuevos handlers AI:**
-- `handleGenerateVideoTitle` - genera titulo con `generateCourseMetadata`
-- `handleGenerateVideoDescription` - genera descripcion con `generateRichText` (modo corto, strip HTML)
-- `handleGenerateVideoThumbnail` - genera thumbnail con `generateCourseImage`
+**Archivo:** `src/components/lms/admin/editor/EditorHeader.tsx`
+- Agregar badges con: cantidad de modulos, contenidos totales, duracion, y nivel
+- Mantener el estilo compacto del header
 
-**Modificaciones en la UI (seccion video, tab "contenido"):**
-1. Agregar `AIGenerateButton` junto al campo de titulo (arriba, en la seccion de header fields)
-2. Despues del `MediaUploader` de video, agregar badge de provider detectado
-3. Agregar campo `Textarea` para descripcion con boton AI
-4. Agregar seccion de thumbnail con boton AI y preview de imagen
-5. Agregar `VideoScriptGenerator` al final
+### 4. Agregar boton de Vista Previa al editor
+El boton "Vista Previa" que existia en LMSCursoDetalle se agrega al EditorHeader.
 
-**Modificaciones en `buildContenidoData`:**
-- Para tipo `video`, incluir `provider`, `descripcion`, `thumbnail_url`, y `guion_generado` en el objeto de retorno
+**Archivo:** `src/components/lms/admin/editor/EditorHeader.tsx`
+- Agregar boton "Vista Previa" que navega a `/lms/admin/cursos/:cursoId/preview`
 
-**Modificaciones en `useEffect` (carga de contenido existente):**
-- Para tipo `video`, cargar `descripcion`, `thumbnail_url`, `provider`, y `guion_generado` del contenido existente
+## Archivos que NO se eliminan (por ahora)
+- `LMSCursoDetalle.tsx` - Se mantiene el archivo pero deja de usarse (se puede limpiar despues)
+- `LMSModuloForm.tsx` y `LMSContenidoForm.tsx` - Siguen existiendo como componentes independientes aunque ya no se acceden desde la vista antigua
 
-**Modificaciones en `resetForm`:**
-- Resetear `videoDescription`, `videoThumbnail`, `videoProvider`, `videoScript`
-
-## Estructura visual actualizada del dialog para video
-
-```text
-+--- Editar Contenido ----------------------------+
-|                                                   |
-| TITULO *          [AI btn]  | TIPO DE CONTENIDO   |
-| [________________]          | [Video v]            |
-|                                                   |
-| [Contenido]  [Configuracion]                      |
-|                                                   |
-| Video                                             |
-| [URL] [Subir]                                     |
-| [_________________________] [Aplicar]             |
-| Provider: [youtube]                               |
-|                                                   |
-| Descripcion / Notas                    [AI btn]   |
-| [_________________________________]               |
-|                                                   |
-| Thumbnail / Portada                    [AI btn]   |
-| [imagen preview o placeholder]                    |
-|                                                   |
-| Guion de Video (AI)                               |
-| [VideoScriptGenerator]                            |
-|                                                   |
-|                   [Cancelar] [Guardar Cambios]    |
-+---------------------------------------------------+
-```
-
-## Resumen
-- **Archivo modificado:** 1 (`LMSContenidoForm.tsx`)
-- **Sin archivos nuevos**
-- **Reutiliza:** `AIGenerateButton`, `VideoScriptGenerator`, `useLMSAI` (ya importado), `generateCourseImage`, `generateCourseMetadata`
-- **Paridad:** El dialog tendra las mismas features AI que el `ContenidoExpandedEditor`
+## Resumen de impacto
+- **Modificados:** 5 archivos (App.tsx, LMSCursosLista.tsx, LMSCursoWizard.tsx, LMSAdminCursoEditar.tsx, LMSAdminCursoPreview.tsx, EditorHeader.tsx)
+- **Experiencia:** Los usuarios siempre llegan al editor completo con todas las features (AI, drag & drop, preview, toggle)
