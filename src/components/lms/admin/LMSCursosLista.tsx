@@ -424,7 +424,7 @@ function CursoCard({
                 <MoreVertical className="w-4 h-4" />
               </Button>
               <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+                <SheetContent side="right" className="w-[280px] sm:w-[320px]" onClick={(e) => e.stopPropagation()}>
                   <SheetHeader>
                     <SheetTitle className="text-left">Acciones</SheetTitle>
                     <p className="text-sm text-muted-foreground text-left truncate">
@@ -456,7 +456,11 @@ function ActionItem({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick();
+      }}
       disabled={disabled}
       className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50 disabled:pointer-events-none ${className || 'text-foreground'}`}
     >
