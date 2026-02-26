@@ -110,6 +110,11 @@ const SystemTestingPage = lazy(() => import('@/pages/SystemTestingPage'));
 const SignUp = lazy(() => import('@/pages/Auth/SignUp'));
 const PendingActivation = lazy(() => import('@/pages/Auth/PendingActivation'));
 const CustodianSignup = lazy(() => import('@/pages/Auth/CustodianSignup'));
+const ArmadoSignup = lazy(() => import('@/pages/Auth/ArmadoSignup'));
+const ArmadoPortal = lazy(() => import('@/pages/armado/ArmadoPortal'));
+const ArmadoDashboard = lazy(() => import('@/pages/armado/ArmadoDashboard'));
+const ArmadoServicesPage = lazy(() => import('@/pages/armado/ArmadoServicesPage'));
+const ArmadoSupportPage = lazy(() => import('@/pages/armado/ArmadoSupportPage'));
 const ReportsPage = lazy(() => import('@/pages/Dashboard/ReportsPage'));
 const PerfilesOperativos = lazy(() => import('@/pages/PerfilesOperativos'));
 const PerfilForense = lazy(() => import('@/pages/PerfilesOperativos/PerfilForense'));
@@ -231,6 +236,7 @@ function App() {
                 <Route path="/auth/email-confirmation" element={<AuthLayout><EmailConfirmation /></AuthLayout>} />
                 <Route path="/auth/pending-activation" element={<PendingActivation />} />
                 <Route path="/auth/registro-custodio" element={<CustodianSignup />} />
+                <Route path="/auth/registro-armado" element={<ArmadoSignup />} />
                 
                 {/* Protected routes - Home for admin users, field operators redirect to portal */}
                 <Route
@@ -922,6 +928,13 @@ function App() {
                   <Route path="vehicle" element={<CustodianVehiclePage />} />
                   <Route path="support" element={<CustodianSupportPage />} />
                   <Route path="tickets" element={<Navigate to="/custodian/support" replace />} />
+                </Route>
+
+{/* Armado Portal Routes */}
+                <Route path="/armado" element={<ProtectedRoute><ArmadoPortal /></ProtectedRoute>}>
+                  <Route index element={<ArmadoDashboard />} />
+                  <Route path="services" element={<ArmadoServicesPage />} />
+                  <Route path="support" element={<ArmadoSupportPage />} />
                 </Route>
                 
                  {/* Custodian Checklist - Standalone page (no portal wrapper) */}

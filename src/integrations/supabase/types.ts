@@ -543,6 +543,66 @@ export type Database = {
           },
         ]
       }
+      armado_invitations: {
+        Row: {
+          armado_operativo_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          expires_at: string
+          id: string
+          nombre: string | null
+          status: string
+          telefono: string | null
+          token: string
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          armado_operativo_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          nombre?: string | null
+          status?: string
+          telefono?: string | null
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          armado_operativo_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          nombre?: string | null
+          status?: string
+          telefono?: string | null
+          token?: string
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "armado_invitations_armado_operativo_id_fkey"
+            columns: ["armado_operativo_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "armado_invitations_armado_operativo_id_fkey"
+            columns: ["armado_operativo_id"]
+            isOneToOne: false
+            referencedRelation: "armados_operativos_disponibles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       armados: {
         Row: {
           created_at: string
