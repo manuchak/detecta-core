@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2, Package, Award } from "lucide-react";
+import { Loader2, Sparkles, Video, FileText, Code, HelpCircle, Clock, Settings2, Package, Award, ImageIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LMS_TIPOS_CONTENIDO, type TipoContenido, type ContenidoData, type QuizContent, type TipoInteractivo, type InteractivoContent } from "@/types/lms";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
@@ -20,6 +20,9 @@ import { useLMSCrearPreguntas, useLMSEliminarPreguntas, fetchPreguntasByIds } fr
 import { getDocumentType } from "@/utils/documentUtils";
 import { useLMSPlantillas } from "@/hooks/lms/useLMSPlantillas";
 import { type ScormContent, type CertificadoPlantillaContent } from "@/types/lms";
+import { AIGenerateButton } from "./wizard/AIGenerateButton";
+import { VideoScriptGenerator, type VideoScriptData } from "./wizard/VideoScriptGenerator";
+import { Badge } from "@/components/ui/badge";
 
 
 interface ContenidoFormData {
@@ -85,9 +88,21 @@ export function LMSContenidoForm({
 
   // Campos de contenido según tipo
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoThumbnail, setVideoThumbnail] = useState("");
+  const [videoProvider, setVideoProvider] = useState("");
+  const [videoScript, setVideoScript] = useState<VideoScriptData | null>(null);
   const [documentoUrl, setDocumentoUrl] = useState("");
   const [textoHtml, setTextoHtml] = useState("");
   const [embedHtml, setEmbedHtml] = useState("");
+
+  // AI loading/success states
+  const [aiTitleLoading, setAiTitleLoading] = useState(false);
+  const [aiTitleSuccess, setAiTitleSuccess] = useState(false);
+  const [aiDescLoading, setAiDescLoading] = useState(false);
+  const [aiDescSuccess, setAiDescSuccess] = useState(false);
+  const [aiThumbLoading, setAiThumbLoading] = useState(false);
+  const [aiThumbSuccess, setAiThumbSuccess] = useState(false);
 
   // Interactivo - embed externo
   const [interactivoTipo, setInteractivoTipo] = useState<TipoInteractivo>('embed_externo');
@@ -131,7 +146,13 @@ export function LMSContenidoForm({
 
       // Cargar contenido según tipo
       const c = contenido.contenido as any;
-      if (contenido.tipo === 'video' && c?.url) setVideoUrl(c.url);
+      if (contenido.tipo === 'video' && c?.url) {
+        setVideoUrl(c.url);
+        if (c.descripcion) setVideoDescription(c.descripcion);
+        if (c.thumbnail_url) setVideoThumbnail(c.thumbnail_url);
+        if (c.provider) setVideoProvider(c.provider);
+        if (c.guion_generado) setVideoScript(c.guion_generado);
+      }
       if (contenido.tipo === 'documento' && c?.url) setDocumentoUrl(c.url);
       if (contenido.tipo === 'texto_enriquecido' && c?.html) setTextoHtml(c.html);
       if (contenido.tipo === 'embed' && c?.html) setEmbedHtml(c.html);
@@ -171,6 +192,16 @@ export function LMSContenidoForm({
     setActivo(true);
     setEsObligatorio(true);
     setVideoUrl("");
+    setVideoDescription("");
+    setVideoThumbnail("");
+    setVideoProvider("");
+    setVideoScript(null);
+    setAiTitleLoading(false);
+    setAiTitleSuccess(false);
+    setAiDescLoading(false);
+    setAiDescSuccess(false);
+    setAiThumbLoading(false);
+    setAiThumbSuccess(false);
     setDocumentoUrl("");
     setTextoHtml("");
     setEmbedHtml("");
@@ -224,7 +255,13 @@ export function LMSContenidoForm({
   const buildContenidoData = (): ContenidoData => {
     switch (tipo) {
       case 'video':
-        return { url: videoUrl, provider: detectVideoProvider(videoUrl) };
+        return {
+          url: videoUrl,
+          provider: detectVideoProvider(videoUrl),
+          descripcion: videoDescription || undefined,
+          thumbnail_url: videoThumbnail || undefined,
+          guion_generado: videoScript || undefined,
+        };
       case 'documento':
         return { url: documentoUrl, tipo: getDocumentType(documentoUrl) };
       case 'texto_enriquecido':
@@ -271,7 +308,64 @@ export function LMSContenidoForm({
     }
   };
 
-  const { generateQuizQuestions, generateRichText, loading: aiLoading } = useLMSAI();
+  const { generateQuizQuestions, generateRichText, generateCourseMetadata, generateCourseImage, loading: aiLoading } = useLMSAI();
+
+  // Auto-detect video provider when URL changes
+  useEffect(() => {
+    if (tipo === 'video' && videoUrl) {
+      setVideoProvider(detectVideoProvider(videoUrl));
+    }
+  }, [videoUrl, tipo]);
+
+  const handleGenerateVideoTitle = async () => {
+    if (!titulo || titulo.length < 3) {
+      toast.error("Escribe un título de al menos 3 caracteres");
+      return;
+    }
+    setAiTitleLoading(true);
+    const result = await generateCourseMetadata(titulo);
+    setAiTitleLoading(false);
+    if (result) {
+      setTitulo(result.descripcion?.substring(0, 80) || titulo);
+      setAiTitleSuccess(true);
+      setTimeout(() => setAiTitleSuccess(false), 2000);
+      toast.success("Título mejorado con IA");
+    }
+  };
+
+  const handleGenerateVideoDescription = async () => {
+    if (!titulo || titulo.length < 3) {
+      toast.error("Escribe un título de al menos 3 caracteres");
+      return;
+    }
+    setAiDescLoading(true);
+    const result = await generateRichText(titulo, moduloTitulo, "corta");
+    setAiDescLoading(false);
+    if (result?.html) {
+      const plainText = result.html.replace(/<[^>]*>/g, '').trim();
+      setVideoDescription(plainText);
+      setAiDescSuccess(true);
+      setTimeout(() => setAiDescSuccess(false), 2000);
+      toast.success("Descripción generada con IA");
+    }
+  };
+
+  const handleGenerateVideoThumbnail = async () => {
+    if (!titulo || titulo.length < 3) {
+      toast.error("Escribe un título de al menos 3 caracteres");
+      return;
+    }
+    setAiThumbLoading(true);
+    const result = await generateCourseImage(titulo, videoDescription || undefined);
+    setAiThumbLoading(false);
+    if (result?.imageBase64) {
+      const url = `data:image/png;base64,${result.imageBase64}`;
+      setVideoThumbnail(url);
+      setAiThumbSuccess(true);
+      setTimeout(() => setAiThumbSuccess(false), 2000);
+      toast.success("Thumbnail generado con IA");
+    }
+  };
 
   const handleGenerateQuiz = useCallback(async () => {
     if (!titulo || titulo.length < 3) {
@@ -374,14 +468,25 @@ export function LMSContenidoForm({
               <Label htmlFor="titulo" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Título *
               </Label>
-              <Input
-                id="titulo"
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Título del contenido"
-                required
-                className="h-10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="titulo"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Título del contenido"
+                  required
+                  className="h-10 flex-1"
+                />
+                {tipo === 'video' && (
+                  <AIGenerateButton
+                    onClick={handleGenerateVideoTitle}
+                    loading={aiTitleLoading}
+                    success={aiTitleSuccess}
+                    disabled={!titulo || titulo.length < 3}
+                    tooltip="Mejorar título con IA"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -422,13 +527,90 @@ export function LMSContenidoForm({
             <div className="flex-1 overflow-y-auto mt-4 pr-1">
               <TabsContent value="contenido" className="mt-0 space-y-4">
                 {tipo === 'video' && (
-                  <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
-                    <Label className="text-sm font-medium">Video</Label>
-                    <MediaUploader
-                      type="video"
-                      value={videoUrl}
-                      onChange={setVideoUrl}
-                      placeholder="YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL..."
+                  <div className="space-y-4">
+                    <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
+                      <Label className="text-sm font-medium">Video</Label>
+                      <MediaUploader
+                        type="video"
+                        value={videoUrl}
+                        onChange={setVideoUrl}
+                        placeholder="YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL..."
+                      />
+                      {videoUrl && videoProvider && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Provider:</span>
+                          <Badge variant="secondary" className="text-xs capitalize">{videoProvider}</Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Descripción / Notas */}
+                    <div className="space-y-2 p-4 rounded-xl bg-muted/30 border">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Descripción / Notas</Label>
+                        <AIGenerateButton
+                          onClick={handleGenerateVideoDescription}
+                          loading={aiDescLoading}
+                          success={aiDescSuccess}
+                          disabled={!titulo || titulo.length < 3}
+                          tooltip="Generar descripción con IA"
+                        />
+                      </div>
+                      <Textarea
+                        value={videoDescription}
+                        onChange={(e) => setVideoDescription(e.target.value)}
+                        placeholder="Descripción del video, notas para el instructor..."
+                        rows={3}
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {/* Thumbnail / Portada */}
+                    <div className="space-y-2 p-4 rounded-xl bg-muted/30 border">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Thumbnail / Portada</Label>
+                        <AIGenerateButton
+                          onClick={handleGenerateVideoThumbnail}
+                          loading={aiThumbLoading}
+                          success={aiThumbSuccess}
+                          disabled={!titulo || titulo.length < 3}
+                          tooltip="Generar thumbnail con IA"
+                        />
+                      </div>
+                      {videoThumbnail ? (
+                        <div className="relative rounded-lg overflow-hidden border bg-muted">
+                          <img
+                            src={videoThumbnail}
+                            alt="Thumbnail del video"
+                            className="w-full h-32 object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2 h-6 text-xs"
+                            onClick={() => setVideoThumbnail("")}
+                          >
+                            Quitar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-24 rounded-lg border border-dashed bg-muted/20">
+                          <div className="text-center">
+                            <ImageIcon className="h-6 w-6 mx-auto text-muted-foreground/50" />
+                            <p className="text-xs text-muted-foreground mt-1">Sin thumbnail</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Guión de Video */}
+                    <VideoScriptGenerator
+                      tema={titulo}
+                      moduloTitulo={moduloTitulo}
+                      duracionMin={duracion}
+                      initialData={videoScript}
+                      onGenerated={(data) => setVideoScript(data)}
                     />
                   </div>
                 )}
