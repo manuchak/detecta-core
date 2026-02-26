@@ -206,7 +206,7 @@ export function LMSCursosLista() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!cursoAEliminar} onOpenChange={() => setCursoAEliminar(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent style={{ zoom: 1 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar curso permanentemente?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
@@ -283,7 +283,8 @@ function CursoCard({
 
   const handleAction = (action: () => void) => {
     setSheetOpen(false);
-    action();
+    // Delay action to prevent click bubbling to parent card
+    setTimeout(() => action(), 150);
   };
 
   // Shared action items for both mobile sheet and desktop dropdown
