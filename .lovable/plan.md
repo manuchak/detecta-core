@@ -1,51 +1,94 @@
 
 
-# Homologar Editor de Texto Enriquecido en LMSContenidoForm
+# Subida de Imagenes con Drag & Drop, Paste y Upload en el Editor de Texto LMS
 
 ## Problema
-El dialogo "Editar Contenido" (`LMSContenidoForm.tsx`) usa un `<Textarea>` plano con fuente monoespaciada para editar contenido de tipo `texto_enriquecido`. Esto obliga al usuario a escribir HTML crudo, mientras que otros editores del LMS (como `ContenidoExpandedEditor` y `ContentEditor` del wizard) ya usan el componente `RichTextEditor` basado en TipTap con toolbar WYSIWYG completo.
+El editor de texto enriquecido (`RichTextEditor`) solo permite insertar imagenes por URL. Los usuarios necesitan poder subir imagenes directamente mediante:
+- Drag & Drop (arrastrar archivos al editor)
+- Copy & Paste (pegar imagenes del clipboard)
+- Boton de Upload (seleccionar archivos desde el explorador)
 
 ## Solucion
-Reemplazar el `<Textarea>` por el componente `RichTextEditor` que ya existe en el proyecto, conectado con la misma funcionalidad de "Generar con IA" que ya tiene el formulario.
+Modificar el componente `RichTextEditor.tsx` para agregar soporte completo de subida de imagenes al bucket `lms-media` de Supabase Storage (que ya existe).
 
 ## Cambios
 
-### Archivo: `src/components/lms/admin/LMSContenidoForm.tsx`
+### Archivo unico: `src/components/lms/admin/RichTextEditor.tsx`
 
-1. **Importar** `RichTextEditor` (ya existe en `@/components/lms/admin/RichTextEditor`).
-2. **Reemplazar** el bloque de `texto_enriquecido` (lineas ~447-475) que contiene:
-   - Un boton "Generar con IA" separado
-   - Un `<Textarea>` plano con `font-mono`
-3. **Sustituir por**: el componente `<RichTextEditor>` con sus props `value`, `onChange`, `onGenerateAI` y `aiLoading`, exactamente como ya se usa en `ContenidoExpandedEditor.tsx`.
-4. **Ampliar el ancho del dialogo** para `texto_enriquecido` (igual que ya se hace para `quiz`), ya que el editor WYSIWYG necesita mas espacio horizontal.
+**1. Funcion de upload a Supabase Storage**
+- Crear una funcion `uploadImage(file: File)` que suba al bucket `lms-media` en la ruta `contenido/{timestamp}_{nombre}`
+- Comprimir la imagen usando Canvas API (max 1920x1080, quality 0.8) siguiendo el estandar del proyecto
+- Retornar la URL publica via `getPublicUrl()`
 
-### Resultado visual
-- El usuario vera una barra de herramientas con negrita, cursiva, subrayado, encabezados, listas, alineacion, colores, enlaces, imagenes y tablas.
-- El boton "Generar con IA" quedara integrado en la barra del editor.
-- El contenido se editara visualmente en lugar de como HTML crudo.
+**2. Drag & Drop**
+- Registrar handler `handleDrop` en el contenedor del editor
+- Interceptar archivos de tipo `image/*` del `DataTransfer`
+- Subir cada imagen y ejecutar `editor.chain().focus().setImage({ src: publicUrl })`
+- Mostrar estado de carga visual (overlay semitransparente con spinner)
+
+**3. Paste desde clipboard**
+- Registrar handler `handlePaste` en el editor
+- Detectar `clipboardData.files` o `clipboardData.items` con tipo `image/*`
+- Misma logica de upload e insercion
+
+**4. Boton Upload en toolbar**
+- Ampliar el popover actual de imagen: ademas del input de URL, agregar un boton "Subir imagen" que abre un `<input type="file" accept="image/*">`
+- Al seleccionar archivo, ejecutar la misma funcion de upload
+- Mostrar spinner mientras se sube
+
+**5. Estado de carga visual**
+- Mientras se sube una imagen, mostrar un overlay con "Subiendo imagen..." sobre el area del editor
+- Deshabilitar el editor brevemente durante el upload para evitar conflictos
+
+### Resultado para el usuario
+- Puede arrastrar una imagen desde su escritorio al editor y se inserta automaticamente
+- Puede copiar una imagen de cualquier lugar (otro sitio web, screenshot) y pegarla con Ctrl+V
+- Puede hacer clic en el icono de imagen y elegir entre URL o subir archivo
+- Las imagenes quedan almacenadas en Supabase Storage (bucket `lms-media`) con URL publica permanente
 
 ### Detalle tecnico
 
-```tsx
-// Antes (Textarea plano):
-<Textarea value={textoHtml} onChange={(e) => setTextoHtml(e.target.value)} />
+El bucket `lms-media` ya existe con limite de 150MB y es publico. La compresion via Canvas mantendra las imagenes en un tamano razonable (~400KB).
 
-// Despues (RichTextEditor WYSIWYG):
-<RichTextEditor
-  value={textoHtml}
-  onChange={setTextoHtml}
-  onGenerateAI={handleGenerateRichText}
-  aiLoading={aiLoading}
-/>
+```tsx
+// Ejemplo de la funcion de upload
+async function uploadImageToStorage(file: File): Promise<string> {
+  const compressed = await compressImage(file, 1920, 1080, 0.8);
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `contenido/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+  
+  const { error } = await supabase.storage.from('lms-media').upload(path, compressed);
+  if (error) throw error;
+  
+  const { data } = supabase.storage.from('lms-media').getPublicUrl(path);
+  return data.publicUrl;
+}
 ```
 
-El ancho del dialogo se ampliara condicionalmente:
-```tsx
-// Antes:
-isQuizMode ? "max-w-4xl" : "max-w-2xl"
+El popover de imagen se ampliara con una seccion de upload:
 
-// Despues:
-(isQuizMode || tipo === 'texto_enriquecido') ? "max-w-4xl" : "max-w-2xl"
+```tsx
+// Dentro del popover de imagen actual
+<Input placeholder="URL de la imagen..." ... />
+<Button onClick={insertImage}>Insertar por URL</Button>
+<Separator />
+<Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+  <Upload className="w-4 h-4" /> Subir imagen
+</Button>
+<input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileSelect} />
 ```
 
-No se requieren cambios en base de datos ni en otros componentes. El `RichTextEditor` ya produce HTML limpio compatible con `TextoEnriquecidoViewer`.
+Para drag & drop, el contenedor del editor tendra handlers:
+
+```tsx
+<div 
+  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+  onDragLeave={() => setDragging(false)}
+  onDrop={handleDrop}
+>
+  {dragging && <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary z-10 flex items-center justify-center">Suelta la imagen aqui</div>}
+  <EditorContent editor={editor} />
+</div>
+```
+
+Como `RichTextEditor` es el unico componente centralizado usado por los 3 editores del LMS (`LMSContenidoForm`, `ContenidoExpandedEditor`, `ContentEditor` del wizard), este cambio se aplica automaticamente a **todas** las interfaces de edicion sin modificar ningun otro archivo.
