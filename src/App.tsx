@@ -120,6 +120,7 @@ const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado
 const LMSReportes = lazy(() => import('@/pages/LMS/LMSReportes'));
 const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoEditar'));
+const LMSAdminCursoPreview = lazy(() => import('@/pages/LMS/LMSAdminCursoPreview'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 import LMSZoomReset from '@/components/lms/LMSZoomReset';
@@ -1070,6 +1071,16 @@ function App() {
                         <UnifiedLayout>
                           <LMSZoomReset><LMSAdminCursoEditar /></LMSZoomReset>
                         </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lms/admin/cursos/:cursoId/preview"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'capacitacion_admin']}>
+                        <LMSZoomReset><LMSAdminCursoPreview /></LMSZoomReset>
                       </RoleProtectedRoute>
                     </ProtectedRoute>
                   }
