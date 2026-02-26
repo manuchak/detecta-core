@@ -1,69 +1,51 @@
 
 
-# Vista de Revision de Cursos para Stakeholders
+# Homologar Editor de Texto Enriquecido en LMSContenidoForm
 
-## Objetivo
-Permitir que stakeholders (admins) puedan revisar el contenido completo y diseno instruccional de cualquier curso directamente desde el panel de administracion, sin necesidad de inscribirse ni alterar datos de progreso.
+## Problema
+El dialogo "Editar Contenido" (`LMSContenidoForm.tsx`) usa un `<Textarea>` plano con fuente monoespaciada para editar contenido de tipo `texto_enriquecido`. Esto obliga al usuario a escribir HTML crudo, mientras que otros editores del LMS (como `ContenidoExpandedEditor` y `ContentEditor` del wizard) ya usan el componente `RichTextEditor` basado en TipTap con toolbar WYSIWYG completo.
 
-## Solucion: "Modo Preview" del Curso
+## Solucion
+Reemplazar el `<Textarea>` por el componente `RichTextEditor` que ya existe en el proyecto, conectado con la misma funcionalidad de "Generar con IA" que ya tiene el formulario.
 
-Crear una nueva pagina `/lms/admin/cursos/:cursoId/preview` que reutilice la misma interfaz del `CursoViewer` (sidebar de modulos + renderizador de contenido) pero en modo lectura pura: sin inscripcion, sin tracking de progreso, sin auto-complete.
+## Cambios
 
-### Como funcionara para el stakeholder
-1. Desde la lista de cursos en Admin o desde el detalle del curso, veran un boton **"Vista Previa"** (icono Eye)
-2. Al hacer clic, se abre el curso completo con toda su estructura y contenido renderizado
-3. Pueden navegar libremente entre modulos y contenidos (videos, textos, quizzes, documentos)
-4. No se registra progreso ni se requiere inscripcion
-5. Header claro indica "MODO PREVIEW" para distinguirlo de la experiencia real del alumno
+### Archivo: `src/components/lms/admin/LMSContenidoForm.tsx`
 
-### Flujo visual
+1. **Importar** `RichTextEditor` (ya existe en `@/components/lms/admin/RichTextEditor`).
+2. **Reemplazar** el bloque de `texto_enriquecido` (lineas ~447-475) que contiene:
+   - Un boton "Generar con IA" separado
+   - Un `<Textarea>` plano con `font-mono`
+3. **Sustituir por**: el componente `<RichTextEditor>` con sus props `value`, `onChange`, `onGenerateAI` y `aiLoading`, exactamente como ya se usa en `ContenidoExpandedEditor.tsx`.
+4. **Ampliar el ancho del dialogo** para `texto_enriquecido` (igual que ya se hace para `quiz`), ya que el editor WYSIWYG necesita mas espacio horizontal.
 
-```text
-Admin Panel
-  |
-  +-- Lista de Cursos --> [boton "Vista Previa"] --> /lms/admin/cursos/:id/preview
-  |
-  +-- Detalle Curso --> [boton "Vista Previa"] --> /lms/admin/cursos/:id/preview
+### Resultado visual
+- El usuario vera una barra de herramientas con negrita, cursiva, subrayado, encabezados, listas, alineacion, colores, enlaces, imagenes y tablas.
+- El boton "Generar con IA" quedara integrado en la barra del editor.
+- El contenido se editara visualmente en lugar de como HTML crudo.
+
+### Detalle tecnico
+
+```tsx
+// Antes (Textarea plano):
+<Textarea value={textoHtml} onChange={(e) => setTextoHtml(e.target.value)} />
+
+// Despues (RichTextEditor WYSIWYG):
+<RichTextEditor
+  value={textoHtml}
+  onChange={setTextoHtml}
+  onGenerateAI={handleGenerateRichText}
+  aiLoading={aiLoading}
+/>
 ```
 
----
+El ancho del dialogo se ampliara condicionalmente:
+```tsx
+// Antes:
+isQuizMode ? "max-w-4xl" : "max-w-2xl"
 
-## Detalle Tecnico
+// Despues:
+(isQuizMode || tipo === 'texto_enriquecido') ? "max-w-4xl" : "max-w-2xl"
+```
 
-### 1. Nueva pagina: `src/pages/LMS/LMSAdminCursoPreview.tsx`
-- Usa `useLMSAdminCursoDetalle(cursoId)` para obtener curso + modulos + contenidos (ya existe este hook, no requiere inscripcion)
-- Layout identico al `CursoViewer`: sidebar izquierda con modulos, area principal con `ContentRenderer`
-- **Sin** hooks de progreso (`useLMSProgresoContenidos`, `useLMSMarcarCompletado`, etc.)
-- **Sin** logica de inscripcion automatica
-- Barra de navegacion (anterior/siguiente) funcional
-- Header con badge "PREVIEW" y boton para volver al admin
-- El sidebar `ModuleSidebar` se reutiliza pasando `progresos=[]` y `progresoGeneral=0`
-
-### 2. Ruta nueva en `App.tsx`
-- Path: `/lms/admin/cursos/:cursoId/preview`
-- Protegida con `RoleProtectedRoute` para roles `admin`, `owner`, `supply_admin`, `capacitacion_admin`
-- Envuelta en `LMSZoomReset` como las demas rutas LMS admin
-
-### 3. Boton "Vista Previa" en componentes existentes
-
-**En `LMSCursoDetalle.tsx`** (pagina de detalle admin):
-- Agregar boton "Vista Previa" junto al boton "Editar Curso" en el header
-
-**En `LMSCursosLista.tsx`** (lista de cursos admin):
-- Agregar opcion "Vista Previa" en el menu de acciones de cada curso (si existe menu contextual)
-
-### 4. Archivos a crear/modificar
-
-| Archivo | Accion |
-|---|---|
-| `src/pages/LMS/LMSAdminCursoPreview.tsx` | **Crear** - pagina de preview read-only |
-| `src/App.tsx` | **Modificar** - agregar ruta nueva |
-| `src/components/lms/admin/LMSCursoDetalle.tsx` | **Modificar** - agregar boton Vista Previa |
-
-### 5. Ventajas de este enfoque
-- **Reutiliza** `ContentRenderer` y `ModuleSidebar` sin duplicar codigo
-- **No toca** la experiencia del alumno (CursoViewer intacto)
-- **No requiere** cambios en base de datos ni RPCs
-- **Seguro**: solo admins pueden acceder via RoleProtectedRoute
-- **Rapido**: un stakeholder entra, navega todo el contenido, y sale
-
+No se requieren cambios en base de datos ni en otros componentes. El `RichTextEditor` ya produce HTML limpio compatible con `TextoEnriquecidoViewer`.
