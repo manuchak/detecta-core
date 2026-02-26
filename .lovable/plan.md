@@ -1,129 +1,86 @@
 
 
-# Rediseno UX del Dashboard LMS: Centrado en el Alumno
+# Hacer el LMS mas calido y mostrar nivel en la barra principal
 
-## Diagnostico
+## Problema 1: Nivel invisible en la pagina principal
 
-La pantalla actual esta construida como un dashboard analitico (metricas arriba, tabs abajo, grids de cards). Funciona, pero no responde de manera eficiente a las preguntas del user persona. Los mejores LMS del mercado (Duolingo, Coursera, Platzi, Khan Academy) comparten un patron: **hero de accion inmediata + progreso motivacional ambiental**.
+La `ProgressMotivationalBar` muestra puntos como texto plano pero no incluye:
+- Badge visual del nivel actual
+- Barra de progreso hacia el siguiente nivel
+- Cuantos puntos faltan de manera visual
 
-## Preguntas del User Persona vs. Solucion Propuesta
+## Problema 2: Pagina de Logros fria
 
-| Pregunta del alumno | Estado actual | Propuesta |
-|---|---|---|
-| Que debo hacer AHORA? | Escondido en tab Mi Onboarding | Hero card con CTA prominente del siguiente curso |
-| Cuanto me falta? | Disperso en cards | Barra de progreso global persistente + tiempo estimado restante |
-| Estoy en riesgo? | Bien resuelto con badges rojos | Mantener, elevar alertas vencidas al hero |
-| Cuanto he logrado? | Numeros frios (6, 3, 1) | Streak/racha + horas de aprendizaje + micro-celebraciones |
-| Cuanto tiempo me tomara? | Solo duracion individual | Tiempo restante agregado por onboarding y por curso en progreso |
-| Hay algo nuevo? | Catalogo con filtros (bien) | Mantener tal cual |
-| Como me comparo? | No existe | Opcional: % de equipo que ya completo |
+El tab "Logros" usa cards planas con fondo gris, iconos de candado sin personalidad y cero uso de color/gradiente. No genera la sensacion de "logro desbloqueado" que los mejores LMS ofrecen.
 
-## Cambios Propuestos
+## Cambios propuestos
 
-### 1. Nuevo componente Hero: "Continua Aprendiendo"
+### 1. Enriquecer ProgressMotivationalBar con nivel visual
 
-Reemplazar el bloque `CategoryProgressSummary` como primera seccion visible por un hero card que responda la pregunta #1 inmediatamente:
+**Archivo**: `src/components/lms/ProgressMotivationalBar.tsx`
 
-```text
-+----------------------------------------------------------+
-|  [icono curso]                                           |
-|  Continua donde te quedaste                              |
-|  "Onboarding Custodia Vehicular"                         |
-|  [==========>          ] 45%  ·  ~18 min restantes       |
-|                                                          |
-|  [  Continuar ahora  ->  ]                               |
-+----------------------------------------------------------+
-```
-
-- Muestra el curso mas urgente: vencido > en_progreso > inscrito obligatorio
-- Incluye progreso visual y tiempo estimado restante
-- Un solo boton CTA que lleva directo al contenido
-- Si no hay curso pendiente, muestra felicitacion o sugiere catalogo
-
-**Archivo nuevo**: `src/components/lms/ContinueLearningHero.tsx`
-
-**Logica**: Toma los cursos de `useLMSCursosDisponibles`, prioriza por urgencia (vencido > en_progreso con deadline > en_progreso > inscrito obligatorio), y muestra el primero.
-
-### 2. Barra de Progreso Motivacional
-
-Reemplazar los 3 contadores frios (Inscritos/En Progreso/Completados) por una seccion mas motivacional:
+Agregar debajo de la barra de progreso global:
+- Un badge colorido con el nivel actual (ej: "Nivel 2" con fondo gradiente)
+- Una mini barra de progreso XP mostrando avance hacia el siguiente nivel
+- Texto: "80 pts para nivel 3" con la barra visual
 
 ```text
-+----------------------------------------------------------+
-|  Tu Progreso                                             |
-|  [=====████████████░░░░] 4/6 cursos  ·  12.5 hrs        |
-|                                                          |
-|  Racha: 3 dias  ·  Puntos: 450  ·  Siguiente badge: 50pts|
-+----------------------------------------------------------+
+Antes:
+  [barra progreso] 14% completado
+  ★ 220 pts  |  🏅 0 pts para nivel 2
+
+Despues:
+  [barra progreso] 14% completado
+  ┌─────────────────────────────────────────┐
+  │ [★ Nivel 2]  220 pts                    │
+  │ [████████████████░░░░░░] 80 pts → Nv. 3 │
+  │ 🔥 Racha: 3 dias                        │
+  └─────────────────────────────────────────┘
 ```
 
-- Barra de progreso global (cursos completados / total asignados)
-- Horas totales de aprendizaje acumuladas
-- Gamificacion ambiental: racha, puntos, proximo badge (datos ya disponibles en `useLMSGamificacion`)
+Cambios especificos:
+- Importar `calcularNivel` y `puntosParaSiguienteNivel` (ya importa `puntosParaSiguienteNivel`)
+- Calcular `progresoNivel` como porcentaje entre nivel actual y siguiente
+- Agregar badge con gradiente para nivel: `bg-gradient-to-r from-yellow-500 to-amber-600 text-white`
+- Agregar segunda Progress bar mas pequena (h-1.5) para XP del nivel
+- Mover puntos y racha a la misma fila que el badge de nivel
 
-**Archivo nuevo**: `src/components/lms/ProgressMotivationalBar.tsx`
+### 2. Hacer la pagina de Logros mas calida y visual
 
-### 3. Seccion "Mis Cursos" como lista compacta, no grid
+**Archivo**: `src/components/lms/gamificacion/GamificacionWidget.tsx`
 
-Cambiar el grid de cards grandes por una lista compacta estilo Coursera/Platzi para cursos en progreso. Las cards grandes son para descubrimiento (catalogo); los cursos en progreso necesitan ser escaneables rapidamente:
+- Cambiar el gradiente del header a uno mas vibrante: `from-amber-500/15 via-yellow-500/10 to-orange-500/10`
+- Agregar emoji/icono animado junto al nivel
+- Usar colores mas calidos en las stats (no solo `bg-muted/50`)
+- Badge de nivel con gradiente dorado en vez de `variant="secondary"`
 
-```text
-Mis Cursos en Progreso (3)
-+----------------------------------------------------------+
-| [thumb] ADN DETECTA           [=====>    ] 35%  15min    |
-| [thumb] Toolkit Soluciones    [>         ]  0%  45min    |
-| [thumb] Procesos Core         [>         ]  0%  30min    |
-+----------------------------------------------------------+
-```
+**Archivo**: `src/components/lms/gamificacion/BadgesGrid.tsx`
 
-- Cada fila: thumbnail mini + titulo + barra progreso + tiempo restante + CTA
-- Mucho mas scannable que 3 cards de 300px de alto
-- Las cards grandes se mantienen en Catalogo y Completados
+- Badges obtenidos: fondo con gradiente calido (`from-amber-50 to-yellow-50`, dark: `from-amber-950/30 to-yellow-950/20`), borde dorado sutil, icono con color primario mas vibrante
+- Badges bloqueados: mantener el estilo misterioso pero con un brillo sutil en hover (no solo opacity change)
+- Agregar un anillo de progreso o efecto de "casi desbloqueado" si el usuario esta cerca de obtener un badge
+- El contador "0 de 7 insignias" usar un mini progress bar en vez de solo texto
 
-**Archivo nuevo**: `src/components/lms/CompactCourseList.tsx`
+**Archivo**: `src/components/lms/certificados/MisCertificados.tsx`
 
-### 4. Simplificar tabs
+- Cards de certificado con borde dorado sutil y gradiente calido de fondo
+- Icono de certificado mas prominente con color dorado
 
-Reducir de 6 tabs a 4 (los usuarios no usan tantas tabs):
+### 3. Header del LMS mas acogedor
 
-- **Mi Ruta** (merge de "Mi Onboarding" + "Mis Cursos" - son lo mismo para el alumno)
-- **Catalogo** (mantener)
-- **Completados** (mantener)  
-- **Logros** (merge de Certificados + Logros + Badges en una sola vista)
+**Archivo**: `src/pages/LMS/LMSDashboard.tsx`
 
-### 5. Mover CategoryProgressSummary
+- Cambiar el header plano por uno con gradiente sutil: `bg-gradient-to-r from-primary/5 via-background to-amber-500/5`
+- Agregar un saludo personalizado o frase motivacional rotativa
+- Subtitulo mas calido: "Sigue creciendo, cada leccion cuenta" en vez de "Desarrolla tus habilidades con nuestros cursos"
 
-El `CategoryProgressSummary` actual es util pero no es lo primero que el alumno necesita ver. Moverlo dentro del tab "Mi Ruta" como seccion colapsable debajo de la lista de cursos, no arriba de todo.
+## Resumen de archivos a modificar
 
-## Cambios Tecnicos
+1. `src/components/lms/ProgressMotivationalBar.tsx` - Agregar badge de nivel, barra XP visual, layout mas rico
+2. `src/components/lms/gamificacion/GamificacionWidget.tsx` - Gradientes calidos, badge dorado, stats con color
+3. `src/components/lms/gamificacion/BadgesGrid.tsx` - Badges con gradientes, hover effects, progress visual
+4. `src/pages/LMS/LMSDashboard.tsx` - Header con gradiente y mensaje motivacional
 
-### Archivos nuevos
-1. `src/components/lms/ContinueLearningHero.tsx` - Hero card con siguiente curso prioritario y CTA
-2. `src/components/lms/ProgressMotivationalBar.tsx` - Barra motivacional con progreso global, horas, racha y puntos
-3. `src/components/lms/CompactCourseList.tsx` - Lista compacta de cursos en progreso (fila por curso, no card)
+## Sin migraciones SQL
 
-### Archivos modificados
-1. `src/pages/LMS/LMSDashboard.tsx` - Restructurar layout:
-   - Arriba: `ContinueLearningHero` (siempre visible si hay curso pendiente)
-   - Debajo: `ProgressMotivationalBar` (siempre visible)
-   - Tabs reducidos a 4: Mi Ruta, Catalogo, Completados, Logros
-   - Tab "Mi Ruta": `CompactCourseList` + `OnboardingPath` + `CategoryProgressSummary` (colapsable)
-   - Tab "Logros": combina `GamificacionWidget` + `BadgesGrid` + `MisCertificados`
-
-### Datos utilizados (sin nuevas queries)
-- `useLMSCursosDisponibles()` - ya tiene progreso, estado, duracion, es_obligatorio
-- `useLMSOnboardingStatus()` - ya tiene stats de onboarding
-- `useLMSGamificacion()` (hook existente) - puntos, racha, badges
-
-### Sin migraciones SQL
-Todo se resuelve con datos ya disponibles en los hooks existentes.
-
-## Resultado esperado
-
-El alumno abre la pantalla y en menos de 3 segundos sabe:
-1. Que curso continuar (hero)
-2. Cuanto le falta en total (barra motivacional)
-3. Si tiene algo vencido (alerta en hero)
-4. Cuantos puntos/racha lleva (gamificacion ambiental)
-
-Sin necesidad de hacer clic en ningun tab para responder sus preguntas mas urgentes.
+Todo es cambio visual/UI con datos ya disponibles en los hooks existentes.
