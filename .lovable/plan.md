@@ -1,86 +1,59 @@
 
 
-# Hacer el LMS mas calido y mostrar nivel en la barra principal
+# Corregir menu de acciones de cursos: Mixto (Desktop + Mobile)
 
-## Problema 1: Nivel invisible en la pagina principal
+## Problema
 
-La `ProgressMotivationalBar` muestra puntos como texto plano pero no incluye:
-- Badge visual del nivel actual
-- Barra de progreso hacia el siguiente nivel
-- Cuantos puntos faltan de manera visual
+El menu de 3 puntos en las tarjetas de curso no se muestra al hacer clic. El problema es una combinacion de:
 
-## Problema 2: Pagina de Logros fria
+1. El `.apple-card` aplica `transform: translateY(-1px)` en hover, creando un nuevo stacking context que interfiere con el posicionamiento del dropdown
+2. El sistema de zoom global (`html { zoom: 0.7 }`) con la compensacion `[data-radix-popper-content-wrapper] { zoom: 1.428571 }` puede causar que el menu se posicione fuera del viewport o debajo de otros elementos
+3. El click en la tarjeta (`onClick={onVer}`) compite con el click del trigger del dropdown
 
-El tab "Logros" usa cards planas con fondo gris, iconos de candado sin personalidad y cero uso de color/gradiente. No genera la sensacion de "logro desbloqueado" que los mejores LMS ofrecen.
+## Solucion: Patron mixto
 
-## Cambios propuestos
+- **Desktop**: Mantener DropdownMenu pero con `modal={true}` y asegurar que el portal se renderice correctamente con z-index alto
+- **Mobile**: Reemplazar por un Sheet (panel lateral derecho) con las opciones listadas de forma clara y grande
 
-### 1. Enriquecer ProgressMotivationalBar con nivel visual
+## Archivos a modificar
 
-**Archivo**: `src/components/lms/ProgressMotivationalBar.tsx`
+### 1. `src/components/lms/admin/LMSCursosLista.tsx`
 
-Agregar debajo de la barra de progreso global:
-- Un badge colorido con el nivel actual (ej: "Nivel 2" con fondo gradiente)
-- Una mini barra de progreso XP mostrando avance hacia el siguiente nivel
-- Texto: "80 pts para nivel 3" con la barra visual
+Cambios en el componente `CursoCard`:
+- Importar `useIsMobile`, `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle`
+- Agregar estado `actionsOpen` para controlar el Sheet en mobile
+- En mobile: reemplazar `DropdownMenu` por un `Sheet` con side="right"
+- En desktop: mantener `DropdownMenu` pero agregar `modal={false}` y wrappear el trigger con `onPointerDown={(e) => e.stopPropagation()}` para evitar conflicto con el click de la card
+- Mover `e.stopPropagation()` al `onMouseDown` del trigger button en vez del div contenedor
+- Agregar el nombre del curso en el header del Sheet mobile para dar contexto
+
+### 2. Correccion del conflicto de click
+
+El div que envuelve el dropdown tiene `onClick={e => e.stopPropagation()}` pero el problema real es que el evento de pointer-down en la card activa hover/transform antes de que el dropdown tenga chance de abrirse. Se corregira con:
+- `onPointerDown={(e) => e.stopPropagation()}` en el boton trigger
+- `onMouseDown={(e) => e.stopPropagation()}` en el boton trigger
+
+### Vista mobile (Sheet)
 
 ```text
-Antes:
-  [barra progreso] 14% completado
-  ★ 220 pts  |  🏅 0 pts para nivel 2
-
-Despues:
-  [barra progreso] 14% completado
-  ┌─────────────────────────────────────────┐
-  │ [★ Nivel 2]  220 pts                    │
-  │ [████████████████░░░░░░] 80 pts → Nv. 3 │
-  │ 🔥 Racha: 3 dias                        │
-  └─────────────────────────────────────────┘
++----------------------------------+
+|  X   Acciones                    |
+|      "Onboarding Custodia"       |
+|----------------------------------|
+|  > Ver detalles                  |
+|  > Editar                        |
+|  > Publicar / Despublicar        |
+|  > Duplicar                      |
+|  --------------------------------|
+|  > Archivar                      |
+|  --------------------------------|
+|  > Eliminar (rojo)               |
++----------------------------------+
 ```
 
-Cambios especificos:
-- Importar `calcularNivel` y `puntosParaSiguienteNivel` (ya importa `puntosParaSiguienteNivel`)
-- Calcular `progresoNivel` como porcentaje entre nivel actual y siguiente
-- Agregar badge con gradiente para nivel: `bg-gradient-to-r from-yellow-500 to-amber-600 text-white`
-- Agregar segunda Progress bar mas pequena (h-1.5) para XP del nivel
-- Mover puntos y racha a la misma fila que el badge de nivel
+## Resultado esperado
 
-### 2. Hacer la pagina de Logros mas calida y visual
+- En desktop: el menu de 3 puntos abre un dropdown flotante sin problemas de z-index
+- En mobile: el menu abre un panel lateral limpio con todas las opciones bien visibles
+- Los dialogs de confirmacion (eliminar, archivar) siguen funcionando igual
 
-**Archivo**: `src/components/lms/gamificacion/GamificacionWidget.tsx`
-
-- Cambiar el gradiente del header a uno mas vibrante: `from-amber-500/15 via-yellow-500/10 to-orange-500/10`
-- Agregar emoji/icono animado junto al nivel
-- Usar colores mas calidos en las stats (no solo `bg-muted/50`)
-- Badge de nivel con gradiente dorado en vez de `variant="secondary"`
-
-**Archivo**: `src/components/lms/gamificacion/BadgesGrid.tsx`
-
-- Badges obtenidos: fondo con gradiente calido (`from-amber-50 to-yellow-50`, dark: `from-amber-950/30 to-yellow-950/20`), borde dorado sutil, icono con color primario mas vibrante
-- Badges bloqueados: mantener el estilo misterioso pero con un brillo sutil en hover (no solo opacity change)
-- Agregar un anillo de progreso o efecto de "casi desbloqueado" si el usuario esta cerca de obtener un badge
-- El contador "0 de 7 insignias" usar un mini progress bar en vez de solo texto
-
-**Archivo**: `src/components/lms/certificados/MisCertificados.tsx`
-
-- Cards de certificado con borde dorado sutil y gradiente calido de fondo
-- Icono de certificado mas prominente con color dorado
-
-### 3. Header del LMS mas acogedor
-
-**Archivo**: `src/pages/LMS/LMSDashboard.tsx`
-
-- Cambiar el header plano por uno con gradiente sutil: `bg-gradient-to-r from-primary/5 via-background to-amber-500/5`
-- Agregar un saludo personalizado o frase motivacional rotativa
-- Subtitulo mas calido: "Sigue creciendo, cada leccion cuenta" en vez de "Desarrolla tus habilidades con nuestros cursos"
-
-## Resumen de archivos a modificar
-
-1. `src/components/lms/ProgressMotivationalBar.tsx` - Agregar badge de nivel, barra XP visual, layout mas rico
-2. `src/components/lms/gamificacion/GamificacionWidget.tsx` - Gradientes calidos, badge dorado, stats con color
-3. `src/components/lms/gamificacion/BadgesGrid.tsx` - Badges con gradientes, hover effects, progress visual
-4. `src/pages/LMS/LMSDashboard.tsx` - Header con gradiente y mensaje motivacional
-
-## Sin migraciones SQL
-
-Todo es cambio visual/UI con datos ya disponibles en los hooks existentes.
