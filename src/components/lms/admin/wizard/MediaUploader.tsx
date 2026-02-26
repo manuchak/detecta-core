@@ -24,8 +24,8 @@ const TYPE_CONFIG = {
     accept: ".mp4,.webm,.mov",
     maxSize: 150 * 1024 * 1024, // 150MB
     label: "Video",
-    placeholder: "https://youtube.com/watch?v=... o https://vimeo.com/...",
-    hint: "Soporta YouTube, Vimeo y enlaces directos a MP4",
+    placeholder: "YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL...",
+    hint: "Soporta YouTube, Vimeo, TikTok, Instagram, Facebook, Canva y enlaces directos",
     folder: "videos",
   },
   document: {
