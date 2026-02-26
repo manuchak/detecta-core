@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { QuizEditor } from "./quiz/QuizEditor";
 import { QuizQuestion } from "./quiz/QuestionCard";
 import { cn } from "@/lib/utils";
+import { RichTextEditor } from "./RichTextEditor";
 import { MediaUploader } from "./wizard/MediaUploader";
 import { useLMSCrearPreguntas, useLMSEliminarPreguntas, fetchPreguntasByIds } from "@/hooks/lms/useLMSAdminPreguntas";
 import { getDocumentType } from "@/utils/documentUtils";
@@ -357,7 +358,7 @@ export function LMSContenidoForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
         "max-h-[90vh] overflow-hidden flex flex-col",
-        isQuizMode ? "max-w-4xl" : "max-w-2xl"
+        (isQuizMode || tipo === 'texto_enriquecido') ? "max-w-4xl" : "max-w-2xl"
       )}>
         <DialogHeader className="flex-shrink-0 pb-4 border-b">
           <DialogTitle className="flex items-center gap-2">
@@ -446,31 +447,12 @@ export function LMSContenidoForm({
 
                 {tipo === 'texto_enriquecido' && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="texto" className="text-sm font-medium">Contenido de Texto</Label>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={handleGenerateRichText}
-                        disabled={aiLoading || !titulo || titulo.length < 3}
-                        className="gap-2"
-                      >
-                        {aiLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-4 h-4 text-amber-500" />
-                        )}
-                        Generar con IA
-                      </Button>
-                    </div>
-                    <Textarea
-                      id="texto"
+                    <Label className="text-sm font-medium">Contenido de Texto</Label>
+                    <RichTextEditor
                       value={textoHtml}
-                      onChange={(e) => setTextoHtml(e.target.value)}
-                      placeholder="Escribe el contenido aquí... (soporta HTML)"
-                      rows={12}
-                      className="font-mono text-sm"
+                      onChange={setTextoHtml}
+                      onGenerateAI={handleGenerateRichText}
+                      aiLoading={aiLoading}
                     />
                   </div>
                 )}
