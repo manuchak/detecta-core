@@ -10,6 +10,7 @@ export type Role =
   | 'supply_lead'
   | 'ejecutivo_ventas'
   | 'custodio'
+  | 'armado'
   | 'bi'
   | 'monitoring_supervisor'
   | 'monitoring'

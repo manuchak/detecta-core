@@ -14,7 +14,8 @@ export const APP_BUILD_ID = `build-${Date.now()}`;
  */
 export const FIELD_OPERATOR_ROLES = [
   'custodio',
-  'instalador'
+  'instalador',
+  'armado'
 ] as const;
 
 /**
@@ -23,7 +24,8 @@ export const FIELD_OPERATOR_ROLES = [
  */
 export const PORTAL_REDIRECTS: Record<string, string> = {
   'custodio': '/custodian',
-  'instalador': '/installers/portal'
+  'instalador': '/installers/portal',
+  'armado': '/armado'
 } as const;
 
 export type FieldOperatorRole = typeof FIELD_OPERATOR_ROLES[number];
@@ -181,6 +183,8 @@ export function getTargetRouteForRole(role: string): string {
       return '/auth/pending-activation';
     case 'custodio':
       return '/custodian';
+    case 'armado':
+      return '/armado';
     case 'instalador':
       return '/installers/portal';
     case 'planificador':
