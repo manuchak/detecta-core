@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronRight, GripVertical, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ChevronDown, ChevronRight, GripVertical, Plus, Pencil, Trash2, Check, X, Eye } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ContenidoInlineEditor } from "./ContenidoInlineEditor";
+import { AIGenerateButton } from "../wizard/AIGenerateButton";
+import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { useLMSActualizarModulo, useLMSEliminarModulo } from "@/hooks/lms/useLMSAdminModulos";
 import { useLMSCrearContenido, useLMSReordenarContenidos } from "@/hooks/lms/useLMSAdminContenidos";
+import { toast } from "sonner";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -38,19 +42,31 @@ const TIPOS_CONTENIDO: { value: TipoContenido; label: string }[] = [
   { value: 'embed', label: 'Embed externo' },
 ];
 
+const SUGERENCIAS_TITULO = [
+  "Introducción",
+  "Fundamentos",
+  "Conceptos Clave",
+  "Práctica Guiada",
+  "Casos de Estudio",
+  "Evaluación Final",
+];
+
 export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, editingContenidoId, onExpandChange, onEditingContenidoChange }: ModuloInlineEditorProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
   const [isEditing, setIsEditing] = useState(false);
   const [titulo, setTitulo] = useState(modulo.titulo);
   const [descripcion, setDescripcion] = useState(modulo.descripcion || '');
+  const [activo, setActivo] = useState(modulo.activo ?? true);
   const [showAddContent, setShowAddContent] = useState(false);
   const [newContentTitle, setNewContentTitle] = useState('');
   const [newContentType, setNewContentType] = useState<TipoContenido>('texto_enriquecido');
+  const [aiDescSuccess, setAiDescSuccess] = useState(false);
 
   const actualizarModulo = useLMSActualizarModulo();
   const eliminarModulo = useLMSEliminarModulo();
   const crearContenido = useLMSCrearContenido();
   const reordenarContenidos = useLMSReordenarContenidos();
+  const { loading: aiLoading, generateCourseMetadata } = useLMSAI();
 
   // Sortable for this module
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: modulo.id });
@@ -83,7 +99,7 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
     actualizarModulo.mutate({
       id: modulo.id,
       cursoId,
-      data: { titulo, descripcion: descripcion || undefined },
+      data: { titulo, descripcion: descripcion || undefined, activo },
     });
     setIsEditing(false);
   };
@@ -108,10 +124,32 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
     setShowAddContent(false);
   };
 
+  const handleGenerateDescription = async () => {
+    const context = cursoTitulo ? `${titulo} - ${cursoTitulo}` : titulo;
+    if (!context.trim()) {
+      toast.error("Escribe un título primero");
+      return;
+    }
+    const result = await generateCourseMetadata(context);
+    if (result?.descripcion) {
+      setDescripcion(result.descripcion);
+      setAiDescSuccess(true);
+      toast.success("Descripción generada");
+      setTimeout(() => setAiDescSuccess(false), 2000);
+    }
+  };
+
+  const handleSugerencia = (sugerencia: string) => {
+    const suffix = cursoTitulo ? `: ${cursoTitulo}` : '';
+    setTitulo(`${sugerencia}${suffix}`);
+  };
+
+  const isInactivo = !modulo.activo;
+
   return (
     <div ref={setNodeRef} style={style}>
       <Collapsible open={isOpen} onOpenChange={(open) => { setIsOpen(open); onExpandChange?.(open); }}>
-        <div className="rounded-lg border bg-card overflow-hidden">
+        <div className={`rounded-lg border bg-card overflow-hidden ${isInactivo ? 'opacity-60' : ''}`}>
           {/* Module header */}
           <div className="flex items-center gap-2 p-3 hover:bg-muted/30 transition-colors">
             <span {...attributes} {...listeners} className="cursor-grab text-muted-foreground">
@@ -121,33 +159,14 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
             <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left">
               {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
               
-              {isEditing ? (
-                <div className="flex flex-col gap-2 flex-1" onClick={e => e.stopPropagation()}>
-                  <Input
-                    value={titulo}
-                    onChange={e => setTitulo(e.target.value)}
-                    className="h-8 text-sm font-medium"
-                    autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') handleSaveModulo(); if (e.key === 'Escape') { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); } }}
-                  />
-                  <Textarea
-                    value={descripcion}
-                    onChange={e => setDescripcion(e.target.value)}
-                    placeholder="Descripción del módulo (opcional)"
-                    className="min-h-[60px] text-sm"
-                  />
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleSaveModulo}>
-                      <Check className="w-3 h-3 mr-1" /> Guardar
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setIsEditing(false); }}>
-                      <X className="w-3 h-3 mr-1" /> Cancelar
-                    </Button>
-                  </div>
-                </div>
-              ) : (
+              {!isEditing && (
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium text-sm truncate block">{modulo.titulo}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm truncate block">{modulo.titulo}</span>
+                    {isInactivo && (
+                      <Badge variant="outline" className="text-[10px] h-5 shrink-0">Inactivo</Badge>
+                    )}
+                  </div>
                   {modulo.descripcion && (
                     <span className="text-xs text-muted-foreground truncate block">{modulo.descripcion}</span>
                   )}
@@ -185,6 +204,101 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
               </div>
             )}
           </div>
+
+          {/* Inline editing form (shown above collapsible content) */}
+          {isEditing && (
+            <div className="border-t px-3 py-3 space-y-3" onClick={e => e.stopPropagation()}>
+              {/* Quick title suggestions */}
+              <div className="flex flex-wrap gap-1">
+                {SUGERENCIAS_TITULO.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => handleSugerencia(s)}
+                    className="px-2 py-0.5 text-[11px] rounded-full border bg-muted/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Title */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Título</label>
+                <Input
+                  value={titulo}
+                  onChange={e => setTitulo(e.target.value)}
+                  className="h-8 text-sm font-medium"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleSaveModulo();
+                    if (e.key === 'Escape') { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setActivo(modulo.activo ?? true); setIsEditing(false); }
+                  }}
+                />
+              </div>
+
+              {/* Description with AI button */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground">Descripción</label>
+                  <AIGenerateButton
+                    onClick={handleGenerateDescription}
+                    loading={aiLoading}
+                    success={aiDescSuccess}
+                    disabled={!titulo.trim()}
+                    tooltip="Generar descripción con IA"
+                    size="icon"
+                    className="h-6 w-6"
+                  />
+                </div>
+                <Textarea
+                  value={descripcion}
+                  onChange={e => setDescripcion(e.target.value)}
+                  placeholder="Descripción del módulo (opcional)"
+                  className="min-h-[60px] text-sm"
+                />
+              </div>
+
+              {/* Preview card */}
+              {(titulo.trim() || descripcion.trim()) && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Eye className="w-3 h-3" />
+                    <span>Vista previa</span>
+                  </div>
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">
+                        {modulo.orden}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{titulo || 'Sin título'}</p>
+                        {descripcion && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{descripcion}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions: toggle + save/cancel */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2">
+                  <Switch checked={activo} onCheckedChange={setActivo} className="scale-90" />
+                  <span className="text-xs text-muted-foreground">{activo ? 'Activo' : 'Inactivo'}</span>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="default" className="h-7 text-xs" onClick={handleSaveModulo}>
+                    <Check className="w-3 h-3 mr-1" /> Guardar
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setTitulo(modulo.titulo); setDescripcion(modulo.descripcion || ''); setActivo(modulo.activo ?? true); setIsEditing(false); }}>
+                    <X className="w-3 h-3 mr-1" /> Cancelar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Collapsible contents */}
           <CollapsibleContent>
