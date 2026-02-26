@@ -10,6 +10,7 @@ import { BurnUpChart } from './BurnUpChart';
 import { PaceIndicator } from './PaceIndicator';
 import { cn } from '@/lib/utils';
 import { getLastDataDate, MONTH_NAMES_SHORT_ES } from '@/utils/timezoneUtils';
+import { QuarterlyAnnualScorecard } from './QuarterlyAnnualScorecard';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -282,6 +283,9 @@ export const StrategicPlanTracker: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quarterly & Annual Scorecard */}
+      <QuarterlyAnnualScorecard />
     </div>
   );
 };
