@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
-import { Sparkles, Loader2, Plus, Trash2, RotateCcw } from "lucide-react";
+import { Loader2, Plus, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { AIPromptPopover } from "./AIPromptPopover";
 
 export interface FlashcardOutline {
   id: string;
@@ -22,9 +23,12 @@ interface InlineFlashcardEditorProps {
 export function InlineFlashcardEditor({ cards, onChange, moduloTitulo, cursoTitulo }: InlineFlashcardEditorProps) {
   const { generateFlashcards, loading } = useLMSAI();
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (userPrompt?: string) => {
     const tema = moduloTitulo || cursoTitulo || "Seguridad y custodia";
-    const contexto = cursoTitulo ? `Curso: ${cursoTitulo}` : undefined;
+    let contexto = cursoTitulo ? `Curso: ${cursoTitulo}` : undefined;
+    if (userPrompt) {
+      contexto = contexto ? `${contexto}. Instrucciones adicionales: ${userPrompt}` : `Instrucciones adicionales: ${userPrompt}`;
+    }
     const result = await generateFlashcards(tema, 6, contexto);
     if (result?.cards) {
       const mapped: FlashcardOutline[] = result.cards.map((c) => ({
@@ -59,26 +63,22 @@ export function InlineFlashcardEditor({ cards, onChange, moduloTitulo, cursoTitu
             <Badge variant="secondary" className="text-xs">{cards.length}</Badge>
           )}
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={loading}
+        <AIPromptPopover
+          onGenerate={handleGenerate}
+          loading={loading}
           className="h-7 text-xs gap-1"
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-          Generar con IA
-        </Button>
+        />
       </div>
 
       {cards.length === 0 ? (
         <div className="p-4 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg text-center border border-dashed border-orange-200/50">
           <p className="text-xs text-muted-foreground mb-2">Sin flashcards aún</p>
           <div className="flex gap-2 justify-center">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleGenerate} disabled={loading}>
-              <Sparkles className="w-3 h-3 mr-1" /> Generar con IA
-            </Button>
+            <AIPromptPopover
+              onGenerate={handleGenerate}
+              loading={loading}
+              className="h-7 text-xs"
+            />
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addCard}>
               <Plus className="w-3 h-3 mr-1" /> Manual
             </Button>

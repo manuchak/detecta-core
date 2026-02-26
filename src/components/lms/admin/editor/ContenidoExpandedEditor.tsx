@@ -235,8 +235,12 @@ export function ContenidoExpandedEditor({ contenido, cursoId, cursoTitulo, modul
     }
   };
 
-  const handleGenerateText = async () => {
-    const result = await generateRichText(titulo || moduloTitulo || 'Contenido', cursoTitulo);
+  const handleGenerateText = async (userPrompt?: string) => {
+    let contexto = cursoTitulo;
+    if (userPrompt) {
+      contexto = contexto ? `${contexto}. Instrucciones adicionales: ${userPrompt}` : `Instrucciones adicionales: ${userPrompt}`;
+    }
+    const result = await generateRichText(titulo || moduloTitulo || 'Contenido', contexto);
     if (result?.html) {
       setTextoHtml(result.html);
       toast.success('Texto generado con IA');
