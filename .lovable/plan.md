@@ -1,41 +1,100 @@
 
 
-# Permitir subida de documentos desde el panel de administracion
+# Modulo Legal - Centro de Gestion de Documentos Legales
 
-## Problema
-En la pestaña "Docs" de Perfiles Operativos, la seccion "Documentos del Custodio (Portal)" es solo lectura. El equipo no puede subir documentos en nombre del custodio cuando reciben documentos fisicos digitalizados. Solo pueden verificar/rechazar lo que el custodio sube desde su portal.
+## Vision
 
-## Solucion
-Agregar un boton "Subir Documento" en la seccion de documentos del custodio dentro de `DocumentacionTab`, con un dialog que permita seleccionar tipo de documento, archivo (PDF/imagen), fecha de vigencia y numero de documento opcional. Se reutiliza la logica de `useCustodianDocuments.updateDocument` que ya maneja upsert, compresion y storage.
+Un modulo centralizado para gestionar todos los documentos legales del sistema: plantillas de contratos, politicas de privacidad, NDAs, convenios, y cualquier documento que requiera control de version, compliance y trazabilidad. Funciona como el "Chief Legal Officer" digital del proyecto.
 
-## Cambios
+## Estructura del Modulo
 
-### 1. Crear `AdminDocumentUploadDialog.tsx`
-**Archivo:** `src/pages/PerfilesOperativos/components/tabs/AdminDocumentUploadDialog.tsx`
+### Pestanas principales
 
-Dialog con:
-- Select de tipo de documento (tarjeta_circulacion, poliza_seguro, verificacion_vehicular, licencia_conducir, credencial_custodia, portacion_arma, registro_arma)
-- Input de fecha de vigencia (obligatorio)
-- Input de numero de documento (opcional)
-- Zona de drop/seleccion de archivo (PDF, JPG, PNG, WebP - max 20MB)
-- Preview de imagen o icono de PDF
-- Boton "Subir Documento"
+1. **Plantillas de Contratos** - CRUD completo de todas las plantillas en `plantillas_contrato`, con editor HTML visual (TipTap ya esta instalado), preview en tiempo real, y variables de interpolacion detectadas automaticamente
+2. **Versionamiento** - Historial de cambios de cada plantilla (quien la edito, cuando, que cambio), con capacidad de restaurar versiones anteriores y comparar diff entre versiones
+3. **Compliance** - Checklist de cumplimiento legal por tipo de documento (Ley Federal del Trabajo, LFPDPPP para privacidad, regulaciones de armas SEDENA), con fechas de ultima revision y alertas de vencimiento
+4. **Catalogo de Variables** - Vista unificada de todas las variables de interpolacion disponibles (`{{nombre_completo}}`, `{{curp}}`, etc.), con su fuente de datos y documentos donde se usan
 
-Reutiliza `useCustodianDocuments` pasando el telefono del custodio para invocar `updateDocument.mutateAsync`.
+## Cambios Tecnicos
 
-### 2. Actualizar `DocumentacionTab.tsx`
-**Archivo:** `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx`
+### 1. Navegacion - `src/config/navigationConfig.ts`
 
-- Importar `AdminDocumentUploadDialog` y `useCustodianDocuments`
-- Agregar boton "Subir Documento" junto al titulo de la seccion "Documentos del Custodio (Portal)"
-- Agregar estado para controlar el dialog
-- Invalidar queries al completar la subida
+Agregar un nuevo grupo `legal` en `navigationGroups` entre "Supply & Talento" y "Operaciones", con el modulo "Legal" que tiene children:
+- Plantillas (editor de plantillas)
+- Versiones (historial)
+- Compliance (checklist regulatorio)
 
-### Detalles tecnicos
+Roles con acceso: `admin`, `owner`, `supply_admin`, `coordinador_operaciones`
 
-- El upsert existente en `useCustodianDocuments` funciona con `onConflict: 'custodio_telefono,tipo_documento'`, lo que significa que si ya existe un documento del mismo tipo, se actualiza automaticamente
-- Se reutiliza la compresion de imagenes existente (`compressImage`)
-- Se reutiliza el patron Verify-Before-Commit del storage
-- Los documentos subidos por el admin quedan con `verificado: false` por defecto; el equipo puede verificarlos inmediatamente despues si lo desea
-- El bucket `checklist-evidencias` ya es publico y tiene las politicas RLS necesarias
+### 2. Nueva tabla `plantillas_contrato_versiones` (migracion SQL)
+
+```text
+id: uuid PK
+plantilla_id: uuid FK -> plantillas_contrato
+version: integer
+contenido_html: text
+variables_requeridas: text[]
+change_description: text
+changed_by: uuid FK -> profiles
+created_at: timestamptz
+```
+
+Cada vez que se edita una plantilla, se guarda la version anterior en esta tabla antes de aplicar el cambio. Esto permite rollback y diff.
+
+### 3. Nueva tabla `legal_compliance_checks` (migracion SQL)
+
+```text
+id: uuid PK
+plantilla_id: uuid FK -> plantillas_contrato
+compliance_type: text (ley_federal_trabajo, lfpdppp, sedena, norma_interna)
+status: text (compliant, review_needed, non_compliant)
+last_reviewed_at: timestamptz
+reviewed_by: uuid FK -> profiles
+next_review_date: date
+notes: text
+created_at: timestamptz
+updated_at: timestamptz
+```
+
+### 4. Paginas y componentes nuevos
+
+| Archivo | Descripcion |
+|---|---|
+| `src/pages/Legal/LegalHub.tsx` | Pagina principal con Tabs |
+| `src/pages/Legal/components/TemplatesList.tsx` | Lista de plantillas con filtros por tipo, estado activa/inactiva |
+| `src/pages/Legal/components/TemplateEditor.tsx` | Editor TipTap para HTML de plantilla + panel lateral de variables disponibles + preview |
+| `src/pages/Legal/components/TemplateVersionHistory.tsx` | Timeline de versiones con diff visual y boton de rollback |
+| `src/pages/Legal/components/ComplianceChecklist.tsx` | Cards por plantilla con status de compliance, fecha de revision, y alertas |
+| `src/pages/Legal/components/VariablesCatalog.tsx` | Tabla de todas las variables, su fuente (candidatos_custodios, leads, OCR) y en que plantillas se usan |
+| `src/hooks/useLegalTemplates.ts` | Hook con queries y mutations para CRUD de plantillas + versionamiento |
+
+### 5. Ruta - `src/App.tsx` o router config
+
+Agregar ruta `/legal` con el componente `LegalHub` dentro del `UnifiedLayout`.
+
+### 6. Flujo de edicion de plantilla
+
+1. Usuario selecciona plantilla de la lista
+2. Se abre el editor TipTap con el HTML actual
+3. Panel lateral muestra variables disponibles (click para insertar `{{variable}}`)
+4. Preview en tiempo real con datos de ejemplo
+5. Al guardar: se crea registro en `plantillas_contrato_versiones` con el contenido anterior, se actualiza `plantillas_contrato` con el nuevo contenido, se incrementa `version`
+6. Opcionalmente se marca como "requiere revision de compliance"
+
+### 7. Integracion con sistema existente
+
+- Las plantillas editadas aqui son las mismas que usa `useContratosCandidato` y `ContractGenerateDialog` - no se duplica nada
+- El modulo de version control existente en Administracion (`system_versions`) se mantiene para versiones del sistema; el nuevo versionamiento es especifico para documentos legales
+- Los tipos de contrato en `useContratosCandidato.ts` (`TipoContrato`) se pueden extender desde aqui para agregar nuevos tipos (ej: contratos de instaladores)
+
+## Orden de implementacion
+
+1. Migraciones SQL (tablas de versiones y compliance)
+2. Navegacion y ruta
+3. `LegalHub.tsx` con tabs basicos
+4. `TemplatesList.tsx` - lista de plantillas existentes
+5. `TemplateEditor.tsx` - editor con TipTap
+6. `TemplateVersionHistory.tsx` - historial
+7. `ComplianceChecklist.tsx` - compliance
+8. `VariablesCatalog.tsx` - catalogo de variables
 
