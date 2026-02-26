@@ -1,47 +1,28 @@
 
-# Consolidar vista de curso: Eliminar LMSCursoDetalle y redirigir al Editor
 
-## Problema
-Existen dos vistas paralelas para gestionar un curso:
-- **LMSCursoDetalle** (`/lms/admin/cursos/:cursoId`) - Vista antigua con ModuloCard basicas, sin drag & drop, sin AI
-- **LMSCursoEditor** (`/lms/admin/cursos/:cursoId/editar`) - Editor inline con todas las features (drag & drop, AI, preview card, toggle activo)
+# Corregir 3 bugs en ReferenceForm de Referencias
 
-Mantener ambas genera confusion y duplicacion de codigo.
+## Problema reportado por Supply
+Al capturar referencias, el formulario presenta 3 problemas:
+1. Datos de una referencia anterior (ej. telefono) aparecen al abrir una nueva
+2. Campos de empresa/cargo se envian aunque la referencia sea personal
+3. No se puede escribir "NA" o dejar vacio el email porque el navegador exige formato con @
 
-## Solucion
-Eliminar la ruta intermedia y redirigir directamente al editor. La vista "detalle" se vuelve redundante porque el editor ya tiene todas las features y mejor UX.
+## Correcciones
 
-## Cambios
+### Archivo: `src/components/recruitment/references/ReferenceForm.tsx`
 
-### 1. Redirigir la ruta `/lms/admin/cursos/:cursoId` al editor
-**Archivo:** `src/App.tsx`
-- Reemplazar el componente `LMSCursoDetalle` en la ruta `/lms/admin/cursos/:cursoId` por un `Navigate` a `/lms/admin/cursos/:cursoId/editar`
-- Eliminar la importacion lazy de `LMSCursoDetalle`
+**Fix 1 - Limpiar borrador al abrir el dialog:**
+Agregar un `useEffect` que detecte cuando `isOpen` cambia a `true` y, si no hay un borrador significativo guardado, resetee el formulario a `INITIAL_REFERENCE_DATA` con `setData()`. Esto evita que datos viejos de otra referencia aparezcan en un formulario nuevo.
 
-### 2. Actualizar navegaciones que apuntan a la vista antigua
-**Archivos afectados:**
-- `src/components/lms/admin/LMSCursosLista.tsx` - Cambiar `onVer` de `/cursos/${id}` a `/cursos/${id}/editar`
-- `src/components/lms/admin/LMSCursoWizard.tsx` - Cambiar redirect post-creacion a `/editar`
-- `src/pages/LMS/LMSAdminCursoEditar.tsx` - Cambiar `onSuccess` para quedarse en el editor en vez de volver a la vista antigua
-- `src/pages/LMS/LMSAdminCursoPreview.tsx` - Cambiar boton "Volver" a `/editar`
+**Fix 2 - No enviar empresa/cargo en referencias personales:**
+En `handleSubmit`, condicionar los campos `empresa_institucion` y `cargo_referencia` para que solo se incluyan cuando `tipoReferencia === 'laboral'`. Si es personal, se envian como `undefined`.
 
-### 3. Agregar metricas del curso al EditorHeader
-Las metricas (modulos, contenidos, duracion, nivel) que se pierden al eliminar LMSCursoDetalle se integran como badges compactos en el `EditorHeader` existente.
+**Fix 3 - Relajar validacion de email:**
+Cambiar el `type="email"` del input a `type="text"` y agregar un placeholder que indique que es opcional (ej. "Correo electronico o N/A"). Esto permite que el equipo de Supply escriba "NA", "No tiene", o simplemente lo deje vacio sin que el navegador bloquee el envio.
 
-**Archivo:** `src/components/lms/admin/editor/EditorHeader.tsx`
-- Agregar badges con: cantidad de modulos, contenidos totales, duracion, y nivel
-- Mantener el estilo compacto del header
+## Resumen
+- **1 archivo modificado** (`ReferenceForm.tsx`)
+- **Sin riesgo** para otros formularios - los cambios son locales
+- **Retrocompatible** - los datos existentes no se afectan
 
-### 4. Agregar boton de Vista Previa al editor
-El boton "Vista Previa" que existia en LMSCursoDetalle se agrega al EditorHeader.
-
-**Archivo:** `src/components/lms/admin/editor/EditorHeader.tsx`
-- Agregar boton "Vista Previa" que navega a `/lms/admin/cursos/:cursoId/preview`
-
-## Archivos que NO se eliminan (por ahora)
-- `LMSCursoDetalle.tsx` - Se mantiene el archivo pero deja de usarse (se puede limpiar despues)
-- `LMSModuloForm.tsx` y `LMSContenidoForm.tsx` - Siguen existiendo como componentes independientes aunque ya no se acceden desde la vista antigua
-
-## Resumen de impacto
-- **Modificados:** 5 archivos (App.tsx, LMSCursosLista.tsx, LMSCursoWizard.tsx, LMSAdminCursoEditar.tsx, LMSAdminCursoPreview.tsx, EditorHeader.tsx)
-- **Experiencia:** Los usuarios siempre llegan al editor completo con todas las features (AI, drag & drop, preview, toggle)
