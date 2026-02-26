@@ -1,59 +1,61 @@
 
-# Habilitar edicion y eliminacion de referencias
+# Agregar campo de prompt para guiar la IA en generacion de contenido
 
-## Problema
-El equipo de Supply no puede editar ni borrar las referencias que ya capturaron. Solo existe el boton "Validar" para referencias pendientes, pero no hay opciones de editar datos o eliminar registros incorrectos/duplicados.
+## Problema actual
+Cuando el usuario hace clic en "Generar con IA" en flashcards, quizzes o texto enriquecido, la IA solo recibe el titulo del modulo/curso como contexto. No hay forma de darle instrucciones especificas como "enfocate en protocolos de emergencia" o "usa ejemplos de rutas Mexico-Puebla".
+
+## Solucion
+Agregar un campo de texto (prompt) que aparezca al lado del boton "Generar con IA" o en un popover, permitiendo al usuario escribir instrucciones antes de generar. El backend ya soporta un campo `contexto` que se inyecta al prompt de la IA -- solo falta exponerlo en la interfaz.
 
 ## Cambios
 
-### 1. ReferencesTab.tsx - Agregar estado y callbacks para editar/eliminar
+### 1. Componente reutilizable: `AIPromptPopover`
+Crear un nuevo componente que envuelva el boton "Generar con IA" y muestre un popover con:
+- Un `Textarea` para el prompt del usuario (placeholder: "Ej: Enfocate en protocolos de emergencia...")
+- Boton "Generar" que ejecuta la accion con el prompt como contexto adicional
 
-- Agregar estado `editingRef` para controlar que referencia se esta editando
-- Pasar callbacks `onEdit` y `onDelete` al componente `ReferenceCard`
-- Conectar `onEdit` para abrir el `ReferenceForm` con datos precargados
-- Conectar `onDelete` con el hook `useDeleteReferencia` existente, con confirmacion via `AlertDialog`
+### 2. InlineFlashcardEditor.tsx
+- Reemplazar el boton simple "Generar con IA" por el `AIPromptPopover`
+- Pasar el prompt del usuario como parte del parametro `contexto` al llamar `generateFlashcards`
+- El contexto combinara: curso + prompt del usuario
 
-### 2. ReferenceCard (dentro de ReferencesTab.tsx) - Botones de editar/eliminar
+### 3. InlineQuizEditor.tsx
+- Mismo cambio: reemplazar boton por `AIPromptPopover`
+- Concatenar el prompt al `contexto` de `generateQuizQuestions`
 
-- Agregar iconos `Pencil` y `Trash2` como botones junto al boton "Validar"
-- Los botones seran visibles siempre (no solo en estado pendiente)
-- Incluir un `AlertDialog` para confirmar la eliminacion antes de ejecutarla
+### 4. Editores de texto enriquecido (QuickContentCreator, ContentEditor, ContenidoExpandedEditor)
+- Agregar el `AIPromptPopover` donde se llama `generateRichText`
+- Pasar el prompt del usuario como contexto adicional
 
-### 3. ReferenceForm.tsx - Soportar modo edicion
+### 5. useLMSAI.ts (sin cambios necesarios)
+Las funciones ya aceptan `contexto` como parametro. El backend ya lo inyecta en el user prompt.
 
-- Agregar prop opcional `editingReferencia` con los datos existentes
-- Cuando se pasa una referencia existente, precargar los campos del formulario
-- Cambiar el titulo del dialog a "Editar Referencia" cuando aplique
-- En `handleSubmit`, si hay referencia existente, usar update en vez de create
-- Cambiar el texto del boton de "Agregar Referencia" a "Guardar Cambios"
+## Detalle tecnico del componente AIPromptPopover
 
-### 4. useReferencias.ts - Agregar mutation de actualizacion
-
-- Crear `useUpdateReferencia` que haga `.update()` en `referencias_candidato` por `id`
-- Invalidar queries de referencias al completar
-- Mostrar toast de exito/error
-
-## Detalle tecnico
-
-### Nuevo hook `useUpdateReferencia`
-```typescript
-// Actualiza campos editables: nombre, relacion, empresa, cargo, telefono, email, tiempo_conocido
-// No toca campos de validacion (resultado, validador_id, etc.)
+```text
++----------------------------------+
+| [Sparkles] Generar con IA  [v]   |  <-- Boton con dropdown/popover
++----------------------------------+
+| Instrucciones para la IA:        |
+| +------------------------------+ |
+| | Ej: Enfocate en protocolos   | |
+| | de seguridad en carretera... | |
+| +------------------------------+ |
+| [Generar]                        |
++----------------------------------+
 ```
 
-### Flujo de edicion
-1. Usuario hace clic en icono de lapiz en la tarjeta
-2. Se abre `ReferenceForm` con datos precargados
-3. Al guardar, se ejecuta `useUpdateReferencia` en vez de `useCreateReferencia`
-4. Se cierra el dialog y se refrescan las queries
+- Popover con `Textarea` de 2-3 lineas
+- Boton "Generar" dentro del popover ejecuta la generacion
+- Si el usuario no escribe nada, se genera igual (como hoy)
+- El prompt se concatena al contexto existente: `Curso: X. Instrucciones adicionales: {prompt}`
 
-### Flujo de eliminacion
-1. Usuario hace clic en icono de basura
-2. Aparece `AlertDialog` pidiendo confirmacion
-3. Al confirmar, se ejecuta `useDeleteReferencia` (ya existe)
-4. Se refrescan las queries
+## Archivos
+- **1 archivo nuevo**: `src/components/lms/admin/wizard/AIPromptPopover.tsx`
+- **5 archivos modificados**: InlineFlashcardEditor, InlineQuizEditor, QuickContentCreator, ContentEditor, ContenidoExpandedEditor
+- **0 cambios backend**: el campo `contexto` ya existe y se procesa
 
-## Archivos modificados
-- `src/hooks/useReferencias.ts` - Agregar `useUpdateReferencia`
-- `src/components/recruitment/references/ReferenceForm.tsx` - Soportar modo edicion
-- `src/components/recruitment/references/ReferencesTab.tsx` - Botones edit/delete y logica
+## Impacto
+- No rompe flujo actual: si el usuario no escribe prompt, funciona igual que antes
+- Mejora calidad de generacion al permitir instrucciones especificas
+- Reutilizable en cualquier punto donde se use IA generativa
