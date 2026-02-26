@@ -1,41 +1,81 @@
 
 
-# Fix: Eliminar curso navega en vez de confirmar
+# Analisis Fishbone: "Eliminar" navega al curso en vez de confirmar
 
-## Problema
+```text
+                                    PROBLEMA
+                              "Eliminar" navega
+                              al detalle del curso
+                                    |
+    --------------------------------|--------------------------------
+    |                |              |              |                 |
+  EVENTO         SHEET           DIALOG        COMPONENTE        ZOOM
+  BUBBLING       OVERLAY        INVISIBLE      ESTRUCTURA       CONFLICTO
+    |                |              |              |                 |
+    |                |              |              |                 |
+ ActionItem      Al cerrar       AlertDialog    CursoCard div    LMS zoom=1
+ no tiene        Sheet, el       zoom=1.428    tiene onClick    vs AlertDialog
+ e.stopProp      overlay         pero LMS      ={onVer} en     zoom=1.428571
+ en onClick      dispara         esta en       el contenedor   (ya corregido)
+    |            mouseup en      zoom=1        raiz (L339)
+    |            el card             |              |
+    |                |              |              |
+    +--- CAUSA 1 ---+-- CAUSA 2 --+-- CAUSA 3 ---+
+```
 
-Hay dos problemas encadenados:
+## Causa Raiz Principal: CAUSA 1 - Event Bubbling en ActionItem
 
-1. **Navegacion accidental**: El componente `CursoCard` tiene `onClick={onVer}` en el div contenedor (linea 339). Cuando se cierra el Sheet tras hacer clic en "Eliminar", el evento burbujea al card y dispara la navegacion al detalle del curso.
+El componente `ActionItem` (linea 457-466) tiene un `<button onClick={onClick}>` simple. Cuando el usuario hace clic en "Eliminar":
 
-2. **AlertDialog invisible**: El `AlertDialog` de confirmacion de eliminacion se abre en `LMSCursosLista` (linea 208), pero como las paginas LMS tienen zoom reset a 1.0 y el `AlertDialogContent` hereda de `DialogContent` que tiene `style={{ zoom: 1.428571 }}`, el dialogo se renderiza fuera de escala o invisible.
+1. El `onClick` del `ActionItem` dispara `handleAction(onEliminar)`
+2. `handleAction` cierra el Sheet y programa la accion con `setTimeout(150ms)`
+3. **PERO** el evento click del boton burbujea hacia arriba a traves del DOM
+4. El Sheet se esta cerrando, su overlay desaparece
+5. El click llega al div padre `CursoCard` (linea 338-339) que tiene `onClick={onVer}`
+6. `onVer` navega al detalle del curso inmediatamente
+7. Cuando el `setTimeout` ejecuta `onEliminar` 150ms despues, ya estamos en otra pagina
+
+## Causa Secundaria: falta `e.stopPropagation()` en ActionItem
+
+El `ActionItem` recibe `onClick: () => void` (sin evento). Nunca llama `e.stopPropagation()`, asi que el click siempre burbujea al padre.
 
 ## Solucion
 
-### 1. Evitar navegacion al cerrar Sheet (`LMSCursosLista.tsx`)
+### Archivo: `src/components/lms/admin/LMSCursosLista.tsx`
 
-En la funcion `handleAction` del `CursoCard`, agregar un pequeño `setTimeout` para que la accion se ejecute DESPUES de que el Sheet se cierre completamente y los eventos se resuelvan:
-
-```typescript
-const handleAction = (action: () => void) => {
-  setSheetOpen(false);
-  // Delay action to prevent click bubbling to parent card
-  setTimeout(() => action(), 150);
-};
-```
-
-### 2. Corregir zoom del AlertDialog para LMS (`LMSCursosLista.tsx`)
-
-Reemplazar el `AlertDialog` estandar por uno con `AlertDialogContent` que sobreescriba el zoom a 1.0 usando `style={{ zoom: 1 }}`, ya que las paginas LMS resetean el zoom global:
+**Cambio 1**: Modificar `ActionItem` para recibir el evento y detener propagacion:
 
 ```typescript
-<AlertDialogContent style={{ zoom: 1 }}>
+function ActionItem({ icon, label, onClick, className, disabled }: { 
+  icon: React.ReactNode; 
+  label: string; 
+  onClick: () => void; 
+  className?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick();
+      }}
+      disabled={disabled}
+      className={`...`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
 ```
 
-### Archivos a modificar
+**Cambio 2**: Agregar `e.stopPropagation()` tambien en el `SheetContent` wrapper para prevenir cualquier click interno de burbujear:
 
-- **`src/components/lms/admin/LMSCursosLista.tsx`**: 
-  - Cambiar `handleAction` para usar `setTimeout`
-  - Agregar `style={{ zoom: 1 }}` al `AlertDialogContent` de eliminacion (linea 209)
+```typescript
+<SheetContent side="right" className="w-[280px] sm:w-[320px]" 
+  onClick={(e) => e.stopPropagation()}>
+```
 
-Esto resuelve ambos problemas: el curso no navegara al hacer clic en eliminar, y el dialogo de confirmacion sera visible correctamente.
+Estos dos cambios cortan la propagacion del evento en dos niveles, asegurando que ningun clic dentro del Sheet llegue al `CursoCard`.
+
