@@ -1,63 +1,49 @@
 
-# Migrar datos de vehiculo del Lead al Candidato al aprobar
+
+# Parche retroactivo: Migrar datos vehiculares de leads ya aprobados
 
 ## Problema
 
-Los datos del vehiculo (marca, modelo, placas, color, etc.) se recopilan durante la entrevista telefonica en `MissingInfoDialog` y se guardan como JSON en el campo `leads.notas` (bajo la llave `vehiculo`). Sin embargo, cuando el lead se aprueba y se crea el registro en `candidatos_custodios` via `sync_lead_to_candidato`, la funcion RPC solo recibe nombre, email, telefono, fuente y estado_proceso. Los campos vehiculares quedan vacios y aparecen como `[PENDIENTE]` en el dialogo de contratos.
+Rafael Delgado (y posiblemente otros candidatos) fueron aprobados antes de que se implementara la migración automática de datos vehiculares. Sus datos del coche existen en `leads.notas` (JSON) pero nunca se copiaron a `candidatos_custodios`.
 
 ## Solucion
 
-Extraer los datos vehiculares del JSON de notas del lead ANTES de llamar a `sync_lead_to_candidato`, y luego actualizar el candidato recien creado con esos datos. Esto se hace en dos pasos porque la funcion RPC existente no acepta parametros vehiculares y modificarla requeriria una migracion SQL.
+Ejecutar una migración SQL única que extraiga los datos vehiculares del JSON de `leads.notas` y los copie a los registros correspondientes en `candidatos_custodios` donde esos campos estén vacíos.
 
-## Cambios
+## Cambio
 
-### 1. Modificar `handleApproveLead` en `src/hooks/useLeadApprovals.ts`
+### Migración SQL directa
 
-Despues de que `sync_lead_to_candidato` retorne exitosamente el `candidatoId`:
+Un script SQL que:
 
-1. Leer `leads.notas` del lead actual (ya disponible en `lead.notas`)
-2. Parsear el JSON y extraer el objeto `vehiculo` y `experiencia`
-3. Hacer un `UPDATE` a `candidatos_custodios` con los campos:
-   - `marca_vehiculo` desde `notas.vehiculo.marca_vehiculo`
-   - `modelo_vehiculo` desde `notas.vehiculo.modelo_vehiculo`
-   - `placas_vehiculo` desde `notas.vehiculo.placas`
-   - `color_vehiculo` desde `notas.vehiculo.color_vehiculo`
-   - `tipo_vehiculo` desde `notas.vehiculo.tipo_vehiculo`
-   - `numero_licencia` desde `notas.experiencia.licencia_conducir` (si aplica)
-   - `licencia_expedida_por` desde `notas.experiencia.tipo_licencia`
-   - `direccion` desde `notas.datos_personales.direccion`
-
-Esto va inmediatamente despues de la linea 379 (`console.log('Candidato vinculado exitosamente')`), antes de actualizar el estado del lead.
-
-### 2. Parseo seguro del JSON de notas
+1. Busca todos los registros en `candidatos_custodios` donde `marca_vehiculo IS NULL`
+2. Los cruza con `leads` por nombre (ya que no hay `lead_id` en la tabla)
+3. Extrae del JSON de `notas` los campos vehiculares
+4. Actualiza `candidatos_custodios` con esos datos
 
 ```text
-// Pseudocodigo
-let notesData = {};
-try {
-  notesData = lead.notas ? JSON.parse(lead.notas) : {};
-} catch { notesData = {}; }
-
-const vehiculo = notesData.vehiculo || {};
-const datosPersonales = notesData.datos_personales || {};
-const experiencia = notesData.experiencia || {};
-
-// Solo actualizar campos que tengan valor real
-const updatePayload = {};
-if (vehiculo.marca_vehiculo) updatePayload.marca_vehiculo = vehiculo.marca_vehiculo;
-if (vehiculo.modelo_vehiculo) updatePayload.modelo_vehiculo = vehiculo.modelo_vehiculo;
-// ... etc para cada campo
-
-if (Object.keys(updatePayload).length > 0) {
-  await supabase.from('candidatos_custodios')
-    .update(updatePayload)
-    .eq('id', candidatoId);
-}
+UPDATE candidatos_custodios cc
+SET
+  marca_vehiculo   = (leads_data.notas::jsonb -> 'vehiculo' ->> 'marca_vehiculo'),
+  modelo_vehiculo  = (leads_data.notas::jsonb -> 'vehiculo' ->> 'modelo_vehiculo'),
+  placas_vehiculo  = (leads_data.notas::jsonb -> 'vehiculo' ->> 'placas'),
+  color_vehiculo   = (leads_data.notas::jsonb -> 'vehiculo' ->> 'color_vehiculo'),
+  numero_licencia  = (leads_data.notas::jsonb -> 'experiencia' ->> 'licencia_conducir'),
+  direccion        = (leads_data.notas::jsonb -> 'datos_personales' ->> 'direccion')
+FROM (
+  SELECT nombre, notas
+  FROM leads
+  WHERE estado = 'aprobado'
+    AND notas IS NOT NULL
+    AND notas::jsonb -> 'vehiculo' IS NOT NULL
+) leads_data
+WHERE cc.nombre = leads_data.nombre
+  AND cc.marca_vehiculo IS NULL;
 ```
 
-### Impacto
+Esto se ejecuta como una migración Supabase. Solo afecta candidatos con campos vacíos, no sobreescribe datos ya llenados manualmente.
 
-- Los contratos generados despues de la aprobacion mostraran los datos vehiculares correctamente en lugar de `[PENDIENTE]`
-- No requiere migracion SQL (usa UPDATE directo a la tabla existente)
-- No afecta leads existentes ya aprobados (solo aplica a nuevas aprobaciones)
-- Es tolerante a fallos: si el update de datos vehiculares falla, la aprobacion sigue siendo valida (log warning, no throw)
+### Archivo
+
+`supabase/migrations/xxx_backfill_vehicle_data.sql` - migración única con el UPDATE anterior, envuelto en una transacción segura.
+
