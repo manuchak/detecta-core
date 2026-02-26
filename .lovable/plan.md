@@ -1,48 +1,43 @@
 
-Diagnóstico confirmado (con evidencia):
-- En la sesión del usuario, el RPC `POST /rest/v1/rpc/lms_delete_curso_secure` responde **400**.
-- Respuesta exacta: `{"code":"42703","message":"column \"curso_id\" does not exist"}`.
-- El toast en UI muestra el mismo error.
-- La función actual `lms_delete_curso_secure` contiene:
-  - `DELETE FROM lms_certificados WHERE curso_id = p_curso_id;`
-- Pero `lms_certificados` **no tiene** columna `curso_id`; sólo tiene `inscripcion_id` (entre otras).
-- Además, detecté un segundo riesgo en la misma función:
-  - `lms_puntos_historial.referencia_id` es `uuid`, pero se compara contra `p_curso_id::text`.
+# Bug: "Error al generar el contrato" - Causa Raiz
 
-¿Sé cuál es el problema? **Sí**: la función SQL quedó desalineada del esquema real, y por eso nunca llega a borrar el curso.
+## Problema
+El equipo de Supply no puede generar contratos digitales. El insert falla silenciosamente con un error de constraint violation.
 
-Plan de corrección:
-1. Crear una **nueva migración SQL** que reemplace `lms_delete_curso_secure`.
-2. Mantener validaciones actuales (autenticado + rol `owner/admin` + curso existente).
-3. Cambiar estrategia de borrado a “cascade-first” para evitar más desajustes de columnas:
-   - Borrar manualmente sólo `lms_puntos_historial` con tipo correcto:
-     - `WHERE referencia_id = p_curso_id AND referencia_tipo = 'curso'`
-   - Borrar el registro en `lms_cursos`.
-   - Dejar que los `FK ON DELETE CASCADE` eliminen automáticamente:
-     - `lms_modulos`, `lms_contenidos`, `lms_progreso`, `lms_inscripciones`, `lms_certificados`, `lms_preguntas`.
-4. Incluir `SET search_path = public` en la función por higiene de `SECURITY DEFINER`.
-5. Conservar respuesta JSON de éxito con título e inscripciones eliminadas.
+## Causa Raiz
+La tabla `contratos_candidato` tiene un **CHECK constraint** (`contratos_candidato_tipo_contrato_check`) que solo permite 5 valores:
 
-Borrador técnico (resumen):
-```sql
-CREATE OR REPLACE FUNCTION lms_delete_curso_secure(p_curso_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
--- validar auth/rol/curso
--- delete from lms_puntos_historial where referencia_id = p_curso_id and referencia_tipo = 'curso';
--- delete from lms_cursos where id = p_curso_id; -- cascada elimina dependencias
--- return jsonb_build_object('success', true, ...);
-$$;
+```text
+'confidencialidad', 'prestacion_servicios', 'codigo_conducta', 'aviso_privacidad', 'responsiva_equipo'
 ```
 
-Validación posterior (obligatoria):
-- Probar de nuevo “Eliminar” en `/lms/admin` con “Supply Chain”.
-- Verificar que el RPC ya responde `200` y `success: true`.
-- Confirmar que desaparece del catálogo sin navegación accidental.
-- Verificar en DB que ya no existe el curso ni sus registros relacionados.
+Pero el codigo intenta insertar 3 tipos adicionales que **no estan en la lista**:
+- `prestacion_servicios_propietario`
+- `prestacion_servicios_no_propietario`  
+- `anexo_gps`
 
-Impacto en código frontend:
-- **Ninguno** (la UI y `invalidateQueries` ya están correctos; el fallo es 100% backend SQL).
+Estos tipos fueron agregados en la logica de la aplicacion (v2.1 de contratos) pero nunca se actualizo el CHECK constraint en la base de datos.
+
+## Solucion
+
+Una sola migracion SQL que actualice el CHECK constraint para incluir los 8 tipos de contrato validos:
+
+```sql
+ALTER TABLE contratos_candidato
+  DROP CONSTRAINT contratos_candidato_tipo_contrato_check;
+
+ALTER TABLE contratos_candidato
+  ADD CONSTRAINT contratos_candidato_tipo_contrato_check
+  CHECK (tipo_contrato::text = ANY(ARRAY[
+    'confidencialidad',
+    'prestacion_servicios',
+    'codigo_conducta',
+    'aviso_privacidad',
+    'responsiva_equipo',
+    'prestacion_servicios_propietario',
+    'prestacion_servicios_no_propietario',
+    'anexo_gps'
+  ]::text[]));
+```
+
+No se requieren cambios en el frontend. El codigo ya maneja correctamente los 8 tipos; solo falta que la base de datos los acepte.
