@@ -80,16 +80,16 @@ export default function LMSDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card">
+      <div className="border-b bg-gradient-to-r from-primary/5 via-card to-amber-500/5">
         <div className="container mx-auto px-6 py-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-amber-500/20 to-primary/10 rounded-lg">
               <GraduationCap className="h-6 w-6 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Capacitación</h1>
           </div>
           <p className="text-muted-foreground">
-            Desarrolla tus habilidades con nuestros cursos
+            Sigue creciendo, cada lección cuenta 🚀
           </p>
         </div>
       </div>

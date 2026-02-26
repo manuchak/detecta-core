@@ -1,7 +1,7 @@
-import { Flame, Star, Award, TrendingUp } from "lucide-react";
+import { Flame, Star, Award, TrendingUp, Sparkles } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useLMSCursosDisponibles } from "@/hooks/useLMSCursos";
-import { useLMSGamificacion, puntosParaSiguienteNivel } from "@/hooks/useLMSGamificacion";
+import { useLMSGamificacion, calcularNivel, puntosParaSiguienteNivel } from "@/hooks/useLMSGamificacion";
 
 export function ProgressMotivationalBar() {
   const { data: cursos } = useLMSCursosDisponibles();
@@ -12,7 +12,6 @@ export function ProgressMotivationalBar() {
   const total = enrolled.length;
   const globalPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Estimate total hours from durations
   const totalMinutes = enrolled.reduce((sum, c) => sum + (c.duracion_estimada_min || 0), 0);
   const completedMinutes = enrolled
     .filter(c => c.inscripcion_estado === 'completado')
@@ -22,14 +21,18 @@ export function ProgressMotivationalBar() {
   const perfil = gamificacion?.perfil;
   const puntos = perfil?.puntos_totales || 0;
   const racha = perfil?.racha_actual || 0;
-  const nivel = perfil?.nivel || 1;
+  const nivel = calcularNivel(puntos);
   const nextLevelPts = puntosParaSiguienteNivel(nivel);
+  const prevLevelPts = puntosParaSiguienteNivel(nivel - 1);
   const ptsToNext = Math.max(0, nextLevelPts - puntos);
+  const progresoNivel = nivel >= 10
+    ? 100
+    : Math.round(((puntos - prevLevelPts) / (nextLevelPts - prevLevelPts)) * 100);
 
   if (total === 0) return null;
 
   return (
-    <div className="rounded-2xl border bg-card p-5 space-y-4">
+    <div className="rounded-2xl border bg-gradient-to-r from-amber-500/5 via-card to-orange-500/5 p-5 space-y-4">
       {/* Global progress */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -45,23 +48,44 @@ export function ProgressMotivationalBar() {
         <p className="text-xs text-muted-foreground mt-1">{globalPercent}% completado</p>
       </div>
 
-      {/* Gamification stats */}
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        {racha > 0 && (
-          <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
-            <Flame className="h-4 w-4" />
-            <span className="font-medium">Racha: {racha} {racha === 1 ? 'día' : 'días'}</span>
+      {/* Level & XP section */}
+      <div className="rounded-xl bg-gradient-to-r from-yellow-500/10 via-amber-500/10 to-orange-500/10 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-sm font-bold shadow-md">
+              <Sparkles className="h-3.5 w-3.5" />
+              Nivel {nivel}
+            </div>
+            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Star className="h-4 w-4" />
+              <span className="font-semibold text-sm">{puntos} pts</span>
+            </div>
+          </div>
+          {racha > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">
+              <Flame className="h-4 w-4" />
+              <span className="text-sm font-medium">{racha} {racha === 1 ? 'día' : 'días'}</span>
+            </div>
+          )}
+        </div>
+
+        {/* XP progress to next level */}
+        {nivel < 10 && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Nivel {nivel}</span>
+              <span className="flex items-center gap-1">
+                <Award className="h-3 w-3" />
+                {ptsToNext} pts para nivel {nivel + 1}
+              </span>
+            </div>
+            <Progress value={progresoNivel} className="h-1.5" />
           </div>
         )}
-        <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-400">
-          <Star className="h-4 w-4" />
-          <span className="font-medium">{puntos} pts</span>
-        </div>
-        {ptsToNext < Infinity && (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Award className="h-4 w-4" />
-            <span>{ptsToNext} pts para nivel {nivel + 1}</span>
-          </div>
+        {nivel >= 10 && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-medium text-center">
+            🏆 ¡Nivel máximo alcanzado!
+          </p>
         )}
       </div>
     </div>

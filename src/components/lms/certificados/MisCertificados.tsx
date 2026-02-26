@@ -32,10 +32,10 @@ export const MisCertificados = () => {
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="border-amber-200/50 dark:border-amber-800/30">
+        <CardHeader className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent">
           <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
+            <Award className="h-5 w-5 text-amber-500" />
             Mis Certificados
           </CardTitle>
         </CardHeader>
