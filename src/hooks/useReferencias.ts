@@ -39,6 +39,19 @@ export interface CreateReferenciaData {
   tiempo_conocido?: string;
 }
 
+export interface UpdateReferenciaData {
+  id: string;
+  candidato_id: string;
+  tipo_referencia: 'laboral' | 'personal';
+  nombre_referencia: string;
+  relacion?: string;
+  empresa_institucion?: string;
+  cargo_referencia?: string;
+  telefono?: string;
+  email?: string;
+  tiempo_conocido?: string;
+}
+
 export interface ValidateReferenciaData {
   id: string;
   resultado: 'positiva' | 'negativa' | 'no_contactado' | 'invalida';
@@ -153,6 +166,34 @@ export const useValidateReferencia = () => {
     onError: (error) => {
       console.error('Error validating referencia:', error);
       toast.error('Error al validar referencia');
+    },
+  });
+};
+
+export const useUpdateReferencia = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateReferenciaData) => {
+      const { id, candidato_id, ...updateFields } = data;
+      const { data: result, error } = await supabase
+        .from('referencias_candidato')
+        .update(updateFields)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['referencias', variables.candidato_id] });
+      queryClient.invalidateQueries({ queryKey: ['referencias-progress', variables.candidato_id] });
+      toast.success('Referencia actualizada');
+    },
+    onError: (error) => {
+      console.error('Error updating referencia:', error);
+      toast.error('Error al actualizar referencia');
     },
   });
 };

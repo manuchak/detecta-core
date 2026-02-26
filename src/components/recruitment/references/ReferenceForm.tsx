@@ -5,16 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Users, Briefcase, User, Save } from 'lucide-react';
-import { useCreateReferencia } from '@/hooks/useReferencias';
+import { Loader2, Briefcase, User, Save } from 'lucide-react';
+import { useCreateReferencia, useUpdateReferencia } from '@/hooks/useReferencias';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Referencia } from '@/hooks/useReferencias';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   candidatoId: string;
   tipoReferencia: 'laboral' | 'personal';
+  editingReferencia?: Referencia | null;
 }
 
 interface ReferenceFormData {
@@ -57,13 +59,15 @@ const relacionesPersonales = [
   'Otro',
 ];
 
-export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: Props) {
+export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia, editingReferencia }: Props) {
   const createMutation = useCreateReferencia();
+  const updateMutation = useUpdateReferencia();
   const { user } = useAuth();
   const isLaboral = tipoReferencia === 'laboral';
   const relaciones = isLaboral ? relacionesLaborales : relacionesPersonales;
+  const isEditing = !!editingReferencia;
 
-  // Build user-scoped key for persistence
+  // Build user-scoped key for persistence (only for new references)
   const persistenceKey = user 
     ? `reference_${candidatoId}_${tipoReferencia}_${user.id}` 
     : `reference_${candidatoId}_${tipoReferencia}`;
@@ -81,34 +85,59 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
     initialData: INITIAL_REFERENCE_DATA,
     level: 'light',
     debounceMs: 800,
-    enabled: !!candidatoId,
+    enabled: !!candidatoId && !isEditing,
     isMeaningful: (data) => !!(data.nombre || data.telefono || data.email),
   });
 
   const { nombre, relacion, empresa, cargo, telefono, email, tiempoConocido } = formData;
 
-  // Fix 1: Reset form when dialog opens (unless there's a meaningful draft)
+  // When editing, preload data; when creating, reset if no draft
   useEffect(() => {
-    if (isOpen && !hasDraft) {
-      setData(INITIAL_REFERENCE_DATA);
+    if (isOpen) {
+      if (editingReferencia) {
+        setData({
+          nombre: editingReferencia.nombre_referencia || '',
+          relacion: editingReferencia.relacion || '',
+          empresa: editingReferencia.empresa_institucion || '',
+          cargo: editingReferencia.cargo_referencia || '',
+          telefono: editingReferencia.telefono || '',
+          email: editingReferencia.email || '',
+          tiempoConocido: editingReferencia.tiempo_conocido || '',
+        });
+      } else if (!hasDraft) {
+        setData(INITIAL_REFERENCE_DATA);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, editingReferencia]);
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    await createMutation.mutateAsync({
-      candidato_id: candidatoId,
+    const payload = {
       tipo_referencia: tipoReferencia,
       nombre_referencia: nombre,
       relacion: relacion || undefined,
-      // Fix 2: Only send empresa/cargo for laboral references
       empresa_institucion: isLaboral ? (empresa || undefined) : undefined,
       cargo_referencia: isLaboral ? (cargo || undefined) : undefined,
       telefono: telefono || undefined,
       email: email || undefined,
       tiempo_conocido: tiempoConocido || undefined,
-    });
+    };
+
+    if (isEditing) {
+      await updateMutation.mutateAsync({
+        id: editingReferencia.id,
+        candidato_id: candidatoId,
+        ...payload,
+      });
+    } else {
+      await createMutation.mutateAsync({
+        candidato_id: candidatoId,
+        ...payload,
+      });
+    }
 
     clearDraft();
     onClose();
@@ -121,9 +150,9 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               {isLaboral ? <Briefcase className="h-5 w-5" /> : <User className="h-5 w-5" />}
-              Agregar Referencia {isLaboral ? 'Laboral' : 'Personal'}
+              {isEditing ? 'Editar' : 'Agregar'} Referencia {isLaboral ? 'Laboral' : 'Personal'}
             </DialogTitle>
-            {hasDraft && lastSaved && (
+            {!isEditing && hasDraft && lastSaved && (
               <Badge variant="outline" className="text-xs gap-1">
                 <Save className="h-3 w-3" />
                 Borrador {getTimeSinceSave()}
@@ -131,7 +160,9 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
             )}
           </div>
           <DialogDescription>
-            Ingrese los datos de la referencia para su posterior validación
+            {isEditing
+              ? 'Modifique los datos de la referencia'
+              : 'Ingrese los datos de la referencia para su posterior validación'}
           </DialogDescription>
         </DialogHeader>
 
@@ -233,9 +264,9 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={createMutation.isPending || !nombre}>
-              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Agregar Referencia
+            <Button type="submit" disabled={isPending || !nombre}>
+              {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isEditing ? 'Guardar Cambios' : 'Agregar Referencia'}
             </Button>
           </div>
         </form>

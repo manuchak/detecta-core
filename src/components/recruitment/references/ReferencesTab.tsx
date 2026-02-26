@@ -1,12 +1,22 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Users, Plus, Briefcase, User, Phone, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { useReferencias, useReferenciasProgress } from '@/hooks/useReferencias';
+import { Loader2, Users, Plus, Briefcase, User, Phone, Mail, CheckCircle, XCircle, Clock, Pencil, Trash2 } from 'lucide-react';
+import { useReferencias, useReferenciasProgress, useDeleteReferencia } from '@/hooks/useReferencias';
 import { ReferenceForm } from './ReferenceForm';
 import { ReferenceValidationDialog } from './ReferenceValidationDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { Referencia } from '@/hooks/useReferencias';
@@ -27,10 +37,13 @@ const resultadoConfig = {
 export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [selectedRef, setSelectedRef] = useState<Referencia | null>(null);
+  const [editingRef, setEditingRef] = useState<Referencia | null>(null);
+  const [deletingRef, setDeletingRef] = useState<Referencia | null>(null);
   const [tipoReferencia, setTipoReferencia] = useState<'laboral' | 'personal'>('laboral');
   
   const { data: referencias, isLoading } = useReferencias(candidatoId);
   const { data: progress } = useReferenciasProgress(candidatoId);
+  const deleteMutation = useDeleteReferencia();
 
   const laborales = referencias?.filter(r => r.tipo_referencia === 'laboral') || [];
   const personales = referencias?.filter(r => r.tipo_referencia === 'personal') || [];
@@ -44,8 +57,26 @@ export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
   }
 
   const handleAddRef = (tipo: 'laboral' | 'personal') => {
+    setEditingRef(null);
     setTipoReferencia(tipo);
     setShowForm(true);
+  };
+
+  const handleEditRef = (ref: Referencia) => {
+    setEditingRef(ref);
+    setTipoReferencia(ref.tipo_referencia);
+    setShowForm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingRef) return;
+    await deleteMutation.mutateAsync(deletingRef.id);
+    setDeletingRef(null);
+  };
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingRef(null);
   };
 
   return (
@@ -112,7 +143,13 @@ export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
         ) : (
           <div className="space-y-2">
             {laborales.map(ref => (
-              <ReferenceCard key={ref.id} referencia={ref} onValidate={() => setSelectedRef(ref)} />
+              <ReferenceCard
+                key={ref.id}
+                referencia={ref}
+                onValidate={() => setSelectedRef(ref)}
+                onEdit={() => handleEditRef(ref)}
+                onDelete={() => setDeletingRef(ref)}
+              />
             ))}
           </div>
         )}
@@ -139,7 +176,13 @@ export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
         ) : (
           <div className="space-y-2">
             {personales.map(ref => (
-              <ReferenceCard key={ref.id} referencia={ref} onValidate={() => setSelectedRef(ref)} />
+              <ReferenceCard
+                key={ref.id}
+                referencia={ref}
+                onValidate={() => setSelectedRef(ref)}
+                onEdit={() => handleEditRef(ref)}
+                onDelete={() => setDeletingRef(ref)}
+              />
             ))}
           </div>
         )}
@@ -147,9 +190,10 @@ export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
 
       <ReferenceForm
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={handleFormClose}
         candidatoId={candidatoId}
         tipoReferencia={tipoReferencia}
+        editingReferencia={editingRef}
       />
 
       {selectedRef && (
@@ -159,11 +203,43 @@ export function ReferencesTab({ candidatoId, candidatoNombre }: Props) {
           referencia={selectedRef}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingRef} onOpenChange={(open) => !open && setDeletingRef(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar referencia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará la referencia de <strong>{deletingRef?.nombre_referencia}</strong>. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function ReferenceCard({ referencia, onValidate }: { referencia: Referencia; onValidate: () => void }) {
+function ReferenceCard({
+  referencia,
+  onValidate,
+  onEdit,
+  onDelete,
+}: {
+  referencia: Referencia;
+  onValidate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const config = resultadoConfig[referencia.resultado];
   const IconComponent = config.icon;
 
@@ -198,11 +274,19 @@ function ReferenceCard({ referencia, onValidate }: { referencia: Referencia; onV
               )}
             </div>
           </div>
-          {referencia.resultado === 'pendiente' && (
-            <Button size="sm" variant="outline" onClick={onValidate}>
-              Validar
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onEdit} title="Editar">
+              <Pencil className="h-4 w-4" />
             </Button>
-          )}
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={onDelete} title="Eliminar">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            {referencia.resultado === 'pendiente' && (
+              <Button size="sm" variant="outline" onClick={onValidate}>
+                Validar
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
