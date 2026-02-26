@@ -208,10 +208,14 @@ export function LMSCursosLista() {
       <AlertDialog open={!!cursoAEliminar} onOpenChange={() => setCursoAEliminar(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar curso?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente el curso y todo su contenido.
-              Solo es posible si no hay inscripciones.
+            <AlertDialogTitle>¿Eliminar curso permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                Esta acción eliminará permanentemente <strong>"{cursoAEliminar?.titulo}"</strong> junto con todos sus módulos, contenidos, inscripciones, progreso y certificados asociados.
+              </span>
+              <span className="block text-destructive font-medium">
+                ⚠️ Esta acción no se puede deshacer.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -220,7 +224,7 @@ export function LMSCursosLista() {
               onClick={handleEliminar}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Eliminar
+              Eliminar permanentemente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
