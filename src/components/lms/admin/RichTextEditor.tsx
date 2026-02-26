@@ -12,12 +12,14 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Heading3,
@@ -25,7 +27,7 @@ import {
   List, ListOrdered, Quote, Minus,
   Link as LinkIcon, Image, Table as TableIcon,
   RemoveFormatting, Sparkles, Loader2,
-  Palette, Highlighter,
+  Palette, Highlighter, Upload,
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -42,6 +44,73 @@ const COLORS = [
   '#65a30d', '#16a34a', '#0891b2', '#2563eb',
   '#7c3aed', '#c026d3', '#e11d48', '#0d9488',
 ];
+
+// --- Image compression & upload utilities ---
+
+async function compressImage(file: File, maxW = 1920, maxH = 1080, quality = 0.8): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxW || height > maxH) {
+        const ratio = Math.min(maxW / width, maxH / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('Canvas not supported'));
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error('Compression failed')),
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function uploadImageToStorage(file: File): Promise<string> {
+  let blob: Blob;
+  try {
+    blob = await compressImage(file);
+  } catch {
+    blob = file; // fallback to original
+  }
+  const ext = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'jpg';
+  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `contenido/${safeName}`;
+
+  const { error } = await supabase.storage.from('lms-media').upload(path, blob, { contentType: 'image/jpeg' });
+  if (error) throw error;
+
+  const { data } = supabase.storage.from('lms-media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function getImageFiles(dataTransfer: DataTransfer): File[] {
+  const files: File[] = [];
+  for (let i = 0; i < dataTransfer.files.length; i++) {
+    const f = dataTransfer.files[i];
+    if (f.type.startsWith('image/')) files.push(f);
+  }
+  if (files.length === 0) {
+    for (let i = 0; i < dataTransfer.items.length; i++) {
+      const item = dataTransfer.items[i];
+      if (item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+  }
+  return files;
+}
+
+// --- Toolbar button ---
 
 function ToolbarButton({ 
   onClick, active, disabled, children, title 
@@ -66,15 +135,18 @@ function ToolbarButton({
   );
 }
 
+// --- Main component ---
+
 export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, placeholder }: RichTextEditorProps) {
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       ImageExt.configure({ inline: false, allowBase64: true }),
@@ -94,12 +166,53 @@ export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, place
     },
   });
 
-  // Sync external value changes (e.g. AI generation)
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value || '', false);
     }
   }, [value, editor]);
+
+  const uploadAndInsert = useCallback(async (files: File[]) => {
+    if (!editor || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const url = await uploadImageToStorage(file);
+        editor.chain().focus().setImage({ src: url }).run();
+      }
+      toast.success('Imagen subida correctamente');
+    } catch (err: any) {
+      console.error('Image upload error:', err);
+      toast.error('Error al subir imagen: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setUploading(false);
+    }
+  }, [editor]);
+
+  // Drag & Drop
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const files = getImageFiles(e.dataTransfer);
+    if (files.length > 0) uploadAndInsert(files);
+  }, [uploadAndInsert]);
+
+  // Paste
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (!e.clipboardData) return;
+    const files = getImageFiles(e.clipboardData as unknown as DataTransfer);
+    if (files.length > 0) {
+      e.preventDefault();
+      uploadAndInsert(files);
+    }
+  }, [uploadAndInsert]);
+
+  // File input
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) uploadAndInsert(files);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [uploadAndInsert]);
 
   const setLink = useCallback(() => {
     if (!editor || !linkUrl) return;
@@ -234,7 +347,7 @@ export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, place
           </PopoverContent>
         </Popover>
 
-        {/* Image */}
+        {/* Image - enhanced with upload */}
         <Popover>
           <PopoverTrigger asChild>
             <button type="button" title="Insertar imagen" className="p-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
@@ -243,7 +356,25 @@ export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, place
           </PopoverTrigger>
           <PopoverContent className="w-72 p-3 space-y-2" align="start">
             <Input placeholder="URL de la imagen..." value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="h-8 text-sm" onKeyDown={e => e.key === 'Enter' && insertImage()} />
-            <Button size="sm" className="h-7 text-xs w-full" onClick={insertImage}>Insertar imagen</Button>
+            <Button size="sm" className="h-7 text-xs w-full" onClick={insertImage}>Insertar por URL</Button>
+            <Separator />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs w-full gap-1.5"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+              Subir imagen
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleFileSelect}
+            />
           </PopoverContent>
         </Popover>
 
@@ -271,8 +402,31 @@ export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, place
         )}
       </div>
 
-      {/* Editor content */}
-      <EditorContent editor={editor} className="rich-text-editor-content" />
+      {/* Editor content with drag & drop and paste support */}
+      <div
+        className="relative"
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+      >
+        {/* Upload overlay */}
+        {uploading && (
+          <div className="absolute inset-0 bg-background/70 z-20 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Subiendo imagen...
+          </div>
+        )}
+
+        {/* Drag overlay */}
+        {dragging && (
+          <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary z-10 flex items-center justify-center rounded-b-lg">
+            <span className="text-sm font-medium text-primary">Suelta la imagen aquí</span>
+          </div>
+        )}
+
+        <EditorContent editor={editor} className="rich-text-editor-content" />
+      </div>
     </div>
   );
 }
