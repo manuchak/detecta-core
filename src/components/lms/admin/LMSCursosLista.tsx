@@ -191,6 +191,7 @@ export function LMSCursosLista() {
               curso={curso}
               onEditar={() => navigate(`/lms/admin/cursos/${curso.id}/editar`)}
               onVer={() => navigate(`/lms/admin/cursos/${curso.id}`)}
+              onPreview={() => navigate(`/lms/admin/cursos/${curso.id}/preview`)}
               onEliminar={() => setCursoAEliminar(curso)}
               onArchivar={() => setCursoAArchivar(curso)}
               onReactivar={() => handleReactivar(curso.id)}
@@ -249,7 +250,8 @@ export function LMSCursosLista() {
 function CursoCard({ 
   curso, 
   onEditar, 
-  onVer, 
+  onVer,
+  onPreview,
   onEliminar,
   onArchivar,
   onReactivar,
@@ -262,6 +264,7 @@ function CursoCard({
   curso: LMSCurso;
   onEditar: () => void;
   onVer: () => void;
+  onPreview: () => void;
   onEliminar: () => void;
   onArchivar: () => void;
   onReactivar: () => void;
@@ -291,6 +294,7 @@ function CursoCard({
   const actionItems = (
     <>
       <ActionItem icon={<ChevronRight className="w-4 h-4" />} label="Ver detalles" onClick={() => handleAction(onVer)} />
+      <ActionItem icon={<Eye className="w-4 h-4" />} label="Vista Previa" onClick={() => handleAction(onPreview)} />
       
       {!isArchived && (
         <>

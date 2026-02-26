@@ -208,10 +208,16 @@ export function LMSCursoDetalle() {
           </div>
           <p className="apple-text-subtitle mt-1 font-mono">{curso.codigo}</p>
         </div>
-        <Button variant="outline" onClick={() => navigate(`/lms/admin/cursos/${cursoId}/editar`)}>
-          <Edit2 className="w-4 h-4 mr-2" />
-          Editar Curso
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/lms/admin/cursos/${cursoId}/preview`)}>
+            <Eye className="w-4 h-4 mr-2" />
+            Vista Previa
+          </Button>
+          <Button variant="outline" onClick={() => navigate(`/lms/admin/cursos/${cursoId}/editar`)}>
+            <Edit2 className="w-4 h-4 mr-2" />
+            Editar Curso
+          </Button>
+        </div>
       </div>
 
       {/* Stats - Apple Metric Cards */}
