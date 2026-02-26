@@ -378,6 +378,43 @@ export const useLeadApprovals = () => {
 
       console.log('✅ Candidato vinculado exitosamente:', candidatoId);
 
+      // 🚗 Migrar datos vehiculares y personales desde notas del lead al candidato
+      try {
+        let notesData: Record<string, any> = {};
+        try {
+          notesData = lead.notas ? JSON.parse(lead.notas) : {};
+        } catch { notesData = {}; }
+
+        const vehiculo = notesData.vehiculo || {};
+        const datosPersonales = notesData.datos_personales || {};
+        const experiencia = notesData.experiencia || {};
+
+        const updatePayload: Record<string, any> = {};
+        if (vehiculo.marca_vehiculo) updatePayload.marca_vehiculo = vehiculo.marca_vehiculo;
+        if (vehiculo.modelo_vehiculo) updatePayload.modelo_vehiculo = vehiculo.modelo_vehiculo;
+        if (vehiculo.placas) updatePayload.placas_vehiculo = vehiculo.placas;
+        if (vehiculo.color_vehiculo) updatePayload.color_vehiculo = vehiculo.color_vehiculo;
+        if (vehiculo.numero_serie) updatePayload.numero_serie = vehiculo.numero_serie;
+        if (experiencia.licencia_conducir) updatePayload.numero_licencia = experiencia.licencia_conducir;
+        if (experiencia.tipo_licencia) updatePayload.licencia_expedida_por = experiencia.tipo_licencia;
+        if (datosPersonales.direccion) updatePayload.direccion = datosPersonales.direccion;
+
+        if (Object.keys(updatePayload).length > 0) {
+          const { error: vehicleError } = await supabase
+            .from('candidatos_custodios')
+            .update(updatePayload)
+            .eq('id', candidatoId);
+
+          if (vehicleError) {
+            console.warn('⚠️ No se pudieron migrar datos vehiculares:', vehicleError);
+          } else {
+            console.log('✅ Datos vehiculares migrados al candidato:', Object.keys(updatePayload));
+          }
+        }
+      } catch (vehicleErr) {
+        console.warn('⚠️ Error parseando notas para datos vehiculares:', vehicleErr);
+      }
+
       // Solo si la sincronización fue exitosa, actualizar el lead a aprobado
       const { error: leadError } = await sbx.update('leads', {
         estado: 'aprobado',
