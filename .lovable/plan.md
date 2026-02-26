@@ -1,78 +1,149 @@
 
-# Compatibilizar Panel de Perfiles Operativos para Armados
+# Portal de Armados - Adaptacion del Portal de Custodios
 
-## Problema
-El `PerfilForense` (panel admin de perfiles operativos) muestra las mismas 10 pestanas para custodios y armados. Varias pestanas dependen de datos exclusivos de custodios (`pc_custodio_id`, `custodio_rechazos`, `checklist_servicio.custodio_telefono`, etc.) y muestran datos vacios, irreales o errores para armados. Los tabs que SI son compatibles son:
+## Contexto
+El portal de custodios (`/custodian`) es una app movil con 4 secciones: Dashboard, Servicios, Vehiculo y Soporte. Se necesita un portal equivalente para armados (`/armado`) que refleje su caso de uso operativo: no tienen vehiculo propio, no hacen checklists de transporte, pero si necesitan ver sus asignaciones y levantar tickets de soporte.
 
-| Tab | Custodio | Armado | Notas |
-|-----|----------|--------|-------|
-| Informacion | OK | OK | Ya maneja ambos tipos |
-| Performance | OK | Vacio/incorrecto | Queries usan `custodio_id`, `custodio_rechazos` |
-| Economics | OK | OK | Ya tiene branch separado |
-| Evaluaciones | OK | OK | Ya usa `ArmadoEvaluacionesTab` |
-| Documentacion | OK | Vacio | Depende de `candidatoId` (pc_custodio_id) |
-| LMS/Capacitacion | OK | Vacio | Depende de `candidatoId` |
-| Cumplimiento | OK | Vacio | Queries de checklist y docs por telefono custodio |
-| Historico | OK | Parcial | Usa nombre para buscar, funciona parcialmente |
-| Calificaciones | OK | Incorrecto | Depende de Performance (custodio-specific) |
-| Notas | OK | OK | Ya acepta `operativoTipo` |
-
-## Solucion
-Ocultar las pestanas que no aplican para armados y ajustar las que pueden funcionar con datos correctos.
-
-### Cambios en `src/pages/PerfilesOperativos/PerfilForense.tsx`
-
-**1. Ocultar tabs no compatibles para armados**
-
-Cuando `tipo === 'armado'`, ocultar las siguientes pestanas que no tienen datos relevantes:
-- **Documentacion** (depende de pipeline de candidatos custodios)
-- **Capacitacion/LMS** (depende de `pc_custodio_id`)
-- **Cumplimiento** (checklists y docs son custodio-only)
-- **Calificaciones** (rating system construido sobre metricas de custodio)
-
-**2. Adaptar Performance para armados**
-
-La pestana Performance para armados mostrara un estado intermedio claro indicando que el sistema de performance scoring esta basado en metricas de custodios y que para armados se visualizan los datos disponibles del tab Economics. Se ocultara esta pestana para armados ya que las metricas (puntualidad, rechazos, checklists) no aplican a su modelo operativo.
-
-**3. Resultado: tabs visibles por tipo**
+## Diferencias clave Custodio vs Armado
 
 ```text
-Custodio (10 tabs):
-  Info | Performance | Economics | Evaluaciones | Docs | LMS | Cumplimiento | Historico | Ratings | Notas
-
-Armado (6 tabs):
-  Info | Economics | Evaluaciones | Historico | Notas
+Funcionalidad         | Custodio              | Armado
+----------------------|-----------------------|---------------------------
+Vehiculo/Mante.       | SI (tab dedicado)     | NO (no aplica)
+Checklist pre-serv.   | SI (docs + fotos)     | NO (no aplica)
+Onboarding docs       | Licencia, circulacion | Licencia de portacion
+                      | poliza de seguro      | (si aplica)
+Fuente de servicios   | servicios_planificados| asignacion_armados
+                      | + servicios_custodia  |
+KM recorridos         | SI (metrica clave)    | NO
+Indisponibilidades    | custodio_indis.       | armado_indisponibilidades
+Soporte/Tickets       | SI                    | SI (misma logica)
+Tabla operativa       | custodios_operativos  | armados_operativos
+Identificador         | telefono              | telefono + armado_id
 ```
 
-Esto elimina la confusion de ver pestanas vacias o con datos de "costo_custodio" etiquetados como "ingresos" en contextos donde no aplican.
+## Arquitectura
 
-### Detalle tecnico
+### Fase 1: Backend - Rol y Autenticacion
 
-En `PerfilForense.tsx`, se envolvera cada `TabsTrigger` y `TabsContent` en una condicion basada en `tipo`:
+**1.1 Agregar rol `armado` al sistema**
+- Migracion SQL: insertar `armado` en la tabla de roles (o enum) si no existe
+- Actualizar `src/types/roleTypes.ts`: agregar `'armado'` al type `Role`
+- Actualizar `src/constants/accessControl.ts`:
+  - Agregar `'armado'` a `FIELD_OPERATOR_ROLES`
+  - Agregar entrada en `PORTAL_REDIRECTS`: `'armado': '/armado'`
+  - Agregar case en `getTargetRouteForRole`: `case 'armado': return '/armado'`
 
-```tsx
-const isCustodio = tipo === 'custodio';
+**1.2 Edge Function: `create-armado-account`**
+- Clonar `create-custodian-account` y adaptar:
+  - Asignar rol `armado` en lugar de `custodio`
+  - Vincular con `armados_operativos` por email/telefono
+  - Misma logica de rescue path para usuarios existentes
 
-// En TabsList - solo mostrar tabs aplicables
-{isCustodio && (
-  <TabsTrigger value="performance">...</TabsTrigger>
-)}
-// ... mismo patron para documentacion, capacitacion, cumplimiento, calificaciones
+**1.3 Tabla de invitaciones**
+- Crear `armado_invitations` (misma estructura que `custodian_invitations`):
+  - `id`, `email`, `phone`, `armado_operativo_id`, `token`, `status`, `created_by`, `created_at`, `used_at`
+- RLS: admins y supply pueden crear/leer
 
-// En TabsContent - mismo patron condicional
-{isCustodio && (
-  <TabsContent value="performance">...</TabsContent>
-)}
+### Fase 2: Frontend - Portal `/armado`
+
+**2.1 Paginas del portal** (en `src/pages/armado/`)
+
+| Pagina | Basada en | Adaptacion |
+|--------|-----------|------------|
+| `ArmadoPortal.tsx` | `CustodianPortal.tsx` | Verifica rol `armado`, sin `OnboardingGuard` (fase 1) |
+| `ArmadoDashboard.tsx` | `CustodianDashboard.tsx` | Sin vehiculo, sin checklist, servicios desde `asignacion_armados` |
+| `ArmadoServicesPage.tsx` | `CustodianServicesPage.tsx` | Query a `asignacion_armados` JOIN `servicios_custodia` |
+| `ArmadoSupportPage.tsx` | `CustodianSupportPage.tsx` | Misma logica de tickets, diferentes categorias |
+
+**2.2 Hooks del portal** (en `src/hooks/`)
+
+- `useArmadoProfile.ts` - Similar a `useCustodianProfile`, busca en `armados_operativos` por telefono del usuario
+- `useArmadoServices.ts` - Consulta `asignacion_armados` JOIN `servicios_custodia/servicios_planificados` para obtener servicios asignados al armado
+- `useArmadoTickets.ts` - Reutiliza la logica de `useCustodianTicketsEnhanced` pero con telefono del armado
+
+**2.3 Navegacion movil**
+
+- `ArmadoBottomNav.tsx` - 3 tabs en lugar de 4:
+  - Inicio (dashboard)
+  - Servicios (historial de asignaciones)
+  - Soporte (tickets)
+  - Sin tab de "Vehiculo"
+
+**2.4 Dashboard movil adaptado**
+
+El dashboard mostrara:
+- Saludo personalizado con nombre del armado
+- Proximo servicio asignado (desde `asignacion_armados` activas)
+- Stats: servicios del mes, rating promedio
+- Acciones rapidas: ver servicios, reportar indisponibilidad, soporte
+- Alertas de tickets pendientes/resueltos (misma logica que custodios)
+- Sin: KM, mantenimiento vehicular, checklist, semaforos de mantenimiento
+
+**2.5 Servicios del armado**
+
+La vista de servicios mostrara:
+- Datos del servicio: cliente, origen, destino, fecha, tipo
+- Tarifa acordada (desde `asignacion_armados.tarifa_acordada`)
+- Estado de la asignacion
+- Sin: KM recorridos, costo_custodio
+
+### Fase 3: Rutas y Seguridad
+
+**3.1 Rutas en App.tsx**
+```text
+/armado              -> ArmadoPortal (layout con Outlet)
+/armado/             -> ArmadoDashboard (index)
+/armado/services     -> ArmadoServicesPage
+/armado/support      -> ArmadoSupportPage
 ```
 
-Si el tab activo guardado en URL no existe para armados, se hara fallback a `'info'`:
+**3.2 Seguridad**
+- `RoleBlockedRoute` ya bloquea field operators de rutas admin; agregar `armado` al array
+- RLS en `armado_invitations`: solo roles admin/supply
+- El portal usa el mismo patron de `ProtectedRoute` que el de custodios
 
-```tsx
-const validArmadoTabs = ['info', 'economics', 'evaluaciones', 'historico', 'notas'];
-const resolvedTab = tipo === 'armado' && !validArmadoTabs.includes(activeTab) 
-  ? 'info' 
-  : activeTab;
-```
+### Fase 4: Flujo de Invitacion
 
-### Archivo unico a modificar
-`src/pages/PerfilesOperativos/PerfilForense.tsx` - condicionar visibilidad de tabs segun tipo operativo y agregar fallback de tab activo.
+**4.1 Pagina de registro**
+- `ArmadoSignup.tsx` - Clonar `CustodianSignup.tsx`, adaptar para consumir `create-armado-account`
+- Ruta: `/auth/registro-armado`
+
+**4.2 Pagina de invitaciones admin**
+- Adaptar o extender `CustodianInvitationsPage` con un toggle para tipo de operativo (custodio/armado)
+- O crear `ArmadoInvitationsPage` independiente
+
+## Resumen de archivos
+
+### Nuevos archivos (~12)
+- `src/pages/armado/ArmadoPortal.tsx`
+- `src/pages/armado/ArmadoDashboard.tsx`
+- `src/pages/armado/ArmadoServicesPage.tsx`
+- `src/pages/armado/ArmadoSupportPage.tsx`
+- `src/hooks/useArmadoProfile.ts`
+- `src/hooks/useArmadoServices.ts`
+- `src/components/armado/ArmadoBottomNav.tsx`
+- `src/components/armado/ArmadoMobileDashboard.tsx`
+- `src/pages/Auth/ArmadoSignup.tsx`
+- `supabase/functions/create-armado-account/index.ts`
+
+### Archivos modificados (~4)
+- `src/types/roleTypes.ts` - agregar `'armado'`
+- `src/constants/accessControl.ts` - agregar rol, ruta, redirect
+- `src/App.tsx` - agregar rutas `/armado/*` y `/auth/registro-armado`
+- Migracion SQL - tabla `armado_invitations`, rol en BD
+
+### Lo que se reutiliza sin cambios
+- Sistema de tickets (`useCustodianTicketsEnhanced`, `MobileTicketWizard`, `MobileTicketsList`)
+- Componentes de UI movil (cards, alerts, badges)
+- Edge function de soporte (`support-chat-bot`)
+- Patron de autenticacion y proteccion de rutas
+
+## Orden de implementacion sugerido
+1. Migracion SQL + rol `armado`
+2. Modificar `roleTypes.ts` y `accessControl.ts`
+3. Crear hooks (`useArmadoProfile`, `useArmadoServices`)
+4. Crear paginas del portal y componentes
+5. Agregar rutas en `App.tsx`
+6. Edge function `create-armado-account`
+7. Pagina de registro y flujo de invitacion
