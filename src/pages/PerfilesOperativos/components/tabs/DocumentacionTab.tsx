@@ -35,6 +35,7 @@ import {
 import { useState } from 'react';
 import { useStableAuth } from '@/hooks/useStableAuth';
 import { ChevronDown } from 'lucide-react';
+import { AdminDocumentUploadDialog } from './AdminDocumentUploadDialog';
 
 const QUICK_REJECT_REASONS = [
   'Foto ilegible',
@@ -62,6 +63,7 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
   const [recruitmentOpen, setRecruitmentOpen] = useState(true);
   const [rejectingDoc, setRejectingDoc] = useState<CustodianDocument | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const isLoading = loadingRecruitment || loadingCustodian;
 
@@ -231,8 +233,9 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
         <Collapsible open={custodianOpen} onOpenChange={setCustodianOpen}>
           <Card>
             <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                <Button variant="ghost" className="flex-1 justify-between p-0 h-auto hover:bg-transparent">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Upload className="h-5 w-5 text-blue-500" />
                     Documentos del Custodio (Portal)
@@ -241,6 +244,15 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
                   <ChevronDown className={`h-4 w-4 transition-transform ${custodianOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </CollapsibleTrigger>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUploadDialogOpen(true)}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1" />
+                Subir Documento
+              </Button>
+              </div>
             </CardHeader>
             <CollapsibleContent>
               <CardContent className="pt-0">
@@ -359,6 +371,15 @@ export function DocumentacionTab({ candidatoId, telefono }: DocumentacionTabProp
             </CollapsibleContent>
           </Card>
         </Collapsible>
+      )}
+
+      {/* Upload Dialog */}
+      {telefono && (
+        <AdminDocumentUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          telefono={telefono}
+        />
       )}
 
       {/* Reject Dialog */}
