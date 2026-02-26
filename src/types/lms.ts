@@ -110,6 +110,7 @@ export interface VideoContent {
   subtitles_url?: string;
   thumbnail_url?: string;
   duracion_segundos?: number;
+  descripcion?: string;
 }
 
 export interface DocumentoContent {
