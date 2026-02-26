@@ -126,7 +126,8 @@ import LMSZoomReset from '@/components/lms/LMSZoomReset';
 const FacturacionHub = lazy(() => import('@/pages/Facturacion/FacturacionHub'));
 const CustomerSuccessPage = lazy(() => import('@/pages/CustomerSuccess/CustomerSuccessPage'));
 const StarMapPage = lazy(() => import('@/pages/StarMap/StarMapPage'));
- const ServiceChecklistPage = lazy(() => import('@/pages/custodian/ServiceChecklistPage'));
+const ServiceChecklistPage = lazy(() => import('@/pages/custodian/ServiceChecklistPage'));
+const LegalHub = lazy(() => import('@/pages/Legal/LegalHub'));
 
 // Components
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -356,7 +357,20 @@ function App() {
                   }
                 />
 
-                {/* Customer Success */}
+                {/* Legal Hub */}
+                <Route
+                  path="/legal"
+                  element={
+                    <ProtectedRoute>
+                      <RoleProtectedRoute allowedRoles={['admin', 'owner', 'supply_admin', 'coordinador_operaciones']}>
+                        <UnifiedLayout>
+                          <LegalHub />
+                        </UnifiedLayout>
+                      </RoleProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+
                 <Route
                   path="/customer-success"
                   element={

@@ -33,7 +33,8 @@ import {
   ArrowLeftRight,
   Receipt,
   MonitorPlay,
-  HeartHandshake
+  HeartHandshake,
+  Scale
 } from 'lucide-react';
 
 // Roles with restricted navigation access (only see specific groups)
@@ -54,6 +55,7 @@ export interface NavigationGroup {
 export const navigationGroups: NavigationGroup[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'supply', label: 'Supply & Talento', icon: Users },
+  { id: 'legal', label: 'Legal', icon: Scale },
   { id: 'operations', label: 'Operaciones', icon: CalendarCheck },
   { id: 'facturacion', label: 'Facturación', icon: Receipt },
   { id: 'customer-success', label: 'Customer Success', icon: HeartHandshake },
@@ -232,6 +234,42 @@ export const navigationModules: NavigationModule[] = [
         label: 'Armados',
         path: '/perfiles-operativos?tab=armados',
         icon: Users
+      }
+    ]
+  },
+
+  // ===== LEGAL GROUP =====
+  {
+    id: 'legal',
+    label: 'Legal',
+    icon: Scale,
+    path: '/legal',
+    group: 'legal',
+    roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones'],
+    children: [
+      {
+        id: 'legal_plantillas',
+        label: 'Plantillas',
+        path: '/legal',
+        icon: FileText
+      },
+      {
+        id: 'legal_versiones',
+        label: 'Versiones',
+        path: '/legal?tab=versiones',
+        icon: GitBranch
+      },
+      {
+        id: 'legal_compliance',
+        label: 'Compliance',
+        path: '/legal?tab=compliance',
+        icon: ShieldCheck
+      },
+      {
+        id: 'legal_variables',
+        label: 'Variables',
+        path: '/legal?tab=variables',
+        icon: BookOpen
       }
     ]
   },
