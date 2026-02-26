@@ -9338,6 +9338,67 @@ export type Database = {
           },
         ]
       }
+      legal_compliance_checks: {
+        Row: {
+          compliance_type: string
+          created_at: string
+          id: string
+          last_reviewed_at: string | null
+          next_review_date: string | null
+          notes: string | null
+          plantilla_id: string
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          compliance_type: string
+          created_at?: string
+          id?: string
+          last_reviewed_at?: string | null
+          next_review_date?: string | null
+          notes?: string | null
+          plantilla_id: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          compliance_type?: string
+          created_at?: string
+          id?: string
+          last_reviewed_at?: string | null
+          next_review_date?: string | null
+          notes?: string | null
+          plantilla_id?: string
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_compliance_checks_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "plantillas_contrato"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_compliance_checks_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_compliance_checks_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+        ]
+      }
       lms_badges: {
         Row: {
           activo: boolean | null
@@ -12501,6 +12562,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_ticket_agent_workload"
             referencedColumns: ["agent_id"]
+          },
+        ]
+      }
+      plantillas_contrato_versiones: {
+        Row: {
+          change_description: string | null
+          changed_by: string | null
+          contenido_html: string
+          created_at: string
+          id: string
+          plantilla_id: string
+          variables_requeridas: string[] | null
+          version: number
+        }
+        Insert: {
+          change_description?: string | null
+          changed_by?: string | null
+          contenido_html: string
+          created_at?: string
+          id?: string
+          plantilla_id: string
+          variables_requeridas?: string[] | null
+          version: number
+        }
+        Update: {
+          change_description?: string | null
+          changed_by?: string | null
+          contenido_html?: string
+          created_at?: string
+          id?: string
+          plantilla_id?: string
+          variables_requeridas?: string[] | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_contrato_versiones_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plantillas_contrato_versiones_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
+          },
+          {
+            foreignKeyName: "plantillas_contrato_versiones_plantilla_id_fkey"
+            columns: ["plantilla_id"]
+            isOneToOne: false
+            referencedRelation: "plantillas_contrato"
+            referencedColumns: ["id"]
           },
         ]
       }
