@@ -120,7 +120,7 @@ const VerificarCertificado = lazy(() => import('@/pages/LMS/VerificarCertificado
 const LMSReportes = lazy(() => import('@/pages/LMS/LMSReportes'));
 const LMSAdminCursoNuevo = lazy(() => import('@/pages/LMS/LMSAdminCursoNuevo'));
 const LMSAdminCursoEditar = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoEditar'));
-const LMSAdminCursoPreview = lazy(() => import('@/pages/LMS/LMSAdminCursoPreview'));
+const LMSAdminCursoPreview = lazyWithRetry(() => import('@/pages/LMS/LMSAdminCursoPreview'));
 const CRMHub = lazy(() => import('@/pages/CRMHub/CRMHub'));
 const LMSCursoDetalle = lazy(() => import('@/components/lms/admin/LMSCursoDetalle').then(m => ({ default: m.LMSCursoDetalle })));
 import LMSZoomReset from '@/components/lms/LMSZoomReset';
