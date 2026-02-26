@@ -5,29 +5,16 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/components/ui/table';
 import { 
-  Upload, 
-  Download, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle,
-  Loader2,
-  FileSpreadsheet,
-  ArrowLeft,
-  ArrowRight,
-  Send,
-  Pause,
-  Play
+  Upload, Download, CheckCircle, XCircle, AlertTriangle,
+  Loader2, FileSpreadsheet, ArrowLeft, ArrowRight, Send
 } from 'lucide-react';
 import { useCustodianInvitations } from '@/hooks/useCustodianInvitations';
+import { useArmadoInvitations } from '@/hooks/useArmadoInvitations';
 import * as XLSX from 'xlsx';
+import type { OperativeType } from '@/pages/Admin/CustodianInvitationsPage';
 
 interface ImportRow {
   rowNumber: number;
@@ -47,25 +34,31 @@ interface SendingProgress {
 
 type WizardStep = 'upload' | 'validate' | 'sending' | 'results';
 
-export const BulkInvitationWizard = () => {
+interface Props {
+  operativeType: OperativeType;
+}
+
+export const BulkInvitationWizard = ({ operativeType }: Props) => {
   const [step, setStep] = useState<WizardStep>('upload');
   const [importedData, setImportedData] = useState<ImportRow[]>([]);
   const [progress, setProgress] = useState<SendingProgress>({ current: 0, total: 0, lastSent: null, isPaused: false });
   const [results, setResults] = useState<{ sent: number; noEmail: number; failed: number }>({ sent: 0, noEmail: 0, failed: 0 });
-  const [batchId, setBatchId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { createBulkInvitations } = useCustodianInvitations();
+
+  const custodianHook = useCustodianInvitations();
+  const armadoHook = useArmadoInvitations();
+  const { createBulkInvitations } = operativeType === 'custodio' ? custodianHook : armadoHook;
+
+  const label = operativeType === 'custodio' ? 'Custodios' : 'Armados';
 
   const validateEmail = (email: string): boolean => {
     if (!email) return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
   const validatePhone = (phone: string): boolean => {
-    if (!phone) return true; // Phone is optional
-    const phoneRegex = /^[\d\s\-+()]{10,}$/;
-    return phoneRegex.test(phone);
+    if (!phone) return true;
+    return /^[\d\s\-+()]{10,}$/.test(phone);
   };
 
   const processFile = useCallback((file: File) => {
@@ -78,18 +71,13 @@ export const BulkInvitationWizard = () => {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as string[][];
 
-        // Find header row
         const headerRow = jsonData[0]?.map(h => String(h).toLowerCase().trim()) || [];
         const nombreIdx = headerRow.findIndex(h => h.includes('nombre'));
         const emailIdx = headerRow.findIndex(h => h.includes('email') || h.includes('correo'));
         const telefonoIdx = headerRow.findIndex(h => h.includes('telefono') || h.includes('tel') || h.includes('celular'));
 
         if (nombreIdx === -1) {
-          toast({
-            title: 'Error en el archivo',
-            description: 'No se encontró la columna "nombre". Verifica que el archivo tenga el formato correcto.',
-            variant: 'destructive',
-          });
+          toast({ title: 'Error en el archivo', description: 'No se encontró la columna "nombre".', variant: 'destructive' });
           return;
         }
 
@@ -98,33 +86,17 @@ export const BulkInvitationWizard = () => {
           const email = String(row[emailIdx] || '').trim().toLowerCase();
           const telefono = String(row[telefonoIdx] || '').trim();
           const errors: string[] = [];
-
           if (!nombre) errors.push('Nombre requerido');
           if (email && !validateEmail(email)) errors.push('Email inválido');
           if (telefono && !validatePhone(telefono)) errors.push('Teléfono inválido');
-
-          return {
-            rowNumber: index + 2,
-            nombre,
-            email,
-            telefono,
-            isValid: errors.length === 0 && nombre.length > 0,
-            errors,
-          };
-        }).filter(row => row.nombre || row.email); // Remove completely empty rows
+          return { rowNumber: index + 2, nombre, email, telefono, isValid: errors.length === 0 && nombre.length > 0, errors };
+        }).filter(row => row.nombre || row.email);
 
         setImportedData(rows);
         setStep('validate');
-        toast({
-          title: 'Archivo procesado',
-          description: `Se encontraron ${rows.length} filas.`,
-        });
-      } catch (error) {
-        toast({
-          title: 'Error al procesar archivo',
-          description: 'No se pudo leer el archivo. Asegúrate de que sea un Excel o CSV válido.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Archivo procesado', description: `Se encontraron ${rows.length} filas.` });
+      } catch {
+        toast({ title: 'Error al procesar archivo', description: 'No se pudo leer el archivo.', variant: 'destructive' });
       }
     };
     reader.readAsArrayBuffer(file);
@@ -132,17 +104,13 @@ export const BulkInvitationWizard = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+    if (file) processFile(file);
   };
 
   const downloadTemplate = () => {
@@ -153,8 +121,8 @@ export const BulkInvitationWizard = () => {
     ];
     const ws = XLSX.utils.aoa_to_sheet(template);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Custodios');
-    XLSX.writeFile(wb, 'plantilla-invitaciones-custodios.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, label);
+    XLSX.writeFile(wb, `plantilla-invitaciones-${operativeType}s.xlsx`);
   };
 
   const startSending = async () => {
@@ -175,35 +143,23 @@ export const BulkInvitationWizard = () => {
         },
       });
 
-      setBatchId(result.batchId);
-      setResults({
-        sent: result.sentCount,
-        noEmail: result.noEmailCount,
-        failed: result.failedCount,
-      });
+      setResults({ sent: result.sentCount, noEmail: result.noEmailCount, failed: result.failedCount });
       setStep('results');
     } catch (error: any) {
-      toast({
-        title: 'Error al enviar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error al enviar', description: error.message, variant: 'destructive' });
     }
   };
 
   const downloadReport = () => {
     const report = importedData.map(row => ({
-      'Fila': row.rowNumber,
-      'Nombre': row.nombre,
-      'Email': row.email,
-      'Teléfono': row.telefono,
-      'Estado': row.isValid ? (row.email ? 'Enviado' : 'Sin email') : 'Error',
+      'Fila': row.rowNumber, 'Nombre': row.nombre, 'Email': row.email,
+      'Teléfono': row.telefono, 'Estado': row.isValid ? (row.email ? 'Enviado' : 'Sin email') : 'Error',
       'Errores': row.errors.join(', '),
     }));
     const ws = XLSX.utils.json_to_sheet(report);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
-    XLSX.writeFile(wb, `reporte-invitaciones-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `reporte-invitaciones-${operativeType}s-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const validCount = importedData.filter(r => r.isValid).length;
@@ -215,14 +171,13 @@ export const BulkInvitationWizard = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5" />
-          Importación Masiva de Custodios
+          Importación Masiva de {label}
         </CardTitle>
         <CardDescription>
-          Importa una lista de custodios desde un archivo Excel o CSV
+          Importa una lista de {label.toLowerCase()} desde un archivo Excel o CSV
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Step 1: Upload */}
         {step === 'upload' && (
           <div className="space-y-6">
             <div
@@ -235,13 +190,7 @@ export const BulkInvitationWizard = () => {
               <p className="text-lg font-medium">Arrastra tu archivo aquí</p>
               <p className="text-sm text-muted-foreground mt-1">o haz clic para seleccionar</p>
               <p className="text-xs text-muted-foreground mt-4">Formatos soportados: .xlsx, .xls, .csv</p>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
+              <input id="file-upload" type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileUpload} />
             </div>
             <div className="flex justify-center">
               <Button variant="outline" onClick={downloadTemplate} className="gap-2">
@@ -260,30 +209,15 @@ export const BulkInvitationWizard = () => {
           </div>
         )}
 
-        {/* Step 2: Validate */}
         {step === 'validate' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Badge variant="default" className="gap-1">
-                  <CheckCircle className="h-3 w-3" />
-                  Válidas: {validCount}
-                </Badge>
-                {noEmailCount > 0 && (
-                  <Badge variant="secondary" className="gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Sin email: {noEmailCount}
-                  </Badge>
-                )}
-                {invalidCount > 0 && (
-                  <Badge variant="destructive" className="gap-1">
-                    <XCircle className="h-3 w-3" />
-                    Con errores: {invalidCount}
-                  </Badge>
-                )}
+                <Badge variant="default" className="gap-1"><CheckCircle className="h-3 w-3" />Válidas: {validCount}</Badge>
+                {noEmailCount > 0 && <Badge variant="secondary" className="gap-1"><AlertTriangle className="h-3 w-3" />Sin email: {noEmailCount}</Badge>}
+                {invalidCount > 0 && <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Con errores: {invalidCount}</Badge>}
               </div>
             </div>
-
             <div className="border rounded-lg max-h-[400px] overflow-auto">
               <Table>
                 <TableHeader>
@@ -304,11 +238,7 @@ export const BulkInvitationWizard = () => {
                       <TableCell>{row.telefono || '-'}</TableCell>
                       <TableCell>
                         {row.isValid ? (
-                          row.email ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <span title="Sin email"><AlertTriangle className="h-4 w-4 text-amber-500" /></span>
-                          )
+                          row.email ? <CheckCircle className="h-4 w-4 text-green-500" /> : <AlertTriangle className="h-4 w-4 text-amber-500" />
                         ) : (
                           <span className="text-xs text-destructive">{row.errors[0]}</span>
                         )}
@@ -317,64 +247,39 @@ export const BulkInvitationWizard = () => {
                   ))}
                 </TableBody>
               </Table>
-              {importedData.length > 100 && (
-                <p className="text-center text-sm text-muted-foreground py-2">
-                  Mostrando 100 de {importedData.length} filas
-                </p>
-              )}
+              {importedData.length > 100 && <p className="text-center text-sm text-muted-foreground py-2">Mostrando 100 de {importedData.length} filas</p>}
             </div>
-
             <div className="flex justify-between">
-              <Button variant="outline" onClick={() => { setStep('upload'); setImportedData([]); }} className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Volver
-              </Button>
-              <Button onClick={startSending} disabled={validCount === 0} className="gap-2">
-                Enviar {validCount} invitaciones
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              <Button variant="outline" onClick={() => { setStep('upload'); setImportedData([]); }} className="gap-2"><ArrowLeft className="h-4 w-4" />Volver</Button>
+              <Button onClick={startSending} disabled={validCount === 0} className="gap-2">Enviar {validCount} invitaciones<ArrowRight className="h-4 w-4" /></Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Sending */}
         {step === 'sending' && (
           <div className="space-y-6 py-8">
             <div className="text-center">
               <Send className="h-12 w-12 mx-auto text-primary mb-4 animate-pulse" />
               <h3 className="text-lg font-medium">Enviando Invitaciones</h3>
-              <p className="text-muted-foreground mt-1">
-                {progress.current} de {progress.total} enviadas
-              </p>
+              <p className="text-muted-foreground mt-1">{progress.current} de {progress.total} enviadas</p>
             </div>
-
             <Progress value={(progress.current / progress.total) * 100} className="h-3" />
-
-            {progress.lastSent && (
-              <p className="text-center text-sm text-muted-foreground">
-                Último enviado: {progress.lastSent} ✅
-              </p>
-            )}
-
-            <div className="flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            {progress.lastSent && <p className="text-center text-sm text-muted-foreground">Último enviado: {progress.lastSent} ✅</p>}
+            <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           </div>
         )}
 
-        {/* Step 4: Results */}
         {step === 'results' && (
           <div className="space-y-6">
             <div className="text-center py-4">
               <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
               <h3 className="text-xl font-semibold">Importación Completada</h3>
             </div>
-
             <div className="grid grid-cols-3 gap-4">
               <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
                 <CardContent className="pt-4 text-center">
                   <p className="text-3xl font-bold text-green-600">{results.sent}</p>
-                  <p className="text-sm text-green-600/80">Emails enviados</p>
+                  <p className="text-sm text-green-600/80">{operativeType === 'custodio' ? 'Emails enviados' : 'Links generados'}</p>
                 </CardContent>
               </Card>
               <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
@@ -390,21 +295,14 @@ export const BulkInvitationWizard = () => {
                 </CardContent>
               </Card>
             </div>
-
             {results.noEmail > 0 && (
               <p className="text-center text-sm text-muted-foreground">
-                Los custodios sin email tienen link generado. Puedes copiarlo o enviar por WhatsApp desde el historial.
+                Los {label.toLowerCase()} sin email tienen link generado. Puedes copiarlo desde el historial.
               </p>
             )}
-
             <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={downloadReport} className="gap-2">
-                <Download className="h-4 w-4" />
-                Descargar Reporte
-              </Button>
-              <Button onClick={() => { setStep('upload'); setImportedData([]); }} className="gap-2">
-                Nueva Importación
-              </Button>
+              <Button variant="outline" onClick={downloadReport} className="gap-2"><Download className="h-4 w-4" />Descargar Reporte</Button>
+              <Button onClick={() => { setStep('upload'); setImportedData([]); }} className="gap-2">Nueva Importación</Button>
             </div>
           </div>
         )}
