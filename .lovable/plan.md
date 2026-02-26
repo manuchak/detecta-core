@@ -1,28 +1,47 @@
 
+# Fix: Duplicacion de servicios en dashboard de planeacion
 
-# Corregir 3 bugs en ReferenceForm de Referencias
+## Problema
+La funcion SQL `get_real_planned_services_summary` hace un `LEFT JOIN` directo a `asignacion_armados` (linea 63-64). Cuando un servicio tiene mas de un armado activo (estado 'confirmado' o 'pendiente'), el JOIN produce multiples filas por servicio, causando duplicacion en el dashboard.
 
-## Problema reportado por Supply
-Al capturar referencias, el formulario presenta 3 problemas:
-1. Datos de una referencia anterior (ej. telefono) aparecen al abrir una nueva
-2. Campos de empresa/cargo se envian aunque la referencia sea personal
-3. No se puede escribir "NA" o dejar vacio el email porque el navegador exige formato con @
+## Solucion
+Reemplazar el `LEFT JOIN` directo por un `LEFT JOIN LATERAL` con `LIMIT 1`, que selecciona solo el armado mas reciente (o confirmado primero) por servicio. Esto mantiene la relacion 1:1 entre servicios y filas del resultado.
 
-## Correcciones
+## Cambio
 
-### Archivo: `src/components/recruitment/references/ReferenceForm.tsx`
+### Nueva migracion SQL
 
-**Fix 1 - Limpiar borrador al abrir el dialog:**
-Agregar un `useEffect` que detecte cuando `isOpen` cambia a `true` y, si no hay un borrador significativo guardado, resetee el formulario a `INITIAL_REFERENCE_DATA` con `setData()`. Esto evita que datos viejos de otra referencia aparezcan en un formulario nuevo.
+Recrear la funcion `get_real_planned_services_summary` con este cambio en el CTE `services_json`:
 
-**Fix 2 - No enviar empresa/cargo en referencias personales:**
-En `handleSubmit`, condicionar los campos `empresa_institucion` y `cargo_referencia` para que solo se incluyan cuando `tipoReferencia === 'laboral'`. Si es personal, se envian como `undefined`.
+```sql
+-- Antes (causa duplicacion):
+LEFT JOIN public.asignacion_armados aa 
+  ON sp.id_servicio = aa.servicio_custodia_id 
+  AND aa.estado_asignacion IN ('confirmado', 'pendiente')
 
-**Fix 3 - Relajar validacion de email:**
-Cambiar el `type="email"` del input a `type="text"` y agregar un placeholder que indique que es opcional (ej. "Correo electronico o N/A"). Esto permite que el equipo de Supply escriba "NA", "No tiene", o simplemente lo deje vacio sin que el navegador bloquee el envio.
+-- Despues (1 armado por servicio):
+LEFT JOIN LATERAL (
+  SELECT a.armado_id, a.armado_nombre_verificado
+  FROM public.asignacion_armados a
+  WHERE a.servicio_custodia_id = sp.id_servicio
+    AND a.estado_asignacion IN ('confirmado', 'pendiente')
+  ORDER BY 
+    CASE a.estado_asignacion WHEN 'confirmado' THEN 0 ELSE 1 END,
+    a.created_at DESC
+  LIMIT 1
+) aa ON true
+```
 
-## Resumen
-- **1 archivo modificado** (`ReferenceForm.tsx`)
-- **Sin riesgo** para otros formularios - los cambios son locales
-- **Retrocompatible** - los datos existentes no se afectan
+La logica de prioridad:
+1. Primero armados con estado 'confirmado'
+2. Luego 'pendiente'
+3. Dentro del mismo estado, el mas reciente (`created_at DESC`)
 
+## Archivos
+- **1 migracion SQL nueva** - Recrea la funcion con el lateral join
+- **0 archivos de codigo** - El frontend ya consume el resultado correctamente, solo recibe datos duplicados
+
+## Impacto
+- Elimina la duplicacion visual inmediatamente
+- No afecta el conteo de `service_stats` (ese CTE ya es correcto, no tiene el JOIN)
+- Retrocompatible: los campos `armado_nombre`, `armado_id`, `armado_asignado` siguen poblados igual
