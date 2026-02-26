@@ -1,94 +1,78 @@
 
-
-# Subida de Imagenes con Drag & Drop, Paste y Upload en el Editor de Texto LMS
+# Compatibilizar Panel de Perfiles Operativos para Armados
 
 ## Problema
-El editor de texto enriquecido (`RichTextEditor`) solo permite insertar imagenes por URL. Los usuarios necesitan poder subir imagenes directamente mediante:
-- Drag & Drop (arrastrar archivos al editor)
-- Copy & Paste (pegar imagenes del clipboard)
-- Boton de Upload (seleccionar archivos desde el explorador)
+El `PerfilForense` (panel admin de perfiles operativos) muestra las mismas 10 pestanas para custodios y armados. Varias pestanas dependen de datos exclusivos de custodios (`pc_custodio_id`, `custodio_rechazos`, `checklist_servicio.custodio_telefono`, etc.) y muestran datos vacios, irreales o errores para armados. Los tabs que SI son compatibles son:
+
+| Tab | Custodio | Armado | Notas |
+|-----|----------|--------|-------|
+| Informacion | OK | OK | Ya maneja ambos tipos |
+| Performance | OK | Vacio/incorrecto | Queries usan `custodio_id`, `custodio_rechazos` |
+| Economics | OK | OK | Ya tiene branch separado |
+| Evaluaciones | OK | OK | Ya usa `ArmadoEvaluacionesTab` |
+| Documentacion | OK | Vacio | Depende de `candidatoId` (pc_custodio_id) |
+| LMS/Capacitacion | OK | Vacio | Depende de `candidatoId` |
+| Cumplimiento | OK | Vacio | Queries de checklist y docs por telefono custodio |
+| Historico | OK | Parcial | Usa nombre para buscar, funciona parcialmente |
+| Calificaciones | OK | Incorrecto | Depende de Performance (custodio-specific) |
+| Notas | OK | OK | Ya acepta `operativoTipo` |
 
 ## Solucion
-Modificar el componente `RichTextEditor.tsx` para agregar soporte completo de subida de imagenes al bucket `lms-media` de Supabase Storage (que ya existe).
+Ocultar las pestanas que no aplican para armados y ajustar las que pueden funcionar con datos correctos.
 
-## Cambios
+### Cambios en `src/pages/PerfilesOperativos/PerfilForense.tsx`
 
-### Archivo unico: `src/components/lms/admin/RichTextEditor.tsx`
+**1. Ocultar tabs no compatibles para armados**
 
-**1. Funcion de upload a Supabase Storage**
-- Crear una funcion `uploadImage(file: File)` que suba al bucket `lms-media` en la ruta `contenido/{timestamp}_{nombre}`
-- Comprimir la imagen usando Canvas API (max 1920x1080, quality 0.8) siguiendo el estandar del proyecto
-- Retornar la URL publica via `getPublicUrl()`
+Cuando `tipo === 'armado'`, ocultar las siguientes pestanas que no tienen datos relevantes:
+- **Documentacion** (depende de pipeline de candidatos custodios)
+- **Capacitacion/LMS** (depende de `pc_custodio_id`)
+- **Cumplimiento** (checklists y docs son custodio-only)
+- **Calificaciones** (rating system construido sobre metricas de custodio)
 
-**2. Drag & Drop**
-- Registrar handler `handleDrop` en el contenedor del editor
-- Interceptar archivos de tipo `image/*` del `DataTransfer`
-- Subir cada imagen y ejecutar `editor.chain().focus().setImage({ src: publicUrl })`
-- Mostrar estado de carga visual (overlay semitransparente con spinner)
+**2. Adaptar Performance para armados**
 
-**3. Paste desde clipboard**
-- Registrar handler `handlePaste` en el editor
-- Detectar `clipboardData.files` o `clipboardData.items` con tipo `image/*`
-- Misma logica de upload e insercion
+La pestana Performance para armados mostrara un estado intermedio claro indicando que el sistema de performance scoring esta basado en metricas de custodios y que para armados se visualizan los datos disponibles del tab Economics. Se ocultara esta pestana para armados ya que las metricas (puntualidad, rechazos, checklists) no aplican a su modelo operativo.
 
-**4. Boton Upload en toolbar**
-- Ampliar el popover actual de imagen: ademas del input de URL, agregar un boton "Subir imagen" que abre un `<input type="file" accept="image/*">`
-- Al seleccionar archivo, ejecutar la misma funcion de upload
-- Mostrar spinner mientras se sube
+**3. Resultado: tabs visibles por tipo**
 
-**5. Estado de carga visual**
-- Mientras se sube una imagen, mostrar un overlay con "Subiendo imagen..." sobre el area del editor
-- Deshabilitar el editor brevemente durante el upload para evitar conflictos
+```text
+Custodio (10 tabs):
+  Info | Performance | Economics | Evaluaciones | Docs | LMS | Cumplimiento | Historico | Ratings | Notas
 
-### Resultado para el usuario
-- Puede arrastrar una imagen desde su escritorio al editor y se inserta automaticamente
-- Puede copiar una imagen de cualquier lugar (otro sitio web, screenshot) y pegarla con Ctrl+V
-- Puede hacer clic en el icono de imagen y elegir entre URL o subir archivo
-- Las imagenes quedan almacenadas en Supabase Storage (bucket `lms-media`) con URL publica permanente
+Armado (6 tabs):
+  Info | Economics | Evaluaciones | Historico | Notas
+```
+
+Esto elimina la confusion de ver pestanas vacias o con datos de "costo_custodio" etiquetados como "ingresos" en contextos donde no aplican.
 
 ### Detalle tecnico
 
-El bucket `lms-media` ya existe con limite de 150MB y es publico. La compresion via Canvas mantendra las imagenes en un tamano razonable (~400KB).
+En `PerfilForense.tsx`, se envolvera cada `TabsTrigger` y `TabsContent` en una condicion basada en `tipo`:
 
 ```tsx
-// Ejemplo de la funcion de upload
-async function uploadImageToStorage(file: File): Promise<string> {
-  const compressed = await compressImage(file, 1920, 1080, 0.8);
-  const ext = file.name.split('.').pop() || 'jpg';
-  const path = `contenido/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-  
-  const { error } = await supabase.storage.from('lms-media').upload(path, compressed);
-  if (error) throw error;
-  
-  const { data } = supabase.storage.from('lms-media').getPublicUrl(path);
-  return data.publicUrl;
-}
+const isCustodio = tipo === 'custodio';
+
+// En TabsList - solo mostrar tabs aplicables
+{isCustodio && (
+  <TabsTrigger value="performance">...</TabsTrigger>
+)}
+// ... mismo patron para documentacion, capacitacion, cumplimiento, calificaciones
+
+// En TabsContent - mismo patron condicional
+{isCustodio && (
+  <TabsContent value="performance">...</TabsContent>
+)}
 ```
 
-El popover de imagen se ampliara con una seccion de upload:
+Si el tab activo guardado en URL no existe para armados, se hara fallback a `'info'`:
 
 ```tsx
-// Dentro del popover de imagen actual
-<Input placeholder="URL de la imagen..." ... />
-<Button onClick={insertImage}>Insertar por URL</Button>
-<Separator />
-<Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-  <Upload className="w-4 h-4" /> Subir imagen
-</Button>
-<input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileSelect} />
+const validArmadoTabs = ['info', 'economics', 'evaluaciones', 'historico', 'notas'];
+const resolvedTab = tipo === 'armado' && !validArmadoTabs.includes(activeTab) 
+  ? 'info' 
+  : activeTab;
 ```
 
-Para drag & drop, el contenedor del editor tendra handlers:
-
-```tsx
-<div 
-  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-  onDragLeave={() => setDragging(false)}
-  onDrop={handleDrop}
->
-  {dragging && <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary z-10 flex items-center justify-center">Suelta la imagen aqui</div>}
-  <EditorContent editor={editor} />
-</div>
-```
-
-Como `RichTextEditor` es el unico componente centralizado usado por los 3 editores del LMS (`LMSContenidoForm`, `ContenidoExpandedEditor`, `ContentEditor` del wizard), este cambio se aplica automaticamente a **todas** las interfaces de edicion sin modificar ningun otro archivo.
+### Archivo unico a modificar
+`src/pages/PerfilesOperativos/PerfilForense.tsx` - condicionar visibilidad de tabs segun tipo operativo y agregar fallback de tab activo.
