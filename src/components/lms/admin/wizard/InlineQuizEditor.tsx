@@ -7,11 +7,12 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useLMSAI } from "@/hooks/lms/useLMSAI";
 import { 
-  Sparkles, Loader2, Plus, Trash2, GripVertical, 
+  Loader2, Plus, Trash2, 
   ChevronDown, ChevronRight, HelpCircle, CheckCircle2, XCircle 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AIPromptPopover } from "./AIPromptPopover";
 
 export interface QuizQuestionOutline {
   id: string;
@@ -36,9 +37,12 @@ export function InlineQuizEditor({ questions, onChange, moduloTitulo, cursoTitul
   const { generateQuizQuestions, loading } = useLMSAI();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (userPrompt?: string) => {
     const tema = moduloTitulo || cursoTitulo || "Seguridad y custodia";
-    const contexto = cursoTitulo ? `Curso: ${cursoTitulo}` : undefined;
+    let contexto = cursoTitulo ? `Curso: ${cursoTitulo}` : undefined;
+    if (userPrompt) {
+      contexto = contexto ? `${contexto}. Instrucciones adicionales: ${userPrompt}` : `Instrucciones adicionales: ${userPrompt}`;
+    }
     const result = await generateQuizQuestions(tema, 5, contexto);
     if (result?.questions) {
       const mapped: QuizQuestionOutline[] = result.questions.map((q) => ({
@@ -132,17 +136,11 @@ export function InlineQuizEditor({ questions, onChange, moduloTitulo, cursoTitul
             <Badge variant="secondary" className="text-xs">{questions.length}</Badge>
           )}
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={loading}
+        <AIPromptPopover
+          onGenerate={handleGenerate}
+          loading={loading}
           className="h-7 text-xs gap-1"
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-          Generar con IA
-        </Button>
+        />
       </div>
 
       {/* Questions list */}
@@ -150,9 +148,11 @@ export function InlineQuizEditor({ questions, onChange, moduloTitulo, cursoTitul
         <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg text-center border border-dashed border-purple-200/50">
           <p className="text-xs text-muted-foreground mb-2">Sin preguntas aún</p>
           <div className="flex gap-2 justify-center">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleGenerate} disabled={loading}>
-              <Sparkles className="w-3 h-3 mr-1" /> Generar con IA
-            </Button>
+            <AIPromptPopover
+              onGenerate={handleGenerate}
+              loading={loading}
+              className="h-7 text-xs"
+            />
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={addQuestion}>
               <Plus className="w-3 h-3 mr-1" /> Manual
             </Button>

@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Play, FileText, AlignLeft, HelpCircle, Sparkles, X, Check, Clock, Loader2 } from "lucide-react";
+import { AIPromptPopover } from "./AIPromptPopover";
 import { cn } from "@/lib/utils";
 import { MediaUploader } from "./MediaUploader";
 import { VideoScriptGenerator } from "./VideoScriptGenerator";
@@ -113,14 +114,18 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
     setFlashcards([]);
   };
 
-  const handleGenerateText = async () => {
+  const handleGenerateText = async (userPrompt?: string) => {
     if (!titulo.trim() && !moduloTitulo) {
       toast.error("Ingresa un título primero");
       return;
     }
     
     const tema = titulo.trim() || moduloTitulo || cursoTitulo || "";
-    const result = await generateRichText(tema, `Módulo: ${moduloTitulo}, Curso: ${cursoTitulo}`, "media");
+    let contexto = `Módulo: ${moduloTitulo}, Curso: ${cursoTitulo}`;
+    if (userPrompt) {
+      contexto = `${contexto}. Instrucciones adicionales: ${userPrompt}`;
+    }
+    const result = await generateRichText(tema, contexto, "media");
     
     if (result?.html) {
       setTextoHtml(result.html);
@@ -260,21 +265,11 @@ export function QuickContentCreator({ moduloTitulo, cursoTitulo, onAdd, onCancel
           <>
             <div className="flex items-center justify-between">
               <Label className="text-xs">Contenido</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleGenerateText}
-                disabled={aiLoading}
+              <AIPromptPopover
+                onGenerate={handleGenerateText}
+                loading={aiLoading}
                 className="h-7 text-xs gap-1"
-              >
-                {aiLoading ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3 h-3" />
-                )}
-                Generar con IA
-              </Button>
+              />
             </div>
             <Textarea
               placeholder="Escribe el contenido aquí o genera con IA..."

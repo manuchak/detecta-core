@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AIPromptPopover } from './wizard/AIPromptPopover';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, Heading3,
@@ -33,7 +34,7 @@ import {
 interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
-  onGenerateAI?: () => void;
+  onGenerateAI?: (prompt?: string) => void;
   aiLoading?: boolean;
   placeholder?: string;
 }
@@ -394,10 +395,11 @@ export function RichTextEditor({ value, onChange, onGenerateAI, aiLoading, place
         {onGenerateAI && (
           <>
             <div className="flex-1" />
-            <Button type="button" variant="outline" size="sm" onClick={onGenerateAI} disabled={aiLoading} className="h-7 text-xs gap-1">
-              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              Generar con IA
-            </Button>
+            <AIPromptPopover
+              onGenerate={onGenerateAI}
+              loading={aiLoading}
+              className="h-7 text-xs gap-1"
+            />
           </>
         )}
       </div>

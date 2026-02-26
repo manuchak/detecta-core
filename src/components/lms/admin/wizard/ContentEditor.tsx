@@ -113,8 +113,12 @@ export function ContentEditor({ contenido, onUpdate, onClose, moduloTitulo, curs
     onClose();
   };
 
-  const handleGenerateText = async () => {
-    const result = await generateRichText(titulo, undefined, "media");
+  const handleGenerateText = async (userPrompt?: string) => {
+    let contexto = cursoTitulo;
+    if (userPrompt) {
+      contexto = contexto ? `${contexto}. Instrucciones adicionales: ${userPrompt}` : `Instrucciones adicionales: ${userPrompt}`;
+    }
+    const result = await generateRichText(titulo, contexto, "media");
     if (result?.html) {
       setHtml(result.html);
     }
