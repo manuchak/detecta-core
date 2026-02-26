@@ -1,87 +1,129 @@
 
 
-# Complemento Trimestral y Anual para el Plan 2026
+# Rediseno UX del Dashboard LMS: Centrado en el Alumno
 
-## Contexto
+## Diagnostico
 
-El dashboard actual del Plan 2026 es excelente para seguimiento day-to-day del mes en curso, pero no ofrece visibilidad sobre el progreso hacia las metas trimestrales ni anuales. Al estar a mitad de un Q, no hay forma de saber si el ritmo acumulado va en linea con el objetivo del trimestre o del ano.
+La pantalla actual esta construida como un dashboard analitico (metricas arriba, tabs abajo, grids de cards). Funciona, pero no responde de manera eficiente a las preguntas del user persona. Los mejores LMS del mercado (Duolingo, Coursera, Platzi, Khan Academy) comparten un patron: **hero de accion inmediata + progreso motivacional ambiental**.
 
-## Diseno propuesto
+## Preguntas del User Persona vs. Solucion Propuesta
 
-Agregar **dos secciones nuevas** al final del `StrategicPlanTracker`, despues de la tabla de varianza diaria:
+| Pregunta del alumno | Estado actual | Propuesta |
+|---|---|---|
+| Que debo hacer AHORA? | Escondido en tab Mi Onboarding | Hero card con CTA prominente del siguiente curso |
+| Cuanto me falta? | Disperso en cards | Barra de progreso global persistente + tiempo estimado restante |
+| Estoy en riesgo? | Bien resuelto con badges rojos | Mantener, elevar alertas vencidas al hero |
+| Cuanto he logrado? | Numeros frios (6, 3, 1) | Streak/racha + horas de aprendizaje + micro-celebraciones |
+| Cuanto tiempo me tomara? | Solo duracion individual | Tiempo restante agregado por onboarding y por curso en progreso |
+| Hay algo nuevo? | Catalogo con filtros (bien) | Mantener tal cual |
+| Como me comparo? | No existe | Opcional: % de equipo que ya completo |
 
-### Seccion 1: Scorecard Trimestral (Q actual)
+## Cambios Propuestos
 
-Una card con 3 columnas (Servicios, GMV, Custodios Activos) que muestra:
+### 1. Nuevo componente Hero: "Continua Aprendiendo"
 
-```text
-+------------------------------------------------------+
-|  Progreso Trimestral - T1 2026                       |
-|------------------------------------------------------|
-|  SERVICIOS        GMV             CUSTODIOS ACTIVOS   |
-|  2,100 / 2,500    $16.8M / $17.1M    85 / 90         |
-|  [===████████░░]  [===████████░░░]   [===████████░]   |
-|  84% completado   98% completado     94% completado   |
-|  Ritmo: 23.3/dia  Ritmo: $186K/dia   --               |
-|  Proy: 2,610      Proy: $17.5M       --               |
-+------------------------------------------------------+
-```
-
-- Meta del Q = suma de `business_targets` de los 3 meses del trimestre
-- Actual del Q = suma de servicios/GMV reales acumulados en esos meses
-- Barra de progreso visual con color segun % (verde >90%, amarillo 75-90%, rojo <75%)
-- Proyeccion lineal basada en ritmo actual vs dias restantes del Q
-
-### Seccion 2: Scorecard Anual
-
-Similar pero para el ano completo:
+Reemplazar el bloque `CategoryProgressSummary` como primera seccion visible por un hero card que responda la pregunta #1 inmediatamente:
 
 ```text
-+------------------------------------------------------+
-|  Progreso Anual 2026                                 |
-|------------------------------------------------------|
-|  SERVICIOS        GMV             CUSTODIOS ACTIVOS   |
-|  2,100 / 10,000   $16.8M / $68.4M   85 / 100        |
-|  [==███░░░░░░░░]  [==███░░░░░░░░░]  [==████░░░░░░]  |
-|  21% completado   25% completado     85% completado   |
-|  Proy YE: 10,500  Proy YE: $72M     --               |
-|  vs 2025: +12%    vs 2025: +15%      --               |
-+------------------------------------------------------+
++----------------------------------------------------------+
+|  [icono curso]                                           |
+|  Continua donde te quedaste                              |
+|  "Onboarding Custodia Vehicular"                         |
+|  [==========>          ] 45%  ·  ~18 min restantes       |
+|                                                          |
+|  [  Continuar ahora  ->  ]                               |
++----------------------------------------------------------+
 ```
 
-- Meta anual = suma de los 12 meses de `business_targets`
-- Proyeccion Year-End basada en ritmo actual extrapolado
-- Comparacion vs ano anterior (datos ya disponibles en `useExecutiveMultiYearData`)
+- Muestra el curso mas urgente: vencido > en_progreso > inscrito obligatorio
+- Incluye progreso visual y tiempo estimado restante
+- Un solo boton CTA que lleva directo al contenido
+- Si no hay curso pendiente, muestra felicitacion o sugiere catalogo
 
-## Cambios tecnicos
+**Archivo nuevo**: `src/components/lms/ContinueLearningHero.tsx`
 
-### 1. Nuevo hook: `src/hooks/useQuarterlyAnnualProgress.ts`
+**Logica**: Toma los cursos de `useLMSCursosDisponibles`, prioriza por urgencia (vencido > en_progreso con deadline > en_progreso > inscrito obligatorio), y muestra el primero.
 
-- Consume `useBusinessTargets(currentYear)` para obtener las metas mensuales de todo el ano
-- Consume `useExecutiveMultiYearData` para obtener datos reales historicos por mes
-- Calcula:
-  - Q actual: meses que pertenecen, dias transcurridos del Q, dias restantes
-  - Acumulado real del Q (sumando meses completados + MTD del mes actual)
-  - Meta del Q (suma de target_services/target_gmv de los 3 meses)
-  - Acumulado real del ano
-  - Meta anual (suma de 12 meses)
-  - Proyeccion lineal Q y anual
-  - Comparacion vs ano anterior (YTD equivalent)
+### 2. Barra de Progreso Motivacional
 
-### 2. Nuevo componente: `src/components/executive/QuarterlyAnnualScorecard.tsx`
+Reemplazar los 3 contadores frios (Inscritos/En Progreso/Completados) por una seccion mas motivacional:
 
-- Renderiza las dos secciones (Q y Anual)
-- Usa barras de progreso con colores semanticos
-- Incluye badges de estado (En Meta / En Riesgo / Fuera de Meta)
-- Usa el mismo patron visual del StrategicPlanTracker (Cards, fonts, spacing)
+```text
++----------------------------------------------------------+
+|  Tu Progreso                                             |
+|  [=====████████████░░░░] 4/6 cursos  ·  12.5 hrs        |
+|                                                          |
+|  Racha: 3 dias  ·  Puntos: 450  ·  Siguiente badge: 50pts|
++----------------------------------------------------------+
+```
 
-### 3. Modificar `src/components/executive/StrategicPlanTracker.tsx`
+- Barra de progreso global (cursos completados / total asignados)
+- Horas totales de aprendizaje acumuladas
+- Gamificacion ambiental: racha, puntos, proximo badge (datos ya disponibles en `useLMSGamificacion`)
 
-- Importar y renderizar `QuarterlyAnnualScorecard` al final del componente, despues de la tabla de varianza diaria (linea 284)
+**Archivo nuevo**: `src/components/lms/ProgressMotivationalBar.tsx`
 
-### Dependencias de datos
+### 3. Seccion "Mis Cursos" como lista compacta, no grid
 
-- `business_targets`: Ya existe, contiene metas mensuales por ano
-- `useExecutiveMultiYearData`: Ya calcula `quarterlyByYear` y `yearlyTotals` con datos reales
-- No se requieren nuevas tablas ni migraciones SQL
+Cambiar el grid de cards grandes por una lista compacta estilo Coursera/Platzi para cursos en progreso. Las cards grandes son para descubrimiento (catalogo); los cursos en progreso necesitan ser escaneables rapidamente:
 
+```text
+Mis Cursos en Progreso (3)
++----------------------------------------------------------+
+| [thumb] ADN DETECTA           [=====>    ] 35%  15min    |
+| [thumb] Toolkit Soluciones    [>         ]  0%  45min    |
+| [thumb] Procesos Core         [>         ]  0%  30min    |
++----------------------------------------------------------+
+```
+
+- Cada fila: thumbnail mini + titulo + barra progreso + tiempo restante + CTA
+- Mucho mas scannable que 3 cards de 300px de alto
+- Las cards grandes se mantienen en Catalogo y Completados
+
+**Archivo nuevo**: `src/components/lms/CompactCourseList.tsx`
+
+### 4. Simplificar tabs
+
+Reducir de 6 tabs a 4 (los usuarios no usan tantas tabs):
+
+- **Mi Ruta** (merge de "Mi Onboarding" + "Mis Cursos" - son lo mismo para el alumno)
+- **Catalogo** (mantener)
+- **Completados** (mantener)  
+- **Logros** (merge de Certificados + Logros + Badges en una sola vista)
+
+### 5. Mover CategoryProgressSummary
+
+El `CategoryProgressSummary` actual es util pero no es lo primero que el alumno necesita ver. Moverlo dentro del tab "Mi Ruta" como seccion colapsable debajo de la lista de cursos, no arriba de todo.
+
+## Cambios Tecnicos
+
+### Archivos nuevos
+1. `src/components/lms/ContinueLearningHero.tsx` - Hero card con siguiente curso prioritario y CTA
+2. `src/components/lms/ProgressMotivationalBar.tsx` - Barra motivacional con progreso global, horas, racha y puntos
+3. `src/components/lms/CompactCourseList.tsx` - Lista compacta de cursos en progreso (fila por curso, no card)
+
+### Archivos modificados
+1. `src/pages/LMS/LMSDashboard.tsx` - Restructurar layout:
+   - Arriba: `ContinueLearningHero` (siempre visible si hay curso pendiente)
+   - Debajo: `ProgressMotivationalBar` (siempre visible)
+   - Tabs reducidos a 4: Mi Ruta, Catalogo, Completados, Logros
+   - Tab "Mi Ruta": `CompactCourseList` + `OnboardingPath` + `CategoryProgressSummary` (colapsable)
+   - Tab "Logros": combina `GamificacionWidget` + `BadgesGrid` + `MisCertificados`
+
+### Datos utilizados (sin nuevas queries)
+- `useLMSCursosDisponibles()` - ya tiene progreso, estado, duracion, es_obligatorio
+- `useLMSOnboardingStatus()` - ya tiene stats de onboarding
+- `useLMSGamificacion()` (hook existente) - puntos, racha, badges
+
+### Sin migraciones SQL
+Todo se resuelve con datos ya disponibles en los hooks existentes.
+
+## Resultado esperado
+
+El alumno abre la pantalla y en menos de 3 segundos sabe:
+1. Que curso continuar (hero)
+2. Cuanto le falta en total (barra motivacional)
+3. Si tiene algo vencido (alerta en hero)
+4. Cuantos puntos/racha lleva (gamificacion ambiental)
+
+Sin necesidad de hacer clic en ningun tab para responder sus preguntas mas urgentes.
