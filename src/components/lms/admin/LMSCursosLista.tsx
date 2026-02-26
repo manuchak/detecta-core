@@ -21,19 +21,11 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
@@ -280,7 +272,6 @@ function CursoCard({
   isReactivating?: boolean;
 }) {
   const { data: estadisticas } = useLMSEstadisticasCurso(curso.id);
-  const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const isArchived = !!curso.archived_at;
 
@@ -419,116 +410,31 @@ function CursoCard({
             </div>
             
             <div className="flex items-center gap-1">
-              {isMobile ? (
-                <>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSheetOpen(true);
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                  <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                    <SheetContent side="right" className="w-[280px] sm:w-[320px]">
-                      <SheetHeader>
-                        <SheetTitle className="text-left">Acciones</SheetTitle>
-                        <p className="text-sm text-muted-foreground text-left truncate">
-                          {curso.titulo}
-                        </p>
-                      </SheetHeader>
-                      <div className="mt-4 flex flex-col gap-1">
-                        {actionItems}
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                </>
-              ) : (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu modal={true}>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-[9999]">
-                      <DropdownMenuItem onClick={onVer}>
-                        <ChevronRight className="w-4 h-4 mr-2" />
-                        Ver detalles
-                      </DropdownMenuItem>
-                      
-                      {!isArchived && (
-                        <>
-                          <DropdownMenuItem onClick={onEditar}>
-                            <Pencil className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={onTogglePublicacion}>
-                            {curso.publicado ? (
-                              <>
-                                <EyeOff className="w-4 h-4 mr-2" />
-                                Despublicar
-                              </>
-                            ) : (
-                              <>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Publicar
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={onDuplicar}>
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicar
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={onArchivar}
-                            className="text-amber-600 focus:text-amber-600"
-                          >
-                            <Archive className="w-4 h-4 mr-2" />
-                            Archivar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      
-                      {isArchived && (
-                        <>
-                          <DropdownMenuItem 
-                            onClick={onReactivar}
-                            disabled={isReactivating}
-                          >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            {isReactivating ? "Reactivando..." : "Reactivar"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={onDuplicar}>
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicar
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={onEliminar}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSheetOpen(true);
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent side="right" className="w-[280px] sm:w-[320px]">
+                  <SheetHeader>
+                    <SheetTitle className="text-left">Acciones</SheetTitle>
+                    <p className="text-sm text-muted-foreground text-left truncate">
+                      {curso.titulo}
+                    </p>
+                  </SheetHeader>
+                  <div className="mt-4 flex flex-col gap-1">
+                    {actionItems}
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </div>
