@@ -1,73 +1,54 @@
 
+# Upgrade de AI Features para Editor de Video en LMS
 
-# Unificar Invitaciones: Custodios y Armados en una sola interfaz
+## Problema actual
+El editor de contenido tipo "Video" solo tiene dos funcionalidades: subir/pegar URL y generar guion con IA (`VideoScriptGenerator`). Otros tipos de contenido (quiz, flashcards, texto enriquecido) tienen botones de generacion AI integrados (titulos, contenido completo), pero el video carece de estas asistencias.
 
-## Problema
-La pagina de invitaciones (`CustodianInvitationsPage`) solo genera links para custodios. Ya existe la tabla `armado_invitations` y la pagina de registro `ArmadoSignup`, pero no hay forma de crear invitaciones de armados desde el admin.
+## Mejoras propuestas
 
-## Solucion
-Agregar un selector "Tipo de operativo" (Custodio / Armado) en la pagina existente que cambie el comportamiento de los 3 tabs (Individual, Masivo, Historial).
+### 1. Boton AI junto al titulo del video
+Agregar un `AIGenerateButton` al lado del campo "Titulo" que sugiera un titulo optimizado para el contenido de video basado en el contexto del modulo y curso (mismo patron que `StepIdentidad` y `TabGeneral`).
 
-## Cambios
+### 2. Descripcion/notas del video con AI
+Agregar un campo de "Notas/Descripcion" del video con generacion AI que produzca un resumen del contenido esperado, util para el instructor y como metadato del contenido.
 
-### 1. Nuevo hook: `src/hooks/useArmadoInvitations.ts`
-- Clonar la estructura de `useCustodianInvitations.ts`
-- Apuntar queries a tabla `armado_invitations` en lugar de `custodian_invitations`
-- Cambiar `getInvitationLink` para generar URL `/auth/registro-armado?token=...`
-- Misma logica de create, bulk, resend, renew
-- No enviar email por ahora (no existe edge function `send-armado-invitation`), solo generar el link
+### 3. Thumbnail AI (imagen de portada del video)
+Agregar generacion de thumbnail con `generateCourseImage` del hook `useLMSAI`, guardandolo en `thumbnail_url` del `VideoContent`. Mostrara un preview de la imagen generada.
 
-### 2. Modificar: `src/pages/Admin/CustodianInvitationsPage.tsx`
-- Renombrar titulo a "Invitaciones de Operativos"
-- Agregar un `ToggleGroup` o `Select` arriba de los tabs para elegir entre "Custodio" y "Armado"
-- Estado local `operativeType: 'custodio' | 'armado'`
-- Pasar `operativeType` como prop a los componentes hijos
+### 4. Placeholder de URL expandido
+Actualizar el placeholder del `MediaUploader` para video para incluir "YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL..." reflejando los providers soportados en `VideoProvider`.
 
-### 3. Modificar: `src/components/admin/GenerateCustodianInvitation.tsx`
-- Aceptar prop `operativeType: 'custodio' | 'armado'`
-- Usar `useCustodianInvitations` o `useArmadoInvitations` segun el tipo
-- Cambiar textos: "Invitar Custodio" -> "Invitar Armado" cuando corresponda
-- Placeholder del nombre: "Nombre del custodio" -> "Nombre del armado"
+### 5. Deteccion automatica de provider
+Al pegar una URL, detectar automaticamente el provider (youtube, vimeo, tiktok, etc.) y guardarlo en el campo `provider` del `VideoContent`.
 
-### 4. Modificar: `src/components/admin/BulkInvitationWizard.tsx`
-- Aceptar prop `operativeType`
-- Usar el hook correspondiente segun tipo
-- Ajustar textos y template de descarga
+## Cambios tecnicos
 
-### 5. Modificar: `src/components/admin/CustodianInvitationsList.tsx`
-- Aceptar prop `operativeType`
-- Consultar `armado_invitations` cuando tipo sea armado
-- Misma tabla, mismos filtros
+### Archivo: `src/components/lms/admin/editor/ContenidoExpandedEditor.tsx`
+- Importar `AIGenerateButton` de wizard
+- Agregar estado `videoDescription` y `videoThumbnail`
+- En la seccion `contenido.tipo === 'video'`:
+  - Agregar `AIGenerateButton` junto al campo titulo
+  - Agregar campo Textarea para descripcion con boton AI
+  - Agregar seccion de thumbnail con `AIGenerateButton` para generar imagen
+  - Detectar provider automaticamente al cambiar `videoUrl`
+- Actualizar `buildContenidoData` para incluir `thumbnail_url`, `provider`, y `descripcion`
 
-## Flujo del usuario admin
+### Archivo: `src/components/lms/admin/wizard/MediaUploader.tsx`
+- Actualizar el placeholder de video para incluir todos los providers soportados: "YouTube, Vimeo, TikTok, Instagram, Facebook o Canva URL..."
 
-1. Abre la pagina de Invitaciones
-2. Ve un selector arriba: **Custodio** | **Armado**
-3. Selecciona "Armado"
-4. En tab Individual: llena nombre/email/telefono -> genera link de `/auth/registro-armado?token=xxx`
-5. Copia el link y lo envia al armado (WhatsApp, email manual, etc.)
-6. El armado abre el link -> ve `ArmadoSignup` -> se registra -> obtiene rol `armado` -> entra a `/armado`
+### Archivo: `src/types/lms.ts`
+- Agregar campo opcional `descripcion?: string` a `VideoContent` para almacenar la descripcion generada por AI
 
-## Detalle tecnico
+### Logica de deteccion de provider
+Funcion utilitaria `detectVideoProvider(url: string): VideoProvider` que analiza la URL:
+- `youtube.com` o `youtu.be` -> `'youtube'`
+- `vimeo.com` -> `'vimeo'`
+- `tiktok.com` -> `'tiktok'`
+- `instagram.com` -> `'instagram'`
+- `facebook.com` o `fb.watch` -> `'facebook'`
+- `canva.com` -> `'canva'`
+- URLs de storage/directas -> `'storage'`
 
-El selector de tipo se implementara como un `ToggleGroup` encima de los tabs:
-
-```tsx
-const [operativeType, setOperativeType] = useState<'custodio' | 'armado'>('custodio');
-
-<ToggleGroup type="single" value={operativeType} onValueChange={v => v && setOperativeType(v)}>
-  <ToggleGroupItem value="custodio">Custodio</ToggleGroupItem>
-  <ToggleGroupItem value="armado">Armado</ToggleGroupItem>
-</ToggleGroup>
-```
-
-El hook de armados sera una copia simplificada del de custodios, apuntando a `armado_invitations` y sin la logica de email automatico (se puede agregar despues).
-
-### Archivos nuevos (1)
-- `src/hooks/useArmadoInvitations.ts`
-
-### Archivos modificados (4)
-- `src/pages/Admin/CustodianInvitationsPage.tsx` - selector de tipo + props
-- `src/components/admin/GenerateCustodianInvitation.tsx` - prop tipo + hook dinamico
-- `src/components/admin/BulkInvitationWizard.tsx` - prop tipo + hook dinamico
-- `src/components/admin/CustodianInvitationsList.tsx` - prop tipo + query dinamica
+## Resumen de archivos
+- **Modificados (3):** `ContenidoExpandedEditor.tsx`, `MediaUploader.tsx`, `src/types/lms.ts`
+- **Reutilizado sin cambios:** `AIGenerateButton`, `useLMSAI` (generateCourseImage, generateRichText, generateVideoScript)
