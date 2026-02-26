@@ -1,8 +1,7 @@
 import { useLMSGamificacion, calcularNivel, puntosParaSiguienteNivel } from "@/hooks/useLMSGamificacion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Flame, Trophy, Star, Zap, Target, Award, Medal, Coins, Brain, Crown, Shield } from "lucide-react";
+import { Flame, Trophy, Star, Zap, Target, Award, Medal, Coins, Brain, Crown, Shield, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -39,10 +38,10 @@ export const GamificacionWidget = () => {
     : 100;
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2 bg-gradient-to-r from-primary/10 to-primary/5">
+    <Card className="overflow-hidden border-amber-200/50 dark:border-amber-800/30">
+      <CardHeader className="pb-2 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-orange-500/10">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Trophy className="h-5 w-5 text-primary" />
+          <Trophy className="h-5 w-5 text-amber-500" />
           Tu Progreso
         </CardTitle>
       </CardHeader>
@@ -50,13 +49,14 @@ export const GamificacionWidget = () => {
         {/* Puntos y Nivel */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-2xl font-bold text-primary">{perfil.puntos_totales}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{perfil.puntos_totales}</p>
             <p className="text-sm text-muted-foreground">puntos totales</p>
           </div>
           <div className="text-right">
-            <Badge variant="secondary" className="text-lg px-3 py-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-sm font-bold shadow-md">
+              <Sparkles className="h-3.5 w-3.5" />
               Nivel {nivel}
-            </Badge>
+            </div>
           </div>
         </div>
 
@@ -73,9 +73,9 @@ export const GamificacionWidget = () => {
 
         {/* Racha */}
         {perfil.racha_actual > 0 && (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10">
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gradient-to-r from-orange-500/15 to-amber-500/10">
             <Flame className="h-5 w-5 text-orange-500" />
-            <span className="font-medium">{perfil.racha_actual} días de racha</span>
+            <span className="font-medium text-orange-700 dark:text-orange-300">{perfil.racha_actual} días de racha</span>
             {perfil.racha_actual >= 7 && (
               <Zap className="h-4 w-4 text-yellow-500 ml-auto" />
             )}
@@ -84,12 +84,12 @@ export const GamificacionWidget = () => {
 
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="p-2 rounded bg-muted/50">
-            <p className="font-medium">{perfil.cursos_completados}</p>
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-emerald-500/10 to-green-500/5 border border-emerald-200/30 dark:border-emerald-800/20">
+            <p className="font-bold text-emerald-700 dark:text-emerald-400">{perfil.cursos_completados}</p>
             <p className="text-xs text-muted-foreground">Cursos completados</p>
           </div>
-          <div className="p-2 rounded bg-muted/50">
-            <p className="font-medium">{perfil.quizzes_perfectos}</p>
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-200/30 dark:border-violet-800/20">
+            <p className="font-bold text-violet-700 dark:text-violet-400">{perfil.quizzes_perfectos}</p>
             <p className="text-xs text-muted-foreground">Quizzes perfectos</p>
           </div>
         </div>
@@ -104,11 +104,11 @@ export const GamificacionWidget = () => {
                 return (
                   <div
                     key={badge.id}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-xs"
+                    className="flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border border-amber-300/30 dark:border-amber-700/30 text-xs"
                     title={badge.descripcion}
                   >
-                    <IconComponent className="h-3 w-3 text-primary" />
-                    <span>{badge.nombre}</span>
+                    <IconComponent className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                    <span className="font-medium">{badge.nombre}</span>
                   </div>
                 );
               })}
