@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { TextoEnriquecidoContent } from "@/types/lms";
 
 interface TextoEnriquecidoViewerProps {
@@ -9,16 +11,10 @@ interface TextoEnriquecidoViewerProps {
 export function TextoEnriquecidoViewer({ content, onComplete }: TextoEnriquecidoViewerProps) {
   const [hasMarkedComplete, setHasMarkedComplete] = useState(false);
 
-  useEffect(() => {
-    // Marcar como completado después de leer (3 segundos)
-    if (!hasMarkedComplete) {
-      const timer = setTimeout(() => {
-        setHasMarkedComplete(true);
-        onComplete?.();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [onComplete, hasMarkedComplete]);
+  const handleComplete = () => {
+    setHasMarkedComplete(true);
+    onComplete?.();
+  };
 
   return (
     <div className="prose prose-slate dark:prose-invert max-w-none">
@@ -48,6 +44,20 @@ export function TextoEnriquecidoViewer({ content, onComplete }: TextoEnriquecido
         "
         dangerouslySetInnerHTML={{ __html: content.html }}
       />
+
+      {onComplete && (
+        <div className="flex justify-center pt-6">
+          <Button
+            onClick={handleComplete}
+            disabled={hasMarkedComplete}
+            variant={hasMarkedComplete ? "outline" : "default"}
+            className={hasMarkedComplete ? "text-green-600 border-green-300 dark:text-green-400 dark:border-green-700" : ""}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {hasMarkedComplete ? "Completado" : "He terminado de leer"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
