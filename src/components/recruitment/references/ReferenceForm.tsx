@@ -87,6 +87,13 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
 
   const { nombre, relacion, empresa, cargo, telefono, email, tiempoConocido } = formData;
 
+  // Fix 1: Reset form when dialog opens (unless there's a meaningful draft)
+  useEffect(() => {
+    if (isOpen && !hasDraft) {
+      setData(INITIAL_REFERENCE_DATA);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -95,8 +102,9 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
       tipo_referencia: tipoReferencia,
       nombre_referencia: nombre,
       relacion: relacion || undefined,
-      empresa_institucion: empresa || undefined,
-      cargo_referencia: cargo || undefined,
+      // Fix 2: Only send empresa/cargo for laboral references
+      empresa_institucion: isLaboral ? (empresa || undefined) : undefined,
+      cargo_referencia: isLaboral ? (cargo || undefined) : undefined,
       telefono: telefono || undefined,
       email: email || undefined,
       tiempo_conocido: tiempoConocido || undefined,
@@ -196,8 +204,8 @@ export function ReferenceForm({ isOpen, onClose, candidatoId, tipoReferencia }: 
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
-              type="email"
-              placeholder="Correo electrónico"
+              type="text"
+              placeholder="Correo electrónico o N/A"
               value={email}
               onChange={(e) => updateData({ email: e.target.value })}
             />
