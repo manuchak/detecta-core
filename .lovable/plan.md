@@ -1,103 +1,48 @@
 
+Diagnóstico confirmado (con evidencia):
+- En la sesión del usuario, el RPC `POST /rest/v1/rpc/lms_delete_curso_secure` responde **400**.
+- Respuesta exacta: `{"code":"42703","message":"column \"curso_id\" does not exist"}`.
+- El toast en UI muestra el mismo error.
+- La función actual `lms_delete_curso_secure` contiene:
+  - `DELETE FROM lms_certificados WHERE curso_id = p_curso_id;`
+- Pero `lms_certificados` **no tiene** columna `curso_id`; sólo tiene `inscripcion_id` (entre otras).
+- Además, detecté un segundo riesgo en la misma función:
+  - `lms_puntos_historial.referencia_id` es `uuid`, pero se compara contra `p_curso_id::text`.
 
-# Fix: Función de eliminación de curso falla por tablas inexistentes
+¿Sé cuál es el problema? **Sí**: la función SQL quedó desalineada del esquema real, y por eso nunca llega a borrar el curso.
 
-## Problema
+Plan de corrección:
+1. Crear una **nueva migración SQL** que reemplace `lms_delete_curso_secure`.
+2. Mantener validaciones actuales (autenticado + rol `owner/admin` + curso existente).
+3. Cambiar estrategia de borrado a “cascade-first” para evitar más desajustes de columnas:
+   - Borrar manualmente sólo `lms_puntos_historial` con tipo correcto:
+     - `WHERE referencia_id = p_curso_id AND referencia_tipo = 'curso'`
+   - Borrar el registro en `lms_cursos`.
+   - Dejar que los `FK ON DELETE CASCADE` eliminen automáticamente:
+     - `lms_modulos`, `lms_contenidos`, `lms_progreso`, `lms_inscripciones`, `lms_certificados`, `lms_preguntas`.
+4. Incluir `SET search_path = public` en la función por higiene de `SECURITY DEFINER`.
+5. Conservar respuesta JSON de éxito con título e inscripciones eliminadas.
 
-La función RPC `lms_delete_curso_secure` falla con el error:
-```
-relation "lms_respuestas_quiz" does not exist
-```
-
-La función intenta borrar de dos tablas que no existen en la base de datos:
-- `lms_respuestas_quiz` -- no existe
-- `lms_preguntas_quiz` -- no existe
-
-La tabla real de preguntas es `lms_preguntas`, que tiene `curso_id` directo (no pasa por contenidos/módulos).
-
-## Solución
-
-Recrear la función `lms_delete_curso_secure` con las referencias correctas a las tablas existentes:
-
-1. Eliminar las líneas que borran de `lms_respuestas_quiz` (tabla inexistente)
-2. Reemplazar `DELETE FROM lms_preguntas_quiz WHERE contenido_id IN (...)` por `DELETE FROM lms_preguntas WHERE curso_id = p_curso_id`
-3. Mantener el resto del borrado en cascada igual (progreso, contenidos, módulos, inscripciones, certificados, puntos, curso)
-
-### Migración SQL
-
+Borrador técnico (resumen):
 ```sql
 CREATE OR REPLACE FUNCTION lms_delete_curso_secure(p_curso_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
-DECLARE
-  v_user_id uuid;
-  v_user_role text;
-  v_curso_titulo text;
-  v_inscripciones_count int;
-BEGIN
-  v_user_id := auth.uid();
-  IF v_user_id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'No autenticado');
-  END IF;
-
-  SELECT role INTO v_user_role
-  FROM user_roles
-  WHERE user_id = v_user_id AND is_active = true
-  ORDER BY CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END
-  LIMIT 1;
-
-  IF v_user_role NOT IN ('owner', 'admin') THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Sin permisos');
-  END IF;
-
-  SELECT titulo INTO v_curso_titulo FROM lms_cursos WHERE id = p_curso_id;
-  IF v_curso_titulo IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Curso no encontrado');
-  END IF;
-
-  SELECT COUNT(*) INTO v_inscripciones_count FROM lms_inscripciones WHERE curso_id = p_curso_id;
-
-  -- 1. Delete quiz questions (tabla real: lms_preguntas con curso_id directo)
-  DELETE FROM lms_preguntas WHERE curso_id = p_curso_id;
-
-  -- 2. Delete progress
-  DELETE FROM lms_progreso WHERE contenido_id IN (
-    SELECT c.id FROM lms_contenidos c
-    JOIN lms_modulos m ON c.modulo_id = m.id
-    WHERE m.curso_id = p_curso_id
-  );
-
-  -- 3. Delete content
-  DELETE FROM lms_contenidos WHERE modulo_id IN (
-    SELECT id FROM lms_modulos WHERE curso_id = p_curso_id
-  );
-
-  -- 4. Delete modules
-  DELETE FROM lms_modulos WHERE curso_id = p_curso_id;
-
-  -- 5. Delete inscriptions
-  DELETE FROM lms_inscripciones WHERE curso_id = p_curso_id;
-
-  -- 6. Delete certificates
-  DELETE FROM lms_certificados WHERE curso_id = p_curso_id;
-
-  -- 7. Delete points history
-  DELETE FROM lms_puntos_historial
-  WHERE referencia_id = p_curso_id::text AND referencia_tipo = 'curso';
-
-  -- 8. Delete the course
-  DELETE FROM lms_cursos WHERE id = p_curso_id;
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'titulo', v_curso_titulo,
-    'inscripciones_eliminadas', v_inscripciones_count
-  );
-END;
+-- validar auth/rol/curso
+-- delete from lms_puntos_historial where referencia_id = p_curso_id and referencia_tipo = 'curso';
+-- delete from lms_cursos where id = p_curso_id; -- cascada elimina dependencias
+-- return jsonb_build_object('success', true, ...);
 $$;
 ```
 
-### Archivos a modificar
-Ninguno -- solo se necesita la migración SQL para corregir la función en la base de datos.
+Validación posterior (obligatoria):
+- Probar de nuevo “Eliminar” en `/lms/admin` con “Supply Chain”.
+- Verificar que el RPC ya responde `200` y `success: true`.
+- Confirmar que desaparece del catálogo sin navegación accidental.
+- Verificar en DB que ya no existe el curso ni sus registros relacionados.
+
+Impacto en código frontend:
+- **Ninguno** (la UI y `invalidateQueries` ya están correctos; el fallo es 100% backend SQL).
