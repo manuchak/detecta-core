@@ -1,65 +1,79 @@
 
 
-# Unificar features del ModuloInlineEditor
+# Agregar AI Features al Dialog LMSContenidoForm (Video)
 
-## Objetivo
-Agregar al `ModuloInlineEditor` (editor inline con drag & drop) las 4 features que solo existen en el `LMSModuloForm` dialog antiguo:
-1. Boton AI para generar descripcion
-2. Sugerencias rapidas de titulo (chips)
-3. Preview card visual del modulo
-4. Toggle activo/inactivo con Switch
+## Problema
+Las features de AI para video (titulo con IA, descripcion, thumbnail, deteccion de provider) solo se agregaron al `ContenidoExpandedEditor` del editor inline nuevo. El dialog `LMSContenidoForm` que se usa en la vista `LMSCursoDetalle` (la que el usuario esta viendo) no tiene ninguna de estas features.
 
 ## Cambios
 
-### Archivo: `src/components/lms/admin/editor/ModuloInlineEditor.tsx`
+### Archivo: `src/components/lms/admin/LMSContenidoForm.tsx`
 
-**Importaciones nuevas:**
-- `Switch` de `@/components/ui/switch`
-- `Sparkles`, `Loader2`, `Clock`, `Eye`, `EyeOff` de lucide-react
-- `useLMSAI` de `@/hooks/lms/useLMSAI`
+**Nuevas importaciones:**
 - `AIGenerateButton` de `../wizard/AIGenerateButton`
-- `toast` de sonner
+- `VideoScriptGenerator` y `VideoScriptData` de `../wizard/VideoScriptGenerator`
+- `ImageIcon` de lucide-react
+- `Badge` de `@/components/ui/badge`
+- `Textarea` ya esta importado
 
-**En el modo de edicion (cuando `isEditing === true`):**
+**Nuevo estado:**
+- `videoDescription` - descripcion/notas del video
+- `videoThumbnail` - URL del thumbnail generado
+- `videoProvider` - provider detectado automaticamente
+- `videoScript` - guion generado por IA
+- Estados de loading/success para cada boton AI (titulo, descripcion, thumbnail)
 
-1. **Sugerencias rapidas** - Agregar chips ("Introduccion", "Fundamentos", "Conceptos Clave", "Practica Guiada", "Casos de Estudio", "Evaluacion Final") arriba del campo titulo. Al hacer clic, se rellena el titulo con la sugerencia + titulo del curso.
+**Nuevos handlers AI:**
+- `handleGenerateVideoTitle` - genera titulo con `generateCourseMetadata`
+- `handleGenerateVideoDescription` - genera descripcion con `generateRichText` (modo corto, strip HTML)
+- `handleGenerateVideoThumbnail` - genera thumbnail con `generateCourseImage`
 
-2. **AI en descripcion** - Agregar un `AIGenerateButton` junto al label "Descripcion" que llame a `generateCourseMetadata` con el titulo del modulo en contexto del curso para generar una descripcion automatica.
+**Modificaciones en la UI (seccion video, tab "contenido"):**
+1. Agregar `AIGenerateButton` junto al campo de titulo (arriba, en la seccion de header fields)
+2. Despues del `MediaUploader` de video, agregar badge de provider detectado
+3. Agregar campo `Textarea` para descripcion con boton AI
+4. Agregar seccion de thumbnail con boton AI y preview de imagen
+5. Agregar `VideoScriptGenerator` al final
 
-3. **Preview card** - Debajo de los campos de edicion, mostrar una mini tarjeta de vista previa con el numero de orden, titulo y descripcion (igual que en `LMSModuloForm`).
+**Modificaciones en `buildContenidoData`:**
+- Para tipo `video`, incluir `provider`, `descripcion`, `thumbnail_url`, y `guion_generado` en el objeto de retorno
 
-4. **Toggle activo/inactivo** - Agregar un `Switch` en la barra de botones de accion (junto a Guardar/Cancelar) que permita activar/desactivar el modulo. El estado se guardara al hacer clic en "Guardar".
+**Modificaciones en `useEffect` (carga de contenido existente):**
+- Para tipo `video`, cargar `descripcion`, `thumbnail_url`, `provider`, y `guion_generado` del contenido existente
 
-**En el header (cuando `isEditing === false`):**
+**Modificaciones en `resetForm`:**
+- Resetear `videoDescription`, `videoThumbnail`, `videoProvider`, `videoScript`
 
-5. **Indicador visual de inactivo** - Si el modulo esta inactivo (`!modulo.activo`), mostrar un badge "Inactivo" y aplicar opacidad reducida al modulo.
-
-**En `handleSaveModulo`:**
-- Incluir el campo `activo` en la mutacion junto con titulo y descripcion.
-
-### Estructura visual del modo edicion expandido
+## Estructura visual actualizada del dialog para video
 
 ```text
-+--------------------------------------------------+
-| [Grip] [v] [Sugerencias: Intro | Fund | Conc...] |
-|                                                    |
-| Titulo: [________________________] [AI btn]        |
-|                                                    |
-| Descripcion: [____________________] [AI btn]       |
-|              [____________________]                |
-|                                                    |
-| +--- Vista previa del modulo ---+                  |
-| | [1] Titulo del modulo         |                  |
-| |     Descripcion...            |                  |
-| +-------------------------------+                  |
-|                                                    |
-| [Switch Activo] [Guardar] [Cancelar]               |
-+--------------------------------------------------+
++--- Editar Contenido ----------------------------+
+|                                                   |
+| TITULO *          [AI btn]  | TIPO DE CONTENIDO   |
+| [________________]          | [Video v]            |
+|                                                   |
+| [Contenido]  [Configuracion]                      |
+|                                                   |
+| Video                                             |
+| [URL] [Subir]                                     |
+| [_________________________] [Aplicar]             |
+| Provider: [youtube]                               |
+|                                                   |
+| Descripcion / Notas                    [AI btn]   |
+| [_________________________________]               |
+|                                                   |
+| Thumbnail / Portada                    [AI btn]   |
+| [imagen preview o placeholder]                    |
+|                                                   |
+| Guion de Video (AI)                               |
+| [VideoScriptGenerator]                            |
+|                                                   |
+|                   [Cancelar] [Guardar Cambios]    |
++---------------------------------------------------+
 ```
 
-### Resumen de impacto
-- **Archivo modificado:** 1 (`ModuloInlineEditor.tsx`)
+## Resumen
+- **Archivo modificado:** 1 (`LMSContenidoForm.tsx`)
 - **Sin archivos nuevos**
-- **Reutiliza:** `useLMSAI`, `AIGenerateButton`, `Switch` (ya instalados)
-- **Drag & drop existente:** Se mantiene intacto, no se modifica
-
+- **Reutiliza:** `AIGenerateButton`, `VideoScriptGenerator`, `useLMSAI` (ya importado), `generateCourseImage`, `generateCourseMetadata`
+- **Paridad:** El dialog tendra las mismas features AI que el `ContenidoExpandedEditor`
