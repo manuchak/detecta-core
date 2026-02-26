@@ -1,74 +1,41 @@
 
-# Diferenciación de Documentación: Custodios vs Armados
+
+# Permitir subida de documentos desde el panel de administracion
 
 ## Problema
+En la pestaña "Docs" de Perfiles Operativos, la seccion "Documentos del Custodio (Portal)" es solo lectura. El equipo no puede subir documentos en nombre del custodio cuando reciben documentos fisicos digitalizados. Solo pueden verificar/rechazar lo que el custodio sube desde su portal.
 
-El sistema de captura de documentos en Supply usa una lista única (`DOCUMENTOS_REQUERIDOS`) para todos los candidatos sin distinguir tipo operativo. Un armado no necesita licencia de conducir, pero sí requiere documentos de portación y registro de arma que actualmente no existen en el sistema.
+## Solucion
+Agregar un boton "Subir Documento" en la seccion de documentos del custodio dentro de `DocumentacionTab`, con un dialog que permita seleccionar tipo de documento, archivo (PDF/imagen), fecha de vigencia y numero de documento opcional. Se reutiliza la logica de `useCustodianDocuments.updateDocument` que ya maneja upsert, compresion y storage.
 
-## Solución
+## Cambios
 
-### 1. Extender los tipos de documento
+### 1. Crear `AdminDocumentUploadDialog.tsx`
+**Archivo:** `src/pages/PerfilesOperativos/components/tabs/AdminDocumentUploadDialog.tsx`
 
-En `src/hooks/useDocumentosCandidato.ts`:
+Dialog con:
+- Select de tipo de documento (tarjeta_circulacion, poliza_seguro, verificacion_vehicular, licencia_conducir, credencial_custodia, portacion_arma, registro_arma)
+- Input de fecha de vigencia (obligatorio)
+- Input de numero de documento (opcional)
+- Zona de drop/seleccion de archivo (PDF, JPG, PNG, WebP - max 20MB)
+- Preview de imagen o icono de PDF
+- Boton "Subir Documento"
 
-- Agregar nuevos tipos: `portacion_arma` y `registro_arma`
-- Crear dos listas separadas:
-  - `DOCUMENTOS_REQUERIDOS_CUSTODIO`: INE frente/reverso, licencia frente/reverso, CURP, RFC, comprobante domicilio, carta antecedentes
-  - `DOCUMENTOS_REQUERIDOS_ARMADO`: INE frente/reverso, CURP, RFC, comprobante domicilio, carta antecedentes, portación de arma, registro de arma
-- Agregar labels para los nuevos tipos en `DOCUMENTO_LABELS`
-- Actualizar `useDocumentosProgress` para recibir un parámetro `tipoOperativo` y usar la lista correspondiente
+Reutiliza `useCustodianDocuments` pasando el telefono del custodio para invocar `updateDocument.mutateAsync`.
 
-### 2. Actualizar DocumentsTab
+### 2. Actualizar `DocumentacionTab.tsx`
+**Archivo:** `src/pages/PerfilesOperativos/components/tabs/DocumentacionTab.tsx`
 
-En `src/components/recruitment/documents/DocumentsTab.tsx`:
+- Importar `AdminDocumentUploadDialog` y `useCustodianDocuments`
+- Agregar boton "Subir Documento" junto al titulo de la seccion "Documentos del Custodio (Portal)"
+- Agregar estado para controlar el dialog
+- Invalidar queries al completar la subida
 
-- Agregar prop `tipoOperativo: 'custodio' | 'armado'` a la interfaz `Props`
-- Seleccionar la lista de documentos requeridos según el tipo
-- Pasar el tipo operativo a `useDocumentosProgress`
+### Detalles tecnicos
 
-### 3. Actualizar el edge function de OCR
+- El upsert existente en `useCustodianDocuments` funciona con `onConflict: 'custodio_telefono,tipo_documento'`, lo que significa que si ya existe un documento del mismo tipo, se actualiza automaticamente
+- Se reutiliza la compresion de imagenes existente (`compressImage`)
+- Se reutiliza el patron Verify-Before-Commit del storage
+- Los documentos subidos por el admin quedan con `verificado: false` por defecto; el equipo puede verificarlos inmediatamente despues si lo desea
+- El bucket `checklist-evidencias` ya es publico y tiene las politicas RLS necesarias
 
-En `supabase/functions/ocr-documento/index.ts`:
-
-- Agregar soporte para los nuevos tipos `portacion_arma` y `registro_arma` en el procesamiento OCR (extraer número de permiso, fecha de vencimiento, tipo de arma)
-
-### 4. Actualizar puntos de uso
-
-Verificar y actualizar todos los componentes que renderizan `DocumentsTab` para pasar el `tipoOperativo` correcto (desde `EvaluacionesPage`, el perfil del candidato, etc.)
-
-### 5. Migración SQL
-
-- Agregar los nuevos valores de tipo de documento al constraint/enum en `documentos_candidato.tipo_documento` si existe validación a nivel de BD
-
-## Archivos a crear/modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useDocumentosCandidato.ts` | Agregar tipos `portacion_arma`, `registro_arma`; crear listas por tipo operativo |
-| `src/components/recruitment/documents/DocumentsTab.tsx` | Recibir `tipoOperativo` y filtrar documentos requeridos |
-| `supabase/functions/ocr-documento/index.ts` | Soporte OCR para documentos de arma |
-| Componentes padre que usan `DocumentsTab` | Pasar prop `tipoOperativo` |
-| `src/components/liberacion/LiberacionChecklistModal.tsx` | Usar lista correcta según tipo operativo |
-| Migración SQL | Permitir nuevos valores en `tipo_documento` |
-
-## Listas finales de documentos
-
-### Custodio
-1. INE (Frente)
-2. INE (Reverso)
-3. Licencia de Conducir (Frente)
-4. Licencia de Conducir (Reverso)
-5. CURP
-6. RFC / Constancia de Situación Fiscal
-7. Comprobante de Domicilio
-8. Carta de Antecedentes No Penales
-
-### Armado
-1. INE (Frente)
-2. INE (Reverso)
-3. Licencia de Portación de Arma
-4. Registro del Arma
-5. CURP
-6. RFC / Constancia de Situación Fiscal
-7. Comprobante de Domicilio
-8. Carta de Antecedentes No Penales
