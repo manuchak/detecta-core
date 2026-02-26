@@ -4,30 +4,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCustodianInvitations } from '@/hooks/useCustodianInvitations';
+import { useArmadoInvitations } from '@/hooks/useArmadoInvitations';
 import { useToast } from '@/components/ui/use-toast';
 import { Copy, Check, UserPlus, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { OperativeType } from '@/pages/Admin/CustodianInvitationsPage';
 
-export const GenerateCustodianInvitation = () => {
+interface Props {
+  operativeType: OperativeType;
+}
+
+export const GenerateCustodianInvitation = ({ operativeType }: Props) => {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
-  const { createInvitation, getInvitationLink } = useCustodianInvitations();
+  const custodianHook = useCustodianInvitations();
+  const armadoHook = useArmadoInvitations();
+  const hook = operativeType === 'custodio' ? custodianHook : armadoHook;
+
   const { toast } = useToast();
+
+  const label = operativeType === 'custodio' ? 'Custodio' : 'Armado';
 
   const handleGenerate = async () => {
     try {
-      const invitation = await createInvitation.mutateAsync({
+      const invitation = await hook.createInvitation.mutateAsync({
         nombre: nombre || undefined,
         email: email || undefined,
         telefono: telefono || undefined,
       });
       
-      const link = getInvitationLink(invitation.token);
+      const link = hook.getInvitationLink(invitation.token);
       setGeneratedLink(link);
     } catch (error) {
       console.error('Error generating invitation:', error);
@@ -36,7 +47,6 @@ export const GenerateCustodianInvitation = () => {
 
   const handleCopy = async () => {
     if (!generatedLink) return;
-    
     try {
       await navigator.clipboard.writeText(generatedLink);
       setCopied(true);
@@ -45,7 +55,7 @@ export const GenerateCustodianInvitation = () => {
         description: 'El link de invitación ha sido copiado al portapapeles.',
       });
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'No se pudo copiar el link.',
@@ -67,10 +77,10 @@ export const GenerateCustodianInvitation = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserPlus className="h-5 w-5" />
-          Invitar Custodio
+          Invitar {label}
         </CardTitle>
         <CardDescription>
-          Genera un link de registro único para un nuevo custodio. El link expira en 7 días.
+          Genera un link de registro único para un nuevo {label.toLowerCase()}. El link expira en 7 días.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -80,7 +90,7 @@ export const GenerateCustodianInvitation = () => {
               <Label htmlFor="nombre">Nombre (opcional)</Label>
               <Input
                 id="nombre"
-                placeholder="Nombre del custodio"
+                placeholder={`Nombre del ${label.toLowerCase()}`}
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
               />
@@ -114,9 +124,9 @@ export const GenerateCustodianInvitation = () => {
             <Button 
               onClick={handleGenerate} 
               className="w-full"
-              disabled={createInvitation.isPending}
+              disabled={hook.createInvitation.isPending}
             >
-              {createInvitation.isPending ? (
+              {hook.createInvitation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generando...
@@ -139,16 +149,8 @@ export const GenerateCustodianInvitation = () => {
                   readOnly 
                   className="font-mono text-xs"
                 />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
+                <Button variant="outline" size="icon" onClick={handleCopy}>
+                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -169,15 +171,9 @@ export const GenerateCustodianInvitation = () => {
             <div className="flex gap-2">
               <Button onClick={handleCopy} className="flex-1">
                 {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Copiado
-                  </>
+                  <><Check className="mr-2 h-4 w-4" />Copiado</>
                 ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copiar Link
-                  </>
+                  <><Copy className="mr-2 h-4 w-4" />Copiar Link</>
                 )}
               </Button>
               <Button variant="outline" onClick={handleReset}>
