@@ -194,12 +194,20 @@ export function ContractsTab({ candidatoId, candidatoNombre, vehiculoPropio: ini
 
                       {!contrato.firmado && contrato.estado !== 'rechazado' && (
                         <>
-                          <Button 
+                      <Button 
                             size="sm"
                             onClick={() => setSignContrato(contrato)}
                           >
                             <FileSignature className="h-3 w-3 mr-1" />
                             Firmar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleUpload(tipo)}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            Subir Firmado
                           </Button>
                           <Button
                             size="sm"
