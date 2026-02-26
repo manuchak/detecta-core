@@ -1,81 +1,103 @@
 
 
-# Analisis Fishbone: "Eliminar" navega al curso en vez de confirmar
+# Fix: Función de eliminación de curso falla por tablas inexistentes
 
-```text
-                                    PROBLEMA
-                              "Eliminar" navega
-                              al detalle del curso
-                                    |
-    --------------------------------|--------------------------------
-    |                |              |              |                 |
-  EVENTO         SHEET           DIALOG        COMPONENTE        ZOOM
-  BUBBLING       OVERLAY        INVISIBLE      ESTRUCTURA       CONFLICTO
-    |                |              |              |                 |
-    |                |              |              |                 |
- ActionItem      Al cerrar       AlertDialog    CursoCard div    LMS zoom=1
- no tiene        Sheet, el       zoom=1.428    tiene onClick    vs AlertDialog
- e.stopProp      overlay         pero LMS      ={onVer} en     zoom=1.428571
- en onClick      dispara         esta en       el contenedor   (ya corregido)
-    |            mouseup en      zoom=1        raiz (L339)
-    |            el card             |              |
-    |                |              |              |
-    +--- CAUSA 1 ---+-- CAUSA 2 --+-- CAUSA 3 ---+
+## Problema
+
+La función RPC `lms_delete_curso_secure` falla con el error:
+```
+relation "lms_respuestas_quiz" does not exist
 ```
 
-## Causa Raiz Principal: CAUSA 1 - Event Bubbling en ActionItem
+La función intenta borrar de dos tablas que no existen en la base de datos:
+- `lms_respuestas_quiz` -- no existe
+- `lms_preguntas_quiz` -- no existe
 
-El componente `ActionItem` (linea 457-466) tiene un `<button onClick={onClick}>` simple. Cuando el usuario hace clic en "Eliminar":
+La tabla real de preguntas es `lms_preguntas`, que tiene `curso_id` directo (no pasa por contenidos/módulos).
 
-1. El `onClick` del `ActionItem` dispara `handleAction(onEliminar)`
-2. `handleAction` cierra el Sheet y programa la accion con `setTimeout(150ms)`
-3. **PERO** el evento click del boton burbujea hacia arriba a traves del DOM
-4. El Sheet se esta cerrando, su overlay desaparece
-5. El click llega al div padre `CursoCard` (linea 338-339) que tiene `onClick={onVer}`
-6. `onVer` navega al detalle del curso inmediatamente
-7. Cuando el `setTimeout` ejecuta `onEliminar` 150ms despues, ya estamos en otra pagina
+## Solución
 
-## Causa Secundaria: falta `e.stopPropagation()` en ActionItem
+Recrear la función `lms_delete_curso_secure` con las referencias correctas a las tablas existentes:
 
-El `ActionItem` recibe `onClick: () => void` (sin evento). Nunca llama `e.stopPropagation()`, asi que el click siempre burbujea al padre.
+1. Eliminar las líneas que borran de `lms_respuestas_quiz` (tabla inexistente)
+2. Reemplazar `DELETE FROM lms_preguntas_quiz WHERE contenido_id IN (...)` por `DELETE FROM lms_preguntas WHERE curso_id = p_curso_id`
+3. Mantener el resto del borrado en cascada igual (progreso, contenidos, módulos, inscripciones, certificados, puntos, curso)
 
-## Solucion
+### Migración SQL
 
-### Archivo: `src/components/lms/admin/LMSCursosLista.tsx`
+```sql
+CREATE OR REPLACE FUNCTION lms_delete_curso_secure(p_curso_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid;
+  v_user_role text;
+  v_curso_titulo text;
+  v_inscripciones_count int;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No autenticado');
+  END IF;
 
-**Cambio 1**: Modificar `ActionItem` para recibir el evento y detener propagacion:
+  SELECT role INTO v_user_role
+  FROM user_roles
+  WHERE user_id = v_user_id AND is_active = true
+  ORDER BY CASE role WHEN 'owner' THEN 1 WHEN 'admin' THEN 2 ELSE 3 END
+  LIMIT 1;
 
-```typescript
-function ActionItem({ icon, label, onClick, className, disabled }: { 
-  icon: React.ReactNode; 
-  label: string; 
-  onClick: () => void; 
-  className?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClick();
-      }}
-      disabled={disabled}
-      className={`...`}
-    >
-      {icon}
-      {label}
-    </button>
+  IF v_user_role NOT IN ('owner', 'admin') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Sin permisos');
+  END IF;
+
+  SELECT titulo INTO v_curso_titulo FROM lms_cursos WHERE id = p_curso_id;
+  IF v_curso_titulo IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Curso no encontrado');
+  END IF;
+
+  SELECT COUNT(*) INTO v_inscripciones_count FROM lms_inscripciones WHERE curso_id = p_curso_id;
+
+  -- 1. Delete quiz questions (tabla real: lms_preguntas con curso_id directo)
+  DELETE FROM lms_preguntas WHERE curso_id = p_curso_id;
+
+  -- 2. Delete progress
+  DELETE FROM lms_progreso WHERE contenido_id IN (
+    SELECT c.id FROM lms_contenidos c
+    JOIN lms_modulos m ON c.modulo_id = m.id
+    WHERE m.curso_id = p_curso_id
   );
-}
+
+  -- 3. Delete content
+  DELETE FROM lms_contenidos WHERE modulo_id IN (
+    SELECT id FROM lms_modulos WHERE curso_id = p_curso_id
+  );
+
+  -- 4. Delete modules
+  DELETE FROM lms_modulos WHERE curso_id = p_curso_id;
+
+  -- 5. Delete inscriptions
+  DELETE FROM lms_inscripciones WHERE curso_id = p_curso_id;
+
+  -- 6. Delete certificates
+  DELETE FROM lms_certificados WHERE curso_id = p_curso_id;
+
+  -- 7. Delete points history
+  DELETE FROM lms_puntos_historial
+  WHERE referencia_id = p_curso_id::text AND referencia_tipo = 'curso';
+
+  -- 8. Delete the course
+  DELETE FROM lms_cursos WHERE id = p_curso_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'titulo', v_curso_titulo,
+    'inscripciones_eliminadas', v_inscripciones_count
+  );
+END;
+$$;
 ```
 
-**Cambio 2**: Agregar `e.stopPropagation()` tambien en el `SheetContent` wrapper para prevenir cualquier click interno de burbujear:
-
-```typescript
-<SheetContent side="right" className="w-[280px] sm:w-[320px]" 
-  onClick={(e) => e.stopPropagation()}>
-```
-
-Estos dos cambios cortan la propagacion del evento en dos niveles, asegurando que ningun clic dentro del Sheet llegue al `CursoCard`.
-
+### Archivos a modificar
+Ninguno -- solo se necesita la migración SQL para corregir la función en la base de datos.
