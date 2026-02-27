@@ -352,7 +352,7 @@ export const useLeadApprovals = () => {
         phone_interview_completed: true,
         second_interview_required: false,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'lead_id' });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);
@@ -499,7 +499,7 @@ export const useLeadApprovals = () => {
         phone_interview_completed: true,
         second_interview_required: true,
         updated_at: new Date().toISOString()
-      });
+      }, { onConflict: 'lead_id' });
 
       if (approvalError) {
         console.error('Error en lead_approval_process:', approvalError);

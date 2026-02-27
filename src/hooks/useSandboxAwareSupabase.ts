@@ -139,9 +139,11 @@ export function useSandboxAwareSupabase() {
      * // Automáticamente marca como test si estamos en Sandbox
      * ```
      */
-    upsert: async (table: string, data: any | any[]) => {
+    upsert: async (table: string, data: any | any[], options?: { onConflict?: string }) => {
+      const upsertOptions = options?.onConflict ? { onConflict: options.onConflict } : {};
+      
       if (!isSandboxAware(table)) {
-        return supabase.from(table).upsert(data);
+        return supabase.from(table).upsert(data, upsertOptions);
       }
       
       // Marcar como test si estamos en Sandbox
@@ -149,7 +151,7 @@ export function useSandboxAwareSupabase() {
         ? data.map(d => ({ ...d, is_test: isSandboxMode }))
         : { ...data, is_test: isSandboxMode };
       
-      return supabase.from(table).upsert(upsertData);
+      return supabase.from(table).upsert(upsertData, upsertOptions);
     },
     
     /**
