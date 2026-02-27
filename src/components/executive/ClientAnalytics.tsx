@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,7 @@ interface DateRange {
 }
 
 export const ClientAnalytics = () => {
+  const isMobile = useIsMobile();
   // Date filtering state
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('current_month');
   const [customDateRange, setCustomDateRange] = useState<DateRange>({
@@ -181,8 +183,8 @@ export const ClientAnalytics = () => {
     return (
       <div className="space-y-6" id="client-analytics-content">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
+          <div className={isMobile ? "flex items-center gap-3" : "flex items-center gap-4"}>
             <Button 
               variant="outline" 
               size="sm" 
@@ -190,11 +192,11 @@ export const ClientAnalytics = () => {
               className="gap-2 pdf-ignore"
             >
               <ArrowLeft className="h-4 w-4" />
-              Volver a Clientes
+              {!isMobile && 'Volver a Clientes'}
             </Button>
             <div>
-              <h2 className="text-2xl font-bold">{clientAnalytics.clientName}</h2>
-              <p className="text-muted-foreground">Análisis detallado de performance</p>
+              <h2 className="text-xl md:text-2xl font-bold">{clientAnalytics.clientName}</h2>
+              {!isMobile && <p className="text-muted-foreground">Análisis detallado de performance</p>}
             </div>
           </div>
           <Button 
@@ -203,12 +205,12 @@ export const ClientAnalytics = () => {
             size="sm"
           >
             <Download className="h-4 w-4" />
-            Descargar PDF
+            {!isMobile && 'Descargar'} PDF
           </Button>
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Servicios Totales</CardTitle>
@@ -322,7 +324,7 @@ export const ClientAnalytics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {clientAnalytics.monthlyTrend.map((month, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-2">
                   <div className="text-sm font-medium">{month.month}</div>
@@ -375,13 +377,15 @@ export const ClientAnalytics = () => {
   return (
     <div className="space-y-6" id="client-analytics-content">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
         <div>
-          <h2 className="text-2xl font-bold">Análisis de Performance de Clientes</h2>
-          <p className="text-muted-foreground">
-            Dashboard completo con métricas clave • MTD {format(dateRange.from, 'dd/MM')} - {format(dateRange.to, 'dd/MM/yyyy')} 
-            {dateFilterType === 'current_month' && <span className="text-orange-600 ml-2">(datos con 1 día de retraso)</span>}
-          </p>
+          <h2 className="text-xl md:text-2xl font-bold">Análisis de Performance de Clientes</h2>
+          {!isMobile && (
+            <p className="text-muted-foreground">
+              Dashboard completo con métricas clave • MTD {format(dateRange.from, 'dd/MM')} - {format(dateRange.to, 'dd/MM/yyyy')} 
+              {dateFilterType === 'current_month' && <span className="text-orange-600 ml-2">(datos con 1 día de retraso)</span>}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button 
@@ -390,15 +394,16 @@ export const ClientAnalytics = () => {
             size="sm"
           >
             <Download className="h-4 w-4" />
-            Descargar PDF
+            {!isMobile && 'Descargar'} PDF
           </Button>
           <Button 
             onClick={() => window.location.reload()} 
             variant="outline"
             className="gap-2 pdf-ignore"
+            size="sm"
           >
             <TrendingUp className="h-4 w-4" />
-            Actualizar
+            {!isMobile && 'Actualizar'}
           </Button>
         </div>
       </div>
@@ -414,7 +419,7 @@ export const ClientAnalytics = () => {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <Select value={dateFilterType} onValueChange={(value: DateFilterType) => setDateFilterType(value)}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className={isMobile ? "w-full" : "w-[200px]"}>
                 <SelectValue placeholder="Seleccionar período..." />
               </SelectTrigger>
               <SelectContent>
@@ -488,7 +493,7 @@ export const ClientAnalytics = () => {
 
       {/* Key Metrics Cards */}
       {!metricsLoading && clientMetrics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Top AOV Client */}
           <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -634,7 +639,7 @@ export const ClientAnalytics = () => {
               />
             </div>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={isMobile ? "w-full" : "w-[180px]"}>
                 <SelectValue placeholder="Ordenar por..." />
               </SelectTrigger>
               <SelectContent>
@@ -647,7 +652,7 @@ export const ClientAnalytics = () => {
               </SelectContent>
             </Select>
             <Select value={filterByType} onValueChange={setFilterByType}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className={isMobile ? "w-full" : "w-[180px]"}>
                 <SelectValue placeholder="Tipo de servicio..." />
               </SelectTrigger>
               <SelectContent>

@@ -25,6 +25,7 @@ import {
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
 import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { OperationalOverview } from '@/components/executive/OperationalOverview';
 import { AcquisitionOverview } from '@/components/executive/AcquisitionOverview';
 import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGrid';
@@ -47,6 +48,7 @@ const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
   const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -220,18 +222,17 @@ const KPIDashboard = () => {
 
   if (kpisLoading || serviceDataLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="container mx-auto space-y-6">
-          {/* Loading skeleton */}
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-muted rounded w-64"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {[...Array(isMobile ? 4 : 8)].map((_, i) => (
                 <div key={i} className="h-32 bg-muted rounded-lg"></div>
               ))}
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {[...Array(4)].map((_, i) => (
+              {[...Array(isMobile ? 2 : 4)].map((_, i) => (
                 <div key={i} className="h-64 bg-muted rounded-lg"></div>
               ))}
             </div>
@@ -243,34 +244,37 @@ const KPIDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-8">
+      <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
         {/* Header with Navigation */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-4">
+        <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
+          <div className="space-y-3 md:space-y-4">
             <div className="space-y-1">
-              <h1 className="text-3xl font-light tracking-tight text-foreground">
+              <h1 className="text-xl md:text-3xl font-light tracking-tight text-foreground">
                 {getGreeting()}, {getUserName()}
               </h1>
-              <p className="text-muted-foreground">
-                Dashboard ejecutivo completo con métricas operativas, adquisición y KPIs avanzados.
-              </p>
+              {!isMobile && (
+                <p className="text-muted-foreground">
+                  Dashboard ejecutivo completo con métricas operativas, adquisición y KPIs avanzados.
+                </p>
+              )}
             </div>
             
             {/* Navigation Tabs */}
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="executive" className="flex items-center gap-2">
+              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-2"}>
+                <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <TrendingUp className="h-4 w-4" />
-                  Proyecciones
+                  {!isMobile && 'Proyecciones'}
+                  {isMobile && 'Proy.'}
                 </TabsTrigger>
-                <TabsTrigger value="kpis" className="flex items-center gap-2">
+                <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <BarChart3 className="h-4 w-4" />
-                  KPIs Ejecutivos
+                  KPIs
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          <div className="flex items-center gap-4">
+          <div className={isMobile ? "flex items-center gap-3" : "flex items-center gap-4"}>
             <Button 
               variant="outline" 
               size="sm" 
@@ -278,44 +282,49 @@ const KPIDashboard = () => {
               className="gap-2"
             >
               <RefreshCw size={16} />
-              Actualizar
+              {!isMobile && 'Actualizar'}
             </Button>
-            <div className="text-xs text-muted-foreground">
-              Última actualización: {currentTime}
-            </div>
+            {!isMobile && (
+              <div className="text-xs text-muted-foreground">
+                Última actualización: {currentTime}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Executive Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={handleInternalTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="operacional" className="flex items-center gap-2">
+          <TabsList className={isMobile 
+            ? "flex w-auto gap-1 overflow-x-auto scrollbar-hide" 
+            : "grid w-full grid-cols-7"
+          }>
+            <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <Activity className="h-4 w-4" />
-              Operacional
+              {isMobile ? 'Ops' : 'Operacional'}
             </TabsTrigger>
-            <TabsTrigger value="adquisicion" className="flex items-center gap-2">
+            <TabsTrigger value="adquisicion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <UserPlus className="h-4 w-4" />
-              Adquisición
+              {isMobile ? 'Adq.' : 'Adquisición'}
             </TabsTrigger>
-            <TabsTrigger value="clientes" className="flex items-center gap-2">
+            <TabsTrigger value="clientes" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <Building2 className="h-4 w-4" />
-              Análisis Clientes
+              Clientes
             </TabsTrigger>
-            <TabsTrigger value="kpis" className="flex items-center gap-2">
+            <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <BarChart3 className="h-4 w-4" />
-              KPIs Avanzados
+              KPIs
             </TabsTrigger>
-            <TabsTrigger value="costos" className="flex items-center gap-2">
+            <TabsTrigger value="costos" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <DollarSign className="h-4 w-4" />
-              Gestión de Costos
+              Costos
             </TabsTrigger>
-            <TabsTrigger value="resumen" className="flex items-center gap-2">
+            <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <Building className="h-4 w-4" />
-              Resumen Ejecutivo
+              Resumen
             </TabsTrigger>
-            <TabsTrigger value="calibracion" className="flex items-center gap-2">
+            <TabsTrigger value="calibracion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
               <Settings className="h-4 w-4" />
-              Calibración
+              {isMobile ? 'Calib.' : 'Calibración'}
             </TabsTrigger>
           </TabsList>
 
@@ -362,7 +371,7 @@ const KPIDashboard = () => {
           {/* Executive Summary Tab */}
           <TabsContent value="resumen" className="space-y-6">
             {/* Current Month Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {mainKPIs.map((kpi, index) => {
                 const Icon = kpi.icon;
                 const isPositive = kpi.trend > 0;
