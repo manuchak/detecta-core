@@ -12,6 +12,7 @@ import {
   ComposedChart,
 } from 'recharts';
 import { StrategicPlanDay } from '@/hooks/useStrategicPlanTracking';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BurnUpChartProps {
   data: StrategicPlanDay[];
@@ -26,6 +27,8 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
   target,
   currentDay,
 }) => {
+  const isMobile = useIsMobile();
+
   const chartData = data.map((day) => ({
     day: day.day,
     date: day.date,
@@ -35,6 +38,9 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
       : null,
     isToday: day.isToday,
   }));
+
+  const fontSize = isMobile ? 9 : 11;
+  const yAxisWidth = isMobile ? 45 : 60;
 
   const formatYAxis = (value: number) => {
     if (metric === 'gmv') {
@@ -53,7 +59,7 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
   };
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[220px] md:h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
@@ -78,16 +84,16 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
             dataKey="day"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize }}
             tickMargin={8}
           />
           
           <YAxis
             axisLine={false}
             tickLine={false}
-            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize }}
             tickFormatter={formatYAxis}
-            width={60}
+            width={yAxisWidth}
           />
 
           <Tooltip
@@ -105,7 +111,6 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
             labelFormatter={(label) => `Día ${label}`}
           />
 
-          {/* Plan line (dashed) */}
           <Line
             type="monotone"
             dataKey="plan"
@@ -116,7 +121,6 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
             name="plan"
           />
 
-          {/* Actual area with line */}
           <Area
             type="monotone"
             dataKey="actual"
@@ -130,7 +134,7 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
                   <circle
                     cx={cx}
                     cy={cy}
-                    r={6}
+                    r={isMobile ? 5 : 6}
                     fill="hsl(var(--primary))"
                     stroke="hsl(var(--background))"
                     strokeWidth={2}
@@ -143,7 +147,6 @@ export const BurnUpChart: React.FC<BurnUpChartProps> = ({
             connectNulls={false}
           />
 
-          {/* Today reference line */}
           <ReferenceLine
             x={currentDay}
             stroke="hsl(var(--primary))"

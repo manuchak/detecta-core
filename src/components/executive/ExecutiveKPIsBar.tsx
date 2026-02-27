@@ -80,7 +80,7 @@ export const ExecutiveKPIsBar = () => {
   const secondaryKpis = kpiCards.filter(k => !k.priority);
 
   const renderKpiCard = (kpi: KPIData, idx: number) => (
-    <Card key={idx} className="p-3 md:p-4 bg-card border-border/50">
+    <Card key={idx} className="p-3 md:p-4 bg-card border-border/50 active:scale-95 transition-transform duration-150">
       <div className="flex items-center justify-between mb-1.5 md:mb-2">
         <span className="text-[10px] md:text-xs text-muted-foreground uppercase tracking-wide">
           {kpi.label}
@@ -97,7 +97,7 @@ export const ExecutiveKPIsBar = () => {
           ) : (
             <TrendingDown className="h-3 w-3 mr-1" />
           )}
-          <span>{kpi.variation >= 0 ? '+' : ''}{kpi.variation.toFixed(1)}%</span>
+          <span>{kpi.variation.toFixed(1)}%</span>
         </div>
       )}
     </Card>
@@ -119,7 +119,7 @@ export const ExecutiveKPIsBar = () => {
           className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground py-2 min-h-[44px] hover:text-foreground transition-colors"
         >
           {showMore ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          {showMore ? 'Ver menos' : `Ver ${secondaryKpis.length} más`}
+          {showMore ? 'Ver menos' : `Ver más: Custodios, Armados...`}
         </button>
       </div>
     );

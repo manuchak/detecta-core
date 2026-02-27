@@ -6,6 +6,7 @@ import { TrendingUp, Calendar, Target } from 'lucide-react';
 import { useQuarterlyAnnualProgress, MetricProgress } from '@/hooks/useQuarterlyAnnualProgress';
 import { cn } from '@/lib/utils';
 import { formatNumber, formatGMV, formatPercent } from '@/utils/formatUtils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const STATUS_CONFIG = {
   on_track: { label: 'En Meta', variant: 'success' as const, bgClass: 'bg-emerald-500' },
@@ -48,7 +49,7 @@ function MetricColumn({ title, metric, formatActual, formatTarget, formatPace, f
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
       <p className="text-lg font-bold">
         {formatActual(metric.actual)}{' '}
-        <span className="text-sm font-normal text-muted-foreground">/ {formatTarget(metric.target)}</span>
+        <span className="text-xs sm:text-sm font-normal text-muted-foreground">/ {formatTarget(metric.target)}</span>
       </p>
       <ProgressBar percent={metric.percent} status={metric.status} />
       <p className="text-xs text-muted-foreground">{metric.percent}% completado</p>
@@ -71,6 +72,7 @@ function MetricColumn({ title, metric, formatActual, formatTarget, formatPace, f
 
 export const QuarterlyAnnualScorecard: React.FC = () => {
   const { quarterProgress, annualProgress, isLoading } = useQuarterlyAnnualProgress();
+  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -82,24 +84,27 @@ export const QuarterlyAnnualScorecard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Quarterly Scorecard */}
       {quarterProgress && (
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Target className="h-4 w-4 text-muted-foreground" />
-                Progreso Trimestral — {quarterProgress.quarterLabel}
+                Trimestral — {quarterProgress.quarterLabel}
               </CardTitle>
-              <Badge variant="outline" className="text-xs gap-1">
+              <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 w-fit">
                 <Calendar className="h-3 w-3" />
-                Día {quarterProgress.daysElapsed} de {quarterProgress.totalDays} · {quarterProgress.daysRemaining} restantes
+                {isMobile 
+                  ? `D${quarterProgress.daysElapsed}/${quarterProgress.totalDays}`
+                  : `Día ${quarterProgress.daysElapsed} de ${quarterProgress.totalDays} · ${quarterProgress.daysRemaining} restantes`
+                }
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-6">
+            <div className={cn("gap-4 md:gap-6", isMobile ? "grid grid-cols-1 divide-y divide-border/50 [&>*:not(:first-child)]:pt-4" : "grid grid-cols-2")}>
               <MetricColumn
                 title="Servicios"
                 metric={quarterProgress.services}
@@ -125,19 +130,22 @@ export const QuarterlyAnnualScorecard: React.FC = () => {
       {annualProgress && (
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                Progreso Anual {annualProgress.year}
+                Anual {annualProgress.year}
               </CardTitle>
-              <Badge variant="outline" className="text-xs gap-1">
+              <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 w-fit">
                 <Calendar className="h-3 w-3" />
-                Día {annualProgress.daysElapsed} de {annualProgress.totalDays}
+                {isMobile 
+                  ? `D${annualProgress.daysElapsed}/${annualProgress.totalDays}`
+                  : `Día ${annualProgress.daysElapsed} de ${annualProgress.totalDays}`
+                }
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-6">
+            <div className={cn("gap-4 md:gap-6", isMobile ? "grid grid-cols-1 divide-y divide-border/50 [&>*:not(:first-child)]:pt-4" : "grid grid-cols-2")}>
               <MetricColumn
                 title="Servicios"
                 metric={annualProgress.services}
@@ -156,16 +164,19 @@ export const QuarterlyAnnualScorecard: React.FC = () => {
               />
             </div>
 
-            {/* YoY Comparison */}
+            {/* YoY Comparison — stack on mobile */}
             {(annualProgress.prevYearServices > 0 || annualProgress.prevYearGmv > 0) && (
-              <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-2 gap-6">
+              <div className={cn(
+                "mt-4 pt-4 border-t border-border/50",
+                isMobile ? "space-y-3" : "grid grid-cols-2 gap-6"
+              )}>
                 <div>
-                  <p className="text-xs text-muted-foreground">vs {annualProgress.year - 1} (año completo)</p>
+                  <p className="text-xs text-muted-foreground">vs {annualProgress.year - 1}</p>
                   <p className={cn(
                     'text-sm font-semibold',
                     annualProgress.services.projection > annualProgress.prevYearServices ? 'text-emerald-600' : 'text-red-600'
                   )}>
-                    Proy: {formatNumber(annualProgress.services.projection)} vs {formatNumber(annualProgress.prevYearServices)}
+                    {formatNumber(annualProgress.services.projection)} vs {formatNumber(annualProgress.prevYearServices)}
                     {' '}
                     ({annualProgress.prevYearServices > 0
                       ? formatPercent(((annualProgress.services.projection - annualProgress.prevYearServices) / annualProgress.prevYearServices) * 100)
@@ -173,12 +184,12 @@ export const QuarterlyAnnualScorecard: React.FC = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">vs {annualProgress.year - 1} (año completo)</p>
+                  <p className="text-xs text-muted-foreground">vs {annualProgress.year - 1}</p>
                   <p className={cn(
                     'text-sm font-semibold',
                     annualProgress.gmv.projection > annualProgress.prevYearGmv ? 'text-emerald-600' : 'text-red-600'
                   )}>
-                    Proy: {formatGMV(annualProgress.gmv.projection)} vs {formatGMV(annualProgress.prevYearGmv)}
+                    {formatGMV(annualProgress.gmv.projection)} vs {formatGMV(annualProgress.prevYearGmv)}
                     {' '}
                     ({annualProgress.prevYearGmv > 0
                       ? formatPercent(((annualProgress.gmv.projection - annualProgress.prevYearGmv) / annualProgress.prevYearGmv) * 100)
