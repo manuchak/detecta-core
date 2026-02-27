@@ -220,7 +220,11 @@ export const ImprovedLeadCard = ({
           </Button>
         )}
 
-        {!lead.final_decision && hasSuccessfulCall && !hasMissingInfo && (
+        {/* Mostrar botones Aprobar/Rechazar si:
+            1. No tiene decisión final Y tiene llamada exitosa Y info completa (flujo normal)
+            2. Está en second_interview Y tiene llamada exitosa Y info completa (continuar flujo) */}
+        {((!lead.final_decision && hasSuccessfulCall && !hasMissingInfo) ||
+          (lead.current_stage === 'second_interview' && !lead.final_decision && hasSuccessfulCall && !hasMissingInfo)) && (
           <>
             <Button 
               size="sm" 
@@ -230,16 +234,18 @@ export const ImprovedLeadCard = ({
               <CheckCircle className="h-3.5 w-3.5 mr-1" />
               Aprobar
             </Button>
-            <Button 
-              size="sm" 
-              variant="ghost"
-              onClick={() => onSendToSecondInterview(lead)} 
-              className="h-10 sm:h-8 px-3 text-xs flex-1 sm:flex-none"
-            >
-              <ArrowRight className="h-3.5 w-3.5 mr-1" />
-              <span className="sm:hidden">2da</span>
-              <span className="hidden sm:inline">2da Entrevista</span>
-            </Button>
+            {lead.current_stage !== 'second_interview' && (
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => onSendToSecondInterview(lead)} 
+                className="h-10 sm:h-8 px-3 text-xs flex-1 sm:flex-none"
+              >
+                <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                <span className="sm:hidden">2da</span>
+                <span className="hidden sm:inline">2da Entrevista</span>
+              </Button>
+            )}
             <Button 
               size="sm" 
               variant="ghost"
