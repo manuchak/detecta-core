@@ -1,81 +1,68 @@
 
-# Pestana de Costos del Proyecto en Control de Versiones
 
-## Contexto
+# Fix: Error de duplicado en aprobacion de candidatos + Mejora UX
 
-Lovable no expone una API para obtener conteo de mensajes ni costos. La informacion solo esta disponible visualmente en el panel de creditos del workspace. Por lo tanto, el sistema sera de **registro asistido**: al final de cada sesion, se registra manualmente el dato (o el AI lo sugiere).
+## El Bug
 
-## Lo que se construira
+El error "duplicate key value violates unique constraint 'lead_approval_process_lead_id_key'" ocurre porque el metodo `upsert` en `useSandboxAwareSupabase.ts` no especifica `onConflict: 'lead_id'`. Sin esta opcion, Supabase no sabe que columna usar para detectar conflictos y falla al intentar insertar un registro duplicado.
 
-### 1. Nueva tabla: `project_cost_entries`
+Esto pasa cuando un candidato ya tiene un registro en `lead_approval_process` (por ejemplo, creado al enviar a 2da entrevista o al aplicar SIERCP desde el menu de 3 puntos) y luego se intenta aprobar.
 
-Registros periodicos de uso y costo:
+## Solucion
 
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| id | uuid PK | Identificador |
-| entry_date | date | Fecha del registro |
-| messages_count | integer | Mensajes del periodo |
-| estimated_cost_usd | numeric | Costo estimado (mensajes x $0.25) |
-| participants | text[] | Quienes participaron |
-| version_id | uuid FK nullable | Version asociada |
-| category | text | development, bugfix, maintenance |
-| notes | text | Descripcion del trabajo |
-| created_at | timestamptz | Timestamp |
+### 1. Fix del bug en upsert (archivo critico)
 
-RLS: politica para usuarios autenticados (select, insert, update).
+**Archivo:** `src/hooks/useSandboxAwareSupabase.ts`
 
-### 2. Datos historicos pre-cargados
+Modificar el metodo `upsert` para aceptar un parametro `onConflict` y pasarlo a Supabase:
 
-Insertar estimaciones retroactivas basadas en las versiones ya documentadas:
-
-| Version | Mensajes est. | Costo est. | Periodo |
-|---------|--------------|------------|---------|
-| 1.0.0 Genesis | ~200 | ~$50 | Jun-Ago 2025 |
-| 1.1.0 Security | ~80 | ~$20 | Ago 2025 |
-| 1.2.0 Version Control | ~100 | ~$25 | Oct 2025 |
-| 1.3.0 Import Wizard | ~150 | ~$37.50 | Oct 2025 |
-| 1.4.0 LMS Platform | ~500 | ~$125 | Nov 2025 |
-| 1.5.0 Facturacion | ~400 | ~$100 | Dic 2025 |
-| 1.6.0 Customer Success | ~450 | ~$112.50 | Dic 2025 |
-| 1.7.0 SIERCP | ~300 | ~$75 | Ene 2026 |
-| 1.8.0 Recruitment | ~350 | ~$87.50 | Ene 2026 |
-| 1.9.0 Monitoring | ~250 | ~$62.50 | Feb 2026 |
-| 2.0.0 Platform Maturity | ~400 | ~$100 | Feb 2026 |
-| **Total estimado** | **~3,180** | **~$795** | |
-
-### 3. Nuevo componente: `ProjectCostTracker.tsx`
-
-Dashboard con:
-- **4 KPI cards**: Costo total, Mensajes totales, Participantes, Promedio diario
-- **Grafica de linea**: Costo acumulado en el tiempo
-- **Grafica de barras**: Mensajes por version
-- **Tabla**: Desglose por version con costo y participantes
-- **Formulario**: Para agregar nuevas entradas (fecha, mensajes, categoria, notas)
-- **Parametro configurable**: Costo por mensaje (default $0.25 USD)
-
-### 4. Integracion en VersionControlManager
-
-Agregar tercera pestana "Costos del Proyecto" al TabsList principal.
-
-```text
-[Resumen] [Todas las Versiones] [Costos del Proyecto]
+```typescript
+upsert: async (table: string, data: any | any[], options?: { onConflict?: string }) => {
+  const upsertOptions = options?.onConflict ? { onConflict: options.onConflict } : {};
+  // ... resto de la logica existente con is_test
+  return supabase.from(table).upsert(upsertData, upsertOptions);
+}
 ```
 
-## Archivos
+### 2. Actualizar llamadas de upsert en useLeadApprovals
 
-| Archivo | Accion |
+**Archivo:** `src/hooks/useLeadApprovals.ts`
+
+En las 3 funciones que hacen upsert a `lead_approval_process` (handleApproveLead linea ~344, handleSendToSecondInterview linea ~491), agregar el parametro `onConflict`:
+
+```typescript
+await sbx.upsert('lead_approval_process', { ... }, { onConflict: 'lead_id' });
+```
+
+### 3. Mejora UX: Hacer el flujo mas intuitivo
+
+**Archivo:** `src/components/leads/approval/ImprovedLeadCard.tsx`
+
+Problemas UX actuales:
+- El menu de 3 puntos tiene acciones que pueden crear registros de aprobacion sin que el usuario lo sepa
+- No queda claro el flujo: Llamar -> Aprobar/2da Entrevista
+- Los botones de accion desaparecen si ya hay un `final_decision`, impidiendo corregir errores
+
+Mejoras propuestas:
+- Si un candidato esta en stage `second_interview` y ya fue contactado exitosamente, mostrar los botones "Aprobar" y "Rechazar" para que pueda continuar el flujo
+- Agregar en el menu de 3 puntos una opcion "Restablecer estado" visible solo cuando hay un `final_decision` o `current_stage` inesperado, para poder corregir errores de flujo
+
+### 4. Datos inmediatos: Desbloquear los 4 candidatos
+
+Ejecutar una migracion SQL que actualice los registros existentes de los 4 candidatos bloqueados, cambiando su `current_stage` a `approved` y `final_decision` a `approved` directamente en la base de datos, ya que el bug les impide avanzar por la UI.
+
+## Archivos a modificar
+
+| Archivo | Cambio |
 |---------|--------|
-| Migration SQL | Crear tabla `project_cost_entries` con RLS |
-| Seed SQL (insert) | Insertar datos historicos estimados |
-| `src/components/version-control/ProjectCostTracker.tsx` | Nuevo: dashboard de costos |
-| `src/components/version-control/CostEntryForm.tsx` | Nuevo: formulario de entrada |
-| `src/hooks/useProjectCosts.ts` | Nuevo: hook CRUD |
-| `src/components/version-control/VersionControlManager.tsx` | Modificar: agregar tab |
+| `src/hooks/useSandboxAwareSupabase.ts` | Agregar soporte para `onConflict` en upsert |
+| `src/hooks/useLeadApprovals.ts` | Pasar `onConflict: 'lead_id'` en las 3 llamadas a upsert |
+| `src/components/leads/approval/ImprovedLeadCard.tsx` | Mostrar botones de accion para candidatos en 2da entrevista; agregar opcion de restablecer |
+| Migration SQL | Corregir los 4 candidatos bloqueados en la base de datos |
 
-## Sobre la actualizacion
+## Resumen del impacto
 
-Al no existir una API automatica, la actualizacion sera:
-- **Manual asistida**: Al final de sesiones de trabajo, se registra el dato
-- **Estimaciones retroactivas**: Los datos historicos se pre-cargan con estimaciones razonables basadas en la complejidad de cada version
-- **Calculo automatico**: Al ingresar solo el numero de mensajes, el sistema calcula el costo usando el precio por mensaje configurable
+- **Bug fix**: Elimina el error de llave duplicada para siempre
+- **UX**: Los candidatos en "2da Entrevista" podran ser aprobados/rechazados sin obstaculos
+- **Datos**: Los 4 candidatos (Omar, Nicolas, Noe, Sergio) quedaran desbloqueados inmediatamente
+
