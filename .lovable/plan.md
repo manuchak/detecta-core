@@ -1,96 +1,111 @@
 
 
-# Optimizacion Mobile: Plan 2026 y KPIs
+# Optimizacion Mobile: Pagina KPIs Ejecutivos
 
-## Diagnostico actual
+## Diagnostico
 
-La pestana "Plan 2026" tiene 5 secciones verticales sin adaptacion mobile: header con badges que se desbordan, bullet charts en grid de 2 columnas, pace indicators en grid de 2 columnas, burn-up chart con altura fija de 300px, tabla de varianza con 6 columnas, y scorecard trimestral/anual. En un viewport de 390px, los badges del header se apilan mal, los bullet charts pierden legibilidad, y la tabla es ilegible sin scroll horizontal.
+La pagina `/dashboard/kpis` (KPIDashboard.tsx) no tiene ninguna adaptacion mobile. Los problemas principales visibles en el screenshot:
 
-Los KPIs ya tienen optimizacion mobile basica (priority cards + "Ver mas"), pero hay oportunidad de mejorar la jerarquia visual y el feedback tactil.
+1. **Header**: Titulo `text-3xl` + descripcion + boton "Actualizar" + timestamp se amontonan horizontalmente
+2. **Tabs de navegacion (7 pestanas)**: `grid-cols-7` con iconos + texto — ilegible y sin scroll, los textos se superponen ("OperacionalAdquisicionAnalisis Cli...KPIs AvanGestion deResumoEjecuCalibr...")
+3. **Contenido de cada tab**: Grids de 4 columnas, tablas anchas, charts de 300px fijos — todo sin adaptacion
 
-## Cambios planificados
+## Cambios por componente
 
-### 1. StrategicPlanTracker — Header compacto mobile
+### 1. KPIDashboard.tsx — Layout principal
 
-**Problema**: Los 3 badges (fecha datos, dia/mes, status) se desbordan horizontalmente.
+**Header**:
+- Titulo: `text-3xl` a `text-xl` en mobile
+- Ocultar descripcion larga en mobile
+- Mover boton "Actualizar" y timestamp debajo del titulo en stack vertical
+- Ocultar timestamp en mobile (como ya se hizo en ExecutiveDashboard)
 
-**Solucion**:
-- En mobile, mover badges debajo del titulo en una fila con `flex-wrap gap-1.5`
-- Reducir el grid de 4 stats a 2x2 con separadores visuales mas claros
-- Las stats ya usan `text-xl sm:text-2xl`, mantener
+**Tabs de navegacion principal** (Proyecciones / KPIs Ejecutivos):
+- En mobile: `flex w-auto` en lugar de `grid grid-cols-2`
 
-### 2. Bullet Charts — Layout vertical en mobile
+**Tabs internas (7 pestanas)**:
+- Cambiar `grid grid-cols-7` a scroll horizontal con `flex overflow-x-auto`
+- En mobile: mostrar solo iconos con labels cortos (2-3 palabras max)
+- Min-height 44px para touch targets
+- Ocultar scrollbar con CSS (`scrollbar-hide`)
 
-**Problema**: Grid `grid-cols-1 md:grid-cols-2` ya apila en mobile, pero cada BulletChart tiene leyenda con textos que se truncan en 390px.
+**Loading skeleton**:
+- Cambiar `grid-cols-4` a `grid-cols-2` en mobile
 
-**Solucion**:
-- En `BulletChart.tsx`: reorganizar la fila superior (label + valores) a stack vertical en mobile — label arriba, valores abajo
-- La leyenda inferior: cambiar de `flex justify-between` a layout compacto con el porcentaje del plan como elemento prominente (badge) en lugar de texto inline
-- Aumentar la altura de la barra de 32px (h-8) a 40px en mobile para mejor touch target
+### 2. Tab "Operacional" — OperationalOverview.tsx
 
-### 3. Pace Indicators — Compactar informacion
+**OperationalHeroBar**: Ya tiene `sm:grid-cols-2 lg:grid-cols-4` — funciona bien en mobile.
 
-**Problema**: Cada PaceIndicator tiene ~7 filas de datos con textos largos. Dos stacked ocupan mucho scroll vertical.
+**DoDTrendChart**: Altura fija `h-[200px]` — adecuada. Sin cambios necesarios.
 
-**Solucion**:
-- En mobile, usar `MobileChartBlock` (ya creado) con tabs "Servicios" y "GMV" para mostrar un PaceIndicator a la vez en lugar de apilar ambos
-- Dentro de cada PaceIndicator: la seccion de proyeccion es densa — consolidar "Proyeccion", "Meta" y "Deficit" en una fila compacta tipo stat-row en mobile
-- El texto de metodologia (italic, 10px) se oculta en mobile — no aporta valor en glance
+**Secondary KPIs grid**: `grid-cols-2 md:grid-cols-4` — ya funciona. Sin cambios.
 
-### 4. BurnUp Chart — Altura responsive
+**Grids de "Estado de Servicios" y "Top 5 Custodios"**: `grid-cols-1 lg:grid-cols-2` — ya apila. Revisar que los Progress bars con badges no se trunquen en 390px. El layout interno de cada fila (icono + texto + badge + porcentaje + progress bar) puede ser angosto — reorganizar a stack vertical cuando sea mobile.
 
-**Problema**: Altura fija `h-[300px]` — demasiado en mobile donde compite con scroll.
+### 3. Tab "Adquisicion" — AcquisitionOverview.tsx
 
-**Solucion**:
-- Cambiar a `h-[220px] md:h-[300px]`
-- Reducir font-size del eje Y a 9px en mobile
-- YAxis width de 60 a 45 en mobile para ganar espacio horizontal del chart
-- Tabs de Servicios/GMV: aumentar min-height a 44px para touch target
+**KPIs grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` — ya tiene responsive basico pero `grid-cols-1` en mobile genera cards muy anchas. Cambiar a `grid-cols-2` en mobile para compactar.
 
-### 5. Tabla de Varianza Diaria — Card-list en mobile
+**Charts**: Altura fija `height={300}` — reducir a 220px en mobile.
 
-**Problema**: Tabla de 6 columnas ilegible en 390px, requiere scroll horizontal.
+**PieChart labels**: Se desbordan en mobile — ocultar labels externas y mostrar solo en tooltip.
 
-**Solucion**:
-- En mobile, reemplazar la tabla con una lista de cards compactas (una por dia)
-- Cada card muestra: dia (con badge "Hoy"), plan vs actual como stat-row, varianza como badge coloreado, y acumulados como texto secundario
-- Maximo 5 dias visibles en mobile (en lugar de 7) para reducir scroll
-- Patron collapsible: por defecto mostrar solo 3 dias, con "Ver mas" para los restantes
+### 4. Tab "Analisis Clientes" — ClientAnalytics.tsx
 
-### 6. QuarterlyAnnualScorecard — Stack optimizado
+**Header con botones**: `flex justify-between` — en mobile apilar verticalmente.
 
-**Problema**: Grid `grid-cols-2` funciona pero los textos de proyeccion YoY se truncan en mobile.
+**Date filter**: Select de 200px + calendarios custom — funciona pero necesita `w-full` en mobile.
 
-**Solucion**:
-- En mobile, cambiar grid de MetricColumns a `grid-cols-1` (stack vertical) — cada metrica ocupa full width con mejor legibilidad
-- Seccion YoY: cambiar a stack vertical con formato simplificado: "Proy: 25K vs 22K (+13.6%)" en una sola linea por metrica
-- Badge de header (dia X de Y): usar formato corto "D15/90" en mobile
+**Tabla de clientes**: Tabla con 8+ columnas — ilegible en mobile. Convertir a card-list en mobile (patron ya usado en StrategicPlanTracker).
 
-### 7. ExecutiveKPIsBar — Refinamientos adicionales
+**Client detail view**: Grids de `lg:grid-cols-4` — ya tienen `grid-cols-1` fallback. Charts de 300px — reducir a 220px. Monthly trend grid `xl:grid-cols-4` — reducir a `grid-cols-2` en mobile.
 
-**Problema**: Ya tiene optimizacion basica, pero oportunidades de mejora.
+### 5. Tab "KPIs Avanzados" — ExecutiveMetricsGrid.tsx
 
-**Solucion**:
-- Agregar feedback visual al tap en cards (active:scale-95 transition)
-- En el boton "Ver mas", agregar microcopy del contenido colapsado: "Custodios, Armados, Proveedores..."
-- Variaciones porcentuales: en mobile compactar a solo el numero con icono (sin "+" prefix) para ganar espacio
+**Grid**: `grid-cols-1 md:grid-cols-3 xl:grid-cols-5` — en mobile `grid-cols-1` genera cards enormes. Cambiar a `grid-cols-2` para que quepan 2 KPI cards por fila.
+
+**KPIHeroCard**: `p-6` con `text-3xl` valor — reducir padding a `p-4` y valor a `text-2xl` en mobile.
+
+**Separador "Capacidad Custodias"**: `text-lg` — reducir a `text-sm` en mobile.
+
+### 6. Tab "Gestion de Costos"
+
+Los componentes ExpenseForm, ExpensesList, ExpenseMetricsCards ya son formularios standard. Revisar que inputs tengan `h-12` (48px) para touch y que el layout no requiera scroll horizontal.
+
+### 7. Tab "Resumen Ejecutivo"
+
+**mainKPIs grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` — cambiar a `grid-cols-2` en mobile.
+
+**Service data grid**: `grid-cols-2 gap-4` dentro de card — funciona pero textos como "Servicios Totales" + valor pueden truncarse. Reducir font sizes.
+
+### 8. Tab "Calibracion" — CalibrationDashboard.tsx
+
+Componente complejo con tabs internas, tablas de backtesting y charts. Misma estrategia: scroll horizontal en tabs, charts a 220px, tablas a card-list pattern.
 
 ## Archivos a modificar
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/executive/StrategicPlanTracker.tsx` | Header responsive, MobileChartBlock para PaceIndicators, tabla a card-list, BurnUp height |
-| `src/components/executive/BulletChart.tsx` | Layout vertical en mobile para label/valores, barra mas alta, leyenda compacta |
-| `src/components/executive/PaceIndicator.tsx` | Proyeccion compacta, ocultar metodologia en mobile |
-| `src/components/executive/BurnUpChart.tsx` | Altura responsive, ejes compactos |
-| `src/components/executive/QuarterlyAnnualScorecard.tsx` | Grid cols-1 mobile, YoY compacto |
-| `src/components/executive/ExecutiveKPIsBar.tsx` | Touch feedback, microcopy en "Ver mas" |
+| Archivo | Cambio principal |
+|---------|-----------------|
+| `src/pages/Dashboard/KPIDashboard.tsx` | Header responsive, tabs scroll horizontal, skeleton grid, grids del tab Resumen |
+| `src/components/executive/OperationalOverview.tsx` | Service distribution rows a stack mobile |
+| `src/components/executive/AcquisitionOverview.tsx` | KPIs 2-col mobile, charts 220px, pie labels |
+| `src/components/executive/ClientAnalytics.tsx` | Header stack, tabla a cards, date filter full-width, charts 220px |
+| `src/components/executive/ExecutiveMetricsGrid.tsx` | Grid 2-col mobile |
+| `src/components/executive/KPIHeroCard.tsx` | Padding y font-size compactos en mobile |
+| `src/components/executive/CalibrationDashboard.tsx` | Tabs scroll, charts responsive |
 
-## Principios de diseno aplicados
+## Patron tecnico
 
-1. **Jerarquia vertical**: Lo mas critico arriba (status semaforo + stats clave), detalles expandibles abajo
-2. **One-thing-at-a-time**: PaceIndicators en tabs, no stacked
-3. **Touch-first**: 44px minimo en toda interaccion, active states visibles
-4. **Glanceable**: Numeros grandes, badges de color, sin texto innecesario
-5. **Zero horizontal scroll**: Eliminar toda necesidad de scroll-x en 390px
+- Reutilizar `useIsMobile()` hook existente donde Tailwind responsive no alcance
+- Reutilizar `MobileChartBlock` para secciones con multiples charts
+- Todas las tabs usaran patron: `flex overflow-x-auto gap-1 scrollbar-hide` en mobile
+- Sin dependencias nuevas
+
+## Prioridad de implementacion
+
+1. KPIDashboard.tsx (header + tabs — el problema mas visible del screenshot)
+2. ExecutiveMetricsGrid + KPIHeroCard (tab mas usada)
+3. OperationalOverview (segunda tab mas visitada)
+4. AcquisitionOverview + ClientAnalytics
+5. CalibrationDashboard (menor prioridad)
 
