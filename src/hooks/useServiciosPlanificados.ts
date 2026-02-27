@@ -1078,6 +1078,7 @@ export function useServiciosPlanificados() {
   });
 
   return {
+    // Legacy .mutate (fire-and-forget) — backward compatible
     createServicioPlanificado: createServicioPlanificado.mutate,
     updateServicioPlanificado: updateServicioPlanificado.mutate,
     updateServiceConfiguration: updateServiceConfiguration.mutate,
@@ -1086,6 +1087,12 @@ export function useServiciosPlanificados() {
     reassignCustodian: reassignCustodian.mutate,
     reassignArmedGuard: reassignArmedGuard.mutate,
     removeAssignment: removeAssignment.mutate,
+    // Async variants — await these to confirm DB persistence before showing success
+    assignCustodianAsync: assignCustodian.mutateAsync,
+    assignArmedGuardAsync: assignArmedGuard.mutateAsync,
+    reassignCustodianAsync: reassignCustodian.mutateAsync,
+    reassignArmedGuardAsync: reassignArmedGuard.mutateAsync,
+    removeAssignmentAsync: removeAssignment.mutateAsync,
     cancelService,
     updateOperationalStatus,
     markFalsePositioning,

@@ -151,8 +151,8 @@ export function ScheduledServicesTab() {
     isUpdatingConfiguration,
     updateOperationalStatus,
     isUpdatingOperationalStatus,
-    reassignCustodian,
-    reassignArmedGuard,
+    reassignCustodianAsync,
+    reassignArmedGuardAsync,
     removeAssignment,
     isReassigning,
     cancelService,
@@ -1153,35 +1153,39 @@ export function ScheduledServicesTab() {
         onReassign={async (data) => {
           console.log('Reassignment data:', data);
           
-          if (reassignmentType === 'custodian') {
-            reassignCustodian({
-              serviceId: data.serviceId,
-              newCustodioId: data.newId,
-              newCustodioName: data.newName,
-              reason: data.reason
-            });
-          } else {
-            // Reasignación de armado (puede ser interno o proveedor)
-            reassignArmedGuard({
-              serviceId: data.serviceId,
-              newArmadoId: data.newId,
-              newArmadoName: data.newName,
-              assignmentType: data.assignmentType || 'interno',
-              reason: data.reason,
-              providerId: data.providerId,
-              puntoEncuentro: data.puntoEncuentro,
-              horaEncuentro: data.horaEncuentro,
-              tarifaAcordada: data.tarifaAcordada,
-              nombrePersonal: data.nombrePersonal
-            });
-            
-            if (data.assignmentType === 'proveedor') {
-              toast.info('Procesando asignación de proveedor externo...', { duration: 2000 });
+          try {
+            if (reassignmentType === 'custodian') {
+              await reassignCustodianAsync({
+                serviceId: data.serviceId,
+                newCustodioId: data.newId,
+                newCustodioName: data.newName,
+                reason: data.reason
+              });
+            } else {
+              await reassignArmedGuardAsync({
+                serviceId: data.serviceId,
+                newArmadoId: data.newId,
+                newArmadoName: data.newName,
+                assignmentType: data.assignmentType || 'interno',
+                reason: data.reason,
+                providerId: data.providerId,
+                puntoEncuentro: data.puntoEncuentro,
+                horaEncuentro: data.horaEncuentro,
+                tarifaAcordada: data.tarifaAcordada,
+                nombrePersonal: data.nombrePersonal
+              });
+              
+              if (data.assignmentType === 'proveedor') {
+                toast.info('Proveedor externo asignado correctamente');
+              }
             }
+            
+            await handleReassignmentComplete();
+            setReassignmentModalOpen(false);
+          } catch (error: any) {
+            // Error ya se muestra via onError del hook — no cerrar modal
+            console.error('Reassignment failed:', error);
           }
-          
-          await handleReassignmentComplete();
-          setReassignmentModalOpen(false);
         }}
       />
 

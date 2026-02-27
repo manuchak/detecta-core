@@ -30,9 +30,9 @@ export function ScheduledServicesTab() {
   const { 
     updateServiceConfiguration, 
     isUpdatingConfiguration,
-    reassignCustodian,
-    reassignArmedGuard,
-    removeAssignment,
+    reassignCustodianAsync,
+    reassignArmedGuardAsync,
+    removeAssignmentAsync,
     isReassigning
   } = useServiciosPlanificados();
   const { servicioToPending } = useServiceTransformations();
@@ -784,14 +784,14 @@ export function ScheduledServicesTab() {
         assignmentType={reassignmentType}
         onReassign={async (data) => {
           if (reassignmentType === 'custodian') {
-            await reassignCustodian({
+            await reassignCustodianAsync({
               serviceId: data.serviceId,
               newCustodioName: data.newName,
               newCustodioId: data.newId,
               reason: data.reason
             });
           } else {
-            await reassignArmedGuard({
+            await reassignArmedGuardAsync({
               serviceId: data.serviceId,
               newArmadoName: data.newName,
               newArmadoId: data.newId,
@@ -801,7 +801,7 @@ export function ScheduledServicesTab() {
           await handleReassignmentComplete();
         }}
         onRemove={async (data) => {
-          await removeAssignment({
+          await removeAssignmentAsync({
             serviceId: data.serviceId,
             assignmentType: data.assignmentType,
             reason: data.reason
