@@ -1,116 +1,84 @@
 
-Objetivo: hacer un diagnóstico tipo fishbone del flujo de asignación en Planeación, corregir la causa raíz y blindar el sistema para que no rompa workflows que hoy sí funcionan.
 
-## Diagnóstico (con evidencia)
+# Optimizacion Mobile del Dashboard Ejecutivo
 
-Encontré evidencia directa de un caso reportado:
-- Servicio de retorno `ASCAAST-1491` (`observaciones: [RETORNO]`) sigue con `custodio_asignado = null` y `estado_planeacion = pendiente_asignacion`.
-- No hay trazas de asignación de armado ni registros de modificación para ese servicio.
-- Esto coincide con el síntoma: “aparece éxito, pero no se guarda”.
+## Contexto
 
-## Fishbone (causa-efecto)
+El C-Level necesita consultar el dashboard desde el telefono. Actualmente el layout esta disenado para pantallas grandes: KPIs en 8 columnas, charts en grids de 3, tabs con iconos + texto, y padding generoso. En movil todo se comprime y pierde legibilidad.
 
-```text
-PROBLEMA: "Asignación de custodio aparenta éxito pero no persiste" + fricción en retornos
+## Filosofia de diseno
 
-├─ Código / Arquitectura
-│  ├─ useServiciosPlanificados retorna mutate (no Promise) en:
-│  │   assignCustodian, assignArmedGuard, reassignCustodian, reassignArmedGuard, removeAssignment
-│  └─ Vistas consumidoras usan await sobre esas funciones
-│      => await no espera realmente la operación (fire-and-forget)
-│      => UI avanza y muestra éxito antes de confirmar BD
-│
-├─ Flujo / Concurrencia
-│  ├─ No hay validación post-update (row updated + estado final real)
-│  └─ No hay guardas idempotentes sólidas en asignación inicial
-│
-├─ UX / Producto
-│  ├─ En PendingAssignmentModal, conflicto “override” no pide motivo formal
-│  ├─ Para retorno, no hay camino guiado explícito de “asignación con justificación”
-│  └─ Mensajes de éxito no están condicionados a persistencia real
-│
-├─ Datos / Reglas de negocio
-│  ├─ Retornos dependen de reglas de conflicto horario
-│  └─ Si hay conflicto o error backend, usuario puede creer que ya asignó
-│
-└─ Observabilidad
-   ├─ Falta de telemetría específica del paso "intento/confirmación de asignación"
-   └─ Difícil distinguir error funcional vs error de UX
-```
+**"Executive Glance"** - En movil, el CEO necesita respuestas en 3 segundos: como vamos este mes? hay alertas? cual es la tendencia? No necesita los 20+ charts simultaneos; necesita un flujo vertical jerarquizado con la informacion mas critica primero.
 
-## Causa raíz principal
+## Cambios por componente
 
-Desacople entre contrato async y uso real:
-- `useServiciosPlanificados` expone `.mutate` (void), pero varias pantallas lo usan con `await`.
-- Resultado: se dispara la mutación en segundo plano, mientras el flujo UI continúa como si hubiera terminado correctamente.
-- Este patrón explica exactamente el “se asignó exitosamente” sin persistencia verificable.
+### 1. Layout principal (`ExecutiveDashboard.tsx`)
+- Reducir padding: `px-6 py-8` a `px-3 py-4` en movil via responsive classes
+- Tabs: cambiar de `grid-cols-4` con iconos+texto a scroll horizontal con solo iconos en movil (tooltip al tap)
+- Ocultar timestamp de "Ultima actualizacion" en movil (ocupa espacio innecesario)
+- Titulo: `text-3xl` a `text-xl` en movil
 
-## Plan de corrección (seguro para no romper workflows sanos)
+### 2. KPIs Bar (`ExecutiveKPIsBar.tsx`)
+- Actualmente: `grid-cols-2 md:grid-cols-4 lg:grid-cols-8` (ya tiene algo de responsive)
+- Optimizar: en movil mostrar los 4 KPIs mas criticos (Servicios, GMV, AOV, Clientes) prominentes en `grid-cols-2`, con los otros 4 colapsables en un "Ver mas"
+- Tamano de fuente del valor: `text-xl` a `text-lg` en movil
+- Variacion porcentual: mantener pero con fuente mas compacta
 
-### Fase 1 — Hotfix de confiabilidad (sin cambiar reglas de negocio)
-1. En `useServiciosPlanificados.ts`, mantener compatibilidad y agregar variantes async explícitas:
-   - `assignCustodianAsync: assignCustodian.mutateAsync`
-   - `assignArmedGuardAsync: assignArmedGuard.mutateAsync`
-   - `reassignCustodianAsync`, `reassignArmedGuardAsync`, `removeAssignmentAsync`
-   - No retirar los métodos actuales (`mutate`) para no romper llamadas existentes.
-2. En `PendingAssignmentModal.tsx`, migrar a las variantes `Async`:
-   - Solo mostrar éxito/cambiar pestaña/cerrar modal después de resolución real.
-   - En error, no avanzar de paso.
-3. En `ScheduledServicesTab.tsx` y `ScheduledServicesTabSimple.tsx`, usar variantes `Async` en reasignación/remoción donde hoy se usa `await` o se hace refresh prematuro.
+### 3. Bloques de Charts (6 bloques de grids)
+- **Prioridad movil**: Solo mostrar el chart mas importante de cada bloque por defecto
+- Cambiar todos los `grid-cols-1 lg:grid-cols-3` — ya son responsive pero en movil los 3 charts apilados son demasiados
+- Implementar un patron de "swipe/tabs" dentro de cada bloque: en movil, cada bloque muestra 1 chart con dots de navegacion o tabs compactas para alternar entre los 2-3 charts del bloque
+- Altura de charts: reducir de ~300px a ~220px en movil para que el chart + leyenda quepan sin scroll
 
-Resultado esperado: elimina falsos positivos de éxito y sincroniza UI con persistencia real.
+### 4. Alertas criticas (`CriticalAlertsBar.tsx`)
+- Ya es relativamente compacto
+- Ajustar `flex-wrap` para que los badges se apilen correctamente en pantallas angostas
+- Hacer el boton dismiss mas grande (44px touch target)
 
-### Fase 2 — Blindaje de integridad (evitar inconsistencias silenciosas)
-4. En mutaciones de asignación:
-   - Validar estado fresco previo (read-before-write) para evitar decisiones sobre datos stale.
-   - Hacer update con confirmación explícita (`select` posterior / verificación de fila afectada) y lanzar error si no se confirmó persistencia.
-   - Si ya está asignado al mismo custodio, tratarlo como idempotente (éxito estable).
-5. Normalizar manejo de errores:
-   - Errores de conflicto, permisos o validación con mensajes accionables.
-   - Sin toasts de éxito hasta comprobar persistencia.
+### 5. Comparativa Anual (`AnnualComparisonCard.tsx`)
+- El grid de 3 columnas YTD funciona bien pero los numeros se truncan en movil
+- Cambiar a `grid-cols-1` en movil con un formato de lista horizontal tipo "stat row"
+- Seccion de ritmo: apilar verticalmente en lugar de `grid-cols-2`
 
-### Fase 3 — UX para retornos (evitar error de flujo humano)
-6. Integrar `ConflictOverrideModal` también en `PendingAssignmentModal` (hoy no está completo en ese flujo):
-   - Si custodio viene de `ConflictSection`, exigir motivo antes de confirmar.
-7. Para servicios detectados como retorno (`[RETORNO]` en observaciones o flag equivalente):
-   - Preseleccionar motivo sugerido: “Servicio de retorno del mismo cliente”.
-   - Mostrar microcopy: “Se registrará override para auditoría”.
-8. Registrar metadata de override en servicio (`override_conflicto_*`) cuando aplique.
+### 6. Plan Estrategico (`StrategicPlanTracker.tsx`)
+- BulletCharts y BurnUp: asegurar que `ResponsiveContainer` tenga altura minima adecuada
+- Tabs internas: scroll horizontal en movil
+- Scorecard trimestral: formato card-stack en lugar de tabla
 
-Resultado esperado: flujo intuitivo y auditable para casos especiales sin afectar asignaciones estándar.
+### 7. Mejoras globales de touch & readability
+- Todos los botones y tabs: minimo 44px de altura tactil
+- Tooltips de charts: maximizar ancho del tooltip en movil (actualmente `max-w-xs`, cambiar a casi full-width)
+- Badges: aumentar padding interno ligeramente para legibilidad
 
-## Archivos a intervenir
+## Implementacion tecnica
 
-- `src/hooks/useServiciosPlanificados.ts`
-- `src/components/planeacion/PendingAssignmentModal.tsx`
-- `src/pages/Planeacion/components/ScheduledServicesTab.tsx`
-- `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx`
-- (opcional UX extra) `src/components/planeacion/ReassignmentModal.tsx`
+### Archivos a modificar
 
-## Riesgo y estrategia de no regresión
+| Archivo | Cambio principal |
+|---------|-----------------|
+| `src/pages/Dashboard/ExecutiveDashboard.tsx` | Layout responsive, tabs compactas, padding movil |
+| `src/components/executive/ExecutiveKPIsBar.tsx` | KPIs priorizados con expandible en movil |
+| `src/components/executive/CriticalAlertsBar.tsx` | Touch targets, wrap mejorado |
+| `src/components/executive/AnnualComparisonCard.tsx` | Grid responsive para stats |
+| `src/components/executive/GmvDailyChart.tsx` | Altura responsive del chart |
+| `src/components/executive/GmvMoMChart.tsx` | Altura responsive |
+| `src/components/executive/StrategicPlanTracker.tsx` | Tabs scroll, card-stack |
+| `src/hooks/use-mobile.tsx` | Ya existe, se reutilizara |
 
-- Estrategia de bajo riesgo: agregar API async nueva en el hook (compatibilidad hacia atrás), migrar solo pantallas críticas primero.
-- No tocar reglas centrales de disponibilidad de custodios fuera de lo necesario.
-- Rollout incremental:
-  1) PendingAssignmentModal
-  2) Reasignaciones
-  3) UX de override retorno
+### Patron tecnico
 
-## Criterios de aceptación
+Se usara el hook existente `useIsMobile()` para alternar layouts donde las clases responsive de Tailwind no sean suficientes (ej: colapsar KPIs, cambiar estructura de bloques de charts).
 
-1. Si la BD no se actualiza, la UI no muestra “asignado exitosamente”.
-2. En retorno con conflicto, se puede completar asignación mediante override con justificación.
-3. En retorno sin conflicto, asignación funciona como flujo normal.
-4. Reasignaciones y remociones esperan persistencia real antes de refrescar/cerrar.
-5. No se degradan los workflows ya funcionales (creación, edición, monitoreo).
+Para los bloques de charts en movil, se implementara un patron ligero de "section tabs" usando `Tabs` de Radix que ya esta instalado, sin agregar dependencias nuevas.
 
-## Pruebas E2E recomendadas (clave)
+### Sin dependencias nuevas
 
-- Caso A: retorno sin conflicto → asignar custodio → persistencia en `servicios_planificados`.
-- Caso B: retorno con conflicto → override + motivo → persistencia + metadata override.
-- Caso C: error forzado backend (simulado) → UI permanece en paso actual, sin toast de éxito.
-- Caso D: reasignación desde `ScheduledServicesTab` y `ScheduledServicesTabSimple` → espera real + refresco consistente.
+Todo se resuelve con Tailwind responsive classes + el hook `useIsMobile` existente + componentes Radix ya instalados.
 
-## Nota técnica adicional
+## Resultado esperado
 
-Detecté además errores de typecheck de `gl-matrix` en build (TS1540). Son independientes del bug de asignación, pero conviene resolverlos después del hotfix para mantener deploy estable.
+- CEO puede ver KPIs criticos, alertas y tendencia principal en los primeros 3 segundos
+- Charts legibles y navegables con swipe/tabs por seccion
+- Touch targets de 44px+ en toda interaccion
+- Sin degradacion de la vista desktop existente
+
