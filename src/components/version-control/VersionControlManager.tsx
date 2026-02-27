@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, GitBranch, FileText, Wrench, BarChart3 } from "lucide-react";
+import { Plus, GitBranch, FileText, Wrench, BarChart3, DollarSign } from "lucide-react";
 import { useVersionControl } from "@/hooks/useVersionControl";
 import { VersionCard } from "./VersionCard";
 import { VersionForm } from "./VersionForm";
 import { ChangeLogTable } from "./ChangeLogTable";
 import { ChangeForm } from "./ChangeForm";
 import { VersionMetrics } from "./VersionMetrics";
+import { ProjectCostTracker } from "./ProjectCostTracker";
 import { SystemVersion } from "@/hooks/useVersionControl";
 
 export const VersionControlManager = () => {
@@ -105,6 +106,10 @@ export const VersionControlManager = () => {
         <TabsList>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="versions">Todas las Versiones</TabsTrigger>
+          <TabsTrigger value="costs" className="flex items-center gap-1.5">
+            <DollarSign className="w-3.5 h-3.5" />
+            Costos del Proyecto
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -166,6 +171,10 @@ export const VersionControlManager = () => {
               />
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="costs">
+          <ProjectCostTracker />
         </TabsContent>
       </Tabs>
     </div>
