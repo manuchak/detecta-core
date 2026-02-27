@@ -3,7 +3,9 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp, Target, Star } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
+import { MobileChartBlock } from '@/components/executive/MobileChartBlock';
 import { ExecutiveKPIsBar } from '@/components/executive/ExecutiveKPIsBar';
 import { StrategicPlanTracker } from '@/components/executive/StrategicPlanTracker';
 import { getCurrentMonthInfo } from '@/utils/dynamicDateUtils';
@@ -58,39 +60,41 @@ const ExecutiveDashboard = () => {
     else navigate('/dashboard');
   };
 
+  const isMobile = useIsMobile();
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-8 space-y-6">
+      <div className="container mx-auto px-3 py-4 md:px-6 md:py-8 space-y-4 md:space-y-6">
         {/* Header with Navigation */}
         <div className="flex items-center justify-between">
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4 flex-1 min-w-0">
             <div className="space-y-1">
-              <h1 className="text-3xl font-light tracking-tight text-foreground">
+              <h1 className="text-xl md:text-3xl font-light tracking-tight text-foreground">
                 Dashboard Ejecutivo
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm md:text-base text-muted-foreground truncate">
                 Respuestas directas sobre el cierre de {getCurrentMonthInfo().fullName}
               </p>
             </div>
             
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="executive" className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />Proyecciones
+              <TabsList className={isMobile ? "flex w-auto overflow-x-auto gap-1" : "grid w-full grid-cols-4"}>
+                <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <TrendingUp className="h-4 w-4" />{!isMobile && 'Proyecciones'}
                 </TabsTrigger>
-                <TabsTrigger value="plan" className="flex items-center gap-2">
-                  <Target className="h-4 w-4" />Plan 2026
+                <TabsTrigger value="plan" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Target className="h-4 w-4" />{!isMobile && 'Plan 2026'}
                 </TabsTrigger>
-                <TabsTrigger value="starmap" className="flex items-center gap-2">
-                  <Star className="h-4 w-4" />StarMap
+                <TabsTrigger value="starmap" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Star className="h-4 w-4" />{!isMobile && 'StarMap'}
                 </TabsTrigger>
-                <TabsTrigger value="kpis" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />KPIs
+                <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <BarChart3 className="h-4 w-4" />{!isMobile && 'KPIs'}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground hidden md:block">
             Última actualización: {new Date().toLocaleTimeString('es-MX')}
           </div>
         </div>
@@ -104,19 +108,38 @@ const ExecutiveDashboard = () => {
             <CriticalAlertsBar />
 
             {/* BLOQUE 1: GMV Principal */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <GmvDailyChart />
-              <div className="lg:col-span-2">
-                <GmvMoMChart />
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'Diario', content: <GmvDailyChart /> },
+                  { label: 'MoM', content: <GmvMoMChart /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <GmvDailyChart />
+                <div className="lg:col-span-2">
+                  <GmvMoMChart />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* BLOQUE 2: GMV Desgloses */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <GmvAccumulatedCard />
-              <GmvClientDonut />
-              <GmvByYearChart />
-            </div>
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'Acumulado', content: <GmvAccumulatedCard /> },
+                  { label: 'Clientes', content: <GmvClientDonut /> },
+                  { label: 'Anual', content: <GmvByYearChart /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <GmvAccumulatedCard />
+                <GmvClientDonut />
+                <GmvByYearChart />
+              </div>
+            )}
 
             {/* BLOQUE 2b: GMV Trimestral */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -124,31 +147,70 @@ const ExecutiveDashboard = () => {
             </div>
 
             {/* BLOQUE 3: Servicios */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <QuarterlyServicesChart />
-              <ServicesMoMChart />
-              <DailyServicesChart />
-            </div>
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'Trimestre', content: <QuarterlyServicesChart /> },
+                  { label: 'MoM', content: <ServicesMoMChart /> },
+                  { label: 'Diario', content: <DailyServicesChart /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <QuarterlyServicesChart />
+                <ServicesMoMChart />
+                <DailyServicesChart />
+              </div>
+            )}
 
             {/* BLOQUE 4: Servicios Avanzado */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <ServicesYoYChart />
-              <WeekdayComparisonChart />
-              <CriticalEventsChart />
-            </div>
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'YoY', content: <ServicesYoYChart /> },
+                  { label: 'Día Sem.', content: <WeekdayComparisonChart /> },
+                  { label: 'Eventos', content: <CriticalEventsChart /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <ServicesYoYChart />
+                <WeekdayComparisonChart />
+                <CriticalEventsChart />
+              </div>
+            )}
 
             {/* BLOQUE 5: AOV y Clientes */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <AovMoMChart />
-              <AovByClientChart />
-              <ClientServiceDonut />
-            </div>
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'AOV', content: <AovMoMChart /> },
+                  { label: 'AOV Cliente', content: <AovByClientChart /> },
+                  { label: 'Mix', content: <ClientServiceDonut /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <AovMoMChart />
+                <AovByClientChart />
+                <ClientServiceDonut />
+              </div>
+            )}
 
             {/* BLOQUE 6: Operacional */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <LocalForaneoMoMChart />
-              <ArmedServicesMoMChart />
-            </div>
+            {isMobile ? (
+              <MobileChartBlock
+                tabs={[
+                  { label: 'Local/Foráneo', content: <LocalForaneoMoMChart /> },
+                  { label: 'Armados', content: <ArmedServicesMoMChart /> },
+                ]}
+              />
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <LocalForaneoMoMChart />
+                <ArmedServicesMoMChart />
+              </div>
+            )}
 
             {/* Existentes: Finanzas + Comparativa + Forecast */}
             <FinancialSummaryPanel />

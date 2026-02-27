@@ -114,10 +114,10 @@ export const CriticalAlertsBar = () => {
       <Button 
         variant="ghost" 
         size="sm" 
-        className="h-6 w-6 p-0 ml-auto hover:bg-destructive/10"
+        className="h-11 w-11 md:h-6 md:w-6 p-0 ml-auto hover:bg-destructive/10 shrink-0"
         onClick={() => setDismissed(true)}
       >
-        <X className="h-3 w-3 text-muted-foreground" />
+        <X className="h-4 w-4 md:h-3 md:w-3 text-muted-foreground" />
       </Button>
     </div>
   );

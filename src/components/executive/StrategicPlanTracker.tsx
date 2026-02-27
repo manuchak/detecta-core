@@ -77,14 +77,14 @@ export const StrategicPlanTracker: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline" className="gap-1 text-muted-foreground">
                 <Clock className="h-3 w-3" />
-                Datos hasta {lastDataDay} {lastDataMonth}
+                <span className="hidden sm:inline">Datos hasta</span> {lastDataDay} {lastDataMonth}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Calendar className="h-3 w-3" />
-                Día {summary.currentDay} de {summary.daysInMonth}
+                Día {summary.currentDay}/{summary.daysInMonth}
               </Badge>
               <Badge className={cn("text-white", overallStatus.color)}>
                 {overallStatus.label}
@@ -93,29 +93,29 @@ export const StrategicPlanTracker: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-4 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="text-center">
-              <p className="text-2xl font-bold">{summary.actualServices.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Servicios MTD</p>
+              <p className="text-xl sm:text-2xl font-bold">{summary.actualServices.toLocaleString()}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Servicios MTD</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">
+              <p className="text-xl sm:text-2xl font-bold">
                 ${(summary.actualGMV / 1000000).toFixed(2)}M
               </p>
-              <p className="text-xs text-muted-foreground">GMV MTD</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">GMV MTD</p>
             </div>
             <div className="text-center">
               <p className={cn(
-                "text-2xl font-bold",
+                "text-xl sm:text-2xl font-bold",
                 summary.gapToProRata >= 0 ? "text-emerald-600" : "text-red-600"
               )}>
                 {summary.gapToProRata >= 0 ? '+' : ''}{summary.gapToProRata}
               </p>
-              <p className="text-xs text-muted-foreground">vs Pro-rata</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">vs Pro-rata</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">{summary.daysRemaining}</p>
-              <p className="text-xs text-muted-foreground">Días restantes</p>
+              <p className="text-xl sm:text-2xl font-bold">{summary.daysRemaining}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Días restantes</p>
             </div>
           </div>
         </CardContent>

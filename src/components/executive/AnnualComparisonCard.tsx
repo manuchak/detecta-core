@@ -103,23 +103,26 @@ export const AnnualComparisonCard = () => {
         </div>
 
         {/* Comparativa YTD Grid */}
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="p-2 bg-primary/5 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+          <div className="p-2 bg-primary/5 rounded-lg flex sm:block items-center justify-between">
+            <div className="text-xs text-muted-foreground sm:hidden">YTD {calculations.currentYear}</div>
             <div className="text-lg font-bold">{yearData.currentYTD.services.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">YTD {calculations.currentYear}</div>
+            <div className="hidden sm:block text-xs text-muted-foreground">YTD {calculations.currentYear}</div>
             <div className="text-xs text-muted-foreground">${yearData.currentYTD.gmv.toFixed(1)}M</div>
           </div>
-          <div className="p-2 bg-muted/50 rounded-lg">
+          <div className="p-2 bg-muted/50 rounded-lg flex sm:block items-center justify-between">
+            <div className="text-xs text-muted-foreground sm:hidden">YTD {calculations.previousYear}</div>
             <div className="text-lg font-bold text-muted-foreground">{yearData.previousYTD.services.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">YTD {calculations.previousYear}</div>
+            <div className="hidden sm:block text-xs text-muted-foreground">YTD {calculations.previousYear}</div>
             <div className="text-xs text-muted-foreground">${yearData.previousYTD.gmv.toFixed(1)}M</div>
           </div>
-          <div className={`p-2 rounded-lg ${isNegativeGrowth ? 'bg-destructive/10' : 'bg-success/10'}`}>
+          <div className={`p-2 rounded-lg flex sm:block items-center justify-between ${isNegativeGrowth ? 'bg-destructive/10' : 'bg-success/10'}`}>
+            <div className="text-xs text-muted-foreground sm:hidden">Brecha</div>
             <div className={`text-lg font-bold flex items-center justify-center gap-1 ${isNegativeGrowth ? 'text-destructive' : 'text-success'}`}>
               {isNegativeGrowth ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
               {yearData.growth.servicesPercent}%
             </div>
-            <div className="text-xs text-muted-foreground">Brecha</div>
+            <div className="hidden sm:block text-xs text-muted-foreground">Brecha</div>
             <div className={`text-xs ${isNegativeGrowth ? 'text-destructive' : 'text-success'}`}>
               {yearData.growth.servicesGap >= 0 ? '+' : ''}{yearData.growth.servicesGap.toLocaleString()} srv
             </div>
@@ -132,7 +135,7 @@ export const AnnualComparisonCard = () => {
             <Zap className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">Ritmo para igualar {calculations.previousYear}</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="text-center">
               <div className="text-xl font-bold">{calculations.currentAnnualPace.toFixed(1)}</div>
               <div className="text-xs text-muted-foreground">srv/día actual</div>
