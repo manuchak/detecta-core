@@ -78,7 +78,7 @@ const ExecutiveDashboard = () => {
             </div>
             
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className={isMobile ? "flex w-auto overflow-x-auto gap-1" : "grid w-full grid-cols-4"}>
+              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-4"}>
                 <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <TrendingUp className="h-4 w-4" />{!isMobile && 'Proyecciones'}
                 </TabsTrigger>
