@@ -1,135 +1,81 @@
 
+# Pestana de Costos del Proyecto en Control de Versiones
 
-# Actualizar control de versiones: de v1.3.0 a v2.0.0
+## Contexto
 
-## El problema: 4 meses sin versionamiento
+Lovable no expone una API para obtener conteo de mensajes ni costos. La informacion solo esta disponible visualmente en el panel de creditos del workspace. Por lo tanto, el sistema sera de **registro asistido**: al final de cada sesion, se registra manualmente el dato (o el AI lo sugiere).
 
-La ultima version registrada es **1.3.0** (22 de octubre 2025). Hoy es **27 de febrero 2026** -- han pasado **4 meses** sin registrar cambios. En ese tiempo, el sistema crecio de forma masiva. Registrar solo 3 cambios seria una subestimacion enorme.
+## Lo que se construira
 
-## Lo que realmente cambio
+### 1. Nueva tabla: `project_cost_entries`
 
-Tras analizar la estructura completa del proyecto, identifico al menos **8 areas mayores** de desarrollo desde v1.3.0:
+Registros periodicos de uso y costo:
 
-### Area 1: LMS completo (Learning Management System)
-- Sistema de cursos con wizard de creacion multi-paso
-- Generacion de contenido con IA (flashcards, quizzes, texto enriquecido)
-- Visor de contenido (video, texto, SCORM, embeds, interactivos)
-- Sistema de quizzes con multiples tipos de pregunta
-- Certificados con generacion PDF y verificacion publica
-- Gamificacion (badges, puntos)
-- Reportes de adopcion, rendimiento, progreso
-- Inscripciones masivas
-- Prompt personalizado para IA (AIPromptPopover)
-- Boton manual de completado en texto enriquecido
+| Columna | Tipo | Descripcion |
+|---------|------|-------------|
+| id | uuid PK | Identificador |
+| entry_date | date | Fecha del registro |
+| messages_count | integer | Mensajes del periodo |
+| estimated_cost_usd | numeric | Costo estimado (mensajes x $0.25) |
+| participants | text[] | Quienes participaron |
+| version_id | uuid FK nullable | Version asociada |
+| category | text | development, bugfix, maintenance |
+| notes | text | Descripcion del trabajo |
+| created_at | timestamptz | Timestamp |
 
-### Area 2: Facturacion Hub completo
-- Dashboard de facturacion con KPIs
-- Consulta y detalle de servicios
-- Generacion de facturas
-- Cuentas por cobrar con aging, cobranza, estados de cuenta
-- Cuentas por pagar a proveedores
-- Workflow de cobranza (etapas, promesas de pago, acciones)
-- Gastos extraordinarios
-- Gestion de clientes (credito, detalle)
-- Reportes financieros (cash flow, DSO, collection efficiency)
-- Incidencias de facturacion
+RLS: politica para usuarios autenticados (select, insert, update).
 
-### Area 3: Customer Success
-- Dashboard panoramico de salud de clientes
-- Sistema NPS con campanas y encuestas
-- CSAT surveys
-- Voice of Customer (VoC) con analisis IA
-- Quejas (CRUD, detalle, seguimiento)
-- Cartera de clientes con health scores
-- CAPA Kanban (acciones correctivas)
-- Touchpoints tracking
-- Loyalty funnel
-- Playbooks operativos
-- Retencion dashboard
-- Staff performance
-- Asignacion masiva de CSMs
+### 2. Datos historicos pre-cargados
 
-### Area 4: SIERCP (Sistema de Evaluacion de Riesgo)
-- Entrevista estructurada con formulario guiado
-- Dashboard de resultados con radar, gauge, semaforo
-- Generacion de reporte imprimible/PDF
-- Integracion con IA para analisis
-- Panel de validacion y decision
-- Persistencia y normalizacion de datos
+Insertar estimaciones retroactivas basadas en las versiones ya documentadas:
 
-### Area 5: Reclutamiento expandido
-- Evaluaciones psicometricas con panel SIERCP
-- Toxicologia (tab completo con formulario y badge)
-- Referencias (formulario, validacion, progreso, edicion/eliminacion)
-- Contratos (generacion, firma, preview, upload, progreso)
-- Documentos (upload, preview, progreso)
-- Estudio socioeconomico
-- Entrevistas con analisis IA
-- Analisis de riesgo del candidato
+| Version | Mensajes est. | Costo est. | Periodo |
+|---------|--------------|------------|---------|
+| 1.0.0 Genesis | ~200 | ~$50 | Jun-Ago 2025 |
+| 1.1.0 Security | ~80 | ~$20 | Ago 2025 |
+| 1.2.0 Version Control | ~100 | ~$25 | Oct 2025 |
+| 1.3.0 Import Wizard | ~150 | ~$37.50 | Oct 2025 |
+| 1.4.0 LMS Platform | ~500 | ~$125 | Nov 2025 |
+| 1.5.0 Facturacion | ~400 | ~$100 | Dic 2025 |
+| 1.6.0 Customer Success | ~450 | ~$112.50 | Dic 2025 |
+| 1.7.0 SIERCP | ~300 | ~$75 | Ene 2026 |
+| 1.8.0 Recruitment | ~350 | ~$87.50 | Ene 2026 |
+| 1.9.0 Monitoring | ~250 | ~$62.50 | Feb 2026 |
+| 2.0.0 Platform Maturity | ~400 | ~$100 | Feb 2026 |
+| **Total estimado** | **~3,180** | **~$795** | |
 
-### Area 6: Monitoreo expandido
-- Modo TV para pantallas de sala de monitoreo
-- Dashboard de adopcion digital
-- Checklists de monitoreo con auditoria
-- Panel de incidentes en tiempo real
-- Detalle de servicios activos con mapa
+### 3. Nuevo componente: `ProjectCostTracker.tsx`
 
-### Area 7: WMS expandido
-- Catalogo GPS con investigacion
-- Compras y ordenes de compra
-- Recepciones de mercancia
-- Desechos (wizard)
-- Devoluciones a proveedor (wizard)
-- Stock con edicion
-- RMA (devoluciones/garantias)
-- Proveedores
-- Configuracion
-- Audit log
+Dashboard con:
+- **4 KPI cards**: Costo total, Mensajes totales, Participantes, Promedio diario
+- **Grafica de linea**: Costo acumulado en el tiempo
+- **Grafica de barras**: Mensajes por version
+- **Tabla**: Desglose por version con costo y participantes
+- **Formulario**: Para agregar nuevas entradas (fecha, mensajes, categoria, notas)
+- **Parametro configurable**: Costo por mensaje (default $0.25 USD)
 
-### Area 8: Legal
-- Templates de contratos con editor
-- Historial de versiones de templates
-- Catalogo de variables
-- Compliance checklist
+### 4. Integracion en VersionControlManager
 
-## Propuesta de versionamiento
+Agregar tercera pestana "Costos del Proyecto" al TabsList principal.
 
-Dado el volumen de cambios, propongo crear **multiples versiones** para reflejar la historia real, no una sola version gigante:
+```text
+[Resumen] [Todas las Versiones] [Costos del Proyecto]
+```
 
-| Version | Nombre | Tipo | Cambios |
-|---------|--------|------|---------|
-| 1.3.0 | Import Wizard Enhancement | patch | (existente, cambiar status a released) |
-| 1.4.0 | LMS Platform | minor | ~10 cambios del modulo LMS |
-| 1.5.0 | Facturacion Hub | minor | ~8 cambios del hub de facturacion |
-| 1.6.0 | Customer Success | minor | ~7 cambios de CS |
-| 1.7.0 | SIERCP & Evaluaciones | minor | ~6 cambios de evaluacion |
-| 1.8.0 | Recruitment Pipeline | minor | ~6 cambios de reclutamiento |
-| 1.9.0 | Monitoring & Operations | minor | ~5 cambios de monitoreo |
-| 2.0.0 | Platform Maturity | major | WMS, Legal, AI prompts, UX fixes |
+## Archivos
 
-## Implementacion tecnica
+| Archivo | Accion |
+|---------|--------|
+| Migration SQL | Crear tabla `project_cost_entries` con RLS |
+| Seed SQL (insert) | Insertar datos historicos estimados |
+| `src/components/version-control/ProjectCostTracker.tsx` | Nuevo: dashboard de costos |
+| `src/components/version-control/CostEntryForm.tsx` | Nuevo: formulario de entrada |
+| `src/hooks/useProjectCosts.ts` | Nuevo: hook CRUD |
+| `src/components/version-control/VersionControlManager.tsx` | Modificar: agregar tab |
 
-### Paso 1: Actualizar v1.3.0
-- Cambiar status de `testing` a `released`
+## Sobre la actualizacion
 
-### Paso 2: Crear 7 nuevas versiones
-- Insertar cada version en `system_versions` con fechas escalonadas (nov 2025 - feb 2026)
-
-### Paso 3: Insertar cambios por version
-- Cada version tendra entre 5-10 registros en `system_changes` con:
-  - `change_type`: feature, enhancement, bugfix, security
-  - `module`: nombre del area
-  - `impact_level`: low, medium, high, critical
-  - `title` y `description` descriptivos
-  - `affected_components`: array de componentes clave
-  - `technical_details`: detalles de implementacion
-
-### Archivos a modificar
-- **0 archivos de codigo**: todo se inserta via SQL en la base de datos
-- Se usaran migrations/queries directas a las tablas `system_versions` y `system_changes`
-
-### Estimacion
-- ~7 inserts en `system_versions`
-- ~50 inserts en `system_changes`
-- Release notes descriptivos para cada version
-
+Al no existir una API automatica, la actualizacion sera:
+- **Manual asistida**: Al final de sesiones de trabajo, se registra el dato
+- **Estimaciones retroactivas**: Los datos historicos se pre-cargan con estimaciones razonables basadas en la complejidad de cada version
+- **Calculo automatico**: Al ingresar solo el numero de mensajes, el sistema calcula el costo usando el precio por mensaje configurable
