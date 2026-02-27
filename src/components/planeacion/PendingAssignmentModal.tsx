@@ -108,7 +108,7 @@ export function PendingAssignmentModal({
     if (!custodioNombre) return null;
     return { custodio_nombre: custodioNombre };
   });
-  const { assignCustodian, assignArmedGuard } = useServiciosPlanificados();
+  const { assignCustodianAsync, assignArmedGuardAsync } = useServiciosPlanificados();
   const { servicioToEditable } = useServiceTransformations();
 
   // === NUEVO: Estado para componentes modulares de asignación ===
@@ -409,17 +409,17 @@ export function PendingAssignmentModal({
     console.log('[PendingAssignmentModal] onComplete custodio', { assignmentData, service });
     setIsAssigning(true);
     try {
-      // Asignar custodio al servicio
-      await assignCustodian({
+      // ✅ FIX: Usar mutateAsync para esperar persistencia real en BD
+      await assignCustodianAsync({
         serviceId: service.id,
         custodioName: assignmentData.custodio_nombre,
         custodioId: assignmentData.custodio_asignado_id
       });
 
+      // Solo avanzar si la mutación fue exitosa (sin throw)
       setCustodianAssigned(assignmentData);
 
       // 📲 WHATSAPP: Enviar template de servicio asignado al custodio
-      // Buscar teléfono del custodio seleccionado
       const selectedCustodio = filteredCustodians.find(c => c.id === assignmentData.custodio_asignado_id);
       if (selectedCustodio?.telefono) {
         const fechaServicio = service.fecha_hora_cita 
@@ -429,7 +429,6 @@ export function PendingAssignmentModal({
           ? format(new Date(service.fecha_hora_cita), 'HH:mm')
           : 'Por confirmar';
 
-        // Enviar template servicio_asignado de forma asíncrona (no bloqueante)
         sendTemplate.mutate({
           to: selectedCustodio.telefono,
           templateName: 'servicio_asignado',
@@ -457,19 +456,20 @@ export function PendingAssignmentModal({
         toast.success('Custodio asignado exitosamente', {
           description: 'Ahora proceda a asignar el armado requerido'
         });
-        // 🔄 DYNAMIC: Actualizar el estado local del servicio para que el siguiente paso tenga la info correcta
         setActiveTab('armed');
       } else {
-        // 🔄 DYNAMIC: Solo refetch y cerrar si NO requiere armado
         onAssignmentComplete();
         toast.success('Servicio asignado exitosamente', {
           description: `${assignmentData.custodio_nombre} ha sido asignado al servicio ${service.id_servicio}`
         });
         onOpenChange(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error assigning custodian:', error);
-      // Error handling is now done in the hook
+      // ✅ FIX: NO avanzar de paso ni mostrar éxito — el error ya se muestra via onError del hook
+      toast.error('Error al asignar custodio', {
+        description: error?.message || 'La asignación no se pudo completar. Intente de nuevo.'
+      });
     } finally {
       setIsAssigning(false);
     }
@@ -478,21 +478,26 @@ export function PendingAssignmentModal({
   const handleArmedGuardAssignmentComplete = async (armedData: any) => {
     setIsAssigning(true);
     try {
-      await assignArmedGuard({
-        serviceId: service.id, // UUID primary key - la mutación soporta ambos formatos
+      // ✅ FIX: Usar mutateAsync para esperar persistencia real en BD
+      await assignArmedGuardAsync({
+        serviceId: service.id,
         armadoName: armedData.armado_nombre,
         armadoId: armedData.armado_id
       });
 
+      // Solo mostrar éxito y cerrar si la mutación fue exitosa
       toast.success('Servicio completamente asignado', {
         description: `Custodio: ${custodianAssigned?.custodio_nombre} | Armado: ${armedData.armado_nombre}`
       });
 
       onOpenChange(false);
       onAssignmentComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error assigning armed guard:', error);
-      toast.error('Error al asignar armado');
+      // ✅ FIX: NO cerrar modal ni mostrar éxito
+      toast.error('Error al asignar armado', {
+        description: error?.message || 'La asignación no se pudo completar. Intente de nuevo.'
+      });
     } finally {
       setIsAssigning(false);
     }
