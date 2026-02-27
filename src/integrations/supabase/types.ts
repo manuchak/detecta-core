@@ -13513,6 +13513,50 @@ export type Database = {
           },
         ]
       }
+      project_cost_entries: {
+        Row: {
+          category: string
+          created_at: string
+          entry_date: string
+          estimated_cost_usd: number
+          id: string
+          messages_count: number
+          notes: string | null
+          participants: string[] | null
+          version_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          entry_date: string
+          estimated_cost_usd?: number
+          id?: string
+          messages_count?: number
+          notes?: string | null
+          participants?: string[] | null
+          version_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          entry_date?: string
+          estimated_cost_usd?: number
+          id?: string
+          messages_count?: number
+          notes?: string | null
+          participants?: string[] | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_cost_entries_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "system_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protocolos_seguridad: {
         Row: {
           checklist_items: Json | null
