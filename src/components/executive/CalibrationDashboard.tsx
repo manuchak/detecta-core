@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,6 +17,7 @@ import DecemberHistoricalComparison from './DecemberHistoricalComparison';
 const CalibrationDashboard = () => {
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
   const [activeTab, setActiveTab] = useState('prediccion');
+  const isMobile = useIsMobile();
   
   const { 
     forecast, 
@@ -104,38 +106,40 @@ const CalibrationDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className={isMobile ? "space-y-3" : "flex justify-between items-center"}>
         <div>
-          <h2 className="text-2xl font-bold">Calibración del Sistema de Forecasting</h2>
-          <p className="text-muted-foreground">
-            Monitoreo y evaluación de precisión en tiempo real
-          </p>
+          <h2 className="text-xl md:text-2xl font-bold">Calibración del Sistema de Forecasting</h2>
+          {!isMobile && (
+            <p className="text-muted-foreground">
+              Monitoreo y evaluación de precisión en tiempo real
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => runBacktest()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Ejecutar Backtesting
+            <RefreshCw className="h-4 w-4 mr-1 md:mr-2" />
+            {isMobile ? 'Backtest' : 'Ejecutar Backtesting'}
           </Button>
           <Button size="sm" onClick={triggerRecalibration}>
-            Recalibrar Modelo
+            {isMobile ? 'Recalibrar' : 'Recalibrar Modelo'}
           </Button>
         </div>
       </div>
 
       {/* Tabs para diferentes vistas */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="prediccion" className="flex items-center gap-2">
+        <TabsList className={isMobile ? "flex w-auto gap-1 overflow-x-auto scrollbar-hide" : ""}>
+          <TabsTrigger value="prediccion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
             <Target className="h-4 w-4" />
-            Predicción Actual
+            {isMobile ? 'Predicción' : 'Predicción Actual'}
           </TabsTrigger>
-          <TabsTrigger value="diciembre" className="flex items-center gap-2">
+          <TabsTrigger value="diciembre" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
             <Calendar className="h-4 w-4" />
-            Diciembre Histórico
+            {isMobile ? 'Dic. Hist.' : 'Diciembre Histórico'}
           </TabsTrigger>
-          <TabsTrigger value="calibracion" className="flex items-center gap-2">
+          <TabsTrigger value="calibracion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
             <Settings className="h-4 w-4" />
-            Calibración Feriados
+            {isMobile ? 'Feriados' : 'Calibración Feriados'}
           </TabsTrigger>
         </TabsList>
 
@@ -165,7 +169,7 @@ const CalibrationDashboard = () => {
       </Alert>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Precisión General</CardTitle>

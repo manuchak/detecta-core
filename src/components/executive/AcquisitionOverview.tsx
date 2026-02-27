@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export const AcquisitionOverview = () => {
   const { data: metrics, isLoading } = useAcquisitionMetrics();
+  const isMobile = useIsMobile();
 
   if (isLoading || !metrics) {
     return (
@@ -93,7 +95,7 @@ export const AcquisitionOverview = () => {
   return (
     <div className="space-y-6">
       {/* Acquisition KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {acquisitionKPIs.map((kpi, index) => {
           const Icon = kpi.icon;
           // Lógica corregida: determinar si el trend es bueno basado en el contexto del KPI
@@ -145,7 +147,7 @@ export const AcquisitionOverview = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
               <LineChart data={metrics.leadsByMonth}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
@@ -184,15 +186,15 @@ export const AcquisitionOverview = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
               <PieChart>
                 <Pie
                   data={metrics.expensesByChannel}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ channel, percentage }) => `${channel}: ${percentage}%`}
-                  outerRadius={80}
+                  labelLine={!isMobile}
+                  label={isMobile ? undefined : ({ channel, percentage }) => `${channel}: ${percentage}%`}
+                  outerRadius={isMobile ? 70 : 80}
                   fill="#8884d8"
                   dataKey="amount"
                 >

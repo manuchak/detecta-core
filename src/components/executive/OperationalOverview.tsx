@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,7 @@ const MONTH_NAMES = [
 
 export const OperationalOverview = () => {
   const { data: metrics, isLoading } = useOperationalMetrics();
+  const isMobile = useIsMobile();
   
   // Dynamic date calculations
   const { currentMonthLabel, quarterLabel, mtdLabel, previousMonthLabel } = useMemo(() => {
@@ -208,12 +210,13 @@ export const OperationalOverview = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Completados */}
+              <div className={isMobile ? "space-y-1.5 p-2 rounded-lg bg-muted/30" : "flex items-center justify-between"}>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500" />
                   <span className="text-sm">Completados</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 ${isMobile ? 'pl-6' : 'gap-3'}`}>
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.completedChange >= 0 
@@ -230,12 +233,13 @@ export const OperationalOverview = () => {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
+              {/* Pendientes */}
+              <div className={isMobile ? "space-y-1.5 p-2 rounded-lg bg-muted/30" : "flex items-center justify-between"}>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-amber-500" />
                   <span className="text-sm">Pendientes</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 ${isMobile ? 'pl-6' : 'gap-3'}`}>
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.pendingChange <= 0 
@@ -252,12 +256,13 @@ export const OperationalOverview = () => {
                 </div>
               </div>
               
-              <div className="flex items-center justify-between">
+              {/* Cancelados */}
+              <div className={isMobile ? "space-y-1.5 p-2 rounded-lg bg-muted/30" : "flex items-center justify-between"}>
                 <div className="flex items-center gap-2">
                   <XCircle className="h-4 w-4 text-red-500" />
                   <span className="text-sm">Cancelados</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 ${isMobile ? 'pl-6' : 'gap-3'}`}>
                   <Badge 
                     className={`text-xs px-1.5 py-0 ${
                       metrics.servicesDistribution.cancelledChange <= 0 

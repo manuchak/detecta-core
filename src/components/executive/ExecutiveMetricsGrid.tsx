@@ -154,7 +154,7 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
   return (
     <div className={className}>
       {/* Primeras 10 tarjetas - KPIs generales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-6">
         {kpiConfig.slice(0, 10).map((kpi) => (
           <KPIHeroCard
             key={kpi.key}
@@ -196,16 +196,16 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
       </div>
 
       {/* Separador y subtítulo para Capacidad Custodias */}
-      <div className="mt-8 mb-6">
-        <div className="flex items-center gap-4">
+      <div className="mt-6 md:mt-8 mb-4 md:mb-6">
+        <div className="flex items-center gap-3 md:gap-4">
           <div className="flex-1 h-px bg-border"></div>
-          <h3 className="text-lg font-semibold text-muted-foreground">Capacidad Custodias</h3>
+          <h3 className="text-sm md:text-lg font-semibold text-muted-foreground whitespace-nowrap">Capacidad Custodias</h3>
           <div className="flex-1 h-px bg-border"></div>
         </div>
       </div>
 
       {/* Últimas 5 tarjetas - KPIs de Capacidad */}
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-6">
         {kpiConfig.slice(10).map((kpi) => (
           <KPIHeroCard
             key={kpi.key}

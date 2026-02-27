@@ -28,13 +28,13 @@ export function KPIHeroCard({
   if (loading) {
     return (
       <div className={cn(
-        "bg-card border border-border/50 rounded-xl p-6 hover-lift",
+        "bg-card border border-border/50 rounded-xl p-4 md:p-6 hover-lift",
         "shadow-apple hover:shadow-apple-md transition-all duration-200",
         className
       )}>
         <div className="space-y-3">
           <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
-          <div className="h-8 bg-muted animate-pulse rounded w-1/2"></div>
+          <div className="h-6 md:h-8 bg-muted animate-pulse rounded w-1/2"></div>
           <div className="h-3 bg-muted animate-pulse rounded w-1/4"></div>
         </div>
       </div>
@@ -72,9 +72,9 @@ export function KPIHeroCard({
   const cardContent = (
     <div 
       className={cn(
-        "bg-card border border-border/50 rounded-xl p-6 hover-lift",
+      "bg-card border border-border/50 rounded-xl p-4 md:p-6 hover-lift",
         "shadow-apple hover:shadow-apple-md transition-all duration-200",
-        "group cursor-pointer",
+        "group cursor-pointer active:scale-95 transition-transform",
         className
       )}
       onClick={onClick}
@@ -87,7 +87,7 @@ export function KPIHeroCard({
         
         {/* Value */}
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-light tracking-tight text-foreground">
+          <span className="text-2xl md:text-3xl font-light tracking-tight text-foreground">
             {formatValue()}
           </span>
           {unit && (
