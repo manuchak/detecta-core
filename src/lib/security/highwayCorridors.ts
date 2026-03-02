@@ -473,6 +473,120 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-116.6200, 31.8700],
     ],
   },
+
+  // === NUEVOS CORREDORES P0 - Fase 1 ===
+  {
+    id: 'cordoba-puebla',
+    name: 'Córdoba-Orizaba-Puebla (150D Sur)',
+    riskLevel: 'alto',
+    description: '19% de incidentes nacionales (AMESIS 2025). 2do corredor más peligroso de México',
+    kilometers: 190,
+    avgEventsPerHex: 7,
+    waypoints: [
+      [-96.9300, 18.8900],  // Córdoba
+      [-97.0900, 18.8500],  // Orizaba
+      [-97.2500, 18.8200],  // Cd. Mendoza / Maltrata
+      [-97.4000, 18.8000],  // Cumbres de Maltrata
+      [-97.6300, 18.8300],  // Esperanza
+      [-97.8500, 18.9200],  // Tehuacán entronque
+      [-98.0500, 19.0000],  // Amozoc
+      [-98.2000, 19.0414],  // Puebla
+    ],
+  },
+  {
+    id: 'cdmx-cuernavaca-acapulco',
+    name: 'CDMX-Cuernavaca-Acapulco (95D)',
+    riskLevel: 'alto',
+    description: 'Autopista del Sol. Guerrero = zona roja. Bloqueos frecuentes',
+    kilometers: 380,
+    avgEventsPerHex: 5,
+    waypoints: [
+      [-99.1700, 19.4200],  // CDMX Sur
+      [-99.2200, 19.2500],  // Tres Marías
+      [-99.2340, 18.9220],  // Cuernavaca
+      [-99.3500, 18.7500],  // Alpuyeca
+      [-99.5000, 18.4500],  // Taxco entronque
+      [-99.6500, 18.0000],  // Iguala
+      [-99.7500, 17.5500],  // Chilpancingo
+      [-99.8900, 16.8500],  // Acapulco
+    ],
+  },
+  {
+    id: 'cdmx-pachuca',
+    name: 'CDMX-Pachuca (85D)',
+    riskLevel: 'medio',
+    description: 'Alto tráfico, conexión con Arco Norte. Rutas a Tizayuca/Pachuca',
+    kilometers: 95,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-99.1332, 19.4326],  // CDMX Norte
+      [-99.0800, 19.5300],  // Ecatepec
+      [-98.9500, 19.6100],  // Tizayuca
+      [-98.8200, 19.7200],  // Pachuca aproximación
+      [-98.7300, 20.1010],  // Pachuca
+    ],
+  },
+  {
+    id: 'torreon-monterrey',
+    name: 'Torreón-Monterrey (40D)',
+    riskLevel: 'alto',
+    description: 'Corredor industrial La Laguna-MTY. Zona de conflicto entre cárteles',
+    kilometers: 300,
+    avgEventsPerHex: 5,
+    waypoints: [
+      [-103.4500, 25.5400],  // Torreón
+      [-103.2000, 25.4200],  // Gómez Palacio
+      [-102.5500, 25.3000],  // Parras
+      [-101.4500, 25.3800],  // Saltillo Sur
+      [-101.0000, 25.4200],  // Saltillo
+      [-100.3100, 25.6700],  // Monterrey
+    ],
+  },
+  {
+    id: 'chihuahua-ciudad-juarez',
+    name: 'Chihuahua-Cd. Juárez (45 Norte)',
+    riskLevel: 'alto',
+    description: 'Corredor maquiladora IMMEX. Rutas activas en matriz de precios',
+    kilometers: 370,
+    avgEventsPerHex: 4,
+    waypoints: [
+      [-106.0889, 28.6353],  // Chihuahua
+      [-106.3500, 29.1000],  // Sacramento
+      [-106.4000, 29.5500],  // Villa Ahumada
+      [-106.4200, 30.3500],  // Samalayuca
+      [-106.4300, 31.7400],  // Cd. Juárez
+    ],
+  },
+  {
+    id: 'villahermosa-coatzacoalcos',
+    name: 'Villahermosa-Coatzacoalcos (180)',
+    riskLevel: 'medio',
+    description: 'Corredor petroquímico. Rutas a Villahermosa en matriz',
+    kilometers: 250,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-92.9475, 17.9893],  // Villahermosa
+      [-93.2000, 18.0500],  // Cárdenas
+      [-93.6000, 18.1500],  // Agua Dulce
+      [-94.1000, 18.1000],  // Las Choapas
+      [-94.4300, 18.1300],  // Coatzacoalcos
+    ],
+  },
+  {
+    id: 'tepic-mazatlan',
+    name: 'Tepic-Mazatlán (15D Norte)',
+    riskLevel: 'medio',
+    description: 'Costa Pacífico norte, conecta con corredor Nogales',
+    kilometers: 290,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-104.8950, 21.5040],  // Tepic
+      [-105.2500, 21.8000],  // Acaponeta
+      [-105.6000, 22.3000],  // Escuinapa
+      [-105.9500, 22.8000],  // Mazatlán Norte
+      [-106.4200, 23.2300],  // Mazatlán
+    ],
+  },
 ];
 
 // Helper to get corridors by risk level
