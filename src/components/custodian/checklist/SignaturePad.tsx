@@ -1,57 +1,63 @@
  /**
   * Canvas táctil para capturar firma digital del custodio
   */
- import { useRef, useEffect, useState } from 'react';
- import { Eraser, Check } from 'lucide-react';
- import { Button } from '@/components/ui/button';
- import { cn } from '@/lib/utils';
- 
- interface SignaturePadProps {
-   value: string | null;
-   onChange: (signature: string | null) => void;
-   className?: string;
- }
- 
- export function SignaturePad({
-   value,
-   onChange,
-   className,
- }: SignaturePadProps) {
-   const canvasRef = useRef<HTMLCanvasElement>(null);
-   const [isDrawing, setIsDrawing] = useState(false);
-   const [hasSignature, setHasSignature] = useState(false);
- 
-   // Configurar canvas al montar
-   useEffect(() => {
-     const canvas = canvasRef.current;
-     if (!canvas) return;
- 
-     const ctx = canvas.getContext('2d');
-     if (!ctx) return;
- 
-     // Ajustar resolución para dispositivos de alta densidad
-     const rect = canvas.getBoundingClientRect();
-     const dpr = window.devicePixelRatio || 1;
-     canvas.width = rect.width * dpr;
-     canvas.height = rect.height * dpr;
-     ctx.scale(dpr, dpr);
- 
-     // Estilo del trazo
-     ctx.strokeStyle = '#000';
-     ctx.lineWidth = 2;
-     ctx.lineCap = 'round';
-     ctx.lineJoin = 'round';
- 
-     // Si hay valor previo, cargar imagen
-     if (value) {
-       const img = new Image();
-       img.onload = () => {
-         ctx.drawImage(img, 0, 0, rect.width, rect.height);
-         setHasSignature(true);
-       };
-       img.src = value;
-     }
-   }, []);
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { Eraser, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface SignaturePadProps {
+  value: string | null;
+  onChange: (signature: string | null) => void;
+  className?: string;
+}
+
+export function SignaturePad({
+  value,
+  onChange,
+  className,
+}: SignaturePadProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSignature, setHasSignature] = useState(false);
+  const lastLoadedValue = useRef<string | null>(null);
+
+  // Configurar canvas y cargar valor
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Ajustar resolución para dispositivos de alta densidad
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Estilo del trazo
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Guard anti-loop: solo redibujar si el value cambió
+    if (value && value !== lastLoadedValue.current) {
+      lastLoadedValue.current = value;
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        setHasSignature(true);
+      };
+      img.src = value;
+    } else if (!value) {
+      lastLoadedValue.current = null;
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      setHasSignature(false);
+    }
+  }, [value]);
  
    const getPosition = (
      e: React.TouchEvent | React.MouseEvent

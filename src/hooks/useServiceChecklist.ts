@@ -2,7 +2,7 @@
   * Hook principal para gestionar el checklist de servicio
   * Maneja estado local, guardado offline y sincronización
   */
- import { useState, useCallback, useEffect } from 'react';
+ import { useState, useCallback, useEffect, useRef } from 'react';
  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
  import { supabase } from '@/integrations/supabase/client';
   import { toast } from 'sonner';
@@ -53,8 +53,16 @@ export function useServiceChecklist({
    const [fotos, setFotos] = useState<FotoValidada[]>([]);
    const [observaciones, setObservaciones] = useState('');
    const [firma, setFirma] = useState<string | null>(null);
-   const [isSaving, setIsSaving] = useState(false);
-   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(true);
+
+  // Refs para evitar re-renders excesivos en capturePhoto
+  const itemsRef = useRef(items);
+  const observacionesRef = useRef(observaciones);
+  const firmaRef = useRef(firma);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  useEffect(() => { observacionesRef.current = observaciones; }, [observaciones]);
+  useEffect(() => { firmaRef.current = firma; }, [firma]);
  
    const existingChecklistQuery = useQuery({
      queryKey: ['service-checklist', servicioId],
@@ -195,7 +203,7 @@ export function useServiceChecklist({
 
         const [compressed, coords] = await Promise.all([compressionPromise, gpsPromise]);
 
-        reportProgress('Guardando...');
+        reportProgress('Guardando foto...');
         if (compressed) {
           processedFile = compressed.blob;
           mimeType = 'image/jpeg';
@@ -232,7 +240,7 @@ export function useServiceChecklist({
         }
 
         // --- FASE 3: Guardar en IndexedDB ---
-        reportProgress('Guardando...');
+        
         const photoId = crypto.randomUUID();
         const newFoto: FotoValidada = {
           angle,
@@ -268,20 +276,20 @@ export function useServiceChecklist({
           return [...filtered, newFoto];
         });
 
-        // Guardar borrador inmediatamente después de foto
+        // Guardar borrador inmediatamente después de foto (usando refs)
         saveDraft({
           servicioId,
           custodioPhone: custodioTelefono,
-          items,
-          observaciones,
-          firma: firma || undefined,
+          items: itemsRef.current,
+          observaciones: observacionesRef.current,
+          firma: firmaRef.current || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }).catch(() => {});
 
         return newFoto;
       },
-      [servicioId, origenCoords, isOnline, custodioTelefono, items, observaciones, firma]
+      [servicioId, origenCoords, isOnline, custodioTelefono]
     );
  
    const removePhoto = useCallback(

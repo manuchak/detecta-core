@@ -201,18 +201,20 @@ const uploadQueue = getGlobalUploadQueue({
         });
        }
  
-      // Esperar a que la cola termine
-      const checkCompletion = setInterval(async () => {
+      // Esperar a que la cola termine con setTimeout recursivo
+      const checkCompletion = async () => {
         if (!uploadQueue.isProcessing()) {
-          clearInterval(checkCompletion);
           const updatedQueue = await getSyncQueue();
           setPendingCount(updatedQueue.length);
           setSyncStatus(updatedQueue.length > 0 ? 'error' : 'success');
           if (updatedQueue.length > 0) {
             setLastSyncError(`${updatedQueue.length} elementos pendientes`);
           }
+        } else {
+          setTimeout(checkCompletion, 1000);
         }
-      }, 1000);
+      };
+      setTimeout(checkCompletion, 1000);
      } catch (error) {
        setSyncStatus('error');
        setLastSyncError(
