@@ -1,78 +1,141 @@
 
-# Subida de Constancia de Capacitacion (Induccion al Puesto)
 
-## Contexto del requerimiento
+# Analisis de Performance y Error del Checklist de Custodios
 
-El equipo de Supply necesita subir el documento fisico firmado de "Induccion al Puesto" como evidencia de que el candidato tomo la capacitacion presencial. Actualmente existe un boton "Marcar como Completada (Presencial)" que solo actualiza la base de datos, pero **no permite adjuntar el documento escaneado/fotografiado**. Sin este archivo, no hay evidencia auditable y el proceso de liberacion queda incompleto.
+## 1. Error de Hugo: "Error al capturar la foto. Intenta de nuevo."
 
-## Analisis del sistema actual
+### Causa raiz identificada
 
-- Ya existe `marcarCapacitacionManual` en `useCapacitacion.ts` que marca todos los modulos como completados y acepta `notas`.
-- Ya existe `AdminDocumentUploadDialog` como patron probado para subida de documentos por parte del equipo Supply.
-- La tabla `progreso_capacitacion` ya tiene campo `completado_manual_notas` pero **no tiene campo para URL de archivo**.
-- La tabla `documentos_candidato` maneja documentos de reclutamiento con `tipo_documento` y `archivo_url`.
+El error viene de `PhotoSlot.tsx` linea 61: `toast.error('Error al capturar la foto. Intenta de nuevo.')`. Este toast se dispara cuando `onCapture(angle, file)` lanza una excepcion. Rastreando la cadena, `onCapture` es `capturePhoto` en `useServiceChecklist.ts` (linea 157-244), que ejecuta esta secuencia:
 
-## Recomendacion de implementacion
+```text
+1. needsCompression(file) --> compressImage() --> Canvas API
+2. getCurrentPositionSafe() --> GPS timeout 10s
+3. savePhotoBlob() --> IndexedDB write
+```
 
-### Opcion elegida: Agregar a `documentos_candidato` con tipo "constancia_capacitacion"
+Los puntos de fallo probables (en orden de probabilidad):
 
-En lugar de modificar la tabla `progreso_capacitacion` (que es por modulo), es mas limpio y consistente usar `documentos_candidato` que ya tiene la infraestructura de archivo, validacion y visualizacion. Esto permite que la constancia aparezca tanto en la seccion de Capacitacion como en la seccion de Documentacion del perfil operativo.
+| Causa | Probabilidad | Evidencia |
+|-------|-------------|-----------|
+| **Compresion de imagen falla en dispositivo legacy** | Alta | La compresion usa Canvas API con timeouts de 8s (img.onload) y 5s (toBlob). En telefonos Android de gama baja, `toBlob` puede fallar silenciosamente o el timeout de 8s para cargar la imagen no es suficiente |
+| **GPS timeout de 10s** | Media | `getCurrentPositionSafe` espera hasta 10s. No deberia lanzar error (retorna null), pero si el dispositivo tiene GPS problematico podria causar un error no manejado |
+| **IndexedDB quota exceeded** | Baja-Media | Si Hugo ya tiene fotos de servicios anteriores sin sincronizar, el storage podria estar lleno. `savePhotoBlob` no tiene try/catch propio |
+| **Blob de 0 bytes post-compresion** | Baja | El codigo ya valida esto (linea 179) y lanza error explicito, pero el toast generico lo oculta |
 
-### Cambios planificados
+### Solucion propuesta
 
-#### 1. Migracion SQL — Nuevo tipo de documento
+Mejorar el manejo de errores en `capturePhoto` para:
+- Diferenciar el tipo de error y mostrar un mensaje especifico (no generico)
+- Agregar fallback: si la compresion falla, usar el archivo original
+- Agregar logging estructurado para diagnostico remoto
+- Manejar quota de IndexedDB con limpieza automatica
 
-Agregar `'constancia_capacitacion'` como valor aceptado en `documentos_candidato.tipo_documento`. Esto permite reutilizar toda la infraestructura existente de storage, validacion y visualizacion.
+## 2. Analisis de Performance y Adopcion (< 60%)
 
-#### 2. `useCapacitacion.ts` — Extender `marcarCapacitacionManual`
+### Problemas identificados que impactan la adopcion
 
-Modificar la mutacion para aceptar un archivo opcional:
-- Parametros: `{ notas?: string, archivo?: File }`
-- Si se proporciona archivo: subirlo a storage bucket `documentos-candidatos` con path `{candidatoId}/constancia_capacitacion_{timestamp}.{ext}`
-- Insertar registro en `documentos_candidato` con tipo `constancia_capacitacion` y la URL del archivo
-- Mantener el flujo actual de marcar modulos como completados
+#### A. Flujo demasiado largo y bloqueante
 
-#### 3. `TrainingTab.tsx` — Dialog mejorado con zona de upload
+El wizard tiene 4 pasos OBLIGATORIOS en secuencia estricta:
+1. **Documentos** — Bloquea si hay documentos vencidos/rechazados/faltantes (linea 46). El custodio NO puede hacer el checklist si no tiene 3 documentos vigentes. Esto es un muro para custodios nuevos o con documentacion pendiente.
+2. **Inspeccion** — 11 items (6 vehiculo + 4 equipamiento + combustible). Cada uno requiere interaccion manual.
+3. **Fotos** — 4 fotos obligatorias. Cada una dispara compresion + GPS. En un telefono lento, cada foto puede tardar 8-13 segundos en procesarse.
+4. **Firma** — Requiere firma digital.
 
-El dialog actual de "Marcar como Completada (Presencial)" solo tiene un textarea de notas. Se modificara para incluir:
-- Zona de drag-and-drop / click para subir archivo (PDF, JPG, PNG)
-- Preview del archivo seleccionado (imagen o icono PDF)
-- El campo de notas existente se mantiene
-- El archivo sera **obligatorio** — no se puede marcar capacitacion presencial sin evidencia
-- Compresion de imagenes via Canvas API (patron ya establecido en el proyecto)
+**Tiempo estimado en dispositivo lento: 5-8 minutos.** Los custodios tienen prisa antes de un servicio.
 
-#### 4. `DocumentacionTab.tsx` — Visibilidad de la constancia
+#### B. Compresion sincrona y bloqueo de UI
 
-Agregar la constancia de capacitacion a la lista de documentos visibles en la seccion "Documentos de Reclutamiento" del perfil operativo. Solo requiere agregar el label en `DOCUMENTO_LABELS`:
-- `constancia_capacitacion: 'Constancia de Capacitacion / Induccion'`
+Cuando el custodio toma una foto:
+1. `compressImage` ejecuta en el hilo principal (Canvas API)
+2. El spinner aparece pero la UI puede congelarse 3-5s en Android gama baja
+3. Simultaneamente, `getCurrentPositionSafe` espera hasta 10s por GPS
+4. Total: el custodio puede esperar hasta 15s por foto sin feedback claro
 
-Esto funciona automaticamente porque `useProfileDocuments` ya trae todos los `documentos_candidato`.
+#### C. Sin indicador de progreso real
 
-#### 5. `LiberacionChecklistModal.tsx` — Validacion de evidencia
+El spinner de `PhotoSlot` (linea 129-131) solo muestra una animacion generica. No indica "Comprimiendo...", "Obteniendo GPS...", "Guardando...". El custodio no sabe si la app esta trabajando o se colgó.
 
-Actualmente el checklist de liberacion verifica `capacitacion_completa` (booleano). Se complementa para verificar tambien que exista el documento `constancia_capacitacion` en `documentos_candidato`, mostrando un warning amarillo si la capacitacion esta marcada como completa pero no tiene documento adjunto.
+#### D. Error handling opaco
 
-### Archivos a modificar
+Todos los errores muestran el mismo toast generico: "Error al capturar la foto. Intenta de nuevo." Sin distincion entre:
+- Camara denegada por el navegador
+- Compresion fallida
+- Storage lleno
+- GPS no disponible (que no deberia ser error)
 
-| Archivo | Cambio |
-|---------|--------|
-| Migracion SQL | Agregar tipo `constancia_capacitacion` a documentos_candidato |
-| `src/hooks/useCapacitacion.ts` | Aceptar archivo en `marcarCapacitacionManual`, subirlo a storage |
-| `src/components/leads/evaluaciones/TrainingTab.tsx` | Agregar zona de upload al dialog de capacitacion manual |
-| `src/pages/PerfilesOperativos/hooks/useProfileDocuments.ts` | Agregar label para `constancia_capacitacion` |
-| `src/components/liberacion/LiberacionChecklistModal.tsx` | Warning si no hay constancia adjunta |
+#### E. Sin recuperacion parcial visible
 
-### Flujo de usuario resultante
+Si el custodio cierra la app a mitad del paso 3 (fotos), el borrador se guarda en IndexedDB. Pero cuando regresa, el wizard restaura el paso pero los blobs de fotos pueden haberse perdido si el navegador limpio IndexedDB (comun en iOS Safari con storage pressure).
 
-1. Supply abre el perfil del candidato, va a la pestana de Capacitacion
-2. Click en "Marcar como Completada (Presencial)"
-3. Se abre dialog con: zona para subir foto/PDF de la constancia firmada + notas opcionales
-4. Sube la foto del documento de induccion (se comprime automaticamente si es imagen)
-5. Click en "Completar Capacitacion"
-6. El sistema: sube archivo a storage, crea registro en documentos_candidato, marca todos los modulos como completados
-7. La constancia queda visible en la seccion de Documentacion del perfil operativo
-8. El checklist de liberacion refleja que la capacitacion esta completa CON evidencia
+#### F. Dependencia de `capture="environment"` 
 
-### Sin dependencias nuevas
+El atributo `capture="environment"` funciona de forma inconsistente entre navegadores moviles. En algunos Android WebView, no abre la camara sino el selector de archivos, y en otros directamente falla silenciosamente.
 
-Todo se resuelve con infraestructura existente: storage de Supabase, compresion de imagenes, patron de upload ya probado.
+### Mejoras propuestas para adopcion
+
+#### Prioridad 1 — Errores y estabilidad (impacto inmediato)
+
+**1.1 Mensajes de error especificos en `capturePhoto`**
+
+Envolver cada fase (compresion, GPS, IndexedDB) en try/catch individuales con mensajes descriptivos:
+- "No se pudo comprimir la foto. Usando imagen original."
+- "GPS no disponible, la foto se guardará sin ubicacion."
+- "Almacenamiento lleno. Intenta liberar espacio o sincroniza tus checklists pendientes."
+
+**1.2 Fallback robusto en compresion**
+
+Si `compressImage` falla, usar el archivo original SIN lanzar error. Actualmente hay un `console.warn` (linea 174) pero si el error es en el bloque anterior (linea 163-176), el catch no cubre todos los casos.
+
+**1.3 Limpiar fotos de servicios anteriores**
+
+Antes de iniciar un nuevo checklist, verificar si hay blobs huerfanos en IndexedDB de servicios ya sincronizados y limpiarlos automaticamente.
+
+#### Prioridad 2 — Velocidad percibida
+
+**2.1 Feedback progresivo en captura de foto**
+
+Reemplazar el spinner generico con estados secuenciales:
+- "Procesando foto..." (compresion)
+- "Obteniendo ubicacion..." (GPS)  
+- "Guardando..." (IndexedDB)
+
+**2.2 GPS en paralelo con compresion**
+
+Actualmente la secuencia es: compresion LUEGO GPS. Ejecutarlos con `Promise.all` para ahorrar hasta 10s por foto.
+
+**2.3 Reducir threshold de compresion**
+
+Actualmente comprime si > 500KB. Las fotos de camaras modernas son 3-8MB. La compresion SIEMPRE se ejecuta. Considerar usar `createImageBitmap` (mas rapido que Image + Canvas en Android) como metodo primario.
+
+#### Prioridad 3 — Reducir friccion del flujo
+
+**3.1 Hacer el paso de Documentos no-bloqueante**
+
+Mostrar advertencia pero permitir continuar. Los documentos se pueden verificar despues. La mayoria de custodios abandonan en el paso 1 porque tienen un documento vencido y no pueden avanzar.
+
+**3.2 Auto-guardado inmediato de fotos**
+
+Guardar cada foto en IndexedDB inmediatamente despues de captura, no esperar al auto-save de 30s.
+
+## Archivos a modificar
+
+| Archivo | Cambio | Prioridad |
+|---------|--------|-----------|
+| `src/hooks/useServiceChecklist.ts` | Errores especificos en capturePhoto, GPS paralelo a compresion, limpieza de blobs huerfanos | P1 |
+| `src/components/custodian/checklist/PhotoSlot.tsx` | Feedback progresivo (estados de captura), mensajes de error diferenciados | P1 |
+| `src/lib/imageUtils.ts` | Fallback mas robusto: si compresion falla, retornar archivo original como blob | P1 |
+| `src/components/custodian/checklist/StepDocuments.tsx` | Hacer documentos no-bloqueante (advertencia pero permite continuar) | P3 |
+
+## Resumen ejecutivo
+
+El error de Hugo es muy probablemente un fallo de la **compresion de imagen** en su dispositivo (Canvas API timeout o toBlob fallando). La baja adopcion (< 60%) se debe a una combinacion de:
+
+1. **Errores silenciosos** que frustran sin dar contexto
+2. **Flujo demasiado largo** (5-8 min) para un custodio con prisa
+3. **Bloqueo en paso 1** por documentacion — el problema mas grave para adopcion
+4. **Lentitud percibida** por operaciones secuenciales (compresion + GPS) sin feedback
+
+Las correcciones de Prioridad 1 atacan directamente el error de Hugo y los errores mas comunes. Las de Prioridad 2-3 mejoran la experiencia para subir la tasa de adopcion.
+
