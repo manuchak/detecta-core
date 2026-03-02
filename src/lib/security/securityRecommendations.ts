@@ -450,10 +450,48 @@ export const EMERGENCY_CONTACTS = {
     available: '24/7',
   },
   guardiaNacional: {
-    name: 'Guardia Nacional',
+    name: 'Guardia Nacional (Carreteras)',
     phone: '088',
     available: '24/7',
   },
+  sesnsp: {
+    name: 'SESNSP (Denuncia Anónima)',
+    phone: '074',
+    available: '24/7',
+  },
+};
+
+// ============================================================
+// ANTI-JAMMER PROTOCOL - Based on AMESIS 2025 (71% jammer usage)
+// ============================================================
+export const ANTI_JAMMER_PROTOCOL = {
+  jammerUsageRate: 0.71, // 71% of incidents involve GPS jammers
+  thresholdForProtocol: 0.50, // Activate anti-jammer protocol when zone rate > 50%
+  recommendations: [
+    'Verificar funcionamiento de GPS ANTES de entrar a zona',
+    'Activar comunicación satelital de respaldo si disponible',
+    'Check-in obligatorio ANTES y DESPUÉS de zona con alta incidencia de jammers',
+    'Reportar cualquier pérdida de señal GPS inmediatamente a C4',
+    'En caso de pérdida de señal >5 min, C4 activa protocolo de emergencia automáticamente',
+  ],
+  criticalZones: ['edomex-industrial', 'mexico-texcoco', 'cordoba-puebla', 'mexico-puebla'],
+};
+
+// ============================================================
+// CRITICAL HOURS INTELLIGENCE - AMIS/CANACAR 2025
+// ============================================================
+export const CRITICAL_HOURS_INTELLIGENCE = {
+  primaryWindow: '19:00-00:00', // 45% de incidentes
+  secondaryWindow: '04:00-06:00', // 22% de incidentes
+  safestWindow: '08:00-14:00', // <8% de incidentes
+  violenceRate: 0.68, // 68% de atracos con violencia (AMIS/ANTP)
+  topTargetProducts: [
+    { product: 'Abarrotes', percentage: 37 },
+    { product: 'Alimentos perecederos', percentage: 15 },
+    { product: 'Combustibles', percentage: 12 },
+    { product: 'Electrónicos', percentage: 10 },
+    { product: 'Autopartes', percentage: 8 },
+  ],
 };
 
 // ============================================================
