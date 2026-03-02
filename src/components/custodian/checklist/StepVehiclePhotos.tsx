@@ -11,7 +11,7 @@
  
  interface StepVehiclePhotosProps {
    fotos: FotoValidada[];
-   onCapturePhoto: (angle: AnguloFoto, file: File) => Promise<FotoValidada>;
+   onCapturePhoto: (angle: AnguloFoto, file: File, onProgress?: (status: string) => void) => Promise<FotoValidada>;
    onRemovePhoto: (angle: AnguloFoto) => void;
    onBack: () => void;
    onComplete: () => void;
