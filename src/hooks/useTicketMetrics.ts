@@ -8,6 +8,8 @@ export interface TicketMetrics {
   avgResolutionTime: number; // minutos
   slaComplianceRate: number; // porcentaje
   avgCsat: number; // 1-5
+  csatResponseCount: number; // encuestas respondidas
+  csatTotalTickets: number; // total tickets
   
   // Volumen
   totalTickets: number;
@@ -323,6 +325,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         avgResolutionTime: resolutionCount > 0 ? totalResolutionMinutes / resolutionCount : 0,
         slaComplianceRate: slaApplicableCount > 0 ? (slaMetCount / slaApplicableCount) * 100 : 100,
         avgCsat: csatCount > 0 ? totalCsat / csatCount : 0,
+        csatResponseCount: csatCount,
+        csatTotalTickets: tickets?.length || 0,
         
         totalTickets: tickets?.length || 0,
         openTickets: (tickets || []).filter(t => t.status !== 'resuelto' && t.status !== 'cerrado').length,

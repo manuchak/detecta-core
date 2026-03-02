@@ -1,15 +1,17 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Clock, Timer, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Clock, Timer, TrendingUp, MessageCircle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SLAInfo } from '@/hooks/useTicketSLA';
+import { TicketMetrics, formatDuration } from '@/hooks/useTicketMetrics';
 
 interface TicketSLAKPIsProps {
   tickets: Array<{ sla: SLAInfo; status: string }>;
   loading?: boolean;
+  ticketMetrics?: TicketMetrics | null;
 }
 
-export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
+export const TicketSLAKPIs = ({ tickets, loading, ticketMetrics }: TicketSLAKPIsProps) => {
   // Calculate KPIs
   const activeTickets = tickets.filter(t => !['resuelto', 'cerrado'].includes(t.status));
   
@@ -71,6 +73,34 @@ export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
           ? 'shadow-amber-500/20' 
           : 'shadow-red-500/20',
       subtitle: 'Este mes'
+    },
+    {
+      label: 'Tiempo Resp.',
+      value: ticketMetrics?.avgFirstResponseTime 
+        ? formatDuration(ticketMetrics.avgFirstResponseTime)
+        : '—',
+      icon: MessageCircle,
+      gradient: 'from-blue-500 to-cyan-500',
+      bgGlow: 'shadow-blue-500/20',
+      subtitle: 'Promedio 1ra respuesta'
+    },
+    {
+      label: 'CSAT',
+      value: ticketMetrics?.avgCsat 
+        ? `${ticketMetrics.avgCsat.toFixed(1)}/5`
+        : '—',
+      icon: Star,
+      gradient: ticketMetrics?.avgCsat && ticketMetrics.avgCsat >= 4
+        ? 'from-amber-400 to-yellow-500'
+        : ticketMetrics?.avgCsat && ticketMetrics.avgCsat >= 3
+          ? 'from-amber-500 to-orange-500'
+          : 'from-gray-400 to-gray-500',
+      bgGlow: ticketMetrics?.avgCsat && ticketMetrics.avgCsat >= 4 
+        ? 'shadow-amber-400/20' 
+        : '',
+      subtitle: ticketMetrics 
+        ? `${ticketMetrics.csatResponseCount} de ${ticketMetrics.csatTotalTickets} respondidas`
+        : 'Sin datos'
     }
   ];
 
@@ -90,7 +120,7 @@ export const TicketSLAKPIs = ({ tickets, loading }: TicketSLAKPIsProps) => {
   }
 
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {kpis.map((kpi, index) => {
         const Icon = kpi.icon;
         return (

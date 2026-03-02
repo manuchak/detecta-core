@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, subDays, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,10 +35,25 @@ export const TicketDashboardCharts: React.FC<TicketDashboardChartsProps> = ({
   ticketsByDepartment,
   loading = false
 }) => {
-  const formattedDayData = ticketsByDay.map(d => ({
-    ...d,
-    dateLabel: format(parseISO(d.date), 'd MMM', { locale: es })
-  }));
+  // Generate continuous 30-day timeline filling gaps with 0
+  const formattedDayData = useMemo(() => {
+    const now = new Date();
+    const start = subDays(now, 29);
+    const allDays = eachDayOfInterval({ start, end: now });
+    
+    const dayMap = new Map<string, { created: number; resolved: number }>();
+    ticketsByDay.forEach(d => dayMap.set(d.date, { created: d.created, resolved: d.resolved }));
+    
+    return allDays.map(day => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      const data = dayMap.get(dateKey) || { created: 0, resolved: 0 };
+      return {
+        date: dateKey,
+        ...data,
+        dateLabel: format(day, 'd MMM', { locale: es })
+      };
+    });
+  }, [ticketsByDay]);
 
   const pieData = ticketsByDepartment
     .filter(d => d.count > 0)
