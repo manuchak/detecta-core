@@ -246,7 +246,8 @@ export function useSuspenderRechazo() {
         description: `${variables.custodioNombre} aparecerá de nuevo en la lista de disponibles`,
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('❌ Suspension error:', error);
       toast.error('Error al levantar penalidad', {
         description: 'No se pudo suspender el rechazo. Intenta nuevamente.',
       });

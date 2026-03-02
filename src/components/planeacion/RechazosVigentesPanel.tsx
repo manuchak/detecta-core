@@ -41,13 +41,17 @@ export function RechazosVigentesPanel({ open, onOpenChange, inclujeArmado }: Rec
   const suspenderRechazo = useSuspenderRechazo();
   const [confirmTarget, setConfirmTarget] = useState<RechazadoDetalle | null>(null);
 
-  const handleConfirmSuspend = async () => {
+  const handleConfirmSuspend = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent AlertDialogAction auto-close
     if (!confirmTarget) return;
-    await suspenderRechazo.mutateAsync({
-      rechazoId: confirmTarget.id,
-      custodioNombre: confirmTarget.nombre,
-    });
-    setConfirmTarget(null);
+    try {
+      await suspenderRechazo.mutateAsync({
+        rechazoId: confirmTarget.id,
+        custodioNombre: confirmTarget.nombre,
+      });
+    } finally {
+      setConfirmTarget(null);
+    }
   };
 
   return (

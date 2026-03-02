@@ -71,6 +71,11 @@ export interface ServiceQueryResult {
   proveedor_armado?: string;
   tarifa_proveedor_armado?: number;
   
+  // Posicionamiento Falso
+  posicionamiento_falso?: boolean;
+  cobro_posicionamiento?: boolean;
+  motivo_posicionamiento_falso?: string;
+  
   // Metadata
   fuente_tabla: 'servicios_custodia' | 'servicios_planificados';
   updated_at?: string;
@@ -218,6 +223,11 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         duracion_estimada: service.duracion_estimada,
         km_teoricos: service.km_teoricos,
         observaciones: service.observaciones,
+        
+        // Posicionamiento Falso
+        posicionamiento_falso: service.posicionamiento_falso ?? false,
+        cobro_posicionamiento: service.cobro_posicionamiento ?? false,
+        motivo_posicionamiento_falso: service.motivo_posicionamiento_falso,
         
         // Contactos
         nombre_operador: service.nombre_operador,
@@ -439,6 +449,11 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         duracion_estimada: service.duracion_estimada,
         km_teoricos: service.km_teoricos,
         observaciones: service.observaciones,
+        
+        // Posicionamiento Falso
+        posicionamiento_falso: service.posicionamiento_falso ?? false,
+        cobro_posicionamiento: service.cobro_posicionamiento ?? false,
+        motivo_posicionamiento_falso: service.motivo_posicionamiento_falso,
         
         // Contactos
         nombre_operador: service.nombre_operador,

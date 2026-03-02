@@ -40,7 +40,20 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
     );
   };
 
+  const isPF = service.posicionamiento_falso === true;
+
   const StatusBadge = () => {
+    if (isPF) {
+      return (
+        <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/30">
+          <AlertCircle className="w-4 h-4 text-violet-700 dark:text-violet-300" />
+          <span className="apple-text-caption font-medium text-violet-700 dark:text-violet-300">
+            Pos. Falso
+          </span>
+        </div>
+      );
+    }
+
     const estado = service.estado?.toLowerCase() || '';
     let bgColor = 'bg-gray-100';
     let textColor = 'text-gray-700';
@@ -153,6 +166,28 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                 label="Origen de Datos"
                 value={service.fuente_tabla === 'servicios_custodia' ? 'Servicio Ejecutado' : 'Servicio Planificado'}
               />
+              {isPF && (
+                <>
+                  <div className="pt-4 mt-4 border-t border-violet-200 dark:border-violet-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertCircle className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                      <span className="apple-text-headline text-violet-700 dark:text-violet-300">Posicionamiento en Falso</span>
+                    </div>
+                    {service.motivo_posicionamiento_falso && (
+                      <DetailRow
+                        icon={FileText}
+                        label="Motivo"
+                        value={service.motivo_posicionamiento_falso}
+                      />
+                    )}
+                    <DetailRow
+                      icon={DollarSign}
+                      label="Cobro por posicionamiento"
+                      value={service.cobro_posicionamiento ? 'Sí' : 'No'}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </TabsContent>
 
