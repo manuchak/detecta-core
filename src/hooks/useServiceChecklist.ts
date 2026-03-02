@@ -163,7 +163,7 @@ export function useServiceChecklist({
         const reportProgress = onProgress || (() => {});
 
         // --- FASE 1: Compresión + GPS en paralelo ---
-        reportProgress('Procesando foto...');
+        reportProgress('Procesando foto y ubicación...');
         let processedFile: Blob = file;
         let mimeType = file.type;
 
@@ -187,7 +187,7 @@ export function useServiceChecklist({
           }
         })();
 
-        reportProgress('Obteniendo ubicación...');
+
         const gpsPromise = getCurrentPositionSafe().catch((gpsError) => {
           console.warn('[Checklist] GPS error no crítico:', gpsError);
           return null;
@@ -195,6 +195,7 @@ export function useServiceChecklist({
 
         const [compressed, coords] = await Promise.all([compressionPromise, gpsPromise]);
 
+        reportProgress('Guardando...');
         if (compressed) {
           processedFile = compressed.blob;
           mimeType = 'image/jpeg';

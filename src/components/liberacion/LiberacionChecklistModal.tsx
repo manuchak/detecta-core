@@ -182,7 +182,7 @@ const LiberacionChecklistModal = ({
       documentacion_rfc: tiposValidos.includes('rfc'),
       count: documentosValidos.length
     };
-  }, [documentosExistentes]);
+  }, [documentosExistentes, liberacion.tipo_operativo]);
 
   // Mapeo de evaluación psicométrica
   const psicoPrefillData = useMemo(() => {
