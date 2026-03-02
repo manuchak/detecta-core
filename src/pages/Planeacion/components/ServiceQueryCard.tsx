@@ -10,7 +10,18 @@ interface ServiceQueryCardProps {
 }
 
 export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardProps) {
+  const isPF = service.posicionamiento_falso === true;
+
   const getStatusConfig = () => {
+    if (isPF) {
+      return {
+        color: 'bg-violet-500',
+        icon: AlertCircle,
+        label: 'Pos. Falso',
+        textColor: 'text-violet-600 dark:text-violet-400'
+      };
+    }
+
     const estado = service.estado?.toLowerCase() || '';
     
     if (estado.includes('finalizado') || estado.includes('completado')) {
@@ -85,6 +96,11 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
         </div>
         
         <div className="flex items-center space-x-2">
+          {isPF && (
+            <Badge className="bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700 text-xs">
+              Pos. Falso
+            </Badge>
+          )}
           <StatusIcon className={`w-4 h-4 ${statusConfig.textColor}`} />
           <span className={`apple-text-caption font-medium ${statusConfig.textColor}`}>
             {statusConfig.label}

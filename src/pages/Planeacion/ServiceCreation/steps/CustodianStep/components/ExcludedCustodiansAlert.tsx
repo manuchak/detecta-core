@@ -56,13 +56,17 @@ export function ExcludedCustodiansAlert({
   const totalExcluded = rechazadosCount + conflictoCount;
   const hasMatchingRechazados = rechazadosMatchingSearch.length > 0;
 
-  const handleConfirmSuspend = async () => {
+  const handleConfirmSuspend = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent AlertDialogAction auto-close
     if (!confirmTarget) return;
-    await suspenderRechazo.mutateAsync({
-      rechazoId: confirmTarget.id,
-      custodioNombre: confirmTarget.nombre,
-    });
-    setConfirmTarget(null);
+    try {
+      await suspenderRechazo.mutateAsync({
+        rechazoId: confirmTarget.id,
+        custodioNombre: confirmTarget.nombre,
+      });
+    } finally {
+      setConfirmTarget(null);
+    }
   };
 
   return (
