@@ -609,6 +609,55 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-101.0000, 25.4200],  // Saltillo
     ],
   },
+
+  // === CORREDORES NORPONIENTE ===
+  {
+    id: 'guadalajara-tepic',
+    name: 'Guadalajara-Tepic (15D)',
+    riskLevel: 'medio',
+    description: 'Conexión GDL-Costa Pacífico. Sierra de Nayarit con cobertura limitada',
+    kilometers: 220,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-103.3500, 20.6700],  // GDL
+      [-103.7500, 20.8500],  // Tequila
+      [-104.2000, 21.0500],  // Plan de Barrancas
+      [-104.6000, 21.2500],  // Compostela
+      [-104.8950, 21.5040],  // Tepic
+    ],
+  },
+  {
+    id: 'culiacan-guaymas',
+    name: 'Culiacán-Los Mochis-Guaymas (15D)',
+    riskLevel: 'alto',
+    description: 'Corredor Sinaloa-Sonora. Zona de operación de cárteles. Robos a transporte agrícola',
+    kilometers: 600,
+    avgEventsPerHex: 5,
+    waypoints: [
+      [-107.3900, 24.7900],  // Culiacán
+      [-107.9500, 25.3500],  // Guamúchil
+      [-108.9900, 25.7700],  // Los Mochis
+      [-109.0500, 25.6000],  // Topolobampo
+      [-109.5500, 26.9000],  // Navojoa
+      [-109.9400, 27.4800],  // Cd. Obregón
+      [-110.9000, 27.9700],  // Guaymas
+    ],
+  },
+  {
+    id: 'hermosillo-nogales',
+    name: 'Hermosillo-Nogales (15D Norte)',
+    riskLevel: 'medio',
+    description: 'Cruce fronterizo Arizona. Maquiladoras IMMEX. Desierto de Sonora',
+    kilometers: 280,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-110.9700, 29.0700],  // Hermosillo
+      [-110.9500, 29.5500],  // Zona desierto
+      [-110.9600, 30.3000],  // Magdalena
+      [-110.9500, 30.6300],  // Santa Ana
+      [-110.9400, 31.3100],  // Nogales
+    ],
+  },
 ];
 
 // Helper to get corridors by risk level
