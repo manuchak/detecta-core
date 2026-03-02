@@ -1,142 +1,201 @@
 
-# Mapeo de Corredores del Norponiente de Mexico
 
-## Diagnostico
+# Analisis Fishbone: Modulo de Tickets
 
-El norponiente (Jalisco costa, Nayarit, Sinaloa, Durango sierra, Sonora, Baja California) es la region con el **mayor deficit de inteligencia** en el sistema. De los ~4,200km de rutas activas en esta zona, solo ~660km tienen segmentos granulares (Tepic-Mazatlan y parte de Chihuahua). Esto significa que el **84% del norponiente esta ciego** para la gestion de riesgos.
+## Problema Principal
+El ticket CUS-MM2HMB7O de Luis Armando Gonzalez Aquino existe en la base de datos pero tiene problemas de visibilidad en el dashboard, y los graficos presentan un ciclo de re-renderizado infinito.
 
-### Corredores existentes SIN segmentos (punto ciego total)
+```text
+                    Ticket de Luis Aquino invisible + Graficos fallando
+                    ================================================
+                    |
+    +---------------+---------------+----------------+---------------+
+    |               |               |               |               |
+  DATOS           RLS/AUTH        FRONTEND         METRICAS
+    |               |               |               |
+    |               |               |               |
+ custodio_id     Politicas OK    Loop infinito   full_name no
+ es NULL         (admin ve       en charts       existe en
+ en ticket       todo)           por dates       profiles
+    |                             inestables      (es display_name)
+    |                               |
+ Telefono sin                    startDate =
+ normalizar                      new Date() en
+ (espacios vs                    cada render
+ sin espacios)                      |
+    |                            useCallback
+ No hay link                     se recrea
+ custodio_id                     infinitamente
+ automatico
+ al crear ticket
+```
 
-| Corredor | Km | Nivel | Estado actual |
-|---|---|---|---|
-| `mexico-nogales` (15D) | 1,800 | Medio | 0 segmentos. Corredor mas largo del sistema = linea en el mapa sin datos |
-| `mazatlan-durango-torreon` | 520 | Alto | 0 segmentos. Incluye Espinazo del Diablo (zona EXTREMA) |
-| `guadalajara-lagos` | 190 | Alto | 0 segmentos. Corredor automotriz Jalisco-Bajio |
+## Hallazgo 1: Ticket CUS-MM2HMB7O SI existe en la DB
 
-### Corredores completamente ausentes
+El ticket de Luis Aquino esta en la tabla `tickets`:
+- ID: `eb660eb0-4447-4dcd-834e-9dfa2c11c873`
+- Telefono: `55 8180 2331`
+- Status: `abierto`
+- **custodio_id: NULL** (problema critico)
+- tipo_ticket: `custodio`
 
-| Corredor Faltante | Km | Nivel | Justificacion |
-|---|---|---|---|
-| **Guadalajara-Tepic (15D)** | 220 | Medio | Conexion faltante GDL-Costa Pacifico. Sin este corredor, Tepic-Mazatlan queda aislado |
-| **Culiacan-Los Mochis-Guaymas (15D Sinaloa)** | 600 | Alto | Sinaloa = zona de operacion de carteles. Robos a transporte en zona agricola/pesquera. Acceso a puertos de Topolobampo y Guaymas |
-| **Hermosillo-Nogales (15D Norte)** | 280 | Medio | Cruce fronterizo con Arizona. Maquiladoras. Comercio IMMEX |
+El admin tiene rol `admin` en `user_roles`, y la politica `users_view_own_tickets` permite SELECT para `admin`. Por tanto, **el ticket SI deberia aparecer en el listado**.
 
-## Plan de Implementacion
+**Causa raiz de que no se vea "como de Luis Aquino"**: La columna `custodio_id` es NULL. El dashboard muestra el nombre del custodio via `ticket.custodio?.nombre` (linea 446 de TicketsList.tsx), que depende de un JOIN con `custodios_operativos` usando `custodio_id`. Como es NULL, muestra "Sin nombre" y el admin no lo identifica como de Luis Aquino.
 
-### Fase A: Segmentos para `mazatlan-durango-torreon` (520km, ALTO - P0 critico)
+Ademas hay inconsistencia de formato de telefono:
+- `profiles.phone`: `55 8180 2331` (con espacios)
+- `custodios_operativos.telefono`: `5581802331` (sin espacios)
+- `tickets.custodio_telefono`: `55 8180 2331` (con espacios)
 
-Este corredor cruza la **Sierra Madre Occidental** por la autopista Mazatlan-Durango (la "Espinazo del Diablo"), considerada una de las mas peligrosas de Mexico por topografia y narcotrafico.
+## Hallazgo 2: Graficos en loop infinito de re-renderizado
 
-**6 segmentos:**
+El session replay confirma ciclos repetidos de skeleton/chart. La causa esta en `useTicketMetrics.ts`:
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| maz-dur-1 | Mazatlan - Concordia | 0-50 | Medio | Zona costera, salida urbana |
-| maz-dur-2 | Concordia - Espinazo del Diablo | 50-120 | Extremo | Sierra Madre, tuneles, puentes. Emboscadas. Sin cobertura celular. Zona de narcotrafico |
-| maz-dur-3 | Espinazo - El Salto | 120-180 | Alto | Zona serrana con presencia de grupos armados |
-| maz-dur-4 | El Salto - Durango | 180-260 | Medio | Bajada al altiplano, mejora infraestructura |
-| maz-dur-5 | Durango - Nombre de Dios | 260-370 | Medio | Transicion al desierto |
-| maz-dur-6 | Nombre de Dios - Torreon | 370-520 | Alto | Zona La Laguna, conflicto entre carteles |
+```text
+// Linea 58-62: Valores por defecto crean objetos NUEVOS en cada render
+const {
+  startDate = startOfMonth(subMonths(new Date(), 3)),  // NUEVO Date() cada render
+  endDate = new Date(),                                  // NUEVO Date() cada render
+} = options;
+```
 
-Segmento clave: `maz-dur-2` (Espinazo del Diablo) sera EXTREMO con comunicacion satelital obligatoria, restriccion horaria 18:00-06:00, y zona muerta de cobertura celular (~70km).
+Estos valores inestables hacen que `useCallback` (linea 64) recree `calculateMetrics` en cada render, disparando el `useEffect` (linea 377) infinitamente.
 
-### Fase B: Segmentos para `mexico-nogales` (1,800km - segmentacion por tramos)
+## Hallazgo 3: Columna `full_name` no existe
 
-El corredor Mexico-Nogales es el mas largo y atraviesa 7 estados. Lo segmentare en ~12 tramos:
+En `useTicketMetrics.ts` linea 116:
+```text
+.select('id, full_name')  // ERROR: la columna es 'display_name'
+```
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| nog-1 | GDL - Tequila - Magdalena | 0-120 | Medio | Salida GDL hacia costa. Zona tequilera |
-| nog-2 | Magdalena - Tepic | 120-220 | Medio | Sierra, curvas. Conexion con 15D Tepic |
-| nog-3 | Tepic - Acaponeta | 220-320 | Medio | Ya cubierto parcialmente por tepic-mazatlan |
-| nog-4 | Mazatlan - Culiacan | 320-540 | Alto | Sinaloa norte. Zona cartel. Robos agricola |
-| nog-5 | Culiacan - Los Mochis | 540-740 | Alto | Corredor agricola Sinaloa. Actividad delictiva |
-| nog-6 | Los Mochis - Guaymas | 740-960 | Medio | Zona agricola Sonora, Rio Yaqui |
-| nog-7 | Guaymas - Hermosillo | 960-1090 | Bajo | Zona industrial, autopista moderna |
-| nog-8 | Hermosillo - Magdalena Sonora | 1090-1300 | Medio | Desierto Sonora. Baja cobertura |
-| nog-9 | Magdalena - Santa Ana | 1300-1400 | Bajo | Zona relativamente segura |
-| nog-10 | Santa Ana - Nogales | 1400-1550 | Medio | Aproximacion frontera. Trafico de drogas |
+Esto causa que todos los agentes muestren "Sin nombre" en las metricas de performance.
 
-*Nota: Los km son aproximados sobre la ruta real de la 15D, ajustando waypoints al trazado carretero.*
+## Hallazgo 4: Warning de DOM nesting
 
-### Fase C: Segmentos para `guadalajara-lagos` (190km)
+El console log muestra: `<div> cannot appear as a descendant of <p>`. Esto viene de un `<Badge>` (que renderiza un `<div>`) dentro de `<CardDescription>` (que renderiza un `<p>`), en el componente TicketsList.tsx linea 255-258.
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| gdl-lag-1 | GDL - Zapotlanejo | 0-35 | Medio | Salida metropolitana |
-| gdl-lag-2 | Zapotlanejo - Tepatitlan | 35-80 | Alto | Zona de robos en Altos de Jalisco |
-| gdl-lag-3 | Tepatitlan - San Juan de los Lagos | 80-140 | Medio | Zona semi-rural |
-| gdl-lag-4 | San Juan - Lagos de Moreno | 140-190 | Alto | Entrada al Bajio, convergencia con 45D |
+---
 
-### Fase D: Nuevo corredor `guadalajara-tepic` (220km)
+## Plan de Correccion
 
-Este corredor es la pieza que falta para conectar el eje Pacifico (GDL hasta Nogales).
+### Tarea 1: Corregir loop infinito de graficos
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| gdl-tep-1 | GDL - Tequila | 0-60 | Bajo | Autopista moderna, zona turistica |
-| gdl-tep-2 | Tequila - Plan de Barrancas | 60-120 | Medio | Inicio Barranca de Oblatos, curvas |
-| gdl-tep-3 | Barrancas - Compostela | 120-170 | Medio | Sierra serrana, baja cobertura |
-| gdl-tep-4 | Compostela - Tepic | 170-220 | Bajo | Bajada al valle de Tepic |
+**Archivo**: `src/hooks/useTicketMetrics.ts`
 
-### Fase E: Nuevo corredor `culiacan-guaymas` (600km, ALTO)
+Memoizar los valores por defecto de `startDate` y `endDate` para evitar que `useCallback` se recree en cada render:
 
-Corredor Sinaloa-Sonora por la 15D, zona de alto riesgo por presencia de carteles y robos a transporte agricola.
+```text
+// Antes (lineas 57-62):
+const { startDate = startOfMonth(subMonths(new Date(), 3)), endDate = new Date() } = options;
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| cul-guay-1 | Culiacan - Guamuchil | 0-80 | Alto | Sinaloa central. Zona cartel |
-| cul-guay-2 | Guamuchil - Los Mochis | 80-200 | Alto | Zona agricola, robos organizados |
-| cul-guay-3 | Los Mochis - Topolobampo | 200-230 | Medio | Acceso a puerto. Zona controlada |
-| cul-guay-4 | Los Mochis - Navojoa | 230-380 | Medio | Zona agricola Sonora sur |
-| cul-guay-5 | Navojoa - Cd. Obregon | 380-440 | Bajo | Valle del Yaqui, zona agricola segura |
-| cul-guay-6 | Cd. Obregon - Guaymas | 440-600 | Bajo | Autopista moderna, zona industrial |
+// Despues:
+const defaultStart = useMemo(() => startOfMonth(subMonths(new Date(), 3)), []);
+const defaultEnd = useMemo(() => new Date(), []);
+const { startDate = defaultStart, endDate = defaultEnd, departamento, agentId } = options;
+```
 
-### Fase F: Nuevo corredor `hermosillo-nogales` (280km)
+Ademas, convertir las dependencias del `useCallback` a strings para estabilidad:
 
-| ID | Tramo | Km | Riesgo | Justificacion |
-|---|---|---|---|---|
-| her-nog-1 | Hermosillo - Magdalena | 0-130 | Medio | Desierto Sonora, baja cobertura |
-| her-nog-2 | Magdalena - Santa Ana | 130-200 | Bajo | Zona relativamente segura |
-| her-nog-3 | Santa Ana - Nogales | 200-280 | Medio | Aproximacion fronteriza, trafico |
+```text
+}, [startDate.toISOString(), endDate.toISOString(), departamento, agentId]);
+```
 
-### POIs criticos a agregar
+### Tarea 2: Corregir columna full_name a display_name
 
-| POI | Tipo | Ubicacion | Justificacion |
-|---|---|---|---|
-| Espinazo del Diablo | Blackspot | Mazatlan-Durango | Zona extrema serrana, tuneles, sin cobertura |
-| El Salto (Durango) | Blackspot | Sierra Durango | Emboscadas documentadas |
-| Culiacan Periurbano | Blackspot | Sinaloa | Zona de operacion cartel |
-| Los Mochis Acceso Sur | Blackspot | Sinaloa norte | Robos a transporte agricola |
-| Puerto Guaymas | Safe area | Sonora | Zona portuaria controlada |
-| API Topolobampo | Safe area | Sinaloa norte | Terminal portuaria |
-| Puesto GN Mazatlan Norte | Safe area | Sinaloa | Presencia GN permanente |
-| Caseta Concordia | Tollbooth | Mazatlan-Durango | Ultimo punto antes de la sierra |
-| Puesto GN Hermosillo Sur | Safe area | Sonora | Presencia permanente |
+**Archivo**: `src/hooks/useTicketMetrics.ts`, linea 116
 
-### Actualizacion de cobertura celular
+Cambiar:
+```text
+.select('id, full_name')
+```
+Por:
+```text
+.select('id, display_name')
+```
 
-Agregar zonas muertas en `cellularCoverage.ts`:
-- **Espinazo del Diablo**: ~70km sin cobertura (km 50-120 del corredor Mazatlan-Durango)
-- **Desierto de Sonora**: Tramos intermitentes Hermosillo-Magdalena (~40km con cobertura debil)
-- **Sierra Nayarit**: Tramo Barrancas GDL-Tepic (~30km cobertura limitada)
+Y en linea 118:
+```text
+a.full_name || 'Sin nombre'
+```
+Por:
+```text
+a.display_name || 'Sin nombre'
+```
 
-## Archivos a modificar
+### Tarea 3: Vincular custodio_id automaticamente al crear ticket
 
-| Archivo | Cambio |
-|---|---|
-| `src/lib/security/highwayCorridors.ts` | Agregar 3 nuevos corredores (guadalajara-tepic, culiacan-guaymas, hermosillo-nogales) |
-| `src/lib/security/highwaySegments.ts` | Agregar ~35 segmentos nuevos + reasignar mexico-nogales a tramos reales + agregar segmentos para guadalajara-lagos y mazatlan-durango-torreon + ~9 POIs |
-| `src/lib/security/cellularCoverage.ts` | Agregar 3 zonas muertas (Espinazo, Sonora, Nayarit) |
+**Archivo**: `src/hooks/useCustodianTicketsEnhanced.ts`
 
-## Impacto
+En la funcion `createTicket` (linea 171+), antes de insertar, buscar el `custodio_id` en `custodios_operativos` usando el telefono normalizado:
 
-| Metrica | Actual Norponiente | Post-implementacion |
+```text
+// Normalizar telefono (quitar espacios, +52, etc.)
+const normalizedPhone = custodianPhone.replace(/[\s\-\+]/g, '').replace(/^52/, '');
+
+// Buscar custodio_id
+const { data: custodioData } = await supabase
+  .from('custodios_operativos')
+  .select('id')
+  .or(`telefono.eq.${normalizedPhone},telefono.eq.${custodianPhone}`)
+  .maybeSingle();
+
+// Incluir custodio_id en el insert
+insert({
+  ...existingFields,
+  custodio_id: custodioData?.id || null,
+})
+```
+
+### Tarea 4: Resolver custodio_id para tickets existentes sin el
+
+Crear un script SQL (via migration tool) que actualice los tickets existentes que tienen `custodio_telefono` pero no `custodio_id`:
+
+```text
+UPDATE tickets t
+SET custodio_id = co.id
+FROM custodios_operativos co
+WHERE t.custodio_id IS NULL
+  AND t.custodio_telefono IS NOT NULL
+  AND replace(replace(replace(t.custodio_telefono, ' ', ''), '-', ''), '+52', '') 
+    = replace(replace(replace(co.telefono, ' ', ''), '-', ''), '+52', '');
+```
+
+### Tarea 5: Mejorar resolucion de nombre en el dashboard
+
+**Archivo**: `src/pages/Tickets/TicketsList.tsx`, linea 446
+
+Agregar fallback al nombre del custodio buscando por telefono si `custodio` es null:
+
+```text
+{ticket.custodio?.nombre || ticket.custodio_telefono || ticket.customer_name || 'Sin nombre'}
+```
+
+Y en `TicketCardMobile.tsx` linea 99, mismo cambio.
+
+### Tarea 6: Corregir DOM nesting warning
+
+**Archivo**: `src/pages/Tickets/TicketsList.tsx`, linea 255-258
+
+El `<Badge>` dentro de `<CardDescription>` viola DOM nesting (`<div>` dentro de `<p>`). Cambiar el `<Badge>` a un `<span>` inline o mover fuera del `<CardDescription>`.
+
+---
+
+## Resumen de archivos a modificar
+
+| Archivo | Cambio | Impacto |
 |---|---|---|
-| Corredores con segmentos | 3 de 6 | 9 de 9 |
-| Km con analisis granular | ~660 | ~4,120+ |
-| Cobertura norponiente | ~16% | ~98% |
-| Segmentos nuevos | 0 | ~35 |
-| POIs nuevos | 0 | ~9 |
+| `src/hooks/useTicketMetrics.ts` | Memoizar dates + fix `full_name` | Elimina loop infinito de graficos |
+| `src/hooks/useCustodianTicketsEnhanced.ts` | Vincular `custodio_id` al crear ticket | Tickets futuros tendran nombre visible |
+| `src/pages/Tickets/TicketsList.tsx` | Fallback nombre + fix DOM nesting | Nombre visible + warning eliminado |
+| `src/components/tickets/TicketCardMobile.tsx` | Fallback nombre custodio | Nombre visible en mobile |
+| SQL Migration | UPDATE tickets sin custodio_id | Fix retroactivo para Luis Aquino |
 
-Esto cerrara la brecha del norponiente y permitira ofrecer inteligencia de riesgo para rutas hacia puertos del Pacifico (Mazatlan, Topolobampo, Guaymas), cruces fronterizos (Nogales), y corredores industriales de Sinaloa/Sonora.
+## Impacto esperado
+
+- Graficos dejan de flickear/ciclarse (loop infinito eliminado)
+- El ticket de Luis Aquino muestra su nombre correctamente
+- Tickets futuros creados por custodios siempre tendran `custodio_id` vinculado
+- Nombres de agentes correctos en metricas de performance
+- Warning de DOM nesting eliminado
+
