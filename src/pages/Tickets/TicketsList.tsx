@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles, BarChart3 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles } from "lucide-react";
 import { useTicketsEnhanced, type TicketEnhanced } from "@/hooks/useTicketsEnhanced";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
@@ -39,8 +39,7 @@ import { AgentWorkloadPanel } from "@/components/tickets/AgentWorkloadPanel";
 import { TicketCardMobile } from "@/components/tickets/TicketCardMobile";
 import { TicketFiltersSheet } from "@/components/tickets/TicketFiltersSheet";
 import { TicketDashboardCharts } from "@/components/tickets/TicketDashboardCharts";
-import { TicketSLAMetricsByPeriod } from "@/components/tickets/TicketSLAMetricsByPeriod";
-import { TicketCSATByPeriod } from "@/components/tickets/TicketCSATByPeriod";
+import { TicketPeriodSummaryTable } from "@/components/tickets/TicketPeriodSummaryTable";
 import { useAgentWorkload } from "@/hooks/useAgentWorkload";
 import { useTicketMetrics } from "@/hooks/useTicketMetrics";
 import { cn } from "@/lib/utils";
@@ -208,45 +207,32 @@ export const TicketsList = () => {
             Estado del Soporte
           </h2>
           
-          {/* Row 1: SLA KPIs + Workload Panel (collapsible) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} ticketMetrics={ticketMetrics} />
-            </div>
-            <AgentWorkloadPanel department={departmentFilter} compact={false} defaultCollapsed={true} />
-          </div>
+          {/* Row 1: 3 Hero KPIs */}
+          <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} ticketMetrics={ticketMetrics} />
           
-          {/* Row 2: SLA Metrics by Period */}
-          <TicketSLAMetricsByPeriod 
+          {/* Row 2: Period Summary Table */}
+          <TicketPeriodSummaryTable 
             tickets={tickets.map(t => ({
               created_at: t.created_at,
               sla_deadline_resolucion: t.fecha_sla_resolucion,
               resolved_at: t.resuelto_at,
-              status: t.status
+              status: t.status,
+              calificacion_csat: t.calificacion_csat,
+              first_response_at: t.primera_respuesta_at
             }))} 
             loading={loading} 
           />
           
-          {/* Row 2.5: CSAT by Period */}
-          <TicketCSATByPeriod 
-            tickets={tickets.map(t => ({
-              created_at: t.created_at,
-              calificacion_csat: t.calificacion_csat
-            }))} 
-            loading={loading} 
-          />
-          
-          {/* Row 3: Charts */}
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Análisis de Tickets
-            </h2>
-            <TicketDashboardCharts 
-              ticketsByDay={ticketMetrics?.ticketsByDay || []}
-              ticketsByDepartment={ticketMetrics?.ticketsByDepartment || []}
-              loading={metricsLoading}
-            />
+          {/* Row 3: Charts + Workload */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <TicketDashboardCharts 
+                ticketsByDay={ticketMetrics?.ticketsByDay || []}
+                ticketsByDepartment={ticketMetrics?.ticketsByDepartment || []}
+                loading={metricsLoading}
+              />
+            </div>
+            <AgentWorkloadPanel department={departmentFilter} compact={false} defaultCollapsed={true} />
           </div>
         </section>
         
