@@ -1,201 +1,61 @@
 
 
-# Analisis Fishbone: Modulo de Tickets
+# Fix: Tickets resueltos no deben mostrar alerta roja de "Vencido"
 
-## Problema Principal
-El ticket CUS-MM2HMB7O de Luis Armando Gonzalez Aquino existe en la base de datos pero tiene problemas de visibilidad en el dashboard, y los graficos presentan un ciclo de re-renderizado infinito.
+## Problema
 
-```text
-                    Ticket de Luis Aquino invisible + Graficos fallando
-                    ================================================
-                    |
-    +---------------+---------------+----------------+---------------+
-    |               |               |               |               |
-  DATOS           RLS/AUTH        FRONTEND         METRICAS
-    |               |               |               |
-    |               |               |               |
- custodio_id     Politicas OK    Loop infinito   full_name no
- es NULL         (admin ve       en charts       existe en
- en ticket       todo)           por dates       profiles
-    |                             inestables      (es display_name)
-    |                               |
- Telefono sin                    startDate =
- normalizar                      new Date() en
- (espacios vs                    cada render
- sin espacios)                      |
-    |                            useCallback
- No hay link                     se recrea
- custodio_id                     infinitamente
- automatico
- al crear ticket
-```
-
-## Hallazgo 1: Ticket CUS-MM2HMB7O SI existe en la DB
-
-El ticket de Luis Aquino esta en la tabla `tickets`:
-- ID: `eb660eb0-4447-4dcd-834e-9dfa2c11c873`
-- Telefono: `55 8180 2331`
-- Status: `abierto`
-- **custodio_id: NULL** (problema critico)
-- tipo_ticket: `custodio`
-
-El admin tiene rol `admin` en `user_roles`, y la politica `users_view_own_tickets` permite SELECT para `admin`. Por tanto, **el ticket SI deberia aparecer en el listado**.
-
-**Causa raiz de que no se vea "como de Luis Aquino"**: La columna `custodio_id` es NULL. El dashboard muestra el nombre del custodio via `ticket.custodio?.nombre` (linea 446 de TicketsList.tsx), que depende de un JOIN con `custodios_operativos` usando `custodio_id`. Como es NULL, muestra "Sin nombre" y el admin no lo identifica como de Luis Aquino.
-
-Ademas hay inconsistencia de formato de telefono:
-- `profiles.phone`: `55 8180 2331` (con espacios)
-- `custodios_operativos.telefono`: `5581802331` (sin espacios)
-- `tickets.custodio_telefono`: `55 8180 2331` (con espacios)
-
-## Hallazgo 2: Graficos en loop infinito de re-renderizado
-
-El session replay confirma ciclos repetidos de skeleton/chart. La causa esta en `useTicketMetrics.ts`:
+La logica SLA en `calculateSLAStatus` (linea 46-52 de `useTicketSLA.ts`) marca como `'vencido'` (rojo, con animacion pulse) los tickets que se resolvieron **despues** de su deadline:
 
 ```text
-// Linea 58-62: Valores por defecto crean objetos NUEVOS en cada render
-const {
-  startDate = startOfMonth(subMonths(new Date(), 3)),  // NUEVO Date() cada render
-  endDate = new Date(),                                  // NUEVO Date() cada render
-} = options;
+if (completedAt) {
+  const wasOnTime = completedAt <= deadline;
+  return { status: wasOnTime ? 'cumplido' : 'vencido', ... };
+}
 ```
 
-Estos valores inestables hacen que `useCallback` (linea 64) recree `calculateMetrics` en cada render, disparando el `useEffect` (linea 377) infinitamente.
+Esto es tecnicametnte correcto (el SLA SI se incumplio), pero el UX es incorrecto: un ticket ya resuelto no deberia generar alarma visual. La alerta roja es para tickets **activos** que requieren atencion inmediata.
 
-## Hallazgo 3: Columna `full_name` no existe
+Tickets afectados en la DB: CUS-MM07G9B8, CUS-MLSMLHIV, CUS-MJK8P3X4 y otros resueltos/cerrados fuera de tiempo.
 
-En `useTicketMetrics.ts` linea 116:
-```text
-.select('id, full_name')  // ERROR: la columna es 'display_name'
-```
+## Solucion
 
-Esto causa que todos los agentes muestren "Sin nombre" en las metricas de performance.
+Agregar un nuevo estado `'cumplido_tarde'` que represente "SLA incumplido pero ticket ya resuelto". Este estado tendra un estilo visual **neutro/informativo** (gris o azul tenue) en vez de rojo alarmante.
 
-## Hallazgo 4: Warning de DOM nesting
+### Cambio 1: `src/hooks/useTicketSLA.ts`
 
-El console log muestra: `<div> cannot appear as a descendant of <p>`. Esto viene de un `<Badge>` (que renderiza un `<div>`) dentro de `<CardDescription>` (que renderiza un `<p>`), en el componente TicketsList.tsx linea 255-258.
+- Agregar `'cumplido_tarde'` al tipo `SLAStatus`
+- Cambiar linea 49: cuando `completedAt > deadline`, retornar `'cumplido_tarde'` en vez de `'vencido'`
+- Ajustar `getUrgencyScore` para que `cumplido_tarde` tenga score 0 (no urgente, ya resuelto)
 
----
+### Cambio 2: `src/components/tickets/SLAProgressBar.tsx`
 
-## Plan de Correccion
+Agregar config visual para `cumplido_tarde`:
+- Icono: `CheckCircle` (no `AlertTriangle`)
+- Color: gris/slate (no rojo)
+- Label: "Cumplido (tarde)"
+- Sin animacion pulse
 
-### Tarea 1: Corregir loop infinito de graficos
+### Cambio 3: `src/components/tickets/SLABadge.tsx`
 
-**Archivo**: `src/hooks/useTicketMetrics.ts`
+Agregar `cumplido_tarde` al `statusConfig` con estilo informativo (gris/slate), misma logica que el progress bar.
 
-Memoizar los valores por defecto de `startDate` y `endDate` para evitar que `useCallback` se recree en cada render:
+### Cambio 4: `src/components/tickets/TicketCardMobile.tsx`
 
-```text
-// Antes (lineas 57-62):
-const { startDate = startOfMonth(subMonths(new Date(), 3)), endDate = new Date() } = options;
+Actualizar la logica `isUrgent` para que `cumplido_tarde` NO aplique fondos de alerta (actualmente cualquier `vencido` pinta el card de rojo).
 
-// Despues:
-const defaultStart = useMemo(() => startOfMonth(subMonths(new Date(), 3)), []);
-const defaultEnd = useMemo(() => new Date(), []);
-const { startDate = defaultStart, endDate = defaultEnd, departamento, agentId } = options;
-```
+## Impacto
 
-Ademas, convertir las dependencias del `useCallback` a strings para estabilidad:
+- Tickets resueltos/cerrados fuera de tiempo: mostraran un indicador gris informativo en vez de rojo alarmante
+- Tickets activos vencidos: siguen en rojo con urgencia (sin cambio)
+- El historial SLA se preserva (se sabe que se cumplio tarde vs a tiempo)
+- Ordenamiento por urgencia: tickets `cumplido_tarde` bajan al fondo (score 0)
 
-```text
-}, [startDate.toISOString(), endDate.toISOString(), departamento, agentId]);
-```
+## Archivos a modificar
 
-### Tarea 2: Corregir columna full_name a display_name
-
-**Archivo**: `src/hooks/useTicketMetrics.ts`, linea 116
-
-Cambiar:
-```text
-.select('id, full_name')
-```
-Por:
-```text
-.select('id, display_name')
-```
-
-Y en linea 118:
-```text
-a.full_name || 'Sin nombre'
-```
-Por:
-```text
-a.display_name || 'Sin nombre'
-```
-
-### Tarea 3: Vincular custodio_id automaticamente al crear ticket
-
-**Archivo**: `src/hooks/useCustodianTicketsEnhanced.ts`
-
-En la funcion `createTicket` (linea 171+), antes de insertar, buscar el `custodio_id` en `custodios_operativos` usando el telefono normalizado:
-
-```text
-// Normalizar telefono (quitar espacios, +52, etc.)
-const normalizedPhone = custodianPhone.replace(/[\s\-\+]/g, '').replace(/^52/, '');
-
-// Buscar custodio_id
-const { data: custodioData } = await supabase
-  .from('custodios_operativos')
-  .select('id')
-  .or(`telefono.eq.${normalizedPhone},telefono.eq.${custodianPhone}`)
-  .maybeSingle();
-
-// Incluir custodio_id en el insert
-insert({
-  ...existingFields,
-  custodio_id: custodioData?.id || null,
-})
-```
-
-### Tarea 4: Resolver custodio_id para tickets existentes sin el
-
-Crear un script SQL (via migration tool) que actualice los tickets existentes que tienen `custodio_telefono` pero no `custodio_id`:
-
-```text
-UPDATE tickets t
-SET custodio_id = co.id
-FROM custodios_operativos co
-WHERE t.custodio_id IS NULL
-  AND t.custodio_telefono IS NOT NULL
-  AND replace(replace(replace(t.custodio_telefono, ' ', ''), '-', ''), '+52', '') 
-    = replace(replace(replace(co.telefono, ' ', ''), '-', ''), '+52', '');
-```
-
-### Tarea 5: Mejorar resolucion de nombre en el dashboard
-
-**Archivo**: `src/pages/Tickets/TicketsList.tsx`, linea 446
-
-Agregar fallback al nombre del custodio buscando por telefono si `custodio` es null:
-
-```text
-{ticket.custodio?.nombre || ticket.custodio_telefono || ticket.customer_name || 'Sin nombre'}
-```
-
-Y en `TicketCardMobile.tsx` linea 99, mismo cambio.
-
-### Tarea 6: Corregir DOM nesting warning
-
-**Archivo**: `src/pages/Tickets/TicketsList.tsx`, linea 255-258
-
-El `<Badge>` dentro de `<CardDescription>` viola DOM nesting (`<div>` dentro de `<p>`). Cambiar el `<Badge>` a un `<span>` inline o mover fuera del `<CardDescription>`.
-
----
-
-## Resumen de archivos a modificar
-
-| Archivo | Cambio | Impacto |
-|---|---|---|
-| `src/hooks/useTicketMetrics.ts` | Memoizar dates + fix `full_name` | Elimina loop infinito de graficos |
-| `src/hooks/useCustodianTicketsEnhanced.ts` | Vincular `custodio_id` al crear ticket | Tickets futuros tendran nombre visible |
-| `src/pages/Tickets/TicketsList.tsx` | Fallback nombre + fix DOM nesting | Nombre visible + warning eliminado |
-| `src/components/tickets/TicketCardMobile.tsx` | Fallback nombre custodio | Nombre visible en mobile |
-| SQL Migration | UPDATE tickets sin custodio_id | Fix retroactivo para Luis Aquino |
-
-## Impacto esperado
-
-- Graficos dejan de flickear/ciclarse (loop infinito eliminado)
-- El ticket de Luis Aquino muestra su nombre correctamente
-- Tickets futuros creados por custodios siempre tendran `custodio_id` vinculado
-- Nombres de agentes correctos en metricas de performance
-- Warning de DOM nesting eliminado
+| Archivo | Cambio |
+|---|---|
+| `src/hooks/useTicketSLA.ts` | Nuevo estado `cumplido_tarde`, ajuste de score |
+| `src/components/tickets/SLAProgressBar.tsx` | Config visual para `cumplido_tarde` |
+| `src/components/tickets/SLABadge.tsx` | Config visual para `cumplido_tarde` |
+| `src/components/tickets/TicketCardMobile.tsx` | Excluir `cumplido_tarde` de alertas visuales |
 
