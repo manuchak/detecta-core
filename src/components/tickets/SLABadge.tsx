@@ -43,6 +43,12 @@ const statusConfig: Record<SLAStatus, {
     className: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
     tooltipPrefix: 'SLA cumplido'
   },
+  cumplido_tarde: {
+    label: 'Cumplido (tarde)',
+    icon: CheckCircle,
+    className: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800/30 dark:text-slate-400 dark:border-slate-700',
+    tooltipPrefix: 'SLA cumplido fuera de tiempo'
+  },
   sin_sla: {
     label: 'Sin SLA',
     icon: HelpCircle,
@@ -65,7 +71,7 @@ export const SLABadge = ({
   const timeDisplay = formatRemainingTime(remainingMinutes);
   const typeLabel = type === 'respuesta' ? 'Primera respuesta' : 'Resolución';
   
-  const tooltipContent = status === 'sin_sla' || status === 'cumplido'
+  const tooltipContent = status === 'sin_sla' || status === 'cumplido' || status === 'cumplido_tarde'
     ? config.tooltipPrefix
     : `${config.tooltipPrefix} ${timeDisplay} para ${typeLabel.toLowerCase()}`;
   
@@ -94,7 +100,7 @@ export const SLABadge = ({
         <TooltipContent side="top" className="max-w-xs">
           <div className="space-y-1">
             <p className="font-medium">{tooltipContent}</p>
-            {percentage > 0 && status !== 'cumplido' && status !== 'sin_sla' && (
+            {percentage > 0 && status !== 'cumplido' && status !== 'cumplido_tarde' && status !== 'sin_sla' && (
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <span>Tiempo consumido</span>
