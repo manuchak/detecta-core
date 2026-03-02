@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { differenceInMinutes, isPast, addMinutes } from 'date-fns';
 
-export type SLAStatus = 'en_tiempo' | 'proximo_vencer' | 'vencido' | 'cumplido' | 'sin_sla';
+export type SLAStatus = 'en_tiempo' | 'proximo_vencer' | 'vencido' | 'cumplido' | 'cumplido_tarde' | 'sin_sla';
 
 export interface SLAInfo {
   // Response SLA
@@ -46,7 +46,7 @@ const calculateSLAStatus = (
   if (completedAt) {
     const wasOnTime = completedAt <= deadline;
     return { 
-      status: wasOnTime ? 'cumplido' : 'vencido', 
+      status: wasOnTime ? 'cumplido' : 'cumplido_tarde', 
       remaining: null, 
       percentage: 100 
     };
@@ -87,6 +87,8 @@ const getUrgencyScore = (status: SLAStatus, remaining: number | null): number =>
       return 100 + (remaining ? 100 - Math.min(remaining / 10, 100) : 0);
     case 'cumplido':
       return 0;
+    case 'cumplido_tarde':
+      return 0;
     case 'sin_sla':
       return 50;
     default:
@@ -117,6 +119,7 @@ export const calculateTicketSLA = (ticket: TicketWithSLA): SLAInfo => {
     'proximo_vencer': 3,
     'en_tiempo': 2,
     'sin_sla': 1,
+    'cumplido_tarde': 0,
     'cumplido': 0
   };
   

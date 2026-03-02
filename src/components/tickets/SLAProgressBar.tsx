@@ -55,6 +55,13 @@ const statusConfig = {
     bgColor: 'bg-emerald-100 dark:bg-emerald-950/30',
     textColor: 'text-emerald-700 dark:text-emerald-400'
   },
+  cumplido_tarde: {
+    icon: CheckCircle,
+    label: 'Cumplido (tarde)',
+    barColor: 'bg-slate-400',
+    bgColor: 'bg-slate-100 dark:bg-slate-800/30',
+    textColor: 'text-slate-500 dark:text-slate-400'
+  },
   sin_sla: {
     icon: Clock,
     label: 'Sin SLA',
