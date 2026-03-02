@@ -1,99 +1,117 @@
 
-# Evaluacion del Centro de Tickets: Brechas y Mejoras
 
-## Diagnostico de la Realidad Actual
+# Rediseno UI del Centro de Tickets: Vision BI
 
-### Datos reales en la DB (11 tickets totales)
+## Diagnostico del Estado Actual
 
-| Metrica | Valor Real | Lo que muestra el dashboard | Brecha |
-|---|---|---|---|
-| Tickets totales | 11 | 11 | OK |
-| Con CSAT respondido | 2 de 11 (18%) | No visible en dashboard principal | **Sin visibilidad** |
-| CSAT promedio | 5.0 (2 encuestas) | Solo en admin/metricas avanzadas | **Oculto** |
-| Tiempo prom. 1ra respuesta | Calculable (8 tickets con respuesta) | No en tarjetas principales | **Sin tarjeta** |
-| Tickets por dia | Datos dispersos (dic 2025 - feb 2026) | Grafico muestra "Sin datos" o datos parciales | **Grafico no refleja realidad** |
-| cs_csat_surveys (modulo CS) | 0 encuestas | N/A | Fuente incorrecta para tickets |
+El dashboard actual tiene **17 mini-tarjetas** apiladas en 3 filas (6 KPIs + 6 SLA periodo + 5 CSAT periodo), seguidas de 2 graficos. Problemas desde la perspectiva de un disenador BI:
 
-### Problemas identificados en las tarjetas actuales
+```text
+ACTUAL (problemas)
+==========================================
+[KPI][KPI][KPI][KPI][KPI][KPI]        <-- 6 tarjetas, todas igual tamano
+[SLA%][SLA%][SLA%][#Hoy][#Sem][#Mes]  <-- 6 mas, redundancia con fila 1
+[CSAT][CSAT][CSAT][CSAT][CSAT]        <-- 5 mas, redundancia con KPI CSAT
+[--- Area Chart ---][--- Pie ---]      <-- Charts basicos sin contexto
+==========================================
+Total: 17 tarjetas + 2 charts = ruido visual, sin jerarquia
+```
 
-**Lo que HAY (4 tarjetas + 6 metricas por periodo):**
-1. SLA Vencidos (activos) - OK pero ya corregido con `cumplido_tarde`
-2. Proximos a vencer - OK
-3. En tiempo - OK
-4. Cumplimiento SLA % - OK pero sin desglose temporal
-
-**Lo que FALTA (segun tu solicitud):**
-1. **Tiempo promedio de primera respuesta** - El dato existe en `useTicketMetrics` (`avgFirstResponseTime`) pero NO se muestra en las tarjetas del Centro de Tickets
-2. **Encuestas CSAT respondidas** - `calificacion_csat` existe en la tabla `tickets` (2 de 11 respondidas) pero no hay tarjeta que muestre tasa de respuesta
-3. **CSAT actual con desglose temporal** - El promedio se calcula en `useTicketMetrics` pero no se expone con los cortes diario/semanal/mensual/Q/anual
-4. **Tickets diarios** - El grafico `TicketDashboardCharts` recibe `ticketsByDay` desde `useTicketMetrics` pero el periodo default (3 meses) puede no cubrir bien los datos recientes, y el grafico se queda en "Sin datos" si hay pocos registros
-
-### Causa raiz del grafico "sin datos"
-El `useTicketMetrics` filtra por `startDate` (3 meses atras = dic 2025) y genera `ticketsByDay` correctamente. Sin embargo, con solo 9 dias con actividad en 3 meses, el area chart muestra puntos muy dispersos. No hay problema tecnico sino **falta de densidad de datos** y ausencia de dias con 0 tickets (gaps).
+**Problemas clave:**
+1. **Sin jerarquia visual**: Las 17 tarjetas son del mismo tamano. No hay un "numero hero" que atrape la mirada
+2. **Redundancia**: Cumplimiento SLA aparece en KPIs Y en la fila de periodos. CSAT aparece en KPIs Y en su propia fila
+3. **Fragmentacion**: SLA y CSAT en filas separadas obliga al ojo a saltar. Un ejecutivo quiere ver TODO el estado de un periodo en un solo lugar
+4. **Cards demasiado altas**: `p-6` con `text-4xl` en las KPIs consume mucho espacio vertical para solo 6 numeros
+5. **Workload Panel colapsado por defecto**: Informacion util pero oculta
 
 ---
 
-## Plan de Implementacion
+## Propuesta: Layout "Executive Glance"
 
-### Tarea 1: Agregar tarjetas faltantes al "Estado del Soporte"
+```text
+PROPUESTO
+==========================================
+[====== HERO: Open Tickets =====] [Resp] [CSAT]   <-- 3 KPIs hero (mas grandes)
+                                                  
+[--- Tabla Consolidada de Periodos ---]            <-- 1 tabla compacta reemplaza
+| Periodo | Tickets | SLA% | CSAT | Resp.Prom |   <-- las 11 mini-tarjetas
+| Hoy     | 0       | 100% | --   | --        |
+| Semana  | 2       | 75%  | 5.0  | 2h 15m    |
+| Mes     | 8       | 63%  | 5.0  | 1h 48m    |
+| Q       | 11      | 64%  | 5.0  | 1h 30m    |
+| Anual   | 11      | 64%  | 5.0  | 1h 30m    |
+
+[--- Area Chart (mejorado) ---][--- Donut + Agentes ---]
+==========================================
+Total: 3 KPIs hero + 1 tabla + 2 charts = limpio, jerarquizado
+```
+
+---
+
+## Cambios Especificos
+
+### 1. Redisenar TicketSLAKPIs: De 6 tarjetas a 3 "Hero Cards"
 
 **Archivo**: `src/components/tickets/TicketSLAKPIs.tsx`
 
-Expandir las 4 tarjetas actuales a **6 tarjetas** agregando:
+Reducir a **3 tarjetas principales** mas grandes y con mas contexto interno:
 
-- **Tarjeta 5: "Tiempo Resp."** - Muestra `avgFirstResponseTime` formateado (ej: "2h 15m"). Icono: `MessageCircle`. Color: azul. Subtitulo: "Promedio 1ra respuesta".
-- **Tarjeta 6: "CSAT"** - Muestra promedio CSAT actual (ej: "5.0/5"). Icono: `Star`. Color: dorado/amber. Subtitulo: "2 de 11 respondidas" (tasa de respuesta).
+- **Card 1 - "Tickets Activos"** (hero, ocupa mas espacio): Numero grande de tickets abiertos/en_progreso. Debajo, un mini desglose inline: `X vencidos | Y proximos | Z en tiempo` con dots de color. Esta card reemplaza las 3 tarjetas SLA individuales.
+- **Card 2 - "Tiempo de Respuesta"**: Promedio 1ra respuesta como numero principal. Subtitulo con mini-sparkline o indicador vs meta (ej: "Meta: 2h").
+- **Card 3 - "CSAT"**: Score actual grande. Debajo: barra de progreso de tasa de respuesta (ej: "2/11 encuestas = 18%").
 
-Esto requiere pasar `ticketMetrics` como prop adicional a `TicketSLAKPIs` desde `TicketsList.tsx`.
+Esto elimina la tarjeta "Cumplimiento SLA %" (se mueve a la tabla de periodos) y condensa 6 cards en 3 con mas informacion util.
 
-### Tarea 2: Crear componente de CSAT por periodo
+Reducir padding de `p-6` a `p-4`, texto de `text-4xl` a `text-3xl`.
 
-**Archivo nuevo**: `src/components/tickets/TicketCSATByPeriod.tsx`
+### 2. Crear Tabla Consolidada de Periodos
 
-Componente tipo tarjetas compactas (similar a `TicketSLAMetricsByPeriod`) que muestre CSAT desglosado en 5 cortes temporales:
+**Archivo nuevo**: `src/components/tickets/TicketPeriodSummaryTable.tsx`
 
-| Periodo | Logica |
-|---|---|
-| Hoy | Tickets con `calificacion_csat` creados hoy |
-| Semana | startOfWeek(now, lunes) hasta hoy |
-| Mes | startOfMonth(now) hasta hoy |
-| Trimestre (Q) | startOfQuarter(now) hasta hoy |
-| Anual | startOfYear(now) hasta hoy |
+Reemplaza las 11 mini-tarjetas (6 SLA periodo + 5 CSAT periodo) con **una sola tabla compacta**:
 
-Cada tarjeta muestra:
-- CSAT promedio del periodo
-- Encuestas respondidas / total del periodo
-- Color segun score (verde >= 4, amber >= 3, rojo < 3)
+| Periodo | Tickets | SLA % | CSAT | Respondidas | Tiempo Resp. |
+|---------|---------|-------|------|-------------|--------------|
+| Hoy     | 0       | 100%  | --   | 0/0         | --           |
+| Semana  | 2       | 75%   | 5.0  | 1/2         | 2h 15m       |
+| Mes     | 8       | 63%   | 5.0  | 2/8         | 1h 48m       |
+| Q1      | 11      | 64%   | 5.0  | 2/11        | 1h 30m       |
+| 2026    | 11      | 64%   | 5.0  | 2/11        | 1h 30m       |
 
-### Tarea 3: Mejorar grafico de tickets diarios
+Caracteristicas:
+- Cada fila tiene indicador de color (dot verde/amber/rojo) segun SLA compliance
+- CSAT muestra estrellas mini o color segun score
+- Diseno compacto con `text-sm`, filas de ~36px
+- Header sticky si se expande
+- Responsive: en mobile se convierte en cards apiladas (patron card-list)
+
+Recibe los tickets crudos y calcula todo internamente (SLA, CSAT, volumen por periodo).
+
+### 3. Mejorar Charts
 
 **Archivo**: `src/components/tickets/TicketDashboardCharts.tsx`
 
-Problemas actuales:
-- No rellena dias sin tickets (gaps en el eje X)
-- Con pocos datos se ve vacio
+- Agregar **linea de referencia** (ReferenceLine) para el promedio diario de tickets
+- Mejorar tooltip con formato: "Lun 24 Feb: 2 creados, 1 resuelto"
+- Agregar etiqueta de total en el pie/donut: numero central "11 tickets"
+- Reducir `h-[200px]` a `h-[220px]` para dar un poco mas de respiracion al chart
 
-Solucion:
-- Generar un array continuo de dias (desde hace 30 dias hasta hoy) y rellenar con 0 los dias sin actividad
-- Esto muestra una linea continua realista en vez de puntos aislados
-- Limitar a ultimos 30 dias para densidad visual adecuada
-
-### Tarea 4: Integrar nuevos componentes en TicketsList.tsx
+### 4. Integrar en TicketsList.tsx
 
 **Archivo**: `src/pages/Tickets/TicketsList.tsx`
 
-- Pasar `ticketMetrics` a `TicketSLAKPIs` para las 2 tarjetas nuevas
-- Agregar `TicketCSATByPeriod` debajo de `TicketSLAMetricsByPeriod` en la seccion de KPIs
-- Layout: las 6 tarjetas SLA en grid 2x3 (mobile) / 6 columnas (desktop), seguido de la fila CSAT por periodo
+- Reemplazar las 3 filas de cards (KPIs + SLAMetricsByPeriod + CSATByPeriod) con:
+  1. Fila de 3 Hero KPIs (grid 1x3)
+  2. Tabla consolidada de periodos
+  3. Charts
+- Eliminar imports de `TicketSLAMetricsByPeriod` y `TicketCSATByPeriod` (ya consolidados)
+- Mover el `AgentWorkloadPanel` al lado derecho del chart de pie (en lugar de al lado de los KPIs)
 
-### Tarea 5: Pasar tickets al componente CSAT
+### 5. Eliminar componentes redundantes
 
-**Archivo**: `src/hooks/useTicketMetrics.ts`
-
-Agregar al objeto `TicketMetrics`:
-- `csatResponseRate`: porcentaje de tickets con CSAT respondido
-- `csatByPeriod`: objeto con promedios por dia/semana/mes/Q/anual
-- `csatResponseCount`: total de encuestas respondidas
+Los siguientes componentes quedan sin uso y se pueden eliminar o mantener para referencia:
+- `TicketSLAMetricsByPeriod.tsx` (consolidado en tabla)
+- `TicketCSATByPeriod.tsx` (consolidado en tabla)
 
 ---
 
@@ -101,16 +119,16 @@ Agregar al objeto `TicketMetrics`:
 
 | Archivo | Cambio |
 |---|---|
-| `src/components/tickets/TicketSLAKPIs.tsx` | Agregar 2 tarjetas: Tiempo Resp. + CSAT actual |
-| `src/components/tickets/TicketCSATByPeriod.tsx` | **Nuevo** - CSAT desglosado diario/semanal/mensual/Q/anual |
-| `src/components/tickets/TicketDashboardCharts.tsx` | Rellenar dias vacios en el grafico de tickets diarios |
-| `src/pages/Tickets/TicketsList.tsx` | Integrar nuevos componentes y pasar props |
-| `src/hooks/useTicketMetrics.ts` | Agregar metricas CSAT por periodo al calculo |
+| `src/components/tickets/TicketSLAKPIs.tsx` | Redisenar: 6 cards a 3 hero cards con desglose interno |
+| `src/components/tickets/TicketPeriodSummaryTable.tsx` | **Nuevo** - Tabla consolidada Periodos x Metricas |
+| `src/components/tickets/TicketDashboardCharts.tsx` | Linea de referencia, tooltip mejorado, label central en donut |
+| `src/pages/Tickets/TicketsList.tsx` | Nuevo layout: Hero KPIs + Tabla + Charts. Remover imports obsoletos |
 
 ## Resultado esperado
 
-El Centro de Tickets pasara de 4 tarjetas SLA a un panel completo con:
-- 6 tarjetas de estado (SLA + Respuesta + CSAT)
-- Fila de CSAT temporal (Hoy / Semana / Mes / Q / Anual)
-- Grafico de tickets diarios con linea continua (30 dias)
-- Visibilidad total de tasa de respuesta CSAT (2/11 = 18%)
+- **17 mini-tarjetas** se reducen a **3 hero cards + 1 tabla compacta**
+- Tiempo de escaneo visual: de ~8 segundos a ~3 segundos
+- Cero redundancia de datos
+- Layout profesional tipo Tableau/Looker con jerarquia clara
+- Responsive: tabla se convierte en card-list en mobile
+
