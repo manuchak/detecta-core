@@ -154,95 +154,134 @@ export function useServiceChecklist({
      []
    );
  
-   const capturePhoto = useCallback(
-     async (angle: AnguloFoto, file: File): Promise<FotoValidada> => {
-        // Comprimir imagen si es necesario (>500KB)
+    /**
+     * Captura foto con compresión y GPS en paralelo.
+     * Reporta progreso via callback opcional y maneja errores de forma granular.
+     */
+    const capturePhoto = useCallback(
+      async (angle: AnguloFoto, file: File, onProgress?: (status: string) => void): Promise<FotoValidada> => {
+        const reportProgress = onProgress || (() => {});
+
+        // --- FASE 1: Compresión + GPS en paralelo ---
+        reportProgress('Procesando foto...');
         let processedFile: Blob = file;
         let mimeType = file.type;
-        
-        if (needsCompression(file)) {
+
+        const compressionPromise = (async () => {
+          if (!needsCompression(file)) return null;
           try {
             const compressed = await compressImage(file, {
               maxWidth: 1920,
               maxHeight: 1080,
               quality: 0.7,
             });
-             processedFile = compressed.blob;
-             mimeType = 'image/jpeg';
-             console.log(`[Checklist] Foto ${angle} comprimida: ${compressed.compressionRatio.toFixed(0)}% reducción`);
-           } catch (compressionError) {
-             console.warn('[Checklist] Error comprimiendo foto, usando original:', compressionError);
-           }
-         }
+            console.log(`[Checklist] Foto ${angle} comprimida: ${compressed.compressionRatio.toFixed(0)}% reducción`);
+            return compressed;
+          } catch (compressionError) {
+            console.warn('[Checklist] Compresión falló, usando original:', compressionError);
+            toast.info('Foto guardada sin comprimir', {
+              description: 'No se pudo reducir el tamaño, pero la foto se guardó correctamente.',
+              duration: 3000,
+            });
+            return null;
+          }
+        })();
+
+        reportProgress('Obteniendo ubicación...');
+        const gpsPromise = getCurrentPositionSafe().catch((gpsError) => {
+          console.warn('[Checklist] GPS error no crítico:', gpsError);
+          return null;
+        });
+
+        const [compressed, coords] = await Promise.all([compressionPromise, gpsPromise]);
+
+        if (compressed) {
+          processedFile = compressed.blob;
+          mimeType = 'image/jpeg';
+        }
 
         // Validación post-compresión: rechazar blobs de 0 bytes
         if (processedFile.size === 0) {
-          toast.error('Error al procesar la foto. Por favor intenta de nuevo.', {
-            description: 'La imagen resultó vacía después de la compresión.',
-          });
-          throw new Error(`Foto ${angle} resultó en 0 bytes después de compresión`);
+          console.error(`[Checklist] Foto ${angle} resultó en 0 bytes`);
+          throw new Error('ZERO_BYTES');
         }
 
-       const coords = await getCurrentPositionSafe();
- 
-       let distancia: number | null = null;
-       let validacion: ValidacionGeo = 'pendiente';
- 
-       if (coords && origenCoords) {
-         const result = validarUbicacionFoto(
-           coords.lat,
-           coords.lng,
-           origenCoords.lat,
-           origenCoords.lng
-         );
-         distancia = result.distancia;
-         validacion =
-           result.distancia === null
-             ? 'sin_gps'
-             : result.distancia <= GEO_CONFIG.TOLERANCIA_METROS
-               ? 'ok'
-               : 'fuera_rango';
+        // --- FASE 2: Validación GPS ---
+        let distancia: number | null = null;
+        let validacion: ValidacionGeo = 'pendiente';
+
+        if (coords && origenCoords) {
+          const result = validarUbicacionFoto(
+            coords.lat,
+            coords.lng,
+            origenCoords.lat,
+            origenCoords.lng
+          );
+          distancia = result.distancia;
+          validacion =
+            result.distancia === null
+              ? 'sin_gps'
+              : result.distancia <= GEO_CONFIG.TOLERANCIA_METROS
+                ? 'ok'
+                : 'fuera_rango';
         } else if (!coords) {
           validacion = 'sin_gps';
         } else {
-          // GPS captured but no origin to compare - mark as ok
           validacion = 'ok';
         }
- 
-       const photoId = crypto.randomUUID();
-       const newFoto: FotoValidada = {
-         angle,
-         localBlobId: photoId,
-         geotag_lat: coords?.lat || null,
-         geotag_lng: coords?.lng || null,
-         distancia_origen_m: distancia,
-         validacion,
-         captured_at: new Date().toISOString(),
-         capturado_offline: !isOnline,
-       };
- 
-       await savePhotoBlob({
-         id: photoId,
-         servicioId,
-         angle,
-          blob: processedFile,
-          mimeType,
-         geotagLat: coords?.lat || null,
-         geotagLng: coords?.lng || null,
-         distanciaOrigen: distancia,
-         validacion,
-         capturedAt: newFoto.captured_at,
-       });
- 
-       setFotos((prev) => {
-         const filtered = prev.filter((f) => f.angle !== angle);
-         return [...filtered, newFoto];
-       });
- 
-       return newFoto;
-     },
-     [servicioId, origenCoords, isOnline]
-   );
+
+        // --- FASE 3: Guardar en IndexedDB ---
+        reportProgress('Guardando...');
+        const photoId = crypto.randomUUID();
+        const newFoto: FotoValidada = {
+          angle,
+          localBlobId: photoId,
+          geotag_lat: coords?.lat || null,
+          geotag_lng: coords?.lng || null,
+          distancia_origen_m: distancia,
+          validacion,
+          captured_at: new Date().toISOString(),
+          capturado_offline: !isOnline,
+        };
+
+        try {
+          await savePhotoBlob({
+            id: photoId,
+            servicioId,
+            angle,
+            blob: processedFile,
+            mimeType,
+            geotagLat: coords?.lat || null,
+            geotagLng: coords?.lng || null,
+            distanciaOrigen: distancia,
+            validacion,
+            capturedAt: newFoto.captured_at,
+          });
+        } catch (storageError) {
+          console.error('[Checklist] IndexedDB save failed:', storageError);
+          throw new Error('STORAGE_FULL');
+        }
+
+        setFotos((prev) => {
+          const filtered = prev.filter((f) => f.angle !== angle);
+          return [...filtered, newFoto];
+        });
+
+        // Guardar borrador inmediatamente después de foto
+        saveDraft({
+          servicioId,
+          custodioPhone: custodioTelefono,
+          items,
+          observaciones,
+          firma: firma || undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {});
+
+        return newFoto;
+      },
+      [servicioId, origenCoords, isOnline, custodioTelefono, items, observaciones, firma]
+    );
  
    const removePhoto = useCallback(
      async (angle: AnguloFoto) => {

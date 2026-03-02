@@ -64,11 +64,16 @@ export async function compressImage(
     const img = new Image();
     const url = URL.createObjectURL(file);
 
-    // v6: Timeout específico para img.onload (8 segundos)
+    // v7: Timeout para img.onload - retorna original en lugar de rechazar
     const imgLoadTimeout = setTimeout(() => {
       URL.revokeObjectURL(url);
-      console.error('[ImageUtils] v6 - TIMEOUT: img.onload no disparó en 8 segundos');
-      reject(new Error('Timeout: La imagen no se pudo cargar'));
+      console.warn('[ImageUtils] v7 - TIMEOUT: img.onload no disparó en 8s, retornando original');
+      resolve({
+        blob: file instanceof Blob ? file : new Blob([file]),
+        originalSize,
+        compressedSize: originalSize,
+        compressionRatio: 0,
+      });
     }, IMG_LOAD_TIMEOUT_MS);
 
     img.onload = () => {
@@ -196,8 +201,14 @@ export async function compressImage(
     img.onerror = (e) => {
       clearTimeout(imgLoadTimeout);
       URL.revokeObjectURL(url);
-      console.error('[ImageUtils] v6 - Error al cargar imagen:', e);
-      reject(new Error('Error al cargar imagen para compresión'));
+      console.error('[ImageUtils] v7 - Error al cargar imagen, retornando original:', e);
+      // v7: En lugar de rechazar, retornar archivo original como fallback
+      resolve({
+        blob: file instanceof Blob ? file : new Blob([file]),
+        originalSize,
+        compressedSize: originalSize,
+        compressionRatio: 0,
+      });
     };
 
     console.log('[ImageUtils] v6 - Asignando src a img...');

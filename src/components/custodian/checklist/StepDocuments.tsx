@@ -42,8 +42,8 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
   // Verificar documentos rechazados
   const rejectedDocs = documents.filter(d => (d as any).rechazado === true);
   
-  // Solo puede proceder si tiene todos los documentos, ninguno vencido, y ninguno rechazado
-  const canProceed = missingDocs.length === 0 && expiredDocs.length === 0 && rejectedDocs.length === 0;
+   // Documentos con problemas (advertencia, pero no bloquea)
+   const hasDocumentIssues = missingDocs.length > 0 || expiredDocs.length > 0 || rejectedDocs.length > 0;
  
   const handleUpload = async () => {
     console.log('[StepDocuments] Iniciando upload:', { 
@@ -105,27 +105,27 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
  
         {/* Status summary */}
         {rejectedDocs.length > 0 ? (
-          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">
-              Tienes {rejectedDocs.length} documento(s) rechazado(s). Revisa el motivo y vuelve a subir.
-            </p>
-          </div>
-        ) : missingDocs.length > 0 ? (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              Tienes {missingDocs.length} documento(s) sin registrar. Súbelos para continuar.
-            </p>
-          </div>
-        ) : expiredDocs.length > 0 ? (
-          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-            <p className="text-sm text-destructive">
-              Tienes {expiredDocs.length} documento(s) vencido(s). Actualízalos para continuar.
-            </p>
-          </div>
-        ) : (
+           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
+             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+             <p className="text-sm text-amber-700 dark:text-amber-400">
+               Tienes {rejectedDocs.length} documento(s) rechazado(s). Puedes continuar, pero actualízalos pronto.
+             </p>
+           </div>
+         ) : missingDocs.length > 0 ? (
+           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
+             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+             <p className="text-sm text-amber-700 dark:text-amber-400">
+               Tienes {missingDocs.length} documento(s) sin registrar. Puedes continuar, pero súbelos pronto.
+             </p>
+           </div>
+         ) : expiredDocs.length > 0 ? (
+           <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
+             <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+             <p className="text-sm text-amber-700 dark:text-amber-400">
+               Tienes {expiredDocs.length} documento(s) vencido(s). Puedes continuar, pero actualízalos pronto.
+             </p>
+           </div>
+         ) : (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
             <p className="text-sm text-emerald-700 dark:text-emerald-400">
@@ -215,15 +215,15 @@ export function StepDocuments({ custodioTelefono, onComplete }: StepDocumentsPro
          </DialogContent>
        </Dialog>
  
-       {/* Continue button */}
-       <Button
-         className="w-full"
-         size="lg"
-         disabled={!canProceed}
-         onClick={onComplete}
-       >
-         Continuar
-       </Button>
+        {/* Continue button */}
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={onComplete}
+          variant={hasDocumentIssues ? 'outline' : 'default'}
+        >
+          {hasDocumentIssues ? 'Continuar de todos modos' : 'Continuar'}
+        </Button>
      </div>
    );
  }
