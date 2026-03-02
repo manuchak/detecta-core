@@ -40,6 +40,7 @@ import { TicketCardMobile } from "@/components/tickets/TicketCardMobile";
 import { TicketFiltersSheet } from "@/components/tickets/TicketFiltersSheet";
 import { TicketDashboardCharts } from "@/components/tickets/TicketDashboardCharts";
 import { TicketSLAMetricsByPeriod } from "@/components/tickets/TicketSLAMetricsByPeriod";
+import { TicketCSATByPeriod } from "@/components/tickets/TicketCSATByPeriod";
 import { useAgentWorkload } from "@/hooks/useAgentWorkload";
 import { useTicketMetrics } from "@/hooks/useTicketMetrics";
 import { cn } from "@/lib/utils";
@@ -210,7 +211,7 @@ export const TicketsList = () => {
           {/* Row 1: SLA KPIs + Workload Panel (collapsible) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} />
+              <TicketSLAKPIs tickets={ticketsWithSLA} loading={loading} ticketMetrics={ticketMetrics} />
             </div>
             <AgentWorkloadPanel department={departmentFilter} compact={false} defaultCollapsed={true} />
           </div>
@@ -222,6 +223,15 @@ export const TicketsList = () => {
               sla_deadline_resolucion: t.fecha_sla_resolucion,
               resolved_at: t.resuelto_at,
               status: t.status
+            }))} 
+            loading={loading} 
+          />
+          
+          {/* Row 2.5: CSAT by Period */}
+          <TicketCSATByPeriod 
+            tickets={tickets.map(t => ({
+              created_at: t.created_at,
+              calificacion_csat: t.calificacion_csat
             }))} 
             loading={loading} 
           />
