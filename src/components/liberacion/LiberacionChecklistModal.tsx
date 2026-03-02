@@ -441,6 +441,10 @@ const LiberacionChecklistModal = ({
     if (!progresoCapacitacion?.capacitacion_completa) {
       yellow.push('Capacitación no completada');
     }
+    // Constancia de capacitación faltante = YELLOW
+    if (progresoCapacitacion?.capacitacion_completa && documentosExistentes && !documentosExistentes.some(d => d.tipo_documento === 'constancia_capacitacion')) {
+      yellow.push('Constancia de capacitación sin evidencia adjunta');
+    }
     // Estudio socioeconómico pendiente = YELLOW
     if (!latestSocioeconomico || latestSocioeconomico.estado === 'pendiente' || latestSocioeconomico.estado === 'en_proceso') {
       yellow.push('Estudio socioeconómico pendiente');
@@ -456,7 +460,7 @@ const LiberacionChecklistModal = ({
 
     const canLiberate = red.length === 0;
     return { red, yellow, green, canLiberate };
-  }, [liberacion, contratosCompletos, progresoCapacitacion, latestSocioeconomico]);
+  }, [liberacion, contratosCompletos, progresoCapacitacion, latestSocioeconomico, documentosExistentes]);
 
   const handleLiberar = async () => {
     if (!gates.canLiberate) {

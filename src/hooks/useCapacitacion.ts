@@ -204,10 +204,55 @@ export const useCapacitacion = (candidatoId?: string) => {
 
   // Marcar capacitación como completada manualmente (presencial)
   const marcarCapacitacionManual = useMutation({
-    mutationFn: async ({ notas }: { notas?: string }) => {
+    mutationFn: async ({ notas, archivo }: { notas?: string; archivo?: File }) => {
       if (!candidatoId || !modulos) throw new Error('Datos requeridos');
 
-      // Upsert all modules as manually completed
+      // 1. Si hay archivo, subirlo a storage y crear registro en documentos_candidato
+      if (archivo) {
+        const timestamp = Date.now();
+        const ext = archivo.name.split('.').pop() || 'jpg';
+        const sanitizedPath = `${candidatoId}/constancia_capacitacion_${timestamp}.${ext}`.replace(/[^a-zA-Z0-9_\-\/\.]/g, '_');
+
+        // Comprimir si es imagen
+        let fileToUpload: Blob = archivo;
+        if (archivo.type.startsWith('image/') && archivo.type !== 'image/svg+xml') {
+          try {
+            const { compressImage } = await import('@/lib/imageUtils');
+            const result = await compressImage(archivo, { maxWidth: 1920, maxHeight: 1080, quality: 0.7 });
+            fileToUpload = result.blob;
+          } catch {
+            // Fallback al original
+          }
+        }
+
+        const { error: uploadError } = await supabase.storage
+          .from('documentos-candidatos')
+          .upload(sanitizedPath, fileToUpload, { contentType: archivo.type, upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('documentos-candidatos')
+          .getPublicUrl(sanitizedPath);
+
+        // Insertar registro en documentos_candidato
+        const { error: docError } = await supabase
+          .from('documentos_candidato')
+          .insert({
+            candidato_id: candidatoId,
+            tipo_documento: 'constancia_capacitacion',
+            archivo_url: urlData.publicUrl,
+            archivo_nombre: archivo.name,
+            archivo_tipo: archivo.type,
+            archivo_tamaño: archivo.size,
+            estado_validacion: 'pendiente',
+            documento_vigente: true,
+            subido_por: user?.id,
+            notas: notas || null,
+          });
+        if (docError) throw docError;
+      }
+
+      // 2. Upsert all modules as manually completed
       const upserts = modulos.map(modulo => ({
         candidato_id: candidatoId,
         modulo_id: modulo.id,
@@ -230,6 +275,7 @@ export const useCapacitacion = (candidatoId?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['progreso-capacitacion', candidatoId] });
+      queryClient.invalidateQueries({ queryKey: ['profile-documents', candidatoId] });
       toast({ title: 'Capacitación completada', description: 'Todos los módulos fueron marcados como completados (presencial)' });
     }
   });

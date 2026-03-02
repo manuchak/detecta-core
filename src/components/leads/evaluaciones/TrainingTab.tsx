@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,15 +6,13 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useCapacitacion } from '@/hooks/useCapacitacion';
 import { ModuloCapacitacion, QUIZ_MIN_SCORE } from '@/types/capacitacion';
 import { 
@@ -26,7 +24,12 @@ import {
   Play,
   FileQuestion,
   Trophy,
-  UserCheck
+  UserCheck,
+  Upload,
+  FileText,
+  Image,
+  X,
+  Loader2
 } from 'lucide-react';
 import { QuizDialog } from './QuizDialog';
 
@@ -40,11 +43,17 @@ const iconosTipo = {
   interactivo: Gamepad2
 };
 
+const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
+const MAX_SIZE_MB = 20;
+
 export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
   const { modulos, progreso, isLoading, calcularProgresoGeneral, marcarCapacitacionManual } = useCapacitacion(candidatoId);
   const [moduloQuiz, setModuloQuiz] = useState<ModuloCapacitacion | null>(null);
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [manualNotas, setManualNotas] = useState('');
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const progresoGeneral = calcularProgresoGeneral();
 
@@ -52,11 +61,42 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
     return progreso?.find(p => p.modulo_id === moduloId);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`El archivo excede el límite de ${MAX_SIZE_MB}MB`);
+      return;
+    }
+    setArchivo(file);
+    if (file.type.startsWith('image/')) {
+      setPreview(URL.createObjectURL(file));
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setArchivo(null);
+    if (preview) URL.revokeObjectURL(preview);
+    setPreview(null);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
   const handleMarcarManual = async () => {
-    if (!marcarCapacitacionManual) return;
-    await marcarCapacitacionManual.mutateAsync({ notas: manualNotas });
+    if (!marcarCapacitacionManual || !archivo) return;
+    await marcarCapacitacionManual.mutateAsync({ notas: manualNotas, archivo });
     setShowManualDialog(false);
     setManualNotas('');
+    handleRemoveFile();
+  };
+
+  const handleCloseDialog = (open: boolean) => {
+    if (!open) {
+      handleRemoveFile();
+      setManualNotas('');
+    }
+    setShowManualDialog(open);
   };
 
   // Check if any module has completado_manual
@@ -227,37 +267,95 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
         />
       )}
 
-      {/* Dialog de Capacitación Manual */}
-      <AlertDialog open={showManualDialog} onOpenChange={setShowManualDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+      {/* Dialog de Capacitación Manual con Upload */}
+      <Dialog open={showManualDialog} onOpenChange={handleCloseDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <UserCheck className="h-5 w-5" />
               Completar Capacitación Presencial
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esto marcará todos los módulos como completados manualmente. 
+            </DialogTitle>
+            <DialogDescription>
+              Sube la constancia de inducción firmada y, opcionalmente, agrega notas. 
               Se registrará quién y cuándo realizó esta acción.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="manual-notas">Notas (opcional)</Label>
-            <Textarea
-              id="manual-notas"
-              placeholder="Ej: Capacitación presencial realizada el 24/02/2026 en oficina central..."
-              value={manualNotas}
-              onChange={(e) => setManualNotas(e.target.value)}
-              className="mt-2"
-            />
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Upload zone */}
+            <div>
+              <Label>Constancia de Inducción *</Label>
+              {!archivo ? (
+                <label className="flex flex-col items-center justify-center w-full h-32 mt-2 border-2 border-dashed rounded-lg cursor-pointer border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Sube foto o PDF de la constancia firmada</span>
+                  <span className="text-xs text-muted-foreground mt-1">PDF, JPG o PNG (máx. {MAX_SIZE_MB}MB)</span>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept={ACCEPTED_TYPES}
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              ) : (
+                <div className="border rounded-lg p-3 mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {archivo.type.startsWith('image/') ? (
+                        <Image className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="text-sm truncate">{archivo.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ({(archivo.size / 1024 / 1024).toFixed(1)}MB)
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleRemoveFile}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {preview && (
+                    <img src={preview} alt="Preview" className="w-full max-h-48 object-contain rounded" />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label htmlFor="manual-notas">Notas (opcional)</Label>
+              <Textarea
+                id="manual-notas"
+                placeholder="Ej: Capacitación presencial realizada el 24/02/2026 en oficina central..."
+                value={manualNotas}
+                onChange={(e) => setManualNotas(e.target.value)}
+                className="mt-2"
+              />
+            </div>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMarcarManual}>
-              Confirmar Completada
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleCloseDialog(false)} disabled={marcarCapacitacionManual.isPending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleMarcarManual} disabled={!archivo || marcarCapacitacionManual.isPending}>
+              {marcarCapacitacionManual.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Completar Capacitación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

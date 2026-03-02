@@ -24,6 +24,7 @@ export const DOCUMENTO_LABELS: Record<string, string> = {
   cv: 'Curriculum Vitae',
   foto: 'Fotografía',
   contrato: 'Contrato Firmado',
+  constancia_capacitacion: 'Constancia de Capacitación / Inducción',
   
   // De portal custodio (documentos_custodio)
   tarjeta_circulacion: 'Tarjeta de Circulación',
