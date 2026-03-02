@@ -208,8 +208,10 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         }
 
         // Resolution time
-        if (ticket.status === 'resuelto' && ticket.resolved_at) {
-          const resolvedAt = parseISO(ticket.resolved_at);
+        const isResolved = ticket.status === 'resuelto' || ticket.status === 'cerrado';
+        const resolvedTimestamp = ticket.resuelto_at || ticket.resolved_at;
+        if (isResolved && resolvedTimestamp) {
+          const resolvedAt = parseISO(resolvedTimestamp);
           const resolutionMinutes = differenceInMinutes(resolvedAt, createdAt);
           totalResolutionMinutes += resolutionMinutes;
           resolutionCount++;
@@ -225,8 +227,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         if (ticket.fecha_sla_resolucion) {
           slaApplicableCount++;
           const deadline = parseISO(ticket.fecha_sla_resolucion);
-          if (ticket.status === 'resuelto' && ticket.resolved_at) {
-            const resolvedAt = parseISO(ticket.resolved_at);
+          if ((ticket.status === 'resuelto' || ticket.status === 'cerrado') && (ticket.resuelto_at || ticket.resolved_at)) {
+            const resolvedAt = parseISO((ticket.resuelto_at || ticket.resolved_at) as string);
             if (resolvedAt <= deadline) {
               slaMetCount++;
               deptData.slaMet++;
@@ -279,11 +281,12 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
 
         agentData.assigned++;
 
-        if (ticket.status === 'resuelto') {
+        if (ticket.status === 'resuelto' || ticket.status === 'cerrado') {
           agentData.resolved++;
-          if (ticket.resolved_at) {
+          const agentResolvedTs = ticket.resuelto_at || ticket.resolved_at;
+          if (agentResolvedTs) {
             const resolutionMinutes = differenceInMinutes(
-              parseISO(ticket.resolved_at),
+              parseISO(agentResolvedTs),
               parseISO(ticket.created_at)
             );
             agentData.totalResolution += resolutionMinutes;
@@ -304,8 +307,9 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
         if (ticket.fecha_sla_resolucion) {
           agentData.slaTotal++;
           const deadline = parseISO(ticket.fecha_sla_resolucion);
-          if (ticket.status === 'resuelto' && ticket.resolved_at) {
-            if (parseISO(ticket.resolved_at) <= deadline) {
+          const agentSlaTs = ticket.resuelto_at || ticket.resolved_at;
+          if ((ticket.status === 'resuelto' || ticket.status === 'cerrado') && agentSlaTs) {
+            if (parseISO(agentSlaTs) <= deadline) {
               agentData.slaMet++;
             }
           }
