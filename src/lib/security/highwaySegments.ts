@@ -1563,11 +1563,192 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     recommendations: ['Monitoreo GPS estándar', 'Corredor costero relativamente seguro'],
     waypoints: [[-105.6000, 22.3000], [-105.9500, 22.8000], [-106.4200, 23.2300]],
   },
-];
 
-// ============================================================
-// PUNTOS DE INTERÉS (POIs) - Casetas, Puntos Negros, Áreas Seguras
-// ============================================================
+  // ============================================================
+  // CORREDOR: SLP - Matehuala - Saltillo (57D) - 450km total
+  // Principal arteria comercial CDMX-MTY. Altiplano Potosino.
+  // ============================================================
+  {
+    id: 'slp-mat-1',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'SLP Norte - Entronque Charcas',
+    kmStart: 0,
+    kmEnd: 70,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 4,
+    criticalHours: '20:00-06:00',
+    commonIncidentType: 'Robo sin violencia / Halconeo',
+    recommendations: [
+      'Evitar tránsito nocturno',
+      'Monitoreo GPS cada 15 min',
+      'Último punto con cobertura celular confiable',
+    ],
+    waypoints: [[-100.9800, 22.1500], [-100.8500, 22.4500], [-100.7800, 22.7300]],
+  },
+  {
+    id: 'slp-mat-2',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'Charcas - Venado (Altiplano)',
+    kmStart: 70,
+    kmEnd: 140,
+    riskLevel: 'extremo',
+    avgMonthlyEvents: 8,
+    criticalHours: '19:00-06:00',
+    commonIncidentType: 'Robo organizado / Zona sin cobertura',
+    recommendations: [
+      'Comunicación satelital OBLIGATORIA (zona muerta confirmada)',
+      'Restricción horaria absoluta: NO transitar 19:00-06:00',
+      'Check-in obligatorio km 70 ANTES de entrar',
+      'Convoy mínimo 2 unidades para carga >$1.5M MXN',
+      'Protocolo anti-jammer activo (71% uso nacional)',
+    ],
+    waypoints: [[-100.7800, 22.7300], [-100.7200, 22.8500], [-100.6800, 23.0000]],
+  },
+  {
+    id: 'slp-mat-3',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'Venado - Matehuala Sur',
+    kmStart: 140,
+    kmEnd: 200,
+    riskLevel: 'extremo',
+    avgMonthlyEvents: 7,
+    criticalHours: '19:00-06:00',
+    commonIncidentType: 'Emboscada / Robo con violencia / Halcones',
+    recommendations: [
+      'ZONA MÁS AISLADA del corredor - Comunicación satelital OBLIGATORIA',
+      'NO transitar 19:00-06:00 bajo ninguna circunstancia',
+      'Check-in obligatorio al SALIR de zona (km 200)',
+      'Contacto previo con base GN Matehuala',
+      'Convoy mínimo 2 unidades para cualquier carga de valor',
+      'Protocolo anti-jammer activo',
+    ],
+    waypoints: [[-100.6800, 23.0000], [-100.6500, 23.2000], [-100.6300, 23.4000]],
+  },
+  {
+    id: 'slp-mat-4',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'Matehuala',
+    kmStart: 200,
+    kmEnd: 230,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 5,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Robo en accesos / Robo en estaciones de servicio',
+    recommendations: [
+      'Evitar paradas en accesos sur y norte',
+      'Usar gasolinera vigilada Matehuala centro',
+      'Check-in al pasar por Matehuala',
+      'Monitoreo GPS cada 10 min',
+    ],
+    waypoints: [[-100.6300, 23.4000], [-100.6500, 23.6400], [-100.6500, 23.6800]],
+  },
+  {
+    id: 'slp-mat-5',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'Matehuala - La Ventura',
+    kmStart: 230,
+    kmEnd: 300,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 4,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Robo sin violencia / Baja vigilancia',
+    recommendations: [
+      'Tramo desértico norte con baja vigilancia',
+      'Evitar tránsito nocturno',
+      'Monitoreo GPS cada 15 min',
+    ],
+    waypoints: [[-100.6500, 23.6800], [-100.7000, 23.8500], [-100.7500, 24.0500]],
+  },
+  {
+    id: 'slp-mat-6',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'La Ventura - Saltillo Sur',
+    kmStart: 300,
+    kmEnd: 380,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-04:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: [
+      'Mejora gradual de infraestructura',
+      'Monitoreo GPS estándar',
+      'Evitar paradas no programadas',
+    ],
+    waypoints: [[-100.7500, 24.0500], [-100.8000, 24.3000], [-100.8500, 24.4500], [-101.0000, 25.0000]],
+  },
+  {
+    id: 'slp-mat-7',
+    corridorId: 'slp-matehuala-saltillo',
+    name: 'Saltillo Sur - Entronque MTY',
+    kmStart: 380,
+    kmEnd: 450,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: [
+      'Zona periurbana Saltillo',
+      'Conexión con 40D hacia Monterrey',
+      'Monitoreo GPS estándar',
+    ],
+    waypoints: [[-101.0000, 25.0000], [-101.0000, 25.2000], [-101.0000, 25.4200]],
+  },
+
+  // ============================================================
+  // CORREDOR: Monterrey - Saltillo (40D) - 85km total
+  // ============================================================
+  {
+    id: 'mty-sal-1',
+    corridorId: 'monterrey-saltillo',
+    name: 'Saltillo - Ramos Arizpe',
+    kmStart: 0,
+    kmEnd: 25,
+    riskLevel: 'bajo',
+    avgMonthlyEvents: 1,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: [
+      'Zona industrial vigilada',
+      'Monitoreo GPS estándar',
+      'Corredor relativamente seguro',
+    ],
+    waypoints: [[-101.0000, 25.4200], [-100.9500, 25.5400]],
+  },
+  {
+    id: 'mty-sal-2',
+    corridorId: 'monterrey-saltillo',
+    name: 'Ramos Arizpe - Santa Catarina',
+    kmStart: 25,
+    kmEnd: 60,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-04:00',
+    commonIncidentType: 'Accidentes viales / Curvas cerradas',
+    recommendations: [
+      'Tramo montañoso con curvas cerradas',
+      'Precaución con vehículos pesados',
+      'Monitoreo GPS estándar',
+    ],
+    waypoints: [[-100.9500, 25.5400], [-100.6200, 25.5200], [-100.4500, 25.5800]],
+  },
+  {
+    id: 'mty-sal-3',
+    corridorId: 'monterrey-saltillo',
+    name: 'Santa Catarina - Monterrey',
+    kmStart: 60,
+    kmEnd: 85,
+    riskLevel: 'bajo',
+    avgMonthlyEvents: 1,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: [
+      'Zona metropolitana MTY',
+      'Monitoreo GPS estándar',
+      'Corredor urbano seguro',
+    ],
+    waypoints: [[-100.4500, 25.5800], [-100.3100, 25.6700]],
+  },
+];
 
 export const HIGHWAY_POIS: POI[] = [
   // === PUNTOS NEGROS (Alta incidencia) ===
@@ -2127,6 +2308,63 @@ export const HIGHWAY_POIS: POI[] = [
     type: 'industrial',
     coordinates: [-100.9500, 25.5400],
     description: 'Clúster automotriz (GM, Chrysler). Alto valor.',
+  },
+
+  // === POIs CORREDOR SLP-MATEHUALA-SALTILLO (57D) ===
+  {
+    id: 'blackspot-altiplano-charcas',
+    name: 'Altiplano Charcas-Venado (Zona de emboscadas)',
+    type: 'blackspot',
+    coordinates: [-100.7200, 22.8500],
+    description: 'Zona desértica aislada. Emboscadas documentadas. Sin cobertura celular.',
+    riskLevel: 'extremo',
+  },
+  {
+    id: 'blackspot-matehuala-sur',
+    name: 'Acceso Sur Matehuala',
+    type: 'blackspot',
+    coordinates: [-100.6400, 23.5800],
+    description: 'Robos en paradas y estaciones de servicio. Halcones activos.',
+    riskLevel: 'alto',
+  },
+  {
+    id: 'safe-gasolinera-matehuala',
+    name: 'Gasolinera Vigilada Matehuala Centro',
+    type: 'safe_area',
+    subtype: 'gasolinera_vigilada',
+    coordinates: [-100.6500, 23.6500],
+    description: 'Gasolinera con vigilancia 24h. Punto de check-in recomendado.',
+  },
+  {
+    id: 'safe-gn-km200',
+    name: 'Puesto GN km 200 (57D)',
+    type: 'safe_area',
+    subtype: 'puesto_militar',
+    coordinates: [-100.6300, 23.4500],
+    description: 'Base Guardia Nacional. Punto de apoyo antes de entrar a Matehuala.',
+  },
+  {
+    id: 'toll-huizache',
+    name: 'Caseta Huizache (57D)',
+    type: 'tollbooth',
+    coordinates: [-100.5800, 23.1500],
+    description: 'Caseta de cobro. Último punto con infraestructura antes de Matehuala.',
+  },
+  {
+    id: 'junction-matehuala-nl',
+    name: 'Entronque Matehuala-Nuevo Laredo (57/57D)',
+    type: 'junction',
+    coordinates: [-100.6500, 23.6800],
+    description: 'Bifurcación hacia Nuevo Laredo (57) o Saltillo (57D). Punto de decisión operativa.',
+  },
+
+  // === POIs CORREDOR MONTERREY-SALTILLO ===
+  {
+    id: 'junction-saltillo-40d',
+    name: 'Entronque Saltillo-40D (Torreón)',
+    type: 'junction',
+    coordinates: [-101.0000, 25.4200],
+    description: 'Conexión con autopista 40D hacia Torreón/Durango.',
   },
 ];
 

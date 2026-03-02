@@ -587,6 +587,28 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-106.4200, 23.2300],  // Mazatlán
     ],
   },
+
+  // === CORREDOR P0: SLP - Matehuala - Saltillo (57D) ===
+  {
+    id: 'slp-matehuala-saltillo',
+    name: 'SLP - Matehuala - Saltillo (57D)',
+    riskLevel: 'alto',
+    description: 'Eje norte por Altiplano Potosino. Zonas muertas de comunicación, robos organizados en Matehuala. Principal arteria CDMX-MTY',
+    kilometers: 450,
+    avgEventsPerHex: 5,
+    waypoints: [
+      [-100.9800, 22.1500],  // SLP Norte
+      [-100.8500, 22.4500],  // Entronque Charcas
+      [-100.7800, 22.7300],  // Charcas
+      [-100.6800, 23.0000],  // Venado
+      [-100.6300, 23.4000],  // Cedral
+      [-100.6500, 23.6400],  // Matehuala
+      [-100.7500, 24.0500],  // La Ventura
+      [-100.8500, 24.4500],  // Entronque Saltillo
+      [-101.0000, 25.0000],  // Saltillo Sur
+      [-101.0000, 25.4200],  // Saltillo
+    ],
+  },
 ];
 
 // Helper to get corridors by risk level
