@@ -12,6 +12,7 @@ interface TicketCardMobileProps {
     id: string;
     ticket_number: string;
     subject: string;
+    custodio_telefono?: string | null;
     status: string;
     priority: string;
     created_at: string;
@@ -96,7 +97,7 @@ export const TicketCardMobile = ({ ticket, onClick }: TicketCardMobileProps) => 
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
           <User className="h-3.5 w-3.5" />
           <span className="truncate">
-            {ticket.custodio?.nombre || ticket.customer_name || 'Sin nombre'}
+            {ticket.custodio?.nombre || ticket.custodio_telefono || ticket.customer_name || 'Sin nombre'}
           </span>
           {ticket.categoria_custodio?.nombre && (
             <>

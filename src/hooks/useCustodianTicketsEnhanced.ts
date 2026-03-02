@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { normalizePhone } from '@/lib/phoneUtils';
 
 export interface CustodianTicket {
   id: string;
@@ -221,6 +222,18 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
         }
       }
 
+      // Auto-resolve custodio_id by normalized phone
+      let custodioId: string | null = null;
+      const normalized = normalizePhone(custodianPhone);
+      if (normalized) {
+        const { data: custodioData } = await supabase
+          .from('custodios_operativos')
+          .select('id')
+          .or(`telefono.eq.${normalized},telefono.eq.${custodianPhone}`)
+          .maybeSingle();
+        custodioId = custodioData?.id || null;
+      }
+
       const { data, error } = await supabase
         .from('tickets')
         .insert({
@@ -231,6 +244,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
           priority: ticketData.priority || 'media',
           tipo_ticket: 'custodio',
           custodio_telefono: custodianPhone,
+          custodio_id: custodioId,
           categoria_custodio_id: ticketData.categoria_custodio_id,
           subcategoria_custodio_id: ticketData.subcategoria_custodio_id,
           servicio_id: ticketData.servicio_id,

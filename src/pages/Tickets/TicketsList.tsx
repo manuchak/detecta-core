@@ -249,13 +249,15 @@ export const TicketsList = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base">Lista de Tickets</CardTitle>
-                  <CardDescription>
-                    Ordenados por urgencia SLA. Los vencidos aparecen primero.
-                    {departmentFilter !== 'todos' && (
-                      <Badge variant="secondary" className="ml-2 capitalize">
-                        {DEPARTMENTS.find(d => d.id === departmentFilter)?.label}
-                      </Badge>
-                    )}
+                  <CardDescription asChild>
+                    <div>
+                      Ordenados por urgencia SLA. Los vencidos aparecen primero.
+                      {departmentFilter !== 'todos' && (
+                        <Badge variant="secondary" className="ml-2 capitalize">
+                          {DEPARTMENTS.find(d => d.id === departmentFilter)?.label}
+                        </Badge>
+                      )}
+                    </div>
                   </CardDescription>
                 </div>
                 <Button onClick={loadTickets} variant="ghost" size="sm" className="gap-2">
@@ -443,7 +445,7 @@ export const TicketsList = () => {
                               <div className="truncate">{ticket.subject}</div>
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              {ticket.custodio?.nombre || ticket.customer_name || ticket.customer_phone || 'Sin nombre'}
+                              {ticket.custodio?.nombre || ticket.custodio_telefono || ticket.customer_name || ticket.customer_phone || 'Sin nombre'}
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={cn("text-xs", priorityBadgeStyles[ticket.priority])}>
