@@ -34,13 +34,14 @@ export function PhotoSlot({
 
   // Cargar preview de foto local
   useEffect(() => {
+    let objectUrl: string | null = null;
+
     const loadPreview = async () => {
       if (foto?.localBlobId) {
         const photoBlob = await getPhotoBlob(foto.localBlobId);
         if (photoBlob) {
-          const url = URL.createObjectURL(photoBlob.blob);
-          setPreviewUrl(url);
-          return () => URL.revokeObjectURL(url);
+          objectUrl = URL.createObjectURL(photoBlob.blob);
+          setPreviewUrl(objectUrl);
         }
       } else if (foto?.url) {
         setPreviewUrl(foto.url);
@@ -50,6 +51,10 @@ export function PhotoSlot({
     };
 
     loadPreview();
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [foto]);
 
   const hasPhoto = !!foto;
