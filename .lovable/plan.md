@@ -1,78 +1,101 @@
 
 
-# Fix: 3 bugs en implementacion reciente
+# Evaluacion Completa del Modulo de Checklist — Bugs y Riesgos
 
-## Bug 1 — Memory leak en PhotoSlot.tsx
+## Bugs Confirmados
 
-**Problema**: `URL.createObjectURL` nunca se revoca porque el cleanup `return () => URL.revokeObjectURL(url)` esta dentro de la funcion async `loadPreview`, no en el `useEffect`.
+### Bug 1 — Race condition en PhotoSlot (memory leak persiste)
 
-**Solucion**: Reestructurar el useEffect para trackear la URL creada y revocarla en el cleanup del effect.
+**Archivo**: `src/components/custodian/checklist/PhotoSlot.tsx` (lineas 36-58)
+
+El fix anterior del memory leak tiene una race condition. La variable `objectUrl` se asigna dentro de `loadPreview` (asincrona), pero el cleanup captura la referencia por closure. Si el componente se desmonta ANTES de que `loadPreview` termine, `objectUrl` sigue siendo `null` al momento del cleanup, y el URL creado nunca se revoca.
+
+**Solucion**: Usar una ref o un flag `cancelled` para manejar correctamente la limpieza asincrona:
 
 ```text
-// Patron corregido:
 useEffect(() => {
+  let cancelled = false;
   let objectUrl: string | null = null;
 
   const loadPreview = async () => {
     if (foto?.localBlobId) {
       const photoBlob = await getPhotoBlob(foto.localBlobId);
-      if (photoBlob) {
+      if (photoBlob && !cancelled) {
         objectUrl = URL.createObjectURL(photoBlob.blob);
         setPreviewUrl(objectUrl);
       }
     } else if (foto?.url) {
-      setPreviewUrl(foto.url);
+      if (!cancelled) setPreviewUrl(foto.url);
     } else {
-      setPreviewUrl(null);
+      if (!cancelled) setPreviewUrl(null);
     }
   };
 
   loadPreview();
 
   return () => {
+    cancelled = true;
     if (objectUrl) URL.revokeObjectURL(objectUrl);
   };
 }, [foto]);
 ```
 
-## Bug 2 — Mensajes de progreso misleading en useServiceChecklist.ts
+Ademas, cuando se carga una foto nueva (el `foto` cambia), el objectUrl anterior no se revoca porque el efecto anterior ya termino y el nuevo efecto crea un nuevo `objectUrl`. Se necesita revocar el URL previo al inicio del efecto.
 
-**Problema**: `reportProgress('Obteniendo ubicacion...')` se muestra ANTES del `Promise.all`, pero la compresion aun esta corriendo. El usuario ve "Obteniendo ubicacion" cuando realmente esta comprimiendo la foto.
+### Bug 2 — SignaturePad no restaura firma de borrador
 
-**Solucion**: Usar un solo mensaje durante la fase paralela: `'Procesando foto y ubicacion...'`, y mostrar "Guardando..." solo despues de que ambas operaciones terminen.
+**Archivo**: `src/components/custodian/checklist/SignaturePad.tsx` (linea 54)
 
-```text
-// Antes:
-reportProgress('Procesando foto...');
-// ... compressionPromise
-reportProgress('Obteniendo ubicacion...');  // <-- misleading
-// ... gpsPromise
-const [compressed, coords] = await Promise.all([...]);
+El `useEffect` que carga la firma tiene `[]` como dependencias pero usa `value`. Cuando el wizard restaura un borrador y pasa el `value` de la firma guardada, el canvas no se actualiza porque el efecto solo corre una vez al montar. Si el componente monta antes de que el borrador cargue, la firma nunca se dibuja.
 
-// Despues:
-reportProgress('Procesando foto y ubicacion...');
-// ... compressionPromise + gpsPromise
-const [compressed, coords] = await Promise.all([...]);
-reportProgress('Guardando...');
-```
+**Solucion**: Cambiar dependencias a `[value]` y limpiar el canvas antes de redibujar, con un guard para evitar loop infinito (solo redibujar si el value es diferente del estado actual del canvas).
 
-## Bug 3 — Dependencia faltante en useMemo de LiberacionChecklistModal.tsx
+### Bug 3 — reportProgress duplicado
 
-**Problema**: `docPrefillData` en linea 165 usa `liberacion.tipo_operativo` para decidir que documentos mapear (armado vs no-armado), pero el array de dependencias solo tiene `[documentosExistentes]`.
+**Archivo**: `src/hooks/useServiceChecklist.ts` (lineas 198 y 235)
 
-**Solucion**: Agregar `liberacion.tipo_operativo` al array de dependencias.
+`reportProgress('Guardando...')` se llama dos veces: en linea 198 (despues del Promise.all) y en linea 235 (antes de savePhotoBlob). Es redundante — el segundo sobreescribe al primero sin efecto visible, pero es codigo muerto.
 
-```text
-}, [documentosExistentes, liberacion.tipo_operativo]);
-```
+**Solucion**: Eliminar la linea 198 y dejar solo la de linea 235.
 
-## Archivos a modificar
+### Bug 4 — Interval leak en useOfflineSync
 
-| Archivo | Cambio | Lineas |
-|---------|--------|--------|
-| `src/components/custodian/checklist/PhotoSlot.tsx` | Fix memory leak en useEffect | 36-53 |
-| `src/hooks/useServiceChecklist.ts` | Corregir mensajes de progreso paralelo | 166, 190 |
-| `src/components/liberacion/LiberacionChecklistModal.tsx` | Agregar dependencia tipo_operativo a useMemo | 185 |
+**Archivo**: `src/hooks/useOfflineSync.ts` (linea 205)
 
-Tres cambios quirurgicos, sin impacto en funcionalidad.
+`setInterval(checkCompletion, 1000)` se crea dentro del callback `syncAll` sin ningun mecanismo de limpieza. Si `syncAll` se llama multiples veces (ej: conexion intermitente), se acumulan intervals que nunca se limpian. Ademas, si el componente se desmonta mientras el interval esta corriendo, sigue ejecutandose.
+
+**Solucion**: Usar `setTimeout` recursivo en lugar de `setInterval`, o almacenar el interval en una ref para limpiarlo en el unmount.
+
+### Bug 5 — capturePhoto tiene dependencias excesivas que causan re-renders
+
+**Archivo**: `src/hooks/useServiceChecklist.ts` (linea 284)
+
+El `useCallback` de `capturePhoto` depende de `[items, observaciones, firma]` solo porque llama `saveDraft` al final (lineas 272-280). Esto significa que cada cambio en observaciones/firma/items recrea `capturePhoto`, causando que los 4 `PhotoSlot` se re-rendericen innecesariamente.
+
+**Solucion**: Usar una ref para `items`, `observaciones` y `firma` dentro del saveDraft call, o extraer el saveDraft a una funcion separada con sus propias refs.
+
+## Riesgos de Estabilidad (no son bugs pero pueden causar fallas)
+
+### Riesgo 1 — Fotos huerfanas en IndexedDB
+
+No hay mecanismo para limpiar blobs de fotos de servicios anteriores ya sincronizados. Con el tiempo, IndexedDB crece hasta que el navegador hace eviction (especialmente en iOS Safari), potencialmente borrando datos del servicio actual.
+
+### Riesgo 2 — Firma base64 puede ser muy grande
+
+`SignaturePad` exporta como PNG data URL sin compresion. En dispositivos de alta densidad (3x DPR), el canvas es 3x mas grande, generando strings base64 de 200KB+. Esto se almacena directamente en la columna `firma_base64` de la BD.
+
+### Riesgo 3 — Sin validacion de tipo MIME real
+
+`PhotoSlot` acepta `accept="image/*"` pero no valida que el archivo sea realmente una imagen. Un archivo renombrado a .jpg pasaria el filtro HTML pero fallaria silenciosamente en la compresion.
+
+## Plan de Correccion
+
+| Archivo | Cambio | Prioridad |
+|---------|--------|-----------|
+| `PhotoSlot.tsx` | Fix race condition con flag `cancelled` + revocar URL previo | P1 |
+| `SignaturePad.tsx` | Agregar `value` a dependencias del useEffect con guard anti-loop | P1 |
+| `useServiceChecklist.ts` | Eliminar reportProgress duplicado (linea 198), usar refs para deps de capturePhoto | P2 |
+| `useOfflineSync.ts` | Reemplazar setInterval con setTimeout recursivo + cleanup | P2 |
+
+Total: 4 archivos, correcciones quirurgicas sin cambios funcionales.
 
