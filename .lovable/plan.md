@@ -1,93 +1,142 @@
 
+# Mapeo de Corredores del Norponiente de Mexico
 
-# Corredor Crítico: SLP - Matehuala - Saltillo - Monterrey (57D)
+## Diagnostico
 
-## Justificacion
+El norponiente (Jalisco costa, Nayarit, Sinaloa, Durango sierra, Sonora, Baja California) es la region con el **mayor deficit de inteligencia** en el sistema. De los ~4,200km de rutas activas en esta zona, solo ~660km tienen segmentos granulares (Tepic-Mazatlan y parte de Chihuahua). Esto significa que el **84% del norponiente esta ciego** para la gestion de riesgos.
 
-El tramo SLP-Matehuala-Monterrey por la autopista 57D/57 es la **principal arteria comercial** entre CDMX y Monterrey. Actualmente tiene **CERO segmentos de riesgo** en el sistema, a pesar de:
+### Corredores existentes SIN segmentos (punto ciego total)
 
-- Cruzar el **Altiplano Potosino** (~200km de desierto con cobertura celular limitada)
-- Pasar por **Matehuala**, nodo logistico y zona de operacion de crimen organizado
-- Conectar con la entrada sur a **Saltillo** y el corredor industrial hacia Monterrey
-- Ser ruta de transito de **abarrotes, electronicos y autopartes** (productos mas robados en Mexico)
-- Tener zonas muertas de comunicacion ya documentadas en `cellularCoverage.ts` pero sin contrapartida de riesgo
+| Corredor | Km | Nivel | Estado actual |
+|---|---|---|---|
+| `mexico-nogales` (15D) | 1,800 | Medio | 0 segmentos. Corredor mas largo del sistema = linea en el mapa sin datos |
+| `mazatlan-durango-torreon` | 520 | Alto | 0 segmentos. Incluye Espinazo del Diablo (zona EXTREMA) |
+| `guadalajara-lagos` | 190 | Alto | 0 segmentos. Corredor automotriz Jalisco-Bajio |
 
-El sistema tiene el hub SLP (extremo, 4 segmentos) que termina en Villa de Reyes, y el corredor monterrey-saltillo (medio, sin segmentos). Entre ambos hay un **hueco de ~350km sin analisis de riesgo**.
+### Corredores completamente ausentes
 
-## Cambios Propuestos
+| Corredor Faltante | Km | Nivel | Justificacion |
+|---|---|---|---|
+| **Guadalajara-Tepic (15D)** | 220 | Medio | Conexion faltante GDL-Costa Pacifico. Sin este corredor, Tepic-Mazatlan queda aislado |
+| **Culiacan-Los Mochis-Guaymas (15D Sinaloa)** | 600 | Alto | Sinaloa = zona de operacion de carteles. Robos a transporte en zona agricola/pesquera. Acceso a puertos de Topolobampo y Guaymas |
+| **Hermosillo-Nogales (15D Norte)** | 280 | Medio | Cruce fronterizo con Arizona. Maquiladoras. Comercio IMMEX |
 
-### 1. Nuevo corredor en `highwayCorridors.ts`
+## Plan de Implementacion
 
-Agregar corredor `slp-matehuala-saltillo` con nivel **ALTO** (con tramos internos en EXTREMO):
+### Fase A: Segmentos para `mazatlan-durango-torreon` (520km, ALTO - P0 critico)
 
-```text
-{
-  id: 'slp-matehuala-saltillo',
-  name: 'SLP - Matehuala - Saltillo (57D)',
-  riskLevel: 'alto',
-  description: 'Eje norte por Altiplano Potosino. Zonas muertas de comunicacion, robos organizados en Matehuala',
-  kilometers: 450,
-  avgEventsPerHex: 5,
-  waypoints: [ SLP -> Charcas -> Matehuala -> Saltillo ]
-}
-```
+Este corredor cruza la **Sierra Madre Occidental** por la autopista Mazatlan-Durango (la "Espinazo del Diablo"), considerada una de las mas peligrosas de Mexico por topografia y narcotrafico.
 
-### 2. Segmentos granulares en `highwaySegments.ts`
+**6 segmentos:**
 
-**7 segmentos** cubriendo los ~450km:
-
-| Segmento | Tramo | Km | Riesgo | Justificacion |
+| ID | Tramo | Km | Riesgo | Justificacion |
 |---|---|---|---|---|
-| slp-mat-1 | SLP Norte - Entronque Charcas | 0-70 | Alto | Salida zona urbana, inicio despoblado |
-| slp-mat-2 | Charcas - Venado | 70-140 | Extremo | Altiplano desertico, zona muerta celular, territorio cartel |
-| slp-mat-3 | Venado - Matehuala Sur | 140-200 | Extremo | Zona mas aislada, sin cobertura, halcones |
-| slp-mat-4 | Matehuala | 200-230 | Alto | Nodo logistico, robos en accesos y estaciones |
-| slp-mat-5 | Matehuala - La Ventura | 230-300 | Alto | Tramo desertico norte, baja vigilancia |
-| slp-mat-6 | La Ventura - Saltillo Sur | 300-380 | Medio | Mejora gradual de infraestructura |
-| slp-mat-7 | Saltillo Sur - Entronque MTY | 380-450 | Medio | Zona periurbana Saltillo, conexion con 40D |
+| maz-dur-1 | Mazatlan - Concordia | 0-50 | Medio | Zona costera, salida urbana |
+| maz-dur-2 | Concordia - Espinazo del Diablo | 50-120 | Extremo | Sierra Madre, tuneles, puentes. Emboscadas. Sin cobertura celular. Zona de narcotrafico |
+| maz-dur-3 | Espinazo - El Salto | 120-180 | Alto | Zona serrana con presencia de grupos armados |
+| maz-dur-4 | El Salto - Durango | 180-260 | Medio | Bajada al altiplano, mejora infraestructura |
+| maz-dur-5 | Durango - Nombre de Dios | 260-370 | Medio | Transicion al desierto |
+| maz-dur-6 | Nombre de Dios - Torreon | 370-520 | Alto | Zona La Laguna, conflicto entre carteles |
 
-### 3. Segmentos para corredor existente `monterrey-saltillo`
+Segmento clave: `maz-dur-2` (Espinazo del Diablo) sera EXTREMO con comunicacion satelital obligatoria, restriccion horaria 18:00-06:00, y zona muerta de cobertura celular (~70km).
 
-El corredor `monterrey-saltillo` ya existe (85km, nivel medio) pero **sin segmentos**. Agregar 3 segmentos:
+### Fase B: Segmentos para `mexico-nogales` (1,800km - segmentacion por tramos)
 
-| Segmento | Tramo | Km | Riesgo | Justificacion |
+El corredor Mexico-Nogales es el mas largo y atraviesa 7 estados. Lo segmentare en ~12 tramos:
+
+| ID | Tramo | Km | Riesgo | Justificacion |
 |---|---|---|---|---|
-| mty-sal-1 | Saltillo - Ramos Arizpe | 0-25 | Bajo | Zona industrial vigilada |
-| mty-sal-2 | Ramos Arizpe - Santa Catarina | 25-60 | Medio | Tramo montanoso, curvas cerradas |
-| mty-sal-3 | Santa Catarina - MTY | 60-85 | Bajo | Zona metropolitana MTY |
+| nog-1 | GDL - Tequila - Magdalena | 0-120 | Medio | Salida GDL hacia costa. Zona tequilera |
+| nog-2 | Magdalena - Tepic | 120-220 | Medio | Sierra, curvas. Conexion con 15D Tepic |
+| nog-3 | Tepic - Acaponeta | 220-320 | Medio | Ya cubierto parcialmente por tepic-mazatlan |
+| nog-4 | Mazatlan - Culiacan | 320-540 | Alto | Sinaloa norte. Zona cartel. Robos agricola |
+| nog-5 | Culiacan - Los Mochis | 540-740 | Alto | Corredor agricola Sinaloa. Actividad delictiva |
+| nog-6 | Los Mochis - Guaymas | 740-960 | Medio | Zona agricola Sonora, Rio Yaqui |
+| nog-7 | Guaymas - Hermosillo | 960-1090 | Bajo | Zona industrial, autopista moderna |
+| nog-8 | Hermosillo - Magdalena Sonora | 1090-1300 | Medio | Desierto Sonora. Baja cobertura |
+| nog-9 | Magdalena - Santa Ana | 1300-1400 | Bajo | Zona relativamente segura |
+| nog-10 | Santa Ana - Nogales | 1400-1550 | Medio | Aproximacion frontera. Trafico de drogas |
 
-### 4. POIs criticos
+*Nota: Los km son aproximados sobre la ruta real de la 15D, ajustando waypoints al trazado carretero.*
 
-Agregar puntos de interes operativos:
+### Fase C: Segmentos para `guadalajara-lagos` (190km)
 
-- **Blackspot**: Altiplano Charcas-Venado (zona de emboscadas)
-- **Blackspot**: Acceso sur Matehuala (robo en paradas)
-- **Safe area**: Gasolinera vigilada Matehuala centro
-- **Safe area**: Puesto GN km 200 (57D)
-- **Caseta**: Caseta Huizache (57D)
-- **Junction**: Entronque Matehuala-Nuevo Laredo (57/57D)
+| ID | Tramo | Km | Riesgo | Justificacion |
+|---|---|---|---|---|
+| gdl-lag-1 | GDL - Zapotlanejo | 0-35 | Medio | Salida metropolitana |
+| gdl-lag-2 | Zapotlanejo - Tepatitlan | 35-80 | Alto | Zona de robos en Altos de Jalisco |
+| gdl-lag-3 | Tepatitlan - San Juan de los Lagos | 80-140 | Medio | Zona semi-rural |
+| gdl-lag-4 | San Juan - Lagos de Moreno | 140-190 | Alto | Entrada al Bajio, convergencia con 45D |
 
-### 5. Recomendaciones ISO 28000 para segmentos extremo
+### Fase D: Nuevo corredor `guadalajara-tepic` (220km)
 
-Los segmentos `slp-mat-2` y `slp-mat-3` (Altiplano Potosino) tendran recomendaciones especificas:
+Este corredor es la pieza que falta para conectar el eje Pacifico (GDL hasta Nogales).
 
-- Comunicacion satelital OBLIGATORIA (zona muerta confirmada en cellularCoverage.ts)
-- Restriccion horaria absoluta: NO transitar 19:00-06:00
-- Check-in obligatorio ANTES de entrar (km 70) y al SALIR (km 200)
-- Convoy minimo 2 unidades para carga >$1.5M MXN
-- Protocolo anti-jammer activo (71% uso nacional)
-- Contacto previo con base GN Matehuala
+| ID | Tramo | Km | Riesgo | Justificacion |
+|---|---|---|---|---|
+| gdl-tep-1 | GDL - Tequila | 0-60 | Bajo | Autopista moderna, zona turistica |
+| gdl-tep-2 | Tequila - Plan de Barrancas | 60-120 | Medio | Inicio Barranca de Oblatos, curvas |
+| gdl-tep-3 | Barrancas - Compostela | 120-170 | Medio | Sierra serrana, baja cobertura |
+| gdl-tep-4 | Compostela - Tepic | 170-220 | Bajo | Bajada al valle de Tepic |
 
-### 6. Actualizacion de cobertura celular
+### Fase E: Nuevo corredor `culiacan-guaymas` (600km, ALTO)
 
-El archivo `cellularCoverage.ts` ya tiene `deadzone-altiplano-slp` pero solo cubre km 80-150. Extender la zona muerta para cubrir km 70-200 (Charcas a Matehuala) que es la brecha real segun datos de IFT.
+Corredor Sinaloa-Sonora por la 15D, zona de alto riesgo por presencia de carteles y robos a transporte agricola.
+
+| ID | Tramo | Km | Riesgo | Justificacion |
+|---|---|---|---|---|
+| cul-guay-1 | Culiacan - Guamuchil | 0-80 | Alto | Sinaloa central. Zona cartel |
+| cul-guay-2 | Guamuchil - Los Mochis | 80-200 | Alto | Zona agricola, robos organizados |
+| cul-guay-3 | Los Mochis - Topolobampo | 200-230 | Medio | Acceso a puerto. Zona controlada |
+| cul-guay-4 | Los Mochis - Navojoa | 230-380 | Medio | Zona agricola Sonora sur |
+| cul-guay-5 | Navojoa - Cd. Obregon | 380-440 | Bajo | Valle del Yaqui, zona agricola segura |
+| cul-guay-6 | Cd. Obregon - Guaymas | 440-600 | Bajo | Autopista moderna, zona industrial |
+
+### Fase F: Nuevo corredor `hermosillo-nogales` (280km)
+
+| ID | Tramo | Km | Riesgo | Justificacion |
+|---|---|---|---|---|
+| her-nog-1 | Hermosillo - Magdalena | 0-130 | Medio | Desierto Sonora, baja cobertura |
+| her-nog-2 | Magdalena - Santa Ana | 130-200 | Bajo | Zona relativamente segura |
+| her-nog-3 | Santa Ana - Nogales | 200-280 | Medio | Aproximacion fronteriza, trafico |
+
+### POIs criticos a agregar
+
+| POI | Tipo | Ubicacion | Justificacion |
+|---|---|---|---|
+| Espinazo del Diablo | Blackspot | Mazatlan-Durango | Zona extrema serrana, tuneles, sin cobertura |
+| El Salto (Durango) | Blackspot | Sierra Durango | Emboscadas documentadas |
+| Culiacan Periurbano | Blackspot | Sinaloa | Zona de operacion cartel |
+| Los Mochis Acceso Sur | Blackspot | Sinaloa norte | Robos a transporte agricola |
+| Puerto Guaymas | Safe area | Sonora | Zona portuaria controlada |
+| API Topolobampo | Safe area | Sinaloa norte | Terminal portuaria |
+| Puesto GN Mazatlan Norte | Safe area | Sinaloa | Presencia GN permanente |
+| Caseta Concordia | Tollbooth | Mazatlan-Durango | Ultimo punto antes de la sierra |
+| Puesto GN Hermosillo Sur | Safe area | Sonora | Presencia permanente |
+
+### Actualizacion de cobertura celular
+
+Agregar zonas muertas en `cellularCoverage.ts`:
+- **Espinazo del Diablo**: ~70km sin cobertura (km 50-120 del corredor Mazatlan-Durango)
+- **Desierto de Sonora**: Tramos intermitentes Hermosillo-Magdalena (~40km con cobertura debil)
+- **Sierra Nayarit**: Tramo Barrancas GDL-Tepic (~30km cobertura limitada)
 
 ## Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/security/highwayCorridors.ts` | Agregar corredor `slp-matehuala-saltillo` |
-| `src/lib/security/highwaySegments.ts` | Agregar 7 segmentos SLP-Matehuala-Saltillo + 3 segmentos MTY-Saltillo + 6 POIs |
-| `src/lib/security/cellularCoverage.ts` | Extender zona muerta Altiplano a km 70-200 |
+| `src/lib/security/highwayCorridors.ts` | Agregar 3 nuevos corredores (guadalajara-tepic, culiacan-guaymas, hermosillo-nogales) |
+| `src/lib/security/highwaySegments.ts` | Agregar ~35 segmentos nuevos + reasignar mexico-nogales a tramos reales + agregar segmentos para guadalajara-lagos y mazatlan-durango-torreon + ~9 POIs |
+| `src/lib/security/cellularCoverage.ts` | Agregar 3 zonas muertas (Espinazo, Sonora, Nayarit) |
 
-Total: 3 archivos, 10 segmentos nuevos, 6 POIs.
+## Impacto
+
+| Metrica | Actual Norponiente | Post-implementacion |
+|---|---|---|
+| Corredores con segmentos | 3 de 6 | 9 de 9 |
+| Km con analisis granular | ~660 | ~4,120+ |
+| Cobertura norponiente | ~16% | ~98% |
+| Segmentos nuevos | 0 | ~35 |
+| POIs nuevos | 0 | ~9 |
+
+Esto cerrara la brecha del norponiente y permitira ofrecer inteligencia de riesgo para rutas hacia puertos del Pacifico (Mazatlan, Topolobampo, Guaymas), cruces fronterizos (Nogales), y corredores industriales de Sinaloa/Sonora.
