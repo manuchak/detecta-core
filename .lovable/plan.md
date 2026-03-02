@@ -1,111 +1,78 @@
 
+# Subida de Constancia de Capacitacion (Induccion al Puesto)
 
-# Optimizacion Mobile: Pagina KPIs Ejecutivos
+## Contexto del requerimiento
 
-## Diagnostico
+El equipo de Supply necesita subir el documento fisico firmado de "Induccion al Puesto" como evidencia de que el candidato tomo la capacitacion presencial. Actualmente existe un boton "Marcar como Completada (Presencial)" que solo actualiza la base de datos, pero **no permite adjuntar el documento escaneado/fotografiado**. Sin este archivo, no hay evidencia auditable y el proceso de liberacion queda incompleto.
 
-La pagina `/dashboard/kpis` (KPIDashboard.tsx) no tiene ninguna adaptacion mobile. Los problemas principales visibles en el screenshot:
+## Analisis del sistema actual
 
-1. **Header**: Titulo `text-3xl` + descripcion + boton "Actualizar" + timestamp se amontonan horizontalmente
-2. **Tabs de navegacion (7 pestanas)**: `grid-cols-7` con iconos + texto — ilegible y sin scroll, los textos se superponen ("OperacionalAdquisicionAnalisis Cli...KPIs AvanGestion deResumoEjecuCalibr...")
-3. **Contenido de cada tab**: Grids de 4 columnas, tablas anchas, charts de 300px fijos — todo sin adaptacion
+- Ya existe `marcarCapacitacionManual` en `useCapacitacion.ts` que marca todos los modulos como completados y acepta `notas`.
+- Ya existe `AdminDocumentUploadDialog` como patron probado para subida de documentos por parte del equipo Supply.
+- La tabla `progreso_capacitacion` ya tiene campo `completado_manual_notas` pero **no tiene campo para URL de archivo**.
+- La tabla `documentos_candidato` maneja documentos de reclutamiento con `tipo_documento` y `archivo_url`.
 
-## Cambios por componente
+## Recomendacion de implementacion
 
-### 1. KPIDashboard.tsx — Layout principal
+### Opcion elegida: Agregar a `documentos_candidato` con tipo "constancia_capacitacion"
 
-**Header**:
-- Titulo: `text-3xl` a `text-xl` en mobile
-- Ocultar descripcion larga en mobile
-- Mover boton "Actualizar" y timestamp debajo del titulo en stack vertical
-- Ocultar timestamp en mobile (como ya se hizo en ExecutiveDashboard)
+En lugar de modificar la tabla `progreso_capacitacion` (que es por modulo), es mas limpio y consistente usar `documentos_candidato` que ya tiene la infraestructura de archivo, validacion y visualizacion. Esto permite que la constancia aparezca tanto en la seccion de Capacitacion como en la seccion de Documentacion del perfil operativo.
 
-**Tabs de navegacion principal** (Proyecciones / KPIs Ejecutivos):
-- En mobile: `flex w-auto` en lugar de `grid grid-cols-2`
+### Cambios planificados
 
-**Tabs internas (7 pestanas)**:
-- Cambiar `grid grid-cols-7` a scroll horizontal con `flex overflow-x-auto`
-- En mobile: mostrar solo iconos con labels cortos (2-3 palabras max)
-- Min-height 44px para touch targets
-- Ocultar scrollbar con CSS (`scrollbar-hide`)
+#### 1. Migracion SQL — Nuevo tipo de documento
 
-**Loading skeleton**:
-- Cambiar `grid-cols-4` a `grid-cols-2` en mobile
+Agregar `'constancia_capacitacion'` como valor aceptado en `documentos_candidato.tipo_documento`. Esto permite reutilizar toda la infraestructura existente de storage, validacion y visualizacion.
 
-### 2. Tab "Operacional" — OperationalOverview.tsx
+#### 2. `useCapacitacion.ts` — Extender `marcarCapacitacionManual`
 
-**OperationalHeroBar**: Ya tiene `sm:grid-cols-2 lg:grid-cols-4` — funciona bien en mobile.
+Modificar la mutacion para aceptar un archivo opcional:
+- Parametros: `{ notas?: string, archivo?: File }`
+- Si se proporciona archivo: subirlo a storage bucket `documentos-candidatos` con path `{candidatoId}/constancia_capacitacion_{timestamp}.{ext}`
+- Insertar registro en `documentos_candidato` con tipo `constancia_capacitacion` y la URL del archivo
+- Mantener el flujo actual de marcar modulos como completados
 
-**DoDTrendChart**: Altura fija `h-[200px]` — adecuada. Sin cambios necesarios.
+#### 3. `TrainingTab.tsx` — Dialog mejorado con zona de upload
 
-**Secondary KPIs grid**: `grid-cols-2 md:grid-cols-4` — ya funciona. Sin cambios.
+El dialog actual de "Marcar como Completada (Presencial)" solo tiene un textarea de notas. Se modificara para incluir:
+- Zona de drag-and-drop / click para subir archivo (PDF, JPG, PNG)
+- Preview del archivo seleccionado (imagen o icono PDF)
+- El campo de notas existente se mantiene
+- El archivo sera **obligatorio** — no se puede marcar capacitacion presencial sin evidencia
+- Compresion de imagenes via Canvas API (patron ya establecido en el proyecto)
 
-**Grids de "Estado de Servicios" y "Top 5 Custodios"**: `grid-cols-1 lg:grid-cols-2` — ya apila. Revisar que los Progress bars con badges no se trunquen en 390px. El layout interno de cada fila (icono + texto + badge + porcentaje + progress bar) puede ser angosto — reorganizar a stack vertical cuando sea mobile.
+#### 4. `DocumentacionTab.tsx` — Visibilidad de la constancia
 
-### 3. Tab "Adquisicion" — AcquisitionOverview.tsx
+Agregar la constancia de capacitacion a la lista de documentos visibles en la seccion "Documentos de Reclutamiento" del perfil operativo. Solo requiere agregar el label en `DOCUMENTO_LABELS`:
+- `constancia_capacitacion: 'Constancia de Capacitacion / Induccion'`
 
-**KPIs grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` — ya tiene responsive basico pero `grid-cols-1` en mobile genera cards muy anchas. Cambiar a `grid-cols-2` en mobile para compactar.
+Esto funciona automaticamente porque `useProfileDocuments` ya trae todos los `documentos_candidato`.
 
-**Charts**: Altura fija `height={300}` — reducir a 220px en mobile.
+#### 5. `LiberacionChecklistModal.tsx` — Validacion de evidencia
 
-**PieChart labels**: Se desbordan en mobile — ocultar labels externas y mostrar solo en tooltip.
+Actualmente el checklist de liberacion verifica `capacitacion_completa` (booleano). Se complementa para verificar tambien que exista el documento `constancia_capacitacion` en `documentos_candidato`, mostrando un warning amarillo si la capacitacion esta marcada como completa pero no tiene documento adjunto.
 
-### 4. Tab "Analisis Clientes" — ClientAnalytics.tsx
+### Archivos a modificar
 
-**Header con botones**: `flex justify-between` — en mobile apilar verticalmente.
+| Archivo | Cambio |
+|---------|--------|
+| Migracion SQL | Agregar tipo `constancia_capacitacion` a documentos_candidato |
+| `src/hooks/useCapacitacion.ts` | Aceptar archivo en `marcarCapacitacionManual`, subirlo a storage |
+| `src/components/leads/evaluaciones/TrainingTab.tsx` | Agregar zona de upload al dialog de capacitacion manual |
+| `src/pages/PerfilesOperativos/hooks/useProfileDocuments.ts` | Agregar label para `constancia_capacitacion` |
+| `src/components/liberacion/LiberacionChecklistModal.tsx` | Warning si no hay constancia adjunta |
 
-**Date filter**: Select de 200px + calendarios custom — funciona pero necesita `w-full` en mobile.
+### Flujo de usuario resultante
 
-**Tabla de clientes**: Tabla con 8+ columnas — ilegible en mobile. Convertir a card-list en mobile (patron ya usado en StrategicPlanTracker).
+1. Supply abre el perfil del candidato, va a la pestana de Capacitacion
+2. Click en "Marcar como Completada (Presencial)"
+3. Se abre dialog con: zona para subir foto/PDF de la constancia firmada + notas opcionales
+4. Sube la foto del documento de induccion (se comprime automaticamente si es imagen)
+5. Click en "Completar Capacitacion"
+6. El sistema: sube archivo a storage, crea registro en documentos_candidato, marca todos los modulos como completados
+7. La constancia queda visible en la seccion de Documentacion del perfil operativo
+8. El checklist de liberacion refleja que la capacitacion esta completa CON evidencia
 
-**Client detail view**: Grids de `lg:grid-cols-4` — ya tienen `grid-cols-1` fallback. Charts de 300px — reducir a 220px. Monthly trend grid `xl:grid-cols-4` — reducir a `grid-cols-2` en mobile.
+### Sin dependencias nuevas
 
-### 5. Tab "KPIs Avanzados" — ExecutiveMetricsGrid.tsx
-
-**Grid**: `grid-cols-1 md:grid-cols-3 xl:grid-cols-5` — en mobile `grid-cols-1` genera cards enormes. Cambiar a `grid-cols-2` para que quepan 2 KPI cards por fila.
-
-**KPIHeroCard**: `p-6` con `text-3xl` valor — reducir padding a `p-4` y valor a `text-2xl` en mobile.
-
-**Separador "Capacidad Custodias"**: `text-lg` — reducir a `text-sm` en mobile.
-
-### 6. Tab "Gestion de Costos"
-
-Los componentes ExpenseForm, ExpensesList, ExpenseMetricsCards ya son formularios standard. Revisar que inputs tengan `h-12` (48px) para touch y que el layout no requiera scroll horizontal.
-
-### 7. Tab "Resumen Ejecutivo"
-
-**mainKPIs grid**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` — cambiar a `grid-cols-2` en mobile.
-
-**Service data grid**: `grid-cols-2 gap-4` dentro de card — funciona pero textos como "Servicios Totales" + valor pueden truncarse. Reducir font sizes.
-
-### 8. Tab "Calibracion" — CalibrationDashboard.tsx
-
-Componente complejo con tabs internas, tablas de backtesting y charts. Misma estrategia: scroll horizontal en tabs, charts a 220px, tablas a card-list pattern.
-
-## Archivos a modificar
-
-| Archivo | Cambio principal |
-|---------|-----------------|
-| `src/pages/Dashboard/KPIDashboard.tsx` | Header responsive, tabs scroll horizontal, skeleton grid, grids del tab Resumen |
-| `src/components/executive/OperationalOverview.tsx` | Service distribution rows a stack mobile |
-| `src/components/executive/AcquisitionOverview.tsx` | KPIs 2-col mobile, charts 220px, pie labels |
-| `src/components/executive/ClientAnalytics.tsx` | Header stack, tabla a cards, date filter full-width, charts 220px |
-| `src/components/executive/ExecutiveMetricsGrid.tsx` | Grid 2-col mobile |
-| `src/components/executive/KPIHeroCard.tsx` | Padding y font-size compactos en mobile |
-| `src/components/executive/CalibrationDashboard.tsx` | Tabs scroll, charts responsive |
-
-## Patron tecnico
-
-- Reutilizar `useIsMobile()` hook existente donde Tailwind responsive no alcance
-- Reutilizar `MobileChartBlock` para secciones con multiples charts
-- Todas las tabs usaran patron: `flex overflow-x-auto gap-1 scrollbar-hide` en mobile
-- Sin dependencias nuevas
-
-## Prioridad de implementacion
-
-1. KPIDashboard.tsx (header + tabs — el problema mas visible del screenshot)
-2. ExecutiveMetricsGrid + KPIHeroCard (tab mas usada)
-3. OperationalOverview (segunda tab mas visitada)
-4. AcquisitionOverview + ClientAnalytics
-5. CalibrationDashboard (menor prioridad)
-
+Todo se resuelve con infraestructura existente: storage de Supabase, compresion de imagenes, patron de upload ya probado.
