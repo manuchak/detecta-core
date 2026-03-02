@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, subMonths, startOfMonth, endOfMonth, parseISO, differenceInMinutes } from 'date-fns';
 
@@ -54,9 +54,13 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Memoize default dates to prevent infinite re-render loop
+  const defaultStart = useMemo(() => startOfMonth(subMonths(new Date(), 3)), []);
+  const defaultEnd = useMemo(() => new Date(), []);
+
   const {
-    startDate = startOfMonth(subMonths(new Date(), 3)),
-    endDate = new Date(),
+    startDate = defaultStart,
+    endDate = defaultEnd,
     departamento,
     agentId
   } = options;
@@ -112,10 +116,10 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
       if (agentIds.length > 0) {
         const { data: agents } = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, display_name')
           .in('id', agentIds);
         
-        (agents || []).forEach(a => agentNamesMap.set(a.id, a.full_name || 'Sin nombre'));
+        (agents || []).forEach(a => agentNamesMap.set(a.id, (a as any).display_name || 'Sin nombre'));
       }
 
       // Fetch responses for first response time
@@ -372,7 +376,8 @@ export const useTicketMetrics = (options: UseTicketMetricsOptions = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, departamento, agentId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate?.toISOString(), endDate?.toISOString(), departamento, agentId]);
 
   useEffect(() => {
     calculateMetrics();
