@@ -6,37 +6,40 @@ import type { SecurityKPIs } from '@/hooks/security/useSecurityDashboard';
 type PostureLevel = 'critica' | 'elevada' | 'moderada' | 'estable';
 
 function derivePosture(kpis: SecurityKPIs): { level: PostureLevel; label: string; narrative: string } {
-  const { controlEffectivenessRate, daysSinceLastCritical, avgRiskScore, operativeCritical } = kpis;
+  const { daysSinceLastCritical, operativeCritical, controlEffectivenessRate } = kpis;
 
-  // Critical: recent critical + low control effectiveness
-  if (daysSinceLastCritical < 3 || (operativeCritical > 5 && controlEffectivenessRate < 50)) {
+  // Critical: siniestro in last 7 days
+  if (daysSinceLastCritical < 7) {
     return {
       level: 'critica',
       label: 'CRÍTICA',
-      narrative: `${operativeCritical} incidentes críticos recientes con efectividad de controles al ${controlEffectivenessRate}%. Activar protocolos de contingencia.`,
+      narrative: `Siniestro hace ${daysSinceLastCritical} día(s). ${operativeCritical} siniestros en últimos 90 días. Activar protocolos de contingencia.`,
     };
   }
 
-  if (avgRiskScore > 50 || controlEffectivenessRate < 65 || daysSinceLastCritical < 14) {
+  // Elevated: siniestro in last 30 days OR multiple recent siniestros
+  if (daysSinceLastCritical < 30 || operativeCritical >= 2) {
     return {
       level: 'elevada',
       label: 'ELEVADA',
-      narrative: `Score de riesgo promedio en ${avgRiskScore} con ${daysSinceLastCritical} días desde último evento crítico. Reforzar vigilancia en corredores alto-riesgo.`,
+      narrative: `${daysSinceLastCritical} días desde último siniestro. ${operativeCritical} siniestros en ventana de 90 días. Reforzar vigilancia en corredores alto-riesgo.`,
     };
   }
 
-  if (avgRiskScore > 25 || controlEffectivenessRate < 80) {
+  // Moderate: siniestro in last 90 days OR low checklist coverage
+  if (daysSinceLastCritical < 90 || controlEffectivenessRate < 15) {
     return {
       level: 'moderada',
       label: 'MODERADA',
-      narrative: `Controles efectivos al ${controlEffectivenessRate}%. Postura operativa dentro de parámetros ISO 28000. Mantener monitoreo estándar.`,
+      narrative: `Cobertura de checklists al ${controlEffectivenessRate}%. ${daysSinceLastCritical} días sin siniestro. Mantener monitoreo estándar ISO 28000.`,
     };
   }
 
+  // Stable: 90+ days without siniestro
   return {
     level: 'estable',
     label: 'ESTABLE',
-    narrative: `${daysSinceLastCritical}+ días sin incidentes críticos, controles al ${controlEffectivenessRate}%. Postura óptima — operación nominal.`,
+    narrative: `${daysSinceLastCritical}+ días sin siniestros, cobertura de controles al ${controlEffectivenessRate}%. Postura óptima — operación nominal.`,
   };
 }
 

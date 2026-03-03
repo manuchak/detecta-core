@@ -18,10 +18,10 @@ function DRFGauge({ score, size = 120 }: { score: number; size?: number }) {
   const offset = circumference - (score / 100) * circumference;
 
   const getColor = (s: number) => {
-    if (s >= 75) return 'hsl(0, 72%, 51%)';     // Red — critico
-    if (s >= 50) return 'hsl(25, 95%, 53%)';     // Orange — alto
-    if (s >= 25) return 'hsl(45, 93%, 47%)';     // Yellow — medio
-    return 'hsl(142, 71%, 45%)';                  // Green — bajo
+    if (s >= 75) return 'hsl(0, 72%, 51%)';
+    if (s >= 50) return 'hsl(25, 95%, 53%)';
+    if (s >= 25) return 'hsl(45, 93%, 47%)';
+    return 'hsl(142, 71%, 45%)';
   };
 
   const color = getColor(score);
@@ -86,15 +86,15 @@ function PeriodSelector({ selected, onChange }: { selected: TrendPeriod; onChang
 }
 
 // =============================================================================
-// BREAKDOWN ROW
+// BREAKDOWN ROW (updated keys)
 // =============================================================================
 
 const BREAKDOWN_META: { key: keyof DRFBreakdown; label: string; weight: string; inverted?: boolean }[] = [
-  { key: 'incidentRate', label: 'Tasa Incidentes', weight: '30%' },
-  { key: 'severityIndex', label: 'Índice Severidad', weight: '25%' },
-  { key: 'controlFailureRate', label: 'Fallo de Control', weight: '20%' },
-  { key: 'exposureScore', label: 'Exposición Zonas', weight: '15%' },
-  { key: 'mitigationBonus', label: 'Mitigación', weight: '10%', inverted: true },
+  { key: 'exposureScore', label: 'Exposición Zonas', weight: '35%' },
+  { key: 'siniestralidad', label: 'Siniestralidad', weight: '30%' },
+  { key: 'incidentRate', label: 'Tasa Incidentes', weight: '15%' },
+  { key: 'severityIndex', label: 'Índice Severidad', weight: '10%' },
+  { key: 'mitigationRate', label: 'Cobertura Checklists', weight: '10%', inverted: true },
 ];
 
 function BreakdownRow({ label, weight, value, inverted }: { label: string; weight: string; value: number; inverted?: boolean }) {
@@ -104,7 +104,7 @@ function BreakdownRow({ label, weight, value, inverted }: { label: string; weigh
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] text-muted-foreground w-24 truncate">{label}</span>
+      <span className="text-[10px] text-muted-foreground w-28 truncate">{label}</span>
       <span className="text-[10px] text-muted-foreground/60 w-7">{weight}</span>
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
         <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${Math.min(value, 100)}%` }} />
@@ -128,10 +128,7 @@ export function DetectaRiskFactorCard() {
   }
 
   const riskLabels: Record<string, string> = {
-    critico: 'Crítico',
-    alto: 'Alto',
-    medio: 'Medio',
-    bajo: 'Bajo',
+    critico: 'Crítico', alto: 'Alto', medio: 'Medio', bajo: 'Bajo',
   };
 
   const riskBadgeVariant: Record<string, string> = {
@@ -167,9 +164,14 @@ export function DetectaRiskFactorCard() {
             <Shield className="h-4 w-4 text-primary" />
             Factor de Riesgo Detecta (DRF)
           </CardTitle>
-          <Badge variant="outline" className={cn('text-[10px]', riskBadgeVariant[riskLevel])}>
-            {riskLabels[riskLevel]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[9px] text-muted-foreground">
+              {PERIOD_LABELS[period]}
+            </Badge>
+            <Badge variant="outline" className={cn('text-[10px]', riskBadgeVariant[riskLevel])}>
+              {riskLabels[riskLevel]}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

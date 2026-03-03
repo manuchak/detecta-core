@@ -11,10 +11,13 @@ export interface SecurityKPIs {
   daysSinceLastCritical: number;
   servicesInRedZones: number;
   complianceRate: number;
-  // New from incidentes_operativos
+  // Operative
   operativeIncidents: number;
   operativeCritical: number;
   controlEffectivenessRate: number;
+  // Checklist-based
+  checklistsCompleted: number;
+  totalServicesInPeriod: number;
 }
 
 export interface OperativeEvent {
@@ -68,17 +71,43 @@ export function useSecurityDashboard() {
     },
   });
 
-  // NEW: Query incidentes_operativos for internal KPIs
+  // Operative incidents
   const operativeQuery = useQuery({
     queryKey: ['security-dashboard-operative'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('incidentes_operativos')
-        .select('tipo, severidad, fecha_incidente, atribuible_operacion, control_efectivo, controles_activos')
+        .select('tipo, severidad, fecha_incidente, atribuible_operacion, control_efectivo, controles_activos, es_siniestro')
         .order('fecha_incidente', { ascending: false })
         .limit(500);
       if (error) throw error;
-      return data as (OperativeEvent & { controles_activos: string[] | null })[];
+      return data as (OperativeEvent & { controles_activos: string[] | null; es_siniestro: boolean })[];
+    },
+  });
+
+  // Checklist data for control effectiveness
+  const checklistQuery = useQuery({
+    queryKey: ['security-dashboard-checklists'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('checklist_servicio')
+        .select('id, created_at')
+        .limit(5000);
+      if (error) throw error;
+      return data as { id: string; created_at: string }[];
+    },
+  });
+
+  // Fill rate for total services
+  const fillRateQuery = useQuery({
+    queryKey: ['security-dashboard-fillrate'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('siniestros_historico')
+        .select('servicios_completados')
+        .limit(100);
+      if (error) throw error;
+      return data as { servicios_completados: number }[];
     },
   });
 
@@ -86,16 +115,19 @@ export function useSecurityDashboard() {
   const events = eventsQuery.data || [];
   const safePoints = safePointsQuery.data || [];
   const operativeEvents = operativeQuery.data || [];
+  const checklists = checklistQuery.data || [];
+  const fillRateData = fillRateQuery.data || [];
 
   const criticalEvents = events.filter(e => e.severity === 'critico' || e.severity === 'alto');
   const avgScore = zones.length > 0
     ? zones.reduce((sum, z) => sum + Number(z.final_score), 0) / zones.length
     : 0;
 
-  // Days since last critical event (from security_events)
-  const lastCritical = criticalEvents[0];
-  const daysSince = lastCritical
-    ? Math.floor((Date.now() - new Date(lastCritical.event_date).getTime()) / 86400000)
+  // Days since last SINIESTRO (real critical = robbery/loss), not zone events
+  const now = new Date();
+  const lastSiniestro = operativeEvents.find(e => e.es_siniestro === true);
+  const daysSinceSiniestro = lastSiniestro
+    ? Math.floor((now.getTime() - new Date(lastSiniestro.fecha_incidente).getTime()) / 86400000)
     : 999;
 
   const riskDistribution = {
@@ -105,12 +137,16 @@ export function useSecurityDashboard() {
     bajo: zones.filter(z => z.risk_level === 'bajo').length,
   };
 
-  // Operative KPIs
-  const opCritical = operativeEvents.filter(e => e.severidad === 'critica' || e.severidad === 'alta');
-  const withControls = operativeEvents.filter(e => e.controles_activos && e.controles_activos.length > 0);
-  const controlEffective = withControls.filter(e => e.control_efectivo === true).length;
-  const controlEffectivenessRate = withControls.length > 0
-    ? Math.round((controlEffective / withControls.length) * 100)
+  // Operative KPIs — 90-day window only
+  const ninetyDaysAgo = subDays(now, 90).toISOString();
+  const recentOperativeEvents = operativeEvents.filter(e => e.fecha_incidente >= ninetyDaysAgo);
+  const opCriticalRecent = recentOperativeEvents.filter(e => e.es_siniestro === true);
+
+  // Control Effectiveness from checklist_servicio
+  const totalServicesAll = fillRateData.reduce((s, r) => s + r.servicios_completados, 0);
+  const checklistsCompleted = checklists.length;
+  const controlEffectivenessRate = totalServicesAll > 0
+    ? Math.round((checklistsCompleted / totalServicesAll) * 100)
     : 0;
 
   const kpis: SecurityKPIs = {
@@ -119,12 +155,14 @@ export function useSecurityDashboard() {
     avgRiskScore: Math.round(avgScore * 10) / 10,
     zonesMonitored: zones.length,
     safePointsVerified: safePoints.filter(sp => sp.verification_status === 'verified').length,
-    daysSinceLastCritical: daysSince,
+    daysSinceLastCritical: daysSinceSiniestro,
     servicesInRedZones: zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length,
     complianceRate: 0,
     operativeIncidents: operativeEvents.length,
-    operativeCritical: opCritical.length,
+    operativeCritical: opCriticalRecent.length,
     controlEffectivenessRate,
+    checklistsCompleted,
+    totalServicesInPeriod: totalServicesAll,
   };
 
   // Heatmap: daily incident counts last 28 days
@@ -143,7 +181,6 @@ export function useSecurityDashboard() {
         if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severidad;
       }
     }
-    // Also include external events
     for (const e of events) {
       const d = e.event_date?.slice(0, 10);
       if (!d) continue;
@@ -158,14 +195,13 @@ export function useSecurityDashboard() {
     }
     const result: DailyIncidentEntry[] = [];
     for (let i = 27; i >= 0; i--) {
-      const key = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      const key = format(subDays(now, i), 'yyyy-MM-dd');
       const entry = map.get(key);
       result.push({ date: key, count: entry?.count ?? 0, maxSeverity: entry?.maxSev ?? '' });
     }
     return result;
   })();
 
-  // Risk distribution enriched: count intel sources feeding each level
   const intelByLevel = {
     extremo: events.filter(e => e.severity === 'critico').length,
     alto: events.filter(e => e.severity === 'alto').length,
@@ -173,7 +209,6 @@ export function useSecurityDashboard() {
     bajo: events.filter(e => e.severity === 'bajo').length,
   };
 
-  // Separate recent events by source
   const recentOperative: OperativeEvent[] = operativeEvents.slice(0, 10);
   const recentExternal = events.slice(0, 10);
 
@@ -184,7 +219,7 @@ export function useSecurityDashboard() {
     heatmapData,
     recentEvents: recentExternal,
     recentOperative,
-    isLoading: riskZonesQuery.isLoading || eventsQuery.isLoading || safePointsQuery.isLoading || operativeQuery.isLoading,
-    error: riskZonesQuery.error || eventsQuery.error || safePointsQuery.error || operativeQuery.error,
+    isLoading: riskZonesQuery.isLoading || eventsQuery.isLoading || safePointsQuery.isLoading || operativeQuery.isLoading || checklistQuery.isLoading || fillRateQuery.isLoading,
+    error: riskZonesQuery.error || eventsQuery.error || safePointsQuery.error || operativeQuery.error || checklistQuery.error || fillRateQuery.error,
   };
 }

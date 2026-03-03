@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSecurityDashboard, OperativeEvent } from '@/hooks/security/useSecurityDashboard';
 import { useDetectaRiskFactor } from '@/hooks/security/useDetectaRiskFactor';
+import { useSiniestrosHistorico } from '@/hooks/security/useSiniestrosHistorico';
 import { DetectaRiskFactorCard } from './DetectaRiskFactorCard';
 import { PostureBanner } from './PostureBanner';
 import { DRFSparkline } from './DRFSparkline';
@@ -16,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 // =============================================================================
-// OPERATIVE EVENTS TICKER (internal incidents)
+// OPERATIVE EVENTS TICKER
 // =============================================================================
 
 const sevBadge: Record<string, string> = {
@@ -63,15 +64,26 @@ function OperativeAlertsTicker({ events }: { events: OperativeEvent[] }) {
 
 export function SecurityDashboard() {
   const { kpis, riskDistribution, intelByLevel, heatmapData, recentEvents, recentOperative, isLoading } = useSecurityDashboard();
-  const { trends } = useDetectaRiskFactor('MoM');
+  const { fillRate } = useSiniestrosHistorico();
 
-  // Build daily DRF scores from trends data (simplified: use MoM current as baseline)
-  // For sparkline, we use heatmap data as proxy with inverse scoring
-  const dailyDRFScores = heatmapData.map(d => {
-    const sevWeight: Record<string, number> = { critica: 30, critico: 30, alta: 20, alto: 20, media: 10, medio: 10, baja: 5, bajo: 5 };
-    const baseScore = Math.min(d.count * (sevWeight[d.maxSeverity] || 5), 100);
-    return { date: d.date.slice(5), score: baseScore };
-  });
+  // Build real DRF sparkline from fill rate monthly data + zone exposure
+  // Each month gets a DRF point based on siniestralidad + structural exposure floor
+  const dailyDRFScores = React.useMemo(() => {
+    if (!fillRate.length) return [];
+    // Structural exposure floor (~33 from 95% zones alto/extremo * 35% weight)
+    const exposureFloor = 33;
+    return fillRate.map(m => {
+      const rate = m.servicios_completados > 0
+        ? (m.siniestros / m.servicios_completados) * 1000
+        : 0;
+      // Normalize siniestralidad: 10/1000 = 100 score, weight 30%
+      const siniestComponent = Math.min((rate / 10) * 100, 100) * 0.30;
+      // Non-critical events add small incident component
+      const incidentComponent = m.eventos_no_criticos > 0 ? Math.min(m.eventos_no_criticos * 2, 15) : 0;
+      const score = Math.round(Math.min(exposureFloor + siniestComponent + incidentComponent, 100));
+      return { date: m.fecha.slice(0, 7), score };
+    });
+  }, [fillRate]);
 
   if (isLoading) {
     return (
@@ -95,7 +107,7 @@ export function SecurityDashboard() {
       {/* Row 0: Posture Banner */}
       <PostureBanner kpis={kpis} />
 
-      {/* Row 1: DRF (prominent, 2 cols) + Control Effectiveness */}
+      {/* Row 1: DRF + Control Effectiveness */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2 space-y-2">
           <DetectaRiskFactorCard />
@@ -109,30 +121,26 @@ export function SecurityDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Activity className="h-4 w-4 text-green-600" />
-              Control Effectiveness
+              Cobertura de Controles
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-foreground">{kpis.controlEffectivenessRate}%</span>
-              <span className="text-xs text-muted-foreground">controles efectivos</span>
+              <span className="text-xs text-muted-foreground">cobertura checklist</span>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              De incidentes con controles activos documentados.
-              {kpis.controlEffectivenessRate >= 80
-                ? ' Objetivo ISO 28000 §6.2 cumplido.'
-                : kpis.controlEffectivenessRate >= 60
-                  ? ' Cercano al objetivo ISO 28000 §6.2.'
-                  : ' Por debajo del objetivo ISO 28000 §6.2.'}
+              {kpis.checklistsCompleted} checklists completados de {kpis.totalServicesInPeriod.toLocaleString()} servicios.
+              {' '}El checklist de custodio es el control mitigador ISO 28000 §6.2.
             </p>
             <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={cn(
                   'h-full rounded-full transition-all',
-                  kpis.controlEffectivenessRate >= 80 ? 'bg-green-500' :
-                  kpis.controlEffectivenessRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  kpis.controlEffectivenessRate >= 50 ? 'bg-green-500' :
+                  kpis.controlEffectivenessRate >= 20 ? 'bg-yellow-500' : 'bg-red-500'
                 )}
-                style={{ width: `${kpis.controlEffectivenessRate}%` }}
+                style={{ width: `${Math.min(kpis.controlEffectivenessRate, 100)}%` }}
               />
             </div>
           </CardContent>
@@ -150,17 +158,17 @@ export function SecurityDashboard() {
           variant={kpis.avgRiskScore > 60 ? 'danger' : kpis.avgRiskScore > 30 ? 'warning' : 'success'}
         />
         <RiskScoreCard
-          title="Incidentes Críticos"
-          value={kpis.criticalIncidents}
+          title="Siniestros (90d)"
+          value={kpis.operativeCritical}
           icon={AlertTriangle}
-          description={`${kpis.operativeCritical} operativos · ${kpis.criticalIncidents} zonas H3`}
-          variant={kpis.criticalIncidents > 10 ? 'danger' : kpis.criticalIncidents > 3 ? 'warning' : 'success'}
+          description="siniestros en ventana 90 días"
+          variant={kpis.operativeCritical > 2 ? 'danger' : kpis.operativeCritical > 0 ? 'warning' : 'success'}
         />
         <RiskScoreCard
-          title="Días sin Crítico"
+          title="Días sin Siniestro"
           value={kpis.daysSinceLastCritical > 900 ? '—' : kpis.daysSinceLastCritical}
           icon={Timer}
-          description="desde último incidente"
+          description="desde último robo/siniestro"
           variant={kpis.daysSinceLastCritical < 7 ? 'danger' : kpis.daysSinceLastCritical < 30 ? 'warning' : 'success'}
         />
         <RiskScoreCard
@@ -174,14 +182,11 @@ export function SecurityDashboard() {
 
       {/* Row 3: Heatmap + Distribution + Recommendations */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Heatmap */}
         <Card>
           <CardContent className="pt-4 pb-3">
             <IncidentHeatmap dailyData={heatmapData} />
           </CardContent>
         </Card>
-
-        {/* Risk Distribution (enriched) */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -193,8 +198,6 @@ export function SecurityDashboard() {
             <RiskDistributionChart distribution={riskDistribution} intelByLevel={intelByLevel} />
           </CardContent>
         </Card>
-
-        {/* Actionable Recommendations */}
         <Card>
           <CardContent className="pt-4 pb-3">
             <ActionableRecommendations kpis={kpis} />

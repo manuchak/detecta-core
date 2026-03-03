@@ -9,20 +9,21 @@ import { subDays, subWeeks, subMonths, subQuarters, subYears, startOfDay, startO
 export type TrendPeriod = 'DoD' | 'WoW' | 'MoM' | 'QoQ' | 'YoY';
 
 export interface DRFBreakdown {
-  incidentRate: number;       // 0-100 normalized
-  severityIndex: number;      // 0-100 normalized
-  controlFailureRate: number; // 0-100 normalized
-  exposureScore: number;      // 0-100 normalized
-  mitigationBonus: number;    // 0-100 normalized
+  incidentRate: number;       // 0-100
+  severityIndex: number;      // 0-100
+  exposureScore: number;      // 0-100 — % zones alto/extremo
+  mitigationRate: number;     // 0-100 — checklist coverage
+  siniestralidad: number;     // 0-100 — siniestros per 1000 services
 }
 
 export interface DRFTrend {
   period: TrendPeriod;
   current: number;
   previous: number;
-  change: number;        // absolute diff
-  changePercent: number; // % change
+  change: number;
+  changePercent: number;
   direction: 'improving' | 'stable' | 'worsening';
+  breakdown: DRFBreakdown;
 }
 
 export type RiskLevel = 'critico' | 'alto' | 'medio' | 'bajo';
@@ -38,23 +39,19 @@ export interface DetectaRiskFactorResult {
 }
 
 // =============================================================================
-// WEIGHTS — DRF Formula
+// WEIGHTS — DRF Formula (revised)
 // =============================================================================
 
 const W = {
-  incidentRate: 0.30,
-  severityIndex: 0.25,
-  controlFailure: 0.20,
-  exposure: 0.15,
-  mitigation: 0.10,
+  exposure: 0.35,        // How exposed are we by route geography
+  siniestralidad: 0.30,  // Historical loss rate
+  incidentRate: 0.15,    // General incident frequency
+  severityIndex: 0.10,   // Severity of incidents
+  mitigation: 0.10,      // Checklist coverage (reduces risk)
 };
 
-// Severity weights for index calculation
 const SEVERITY_WEIGHTS: Record<string, number> = {
-  critica: 4,
-  alta: 3,
-  media: 2,
-  baja: 1,
+  critica: 4, alta: 3, media: 2, baja: 1,
 };
 
 // =============================================================================
@@ -95,21 +92,14 @@ function getPeriodRange(period: TrendPeriod, offset: 'current' | 'previous'): { 
 }
 
 // =============================================================================
-// DRF CALCULATION ENGINE
+// DRF CALCULATION ENGINE (revised)
 // =============================================================================
 
 interface RawIncident {
   severidad: string;
   atribuible_operacion: boolean;
-  controles_activos: string[] | null;
-  control_efectivo: boolean | null;
   fecha_incidente: string;
   es_siniestro: boolean;
-}
-
-interface RawService {
-  id: string;
-  fecha_hora_cita: string;
 }
 
 interface RawZone {
@@ -117,67 +107,66 @@ interface RawZone {
   final_score: number;
 }
 
-interface RawSafePoint {
-  verification_status: string;
+interface FillRateMonth {
+  fecha: string;
+  servicios_completados: number;
+  siniestros: number;
 }
 
 function calculateDRF(
   incidents: RawIncident[],
-  services: RawService[],
   zones: RawZone[],
-  safePoints: RawSafePoint[]
+  fillRateData: FillRateMonth[],
+  checklistCount: number,
+  totalServicesAll: number,
 ): { score: number; breakdown: DRFBreakdown } {
-  const totalServices = Math.max(services.length, 1);
+  // 1. Exposure: % of zones in alto+extremo (structural floor)
+  const highRiskZones = zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length;
+  const exposureScore = zones.length > 0 ? (highRiskZones / zones.length) * 100 : 0;
 
-  // 1. Incident Rate: atribuible incidents per 1000 services, normalized to 0-100
-  // Siniestros count 3x for rate calculation
-  const atribuibles = incidents.filter(i => i.atribuible_operacion).length;
-  const siniestroBonus = incidents.filter(i => i.es_siniestro).length * 2; // extra weight
-  const rawRate = ((atribuibles + siniestroBonus) / totalServices) * 1000;
-  const incidentRate = Math.min(rawRate / 50 * 100, 100);
+  // 2. Siniestralidad: siniestros per 1000 services from fill rate
+  const totalFillServices = fillRateData.reduce((s, m) => s + m.servicios_completados, 0);
+  const totalSiniestros = fillRateData.reduce((s, m) => s + m.siniestros, 0);
+  const rawSiniestralidad = totalFillServices > 0
+    ? (totalSiniestros / totalFillServices) * 1000
+    : 0;
+  // Normalize: 10 per 1000 = 100 score
+  const siniestralidad = Math.min((rawSiniestralidad / 10) * 100, 100);
 
-  // 2. Severity Index: weighted severity, siniestros get max weight
+  // 3. Incident Rate: incidents per 100 services
+  const totalServices = Math.max(totalServicesAll, 1);
+  const rawRate = (incidents.length / totalServices) * 100;
+  const incidentRate = Math.min((rawRate / 5) * 100, 100); // 5% = max
+
+  // 4. Severity Index
   const totalIncidents = Math.max(incidents.length, 1);
   const weightedSum = incidents.reduce((sum, i) => {
     const base = SEVERITY_WEIGHTS[i.severidad] || 1;
     return sum + (i.es_siniestro ? Math.max(base, 4) : base);
   }, 0);
-  const maxPossible = totalIncidents * 4;
-  const severityIndex = (weightedSum / maxPossible) * 100;
-
-  // 3. Control Failure Rate: incidents where controls existed but failed
-  const withControls = incidents.filter(i => i.controles_activos && i.controles_activos.length > 0);
-  const controlFailed = withControls.filter(i => i.control_efectivo === false).length;
-  const controlFailureRate = withControls.length > 0
-    ? (controlFailed / withControls.length) * 100
+  const severityIndex = incidents.length > 0
+    ? (weightedSum / (totalIncidents * 4)) * 100
     : 0;
 
-  // 4. Exposure Score: % of zones in alto+extremo
-  const highRiskZones = zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length;
-  const exposureScore = zones.length > 0
-    ? (highRiskZones / zones.length) * 100
-    : 0;
-
-  // 5. Mitigation Bonus: verified safe points as % (max contribution)
-  const verifiedSP = safePoints.filter(sp => sp.verification_status === 'verified').length;
-  const mitigationBonus = safePoints.length > 0
-    ? (verifiedSP / safePoints.length) * 100
+  // 5. Mitigation: checklist coverage (higher = less risk)
+  const mitigationRate = totalServicesAll > 0
+    ? Math.min((checklistCount / totalServicesAll) * 100, 100)
     : 0;
 
   const breakdown: DRFBreakdown = {
     incidentRate: Math.round(incidentRate * 10) / 10,
     severityIndex: Math.round(severityIndex * 10) / 10,
-    controlFailureRate: Math.round(controlFailureRate * 10) / 10,
     exposureScore: Math.round(exposureScore * 10) / 10,
-    mitigationBonus: Math.round(mitigationBonus * 10) / 10,
+    mitigationRate: Math.round(mitigationRate * 10) / 10,
+    siniestralidad: Math.round(siniestralidad * 10) / 10,
   };
 
   const score =
+    (W.exposure * breakdown.exposureScore) +
+    (W.siniestralidad * breakdown.siniestralidad) +
     (W.incidentRate * breakdown.incidentRate) +
-    (W.severityIndex * breakdown.severityIndex) +
-    (W.controlFailure * breakdown.controlFailureRate) +
-    (W.exposure * breakdown.exposureScore) -
-    (W.mitigation * breakdown.mitigationBonus);
+    (W.severityIndex * breakdown.severityIndex) -
+    (W.mitigation * breakdown.mitigationRate);
 
   return {
     score: Math.round(Math.max(0, Math.min(100, score)) * 10) / 10,
@@ -198,61 +187,70 @@ function getRiskLevel(score: number): RiskLevel {
 
 export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): DetectaRiskFactorResult {
   const query = useQuery({
-    queryKey: ['detecta-risk-factor'],
+    queryKey: ['detecta-risk-factor-v2'],
     queryFn: async () => {
-      // Parallel queries
-      const [incidentsRes, servicesRes, zonesRes, safePointsRes] = await Promise.all([
+      const [incidentsRes, zonesRes, fillRateRes, checklistRes] = await Promise.all([
         (supabase as any)
           .from('incidentes_operativos')
-          .select('severidad, atribuible_operacion, controles_activos, control_efectivo, fecha_incidente, es_siniestro'),
-        (supabase as any)
-          .from('servicios_planificados')
-          .select('id, fecha_hora_cita'),
+          .select('severidad, atribuible_operacion, fecha_incidente, es_siniestro'),
         (supabase as any)
           .from('risk_zone_scores')
           .select('risk_level, final_score'),
         (supabase as any)
-          .from('safe_points')
-          .select('verification_status')
-          .eq('is_active', true),
+          .from('siniestros_historico')
+          .select('fecha, servicios_completados, siniestros')
+          .order('fecha', { ascending: true }),
+        (supabase as any)
+          .from('checklist_servicio')
+          .select('id, created_at')
+          .limit(5000),
       ]);
 
       if (incidentsRes.error) throw incidentsRes.error;
-      if (servicesRes.error) throw servicesRes.error;
       if (zonesRes.error) throw zonesRes.error;
-      if (safePointsRes.error) throw safePointsRes.error;
+      if (fillRateRes.error) throw fillRateRes.error;
+      if (checklistRes.error) throw checklistRes.error;
 
       const allIncidents = (incidentsRes.data || []) as RawIncident[];
-      const allServices = (servicesRes.data || []) as RawService[];
       const zones = (zonesRes.data || []) as RawZone[];
-      const safePoints = (safePointsRes.data || []) as RawSafePoint[];
+      const fillRate = (fillRateRes.data || []) as FillRateMonth[];
+      const allChecklists = (checklistRes.data || []) as { id: string; created_at: string }[];
 
-      // Global DRF (all-time)
-      const global = calculateDRF(allIncidents, allServices, zones, safePoints);
+      const totalServicesAll = fillRate.reduce((s, m) => s + m.servicios_completados, 0);
 
-      // Calculate trends for all periods
+      // Global DRF
+      const global = calculateDRF(allIncidents, zones, fillRate, allChecklists.length, totalServicesAll);
+
+      // Per-period trends
       const periods: TrendPeriod[] = ['DoD', 'WoW', 'MoM', 'QoQ', 'YoY'];
       const trends: DRFTrend[] = periods.map(period => {
         const currentRange = getPeriodRange(period, 'current');
         const previousRange = getPeriodRange(period, 'previous');
 
-        const filterByRange = <T extends { fecha_incidente?: string; fecha_hora_cita?: string }>(
-          items: T[],
-          dateField: 'fecha_incidente' | 'fecha_hora_cita',
-          from: string,
-          to: string
-        ) => items.filter(item => {
-          const d = item[dateField];
-          return d && d >= from && d < to;
-        });
+        const filterIncidents = (from: string, to: string) =>
+          allIncidents.filter(i => i.fecha_incidente >= from && i.fecha_incidente < to);
 
-        const currentIncidents = filterByRange(allIncidents, 'fecha_incidente', currentRange.from, currentRange.to);
-        const currentServices = filterByRange(allServices, 'fecha_hora_cita', currentRange.from, currentRange.to);
-        const prevIncidents = filterByRange(allIncidents, 'fecha_incidente', previousRange.from, previousRange.to);
-        const prevServices = filterByRange(allServices, 'fecha_hora_cita', previousRange.from, previousRange.to);
+        const filterFillRate = (from: string, to: string) =>
+          fillRate.filter(m => m.fecha >= from.slice(0, 10) && m.fecha < to.slice(0, 10));
 
-        const currentDRF = calculateDRF(currentIncidents, currentServices, zones, safePoints);
-        const prevDRF = calculateDRF(prevIncidents, prevServices, zones, safePoints);
+        const filterChecklists = (from: string, to: string) =>
+          allChecklists.filter(c => c.created_at >= from && c.created_at < to);
+
+        const curInc = filterIncidents(currentRange.from, currentRange.to);
+        const curFR = filterFillRate(currentRange.from, currentRange.to);
+        const curCL = filterChecklists(currentRange.from, currentRange.to);
+        const curServices = curFR.reduce((s, m) => s + m.servicios_completados, 0);
+        // If no fill rate data for period, use proportional estimate
+        const effectiveCurServices = curServices > 0 ? curServices : Math.max(Math.round(totalServicesAll / 24), 1);
+
+        const prevInc = filterIncidents(previousRange.from, previousRange.to);
+        const prevFR = filterFillRate(previousRange.from, previousRange.to);
+        const prevCL = filterChecklists(previousRange.from, previousRange.to);
+        const prevServices = prevFR.reduce((s, m) => s + m.servicios_completados, 0);
+        const effectivePrevServices = prevServices > 0 ? prevServices : Math.max(Math.round(totalServicesAll / 24), 1);
+
+        const currentDRF = calculateDRF(curInc, zones, curFR.length > 0 ? curFR : fillRate, curCL.length, effectiveCurServices);
+        const prevDRF = calculateDRF(prevInc, zones, prevFR.length > 0 ? prevFR : fillRate, prevCL.length, effectivePrevServices);
 
         const change = currentDRF.score - prevDRF.score;
         const changePercent = prevDRF.score > 0
@@ -260,7 +258,7 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
           : (currentDRF.score > 0 ? 100 : 0);
 
         let direction: DRFTrend['direction'] = 'stable';
-        if (change < -2) direction = 'improving';   // Lower DRF = less risk = improving
+        if (change < -2) direction = 'improving';
         else if (change > 2) direction = 'worsening';
 
         return {
@@ -270,10 +268,11 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
           change: Math.round(change * 10) / 10,
           changePercent: Math.round(changePercent * 10) / 10,
           direction,
+          breakdown: currentDRF.breakdown,
         };
       });
 
-      return { global, trends };
+      return { global, trends, fillRate, zones };
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -282,16 +281,16 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
   const trends = data?.trends || [];
   const selectedTrend = trends.find(t => t.period === selectedPeriod) || null;
 
+  // When a period is selected, show that period's DRF, not global
+  const activeDRF = selectedTrend?.current ?? data?.global.score ?? 0;
+  const activeBreakdown = selectedTrend?.breakdown ?? data?.global.breakdown ?? {
+    incidentRate: 0, severityIndex: 0, exposureScore: 0, mitigationRate: 0, siniestralidad: 0,
+  };
+
   return {
-    currentDRF: data?.global.score ?? 0,
-    riskLevel: getRiskLevel(data?.global.score ?? 0),
-    breakdown: data?.global.breakdown ?? {
-      incidentRate: 0,
-      severityIndex: 0,
-      controlFailureRate: 0,
-      exposureScore: 0,
-      mitigationBonus: 0,
-    },
+    currentDRF: activeDRF,
+    riskLevel: getRiskLevel(activeDRF),
+    breakdown: activeBreakdown,
     trends,
     selectedTrend,
     isLoading: query.isLoading,
