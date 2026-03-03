@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { initializeMapboxToken } from '@/lib/mapbox';
-import { HIGHWAY_SEGMENTS, HIGHWAY_POIS, RISK_LEVEL_COLORS, type HighwaySegment, type RiskLevel } from '@/lib/security/highwaySegments';
+import { HIGHWAY_SEGMENTS, HIGHWAY_POIS, RISK_LEVEL_COLORS, CORRIDOR_ROUTE_INFO, getSegmentRouteType, getSegmentHighwayDesignation, type HighwaySegment, type RiskLevel, type RouteType } from '@/lib/security/highwaySegments';
 import { CELLULAR_DEAD_ZONES } from '@/lib/security/cellularCoverage';
 import { useSafePoints } from '@/hooks/security/useSafePoints';
 import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
@@ -107,10 +107,11 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     const m = map.current;
 
     // Segments as a single source with data-driven styling
-    // Use cached geometries when available, fallback to simple waypoints
     const segmentFeatures = HIGHWAY_SEGMENTS.map(seg => {
       const cached = geometries?.[seg.id];
       const coordinates = cached?.coordinates?.length ? cached.coordinates : seg.waypoints;
+      const routeType = getSegmentRouteType(seg);
+      const highwayDesignation = getSegmentHighwayDesignation(seg);
       return {
         type: 'Feature' as const,
         properties: {
@@ -124,6 +125,8 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
           criticalHours: seg.criticalHours,
           commonIncidentType: seg.commonIncidentType,
           recommendations: JSON.stringify(seg.recommendations),
+          routeType,
+          highwayDesignation,
         },
         geometry: { type: 'LineString' as const, coordinates },
       };
@@ -149,17 +152,48 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         layout: { 'line-cap': 'round', 'line-join': 'round' },
       });
 
-      // Main segment line (thicker + higher opacity)
+      // Cuota layer (solid line)
       m.addLayer({
-        id: 'segments-line',
+        id: 'segments-line-cuota',
         type: 'line',
         source: 'segments',
+        filter: ['==', ['get', 'routeType'], 'cuota'],
         paint: {
           'line-color': ['get', 'color'],
           'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 8, 5],
           'line-opacity': 0.95,
         },
         layout: { 'line-cap': 'round', 'line-join': 'round' },
+      });
+
+      // Libre layer (dashed line)
+      m.addLayer({
+        id: 'segments-line-libre',
+        type: 'line',
+        source: 'segments',
+        filter: ['==', ['get', 'routeType'], 'libre'],
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 8, 5],
+          'line-opacity': 0.95,
+          'line-dasharray': [4, 3],
+        },
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      });
+
+      // Mixta layer (dot-dash line)
+      m.addLayer({
+        id: 'segments-line-mixta',
+        type: 'line',
+        source: 'segments',
+        filter: ['==', ['get', 'routeType'], 'mixta'],
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 8, 5],
+          'line-opacity': 0.95,
+          'line-dasharray': [8, 3, 2, 3],
+        },
+        layout: { 'line-cap': 'butt', 'line-join': 'round' },
       });
 
       // Selected segment outline (white border highlight)
@@ -182,7 +216,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         source: 'segments',
         layout: {
           'symbol-placement': 'line',
-          'text-field': ['get', 'name'],
+          'text-field': ['concat', ['get', 'highwayDesignation'], ' ', ['get', 'name']],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             5, 8,
@@ -270,31 +304,37 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       });
     }
 
-    // Click on segment
-    m.on('click', 'segments-line', (e) => {
-      if (!e.features?.[0]) return;
-      const props = e.features[0].properties!;
-      const seg = HIGHWAY_SEGMENTS.find(s => s.id === props.id);
-      if (seg) onSegmentSelect?.(seg);
+    // Click handlers for all interactive segment layers
+    const segmentLayers = ['segments-line-cuota', 'segments-line-libre', 'segments-line-mixta'];
+    
+    segmentLayers.forEach(layerId => {
+      m.on('click', layerId, (e) => {
+        if (!e.features?.[0]) return;
+        const props = e.features[0].properties!;
+        const seg = HIGHWAY_SEGMENTS.find(s => s.id === props.id);
+        if (seg) onSegmentSelect?.(seg);
 
-      const recs = JSON.parse(props.recommendations || '[]');
-      const html = `
-        <div style="max-width:280px;font-size:12px;">
-          <div style="font-weight:600;margin-bottom:4px;">${props.name}</div>
-          <div style="display:flex;gap:8px;margin-bottom:4px;">
-            <span style="background:${RISK_LEVEL_COLORS[props.riskLevel as RiskLevel]};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${props.riskLevel.toUpperCase()}</span>
-            <span>Km ${props.kmStart}-${props.kmEnd}</span>
+        const recs = JSON.parse(props.recommendations || '[]');
+        const routeTypeLabels: Record<string, string> = { cuota: '🛣️ Cuota', libre: '🛤️ Libre', mixta: '🔀 Mixta' };
+        const html = `
+          <div style="max-width:280px;font-size:12px;">
+            <div style="font-weight:600;margin-bottom:4px;">${props.highwayDesignation ? `[${props.highwayDesignation}] ` : ''}${props.name}</div>
+            <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+              <span style="background:${RISK_LEVEL_COLORS[props.riskLevel as RiskLevel]};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${props.riskLevel.toUpperCase()}</span>
+              <span style="background:#374151;color:#d1d5db;padding:1px 6px;border-radius:4px;font-size:10px;">${routeTypeLabels[props.routeType] || props.routeType}</span>
+              <span>Km ${props.kmStart}-${props.kmEnd}</span>
+            </div>
+            <div>📊 ${props.avgMonthlyEvents} eventos/mes · ⏰ ${props.criticalHours}</div>
+            <div style="margin-top:4px;color:#d1d5db;">🔍 ${props.commonIncidentType}</div>
+            ${recs.length ? `<div style="margin-top:6px;border-top:1px solid #374151;padding-top:4px;"><strong>ISO 28000:</strong><ul style="margin:2px 0 0 12px;padding:0;">${recs.map((r: string) => `<li style="margin-bottom:2px;">${r}</li>`).join('')}</ul></div>` : ''}
           </div>
-          <div>📊 ${props.avgMonthlyEvents} eventos/mes · ⏰ ${props.criticalHours}</div>
-          <div style="margin-top:4px;color:#d1d5db;">🔍 ${props.commonIncidentType}</div>
-          ${recs.length ? `<div style="margin-top:6px;border-top:1px solid #374151;padding-top:4px;"><strong>ISO 28000:</strong><ul style="margin:2px 0 0 12px;padding:0;">${recs.map((r: string) => `<li style="margin-bottom:2px;">${r}</li>`).join('')}</ul></div>` : ''}
-        </div>
-      `;
-      popupRef.current?.remove();
-      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '320px' })
-        .setLngLat(e.lngLat)
-        .setHTML(html)
-        .addTo(m);
+        `;
+        popupRef.current?.remove();
+        popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '320px' })
+          .setLngLat(e.lngLat)
+          .setHTML(html)
+          .addTo(m);
+      });
     });
 
     // Click on POI
@@ -347,7 +387,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     });
 
     // Cursor for all interactive layers
-    ['segments-line', 'pois-circle', 'safe-points-circle'].forEach(layer => {
+    [...segmentLayers, 'pois-circle', 'safe-points-circle'].forEach(layer => {
       m.on('mouseenter', layer, () => { m.getCanvas().style.cursor = 'pointer'; });
       m.on('mouseleave', layer, () => { m.getCanvas().style.cursor = ''; });
     });
@@ -397,7 +437,9 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
     };
     set('segments-glow', layers.segments);
-    set('segments-line', layers.segments);
+    set('segments-line-cuota', layers.segments);
+    set('segments-line-libre', layers.segments);
+    set('segments-line-mixta', layers.segments);
     set('segments-selected-outline', layers.segments);
     set('segments-labels', layers.labels);
     set('pois-circle', layers.pois);
@@ -441,7 +483,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         </div>
       )}
       <div ref={mapContainer} className="w-full h-full rounded-lg" />
-      {/* Legend — outside zoom, absolute position */}
+      {/* Legend */}
       {mapReady && (
         <div className="absolute bottom-2 left-2 bg-background/90 border rounded p-1.5 text-[9px] space-y-0.5 backdrop-blur-sm z-[5]">
           <div className="font-semibold text-foreground text-[9px]">Nivel de Riesgo</div>
@@ -451,6 +493,21 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
               <span className="text-muted-foreground capitalize">{level}</span>
             </div>
           ))}
+          <div className="border-t pt-0.5 mt-0.5">
+            <div className="font-semibold text-foreground text-[9px]">Tipo de Vía</div>
+            <div className="flex items-center gap-1">
+              <svg width="16" height="2"><line x1="0" y1="1" x2="16" y2="1" stroke="hsl(var(--foreground))" strokeWidth="2" /></svg>
+              <span className="text-muted-foreground">Cuota</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <svg width="16" height="2"><line x1="0" y1="1" x2="16" y2="1" stroke="hsl(var(--foreground))" strokeWidth="2" strokeDasharray="4,3" /></svg>
+              <span className="text-muted-foreground">Libre</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <svg width="16" height="2"><line x1="0" y1="1" x2="16" y2="1" stroke="hsl(var(--foreground))" strokeWidth="2" strokeDasharray="6,2,2,2" /></svg>
+              <span className="text-muted-foreground">Mixta</span>
+            </div>
+          </div>
           <div className="border-t pt-0.5 mt-0.5">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full border border-white" style={{ backgroundColor: 'hsl(var(--accent))' }} />

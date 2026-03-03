@@ -3,6 +3,7 @@
 // RECALIBRATED: Distribución realista ~7% extremo, ~18% alto, ~40% medio, ~35% bajo
 
 export type RiskLevel = 'extremo' | 'alto' | 'medio' | 'bajo';
+export type RouteType = 'cuota' | 'libre' | 'mixta';
 
 export interface HighwaySegment {
   id: string;
@@ -16,7 +17,66 @@ export interface HighwaySegment {
   commonIncidentType: string;
   recommendations: string[];
   waypoints: [number, number][]; // [lng, lat]
+  routeType?: RouteType;
+  highwayDesignation?: string;
 }
+
+// Corridor-level metadata for routeType and highway designation
+// Segments inherit from their corridor unless overridden
+export const CORRIDOR_ROUTE_INFO: Record<string, { routeType: RouteType; highwayDesignation: string }> = {
+  'mexico-puebla': { routeType: 'cuota', highwayDesignation: '150D' },
+  'san-luis-potosi-hub': { routeType: 'mixta', highwayDesignation: '57/70/80' },
+  'lazaro-cardenas-cdmx': { routeType: 'mixta', highwayDesignation: '37D/14D' },
+  'manzanillo-tampico': { routeType: 'mixta', highwayDesignation: '54D/80/70' },
+  'arco-norte': { routeType: 'cuota', highwayDesignation: 'Arco Norte' },
+  'circuito-exterior-mexiquense': { routeType: 'cuota', highwayDesignation: 'CEM' },
+  'mexico-toluca': { routeType: 'cuota', highwayDesignation: '15D' },
+  'toluca-atlacomulco': { routeType: 'libre', highwayDesignation: '55' },
+  'cdmx-queretaro': { routeType: 'cuota', highwayDesignation: '57D' },
+  'bajio-industrial': { routeType: 'mixta', highwayDesignation: '45D/45' },
+  'monterrey-nuevo-laredo': { routeType: 'cuota', highwayDesignation: '85D' },
+  'veracruz-cdmx': { routeType: 'mixta', highwayDesignation: '140D/150D' },
+  'altiplano-central': { routeType: 'mixta', highwayDesignation: '45/54' },
+  'costera-pacifico': { routeType: 'libre', highwayDesignation: '200' },
+  'edomex-industrial': { routeType: 'libre', highwayDesignation: 'Varias' },
+  'mexico-texcoco': { routeType: 'libre', highwayDesignation: '136' },
+  'cordoba-puebla': { routeType: 'cuota', highwayDesignation: '150D' },
+  'cdmx-cuernavaca-acapulco': { routeType: 'cuota', highwayDesignation: '95D' },
+  'cdmx-pachuca': { routeType: 'cuota', highwayDesignation: '85D' },
+  'torreon-monterrey': { routeType: 'cuota', highwayDesignation: '40D' },
+  'chihuahua-ciudad-juarez': { routeType: 'libre', highwayDesignation: '45' },
+  'villahermosa-coatzacoalcos': { routeType: 'libre', highwayDesignation: '180' },
+  'tepic-mazatlan': { routeType: 'cuota', highwayDesignation: '15D' },
+  'slp-matehuala-saltillo': { routeType: 'cuota', highwayDesignation: '57D' },
+  'monterrey-saltillo': { routeType: 'cuota', highwayDesignation: '40D' },
+  'mazatlan-durango-torreon': { routeType: 'cuota', highwayDesignation: '40D' },
+  'mexico-nogales': { routeType: 'mixta', highwayDesignation: '15D/15' },
+  'guadalajara-lagos': { routeType: 'mixta', highwayDesignation: '80D/80' },
+  'guadalajara-tepic': { routeType: 'cuota', highwayDesignation: '15D' },
+  'culiacan-guaymas': { routeType: 'cuota', highwayDesignation: '15D' },
+  'hermosillo-nogales': { routeType: 'cuota', highwayDesignation: '15D' },
+  'nogales-tijuana': { routeType: 'mixta', highwayDesignation: '2D/2' },
+  'la-paz-los-cabos': { routeType: 'libre', highwayDesignation: '1/19' },
+  'puebla-oaxaca': { routeType: 'mixta', highwayDesignation: '131D/135D' },
+  'villahermosa-cancun': { routeType: 'mixta', highwayDesignation: '186/180/307' },
+  'coatzacoalcos-salina-cruz': { routeType: 'libre', highwayDesignation: '185' },
+  'merida-cancun': { routeType: 'cuota', highwayDesignation: '180D' },
+  // New corridors
+  'monterrey-reynosa': { routeType: 'cuota', highwayDesignation: '40/2' },
+  'monterrey-matamoros': { routeType: 'libre', highwayDesignation: '2' },
+  'saltillo-piedras-negras': { routeType: 'libre', highwayDesignation: '57' },
+  'tuxtla-oaxaca': { routeType: 'libre', highwayDesignation: '190' },
+};
+
+/** Get routeType for a segment (segment override > corridor default) */
+export const getSegmentRouteType = (seg: HighwaySegment): RouteType => {
+  return seg.routeType || CORRIDOR_ROUTE_INFO[seg.corridorId]?.routeType || 'libre';
+};
+
+/** Get highway designation for a segment */
+export const getSegmentHighwayDesignation = (seg: HighwaySegment): string => {
+  return seg.highwayDesignation || CORRIDOR_ROUTE_INFO[seg.corridorId]?.highwayDesignation || '';
+};
 
 // Safe area subtypes for detailed categorization
 export type SafeAreaSubtype = 
@@ -2590,6 +2650,261 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     recommendations: ['Autopista segura', 'Monitoreo GPS estándar'],
     waypoints: [[-88.2000, 20.6900], [-87.4500, 21.0200], [-86.8500, 21.1600]],
   },
+
+
+  // ============================================================
+  // CORREDOR: Monterrey - Reynosa (40/2) - ~220km
+  // Principal cruce de carga noreste (McAllen)
+  // ============================================================
+  {
+    id: 'mty-rey-1',
+    corridorId: 'monterrey-reynosa',
+    name: 'Monterrey - Cadereyta',
+    kmStart: 0,
+    kmEnd: 40,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Robo urbano',
+    recommendations: ['Monitoreo GPS estándar', 'Salida metropolitana'],
+    waypoints: [[-100.3100, 25.6700], [-99.9800, 25.5900]],
+  },
+  {
+    id: 'mty-rey-2',
+    corridorId: 'monterrey-reynosa',
+    name: 'Cadereyta - China',
+    kmStart: 40,
+    kmEnd: 110,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 5,
+    criticalHours: '18:00-06:00',
+    commonIncidentType: 'Robo con violencia / Halconeo',
+    recommendations: ['Evitar tránsito nocturno', 'GPS cada 10 min', 'Zona de halcones'],
+    waypoints: [[-99.9800, 25.5900], [-99.5500, 25.7000], [-99.2300, 25.9500]],
+  },
+  {
+    id: 'mty-rey-3',
+    corridorId: 'monterrey-reynosa',
+    name: 'China - Gral. Bravo',
+    kmStart: 110,
+    kmEnd: 165,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 4,
+    criticalHours: '19:00-06:00',
+    commonIncidentType: 'Robo con violencia / Narcotráfico',
+    recommendations: ['Evitar tránsito nocturno', 'Comunicación satelital recomendada'],
+    waypoints: [[-99.2300, 25.9500], [-98.9500, 26.0500]],
+  },
+  {
+    id: 'mty-rey-4',
+    corridorId: 'monterrey-reynosa',
+    name: 'Gral. Bravo - Reynosa',
+    kmStart: 165,
+    kmEnd: 220,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 3,
+    criticalHours: '22:00-04:00',
+    commonIncidentType: 'Robo en zona fronteriza',
+    recommendations: ['Documentación fronteriza lista', 'Monitoreo GPS estándar'],
+    waypoints: [[-98.9500, 26.0500], [-98.5200, 26.1500], [-98.2900, 26.0700]],
+  },
+
+  // ============================================================
+  // CORREDOR: Monterrey - Matamoros (2) - ~300km
+  // Segundo cruce del Golfo (Brownsville)
+  // ============================================================
+  {
+    id: 'mty-mat-1',
+    corridorId: 'monterrey-matamoros',
+    name: 'Monterrey - Montemorelos',
+    kmStart: 0,
+    kmEnd: 80,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-05:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: ['Monitoreo GPS estándar'],
+    waypoints: [[-100.3100, 25.6700], [-99.8300, 25.1900]],
+  },
+  {
+    id: 'mty-mat-2',
+    corridorId: 'monterrey-matamoros',
+    name: 'Montemorelos - San Fernando',
+    kmStart: 80,
+    kmEnd: 190,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 6,
+    criticalHours: '18:00-06:00',
+    commonIncidentType: 'Robo organizado / Bloqueos',
+    recommendations: ['RESTRICCIÓN NOCTURNA', 'Comunicación satelital recomendada', 'Convoy recomendado'],
+    waypoints: [[-99.8300, 25.1900], [-98.9500, 24.8800], [-98.1600, 24.8500]],
+  },
+  {
+    id: 'mty-mat-3',
+    corridorId: 'monterrey-matamoros',
+    name: 'San Fernando - Valle Hermoso',
+    kmStart: 190,
+    kmEnd: 250,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 5,
+    criticalHours: '19:00-05:00',
+    commonIncidentType: 'Robo con violencia / Zona de disputa',
+    recommendations: ['Evitar tránsito nocturno', 'GPS cada 10 min'],
+    waypoints: [[-98.1600, 24.8500], [-97.8300, 25.4500]],
+  },
+  {
+    id: 'mty-mat-4',
+    corridorId: 'monterrey-matamoros',
+    name: 'Valle Hermoso - Matamoros',
+    kmStart: 250,
+    kmEnd: 300,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 3,
+    criticalHours: '22:00-04:00',
+    commonIncidentType: 'Robo zona fronteriza',
+    recommendations: ['Documentación fronteriza lista', 'Monitoreo GPS estándar'],
+    waypoints: [[-97.8300, 25.4500], [-97.5000, 25.8700]],
+  },
+
+  // ============================================================
+  // CORREDOR: Saltillo - Piedras Negras (57) - ~440km
+  // Corredor automotriz (Eagle Pass)
+  // ============================================================
+  {
+    id: 'sal-pn-1',
+    corridorId: 'saltillo-piedras-negras',
+    name: 'Saltillo - Monclova',
+    kmStart: 0,
+    kmEnd: 190,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-05:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: ['Monitoreo GPS estándar', 'Tramo desértico'],
+    waypoints: [[-101.0000, 25.4200], [-101.1500, 25.8500], [-101.2500, 26.5500], [-101.4200, 26.9100]],
+  },
+  {
+    id: 'sal-pn-2',
+    corridorId: 'saltillo-piedras-negras',
+    name: 'Monclova - Sabinas',
+    kmStart: 190,
+    kmEnd: 280,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: ['Monitoreo GPS estándar', 'Zona minera'],
+    waypoints: [[-101.4200, 26.9100], [-101.3500, 27.4000], [-101.1200, 27.8500]],
+  },
+  {
+    id: 'sal-pn-3',
+    corridorId: 'saltillo-piedras-negras',
+    name: 'Sabinas - Allende',
+    kmStart: 280,
+    kmEnd: 370,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 4,
+    criticalHours: '18:00-06:00',
+    commonIncidentType: 'Robo con violencia / Narcotráfico',
+    recommendations: ['Evitar tránsito nocturno', 'GPS cada 10 min'],
+    waypoints: [[-101.1200, 27.8500], [-100.8500, 28.2000], [-100.5500, 28.3500]],
+  },
+  {
+    id: 'sal-pn-4',
+    corridorId: 'saltillo-piedras-negras',
+    name: 'Allende - Piedras Negras',
+    kmStart: 370,
+    kmEnd: 440,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 3,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Zona fronteriza',
+    recommendations: ['Documentación fronteriza lista', 'Monitoreo GPS estándar'],
+    waypoints: [[-100.5500, 28.3500], [-100.5200, 28.7100]],
+  },
+
+  // ============================================================
+  // CORREDOR: Tuxtla Gutiérrez - Oaxaca (190) - ~600km
+  // Chiapas-Oaxaca, Sierra Madre del Sur
+  // ============================================================
+  {
+    id: 'tux-oax-1',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'Tuxtla Gutiérrez - Chiapa de Corzo',
+    kmStart: 0,
+    kmEnd: 20,
+    riskLevel: 'bajo',
+    avgMonthlyEvents: 1,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: ['Monitoreo GPS estándar'],
+    waypoints: [[-93.1150, 16.7530], [-93.0100, 16.7100]],
+  },
+  {
+    id: 'tux-oax-2',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'Chiapa de Corzo - San Cristóbal',
+    kmStart: 20,
+    kmEnd: 80,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Bloqueos carreteros / Manifestaciones',
+    recommendations: ['Verificar bloqueos antes de salir', 'Monitoreo GPS estándar'],
+    waypoints: [[-93.0100, 16.7100], [-92.6400, 16.7400]],
+  },
+  {
+    id: 'tux-oax-3',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'San Cristóbal - Comitán',
+    kmStart: 80,
+    kmEnd: 170,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-05:00',
+    commonIncidentType: 'Robo sin violencia / Zona indígena',
+    recommendations: ['Monitoreo GPS estándar', 'Respetar usos y costumbres'],
+    waypoints: [[-92.6400, 16.7400], [-92.1300, 16.2500]],
+  },
+  {
+    id: 'tux-oax-4',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'Tuxtla - Juchitán (vía Istmo)',
+    kmStart: 170,
+    kmEnd: 400,
+    riskLevel: 'alto',
+    avgMonthlyEvents: 4,
+    criticalHours: '18:00-06:00',
+    commonIncidentType: 'Robo con violencia / Sierra aislada',
+    recommendations: ['SIN SEÑAL CELULAR en tramos largos', 'Comunicación satelital recomendada', 'Evitar tránsito nocturno'],
+    waypoints: [[-93.1150, 16.7530], [-94.0000, 16.5000], [-95.0200, 16.4300]],
+  },
+  {
+    id: 'tux-oax-5',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'Juchitán - Tehuantepec',
+    kmStart: 400,
+    kmEnd: 450,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-04:00',
+    commonIncidentType: 'Bloqueos esporádicos',
+    recommendations: ['Zona de manifestaciones frecuentes', 'Monitoreo GPS estándar'],
+    waypoints: [[-95.0200, 16.4300], [-95.2400, 16.3200]],
+  },
+  {
+    id: 'tux-oax-6',
+    corridorId: 'tuxtla-oaxaca',
+    name: 'Tehuantepec - Oaxaca',
+    kmStart: 450,
+    kmEnd: 600,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '20:00-05:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: ['Sierra Madre del Sur', 'Monitoreo GPS estándar'],
+    waypoints: [[-95.2400, 16.3200], [-96.2000, 16.7500], [-96.7300, 17.0700]],
+  },
 ];
 
 export const HIGHWAY_POIS: POI[] = [
@@ -3409,6 +3724,74 @@ export const HIGHWAY_POIS: POI[] = [
     type: 'tollbooth',
     coordinates: [-95.0800, 16.5500],
     description: 'Caseta en corredor Transístmico.',
+  },
+  // === CORREDORES FRONTERIZOS: POIs ===
+  // MTY - Reynosa
+  {
+    id: 'blackspot-china-nl',
+    name: 'Zona China-Gral. Bravo (Tamaulipas)',
+    type: 'blackspot',
+    riskLevel: 'alto',
+    coordinates: [-99.2300, 25.9500],
+    description: 'Zona de halcones y emboscadas en corredor MTY-Reynosa.',
+  },
+  {
+    id: 'safe-gn-reynosa',
+    name: 'Puesto GN Reynosa',
+    type: 'safe_area',
+    subtype: 'puesto_militar',
+    coordinates: [-98.2900, 26.0700],
+    description: 'Control fronterizo GN. Cruce McAllen.',
+  },
+  // MTY - Matamoros
+  {
+    id: 'blackspot-san-fernando',
+    name: 'San Fernando (Tamaulipas)',
+    type: 'blackspot',
+    riskLevel: 'extremo',
+    coordinates: [-98.1600, 24.8500],
+    description: 'Zona de alto riesgo documentada. Bloqueos y robos organizados.',
+  },
+  {
+    id: 'safe-gn-matamoros',
+    name: 'Puesto GN Matamoros',
+    type: 'safe_area',
+    subtype: 'puesto_militar',
+    coordinates: [-97.5000, 25.8700],
+    description: 'Control fronterizo GN. Cruce Brownsville.',
+  },
+  // Saltillo - Piedras Negras
+  {
+    id: 'safe-gn-piedras-negras',
+    name: 'Puesto GN Piedras Negras',
+    type: 'safe_area',
+    subtype: 'puesto_militar',
+    coordinates: [-100.5200, 28.7100],
+    description: 'Control fronterizo GN. Cruce Eagle Pass.',
+  },
+  {
+    id: 'industrial-monclova',
+    name: 'Zona Industrial Monclova',
+    type: 'industrial',
+    coordinates: [-101.4200, 26.9100],
+    description: 'Clúster siderúrgico. AHMSA, Ternium.',
+  },
+  // Tuxtla - Oaxaca
+  {
+    id: 'blackspot-juchitan',
+    name: 'Zona Juchitán (Istmo)',
+    type: 'blackspot',
+    riskLevel: 'medio',
+    coordinates: [-95.0200, 16.4300],
+    description: 'Zona de bloqueos y manifestaciones frecuentes.',
+  },
+  {
+    id: 'safe-gn-tuxtla',
+    name: 'Puesto GN Tuxtla Gutiérrez',
+    type: 'safe_area',
+    subtype: 'puesto_militar',
+    coordinates: [-93.1150, 16.7530],
+    description: 'Control GN permanente. Capital de Chiapas.',
   },
 ];
 
