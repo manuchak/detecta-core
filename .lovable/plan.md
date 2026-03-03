@@ -1,49 +1,58 @@
 
 
-# Plan: 5 Tarjetas DRF con Barras de 4+ Periodos Históricos
+# Problema: Todos los periodos muestran el mismo DRF (~35)
 
-## Concepto
+## Diagnóstico
 
-Cada tarjeta (DoD, WoW, MoM, QoQ, YoY) muestra **barras horizontales para el periodo actual + 4 periodos anteriores**, permitiendo ver la tendencia del DRF en el tiempo sin gráficas abstractas.
+El problema esta en `calcForOffset` (linea 245-253 del hook). Hay dos causas raiz:
 
-## Layout
+1. **Zonas (`zones`) no tienen dimension temporal** -- se pasan siempre las mismas ~2,100 zonas sin filtrar por fecha. Como el 95% son extremo/alto, `exposureScore` = 95 siempre. Con peso 35%, esto aporta ~33.25 puntos fijos al DRF sin importar el periodo.
+
+2. **Fallback a datos globales** -- cuando no hay `fillRate` o incidentes en un dia especifico (lo cual es comun para DoD), la linea `fr.length > 0 ? fr : fillRate` usa TODA la historia. Resultado: siniestralidad identica en todos los offsets.
+
+Combinados, estos dos factores hacen que el DRF sea ~35 para todos los periodos historicos, que es exactamente lo que se ve en la UI.
+
+## Solucion
+
+La exposicion geografica es **estructural** (no cambia dia a dia, las zonas de riesgo no se mueven). Lo que SI varia temporalmente son: incidentes, siniestros, severidad y mitigacion. El DRF por periodo debe reflejar **solo los componentes temporales**, usando la exposicion como constante de contexto.
+
+### Cambios en `useDetectaRiskFactor.ts`
+
+1. **Separar componentes temporales de estructurales** en `calcForOffset`:
+   - `exposureScore` permanece constante (es correcto, la geografia no cambia por dia)
+   - `siniestralidad`: en vez de fallback a toda la historia, calcular la tasa usando una ventana proporcional al periodo (DoD = ultimos 30 dias, WoW = ultimos 2 meses, MoM = ultimo anio, etc.)
+   - `incidentRate`: filtrar incidentes estrictamente al rango del periodo. Si no hay incidentes, el rate es 0 (no fallback)
+   - `severityIndex`: mismo filtro temporal estricto
+   - `mitigationRate`: filtrar checklists al rango del periodo
+
+2. **Ventanas de contexto por periodo** para siniestralidad:
+   - DoD: ventana de 30 dias alrededor de la fecha
+   - WoW: ventana de 8 semanas
+   - MoM: ventana de 12 meses
+   - QoQ: ventana de 8 trimestres
+   - YoY: todo el historico
+
+   Esto genera variacion real porque la tasa de siniestros por 1,000 servicios cambia segun la ventana.
+
+3. **Normalizar incidentRate relativo al periodo** -- en vez de dividir por `totalServicesAll`, dividir por los servicios del periodo (o estimacion proporcional). Asi un dia con 2 incidentes pesa diferente a un dia con 0.
+
+### Resultado esperado
 
 ```text
-┌──── Día ──────────┬──── Semana ───────┬──── Mes ──────────┬── Trimestre ──────┬──── Año ──────────┐
-│  Hoy    ██████ 33 │  Esta   █████ 34  │  Mar    ██████ 33 │  Q1-26  █████ 34  │  2026  █████ 34   │
-│  Ayer   ██████ 34 │  Ant    █████ 33  │  Feb    █████ 35  │  Q4-25  ████ 38   │  2025  ████ 38    │
-│  -2d    ███████ 36│  -2sem  ██████ 35 │  Ene    ██████ 37 │  Q3-25  █████ 36  │  2024  ██████ 42  │
-│  -3d    █████ 32  │  -3sem  █████ 34  │  Dic    ████ 40   │  Q2-25  ██████ 41 │  2023  ███████ 48 │
-│  -4d    ██████ 35 │  -4sem  ██████ 36 │  Nov    █████ 38  │  Q1-25  ██████ 40 │  2022  ████████ 52│
-│  ↓ -1.0 Mejorando│  ↑ +1.0 Estable   │  ↓ -7.0 Mejorando │  ↓ -6.0 Mejorando │  ↓ -18 Mejorando  │
-└───────────────────┴───────────────────┴───────────────────┴───────────────────┴───────────────────┘
+┌──── Día ──────────┐
+│  Hoy    ██████ 34 │  (0 incidentes hoy, solo exposicion)
+│  Ayer   ██████ 34 │  (0 incidentes ayer)
+│  01 mar ███████ 38│  (2 incidentes ese dia, sube)
+│  28 feb █████ 33  │  (0 incidentes)
+│  27 feb ██████ 35 │  (1 incidente)
+└───────────────────┘
 ```
 
-Cada barra coloreada por nivel de riesgo (verde <25, amarillo <50, naranja <75, rojo >=75). La barra más reciente resaltada (font-bold, opacidad completa), las anteriores con opacidad decreciente. Delta al fondo compara periodo actual vs el inmediato anterior.
+Los scores ahora variaran porque `incidentRate` y `severityIndex` reflejan los incidentes reales del dia, no un fallback global.
 
-## Cambios
+### Archivos a modificar
 
-### 1. `useDetectaRiskFactor.ts` — Calcular 4 periodos históricos por timeframe
-
-Modificar `getPeriodRange` para aceptar un `offset` numérico (0 = actual, 1 = anterior, 2 = hace 2, etc.). Expandir el loop de trends para calcular `history: { label: string, score: number }[]` con 5 entradas (actual + 4 anteriores) por cada periodo. Añadir `history` al tipo `DRFTrend`.
-
-### 2. Nuevo `DRFPeriodCards.tsx`
-
-- Grid `grid-cols-2 md:grid-cols-5`
-- Cada tarjeta: título del periodo + 5 barras horizontales apiladas verticalmente
-- Barra = `div` con `width` proporcional al score (escala 0-100), coloreada por nivel
-- Label a la izquierda (ej: "Feb", "Q4-25"), score a la derecha del extremo de la barra
-- Delta al fondo con flecha y color
-
-### 3. `SecurityDashboard.tsx`
-
-- Reemplazar `<DetectaRiskFactorCard />` por `<DRFPeriodCards trends={trends} />`
-
-## Archivos
-
-| Archivo | Acción |
+| Archivo | Cambio |
 |---------|--------|
-| `useDetectaRiskFactor.ts` | Expandir a 5 puntos históricos por periodo (offset 0-4) |
-| `DRFPeriodCards.tsx` | **Nuevo**: 5 tarjetas con 5 barras históricas cada una |
-| `SecurityDashboard.tsx` | Integrar `DRFPeriodCards` en lugar de `DetectaRiskFactorCard` |
+| `useDetectaRiskFactor.ts` | Refactorizar `calcForOffset` para usar ventanas temporales proporcionales en vez de fallback global; normalizar incidentRate por servicios del periodo |
 
