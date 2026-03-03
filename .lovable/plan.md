@@ -1,58 +1,31 @@
 
 
-# Problema: Todos los periodos muestran el mismo DRF (~35)
+# Fix: Limitar historial DRF a periodos con datos reales
 
-## Diagnóstico
+## Problema
 
-El problema esta en `calcForOffset` (linea 245-253 del hook). Hay dos causas raiz:
+Los datos en `siniestros_historico` van de **2024-01 a 2026-02** y los incidentes de **2024-02 a 2026-02**. No hay datos antes de 2024. Sin embargo, YoY muestra barras para 2022 y 2023 con score ~33 porque el componente de exposición geográfica (35% del DRF) siempre aporta ~33 puntos aunque no existan servicios ni incidentes en ese periodo. Esto es engañoso.
 
-1. **Zonas (`zones`) no tienen dimension temporal** -- se pasan siempre las mismas ~2,100 zonas sin filtrar por fecha. Como el 95% son extremo/alto, `exposureScore` = 95 siempre. Con peso 35%, esto aporta ~33.25 puntos fijos al DRF sin importar el periodo.
+Lo mismo aplica a DoD: las barras muestran ~35 para todos los días porque la siniestralidad (datos mensuales) no tiene granularidad diaria, y la exposición domina el score.
 
-2. **Fallback a datos globales** -- cuando no hay `fillRate` o incidentes en un dia especifico (lo cual es comun para DoD), la linea `fr.length > 0 ? fr : fillRate` usa TODA la historia. Resultado: siniestralidad identica en todos los offsets.
+## Solución
 
-Combinados, estos dos factores hacen que el DRF sea ~35 para todos los periodos historicos, que es exactamente lo que se ve en la UI.
+### 1. `useDetectaRiskFactor.ts` — Filtrar periodos sin datos
 
-## Solucion
+- Determinar la **fecha más antigua con datos** del fill rate (`fillRate[0].fecha`, que es `2024-01`)
+- Después de calcular el `history` array para cada periodo, **eliminar los puntos cuyo rango cae completamente antes de la fecha más antigua**
+- Para DoD: calcular `HISTORY_DEPTH` dinámico basado en los días que realmente tienen datos de incidentes o checklists (si un día no tiene absolutamente nada, marcar el score como solo exposición base para que sea distinguible)
+- Si un periodo tiene menos de 2 puntos históricos, mostrar lo que haya sin forzar 5 barras
 
-La exposicion geografica es **estructural** (no cambia dia a dia, las zonas de riesgo no se mueven). Lo que SI varia temporalmente son: incidentes, siniestros, severidad y mitigacion. El DRF por periodo debe reflejar **solo los componentes temporales**, usando la exposicion como constante de contexto.
+### 2. `DRFPeriodCards.tsx` — Manejar historial variable
 
-### Cambios en `useDetectaRiskFactor.ts`
-
-1. **Separar componentes temporales de estructurales** en `calcForOffset`:
-   - `exposureScore` permanece constante (es correcto, la geografia no cambia por dia)
-   - `siniestralidad`: en vez de fallback a toda la historia, calcular la tasa usando una ventana proporcional al periodo (DoD = ultimos 30 dias, WoW = ultimos 2 meses, MoM = ultimo anio, etc.)
-   - `incidentRate`: filtrar incidentes estrictamente al rango del periodo. Si no hay incidentes, el rate es 0 (no fallback)
-   - `severityIndex`: mismo filtro temporal estricto
-   - `mitigationRate`: filtrar checklists al rango del periodo
-
-2. **Ventanas de contexto por periodo** para siniestralidad:
-   - DoD: ventana de 30 dias alrededor de la fecha
-   - WoW: ventana de 8 semanas
-   - MoM: ventana de 12 meses
-   - QoQ: ventana de 8 trimestres
-   - YoY: todo el historico
-
-   Esto genera variacion real porque la tasa de siniestros por 1,000 servicios cambia segun la ventana.
-
-3. **Normalizar incidentRate relativo al periodo** -- en vez de dividir por `totalServicesAll`, dividir por los servicios del periodo (o estimacion proporcional). Asi un dia con 2 incidentes pesa diferente a un dia con 0.
-
-### Resultado esperado
-
-```text
-┌──── Día ──────────┐
-│  Hoy    ██████ 34 │  (0 incidentes hoy, solo exposicion)
-│  Ayer   ██████ 34 │  (0 incidentes ayer)
-│  01 mar ███████ 38│  (2 incidentes ese dia, sube)
-│  28 feb █████ 33  │  (0 incidentes)
-│  27 feb ██████ 35 │  (1 incidente)
-└───────────────────┘
-```
-
-Los scores ahora variaran porque `incidentRate` y `severityIndex` reflejan los incidentes reales del dia, no un fallback global.
+- Aceptar que `history` puede tener 1-5 puntos (no siempre 5)
+- Ajustar el layout para que las tarjetas con menos barras no se vean rotas
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `useDetectaRiskFactor.ts` | Refactorizar `calcForOffset` para usar ventanas temporales proporcionales en vez de fallback global; normalizar incidentRate por servicios del periodo |
+| `useDetectaRiskFactor.ts` | Detectar fecha mínima de datos, filtrar offsets sin datos reales, no generar puntos fantasma |
+| `DRFPeriodCards.tsx` | Soportar historial de longitud variable |
 
