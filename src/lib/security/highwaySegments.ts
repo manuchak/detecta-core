@@ -1213,7 +1213,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Protocolo anti-bloqueo activo',
       'Reportar posición al ENTRAR y SALIR de zona',
     ],
-    waypoints: [[-99.0600, 19.6010], [-99.0800, 19.5500], [-99.1400, 19.6800]],
+    waypoints: [[-99.0600, 19.6010], [-99.0900, 19.5800], [-99.1200, 19.6200], [-99.1400, 19.6800]],
   },
   {
     id: 'edomex-ind-3',
@@ -1343,7 +1343,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Convoy mínimo 2 unidades',
       'Check-in cada 10 min',
     ],
-    waypoints: [[-97.0900, 18.8500], [-97.2500, 18.8200], [-97.4000, 18.8000]],
+    waypoints: [[-97.0900, 18.8500], [-97.1500, 18.8400], [-97.2500, 18.8200], [-97.3200, 18.8100], [-97.4000, 18.8000]],
   },
   {
     id: 'cor-pue-3',
@@ -1430,7 +1430,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Monitoreo GPS estándar',
       'Autopista de cuota relativamente segura',
     ],
-    waypoints: [[-99.2200, 19.2500], [-99.2340, 18.9220]],
+    waypoints: [[-99.2200, 19.2500], [-99.2300, 19.0800], [-99.2340, 18.9220]],
   },
   {
     id: 'cdmx-aca-3',
@@ -1537,7 +1537,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Monitoreo GPS estándar',
       'Autopista de cuota segura',
     ],
-    waypoints: [[-98.9500, 19.6100], [-98.8200, 19.7200], [-98.7300, 20.1010]],
+    waypoints: [[-98.9500, 19.6100], [-98.8200, 19.7200], [-98.7300, 20.0700]],
   },
 
   // ============================================================
@@ -1571,7 +1571,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Zona de baja cobertura celular — check-in antes/después',
       'Monitoreo GPS cada 10 min',
     ],
-    waypoints: [[-103.2000, 25.4200], [-102.5500, 25.3000]],
+    waypoints: [[-103.2000, 25.4200], [-102.8500, 25.3500], [-102.5500, 25.3000]],
   },
   {
     id: 'tor-mty-3',
@@ -1747,7 +1747,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Corredor costero relativamente seguro'],
-    waypoints: [[-105.6000, 22.3000], [-105.7500, 22.5000], [-105.9500, 22.8000], [-106.1500, 23.0000], [-106.4200, 23.2300]],  // Escuinapa → 15D costa → Mazatlán — CORREGIDO con WP
+    waypoints: [[-105.7300, 22.6500], [-105.8500, 22.7500], [-105.9500, 22.8500], [-106.1500, 23.0000], [-106.4200, 23.2300]],  // Escuinapa real → 15D costa → Mazatlán — CORREGIDO WP
   },
 
   // ============================================================
@@ -2623,7 +2623,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Zona petrolera', 'Monitoreo GPS estándar'],
-    waypoints: [[-92.9200, 17.9900], [-92.6500, 18.1000], [-92.2000, 18.3000], [-91.8400, 18.6400]],  // Villahermosa → 180 costera → Cd. del Carmen — CORREGIDO
+    waypoints: [[-92.9200, 17.9900], [-92.7500, 18.0200], [-92.6000, 18.0800], [-92.3500, 18.2000], [-92.0500, 18.3500], [-91.8400, 18.6400]],  // Villahermosa → Frontera → Paraíso → Comalcalco → 180 costera → Cd. Carmen — CORREGIDO
   },
   {
     id: 'vhsa-can-2',
@@ -3206,6 +3206,15 @@ export const EXPECTED_ROAD_KM: Record<string, number> = {
   'costera-3': 530,
   'mer-can-2': 206,
   'nog-tij-4': 201,
+  // GEO_ERROR calibrations
+  'tep-maz-3': 120,    // Escuinapa-Mazatlán costera ~120km real
+  'vhsa-can-1': 200,   // Villahermosa-Cd. del Carmen Hwy 180 ~200km real
+  'tor-mty-2': 110,    // Gómez Palacio-Parras 40D ~110km real
+  'cdmx-aca-2': 45,    // Tres Marías-Cuernavaca autopista cuota ~45km real
+  'cor-pue-2': 75,     // Orizaba-Cumbres de Maltrata sierra 150D ~75km real
+  'maz-dur-2': 148,    // Concordia-Espinazo sierra con túneles ~148km real
+  'cdmx-pac-3': 50,    // Tizayuca-Pachuca 85D ~50km real
+  'edomex-ind-2': 30,  // Ecatepec-Zona Industrial Oriente ~30km real
 };
 
 // Apply expectedRoadKm from calibration map
