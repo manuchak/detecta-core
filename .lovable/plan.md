@@ -1,95 +1,89 @@
 
 
-# Plan: Incorporar Historial de Siniestros y Enriquecer BDD de Incidentes
+# Plan: Corregir Lógica del Dashboard de Seguridad
 
-## Contexto Actual
+## Problemas Identificados
 
-**Datos encontrados:**
-- La tabla `incidentes_operativos` solo tiene 10 registros (todos de Feb 2026).
-- El Fill Rate contiene **12 siniestros históricos** (Feb 2024 — Dic 2025) que no existen en la BDD.
-- Hay 3 informes detallados: **Monterosa** (Jul 2025, robo consumado con armas), **Doraldent/Benotto** (Sep 2025, intento de robo + secuestro custodio), y un **polígrafo** (Ago 2024, robo Benotto).
+### 1. Postura Operativa CRÍTICA — falso positivo
+**Causa raíz:** La condición `operativeCritical > 5 && controlEffectivenessRate < 50` se dispara porque:
+- `operativeCritical = 14` (13 siniestros históricos + 1 alta) — cuenta TODOS los incidentes históricos desde 2024
+- `controlEffectivenessRate = 0%` — ningún incidente tiene `controles_activos` populado
 
-**Criterio de criticidad del usuario:**
-- **Crítico (siniestro):** Robo consumado o pérdida humana
-- **No crítico:** Todo lo demás (falla mecánica, protocolo incumplido, retén, narco-bloqueo, etc.)
+**Problema conceptual:** La postura operativa debería reflejar el estado ACTUAL, no contar siniestros de hace 2 años. Los 13 siniestros históricos no tienen controles documentados porque ocurrieron antes de que existiera el sistema.
 
-## Paso 1 — Insertar los 12 siniestros históricos en `incidentes_operativos`
+**Fix:** La postura debe evaluarse solo sobre una ventana temporal reciente (últimos 90 días) y ponderar `daysSinceLastCritical` desde el último siniestro real, no desde security_events de zonas H3.
 
-Usar el insert tool para agregar los 12 registros del Fill Rate con los datos disponibles:
+### 2. Control Effectiveness 0% — lógica incorrecta
+**Causa raíz:** Se calcula como `incidentes con controles_activos[] AND control_efectivo=true`. Hay 0 incidentes con `controles_activos` populado → 0/0 = 0%.
 
-| Fecha | Severidad | Tipo | Nota | Cliente |
-|-------|-----------|------|------|---------|
-| 2024-02-06 | crítica | robo | (sin detalle) | — |
-| 2024-02-10 | crítica | robo | (sin detalle) | — |
-| 2024-03-05 | crítica | robo | (sin detalle) | — |
-| 2024-04-27 | crítica | robo | (sin detalle) | — |
-| 2024-08-14 | crítica | robo | Robo Benotto (ver polígrafo) | Benotto |
-| 2024-09-07 | crítica | robo | (sin detalle) | — |
-| 2024-10-09 | crítica | robo | (sin detalle) | — |
-| 2024-11-30 | crítica | robo | (sin detalle) | — |
-| 2025-07-09 | crítica | asalto | Robo Monterosa — Lázaro Cárdenas a Tultepec | Monterosa |
-| 2025-09-03 | crítica | asalto | Intento robo Doraldent — secuestro custodio | Doraldent |
-| 2025-11-05 | crítica | robo | Robo unidad Monterosa, servicio local | Monterosa |
-| 2025-11-27 | crítica | robo | Robo Suave-Facil, Naucalpan-Monterrey | Suave-Facil |
-| 2025-12-02 | crítica | robo | Robo CrossMotion, entrando GDL, folio CRCSMTI-18 | CrossMotion |
+**Problema conceptual:** El checklist de servicio (380 registros completados en `checklist_servicio`) ES el control mitigador principal de Detecta. Cada checklist completado = control activo ejecutado. La efectividad debería cruzar: servicios con checklist completado vs servicios que tuvieron siniestro.
 
-Para los 3 con informes detallados (Monterosa Jul, Doraldent Sep, Benotto Ago), se enriquecerán con:
-- Coordenadas GPS exactas del evento
-- Zona geográfica precisa
-- Descripción narrativa del modus operandi
-- Acciones tomadas (protocolo de reacción, 911, polígrafos)
+**Fix:** Recalcular efectividad como: `servicios con checklist / total servicios`. Y para el cruce: de los servicios que tuvieron siniestro, ¿cuántos tenían checklist completado? Eso mide si el control previno o no el evento.
 
-## Paso 2 — Reclasificar severidad de los 10 incidentes existentes
+### 3. DRF Period Selector (DoD/WoW/MoM/QoQ/YoY) no cambia nada visible
+**Causa raíz:** El gauge siempre muestra `currentDRF` (global all-time). Solo cambia el texto de tendencia debajo. El sparkline y demás cards no reaccionan al periodo.
 
-Los 10 incidentes actuales (Feb 2026) son todos no-críticos según el criterio del usuario (fallas mecánicas, protocolo incumplido, retén, narco-bloqueo). Actualizar los que tengan severidad "alta" a "media" si no involucran robo ni pérdida humana:
+**Fix:** 
+- El gauge debe mostrar el DRF del periodo seleccionado (`selectedTrend.current`), no el global
+- El breakdown debe recalcularse para el periodo seleccionado
+- La sparkline debe mostrar datos granulares del periodo (ej: MoM = 30 puntos diarios, QoQ = 12 puntos semanales)
 
-- `e7c7bb89` (derrame gasolina, alta → media)
-- `d3590558` (narco-bloqueo, alta → media)
-- `a61ccffe` (agresión/secuestro, alta → **se mantiene crítica** por involucrar privación de libertad)
+### 4. DRF Sparkline muestra 0-25 / nunca debería ser 0
+**Causa raíz:** El sparkline NO usa el DRF real — usa `heatmapData` (conteo diario de incidentes) como proxy falso. Días sin incidentes = score 0.
 
-## Paso 3 — Agregar columna `es_siniestro` para distinción binaria
+**Fix:** Calcular el DRF real por cada día/punto del sparkline. El DRF tiene componentes estructurales (exposure=95%, mitigation=76%) que dan un piso mínimo ~30-40 puntos incluso sin incidentes recientes. El DRF actual global debería ser ~33.9 basado en la exposición de zonas (95% alto/extremo de 2,144 zonas).
 
-Migración para agregar un campo booleano `es_siniestro` a `incidentes_operativos`:
-- `true` = siniestro (robo consumado, pérdida humana, asalto con armas)
-- `false` = evento no crítico
+### 5. Concepto de DRF — qué debería medir realmente
+El usuario espera que el DRF refleje: **"¿qué tan expuesto está Detecta basado en las rutas contratadas?"** — es decir, ¿estamos aceptando más riesgo a cambio de crecer?
 
-Esto permite filtrar y calcular métricas como el **fill rate de siniestralidad** (siniestros / servicios totales).
+**Fix conceptual:** El DRF debe cruzar:
+- **Exposure:** Rutas contratadas que pasan por zonas alto/extremo (de `servicios_planificados` con coordenadas)
+- **Siniestralidad histórica:** Tasa de siniestros por cada 1,000 servicios (del Fill Rate)
+- **Mitigación:** % de servicios con checklist completado (380/3,040 = 12.5%)
+- El periodo selector debe filtrar servicios Y siniestros al rango temporal
 
-## Paso 4 — Crear tabla `siniestros_historico` para el Fill Rate completo
+## Cambios Propuestos
 
-Tabla ligera para almacenar el registro mensual de servicios/siniestros del Fill Rate, permitiendo análisis de tendencia:
+### A. `useDetectaRiskFactor.ts` — Recalcular DRF por periodo
+- Mover el cálculo para que `currentDRF` refleje el periodo seleccionado, no all-time
+- Incluir datos de `checklist_servicio` (380 completados) como fuente de mitigación real
+- Incluir datos de `siniestros_historico` para tasa de siniestralidad por periodo
+- Retornar breakdown por periodo para que el gauge y barras cambien al seleccionar DoD/WoW/etc.
+- El DRF nunca debe ser 0: la exposición a zonas (95% alto/extremo) da un piso estructural
 
-```
-siniestros_historico:
-  id, fecha (date), servicios_solicitados (int), servicios_completados (int),
-  siniestros (int), eventos_no_criticos (int), nota (text)
-```
+### B. `useSecurityDashboard.ts` — Postura basada en ventana reciente
+- Filtrar `operativeCritical` a últimos 90 días solamente
+- Calcular `controlEffectivenessRate` desde `checklist_servicio`: completados/total servicios en periodo
+- `daysSinceLastCritical` desde el último siniestro (`es_siniestro=true`), no desde security_events
 
-Insertar las 12 filas del Fill Rate + los datos mensuales de servicios (Page 2 del xlsx) para tener el volumen operativo histórico desde Ene 2023.
+### C. `PostureBanner.tsx` — Umbrales ajustados
+- Usar tasa de siniestralidad reciente en vez de conteo absoluto histórico
+- 0 siniestros en 90 días + checklist >50% = Estable
+- Siniestro reciente (<30 días) = Elevada
+- Siniestro reciente (<7 días) = Crítica
 
-## Paso 5 — Dashboard: Panel de Siniestralidad Histórica
+### D. `DetectaRiskFactorCard.tsx` — Gauge reactivo al periodo
+- El gauge muestra `selectedTrend.current` en vez de `global.score`
+- El breakdown se recalcula por periodo
+- Añadir label "Global" cuando no hay periodo seleccionado
 
-Nuevo componente en el módulo de Seguridad:
+### E. `DRFSparkline.tsx` + `SecurityDashboard.tsx` — Sparkline real
+- Calcular DRF real por cada punto usando la fórmula con componentes estructurales
+- Usar datos de `siniestros_historico` (servicios mensuales + siniestros) para puntos históricos
+- El piso mínimo será ~30-40 por la exposición a zonas alto/extremo
 
-- **KPIs**: Total siniestros, tasa de siniestralidad (siniestros/servicios ×1000), tendencia MoM
-- **Gráfico de líneas**: Servicios vs Siniestros por mes (desde 2024)
-- **Timeline de siniestros**: Lista cronológica de los 12+ siniestros con badges de severidad, cliente afectado, y link al informe si existe
-- **Fill Rate visual**: Barra de progreso mostrando servicios completados vs solicitados por periodo
+### F. Control Effectiveness card — datos reales
+- Fuente: `checklist_servicio` (380 completos) / servicios en periodo
+- Mostrar: "380 checklists completados de 3,040 servicios (12.5%)"
+- El checklist ES el control ISO 28000 §6.2 — documentarlo en la narrativa
 
-## Paso 6 — Enriquecer DRF y analytics con datos históricos
+## Resumen de archivos a modificar
 
-Los hooks existentes (`useDetectaRiskFactor`, `useIncidentAnalytics`, `useIncidentesExecutive`) automáticamente reflejarán los nuevos datos una vez insertados, ya que consultan `incidentes_operativos`. El campo `es_siniestro` permitirá segmentar el DRF para ponderar siniestros con mayor peso que eventos no críticos.
-
-## Resumen técnico de cambios
-
-| Acción | Tipo |
-|--------|------|
-| INSERT 12+ siniestros históricos | Data (insert tool) |
-| UPDATE severidad de 2 incidentes existentes | Data (insert tool) |
-| ADD columna `es_siniestro` boolean | Migración |
-| CREATE tabla `siniestros_historico` | Migración |
-| INSERT fill rate mensual (27 meses) | Data (insert tool) |
-| Nuevo `SiniestroHistoryPanel.tsx` | Componente UI |
-| Actualizar `useDetectaRiskFactor.ts` para ponderar siniestros | Hook |
-| Fix build error gl-matrix (tsconfig skipLibCheck) | Config |
+| Archivo | Cambio |
+|---------|--------|
+| `useDetectaRiskFactor.ts` | Query `checklist_servicio` + `siniestros_historico`, DRF por periodo, breakdown reactivo |
+| `useSecurityDashboard.ts` | Ventana 90 días para postura, control effectiveness desde checklists |
+| `PostureBanner.tsx` | Umbrales basados en siniestralidad reciente |
+| `DetectaRiskFactorCard.tsx` | Gauge muestra periodo seleccionado, breakdown reactivo |
+| `SecurityDashboard.tsx` | Sparkline con DRF real (no proxy de heatmap) |
 
