@@ -108,6 +108,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           canManageUsers: false,
           canViewDashboard: true,
         };
+      case 'customer_success':
+        return {
+          canViewLeads: true,
+          canEditLeads: false,
+          canAssignLeads: false,
+          canManageUsers: false,
+          canViewDashboard: true,
+        };
       default:
         return {
           canViewLeads: false,

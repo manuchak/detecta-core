@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'owner' | 'supply_admin' | 'ejecutivo_ventas' | 'monitoring' | 'coordinador_operaciones' | 'jefe_seguridad' | 'analista_seguridad' | 'bi' | 'supply_lead' | 'supply' | 'planificador' | 'unverified';
+export type UserRole = 'admin' | 'owner' | 'supply_admin' | 'ejecutivo_ventas' | 'monitoring' | 'coordinador_operaciones' | 'jefe_seguridad' | 'analista_seguridad' | 'bi' | 'supply_lead' | 'supply' | 'planificador' | 'customer_success' | 'unverified';
 
 export interface AuthState {
   user: User | null;
@@ -87,6 +87,12 @@ const ROLE_PERMISSIONS: Record<UserRole, AuthState['permissions']> = {
   },
   planificador: {
     canViewLeads: false,
+    canEditLeads: false,
+    canManageUsers: false,
+    canViewDashboard: true,
+  },
+  customer_success: {
+    canViewLeads: true,
     canEditLeads: false,
     canManageUsers: false,
     canViewDashboard: true,
