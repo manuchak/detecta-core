@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { AlertTriangle, Clock, Target, ShieldCheck, TrendingUp } from 'lucide-react';
 import { IncidentTrendChart } from './IncidentTrendChart';
 import { NearMissCorrelation } from './NearMissCorrelation';
+import { RouteRiskTrendPanel } from './RouteRiskTrendPanel';
 
 const SEVERITY_COLORS: Record<string, string> = {
   'critica': 'hsl(0 84% 60%)',
@@ -155,6 +156,9 @@ export function IncidentAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Route Risk Trend */}
+      <RouteRiskTrendPanel />
 
       {/* Near-miss correlation */}
       <NearMissCorrelation />
