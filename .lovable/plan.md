@@ -1,77 +1,49 @@
 
 
-# Diagnóstico Crítico del Dashboard de Seguridad
+# Plan: 5 Tarjetas DRF con Barras de 4+ Periodos Históricos
 
-## Bugs de Datos (raíz de los problemas visibles)
+## Concepto
 
-### Bug 1: "380 checklists de 0 servicios" → 0% cobertura
-La tabla `siniestros_historico` tiene **26 filas con `servicios_completados = 0`** en TODAS. Los datos del Fill Rate nunca se insertaron correctamente — solo se popularon `siniestros` y `fecha`, pero los volúmenes de servicios quedaron en 0. Esto causa la división 0/0 y el 0% falso.
+Cada tarjeta (DoD, WoW, MoM, QoQ, YoY) muestra **barras horizontales para el periodo actual + 4 periodos anteriores**, permitiendo ver la tendencia del DRF en el tiempo sin gráficas abstractas.
 
-### Bug 2: "Siniestro hace 4 días" → CRÍTICA falsa
-El incidente `agresion` del 26-Feb-2026 (secuestro en gasolinera) está marcado como `es_siniestro: true`. Según tu propio criterio: **siniestro = robo consumado o pérdida humana**. Un secuestro de custodio sin robo de carga NO es siniestro. Esto dispara la postura "CRÍTICA" incorrectamente. Sin este registro, el último siniestro real fue el 2-Dic-2025 (93 días) → postura debería ser **ESTABLE**.
-
-### Bug 3: Sparkline DRF con piso falso
-Como `servicios_completados = 0`, la tasa de siniestralidad es `siniestros / 0` → NaN o 0. El sparkline no refleja la realidad.
-
-## Crítica de UI — ¿Es este el mejor diseño?
-
-No. Tres problemas fundamentales:
-
-1. **Señales contradictorias**: Banner rojo "CRÍTICA" junto a gauge verde "23.3 Bajo Mejorando". Un directivo no sabe si preocuparse o no. La postura y el DRF deben contar la misma historia.
-
-2. **Cobertura de Controles ocupa 1/3 del espacio para mostrar "0%"**: Es una card enorme con un solo número roto. Debería ser un KPI compacto en la fila de KPIs, no una card independiente del mismo tamaño que el DRF.
-
-3. **Densidad sin jerarquía**: 5 filas de cards, todas del mismo peso visual. Un Head of Security necesita: (a) ¿Estamos bien o no? (b) ¿Qué cambió? (c) ¿Qué debo hacer? El layout actual no responde esas preguntas en orden.
-
-## Plan de Corrección
-
-### Paso 1 — Fix datos en `siniestros_historico`
-UPDATE las 26 filas con los volúmenes reales del Fill Rate Excel (servicios_solicitados y servicios_completados por mes). Esto corrige el 0% de cobertura y la sparkline.
-
-### Paso 2 — Reclasificar el incidente de agresión
-El secuestro en gasolinera (Feb 26) → `es_siniestro: false` (no hubo robo de carga). La postura pasará de CRÍTICA a ESTABLE (93 días sin siniestro real).
-
-### Paso 3 — Rediseño del layout del dashboard
-Propuesta de layout más ejecutivo:
+## Layout
 
 ```text
-┌─────────────────────────────────────────────────┐
-│  POSTURA: ESTABLE  ·  93d sin siniestro  ·     │
-│  DRF: 23.3 ↓  ·  Cobertura: 12.5%  ·  1 ATR   │
-│  (banner compacto con todos los KPIs inline)    │
-└─────────────────────────────────────────────────┘
-
-┌──────────────── DRF Card ───────────────────────┐
-│  Gauge + Period Selector + Trend + Sparkline    │
-│  (todo en UNA card, sparkline integrado abajo)  │
-│  Breakdown colapsable                           │
-└─────────────────────────────────────────────────┘
-
-┌─── Heatmap ───┬─── Distribución ──┬── Acciones ─┐
-│  4 semanas    │  Zonas por nivel  │ Prioridades  │
-└───────────────┴───────────────────┴──────────────┘
-
-┌── Operativos ─────────┬── Inteligencia ─────────┐
-│  Timeline incidentes  │  Eventos externos       │
-└───────────────────────┴─────────────────────────┘
+┌──── Día ──────────┬──── Semana ───────┬──── Mes ──────────┬── Trimestre ──────┬──── Año ──────────┐
+│  Hoy    ██████ 33 │  Esta   █████ 34  │  Mar    ██████ 33 │  Q1-26  █████ 34  │  2026  █████ 34   │
+│  Ayer   ██████ 34 │  Ant    █████ 33  │  Feb    █████ 35  │  Q4-25  ████ 38   │  2025  ████ 38    │
+│  -2d    ███████ 36│  -2sem  ██████ 35 │  Ene    ██████ 37 │  Q3-25  █████ 36  │  2024  ██████ 42  │
+│  -3d    █████ 32  │  -3sem  █████ 34  │  Dic    ████ 40   │  Q2-25  ██████ 41 │  2023  ███████ 48 │
+│  -4d    ██████ 35 │  -4sem  ██████ 36 │  Nov    █████ 38  │  Q1-25  ██████ 40 │  2022  ████████ 52│
+│  ↓ -1.0 Mejorando│  ↑ +1.0 Estable   │  ↓ -7.0 Mejorando │  ↓ -6.0 Mejorando │  ↓ -18 Mejorando  │
+└───────────────────┴───────────────────┴───────────────────┴───────────────────┴───────────────────┘
 ```
 
-Cambios clave:
-- **Banner compacto**: Una sola línea con postura + KPIs críticos (DRF, cobertura, días sin siniestro). No una card roja gigante.
-- **Cobertura de Controles**: Se mueve al banner como KPI inline, ya no es card independiente.
-- **DRF + Sparkline**: Se fusionan en una sola card (eliminar la card separada de sparkline).
-- **KPI row (4 cards)**: Se elimina — los 4 valores se integran al banner o al DRF card.
+Cada barra coloreada por nivel de riesgo (verde <25, amarillo <50, naranja <75, rojo >=75). La barra más reciente resaltada (font-bold, opacidad completa), las anteriores con opacidad decreciente. Delta al fondo compara periodo actual vs el inmediato anterior.
 
-### Paso 4 — Lógica de coherencia postura ↔ DRF
-Si DRF < 25 (Bajo), la postura NO puede ser "CRÍTICA" a menos que haya un siniestro en los últimos 7 días. Agregar validación cruzada para evitar señales contradictorias.
+## Cambios
 
-## Archivos a modificar
+### 1. `useDetectaRiskFactor.ts` — Calcular 4 periodos históricos por timeframe
 
-| Archivo | Cambio |
+Modificar `getPeriodRange` para aceptar un `offset` numérico (0 = actual, 1 = anterior, 2 = hace 2, etc.). Expandir el loop de trends para calcular `history: { label: string, score: number }[]` con 5 entradas (actual + 4 anteriores) por cada periodo. Añadir `history` al tipo `DRFTrend`.
+
+### 2. Nuevo `DRFPeriodCards.tsx`
+
+- Grid `grid-cols-2 md:grid-cols-5`
+- Cada tarjeta: título del periodo + 5 barras horizontales apiladas verticalmente
+- Barra = `div` con `width` proporcional al score (escala 0-100), coloreada por nivel
+- Label a la izquierda (ej: "Feb", "Q4-25"), score a la derecha del extremo de la barra
+- Delta al fondo con flecha y color
+
+### 3. `SecurityDashboard.tsx`
+
+- Reemplazar `<DetectaRiskFactorCard />` por `<DRFPeriodCards trends={trends} />`
+
+## Archivos
+
+| Archivo | Acción |
 |---------|--------|
-| Migración SQL | UPDATE `siniestros_historico` con servicios reales; UPDATE agresion `es_siniestro=false` |
-| `SecurityDashboard.tsx` | Nuevo layout: banner compacto, DRF+sparkline fusionados, eliminar card de cobertura |
-| `PostureBanner.tsx` | Rediseño compacto con KPIs inline |
-| `DetectaRiskFactorCard.tsx` | Integrar sparkline dentro de la card |
-| `useSecurityDashboard.ts` | Validación cruzada postura ↔ DRF |
+| `useDetectaRiskFactor.ts` | Expandir a 5 puntos históricos por periodo (offset 0-4) |
+| `DRFPeriodCards.tsx` | **Nuevo**: 5 tarjetas con 5 barras históricas cada una |
+| `SecurityDashboard.tsx` | Integrar `DRFPeriodCards` en lugar de `DetectaRiskFactorCard` |
 
