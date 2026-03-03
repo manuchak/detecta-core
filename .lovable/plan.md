@@ -1,32 +1,39 @@
 
+## Diagnóstico completo
 
-## Diagnóstico del módulo de inscripciones LMS
+### Bug 1 — Navegación incompleta (confirmado por imagen)
+`src/config/navigationConfig.ts` líneas 405-424: el módulo `customer-success` solo tiene 3 hijos en el sidebar:
+- Panorama, Cartera, Operativo
 
-### Problema encontrado
+Faltan: **Análisis Clientes** y **Staff CSM**. El usuario lo ve en la imagen — solo 3 items en el sidebar lateral.
 
-Las rutas del LMS Admin permiten acceso a 4 roles: `admin`, `owner`, `supply_admin`, `capacitacion_admin`. Sin embargo, las **políticas RLS en la base de datos** solo incluyen 3 de esos roles (`admin`, `owner`, `supply_admin`). El rol `capacitacion_admin` está **completamente excluido** de todas las políticas RLS del LMS.
+### Bug 2 — Pantalla en blanco
+La pantalla en blanco se produce porque el rol `customer_success` llega a `/customer-success` y el tab default "Panorama" carga `CSPanorama` que usa `useCSCartera` → hace queries a `pc_clientes`, `servicios_custodia`, `servicios_planificados`, `cs_quejas`, `cs_touchpoints`. Si el RLS bloquea alguna de esas tablas para el rol, el hook lanza un error no manejado que rompe el render.
 
-Esto explica por qué solo Brenda y Marbe (probablemente `admin` o `supply_admin`) pueden operar, mientras que cualquier usuario con rol `capacitacion_admin` puede entrar a la página pero ve todo vacío o recibe errores al buscar usuarios.
+La migración anterior solo insertó permisos en `role_permissions` (tabla de control frontend) pero **no creó políticas RLS** en Supabase para el rol `customer_success` en las tablas reales que usa el módulo.
 
-### Tablas afectadas y políticas a actualizar
+## Plan de corrección
 
-| Tabla | Policy | Agregar `capacitacion_admin` |
-|---|---|---|
-| `lms_cursos` | `lms_cursos_select_publicados` | SELECT (ver cursos admin) |
-| `lms_cursos` | `lms_cursos_insert_admin` | INSERT (crear cursos) |
-| `lms_cursos` | `lms_cursos_update_admin` | UPDATE (editar cursos) |
-| `lms_cursos` | `lms_cursos_delete_admin` | DELETE (eliminar cursos) |
-| `lms_inscripciones` | `lms_inscripciones_select` | SELECT (ver inscripciones) |
-| `lms_inscripciones` | `lms_inscripciones_insert` | INSERT (inscribir usuarios) |
-| `lms_inscripciones` | `lms_inscripciones_update` | UPDATE (cambiar estado) |
-| `profiles` | — | SELECT (buscar usuarios para inscribir) |
-| `lms_progreso` | `lms_progreso_select` | SELECT (ver progreso de inscritos) |
+### 1. Agregar links faltantes en el sidebar — `src/config/navigationConfig.ts`
+Agregar dos entradas a `children` del módulo `customer-success`:
+```
+{ id: 'cs_analisis', label: 'Análisis Clientes', path: '/customer-success?tab=analisis', icon: BarChart3 }
+{ id: 'cs_staff', label: 'Staff CSM', path: '/customer-success?tab=staff', icon: UserCog }
+```
 
-### Plan de acción
+### 2. Agregar política RLS en Supabase — migración SQL
+Crear policies `SELECT` para `customer_success` en las tablas críticas usadas por `useCSCartera` y `CSPanorama`:
+- `pc_clientes` — SELECT
+- `cs_quejas` — SELECT  
+- `cs_touchpoints` — SELECT, INSERT, UPDATE (necesita crear/actualizar touchpoints)
+- `servicios_custodia` — SELECT (read-only)
+- `servicios_planificados` — SELECT (read-only)
 
-**1 migración SQL** que:
-- Hace `DROP POLICY` + `CREATE POLICY` para cada una de las 9 políticas anteriores, agregando `'capacitacion_admin'` al array de roles permitidos
-- Para `profiles`, agrega `capacitacion_admin` a la policy existente `customer_success_view_profiles` (o crea una nueva si es más limpio)
+### 3. Agregar manejo de error en `useCSCartera` — defensive render
+Si `useCSCartera` devuelve `isError`, actualmente el componente `CSPanorama` puede intentar `.filter()` sobre `undefined` y romper el render. Agregar guard `data ?? []` en el hook o en los consumidores.
 
-**Sin cambios frontend** — el código ya está correcto, solo le faltan los permisos en DB.
-
+### Archivos a modificar
+| Archivo | Cambio |
+|---|---|
+| `src/config/navigationConfig.ts` | +2 children en módulo customer-success |
+| `supabase/migrations/...sql` | RLS SELECT para customer_success en 5 tablas |

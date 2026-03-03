@@ -46,7 +46,7 @@ export function useCSCartera() {
       const cutoff90d = format(subDays(new Date(), 90), 'yyyy-MM-dd');
 
       const [clientesRes, legacyRes, planRes, quejasRes, touchpointsRes] = await Promise.all([
-        supabase.from('pc_clientes').select('id, nombre, razon_social, activo, motivo_baja, fecha_baja, csm_asignado').order('nombre'),
+        supabase.from('pc_clientes').select('id, nombre, razon_social, activo, motivo_baja, fecha_baja, csm_asignado, csm:profiles!pc_clientes_csm_asignado_fkey(id, display_name)').order('nombre'),
         supabase.from('servicios_custodia').select('nombre_cliente, cobro_cliente, fecha_hora_cita'),
         supabase.from('servicios_planificados').select('nombre_cliente, cobro_posicionamiento, fecha_hora_cita'),
         supabase.from('cs_quejas').select('cliente_id, estado, calificacion_cierre'),
@@ -55,18 +55,6 @@ export function useCSCartera() {
 
       // Defensive: log errors but don't throw for secondary tables so the module doesn't blank out
       if (clientesRes.error) throw clientesRes.error;
-
-      // Fetch CSM profile names in a separate query (avoids FK join RLS issues)
-      const csmIds = [...new Set((clientesRes.data || []).map((c: any) => c.csm_asignado).filter(Boolean))];
-      let profilesMap: Record<string, string> = {};
-      if (csmIds.length > 0) {
-        const profilesRes = await supabase.from('profiles').select('id, display_name').in('id', csmIds);
-        if (!profilesRes.error && profilesRes.data) {
-          profilesMap = Object.fromEntries(profilesRes.data.map((p: any) => [p.id, p.display_name]));
-        } else if (profilesRes.error) {
-          console.warn('[useCSCartera] profiles lookup failed:', profilesRes.error.message);
-        }
-      }
       if (legacyRes.error) console.warn('[useCSCartera] servicios_custodia error:', legacyRes.error.message);
       if (planRes.error) console.warn('[useCSCartera] servicios_planificados error:', planRes.error.message);
       if (quejasRes.error) console.warn('[useCSCartera] cs_quejas error:', quejasRes.error.message);
@@ -119,6 +107,7 @@ export function useCSCartera() {
         const salud = calcSalud({ quejas_abiertas, dias_sin_contacto, servicios_90d });
         const segment = calcSegment({ activo: c.activo, salud, servicios_90d });
 
+        const csmData = (c as any).csm;
         return {
           id: c.id,
           nombre: c.nombre,
@@ -135,7 +124,7 @@ export function useCSCartera() {
           salud,
           segment,
           csm_asignado: (c as any).csm_asignado || null,
-          csm_nombre: (c as any).csm_asignado ? (profilesMap[(c as any).csm_asignado] || null) : null,
+          csm_nombre: csmData?.display_name || null,
           ultimo_touchpoint: lastTp || null,
         };
       });

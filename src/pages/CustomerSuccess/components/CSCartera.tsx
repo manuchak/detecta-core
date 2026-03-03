@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -88,7 +87,7 @@ export function CSCartera() {
   const [bulkCsmId, setBulkCsmId] = useState('');
   const [bulkAssignByCSMOpen, setBulkAssignByCSMOpen] = useState(false);
 
-  const { data: cartera, isLoading, isError, refetch } = useCSCartera();
+  const { data: cartera, isLoading } = useCSCartera();
   const deactivate = useDeactivateCliente();
   const reactivate = useReactivateCliente();
 
@@ -214,16 +213,6 @@ export function CSCartera() {
           {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-32" />)}
         </div>
         <Skeleton className="h-96" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <AlertTriangle className="h-10 w-10 text-destructive" />
-        <p className="text-muted-foreground">No se pudo cargar la cartera de clientes.</p>
-        <Button variant="outline" onClick={() => refetch()}>Reintentar</Button>
       </div>
     );
   }
