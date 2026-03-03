@@ -14,10 +14,24 @@ export const GmvAccumulatedCard = () => {
     );
   }
 
-  // YTD: sum months 1..currentMonth for current year and previous year (fair comparison)
+  const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  // Only compare completed months for a fair YoY comparison
+  const lastClosedMonth = currentMonth - 1;
+
+  if (lastClosedMonth < 1) {
+    return (
+      <Card className="h-full">
+        <CardContent className="p-6 flex items-center justify-center h-[280px]">
+          <p className="text-muted-foreground text-sm">Sin meses completos aún</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const sumYTD = (year: number) => {
     return monthlyByYear
-      .filter(d => d.year === year && d.month <= currentMonth)
+      .filter(d => d.year === year && d.month <= lastClosedMonth)
       .reduce((acc, d) => ({ gmv: acc.gmv + d.gmv, services: acc.services + d.services }), { gmv: 0, services: 0 });
   };
 
@@ -33,15 +47,14 @@ export const GmvAccumulatedCard = () => {
     return `$${n.toFixed(0)}`;
   };
 
-  const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const periodLabel = `Ene-${MONTH_NAMES[currentMonth - 1]}`;
+  const periodLabel = lastClosedMonth === 1 ? 'Ene' : `Ene-${MONTH_NAMES[lastClosedMonth - 1]}`;
 
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">YTD {currentYear} vs {currentYear - 1}</CardTitle>
-          <span className="text-xs text-muted-foreground">{periodLabel}</span>
+          <span className="text-xs text-muted-foreground">{periodLabel} · meses completos</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
