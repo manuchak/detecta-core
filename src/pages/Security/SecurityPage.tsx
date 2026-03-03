@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Route, BarChart3, ClipboardCheck, Radio } from 'lucide-react';
+import { Shield, Route, BarChart3, ClipboardCheck, Radio, ShieldAlert } from 'lucide-react';
 import { SecurityDashboard } from '@/components/security/dashboard/SecurityDashboard';
 import { RouteRiskIntelligence } from '@/components/security/routes/RouteRiskIntelligence';
 import { ComplianceTracker } from '@/components/security/compliance/ComplianceTracker';
 import { IncidentAnalytics } from '@/components/security/analytics/IncidentAnalytics';
 import { ThreatIntelFeed } from '@/components/security/intelligence/ThreatIntelFeed';
+import { SiniestroHistoryPanel } from '@/components/security/siniestros/SiniestroHistoryPanel';
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
@@ -20,10 +21,14 @@ const SecurityPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="shrink-0 grid w-full grid-cols-5 h-9">
+        <TabsList className="shrink-0 grid w-full grid-cols-6 h-9">
           <TabsTrigger value="posture" className="flex items-center gap-1 text-[11px]">
             <Shield className="h-3 w-3" />
             Risk Posture
+          </TabsTrigger>
+          <TabsTrigger value="siniestros" className="flex items-center gap-1 text-[11px]">
+            <ShieldAlert className="h-3 w-3" />
+            Siniestros
           </TabsTrigger>
           <TabsTrigger value="routes" className="flex items-center gap-1 text-[11px]">
             <Route className="h-3 w-3" />
@@ -45,6 +50,10 @@ const SecurityPage = () => {
 
         <TabsContent value="posture" className="mt-3">
           <SecurityDashboard />
+        </TabsContent>
+
+        <TabsContent value="siniestros" className="mt-3">
+          <SiniestroHistoryPanel />
         </TabsContent>
 
         <TabsContent value="routes" className="flex-1 flex flex-col min-h-0 mt-3">

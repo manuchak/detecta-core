@@ -245,7 +245,7 @@ export const TicketsList = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base">Lista de Tickets</CardTitle>
-                  <CardDescription asChild>
+                  <CardDescription>
                     <div>
                       Ordenados por urgencia SLA. Los vencidos aparecen primero.
                       {departmentFilter !== 'todos' && (
@@ -429,7 +429,7 @@ export const TicketsList = () => {
                           >
                             <TableCell onClick={e => e.stopPropagation()}>
                               <SLAProgressBar
-                                status={ticket.sla.estadoGeneral}
+                                status={ticket.sla.estadoGeneral as any}
                                 percentage={ticket.sla.porcentajeConsumidoResolucion}
                                 remainingMinutes={ticket.sla.tiempoRestanteResolucion}
                               />
@@ -499,7 +499,7 @@ export const TicketsList = () => {
                   filteredTickets.map((ticket) => (
                     <TicketCardMobile
                       key={ticket.id}
-                      ticket={ticket}
+                      ticket={ticket as any}
                       onClick={() => navigate(`/tickets/${ticket.id}`)}
                     />
                   ))

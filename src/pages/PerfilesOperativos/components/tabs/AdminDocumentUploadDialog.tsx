@@ -28,8 +28,8 @@ const TIPOS_DOCUMENTO: { value: TipoDocumentoCustodio; label: string }[] = [
   { value: 'verificacion_vehicular', label: 'Verificación Vehicular' },
   { value: 'licencia_conducir', label: 'Licencia de Conducir' },
   { value: 'credencial_custodia', label: 'Credencial de Custodia' },
-  { value: 'portacion_arma', label: 'Licencia de Portación de Arma' },
-  { value: 'registro_arma', label: 'Registro del Arma' },
+  { value: 'portacion_arma' as any, label: 'Licencia de Portación de Arma' },
+  { value: 'registro_arma' as any, label: 'Registro del Arma' },
 ];
 
 const ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];

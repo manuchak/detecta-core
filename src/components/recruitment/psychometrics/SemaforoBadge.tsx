@@ -42,7 +42,7 @@ export function SemaforoBadge({
 
   // Fallback: si el valor no es un enum válido, mostrar warning visible
   const validValues: Array<'verde' | 'ambar' | 'rojo'> = ['verde', 'ambar', 'rojo'];
-  if (!validValues.includes(resultado)) {
+  if (!validValues.includes(resultado as any)) {
     console.warn(`[SemaforoBadge] Valor inesperado de resultado_semaforo: "${resultado}"`);
     return (
       <TooltipProvider>
