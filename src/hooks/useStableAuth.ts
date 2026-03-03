@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'owner' | 'supply_admin' | 'ejecutivo_ventas' | 'monitoring' | 'coordinador_operaciones' | 'jefe_seguridad' | 'analista_seguridad' | 'bi' | 'supply_lead' | 'supply' | 'custodio' | 'planificador' | 'unverified';
+export type UserRole = 'admin' | 'owner' | 'supply_admin' | 'ejecutivo_ventas' | 'monitoring' | 'coordinador_operaciones' | 'jefe_seguridad' | 'analista_seguridad' | 'bi' | 'supply_lead' | 'supply' | 'custodio' | 'planificador' | 'customer_success' | 'unverified';
 
 interface AuthPermissions {
   canViewLeads: boolean;
@@ -26,6 +26,7 @@ const PERMISSIONS_MAP: Record<UserRole, AuthPermissions> = {
   bi: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: true },
   custodio: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: false },
   planificador: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: true },
+  customer_success: { canViewLeads: true, canEditLeads: false, canManageUsers: false, canViewDashboard: true },
   unverified: { canViewLeads: false, canEditLeads: false, canManageUsers: false, canViewDashboard: false },
 };
 
