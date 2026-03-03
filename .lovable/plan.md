@@ -35,9 +35,13 @@ El plan ya fue presentado y aprobado. El usuario seleccionó:
 **Archivos modificados:**
 - `src/components/security/analytics/IncidentAnalytics.tsx` — Integración del RouteRiskTrendPanel en tab Análisis
 
-### 🔲 Bloque 4 — Perfil de Cumplimiento basado en Incidentes
-- Crear `src/hooks/security/useComplianceFromIncidents.ts`
-- Modificar `src/components/security/compliance/ComplianceTracker.tsx`
+### ✅ Bloque 4 — Perfil de Cumplimiento basado en Incidentes (COMPLETADO)
+
+**Archivos creados:**
+- `src/hooks/security/useComplianceFromIncidents.ts` — Métricas ISO 28000 §8: documentación, control coverage/effectiveness, MTTR, resolución SLA, ISO score compuesto
+
+**Archivos modificados:**
+- `src/components/security/compliance/ComplianceTracker.tsx` — Sección "Cumplimiento — Gestión de Incidentes" con traffic lights y ISO Score
 
 ### 🔲 Bloque 5 — Informe de Análisis de Ruta para Cliente (PDF)
 - Crear `src/hooks/security/useRouteAnalysisData.ts`
