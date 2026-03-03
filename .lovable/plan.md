@@ -1,39 +1,66 @@
 
-## Diagnóstico completo
+## Diagnóstico del problema
 
-### Bug 1 — Navegación incompleta (confirmado por imagen)
-`src/config/navigationConfig.ts` líneas 405-424: el módulo `customer-success` solo tiene 3 hijos en el sidebar:
-- Panorama, Cartera, Operativo
+### Causa 1 — `profiles` no es legible por `customer_success` (ROOT CAUSE principal)
+`useCSMOptions` en `useAssignCSM.ts` hace un SELECT a `profiles` para obtener nombres de CSMs. La tabla `profiles` NO tiene política RLS que permita a `customer_success` leer otros perfiles. Solo pueden leer su propio perfil (`profiles_users_view_own`). Resultado: el dropdown de CSMs en Cartera falla o queda vacío, y la pestaña puede verse rota.
 
-Faltan: **Análisis Clientes** y **Staff CSM**. El usuario lo ve en la imagen — solo 3 items en el sidebar lateral.
+`useCSCartera` también hace un JOIN con `profiles` para obtener `csm_nombre`. Si falla, los nombres de CSMs asignados no aparecen → la tabla de Cartera se ve incompleta.
 
-### Bug 2 — Pantalla en blanco
-La pantalla en blanco se produce porque el rol `customer_success` llega a `/customer-success` y el tab default "Panorama" carga `CSPanorama` que usa `useCSCartera` → hace queries a `pc_clientes`, `servicios_custodia`, `servicios_planificados`, `cs_quejas`, `cs_touchpoints`. Si el RLS bloquea alguna de esas tablas para el rol, el hook lanza un error no manejado que rompe el render.
+### Causa 2 — UPDATE en `pc_clientes` bloqueado para `customer_success`
+La policy `pc_clientes_update` usa la función `es_planificador()` que solo incluye `admin, owner, planificador, coordinador_operaciones, supply_admin`. El rol `customer_success` NO está incluido. Cuando un CSM asigna un cliente en Cartera, el UPDATE falla silenciosamente (RLS rechaza).
 
-La migración anterior solo insertó permisos en `role_permissions` (tabla de control frontend) pero **no creó políticas RLS** en Supabase para el rol `customer_success` en las tablas reales que usa el módulo.
+### Causa 3 — `role_permissions` falta entrada para Staff CSM
+La tabla `role_permissions` tiene `customer_success_cartera` y `customer_success_analisis` pero **NO** `customer_success_staff`. Si algún guard de permisos se aplica (futuro), la pestaña Staff quedaría bloqueada.
 
-## Plan de corrección
+## Solución: Migración SQL con 3 fixes
 
-### 1. Agregar links faltantes en el sidebar — `src/config/navigationConfig.ts`
-Agregar dos entradas a `children` del módulo `customer-success`:
+### Fix 1: Agregar policy SELECT en `profiles` para `customer_success`
+```sql
+CREATE POLICY "customer_success_view_profiles"
+ON public.profiles FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+    AND role IN ('admin','owner','customer_success','ejecutivo_ventas','coordinador_operaciones')
+    AND (is_active IS NULL OR is_active = true)
+  )
+);
 ```
-{ id: 'cs_analisis', label: 'Análisis Clientes', path: '/customer-success?tab=analisis', icon: BarChart3 }
-{ id: 'cs_staff', label: 'Staff CSM', path: '/customer-success?tab=staff', icon: UserCog }
+
+### Fix 2: Agregar policy UPDATE en `pc_clientes` para `customer_success`
+Crear una policy UPDATE específica para `customer_success` que solo permita actualizar la columna `csm_asignado` (para asignación de cartera):
+```sql
+CREATE POLICY "customer_success_assign_csm_pc_clientes"
+ON public.pc_clientes FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+    AND role IN ('customer_success')
+    AND (is_active IS NULL OR is_active = true)
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+    AND role IN ('customer_success')
+    AND (is_active IS NULL OR is_active = true)
+  )
+);
 ```
 
-### 2. Agregar política RLS en Supabase — migración SQL
-Crear policies `SELECT` para `customer_success` en las tablas críticas usadas por `useCSCartera` y `CSPanorama`:
-- `pc_clientes` — SELECT
-- `cs_quejas` — SELECT  
-- `cs_touchpoints` — SELECT, INSERT, UPDATE (necesita crear/actualizar touchpoints)
-- `servicios_custodia` — SELECT (read-only)
-- `servicios_planificados` — SELECT (read-only)
-
-### 3. Agregar manejo de error en `useCSCartera` — defensive render
-Si `useCSCartera` devuelve `isError`, actualmente el componente `CSPanorama` puede intentar `.filter()` sobre `undefined` y romper el render. Agregar guard `data ?? []` en el hook o en los consumidores.
+### Fix 3: Insertar permiso faltante `customer_success_staff` en `role_permissions`
+```sql
+INSERT INTO role_permissions (role, permission_type, permission_id)
+VALUES ('customer_success', 'page', 'customer_success_staff')
+ON CONFLICT DO NOTHING;
+```
 
 ### Archivos a modificar
 | Archivo | Cambio |
 |---|---|
-| `src/config/navigationConfig.ts` | +2 children en módulo customer-success |
-| `supabase/migrations/...sql` | RLS SELECT para customer_success en 5 tablas |
+| `supabase/migrations/...sql` | Las 3 políticas RLS arriba descritas |
+
+Sin cambios de código frontend — el problema es 100% en base de datos.
