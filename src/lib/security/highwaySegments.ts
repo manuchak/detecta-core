@@ -28,6 +28,7 @@ export const CORRIDOR_ROUTE_INFO: Record<string, { routeType: RouteType; highway
   'san-luis-potosi-hub': { routeType: 'mixta', highwayDesignation: '57/70/80' },
   'lazaro-cardenas-cdmx': { routeType: 'mixta', highwayDesignation: '37D/14D' },
   'manzanillo-tampico': { routeType: 'mixta', highwayDesignation: '54D/80/70' },
+  'manzanillo-cdmx': { routeType: 'cuota', highwayDesignation: '15D' },
   'arco-norte': { routeType: 'cuota', highwayDesignation: 'Arco Norte' },
   'circuito-exterior-mexiquense': { routeType: 'cuota', highwayDesignation: 'CEM' },
   'mexico-toluca': { routeType: 'cuota', highwayDesignation: '15D' },
@@ -381,7 +382,110 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
   },
 
   // ============================================================
+  // CORREDOR: Manzanillo - CDMX (15D vía Zamora/Morelia) - ~800km
+  // Ruta principal de carga puerto Manzanillo → CDMX
+  // ============================================================
+  {
+    id: 'mza-cdmx-1',
+    corridorId: 'manzanillo-cdmx',
+    name: 'Puerto Manzanillo - Colima',
+    kmStart: 0,
+    kmEnd: 100,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '02:00-06:00',
+    commonIncidentType: 'Robo en zona portuaria',
+    recommendations: ['Custodia desde puerto', 'Verificación de sellos y documentos'],
+    waypoints: [[-104.3100, 19.1100], [-103.9400, 19.1800], [-103.7200, 19.2400]],
+    routeType: 'cuota',
+    highwayDesignation: '200/54D',
+  },
+  {
+    id: 'mza-cdmx-2',
+    corridorId: 'manzanillo-cdmx',
+    name: 'Colima - Acatlán de Juárez (Sierra/Atenquique)',
+    kmStart: 100,
+    kmEnd: 210,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-05:00',
+    commonIncidentType: 'Accidentes en zona serrana',
+    recommendations: ['Zona de barrancas y sierra', 'Precaución en curvas', 'Neblina frecuente nocturna'],
+    waypoints: [
+      [-103.7200, 19.2400],  // Colima
+      [-103.6800, 19.4500],  // Atenquique / Barrancas
+      [-103.6200, 19.7200],  // Sayula
+      [-103.5800, 20.0500],  // Acatlán de Juárez (inicio Macrolibramiento)
+    ],
+    routeType: 'cuota',
+    highwayDesignation: '54D',
+  },
+  {
+    id: 'mza-cdmx-3',
+    corridorId: 'manzanillo-cdmx',
+    name: 'Macrolibramiento GDL Sur - La Barca',
+    kmStart: 210,
+    kmEnd: 300,
+    riskLevel: 'bajo',
+    avgMonthlyEvents: 1,
+    criticalHours: '00:00-05:00',
+    commonIncidentType: 'Incidentes aislados',
+    recommendations: ['Macrolibramiento de cuota, infraestructura moderna', 'No detenerse'],
+    waypoints: [
+      [-103.5800, 20.0500],  // Acatlán de Juárez (Macrolibramiento GUA-10D)
+      [-103.3000, 20.1000],  // Macrolibramiento Sur (Tlajomulco)
+      [-103.0600, 20.3700],  // Zapotlanejo Sur (salida este Macrolibramiento)
+      [-102.7500, 20.3300],  // Entronque La Barca
+      [-102.5700, 20.2900],  // La Barca
+    ],
+    routeType: 'cuota',
+    highwayDesignation: 'GUA-10D/15D',
+  },
+  {
+    id: 'mza-cdmx-4',
+    corridorId: 'manzanillo-cdmx',
+    name: 'La Barca - Zamora de Hidalgo',
+    kmStart: 300,
+    kmEnd: 370,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '20:00-04:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: ['Zona agrícola con patrullaje limitado', 'Evitar paradas no programadas'],
+    waypoints: [
+      [-102.5700, 20.2900],  // La Barca
+      [-102.3200, 20.1500],  // Sahuayo
+      [-102.2800, 19.9800],  // Jiquilpan
+      [-102.2800, 19.8200],  // Zamora de Hidalgo
+    ],
+    routeType: 'cuota',
+    highwayDesignation: '15D',
+  },
+  {
+    id: 'mza-cdmx-5',
+    corridorId: 'manzanillo-cdmx',
+    name: 'Zamora - Libramiento Morelia (Entronque 15D/37D)',
+    kmStart: 370,
+    kmEnd: 450,
+    riskLevel: 'medio',
+    avgMonthlyEvents: 2,
+    criticalHours: '22:00-05:00',
+    commonIncidentType: 'Robo sin violencia',
+    recommendations: ['Conecta con corredor Lázaro Cárdenas-CDMX en Morelia', 'Usar Libramiento Sur Morelia'],
+    waypoints: [
+      [-102.2800, 19.8200],  // Zamora de Hidalgo
+      [-102.0500, 19.7800],  // Carapan
+      [-101.7800, 19.7200],  // Quiroga
+      [-101.4200, 19.6800],  // Entronque 15D/37D (Libramiento Sur Morelia)
+      [-101.2200, 19.6500],  // Libramiento Sur Morelia (conecta con lc-cdmx-6)
+    ],
+    routeType: 'cuota',
+    highwayDesignation: '15D',
+  },
+
+  // ============================================================
   // CORREDOR: Manzanillo - Tampico (Transversal) - 850km
+  // Nota: Este corredor va hacia NORTE (Lagos/SLP/Tampico), NO hacia CDMX
   // ============================================================
   {
     id: 'mza-tam-1',
@@ -389,7 +493,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     name: 'Puerto Manzanillo - Colima',
     kmStart: 0,
     kmEnd: 100,
-    riskLevel: 'medio', // Recalibrado de alto - zona portuaria controlada
+    riskLevel: 'medio',
     avgMonthlyEvents: 2,
     criticalHours: '02:00-06:00',
     commonIncidentType: 'Robo en zona portuaria',
@@ -399,14 +503,14 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
   {
     id: 'mza-tam-2',
     corridorId: 'manzanillo-tampico',
-    name: 'Colima - Periférico GDL (El Salto)',
+    name: 'Colima - Macrolibramiento GDL (hacia Norte/Tampico)',
     kmStart: 100,
     kmEnd: 200,
-    riskLevel: 'bajo', // Recalibrado de medio
+    riskLevel: 'bajo',
     avgMonthlyEvents: 1,
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
-    recommendations: ['Monitoreo GPS estándar', 'Usar periférico obligatoriamente'],
+    recommendations: ['Ruta hacia Lagos/SLP/Tampico (norte)', 'Usar Macrolibramiento obligatoriamente'],
     waypoints: [
       [-103.7200, 19.2400],
       [-103.5800, 20.1300],  // Acatlán de Juárez (inicio Macrolibramiento GUA-10D)
@@ -3084,6 +3188,50 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
 ];
 
 export const HIGHWAY_POIS: POI[] = [
+  // === POIs CORREDOR MANZANILLO-CDMX (15D) ===
+  {
+    id: 'ref-entronque-la-barca',
+    name: 'Entronque La Barca (15D/80D)',
+    type: 'junction',
+    coordinates: [-102.5700, 20.2900],
+    description: 'Punto de decisión: Norte → Lagos de Moreno/SLP/Tampico | Este → Zamora/Morelia/CDMX (15D)',
+    operationalCategory: 'referencia',
+  },
+  {
+    id: 'ref-caseta-zamora-15d',
+    name: 'Caseta Zamora (15D)',
+    type: 'tollbooth',
+    coordinates: [-102.2800, 19.8200],
+    description: 'Caseta de cuota autopista 15D. Control de acceso Zamora-Morelia.',
+    operationalCategory: 'referencia',
+  },
+  {
+    id: 'descanso-la-barca-gas',
+    name: 'Gasolinera La Barca (15D)',
+    type: 'safe_area',
+    subtype: 'gasolinera_vigilada',
+    coordinates: [-102.5400, 20.2800],
+    description: 'Gasolinera con área de descanso en La Barca. Punto de parada para ruta Manzanillo-CDMX.',
+    operationalCategory: 'descanso',
+    services: ['diesel', 'sanitarios', 'tienda'],
+  },
+  {
+    id: 'ref-entronque-morelia-15d-37d',
+    name: 'Entronque Morelia (15D/37D)',
+    type: 'junction',
+    coordinates: [-101.4200, 19.6800],
+    description: 'Conexión 15D (desde Zamora) con 37D (desde Uruapan/Lázaro Cárdenas). Usar Libramiento Sur Morelia.',
+    operationalCategory: 'referencia',
+  },
+  {
+    id: 'ref-macrolib-gdl-acatlan',
+    name: 'Macrolibramiento GDL - Acatlán de Juárez',
+    type: 'junction',
+    coordinates: [-103.5800, 20.0500],
+    description: 'Inicio del Macrolibramiento GUA-10D desde el sur (Colima/Manzanillo). Cuota obligatoria para carga.',
+    operationalCategory: 'referencia',
+  },
+
   // === PUNTOS NEGROS (Alta incidencia) ===
   {
     id: 'blackspot-texmelucan',
