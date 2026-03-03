@@ -297,9 +297,60 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         .addTo(m);
     });
 
-    // Cursor
-    m.on('mouseenter', 'segments-line', () => { m.getCanvas().style.cursor = 'pointer'; });
-    m.on('mouseleave', 'segments-line', () => { m.getCanvas().style.cursor = ''; });
+    // Click on POI
+    m.on('click', 'pois-circle', (e) => {
+      if (!e.features?.[0]) return;
+      const props = e.features[0].properties!;
+      const typeLabels: Record<string, string> = {
+        blackspot: '⚠️ Punto Negro',
+        tollbooth: '🏗️ Caseta',
+        junction: '🔀 Entronque',
+        safe_area: '✅ Zona Segura',
+        industrial: '🏭 Industrial',
+      };
+      const html = `
+        <div style="max-width:260px;font-size:12px;">
+          <div style="font-weight:600;margin-bottom:4px;">${props.name}</div>
+          <div style="margin-bottom:4px;">
+            <span style="background:${POI_COLORS[props.type] || '#888'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${typeLabels[props.type] || props.type}</span>
+          </div>
+          <div style="color:#d1d5db;">${props.description || ''}</div>
+        </div>
+      `;
+      popupRef.current?.remove();
+      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '300px' })
+        .setLngLat(e.lngLat)
+        .setHTML(html)
+        .addTo(m);
+    });
+
+    // Click on safe point
+    m.on('click', 'safe-points-circle', (e) => {
+      if (!e.features?.[0]) return;
+      const props = e.features[0].properties!;
+      const certColors: Record<string, string> = { oro: '#f59e0b', plata: '#94a3b8', bronce: '#d97706', precaucion: '#ef4444' };
+      const certLabels: Record<string, string> = { oro: '🥇 Oro', plata: '🥈 Plata', bronce: '🥉 Bronce', precaucion: '⚠️ Precaución' };
+      const html = `
+        <div style="max-width:260px;font-size:12px;">
+          <div style="font-weight:600;margin-bottom:4px;">🛡️ ${props.name}</div>
+          <div style="display:flex;gap:6px;margin-bottom:4px;">
+            <span style="background:${certColors[props.cert] || '#22c55e'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${certLabels[props.cert] || props.cert}</span>
+            <span style="font-size:10px;color:#9ca3af;">${props.type || ''}</span>
+          </div>
+        </div>
+      `;
+      popupRef.current?.remove();
+      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '300px' })
+        .setLngLat(e.lngLat)
+        .setHTML(html)
+        .addTo(m);
+    });
+
+    // Cursor for all interactive layers
+    ['segments-line', 'pois-circle', 'safe-points-circle'].forEach(layer => {
+      m.on('mouseenter', layer, () => { m.getCanvas().style.cursor = 'pointer'; });
+      m.on('mouseleave', layer, () => { m.getCanvas().style.cursor = ''; });
+    });
   }, [mapReady, onSegmentSelect, geometries]);
 
   // Add safe points when data loads
