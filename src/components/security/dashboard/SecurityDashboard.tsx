@@ -2,7 +2,7 @@ import React from 'react';
 import { useSecurityDashboard, OperativeEvent } from '@/hooks/security/useSecurityDashboard';
 import { useDetectaRiskFactor } from '@/hooks/security/useDetectaRiskFactor';
 import { useSiniestrosHistorico } from '@/hooks/security/useSiniestrosHistorico';
-import { DetectaRiskFactorCard } from './DetectaRiskFactorCard';
+import { DRFPeriodCards } from './DRFPeriodCards';
 import { PostureBanner } from './PostureBanner';
 import { IncidentHeatmap } from './IncidentHeatmap';
 import { ActionableRecommendations } from './ActionableRecommendations';
@@ -62,7 +62,7 @@ function OperativeAlertsTicker({ events }: { events: OperativeEvent[] }) {
 
 export function SecurityDashboard() {
   const { kpis, riskDistribution, intelByLevel, heatmapData, recentEvents, recentOperative, isLoading } = useSecurityDashboard();
-  const { currentDRF, riskLevel } = useDetectaRiskFactor('MoM');
+  const { currentDRF, riskLevel, trends } = useDetectaRiskFactor('MoM');
 
   if (isLoading) {
     return (
@@ -83,8 +83,8 @@ export function SecurityDashboard() {
       {/* Row 0: Compact Posture Banner with inline KPIs */}
       <PostureBanner kpis={kpis} drfScore={currentDRF} drfLevel={riskLevel} />
 
-      {/* Row 1: DRF Card (full width, includes sparkline) */}
-      <DetectaRiskFactorCard />
+      {/* Row 1: DRF Period Cards (5 cards with historical bars) */}
+      <DRFPeriodCards trends={trends} />
 
       {/* Row 2: Heatmap + Distribution + Recommendations */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
