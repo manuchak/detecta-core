@@ -3,7 +3,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 
 interface SemaforoBadgeProps {
-  resultado: 'verde' | 'ambar' | 'rojo' | null;
+  resultado: string | null; // Acepta cualquier string para detectar valores inesperados
   score?: number;
   showScore?: boolean;
   size?: 'sm' | 'md' | 'lg';
@@ -39,6 +39,28 @@ export function SemaforoBadge({
   avalDecision 
 }: SemaforoBadgeProps) {
   if (!resultado) return null;
+
+  // Fallback: si el valor no es un enum válido, mostrar warning visible
+  const validValues: Array<'verde' | 'ambar' | 'rojo'> = ['verde', 'ambar', 'rojo'];
+  if (!validValues.includes(resultado)) {
+    console.warn(`[SemaforoBadge] Valor inesperado de resultado_semaforo: "${resultado}"`);
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="gap-1.5 font-medium bg-gray-500/20 text-gray-700 border-gray-500/30 dark:text-gray-400">
+              <span className="rounded-full bg-gray-500 h-2 w-2" />
+              ⚠ {String(resultado)}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-sm font-semibold text-destructive">Valor no reconocido: "{String(resultado)}"</p>
+            <p className="text-xs text-muted-foreground">Contacte soporte técnico</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
 
   const config = semaforoConfig[resultado];
   
