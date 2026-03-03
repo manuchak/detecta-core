@@ -53,11 +53,12 @@ export function useCSCartera() {
         supabase.from('cs_touchpoints').select('cliente_id, created_at'),
       ]);
 
+      // Defensive: log errors but don't throw for secondary tables so the module doesn't blank out
       if (clientesRes.error) throw clientesRes.error;
-      if (legacyRes.error) throw legacyRes.error;
-      if (planRes.error) throw planRes.error;
-      if (quejasRes.error) throw quejasRes.error;
-      if (touchpointsRes.error) throw touchpointsRes.error;
+      if (legacyRes.error) console.warn('[useCSCartera] servicios_custodia error:', legacyRes.error.message);
+      if (planRes.error) console.warn('[useCSCartera] servicios_planificados error:', planRes.error.message);
+      if (quejasRes.error) console.warn('[useCSCartera] cs_quejas error:', quejasRes.error.message);
+      if (touchpointsRes.error) console.warn('[useCSCartera] cs_touchpoints error:', touchpointsRes.error.message);
 
       const clientes = clientesRes.data || [];
       const planData = (planRes.data || []).map(s => ({ nombre_cliente: s.nombre_cliente, cobro_cliente: s.cobro_posicionamiento, fecha_hora_cita: s.fecha_hora_cita }));
