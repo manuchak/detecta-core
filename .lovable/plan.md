@@ -1,89 +1,77 @@
 
 
-# Plan: Corregir Lógica del Dashboard de Seguridad
+# Diagnóstico Crítico del Dashboard de Seguridad
 
-## Problemas Identificados
+## Bugs de Datos (raíz de los problemas visibles)
 
-### 1. Postura Operativa CRÍTICA — falso positivo
-**Causa raíz:** La condición `operativeCritical > 5 && controlEffectivenessRate < 50` se dispara porque:
-- `operativeCritical = 14` (13 siniestros históricos + 1 alta) — cuenta TODOS los incidentes históricos desde 2024
-- `controlEffectivenessRate = 0%` — ningún incidente tiene `controles_activos` populado
+### Bug 1: "380 checklists de 0 servicios" → 0% cobertura
+La tabla `siniestros_historico` tiene **26 filas con `servicios_completados = 0`** en TODAS. Los datos del Fill Rate nunca se insertaron correctamente — solo se popularon `siniestros` y `fecha`, pero los volúmenes de servicios quedaron en 0. Esto causa la división 0/0 y el 0% falso.
 
-**Problema conceptual:** La postura operativa debería reflejar el estado ACTUAL, no contar siniestros de hace 2 años. Los 13 siniestros históricos no tienen controles documentados porque ocurrieron antes de que existiera el sistema.
+### Bug 2: "Siniestro hace 4 días" → CRÍTICA falsa
+El incidente `agresion` del 26-Feb-2026 (secuestro en gasolinera) está marcado como `es_siniestro: true`. Según tu propio criterio: **siniestro = robo consumado o pérdida humana**. Un secuestro de custodio sin robo de carga NO es siniestro. Esto dispara la postura "CRÍTICA" incorrectamente. Sin este registro, el último siniestro real fue el 2-Dic-2025 (93 días) → postura debería ser **ESTABLE**.
 
-**Fix:** La postura debe evaluarse solo sobre una ventana temporal reciente (últimos 90 días) y ponderar `daysSinceLastCritical` desde el último siniestro real, no desde security_events de zonas H3.
+### Bug 3: Sparkline DRF con piso falso
+Como `servicios_completados = 0`, la tasa de siniestralidad es `siniestros / 0` → NaN o 0. El sparkline no refleja la realidad.
 
-### 2. Control Effectiveness 0% — lógica incorrecta
-**Causa raíz:** Se calcula como `incidentes con controles_activos[] AND control_efectivo=true`. Hay 0 incidentes con `controles_activos` populado → 0/0 = 0%.
+## Crítica de UI — ¿Es este el mejor diseño?
 
-**Problema conceptual:** El checklist de servicio (380 registros completados en `checklist_servicio`) ES el control mitigador principal de Detecta. Cada checklist completado = control activo ejecutado. La efectividad debería cruzar: servicios con checklist completado vs servicios que tuvieron siniestro.
+No. Tres problemas fundamentales:
 
-**Fix:** Recalcular efectividad como: `servicios con checklist / total servicios`. Y para el cruce: de los servicios que tuvieron siniestro, ¿cuántos tenían checklist completado? Eso mide si el control previno o no el evento.
+1. **Señales contradictorias**: Banner rojo "CRÍTICA" junto a gauge verde "23.3 Bajo Mejorando". Un directivo no sabe si preocuparse o no. La postura y el DRF deben contar la misma historia.
 
-### 3. DRF Period Selector (DoD/WoW/MoM/QoQ/YoY) no cambia nada visible
-**Causa raíz:** El gauge siempre muestra `currentDRF` (global all-time). Solo cambia el texto de tendencia debajo. El sparkline y demás cards no reaccionan al periodo.
+2. **Cobertura de Controles ocupa 1/3 del espacio para mostrar "0%"**: Es una card enorme con un solo número roto. Debería ser un KPI compacto en la fila de KPIs, no una card independiente del mismo tamaño que el DRF.
 
-**Fix:** 
-- El gauge debe mostrar el DRF del periodo seleccionado (`selectedTrend.current`), no el global
-- El breakdown debe recalcularse para el periodo seleccionado
-- La sparkline debe mostrar datos granulares del periodo (ej: MoM = 30 puntos diarios, QoQ = 12 puntos semanales)
+3. **Densidad sin jerarquía**: 5 filas de cards, todas del mismo peso visual. Un Head of Security necesita: (a) ¿Estamos bien o no? (b) ¿Qué cambió? (c) ¿Qué debo hacer? El layout actual no responde esas preguntas en orden.
 
-### 4. DRF Sparkline muestra 0-25 / nunca debería ser 0
-**Causa raíz:** El sparkline NO usa el DRF real — usa `heatmapData` (conteo diario de incidentes) como proxy falso. Días sin incidentes = score 0.
+## Plan de Corrección
 
-**Fix:** Calcular el DRF real por cada día/punto del sparkline. El DRF tiene componentes estructurales (exposure=95%, mitigation=76%) que dan un piso mínimo ~30-40 puntos incluso sin incidentes recientes. El DRF actual global debería ser ~33.9 basado en la exposición de zonas (95% alto/extremo de 2,144 zonas).
+### Paso 1 — Fix datos en `siniestros_historico`
+UPDATE las 26 filas con los volúmenes reales del Fill Rate Excel (servicios_solicitados y servicios_completados por mes). Esto corrige el 0% de cobertura y la sparkline.
 
-### 5. Concepto de DRF — qué debería medir realmente
-El usuario espera que el DRF refleje: **"¿qué tan expuesto está Detecta basado en las rutas contratadas?"** — es decir, ¿estamos aceptando más riesgo a cambio de crecer?
+### Paso 2 — Reclasificar el incidente de agresión
+El secuestro en gasolinera (Feb 26) → `es_siniestro: false` (no hubo robo de carga). La postura pasará de CRÍTICA a ESTABLE (93 días sin siniestro real).
 
-**Fix conceptual:** El DRF debe cruzar:
-- **Exposure:** Rutas contratadas que pasan por zonas alto/extremo (de `servicios_planificados` con coordenadas)
-- **Siniestralidad histórica:** Tasa de siniestros por cada 1,000 servicios (del Fill Rate)
-- **Mitigación:** % de servicios con checklist completado (380/3,040 = 12.5%)
-- El periodo selector debe filtrar servicios Y siniestros al rango temporal
+### Paso 3 — Rediseño del layout del dashboard
+Propuesta de layout más ejecutivo:
 
-## Cambios Propuestos
+```text
+┌─────────────────────────────────────────────────┐
+│  POSTURA: ESTABLE  ·  93d sin siniestro  ·     │
+│  DRF: 23.3 ↓  ·  Cobertura: 12.5%  ·  1 ATR   │
+│  (banner compacto con todos los KPIs inline)    │
+└─────────────────────────────────────────────────┘
 
-### A. `useDetectaRiskFactor.ts` — Recalcular DRF por periodo
-- Mover el cálculo para que `currentDRF` refleje el periodo seleccionado, no all-time
-- Incluir datos de `checklist_servicio` (380 completados) como fuente de mitigación real
-- Incluir datos de `siniestros_historico` para tasa de siniestralidad por periodo
-- Retornar breakdown por periodo para que el gauge y barras cambien al seleccionar DoD/WoW/etc.
-- El DRF nunca debe ser 0: la exposición a zonas (95% alto/extremo) da un piso estructural
+┌──────────────── DRF Card ───────────────────────┐
+│  Gauge + Period Selector + Trend + Sparkline    │
+│  (todo en UNA card, sparkline integrado abajo)  │
+│  Breakdown colapsable                           │
+└─────────────────────────────────────────────────┘
 
-### B. `useSecurityDashboard.ts` — Postura basada en ventana reciente
-- Filtrar `operativeCritical` a últimos 90 días solamente
-- Calcular `controlEffectivenessRate` desde `checklist_servicio`: completados/total servicios en periodo
-- `daysSinceLastCritical` desde el último siniestro (`es_siniestro=true`), no desde security_events
+┌─── Heatmap ───┬─── Distribución ──┬── Acciones ─┐
+│  4 semanas    │  Zonas por nivel  │ Prioridades  │
+└───────────────┴───────────────────┴──────────────┘
 
-### C. `PostureBanner.tsx` — Umbrales ajustados
-- Usar tasa de siniestralidad reciente en vez de conteo absoluto histórico
-- 0 siniestros en 90 días + checklist >50% = Estable
-- Siniestro reciente (<30 días) = Elevada
-- Siniestro reciente (<7 días) = Crítica
+┌── Operativos ─────────┬── Inteligencia ─────────┐
+│  Timeline incidentes  │  Eventos externos       │
+└───────────────────────┴─────────────────────────┘
+```
 
-### D. `DetectaRiskFactorCard.tsx` — Gauge reactivo al periodo
-- El gauge muestra `selectedTrend.current` en vez de `global.score`
-- El breakdown se recalcula por periodo
-- Añadir label "Global" cuando no hay periodo seleccionado
+Cambios clave:
+- **Banner compacto**: Una sola línea con postura + KPIs críticos (DRF, cobertura, días sin siniestro). No una card roja gigante.
+- **Cobertura de Controles**: Se mueve al banner como KPI inline, ya no es card independiente.
+- **DRF + Sparkline**: Se fusionan en una sola card (eliminar la card separada de sparkline).
+- **KPI row (4 cards)**: Se elimina — los 4 valores se integran al banner o al DRF card.
 
-### E. `DRFSparkline.tsx` + `SecurityDashboard.tsx` — Sparkline real
-- Calcular DRF real por cada punto usando la fórmula con componentes estructurales
-- Usar datos de `siniestros_historico` (servicios mensuales + siniestros) para puntos históricos
-- El piso mínimo será ~30-40 por la exposición a zonas alto/extremo
+### Paso 4 — Lógica de coherencia postura ↔ DRF
+Si DRF < 25 (Bajo), la postura NO puede ser "CRÍTICA" a menos que haya un siniestro en los últimos 7 días. Agregar validación cruzada para evitar señales contradictorias.
 
-### F. Control Effectiveness card — datos reales
-- Fuente: `checklist_servicio` (380 completos) / servicios en periodo
-- Mostrar: "380 checklists completados de 3,040 servicios (12.5%)"
-- El checklist ES el control ISO 28000 §6.2 — documentarlo en la narrativa
-
-## Resumen de archivos a modificar
+## Archivos a modificar
 
 | Archivo | Cambio |
 |---------|--------|
-| `useDetectaRiskFactor.ts` | Query `checklist_servicio` + `siniestros_historico`, DRF por periodo, breakdown reactivo |
-| `useSecurityDashboard.ts` | Ventana 90 días para postura, control effectiveness desde checklists |
-| `PostureBanner.tsx` | Umbrales basados en siniestralidad reciente |
-| `DetectaRiskFactorCard.tsx` | Gauge muestra periodo seleccionado, breakdown reactivo |
-| `SecurityDashboard.tsx` | Sparkline con DRF real (no proxy de heatmap) |
+| Migración SQL | UPDATE `siniestros_historico` con servicios reales; UPDATE agresion `es_siniestro=false` |
+| `SecurityDashboard.tsx` | Nuevo layout: banner compacto, DRF+sparkline fusionados, eliminar card de cobertura |
+| `PostureBanner.tsx` | Rediseño compacto con KPIs inline |
+| `DetectaRiskFactorCard.tsx` | Integrar sparkline dentro de la card |
+| `useSecurityDashboard.ts` | Validación cruzada postura ↔ DRF |
 
