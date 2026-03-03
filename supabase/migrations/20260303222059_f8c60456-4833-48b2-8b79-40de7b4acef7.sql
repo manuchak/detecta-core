@@ -1,0 +1,1 @@
+INSERT INTO public.role_permissions (role, permission_type, permission_id) VALUES ('customer_success', 'page', 'customer_success_staff') ON CONFLICT DO NOTHING;
