@@ -36,6 +36,7 @@ import {
   Download
 } from 'lucide-react';
 import { useClientsData, useClientAnalytics, ClientSummary, useClientMetrics, useClientTableData } from '@/hooks/useClientAnalytics';
+import { useCSCartera } from '@/hooks/useCSCartera';
 import { Button } from '@/components/ui/button';
 import { exportClientAnalyticsPDF } from './pdf/ClientAnalyticsPDFExporter';
 import { toast } from 'sonner';
@@ -51,7 +52,7 @@ interface DateRange {
 export const ClientAnalytics = () => {
   const isMobile = useIsMobile();
   // Date filtering state
-  const [dateFilterType, setDateFilterType] = useState<DateFilterType>('current_month');
+  const [dateFilterType, setDateFilterType] = useState<DateFilterType>('last_120d');
   const [customDateRange, setCustomDateRange] = useState<DateRange>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date())
@@ -91,7 +92,31 @@ export const ClientAnalytics = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<string>('gmv');
   const [filterByType, setFilterByType] = useState<string>('all');
+  const [filterByCSM, setFilterByCSM] = useState<string>('all');
+  const { data: carteraData } = useCSCartera();
   const { data: clientAnalytics, isLoading: analyticsLoading } = useClientAnalytics(selectedClient || '', dateRange);
+
+  // Extract unique CSMs from cartera
+  const csmOptions = useMemo(() => {
+    if (!carteraData) return [];
+    const map = new Map<string, string>();
+    carteraData.forEach(c => {
+      if (c.csm_asignado && c.csm_nombre) {
+        map.set(c.csm_asignado, c.csm_nombre);
+      }
+    });
+    return Array.from(map.entries()).map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [carteraData]);
+
+  // Build client→CSM lookup by normalized name
+  const clientCSMMap = useMemo(() => {
+    if (!carteraData) return new Map<string, { csm_asignado: string | null; csm_nombre: string | null }>();
+    const map = new Map<string, { csm_asignado: string | null; csm_nombre: string | null }>();
+    carteraData.forEach(c => {
+      map.set(c.nombre.toLowerCase().trim(), { csm_asignado: c.csm_asignado, csm_nombre: c.csm_nombre });
+    });
+    return map;
+  }, [carteraData]);
 
   const handleDownloadPDF = async () => {
     const periodLabels: Record<string, string> = {
@@ -141,6 +166,17 @@ export const ClientAnalytics = () => {
       client.clientName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Filter by CSM
+    if (filterByCSM !== 'all') {
+      filtered = filtered.filter(client => {
+        const csmInfo = clientCSMMap.get(client.clientName.toLowerCase().trim());
+        if (filterByCSM === 'unassigned') {
+          return !csmInfo?.csm_asignado;
+        }
+        return csmInfo?.csm_asignado === filterByCSM;
+      });
+    }
+
     // Sort clients
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -162,7 +198,7 @@ export const ClientAnalytics = () => {
     });
 
     return filtered;
-  }, [tableData, searchTerm, sortBy]);
+  }, [tableData, searchTerm, sortBy, filterByCSM, clientCSMMap]);
 
   if (isLoading) {
     return (
@@ -659,6 +695,18 @@ export const ClientAnalytics = () => {
                 <SelectItem value="all">Todos los tipos</SelectItem>
                 <SelectItem value="local">Solo Locales</SelectItem>
                 <SelectItem value="foraneo">Solo Foráneos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterByCSM} onValueChange={setFilterByCSM}>
+              <SelectTrigger className={isMobile ? "w-full" : "w-[200px]"}>
+                <SelectValue placeholder="CSM asignado..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los CSM</SelectItem>
+                <SelectItem value="unassigned">Sin asignar</SelectItem>
+                {csmOptions.map(csm => (
+                  <SelectItem key={csm.id} value={csm.id}>{csm.nombre}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
