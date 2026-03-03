@@ -18,9 +18,13 @@ El plan ya fue presentado y aprobado. El usuario seleccionó:
 - `src/hooks/security/useSecurityDashboard.ts` — Query a incidentes_operativos, controlEffectivenessRate, recentOperative separado
 - `src/components/security/dashboard/SecurityDashboard.tsx` — DRF prominente (2 cols), Control Effectiveness, fuentes separadas
 
-### 🔲 Bloque 2 — Puente incidentes operativos → security_events
-- Crear `src/hooks/security/useIncidentToRiskBridge.ts`
-- Modificar `src/hooks/useIncidentesOperativos.ts`
+### ✅ Bloque 2 — Puente incidentes operativos → security_events (COMPLETADO)
+
+**Archivos creados:**
+- `src/hooks/security/useIncidentToRiskBridge.ts` — Propagación fire-and-forget de incidentes operativos a security_events vía geocode-to-h3
+
+**Archivos modificados:**
+- `src/hooks/useIncidentesOperativos.ts` — Integración del bridge en useCreateIncidente y useUpdateIncidente onSuccess
 
 ### 🔲 Bloque 3 — Análisis de Riesgo por Ruta (Trend Temporal)
 - Crear `src/hooks/security/useRouteRiskTrend.ts`
