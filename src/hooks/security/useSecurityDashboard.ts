@@ -113,16 +113,17 @@ export function useSecurityDashboard() {
     },
   });
 
-  // Fill rate for total services — with monthly breakdown
+  // Fill rate for total services — uses 'fecha' column (date, e.g. '2026-02-01')
   const fillRateQuery = useQuery({
     queryKey: ['security-dashboard-fillrate'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('siniestros_historico')
-        .select('mes, anio, servicios_completados')
+        .select('fecha, servicios_completados')
+        .order('fecha', { ascending: true })
         .limit(100);
       if (error) throw error;
-      return data as { mes: number; anio: number; servicios_completados: number }[];
+      return data as { fecha: string; servicios_completados: number }[];
     },
   });
 
@@ -166,20 +167,13 @@ export function useSecurityDashboard() {
   const checklistStartDate = new Date(CHECKLIST_START);
   const checklistsCompleted = checklists.length;
 
-  // Filter fillRate rows to months >= Feb 2026
+  // Filter fillRate rows to months >= Feb 2026 using 'fecha' column
   const servicesInChecklistPeriod = fillRateData
-    .filter(r => {
-      if (r.anio > 2026) return true;
-      if (r.anio === 2026 && r.mes >= 2) return true;
-      return false;
-    })
+    .filter(r => r.fecha >= '2026-02-01')
     .reduce((s, r) => s + r.servicios_completados, 0);
 
-  // If no monthly breakdown available, estimate from daily average
-  const totalServicesAll = fillRateData.reduce((s, r) => s + r.servicios_completados, 0);
-  const effectiveDenominator = servicesInChecklistPeriod > 0
-    ? servicesInChecklistPeriod
-    : totalServicesAll; // fallback
+  // No fallback — if no services in checklist period, show 0%
+  const effectiveDenominator = servicesInChecklistPeriod;
 
   const controlEffectivenessRate = effectiveDenominator > 0
     ? Math.round((checklistsCompleted / effectiveDenominator) * 100)
