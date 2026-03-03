@@ -242,14 +242,40 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
       const filterChecklists = (from: string, to: string) =>
         allChecklists.filter(c => c.created_at >= from && c.created_at < to);
 
+      // Context window sizes for siniestralidad by period type
+      const contextWindowMonths: Record<TrendPeriod, number> = {
+        DoD: 1,    // 1 month window
+        WoW: 2,    // 2 months
+        MoM: 12,   // 12 months
+        QoQ: 24,   // 24 months
+        YoY: 999,  // all history
+      };
+
       const calcForOffset = (period: TrendPeriod, offset: number) => {
         const range = getPeriodRangeOffset(period, offset);
+
+        // STRICT temporal filtering — no fallbacks
         const inc = filterIncidents(range.from, range.to);
-        const fr = filterFillRate(range.from, range.to);
         const cl = filterChecklists(range.from, range.to);
-        const svc = fr.reduce((s, m) => s + m.servicios_completados, 0);
-        const effectiveSvc = svc > 0 ? svc : Math.max(Math.round(totalServicesAll / 24), 1);
-        return calculateDRF(inc, zones, fr.length > 0 ? fr : fillRate, cl.length, effectiveSvc);
+
+        // Siniestralidad: use a contextual window ending at range.to
+        const windowMonths = contextWindowMonths[period];
+        const windowEnd = range.to;
+        const windowStart = windowMonths >= 999
+          ? '1970-01-01'
+          : subMonths(new Date(windowEnd), windowMonths).toISOString().slice(0, 10);
+        const frWindow = fillRate.filter(m => m.fecha >= windowStart && m.fecha < windowEnd.slice(0, 10));
+        const svcWindow = frWindow.reduce((s, m) => s + m.servicios_completados, 0);
+
+        // Incident rate: normalize by services in the PERIOD (not global)
+        const frPeriod = filterFillRate(range.from, range.to);
+        const svcPeriod = frPeriod.reduce((s, m) => s + m.servicios_completados, 0);
+        // Estimate daily services for periods shorter than a month (DoD, WoW)
+        const avgDailyServices = totalServicesAll > 0 ? totalServicesAll / Math.max(fillRate.length * 30, 1) : 1;
+        const periodDays = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 86400000);
+        const estimatedPeriodServices = svcPeriod > 0 ? svcPeriod : Math.round(avgDailyServices * periodDays);
+
+        return calculateDRF(inc, zones, frWindow, cl.length, Math.max(estimatedPeriodServices, 1));
       };
 
       const periods: TrendPeriod[] = ['DoD', 'WoW', 'MoM', 'QoQ', 'YoY'];
