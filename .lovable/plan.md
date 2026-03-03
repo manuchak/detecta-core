@@ -26,9 +26,14 @@ El plan ya fue presentado y aprobado. El usuario seleccionó:
 **Archivos modificados:**
 - `src/hooks/useIncidentesOperativos.ts` — Integración del bridge en useCreateIncidente y useUpdateIncidente onSuccess
 
-### 🔲 Bloque 3 — Análisis de Riesgo por Ruta (Trend Temporal)
-- Crear `src/hooks/security/useRouteRiskTrend.ts`
-- Crear `src/components/security/analytics/RouteRiskTrendPanel.tsx`
+### ✅ Bloque 3 — Análisis de Riesgo por Ruta (Trend Temporal) (COMPLETADO)
+
+**Archivos creados:**
+- `src/hooks/security/useRouteRiskTrend.ts` — Cruce servicios_planificados ↔ incidentes_operativos por corredor con tendencias DoD/WoW/MoM/QoQ/YoY
+- `src/components/security/analytics/RouteRiskTrendPanel.tsx` — Tabla de corredores con incident rate ×1k, control effectiveness, trend badges
+
+**Archivos modificados:**
+- `src/components/security/analytics/IncidentAnalytics.tsx` — Integración del RouteRiskTrendPanel en tab Análisis
 
 ### 🔲 Bloque 4 — Perfil de Cumplimiento basado en Incidentes
 - Crear `src/hooks/security/useComplianceFromIncidents.ts`
