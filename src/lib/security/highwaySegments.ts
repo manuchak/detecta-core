@@ -269,7 +269,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '02:00-06:00',
     commonIncidentType: 'Robo en zona portuaria',
     recommendations: ['Custodia desde puerto', 'Verificación de sellos'],
-    waypoints: [[-102.1690, 17.9270], [-102.0500, 18.1000]],
+    waypoints: [[-102.1690, 17.9270], [-102.1300, 18.0500]],  // Puerto LC → La Mira (sobre hwy 37)
   },
   {
     id: 'lc-cdmx-2',
@@ -289,17 +289,13 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Custodia armada requerida por aseguradora',
       'NO pernoctar en zona bajo ninguna circunstancia'
     ],
-    // Waypoints densificados para mejor detección (~10km entre puntos)
+    // Waypoints sobre carretera 37 (Tierra Caliente, va NORTE no al este)
     waypoints: [
-      [-102.0500, 18.1000],  // Salida Puerto LC
-      [-101.9800, 18.2000],  // Arteaga aproximación
-      [-101.9000, 18.2800],  // Arteaga
-      [-101.8200, 18.3600],  // Centro Tierra Caliente norte
-      [-101.7400, 18.4400],  // Huetamo aproximación
-      [-101.6600, 18.5200],  // Huetamo
-      [-101.5800, 18.6200],  // Centro zona crítica
-      [-101.5200, 18.7200],  // Nueva Italia aproximación
-      [-101.5000, 18.8000],  // Nueva Italia
+      [-102.1300, 18.0500],  // La Mira (salida norte puerto)
+      [-102.2700, 18.3500],  // Arteaga (sobre hwy 37)
+      [-102.3500, 18.7000],  // Tierra Caliente central
+      [-102.3500, 19.0900],  // Apatzingán
+      [-102.1000, 19.0000],  // Nueva Italia
     ],
   },
   {
@@ -313,7 +309,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo con violencia',
     recommendations: ['Evitar paradas', 'Monitoreo GPS cada 10 min'],
-    waypoints: [[-101.5000, 18.8000], [-101.1900, 18.9200]],
+    waypoints: [[-102.1000, 19.0000], [-102.0600, 19.4200]],  // Nueva Italia → Uruapan (37)
   },
   {
     id: 'lc-cdmx-4',
@@ -326,7 +322,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Zona turística'],
-    waypoints: [[-101.1900, 18.9200], [-101.3000, 19.3500]],
+    waypoints: [[-102.0600, 19.4200], [-101.6100, 19.5200]],  // Uruapan → Pátzcuaro
   },
   {
     id: 'lc-cdmx-5',
@@ -339,7 +335,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '02:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Autopista segura'],
-    waypoints: [[-101.3000, 19.3500], [-101.2200, 19.6500]],  // Libramiento Sur Morelia
+    waypoints: [[-101.6100, 19.5200], [-101.1800, 19.7000]],  // Pátzcuaro → Libramiento Sur Morelia
   },
   {
     id: 'lc-cdmx-6',
@@ -352,7 +348,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar', 'Evitar paradas no programadas'],
-    waypoints: [[-101.2200, 19.6500], [-100.4500, 19.7200]],  // Desde Libramiento Sur Morelia
+    waypoints: [[-101.1800, 19.7000], [-100.4400, 19.8900]],  // Libramiento Sur Morelia → Maravatío
   },
   {
     id: 'lc-cdmx-7',
@@ -365,7 +361,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-04:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Corredor relativamente seguro'],
-    waypoints: [[-100.4500, 19.7200], [-100.2800, 19.6500]],
+    waypoints: [[-100.4400, 19.8900], [-99.8700, 19.8000]],  // Maravatío → Atlacomulco
   },
   {
     id: 'lc-cdmx-8',
@@ -378,7 +374,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-22:00',
     commonIncidentType: 'Robo urbano',
     recommendations: ['Evitar horario pico', 'Monitoreo GPS activo'],
-    waypoints: [[-100.2800, 19.6500], [-99.5300, 19.5500], [-99.1700, 19.4200]],
+    waypoints: [[-99.8700, 19.8000], [-99.6500, 19.2900], [-99.1700, 19.4200]],  // Atlacomulco → Toluca → CDMX
   },
 
   // ============================================================
@@ -435,7 +431,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       [-103.5800, 20.0500],  // Acatlán de Juárez (Macrolibramiento GUA-10D)
       [-103.3000, 20.1000],  // Macrolibramiento Sur (Tlajomulco)
       [-103.0600, 20.3700],  // Zapotlanejo Sur (salida este Macrolibramiento)
-      [-102.7500, 20.3300],  // Entronque La Barca
+      [-102.8200, 20.4200],  // 80D norte de Lago Chapala (NO cruzar lago)
       [-102.5700, 20.2900],  // La Barca
     ],
     routeType: 'cuota',
@@ -455,8 +451,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     waypoints: [
       [-102.5700, 20.2900],  // La Barca
       [-102.3200, 20.1500],  // Sahuayo
-      [-102.2800, 19.9800],  // Jiquilpan
-      [-102.2800, 19.8200],  // Zamora de Hidalgo
+      [-102.2800, 19.9800],  // Zamora de Hidalgo (sobre 15D)
     ],
     routeType: 'cuota',
     highwayDesignation: '15D',
@@ -473,11 +468,10 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Conecta con corredor Lázaro Cárdenas-CDMX en Morelia', 'Usar Libramiento Sur Morelia'],
     waypoints: [
-      [-102.2800, 19.8200],  // Zamora de Hidalgo
-      [-102.0500, 19.7800],  // Carapan
-      [-101.7800, 19.7200],  // Quiroga
-      [-101.4200, 19.6800],  // Entronque 15D/37D (Libramiento Sur Morelia)
-      [-101.2200, 19.6500],  // Libramiento Sur Morelia (conecta con lc-cdmx-6)
+      [-102.2800, 19.9800],  // Zamora de Hidalgo
+      [-102.0300, 19.8700],  // Carapan (sobre 15D)
+      [-101.5200, 19.6700],  // Quiroga (sobre 15D)
+      [-101.1800, 19.7000],  // Libramiento Sur Morelia (conecta con lc-cdmx-6)
     ],
     routeType: 'cuota',
     highwayDesignation: '15D',
@@ -1132,7 +1126,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo con violencia',
     recommendations: ['Evitar tránsito nocturno', 'Comunicación satelital recomendada'],
-    waypoints: [[-102.8700, 23.1700], [-101.5200, 22.8500], [-100.9800, 22.1500]],
+    waypoints: [[-102.8700, 23.1700], [-102.2700, 22.4100], [-101.3800, 22.1600], [-100.9800, 22.1500]],  // Fresnillo → Ojocaliente → Villa de Arriaga → SLP (Hwy 49)
   },
 
   // ============================================================
@@ -1149,7 +1143,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Evitar tránsito nocturno', 'Monitoreo GPS estándar'],
-    waypoints: [[-99.8900, 16.8500], [-100.3800, 17.6500]],
+    waypoints: [[-99.8900, 16.8500], [-100.5500, 17.4800], [-101.5500, 17.6400]],  // Acapulco → Petatlán → Zihuatanejo (Costera 200)
   },
   {
     id: 'costera-2',
@@ -1162,7 +1156,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo con violencia',
     recommendations: ['Evitar tránsito nocturno', 'Comunicación satelital recomendada'],
-    waypoints: [[-100.3800, 17.6500], [-101.5000, 17.9000], [-102.1690, 17.9270]],
+    waypoints: [[-101.5500, 17.6400], [-101.8500, 17.8200], [-102.1690, 17.9270]],  // Zihuatanejo → La Unión → LC (Costera 200)
   },
   {
     id: 'costera-3',
@@ -1175,7 +1169,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Costa relativamente segura'],
-    waypoints: [[-102.1690, 17.9270], [-103.2000, 18.5000], [-104.3100, 19.1100]],
+    waypoints: [[-102.1690, 17.9270], [-102.8500, 18.2200], [-103.5000, 18.7000], [-104.3100, 19.1100]],  // LC → Caleta de Campos → Coahuayana → Manzanillo (Costera 200)
   },
 
   // ============================================================
@@ -2048,7 +2042,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Salida GDL hacia costa', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.4500, 20.2000], [-103.7500, 20.8500], [-104.1000, 20.9200]],  // Macrolibramiento GDL salida noroeste
+    waypoints: [[-103.5000, 20.1300], [-103.7500, 20.8500], [-104.1000, 20.9200]],  // Macrolibramiento GDL sur-poniente (Acatlán) → Tequila
   },
   {
     id: 'nog-2',
@@ -2281,7 +2275,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Sierra serrana, baja cobertura', 'Monitoreo GPS estándar'],
-    waypoints: [[-104.2000, 21.0500], [-104.4500, 21.1500], [-104.6000, 21.2500]],
+    waypoints: [[-104.2000, 21.0500], [-104.4200, 21.1800], [-104.6200, 21.2400]],  // Sobre 15D Sierra de Nayarit
   },
   {
     id: 'gdl-tep-4',
