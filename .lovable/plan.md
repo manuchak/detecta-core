@@ -1,26 +1,38 @@
 
 
-# Fix: Efectividad de controles muestra 2% — campos incorrectos
+# Fix: QoQ debe ser promedio ponderado de meses, no cálculo independiente
 
-## Causa raíz
+## Problema
 
-El hook `useSecurityDashboard.ts` filtra `fillRateData` usando `r.anio` y `r.mes` (líneas 170-176), pero la tabla `siniestros_historico` **no tiene esas columnas**. Tiene una columna `fecha` (tipo date, ej: `2026-02-01`).
+QoQ calcula el DRF usando todo el rango del trimestre como un bloque monolítico. Esto introduce distorsiones porque:
+- La ventana de siniestralidad es 24 meses (vs 12 para MoM), inflando ese componente
+- La mitigación se diluye al incluir enero (sin checklists) en el denominador
+- El resultado (39) no es consistente con los meses individuales (25, 39, 35 → esperado ~33)
 
-Resultado: el filtro no matchea nada → `servicesInChecklistPeriod = 0` → cae al fallback `totalServicesAll = 22,523` (27 meses completos) → 381/22,523 = **2%**.
+## Solución
 
-## Datos reales en BD
+Para QoQ y YoY: calcular como **promedio ponderado por servicios** de los sub-periodos mensuales, no como cálculo independiente. Esto garantiza consistencia jerárquica: el trimestre refleja fielmente sus meses.
 
-| fecha | servicios_completados |
-|-------|----------------------|
-| 2026-02-01 | 850 |
+### Cambio en `useDetectaRiskFactor.ts`
 
-Solo hay 1 mes relevante (Feb 2026) con 850 servicios. El cálculo correcto: **381 / 850 = 45%**.
+En `calcForOffset`, cuando `period === 'QoQ'`:
+1. Obtener el rango del trimestre (from, to)
+2. Calcular el DRF de cada mes individual dentro del rango (reutilizando la lógica MoM)
+3. Promediar los scores ponderados por `servicios_completados` de cada mes
+4. El breakdown final es el promedio ponderado de los breakdowns mensuales
 
-## Corrección
+Para `YoY`: mismo principio, promedio ponderado de los 12 meses (o los que tengan datos).
 
-### `useSecurityDashboard.ts`
+```
+Q1-26 = (Jan_score × Jan_services + Feb_score × Feb_services + Mar_score × Mar_services) 
+         / (Jan_services + Feb_services + Mar_services)
+```
 
-1. **Query**: Ya trae `fecha` y `servicios_completados` pero el tipo TypeScript dice `mes, anio` — corregir el tipo a `{ fecha: string; servicios_completados: number }`.
-2. **Filtro**: Reemplazar `r.anio >= 2026 && r.mes >= 2` por `r.fecha >= '2026-02-01'` (comparación directa de fecha string).
-3. **Eliminar fallback engañoso**: Si no hay servicios en el periodo de checklists, mostrar `0%` o "Sin datos", no caer al total histórico.
+Esto produciría un Q1 cercano a ~33, coherente con los meses.
+
+### Archivo a modificar
+
+| Archivo | Cambio |
+|---------|--------|
+| `useDetectaRiskFactor.ts` | QoQ/YoY como promedio ponderado de sub-periodos mensuales |
 
