@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserRole } from "@/utils/authHelpers";
 import { normalizePhone } from "@/lib/phoneUtils";
+import { cleanupOrphanedPhotos } from "@/lib/offlineStorage";
 import DashboardHeroAlert from "./DashboardHeroAlert";
 import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
@@ -95,6 +96,11 @@ const MobileDashboardLayout = () => {
       findCustodioId();
     }
   }, [profile, findCustodioByPhone]);
+
+  // Garbage collection de fotos huérfanas al montar
+  useEffect(() => {
+    cleanupOrphanedPhotos().catch(() => {});
+  }, []);
 
   const loading = profileLoading || servicesLoading || ticketsLoading || maintenanceLoading;
 

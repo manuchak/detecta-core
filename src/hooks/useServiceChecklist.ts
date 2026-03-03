@@ -8,7 +8,7 @@
   import { toast } from 'sonner';
   import { useNetworkStatus } from './useNetworkStatus';
   import { withSmartRetry } from '@/lib/retryUtils';
- import {
+import {
   saveDraft,
   getDraft,
   deleteDraft,
@@ -17,6 +17,7 @@
   getPhotosByServicio,
   addToSyncQueue,
   deletePhotoBlob,
+  clearServiceData,
  } from '@/lib/offlineStorage';
 import { compressImage, needsCompression } from '@/lib/imageUtils';
 import {
@@ -77,17 +78,31 @@ export function useServiceChecklist({
        if (error) throw error;
        return data as ChecklistServicio | null;
      },
-     enabled: !!servicioId && !!custodioTelefono && isOnline,
-   });
+      enabled: !!servicioId && !!custodioTelefono,
+      retry: 1,
+      retryDelay: 2000,
+    });
  
-   // Cargar borrador offline o datos existentes
-   useEffect(() => {
-     const loadInitialData = async () => {
-       setIsLoadingDraft(true);
- 
-       try {
-         const draft = await getDraft(servicioId);
-         if (draft) {
+    // Limpiar drafts automáticamente si el checklist ya está completo en Supabase
+    useEffect(() => {
+      if (existingChecklistQuery.data?.estado === 'completo') {
+        clearServiceData(servicioId).catch(() => {});
+        // También limpiar localStorage del wizard
+        try {
+          localStorage.removeItem(`checklist_wizard_${servicioId}`);
+          sessionStorage.removeItem(`checklist_wizard_${servicioId}`);
+        } catch {}
+      }
+    }, [existingChecklistQuery.data?.estado, servicioId]);
+
+    // Cargar borrador offline o datos existentes
+    useEffect(() => {
+      const loadInitialData = async () => {
+        setIsLoadingDraft(true);
+
+        try {
+          const draft = await getDraft(servicioId);
+          if (draft) {
            setItems(draft.items);
            setObservaciones(draft.observaciones);
            if (draft.firma) setFirma(draft.firma);
@@ -309,9 +324,7 @@ export function useServiceChecklist({
           throw new Error('La firma digital es obligatoria');
         }
 
-        setIsSaving(true);
-
-        const now = new Date().toISOString();
+         const now = new Date().toISOString();
         const ubicacion = await getCurrentPositionSafe();
 
         const checklistData: Partial<ChecklistServicio> = {
