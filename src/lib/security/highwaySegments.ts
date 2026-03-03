@@ -87,6 +87,8 @@ export type SafeAreaSubtype =
   | 'punto_encuentro'
   | 'puesto_militar';
 
+export type OperationalCategory = 'pernocta' | 'descanso' | 'alerta' | 'referencia';
+
 export interface POI {
   id: string;
   name: string;
@@ -95,7 +97,30 @@ export interface POI {
   description: string;
   riskLevel?: RiskLevel;
   subtype?: SafeAreaSubtype; // Only for safe_area type
+  operationalCategory?: OperationalCategory; // explicit override
+  services?: string[]; // e.g. ['diesel', 'sanitarios', 'vigilancia_24h', 'estacionamiento_tracto']
 }
+
+/** Derive operational category from POI type/subtype (can be overridden per-POI) */
+export const getOperationalCategory = (poi: POI): OperationalCategory => {
+  if (poi.operationalCategory) return poi.operationalCategory;
+  switch (poi.type) {
+    case 'blackspot': return 'alerta';
+    case 'tollbooth': return 'referencia';
+    case 'junction': return 'referencia';
+    case 'industrial': return 'referencia';
+    case 'safe_area':
+      switch (poi.subtype) {
+        case 'gasolinera_vigilada': return 'descanso';
+        case 'area_descanso': return 'pernocta';
+        case 'punto_encuentro': return 'referencia';
+        case 'base_custodia': return 'referencia';
+        case 'puesto_militar': return 'referencia';
+        default: return 'referencia';
+      }
+    default: return 'referencia';
+  }
+};
 
 export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
   extremo: '#dc2626', // red-600
@@ -3994,6 +4019,10 @@ export const getSegmentsByCorridorId = (corridorId: string): HighwaySegment[] =>
 
 export const getPOIsByType = (type: POI['type']): POI[] => {
   return HIGHWAY_POIS.filter(p => p.type === type);
+};
+
+export const getPOIsByOperationalCategory = (category: OperationalCategory): POI[] => {
+  return HIGHWAY_POIS.filter(p => getOperationalCategory(p) === category);
 };
 
 export const getSegmentById = (segmentId: string): HighwaySegment | undefined => {
