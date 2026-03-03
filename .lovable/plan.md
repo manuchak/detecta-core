@@ -1,74 +1,49 @@
 
 
-# Diagnóstico: Checklists Rate incluye servicios futuros
+# Agregar todos los módulos al Acceso Rápido de /home
 
-## Problema confirmado
+## Problema
 
-En `src/hooks/usePerformanceDiario.ts`, línea 160:
+La sección "Acceso Rápido" del admin solo muestra 6 módulos: Dashboard BI, Candidatos, Planeación, Monitoreo, Inventario, Configuración. Faltan módulos como Facturación, CRM, Legal, Customer Success, Rutas, LMS, Seguridad, Perfiles, Estrategia, Tickets, Servicios, Instaladores, etc.
 
-```typescript
-checklistsRate: total > 0 ? Math.round((checklistsCompletados / total) * 100) : 0,
-```
+## Cambios
 
-El denominador es `total` = **todos** los servicios del día (00:00 - 23:59 CDMX), incluyendo servicios cuya cita aún no ha pasado. Si hoy hay 47 servicios pero solo 25 ya ocurrieron, el rate muestra 25/47 = 53% en vez de 25/25 = 100%.
+### Archivo: `src/config/roleHomeConfig.ts`
 
-El mismo problema existe en `src/hooks/usePerformanceHistorico.ts`, línea 96 (`computeGroupMetrics`), aunque ahí solo afecta al día actual (días pasados ya tienen todos sus servicios vencidos).
+1. Agregar las definiciones de módulos faltantes al objeto `MODULES`:
 
-**Comparación con On Time y OTIF**: Estos indicadores ya están protegidos naturalmente porque usan `evaluableCount` (solo cuentan servicios con `arrivalTime`), lo que excluye implícitamente servicios futuros sin llegada. Checklists no tiene esa protección.
+| ID | Label | Ruta | Icono |
+|---|---|---|---|
+| `facturacion` | Facturación | `/facturacion` | `Receipt` |
+| `crm` | CRM Hub | `/crm` | `Building2` |
+| `legal` | Legal | `/legal` | `Scale` |
+| `customerSuccess` | Customer Success | `/customer-success` | `HeartHandshake` |
+| `rutas` | Rutas | `/rutas` | `Route` |
+| `lms` | Capacitación | `/lms` | `GraduationCap` |
+| `seguridad` | Seguridad | `/seguridad` | `ShieldCheck` |
+| `perfiles` | Perfiles | `/perfiles-operativos` | `UserCog` |
+| `estrategia` | Estrategia | `/recruitment-strategy` | `Target` |
 
-## Plan de corrección
-
-### Archivo 1: `src/hooks/usePerformanceDiario.ts`
-
-**Cambio**: Filtrar servicios cuya `fecha_hora_cita` ya pasó (con tolerancia de 30 min) para el cálculo de `checklistsRate`. El numerador y denominador solo incluyen servicios "evaluables" para checklist.
-
-```typescript
-// Línea 151-160: Cambiar
-const now = new Date();
-const checklistEvaluable = services.filter(s => {
-  if (!s.fecha_hora_cita) return false;
-  return new Date(s.fecha_hora_cita).getTime() <= now.getTime();
-});
-const checklistsCompletados = checklistEvaluable.filter(s => s.checklist_completo).length;
-// ...
-checklistsRate: checklistEvaluable.length > 0 
-  ? Math.round((checklistsCompletados / checklistEvaluable.length) * 100) : 0,
-```
-
-### Archivo 2: `src/hooks/usePerformanceHistorico.ts`
-
-**Cambio**: En `computeGroupMetrics`, aplicar el mismo filtro temporal para `checklistsRate`. Para días pasados no cambia nada (todos los servicios ya vencieron). Para el día actual, excluye servicios futuros.
+2. Actualizar `admin.modules` para incluir **todos** los módulos del sistema:
 
 ```typescript
-const now = new Date();
-const checklistEvaluable = services.filter(s => {
-  if (!s.fecha_hora_cita) return false;
-  return new Date(s.fecha_hora_cita).getTime() <= now.getTime();
-});
-const conChecklist = checklistEvaluable.filter(s => s.checklistCompleto).length;
-// checklistsRate usa checklistEvaluable.length como denominador
+modules: [
+  'bi', 'leads', 'planeacion', 'services', 'monitoring',
+  'wms', 'facturacion', 'crm', 'customerSuccess', 'legal',
+  'rutas', 'lms', 'seguridad', 'perfiles', 'estrategia',
+  'tickets', 'installers', 'incidentes', 'reports', 'settings'
+]
 ```
 
-### Archivo 3: `src/components/monitoring/performance/PerformanceMetricCards.tsx`
+3. Actualizar `owner.modules` de forma similar (tiene los mismos privilegios).
 
-**Cambio**: Actualizar el subtitle del card de Checklists para mostrar cuántos servicios son evaluables vs total, dando transparencia al usuario.
+### Archivo: `src/components/home/ModuleGrid.tsx`
 
-```typescript
-subtitle={`${metricas.checklistsRate}% de ${metricas.checklistsEvaluables || metricas.totalServicios} evaluables`}
-```
-
-## Archivos a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/usePerformanceDiario.ts` | Filtrar servicios futuros del cálculo de checklistsRate |
-| `src/hooks/usePerformanceHistorico.ts` | Mismo filtro en computeGroupMetrics |
-| `src/components/monitoring/performance/PerformanceMetricCards.tsx` | Mostrar cantidad evaluable en subtitle |
+Ajustar el grid para acomodar más módulos: cambiar a `grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8` para que todos quepan sin scroll excesivo.
 
 ## Resultado
 
-- Checklists Rate solo refleja servicios cuya cita ya pasó
-- Un servicio de las 8 PM no penaliza el indicador a las 10 AM
-- El subtitle muestra "X% de Y evaluables" para transparencia
-- Días históricos no se ven afectados (todos sus servicios ya vencieron)
+- Admin y Owner ven acceso directo a todos los módulos del sistema (~20 módulos)
+- Otros roles mantienen sus módulos actuales sin cambios
+- Grid se adapta responsivamente al mayor número de módulos
 
