@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Shield, Activity, MapPin, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Shield, Activity, CheckCircle2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SecurityKPIs } from '@/hooks/security/useSecurityDashboard';
 
@@ -12,52 +12,73 @@ interface Recommendation {
 function generateRecommendations(kpis: SecurityKPIs): Recommendation[] {
   const recs: Recommendation[] = [];
 
-  if (kpis.controlEffectivenessRate < 60) {
+  // --- Siniestros streak ---
+  if (kpis.daysSinceLastSiniestro >= 30) {
     recs.push({
-      priority: 'alta',
-      icon: Activity,
-      text: `Efectividad de controles al ${kpis.controlEffectivenessRate}% — revisar protocolos de respuesta y capacitación ISO 28000 §8.`,
+      priority: 'baja',
+      icon: CheckCircle2,
+      text: `${kpis.daysSinceLastSiniestro} días sin siniestros — racha positiva. Mantener protocolo actual y reforzar buenas prácticas.`,
     });
-  } else if (kpis.controlEffectivenessRate < 80) {
-    recs.push({
-      priority: 'media',
-      icon: Activity,
-      text: `Controles al ${kpis.controlEffectivenessRate}% — incrementar supervisión en corredores con fallo recurrente.`,
-    });
-  }
-
-  if (kpis.daysSinceLastCritical < 7) {
+  } else if (kpis.daysSinceLastSiniestro < 7) {
     recs.push({
       priority: 'alta',
       icon: AlertTriangle,
-      text: `Solo ${kpis.daysSinceLastCritical} día(s) desde último incidente crítico — mantener alerta elevada y reforzar escoltas.`,
+      text: `Solo ${kpis.daysSinceLastSiniestro} día(s) desde último siniestro — mantener alerta elevada, reforzar escoltas en corredor afectado.`,
     });
-  }
-
-  if (kpis.servicesInRedZones > 3) {
-    recs.push({
-      priority: 'alta',
-      icon: MapPin,
-      text: `${kpis.servicesInRedZones} zonas en riesgo alto/extremo — evaluar rutas alternativas y comunicación satelital.`,
-    });
-  }
-
-  if (kpis.operativeCritical > 3) {
+  } else if (kpis.daysSinceLastSiniestro < 14) {
     recs.push({
       priority: 'media',
       icon: Shield,
-      text: `${kpis.operativeCritical} incidentes operativos críticos — priorizar auditoría de causas raíz.`,
+      text: `${kpis.daysSinceLastSiniestro} días desde último siniestro — mantener vigilancia incrementada en corredores recientes.`,
     });
   }
 
-  if (kpis.safePointsVerified < 5) {
+  // --- Control effectiveness (corrected period) ---
+  if (kpis.controlEffectivenessRate < 30) {
+    recs.push({
+      priority: 'alta',
+      icon: Activity,
+      text: `Efectividad de controles al ${kpis.controlEffectivenessRate}% (${kpis.effectivenessPeriodLabel}) — ${kpis.checklistsCompleted} checklists vs ${kpis.totalServicesInPeriod.toLocaleString()} servicios. Priorizar cobertura de checklists en custodias.`,
+    });
+  } else if (kpis.controlEffectivenessRate < 60) {
     recs.push({
       priority: 'media',
-      icon: CheckCircle2,
-      text: `Solo ${kpis.safePointsVerified} puntos seguros verificados — ampliar red de refugios certificados.`,
+      icon: Activity,
+      text: `Controles al ${kpis.controlEffectivenessRate}% (${kpis.effectivenessPeriodLabel}) — incrementar supervisión de checklists en servicios con ruta alto riesgo.`,
+    });
+  } else if (kpis.controlEffectivenessRate < 80) {
+    recs.push({
+      priority: 'baja',
+      icon: Activity,
+      text: `Controles al ${kpis.controlEffectivenessRate}% (${kpis.effectivenessPeriodLabel}) — buen avance, continuar consolidando cobertura.`,
     });
   }
 
+  // --- Siniestros recientes (90d) ---
+  if (kpis.siniestrosRecent > 3) {
+    recs.push({
+      priority: 'alta',
+      icon: AlertTriangle,
+      text: `${kpis.siniestrosRecent} siniestros en últimos 90 días — solicitar análisis de corredores con mayor concentración y evaluar refuerzo de escoltas.`,
+    });
+  } else if (kpis.siniestrosRecent > 0) {
+    recs.push({
+      priority: 'media',
+      icon: Shield,
+      text: `${kpis.siniestrosRecent} siniestro(s) en 90 días — monitorear tendencia y verificar que controles correctivos estén implementados.`,
+    });
+  }
+
+  // --- Risk zones (contextual, not raw count) ---
+  if (kpis.zonesHighRisk > 1000) {
+    recs.push({
+      priority: 'media',
+      icon: Clock,
+      text: `${kpis.zonesHighRisk.toLocaleString()} zonas H3 alto/extremo en red carretera nacional. Enfoque: priorizar corredores con siniestralidad real reciente, no cobertura total.`,
+    });
+  }
+
+  // Fallback
   if (recs.length === 0) {
     recs.push({
       priority: 'baja',
