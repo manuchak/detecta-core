@@ -7485,6 +7485,7 @@ export type Database = {
           created_at: string
           custodio_id: string | null
           descripcion: string
+          es_siniestro: boolean
           estado: string
           fecha_incidente: string
           fecha_resolucion: string | null
@@ -7516,6 +7517,7 @@ export type Database = {
           created_at?: string
           custodio_id?: string | null
           descripcion: string
+          es_siniestro?: boolean
           estado?: string
           fecha_incidente?: string
           fecha_resolucion?: string | null
@@ -7547,6 +7549,7 @@ export type Database = {
           created_at?: string
           custodio_id?: string | null
           descripcion?: string
+          es_siniestro?: boolean
           estado?: string
           fecha_incidente?: string
           fecha_resolucion?: string | null
@@ -16071,6 +16074,39 @@ export type Database = {
           risk_flags?: string[] | null
           scores?: Json
           user_id?: string
+        }
+        Relationships: []
+      }
+      siniestros_historico: {
+        Row: {
+          created_at: string
+          eventos_no_criticos: number
+          fecha: string
+          id: string
+          nota: string | null
+          servicios_completados: number
+          servicios_solicitados: number
+          siniestros: number
+        }
+        Insert: {
+          created_at?: string
+          eventos_no_criticos?: number
+          fecha: string
+          id?: string
+          nota?: string | null
+          servicios_completados?: number
+          servicios_solicitados?: number
+          siniestros?: number
+        }
+        Update: {
+          created_at?: string
+          eventos_no_criticos?: number
+          fecha?: string
+          id?: string
+          nota?: string | null
+          servicios_completados?: number
+          servicios_solicitados?: number
+          siniestros?: number
         }
         Relationships: []
       }

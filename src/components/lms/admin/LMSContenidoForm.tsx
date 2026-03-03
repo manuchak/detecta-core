@@ -261,7 +261,7 @@ export function LMSContenidoForm({
           descripcion: videoDescription || undefined,
           thumbnail_url: videoThumbnail || undefined,
           guion_generado: videoScript || undefined,
-        };
+        } as any;
       case 'documento':
         return { url: documentoUrl, tipo: getDocumentType(documentoUrl) };
       case 'texto_enriquecido':

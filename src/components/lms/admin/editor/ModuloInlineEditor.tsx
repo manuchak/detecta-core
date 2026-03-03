@@ -99,7 +99,7 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
     actualizarModulo.mutate({
       id: modulo.id,
       cursoId,
-      data: { titulo, descripcion: descripcion || undefined, activo },
+      data: { titulo, descripcion: descripcion || undefined, activo } as any,
     });
     setIsEditing(false);
   };

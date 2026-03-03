@@ -442,7 +442,7 @@ const LiberacionChecklistModal = ({
       yellow.push('Capacitación no completada');
     }
     // Constancia de capacitación faltante = YELLOW
-    if (progresoCapacitacion?.capacitacion_completa && documentosExistentes && !documentosExistentes.some(d => d.tipo_documento === 'constancia_capacitacion')) {
+    if (progresoCapacitacion?.capacitacion_completa && documentosExistentes && !documentosExistentes.some(d => (d.tipo_documento as string) === 'constancia_capacitacion')) {
       yellow.push('Constancia de capacitación sin evidencia adjunta');
     }
     // Estudio socioeconómico pendiente = YELLOW

@@ -104,6 +104,7 @@ interface RawIncident {
   controles_activos: string[] | null;
   control_efectivo: boolean | null;
   fecha_incidente: string;
+  es_siniestro: boolean;
 }
 
 interface RawService {
@@ -129,13 +130,18 @@ function calculateDRF(
   const totalServices = Math.max(services.length, 1);
 
   // 1. Incident Rate: atribuible incidents per 1000 services, normalized to 0-100
+  // Siniestros count 3x for rate calculation
   const atribuibles = incidents.filter(i => i.atribuible_operacion).length;
-  const rawRate = (atribuibles / totalServices) * 1000;
-  const incidentRate = Math.min(rawRate / 50 * 100, 100); // 50 per 1000 = 100%
+  const siniestroBonus = incidents.filter(i => i.es_siniestro).length * 2; // extra weight
+  const rawRate = ((atribuibles + siniestroBonus) / totalServices) * 1000;
+  const incidentRate = Math.min(rawRate / 50 * 100, 100);
 
-  // 2. Severity Index: weighted severity, normalized
+  // 2. Severity Index: weighted severity, siniestros get max weight
   const totalIncidents = Math.max(incidents.length, 1);
-  const weightedSum = incidents.reduce((sum, i) => sum + (SEVERITY_WEIGHTS[i.severidad] || 1), 0);
+  const weightedSum = incidents.reduce((sum, i) => {
+    const base = SEVERITY_WEIGHTS[i.severidad] || 1;
+    return sum + (i.es_siniestro ? Math.max(base, 4) : base);
+  }, 0);
   const maxPossible = totalIncidents * 4;
   const severityIndex = (weightedSum / maxPossible) * 100;
 
@@ -198,7 +204,7 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
       const [incidentsRes, servicesRes, zonesRes, safePointsRes] = await Promise.all([
         (supabase as any)
           .from('incidentes_operativos')
-          .select('severidad, atribuible_operacion, controles_activos, control_efectivo, fecha_incidente'),
+          .select('severidad, atribuible_operacion, controles_activos, control_efectivo, fecha_incidente, es_siniestro'),
         (supabase as any)
           .from('servicios_planificados')
           .select('id, fecha_hora_cita'),
