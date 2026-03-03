@@ -1,49 +1,49 @@
 
 
-# Agregar todos los módulos al Acceso Rápido de /home
+# Diagnóstico: GmvAccumulatedCard compara meses completos vs incompletos
 
 ## Problema
 
-La sección "Acceso Rápido" del admin solo muestra 6 módulos: Dashboard BI, Candidatos, Planeación, Monitoreo, Inventario, Configuración. Faltan módulos como Facturación, CRM, Legal, Customer Success, Rutas, LMS, Seguridad, Perfiles, Estrategia, Tickets, Servicios, Instaladores, etc.
-
-## Cambios
-
-### Archivo: `src/config/roleHomeConfig.ts`
-
-1. Agregar las definiciones de módulos faltantes al objeto `MODULES`:
-
-| ID | Label | Ruta | Icono |
-|---|---|---|---|
-| `facturacion` | Facturación | `/facturacion` | `Receipt` |
-| `crm` | CRM Hub | `/crm` | `Building2` |
-| `legal` | Legal | `/legal` | `Scale` |
-| `customerSuccess` | Customer Success | `/customer-success` | `HeartHandshake` |
-| `rutas` | Rutas | `/rutas` | `Route` |
-| `lms` | Capacitación | `/lms` | `GraduationCap` |
-| `seguridad` | Seguridad | `/seguridad` | `ShieldCheck` |
-| `perfiles` | Perfiles | `/perfiles-operativos` | `UserCog` |
-| `estrategia` | Estrategia | `/recruitment-strategy` | `Target` |
-
-2. Actualizar `admin.modules` para incluir **todos** los módulos del sistema:
+En `GmvAccumulatedCard.tsx`, línea 20:
 
 ```typescript
-modules: [
-  'bi', 'leads', 'planeacion', 'services', 'monitoring',
-  'wms', 'facturacion', 'crm', 'customerSuccess', 'legal',
-  'rutas', 'lms', 'seguridad', 'perfiles', 'estrategia',
-  'tickets', 'installers', 'incidentes', 'reports', 'settings'
-]
+.filter(d => d.year === year && d.month <= currentMonth)
 ```
 
-3. Actualizar `owner.modules` de forma similar (tiene los mismos privilegios).
+Hoy es 3 de marzo. `currentMonth = 3`, así que suma:
+- **2026**: Ene (completo) + Feb (completo) + Mar (**3 días**)
+- **2025**: Ene (completo) + Feb (completo) + Mar (**31 días**)
 
-### Archivo: `src/components/home/ModuleGrid.tsx`
+Resultado: servicios 2026 parecen -15.2% peor cuando en realidad Ene y Feb estuvieron por encima de 2025. Los ~28 días faltantes de marzo 2025 inflan artificialmente el denominador.
 
-Ajustar el grid para acomodar más módulos: cambiar a `grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8` para que todos quepan sin scroll excesivo.
+La etiqueta "Ene-Mar" refuerza la percepción errónea de que es una comparación justa.
 
-## Resultado
+## Solución
 
-- Admin y Owner ven acceso directo a todos los módulos del sistema (~20 módulos)
-- Otros roles mantienen sus módulos actuales sin cambios
-- Grid se adapta responsivamente al mayor número de módulos
+Cambiar la lógica para **excluir el mes en curso** y comparar solo meses completos. El mes en curso ya tiene su propia tarjeta MTD dedicada (`UnifiedGMVDashboard`), así que esta tarjeta YTD debe mostrar solo períodos cerrados.
+
+### Archivo: `src/components/executive/GmvAccumulatedCard.tsx`
+
+1. Cambiar el filtro de `d.month <= currentMonth` a `d.month < currentMonth` para ambos años
+2. Actualizar el `periodLabel` para reflejar el último mes completo (ej: "Ene-Feb" en lugar de "Ene-Mar")
+3. Agregar nota aclaratoria "Meses completos" en el subtitle
+4. Edge case: si `currentMonth === 1` (enero, sin meses completos), mostrar mensaje "Sin meses completos aún"
+
+### Cambio clave:
+
+```typescript
+// ANTES (compara mes incompleto vs completo)
+.filter(d => d.year === year && d.month <= currentMonth)
+// periodLabel: "Ene-Mar"
+
+// DESPUÉS (solo meses cerrados)
+.filter(d => d.year === year && d.month < currentMonth)
+// periodLabel: "Ene-Feb" + "(meses completos)"
+```
+
+### Resultado
+
+- YTD solo refleja períodos cerrados → comparación justa
+- El mes en curso se monitorea vía la tarjeta MTD existente
+- Elimina la falsa señal de declive en servicios
 
