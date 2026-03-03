@@ -10,6 +10,18 @@ export interface SecurityKPIs {
   daysSinceLastCritical: number;
   servicesInRedZones: number;
   complianceRate: number;
+  // New from incidentes_operativos
+  operativeIncidents: number;
+  operativeCritical: number;
+  controlEffectivenessRate: number;
+}
+
+export interface OperativeEvent {
+  tipo: string;
+  severidad: string;
+  fecha_incidente: string;
+  atribuible_operacion: boolean;
+  control_efectivo: boolean | null;
 }
 
 export function useSecurityDashboard() {
@@ -49,16 +61,31 @@ export function useSecurityDashboard() {
     },
   });
 
+  // NEW: Query incidentes_operativos for internal KPIs
+  const operativeQuery = useQuery({
+    queryKey: ['security-dashboard-operative'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('incidentes_operativos')
+        .select('tipo, severidad, fecha_incidente, atribuible_operacion, control_efectivo, controles_activos')
+        .order('fecha_incidente', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data as (OperativeEvent & { controles_activos: string[] | null })[];
+    },
+  });
+
   const zones = riskZonesQuery.data || [];
   const events = eventsQuery.data || [];
   const safePoints = safePointsQuery.data || [];
+  const operativeEvents = operativeQuery.data || [];
 
   const criticalEvents = events.filter(e => e.severity === 'critico' || e.severity === 'alto');
   const avgScore = zones.length > 0
     ? zones.reduce((sum, z) => sum + Number(z.final_score), 0) / zones.length
     : 0;
 
-  // Days since last critical event
+  // Days since last critical event (from security_events)
   const lastCritical = criticalEvents[0];
   const daysSince = lastCritical
     ? Math.floor((Date.now() - new Date(lastCritical.event_date).getTime()) / 86400000)
@@ -71,6 +98,14 @@ export function useSecurityDashboard() {
     bajo: zones.filter(z => z.risk_level === 'bajo').length,
   };
 
+  // Operative KPIs
+  const opCritical = operativeEvents.filter(e => e.severidad === 'critica' || e.severidad === 'alta');
+  const withControls = operativeEvents.filter(e => e.controles_activos && e.controles_activos.length > 0);
+  const controlEffective = withControls.filter(e => e.control_efectivo === true).length;
+  const controlEffectivenessRate = withControls.length > 0
+    ? Math.round((controlEffective / withControls.length) * 100)
+    : 0;
+
   const kpis: SecurityKPIs = {
     totalIncidents: events.length,
     criticalIncidents: criticalEvents.length,
@@ -79,14 +114,22 @@ export function useSecurityDashboard() {
     safePointsVerified: safePoints.filter(sp => sp.verification_status === 'verified').length,
     daysSinceLastCritical: daysSince,
     servicesInRedZones: zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length,
-    complianceRate: 0, // Phase 2
+    complianceRate: 0,
+    operativeIncidents: operativeEvents.length,
+    operativeCritical: opCritical.length,
+    controlEffectivenessRate,
   };
+
+  // Separate recent events by source
+  const recentOperative: OperativeEvent[] = operativeEvents.slice(0, 10);
+  const recentExternal = events.slice(0, 10);
 
   return {
     kpis,
     riskDistribution,
-    recentEvents: events.slice(0, 10),
-    isLoading: riskZonesQuery.isLoading || eventsQuery.isLoading || safePointsQuery.isLoading,
-    error: riskZonesQuery.error || eventsQuery.error || safePointsQuery.error,
+    recentEvents: recentExternal,
+    recentOperative,
+    isLoading: riskZonesQuery.isLoading || eventsQuery.isLoading || safePointsQuery.isLoading || operativeQuery.isLoading,
+    error: riskZonesQuery.error || eventsQuery.error || safePointsQuery.error || operativeQuery.error,
   };
 }
