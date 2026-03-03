@@ -252,26 +252,93 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
         YoY: 999,  // all history
       };
 
-      const calcForOffset = (period: TrendPeriod, offset: number) => {
-        const range = getPeriodRangeOffset(period, offset);
+      // Calculate DRF for a single month (MoM-style) at a given offset
+      const calcMonthlyDRF = (monthOffset: number) => {
+        const range = getPeriodRangeOffset('MoM', monthOffset);
+        const inc = filterIncidents(range.from, range.to);
+        const cl = filterChecklists(range.from, range.to);
+        const windowEnd = range.to;
+        const windowStart = subMonths(new Date(windowEnd), 12).toISOString().slice(0, 10);
+        const frWindow = fillRate.filter(m => m.fecha >= windowStart && m.fecha < windowEnd.slice(0, 10));
+        const frPeriod = filterFillRate(range.from, range.to);
+        const svcPeriod = frPeriod.reduce((s, m) => s + m.servicios_completados, 0);
+        const avgDailyServices = totalServicesAll > 0 ? totalServicesAll / Math.max(fillRate.length * 30, 1) : 1;
+        const periodDays = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 86400000);
+        const estimatedPeriodServices = svcPeriod > 0 ? svcPeriod : Math.round(avgDailyServices * periodDays);
+        const result = calculateDRF(inc, zones, frWindow, cl.length, Math.max(estimatedPeriodServices, 1));
+        return { ...result, services: Math.max(estimatedPeriodServices, 1) };
+      };
 
-        // STRICT temporal filtering — no fallbacks
+      const calcForOffset = (period: TrendPeriod, offset: number) => {
+        // For QoQ and YoY: weighted average of monthly sub-periods
+        if (period === 'QoQ' || period === 'YoY') {
+          const range = getPeriodRangeOffset(period, offset);
+          const rangeStart = new Date(range.from);
+          const rangeEnd = new Date(range.to);
+
+          // Enumerate months within the range
+          const monthResults: { score: number; services: number; breakdown: DRFBreakdown }[] = [];
+          const now = new Date();
+          let cursor = startOfMonth(rangeStart);
+
+          while (cursor < rangeEnd) {
+            // Convert cursor to a MoM offset from current month
+            const monthDiff = (now.getFullYear() - cursor.getFullYear()) * 12 + (now.getMonth() - cursor.getMonth());
+            if (monthDiff >= 0) {
+              const monthResult = calcMonthlyDRF(monthDiff);
+              monthResults.push(monthResult);
+            }
+            cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+          }
+
+          if (monthResults.length === 0) {
+            // Fallback: no months with data
+            return calculateDRF([], zones, [], 0, 1);
+          }
+
+          const totalServices = monthResults.reduce((s, m) => s + m.services, 0);
+
+          // Weighted average score
+          const weightedScore = totalServices > 0
+            ? monthResults.reduce((s, m) => s + m.score * m.services, 0) / totalServices
+            : monthResults.reduce((s, m) => s + m.score, 0) / monthResults.length;
+
+          // Weighted average breakdown
+          const weightedBreakdown: DRFBreakdown = {
+            incidentRate: 0, severityIndex: 0, exposureScore: 0, mitigationRate: 0, siniestralidad: 0,
+          };
+          for (const m of monthResults) {
+            const w = totalServices > 0 ? m.services / totalServices : 1 / monthResults.length;
+            weightedBreakdown.incidentRate += m.breakdown.incidentRate * w;
+            weightedBreakdown.severityIndex += m.breakdown.severityIndex * w;
+            weightedBreakdown.exposureScore += m.breakdown.exposureScore * w;
+            weightedBreakdown.mitigationRate += m.breakdown.mitigationRate * w;
+            weightedBreakdown.siniestralidad += m.breakdown.siniestralidad * w;
+          }
+
+          // Round
+          for (const key of Object.keys(weightedBreakdown) as (keyof DRFBreakdown)[]) {
+            weightedBreakdown[key] = Math.round(weightedBreakdown[key] * 10) / 10;
+          }
+
+          return {
+            score: Math.round(weightedScore * 10) / 10,
+            breakdown: weightedBreakdown,
+          };
+        }
+
+        // For DoD, WoW, MoM: direct calculation (original logic)
+        const range = getPeriodRangeOffset(period, offset);
         const inc = filterIncidents(range.from, range.to);
         const cl = filterChecklists(range.from, range.to);
 
-        // Siniestralidad: use a contextual window ending at range.to
         const windowMonths = contextWindowMonths[period];
         const windowEnd = range.to;
-        const windowStart = windowMonths >= 999
-          ? '1970-01-01'
-          : subMonths(new Date(windowEnd), windowMonths).toISOString().slice(0, 10);
+        const windowStart = subMonths(new Date(windowEnd), windowMonths).toISOString().slice(0, 10);
         const frWindow = fillRate.filter(m => m.fecha >= windowStart && m.fecha < windowEnd.slice(0, 10));
-        const svcWindow = frWindow.reduce((s, m) => s + m.servicios_completados, 0);
 
-        // Incident rate: normalize by services in the PERIOD (not global)
         const frPeriod = filterFillRate(range.from, range.to);
         const svcPeriod = frPeriod.reduce((s, m) => s + m.servicios_completados, 0);
-        // Estimate daily services for periods shorter than a month (DoD, WoW)
         const avgDailyServices = totalServicesAll > 0 ? totalServicesAll / Math.max(fillRate.length * 30, 1) : 1;
         const periodDays = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 86400000);
         const estimatedPeriodServices = svcPeriod > 0 ? svcPeriod : Math.round(avgDailyServices * periodDays);
