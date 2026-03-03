@@ -384,18 +384,18 @@ export const useSIERCP = () => {
       (entrevista * 0.05)
     )));
 
+    // Clasificación alineada con umbrales operativos del semáforo DB (70/50)
+    // Esto garantiza consistencia entre el reporte AI y el badge de semáforo
     const getClassification = (score: number): string => {
-      if (score >= 88) return 'Sin riesgo';      // Actualizado con puntos de corte empíricos
-      if (score >= 75) return 'Riesgo bajo';     // Basados en análisis ROC
-      if (score >= 60) return 'Riesgo moderado'; // Optimizados para sector seguridad
-      return 'Riesgo alto';
+      if (score >= 70) return 'Sin riesgo significativo';  // Verde en semáforo
+      if (score >= 50) return 'Riesgo moderado';           // Ámbar en semáforo
+      return 'Riesgo alto';                                // Rojo en semáforo
     };
 
     const getRecommendation = (score: number): string => {
-      if (score >= 88) return 'Contratar sin restricciones';
-      if (score >= 75) return 'Contratar con seguimiento estándar';
-      if (score >= 60) return 'Requiere evaluación adicional y supervisión estrecha';
-      return 'No recomendado para roles críticos de seguridad';
+      if (score >= 70) return 'Apto - Contratar con seguimiento estándar';
+      if (score >= 50) return 'Requiere aval de Coordinación y supervisión estrecha';
+      return 'No apto - No recomendado para roles de seguridad';
     };
 
     // Cálculo de percentiles y niveles de riesgo por módulo

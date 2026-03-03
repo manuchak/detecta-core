@@ -146,12 +146,8 @@ export default function SIERCPAssessmentPage() {
       const results = calculateLocalResults();
       console.log('[SIERCP-Assessment] ✅ Resultados calculados:', results);
       
-      const getResultadoSemaforo = (score: number): string => {
-        if (score >= 88) return 'verde';
-        if (score >= 75) return 'amarillo';
-        if (score >= 60) return 'naranja';
-        return 'rojo';
-      };
+      // NOTE: No calculamos semaforo en frontend - el DB trigger es la única fuente de verdad
+      // El trigger calculate_semaforo_psicometrico() usa umbrales 70/50 y sobreescribe cualquier valor
 
       // Single atomic RPC call - handles insert + invitation update
       const { data: evaluacionId, error: rpcError } = await supabase
@@ -165,7 +161,7 @@ export default function SIERCPAssessmentPage() {
           p_score_veracidad: results.veracidad,
           p_score_entrevista: results.entrevista,
           p_score_global: results.globalScore,
-          p_resultado_semaforo: getResultadoSemaforo(results.globalScore),
+          p_resultado_semaforo: 'verde',  // Placeholder - DB trigger always overwrites
           p_interpretacion: `Evaluación SIERCP completada. Score global: ${results.globalScore}/100`
         });
 
