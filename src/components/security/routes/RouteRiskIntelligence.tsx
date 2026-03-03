@@ -4,8 +4,14 @@ import { RiskZonesMapLayers, type LayerVisibility } from '../map/RiskZonesMapLay
 import { HighRiskSegmentsList } from '../map/HighRiskSegmentsList';
 import { RiskZonesHeader } from '../map/RiskZonesHeader';
 import { Button } from '@/components/ui/button';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { PanelRightClose, PanelRightOpen, FileText, Loader2 } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
+import { toast } from 'sonner';
 import type { HighwaySegment } from '@/lib/security/highwaySegments';
+import { fetchRouteAnalysisData } from '@/hooks/security/useRouteAnalysisData';
+import { RouteAnalysisReport } from '../reports/RouteAnalysisReport';
 
 export function RouteRiskIntelligence() {
   const [layers, setLayers] = useState<LayerVisibility>({
@@ -18,6 +24,12 @@ export function RouteRiskIntelligence() {
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
 
+  // Report dialog state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportOrigen, setReportOrigen] = useState('');
+  const [reportDestino, setReportDestino] = useState('');
+  const [generating, setGenerating] = useState(false);
+
   const toggleLayer = useCallback((key: keyof LayerVisibility) => {
     setLayers(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
@@ -26,9 +38,79 @@ export function RouteRiskIntelligence() {
     setSelectedSegmentId(seg?.id || null);
   }, []);
 
+  const handleGenerateReport = async () => {
+    if (!reportOrigen.trim() || !reportDestino.trim()) {
+      toast.error('Ingresa origen y destino');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const data = await fetchRouteAnalysisData(reportOrigen.trim(), reportDestino.trim());
+      const blob = await pdf(<RouteAnalysisReport data={data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Analisis_Ruta_${reportOrigen.trim().replace(/\s+/g, '_')}_${reportDestino.trim().replace(/\s+/g, '_')}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Informe generado exitosamente');
+      setReportOpen(false);
+    } catch (err: any) {
+      console.error('Report generation error:', err);
+      toast.error('Error al generar informe: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <div className="shrink-0"><RiskZonesHeader /></div>
+      <div className="shrink-0 flex items-center justify-between">
+        <RiskZonesHeader />
+        <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <FileText className="h-3.5 w-3.5" />
+              Generar Informe de Ruta
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-sm">Generar Informe de Análisis de Ruta</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Origen</label>
+                <Input
+                  placeholder="Ej: Guadalajara"
+                  value={reportOrigen}
+                  onChange={(e) => setReportOrigen(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Destino</label>
+                <Input
+                  placeholder="Ej: Ciudad de México"
+                  value={reportDestino}
+                  onChange={(e) => setReportDestino(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                El informe incluye: DRF del corredor, historial de incidentes operativos,
+                inteligencia RRSS, zonas de riesgo y recomendaciones ISO 28000.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleGenerateReport} disabled={generating} size="sm" className="gap-1.5">
+                {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                {generating ? 'Generando...' : 'Generar PDF'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <div className={`grid grid-cols-1 ${panelOpen ? 'md:grid-cols-[1fr_260px]' : ''} gap-3 flex-1 min-h-0 mt-1`} style={{ minHeight: 0, gridTemplateRows: '1fr' }}>
         {/* Map with layer overlay */}
@@ -38,7 +120,6 @@ export function RouteRiskIntelligence() {
             selectedSegmentId={selectedSegmentId}
             onSegmentSelect={handleSegmentSelect}
           />
-          {/* Toggle panel button */}
           <Button
             variant="outline"
             size="icon"
@@ -48,13 +129,11 @@ export function RouteRiskIntelligence() {
           >
             {panelOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
           </Button>
-          {/* Layer controls as overlay */}
           <div className="absolute top-2 right-2 z-10">
             <RiskZonesMapLayers layers={layers} onToggle={toggleLayer} />
           </div>
         </div>
 
-        {/* Right panel - Segments list */}
         {panelOpen && (
           <div className="border rounded-lg p-3 bg-background overflow-hidden">
             <HighRiskSegmentsList
