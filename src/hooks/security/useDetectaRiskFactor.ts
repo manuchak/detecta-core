@@ -68,31 +68,32 @@ const SEVERITY_WEIGHTS: Record<string, number> = {
 
 function getPeriodRangeOffset(period: TrendPeriod, offset: number): { from: string; to: string } {
   const now = new Date();
+  const nowIso = now.toISOString();
   switch (period) {
     case 'DoD': {
       const base = subDays(startOfDay(now), offset);
       const end = subDays(startOfDay(now), offset - 1);
-      return { from: base.toISOString(), to: end.toISOString() };
+      return { from: base.toISOString(), to: offset === 0 ? nowIso : end.toISOString() };
     }
     case 'WoW': {
       const base = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), offset);
       const end = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), offset - 1);
-      return { from: base.toISOString(), to: end.toISOString() };
+      return { from: base.toISOString(), to: offset === 0 ? nowIso : end.toISOString() };
     }
     case 'MoM': {
       const base = subMonths(startOfMonth(now), offset);
       const end = subMonths(startOfMonth(now), offset - 1);
-      return { from: base.toISOString(), to: end.toISOString() };
+      return { from: base.toISOString(), to: offset === 0 ? nowIso : end.toISOString() };
     }
     case 'QoQ': {
       const base = subQuarters(startOfQuarter(now), offset);
       const end = subQuarters(startOfQuarter(now), offset - 1);
-      return { from: base.toISOString(), to: end.toISOString() };
+      return { from: base.toISOString(), to: offset === 0 ? nowIso : end.toISOString() };
     }
     case 'YoY': {
       const base = subYears(startOfYear(now), offset);
       const end = subYears(startOfYear(now), offset - 1);
-      return { from: base.toISOString(), to: end.toISOString() };
+      return { from: base.toISOString(), to: offset === 0 ? nowIso : end.toISOString() };
     }
   }
 }
