@@ -257,13 +257,16 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 480,
     avgEventsPerHex: 5,
     waypoints: [
-      [-102.1690, 17.9270],
-      [-101.1900, 18.9200],
-      [-101.2200, 19.6500],  // Libramiento Sur Morelia
-      [-100.4500, 19.7200],
-      [-100.2800, 19.6500],
-      [-99.5300, 19.5500],
-      [-99.1700, 19.4200],
+      [-102.1690, 17.9270],  // Puerto LC
+      [-102.2700, 18.3500],  // Arteaga (Hwy 37)
+      [-102.1000, 19.0000],  // Nueva Italia
+      [-102.0600, 19.4200],  // Uruapan
+      [-101.6100, 19.5200],  // Pátzcuaro
+      [-101.1800, 19.7000],  // Libramiento Sur Morelia
+      [-100.4400, 19.8900],  // Maravatío
+      [-99.8700, 19.8000],   // Atlacomulco
+      [-99.6500, 19.2900],   // Toluca
+      [-99.1700, 19.4200],   // CDMX
     ],
   },
   {
@@ -275,10 +278,11 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     avgEventsPerHex: 6,
     waypoints: [
       [-102.3500, 21.8200],  // Libramiento Ags poniente
-      [-102.5700, 22.7700],
-      [-102.2800, 23.1900],
-      [-101.5200, 22.8500],
-      [-100.9800, 22.1500],
+      [-102.5700, 22.7700],  // Zacatecas
+      [-102.8700, 23.1700],  // Fresnillo
+      [-102.2700, 22.4100],  // Ojocaliente (Hwy 49)
+      [-101.3800, 22.1600],  // Villa de Arriaga
+      [-100.9800, 22.1500],  // SLP
     ],
   },
   {
@@ -389,11 +393,11 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 780,
     avgEventsPerHex: 4,
     waypoints: [
-      [-96.1342, 19.2033],
-      [-97.0500, 20.5300],
-      [-98.2000, 21.1500],
-      [-99.1500, 22.2500],
-      [-100.9800, 22.1500],
+      [-96.1342, 19.2033],   // Puerto Veracruz
+      [-97.0500, 20.5300],   // Poza Rica
+      [-98.7800, 21.2600],   // Tamazunchale (sobre 85)
+      [-99.0100, 21.9900],   // Ciudad Valles
+      [-100.9800, 22.1500],  // SLP
       [-100.3500, 25.6200],  // Periférico MTY
     ],
   },
@@ -405,10 +409,14 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 650,
     avgEventsPerHex: 3,
     waypoints: [
-      [-99.8900, 16.8500],
-      [-100.3800, 17.6500],
-      [-102.1690, 17.9270],
-      [-104.3100, 19.1100],
+      [-99.8900, 16.8500],   // Acapulco
+      [-100.5500, 17.4800],  // Petatlán
+      [-101.5500, 17.6400],  // Zihuatanejo
+      [-101.8500, 17.8200],  // La Unión
+      [-102.1690, 17.9270],  // Lázaro Cárdenas
+      [-102.8500, 18.2200],  // Caleta de Campos
+      [-103.5000, 18.7000],  // Coahuayana
+      [-104.3100, 19.1100],  // Manzanillo
     ],
   },
   {
@@ -434,7 +442,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     avgEventsPerHex: 3,
     waypoints: [
       [-99.1700, 19.4200],
-      [-103.4500, 20.2000],  // Macrolibramiento GDL oeste (no entra a ciudad)
+      [-103.5000, 20.1300],  // Macrolibramiento GDL sur-poniente (Acatlán)
       [-105.2500, 21.5000],
       [-106.4200, 23.2300],
       [-107.4000, 24.8000],
