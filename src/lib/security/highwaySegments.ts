@@ -19,6 +19,7 @@ export interface HighwaySegment {
   waypoints: [number, number][]; // [lng, lat]
   routeType?: RouteType;
   highwayDesignation?: string;
+  expectedRoadKm?: number; // Real road distance (overrides kmEnd-kmStart for auditing)
 }
 
 // Corridor-level metadata for routeType and highway designation
@@ -3182,6 +3183,37 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     highwayDesignation: '45',
   },
 ];
+
+// ============================================================
+// CALIBRACIÓN: Distancias reales de carretera (Mapbox verificado)
+// Para segmentos donde kmEnd-kmStart NO refleja la distancia real
+// ============================================================
+export const EXPECTED_ROAD_KM: Record<string, number> = {
+  'qro-jua-6': 826,
+  'qro-jua-10': 476,
+  'gdl-tep-3': 245,
+  'lc-cdmx-2': 285,
+  'mty-sal-2': 146,
+  'altiplano-3': 316,
+  'slp-mat-6': 240,
+  'slp-mat-3': 174,
+  'mty-mat-2': 309,
+  'mza-tam-2': 270,
+  'mza-cdmx-3': 235,
+  'mex-pue-3': 100,
+  'tux-oax-6': 369,
+  'mty-rey-4': 120,
+  'costera-3': 530,
+  'mer-can-2': 206,
+  'nog-tij-4': 201,
+};
+
+// Apply expectedRoadKm from calibration map
+HIGHWAY_SEGMENTS.forEach(seg => {
+  if (EXPECTED_ROAD_KM[seg.id]) {
+    seg.expectedRoadKm = EXPECTED_ROAD_KM[seg.id];
+  }
+});
 
 export const HIGHWAY_POIS: POI[] = [
   // === POIs CORREDOR MANZANILLO-CDMX (15D) ===
