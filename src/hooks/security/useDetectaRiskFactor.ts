@@ -278,10 +278,20 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
         return calculateDRF(inc, zones, frWindow, cl.length, Math.max(estimatedPeriodServices, 1));
       };
 
+      // Determine earliest date with real data
+      const earliestDataDate = fillRate.length > 0 ? fillRate[0].fecha : null;
+      const earliestIncidentDate = allIncidents.length > 0
+        ? allIncidents.reduce((min, i) => i.fecha_incidente < min ? i.fecha_incidente : min, allIncidents[0].fecha_incidente)
+        : null;
+      const earliestDate = earliestDataDate || earliestIncidentDate || '2024-01';
+
       const periods: TrendPeriod[] = ['DoD', 'WoW', 'MoM', 'QoQ', 'YoY'];
       const trends: DRFTrend[] = periods.map(period => {
         const history: DRFHistoryPoint[] = [];
         for (let offset = 0; offset < HISTORY_DEPTH; offset++) {
+          const range = getPeriodRangeOffset(period, offset);
+          // Skip periods that fall entirely before the earliest data
+          if (range.to.slice(0, 7) <= earliestDate.slice(0, 7) && offset > 0) break;
           const result = calcForOffset(period, offset);
           history.push({
             label: getPeriodLabel(period, offset),
@@ -290,8 +300,10 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
           });
         }
 
+        if (history.length === 0) return null;
+
         const current = history[0].score;
-        const previous = history[1].score;
+        const previous = history.length > 1 ? history[1].score : current;
         const change = current - previous;
         const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
 
@@ -311,7 +323,7 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
           breakdown: currentResult.breakdown,
           history,
         };
-      });
+      }).filter((t): t is DRFTrend => t !== null);
 
       return { global, trends, fillRate, zones };
     },
