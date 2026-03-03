@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { Info } from 'lucide-react';
 
 interface RiskDistributionChartProps {
   distribution: {
@@ -38,6 +39,14 @@ export function RiskDistributionChart({ distribution, intelByLevel }: RiskDistri
 
   return (
     <div className="space-y-3">
+      {/* Context note */}
+      <div className="flex items-start gap-1.5 text-[9px] text-muted-foreground bg-muted/30 rounded px-2 py-1.5">
+        <Info className="h-3 w-3 mt-0.5 shrink-0" />
+        <span>
+          {total.toLocaleString()} zonas H3 sobre la red carretera nacional. Representa cobertura estructural, no rutas activas del periodo.
+        </span>
+      </div>
+
       {/* Stacked bar */}
       <div className="h-3 rounded-full overflow-hidden flex bg-muted">
         {LEVELS.map(({ key, color }) => {
@@ -61,8 +70,8 @@ export function RiskDistributionChart({ distribution, intelByLevel }: RiskDistri
             </div>
             <span className="text-[10px] font-bold text-foreground w-6 text-right">{zones}</span>
             {intelByLevel && (
-              <span className="text-[9px] text-muted-foreground w-12 text-right" title="Eventos de inteligencia">
-                +{intel} intel
+              <span className="text-[9px] text-muted-foreground w-16 text-right" title="Eventos OSINT (fuentes abiertas: RRSS, web)">
+                +{intel} OSINT
               </span>
             )}
           </div>
@@ -71,10 +80,10 @@ export function RiskDistributionChart({ distribution, intelByLevel }: RiskDistri
 
       {/* Summary */}
       <div className="flex items-center justify-between pt-1 border-t border-border/50">
-        <span className="text-[10px] text-muted-foreground">{total} zonas monitoreadas</span>
+        <span className="text-[10px] text-muted-foreground">{total.toLocaleString()} zonas en red nacional</span>
         {intelByLevel && (
           <span className="text-[10px] text-muted-foreground">
-            {Object.values(intelByLevel).reduce((s, v) => s + v, 0)} eventos intel
+            {Object.values(intelByLevel).reduce((s, v) => s + v, 0)} eventos OSINT
           </span>
         )}
       </div>

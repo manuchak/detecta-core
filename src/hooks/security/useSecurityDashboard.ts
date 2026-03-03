@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, subDays } from 'date-fns';
+import { format, subDays, differenceInDays } from 'date-fns';
 
 export interface SecurityKPIs {
   totalIncidents: number;
@@ -9,7 +9,8 @@ export interface SecurityKPIs {
   zonesMonitored: number;
   safePointsVerified: number;
   daysSinceLastCritical: number;
-  servicesInRedZones: number;
+  /** Total H3 zones alto+extremo in national network (structural) */
+  zonesHighRisk: number;
   complianceRate: number;
   // Operative
   operativeIncidents: number;
@@ -18,6 +19,14 @@ export interface SecurityKPIs {
   // Checklist-based
   checklistsCompleted: number;
   totalServicesInPeriod: number;
+  /** Human-readable label for the effectiveness period */
+  effectivenessPeriodLabel: string;
+  /** Siniestros streak in days */
+  daysSinceLastSiniestro: number;
+  /** Number of siniestros in last 90 days */
+  siniestrosRecent: number;
+  // Legacy compat
+  servicesInRedZones: number;
 }
 
 export interface OperativeEvent {
@@ -32,6 +41,12 @@ export interface DailyIncidentEntry {
   date: string;
   count: number;
   maxSeverity: string;
+  /** Count of only siniestros (robberies) this day */
+  siniestroCount: number;
+  /** Count of operative incidents that are NOT siniestros */
+  operativeCount: number;
+  /** Count of external intel events */
+  intelCount: number;
 }
 
 export function useSecurityDashboard() {
@@ -98,16 +113,16 @@ export function useSecurityDashboard() {
     },
   });
 
-  // Fill rate for total services
+  // Fill rate for total services — with monthly breakdown
   const fillRateQuery = useQuery({
     queryKey: ['security-dashboard-fillrate'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('siniestros_historico')
-        .select('servicios_completados')
+        .select('mes, anio, servicios_completados')
         .limit(100);
       if (error) throw error;
-      return data as { servicios_completados: number }[];
+      return data as { mes: number; anio: number; servicios_completados: number }[];
     },
   });
 
@@ -123,7 +138,7 @@ export function useSecurityDashboard() {
     ? zones.reduce((sum, z) => sum + Number(z.final_score), 0) / zones.length
     : 0;
 
-  // Days since last SINIESTRO (real critical = robbery/loss), not zone events
+  // Days since last SINIESTRO (real critical = robbery/loss)
   const now = new Date();
   const lastSiniestro = operativeEvents.find(e => e.es_siniestro === true);
   const daysSinceSiniestro = lastSiniestro
@@ -142,12 +157,42 @@ export function useSecurityDashboard() {
   const recentOperativeEvents = operativeEvents.filter(e => e.fecha_incidente >= ninetyDaysAgo);
   const opCriticalRecent = recentOperativeEvents.filter(e => e.es_siniestro === true);
 
-  // Control Effectiveness from checklist_servicio
-  const totalServicesAll = fillRateData.reduce((s, r) => s + r.servicios_completados, 0);
+  // =========================================================================
+  // CONTROL EFFECTIVENESS — Corrected: only count services from checklist era
+  // Checklists started Feb 12 2026. We compare checklists vs services in that
+  // same window, not against 27 months of historical data.
+  // =========================================================================
+  const CHECKLIST_START = '2026-02-12';
+  const checklistStartDate = new Date(CHECKLIST_START);
   const checklistsCompleted = checklists.length;
-  const controlEffectivenessRate = totalServicesAll > 0
-    ? Math.round((checklistsCompleted / totalServicesAll) * 100)
+
+  // Filter fillRate rows to months >= Feb 2026
+  const servicesInChecklistPeriod = fillRateData
+    .filter(r => {
+      if (r.anio > 2026) return true;
+      if (r.anio === 2026 && r.mes >= 2) return true;
+      return false;
+    })
+    .reduce((s, r) => s + r.servicios_completados, 0);
+
+  // If no monthly breakdown available, estimate from daily average
+  const totalServicesAll = fillRateData.reduce((s, r) => s + r.servicios_completados, 0);
+  const effectiveDenominator = servicesInChecklistPeriod > 0
+    ? servicesInChecklistPeriod
+    : totalServicesAll; // fallback
+
+  const controlEffectivenessRate = effectiveDenominator > 0
+    ? Math.round((checklistsCompleted / effectiveDenominator) * 100)
     : 0;
+
+  // Period label
+  const daysSinceChecklistStart = differenceInDays(now, checklistStartDate);
+  const weeksLabel = Math.ceil(daysSinceChecklistStart / 7);
+  const effectivenessPeriodLabel = weeksLabel <= 8
+    ? `Últimas ${weeksLabel} semanas (desde 12-Feb)`
+    : `Desde Feb 2026`;
+
+  const zonesHighRisk = zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length;
 
   const kpis: SecurityKPIs = {
     totalIncidents: events.length,
@@ -156,48 +201,66 @@ export function useSecurityDashboard() {
     zonesMonitored: zones.length,
     safePointsVerified: safePoints.filter(sp => sp.verification_status === 'verified').length,
     daysSinceLastCritical: daysSinceSiniestro,
-    servicesInRedZones: zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length,
+    zonesHighRisk,
+    servicesInRedZones: zonesHighRisk, // legacy compat
     complianceRate: 0,
     operativeIncidents: operativeEvents.length,
     operativeCritical: opCriticalRecent.length,
     controlEffectivenessRate,
     checklistsCompleted,
-    totalServicesInPeriod: totalServicesAll,
+    totalServicesInPeriod: effectiveDenominator,
+    effectivenessPeriodLabel,
+    daysSinceLastSiniestro: daysSinceSiniestro,
+    siniestrosRecent: opCriticalRecent.length,
   };
 
-  // Heatmap: daily incident counts last 28 days
+  // =========================================================================
+  // HEATMAP: Separate siniestros / operative / intel per day
+  // =========================================================================
   const heatmapData: DailyIncidentEntry[] = (() => {
-    const map = new Map<string, { count: number; maxSev: string }>();
+    const map = new Map<string, { count: number; maxSev: string; siniestroCount: number; operativeCount: number; intelCount: number }>();
     const sevOrder: Record<string, number> = { critica: 4, alta: 3, media: 2, baja: 1, critico: 4, alto: 3, medio: 2, bajo: 1 };
+
+    // Operative events
     for (const e of operativeEvents) {
       const d = e.fecha_incidente?.slice(0, 10);
       if (!d) continue;
-      const existing = map.get(d);
-      const sevVal = sevOrder[e.severidad] || 0;
-      if (!existing) {
-        map.set(d, { count: 1, maxSev: e.severidad });
+      const existing = map.get(d) || { count: 0, maxSev: '', siniestroCount: 0, operativeCount: 0, intelCount: 0 };
+      existing.count++;
+      if (e.es_siniestro) {
+        existing.siniestroCount++;
       } else {
-        existing.count++;
-        if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severidad;
+        existing.operativeCount++;
       }
+      const sevVal = sevOrder[e.severidad] || 0;
+      if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severidad;
+      map.set(d, existing);
     }
+
+    // External intel events
     for (const e of events) {
       const d = e.event_date?.slice(0, 10);
       if (!d) continue;
-      const existing = map.get(d);
+      const existing = map.get(d) || { count: 0, maxSev: '', siniestroCount: 0, operativeCount: 0, intelCount: 0 };
+      existing.count++;
+      existing.intelCount++;
       const sevVal = sevOrder[e.severity] || 0;
-      if (!existing) {
-        map.set(d, { count: 1, maxSev: e.severity });
-      } else {
-        existing.count++;
-        if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severity;
-      }
+      if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severity;
+      map.set(d, existing);
     }
+
     const result: DailyIncidentEntry[] = [];
     for (let i = 27; i >= 0; i--) {
       const key = format(subDays(now, i), 'yyyy-MM-dd');
       const entry = map.get(key);
-      result.push({ date: key, count: entry?.count ?? 0, maxSeverity: entry?.maxSev ?? '' });
+      result.push({
+        date: key,
+        count: entry?.count ?? 0,
+        maxSeverity: entry?.maxSev ?? '',
+        siniestroCount: entry?.siniestroCount ?? 0,
+        operativeCount: entry?.operativeCount ?? 0,
+        intelCount: entry?.intelCount ?? 0,
+      });
     }
     return result;
   })();

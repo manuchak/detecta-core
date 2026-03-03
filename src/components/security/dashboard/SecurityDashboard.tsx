@@ -97,7 +97,7 @@ export function SecurityDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
-              Distribución de Riesgo
+              Cobertura de Riesgo — Red Nacional
             </CardTitle>
           </CardHeader>
           <CardContent>
