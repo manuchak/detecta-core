@@ -119,7 +119,6 @@ export function useCSCartera() {
         const salud = calcSalud({ quejas_abiertas, dias_sin_contacto, servicios_90d });
         const segment = calcSegment({ activo: c.activo, salud, servicios_90d });
 
-        const csmData = (c as any).csm;
         return {
           id: c.id,
           nombre: c.nombre,
@@ -136,7 +135,7 @@ export function useCSCartera() {
           salud,
           segment,
           csm_asignado: (c as any).csm_asignado || null,
-          csm_nombre: csmData?.display_name || null,
+          csm_nombre: (c as any).csm_asignado ? (profilesMap[(c as any).csm_asignado] || null) : null,
           ultimo_touchpoint: lastTp || null,
         };
       });
