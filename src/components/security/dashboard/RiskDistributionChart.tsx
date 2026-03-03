@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface RiskDistributionChartProps {
   distribution: {
@@ -8,32 +8,23 @@ interface RiskDistributionChartProps {
     medio: number;
     bajo: number;
   };
+  intelByLevel?: {
+    extremo: number;
+    alto: number;
+    medio: number;
+    bajo: number;
+  };
 }
 
-const COLORS = {
-  extremo: '#ef4444',
-  alto: '#f97316',
-  medio: '#eab308',
-  bajo: '#22c55e',
-};
+const LEVELS = [
+  { key: 'extremo' as const, label: 'Extremo', color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400' },
+  { key: 'alto' as const, label: 'Alto', color: 'bg-orange-500', textColor: 'text-orange-600 dark:text-orange-400' },
+  { key: 'medio' as const, label: 'Medio', color: 'bg-yellow-500', textColor: 'text-yellow-600 dark:text-yellow-400' },
+  { key: 'bajo' as const, label: 'Bajo', color: 'bg-green-500', textColor: 'text-green-600 dark:text-green-400' },
+];
 
-const LABELS: Record<string, string> = {
-  extremo: 'Extremo',
-  alto: 'Alto',
-  medio: 'Medio',
-  bajo: 'Bajo',
-};
-
-export function RiskDistributionChart({ distribution }: RiskDistributionChartProps) {
-  const data = Object.entries(distribution)
-    .filter(([, value]) => value > 0)
-    .map(([key, value]) => ({
-      name: LABELS[key],
-      value,
-      color: COLORS[key as keyof typeof COLORS],
-    }));
-
-  const total = data.reduce((sum, d) => sum + d.value, 0);
+export function RiskDistributionChart({ distribution, intelByLevel }: RiskDistributionChartProps) {
+  const total = Object.values(distribution).reduce((s, v) => s + v, 0);
 
   if (total === 0) {
     return (
@@ -43,35 +34,50 @@ export function RiskDistributionChart({ distribution }: RiskDistributionChartPro
     );
   }
 
+  const maxZones = Math.max(...Object.values(distribution), 1);
+
   return (
-    <div className="h-40">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={30}
-            outerRadius={55}
-            dataKey="value"
-            stroke="none"
-          >
-            {data.map((entry, index) => (
-              <Cell key={index} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value: number, name: string) => [`${value} zonas`, name]}
-            contentStyle={{
-              fontSize: '11px',
-              borderRadius: '6px',
-              border: '1px solid hsl(var(--border))',
-              background: 'hsl(var(--popover))',
-              color: 'hsl(var(--popover-foreground))',
-            }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="space-y-3">
+      {/* Stacked bar */}
+      <div className="h-3 rounded-full overflow-hidden flex bg-muted">
+        {LEVELS.map(({ key, color }) => {
+          const pct = (distribution[key] / total) * 100;
+          if (pct === 0) return null;
+          return <div key={key} className={cn('h-full transition-all', color)} style={{ width: `${pct}%` }} />;
+        })}
+      </div>
+
+      {/* Breakdown rows */}
+      {LEVELS.map(({ key, label, color, textColor }) => {
+        const zones = distribution[key];
+        const intel = intelByLevel?.[key] ?? 0;
+        const barWidth = (zones / maxZones) * 100;
+
+        return (
+          <div key={key} className="flex items-center gap-2">
+            <span className={cn('text-[10px] font-medium w-14', textColor)}>{label}</span>
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${barWidth}%` }} />
+            </div>
+            <span className="text-[10px] font-bold text-foreground w-6 text-right">{zones}</span>
+            {intelByLevel && (
+              <span className="text-[9px] text-muted-foreground w-12 text-right" title="Eventos de inteligencia">
+                +{intel} intel
+              </span>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Summary */}
+      <div className="flex items-center justify-between pt-1 border-t border-border/50">
+        <span className="text-[10px] text-muted-foreground">{total} zonas monitoreadas</span>
+        {intelByLevel && (
+          <span className="text-[10px] text-muted-foreground">
+            {Object.values(intelByLevel).reduce((s, v) => s + v, 0)} eventos intel
+          </span>
+        )}
+      </div>
     </div>
   );
 }
