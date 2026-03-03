@@ -1,49 +1,35 @@
 
 
-# Diagnóstico: GmvAccumulatedCard compara meses completos vs incompletos
+# Implementaci\u00f3n del Plan de Maduraci\u00f3n del M\u00f3dulo de Seguridad
 
-## Problema
+El plan ya fue presentado y aprobado. El usuario seleccion\u00f3:
+- **Prioridad**: Todo secuencial (Bloque 1→2→3→4→5→6)
+- **Visibilidad DRF**: Solo en M\u00f3dulo de Seguridad
 
-En `GmvAccumulatedCard.tsx`, línea 20:
+Solicito aprobaci\u00f3n para iniciar la implementaci\u00f3n del **Bloque 1**: Factor de Riesgo Detecta (DRF) + Tarjeta DRF + Mejoras al Dashboard de Risk Posture.
 
-```typescript
-.filter(d => d.year === year && d.month <= currentMonth)
-```
+## Bloque 1 - Archivos a crear/modificar
 
-Hoy es 3 de marzo. `currentMonth = 3`, así que suma:
-- **2026**: Ene (completo) + Feb (completo) + Mar (**3 días**)
-- **2025**: Ene (completo) + Feb (completo) + Mar (**31 días**)
+### Crear: `src/hooks/security/useDetectaRiskFactor.ts`
+- Query paralelo a `incidentes_operativos`, `servicios_planificados`, `risk_zone_scores`, `safe_points`
+- C\u00e1lculo DRF = 30% IncidentRate + 25% SeverityIndex + 20% ControlFailure + 15% Exposure - 10% Mitigation
+- Tendencias DoD/WoW/MoM/QoQ/YoY comparando periodos actual vs anterior
+- Retorna: `currentDRF`, `riskLevel`, `breakdown`, `trends`
 
-Resultado: servicios 2026 parecen -15.2% peor cuando en realidad Ene y Feb estuvieron por encima de 2025. Los ~28 días faltantes de marzo 2025 inflan artificialmente el denominador.
+### Crear: `src/components/security/dashboard/DetectaRiskFactorCard.tsx`
+- Score gauge (0-100) con color por nivel de riesgo
+- Selector de periodo (DoD/WoW/MoM/QoQ/YoY)
+- Badge de tendencia con direcci\u00f3n (mejorando/estable/empeorando)
+- Breakdown expandible con los 5 componentes del DRF
 
-La etiqueta "Ene-Mar" refuerza la percepción errónea de que es una comparación justa.
+### Modificar: `src/components/security/dashboard/SecurityDashboard.tsx`
+- Agregar DRF como primera tarjeta prominente (span 2 columnas)
+- Agregar tarjeta "Control Effectiveness" (% de control_efectivo=true)
+- Separar "Ultimos Eventos" en dos fuentes: operativos propios vs RRSS
+- Subtexto en "Incidentes Cr\u00edticos": desglosar fuente (operativos/zonas H3)
 
-## Solución
-
-Cambiar la lógica para **excluir el mes en curso** y comparar solo meses completos. El mes en curso ya tiene su propia tarjeta MTD dedicada (`UnifiedGMVDashboard`), así que esta tarjeta YTD debe mostrar solo períodos cerrados.
-
-### Archivo: `src/components/executive/GmvAccumulatedCard.tsx`
-
-1. Cambiar el filtro de `d.month <= currentMonth` a `d.month < currentMonth` para ambos años
-2. Actualizar el `periodLabel` para reflejar el último mes completo (ej: "Ene-Feb" en lugar de "Ene-Mar")
-3. Agregar nota aclaratoria "Meses completos" en el subtitle
-4. Edge case: si `currentMonth === 1` (enero, sin meses completos), mostrar mensaje "Sin meses completos aún"
-
-### Cambio clave:
-
-```typescript
-// ANTES (compara mes incompleto vs completo)
-.filter(d => d.year === year && d.month <= currentMonth)
-// periodLabel: "Ene-Mar"
-
-// DESPUÉS (solo meses cerrados)
-.filter(d => d.year === year && d.month < currentMonth)
-// periodLabel: "Ene-Feb" + "(meses completos)"
-```
-
-### Resultado
-
-- YTD solo refleja períodos cerrados → comparación justa
-- El mes en curso se monitorea vía la tarjeta MTD existente
-- Elimina la falsa señal de declive en servicios
+### Modificar: `src/hooks/security/useSecurityDashboard.ts`
+- Agregar query a `incidentes_operativos` para KPIs basados en datos propios
+- Calcular `controlEffectivenessRate` desde incidentes operativos
+- Separar `recentEvents` en dos arrays: operativos y security_events
 
