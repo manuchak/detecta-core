@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { initializeMapboxToken } from '@/lib/mapbox';
-import { HIGHWAY_SEGMENTS, HIGHWAY_POIS, RISK_LEVEL_COLORS, CORRIDOR_ROUTE_INFO, getSegmentRouteType, getSegmentHighwayDesignation, type HighwaySegment, type RiskLevel, type RouteType } from '@/lib/security/highwaySegments';
+import { HIGHWAY_SEGMENTS, HIGHWAY_POIS, RISK_LEVEL_COLORS, CORRIDOR_ROUTE_INFO, getSegmentRouteType, getSegmentHighwayDesignation, getOperationalCategory, type HighwaySegment, type RiskLevel, type RouteType, type OperationalCategory } from '@/lib/security/highwaySegments';
 import { CELLULAR_DEAD_ZONES } from '@/lib/security/cellularCoverage';
 import { useSafePoints } from '@/hooks/security/useSafePoints';
 import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
@@ -22,12 +22,11 @@ interface RiskZonesMapProps {
   onSegmentSelect?: (segment: HighwaySegment | null) => void;
 }
 
-const POI_COLORS: Record<string, string> = {
-  blackspot: '#dc2626',
-  tollbooth: '#6366f1',
-  junction: '#f59e0b',
-  safe_area: '#22c55e',
-  industrial: '#8b5cf6',
+const OPERATIONAL_STYLES: Record<OperationalCategory, { color: string; radius: number; opacity: number; strokeWidth: number; label: string; icon: string }> = {
+  alerta:     { color: '#ef4444', radius: 7, opacity: 1,   strokeWidth: 2, label: '⚠️ NO detenerse', icon: '🔴' },
+  pernocta:   { color: '#3b82f6', radius: 6, opacity: 0.9, strokeWidth: 2, label: '✅ Puede pernoctar', icon: '🛏️' },
+  descanso:   { color: '#22c55e', radius: 4, opacity: 0.85, strokeWidth: 1, label: '⛽ Parada breve', icon: '⛽' },
+  referencia: { color: '#9ca3af', radius: 3, opacity: 0.6, strokeWidth: 1, label: 'ℹ️ Referencia', icon: '📍' },
 };
 
 export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: RiskZonesMapProps) {
@@ -241,18 +240,30 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
       });
     }
 
-    // POIs
-    const poiFeatures = HIGHWAY_POIS.map(poi => ({
-      type: 'Feature' as const,
-      properties: {
-        id: poi.id,
-        name: poi.name,
-        type: poi.type,
-        color: POI_COLORS[poi.type] || '#888',
-        description: poi.description,
-      },
-      geometry: { type: 'Point' as const, coordinates: poi.coordinates },
-    }));
+    // POIs — differentiated by operational category
+    const poiFeatures = HIGHWAY_POIS.map(poi => {
+      const cat = getOperationalCategory(poi);
+      const style = OPERATIONAL_STYLES[cat];
+      return {
+        type: 'Feature' as const,
+        properties: {
+          id: poi.id,
+          name: poi.name,
+          type: poi.type,
+          subtype: poi.subtype || '',
+          category: cat,
+          color: style.color,
+          radius: style.radius,
+          opacity: style.opacity,
+          strokeWidth: style.strokeWidth,
+          description: poi.description,
+          services: JSON.stringify(poi.services || []),
+          catLabel: style.label,
+          catIcon: style.icon,
+        },
+        geometry: { type: 'Point' as const, coordinates: poi.coordinates },
+      };
+    });
 
     if (!m.getSource('pois')) {
       m.addSource('pois', {
@@ -260,15 +271,31 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
         data: { type: 'FeatureCollection', features: poiFeatures },
       });
 
+      // Alerta: pulsing glow ring
+      m.addLayer({
+        id: 'pois-alerta-glow',
+        type: 'circle',
+        source: 'pois',
+        filter: ['==', ['get', 'category'], 'alerta'],
+        paint: {
+          'circle-radius': 12,
+          'circle-color': '#ef4444',
+          'circle-opacity': 0.2,
+          'circle-blur': 0.8,
+        },
+      });
+
+      // Main circle for all POIs — data-driven
       m.addLayer({
         id: 'pois-circle',
         type: 'circle',
         source: 'pois',
         paint: {
-          'circle-radius': 5,
+          'circle-radius': ['get', 'radius'],
           'circle-color': ['get', 'color'],
+          'circle-opacity': ['get', 'opacity'],
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 1,
+          'circle-stroke-width': ['get', 'strokeWidth'],
         },
       });
     }
@@ -341,20 +368,19 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     m.on('click', 'pois-circle', (e) => {
       if (!e.features?.[0]) return;
       const props = e.features[0].properties!;
-      const typeLabels: Record<string, string> = {
-        blackspot: '⚠️ Punto Negro',
-        tollbooth: '🏗️ Caseta',
-        junction: '🔀 Entronque',
-        safe_area: '✅ Zona Segura',
-        industrial: '🏭 Industrial',
-      };
+      const services = JSON.parse(props.services || '[]');
+      const servicesHtml = services.length
+        ? `<div style="margin-top:4px;font-size:10px;color:#9ca3af;">🔧 ${services.join(' · ')}</div>`
+        : '';
       const html = `
         <div style="max-width:260px;font-size:12px;">
           <div style="font-weight:600;margin-bottom:4px;">${props.name}</div>
-          <div style="margin-bottom:4px;">
-            <span style="background:${POI_COLORS[props.type] || '#888'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${typeLabels[props.type] || props.type}</span>
+          <div style="margin-bottom:4px;display:flex;gap:6px;align-items:center;">
+            <span style="background:${props.color};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;">${props.catLabel}</span>
+            ${props.subtype ? `<span style="font-size:10px;color:#9ca3af;">${props.subtype.replace(/_/g, ' ')}</span>` : ''}
           </div>
           <div style="color:#d1d5db;">${props.description || ''}</div>
+          ${servicesHtml}
         </div>
       `;
       popupRef.current?.remove();
@@ -443,6 +469,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     set('segments-selected-outline', layers.segments);
     set('segments-labels', layers.labels);
     set('pois-circle', layers.pois);
+    set('pois-alerta-glow', layers.pois);
     set('safe-points-circle', layers.safePoints);
     set('dead-zones-fill', layers.deadZones);
     set('dead-zones-outline', layers.deadZones);
@@ -507,6 +534,15 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
               <svg width="16" height="2"><line x1="0" y1="1" x2="16" y2="1" stroke="hsl(var(--foreground))" strokeWidth="2" strokeDasharray="6,2,2,2" /></svg>
               <span className="text-muted-foreground">Mixta</span>
             </div>
+          </div>
+          <div className="border-t pt-0.5 mt-0.5">
+            <div className="font-semibold text-foreground text-[9px]">POIs Operativos</div>
+            {(Object.entries(OPERATIONAL_STYLES) as [OperationalCategory, typeof OPERATIONAL_STYLES[OperationalCategory]][]).map(([cat, style]) => (
+              <div key={cat} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color, opacity: style.opacity }} />
+                <span className="text-muted-foreground text-[8px]">{style.icon} {cat.charAt(0).toUpperCase() + cat.slice(1)}</span>
+              </div>
+            ))}
           </div>
           <div className="border-t pt-0.5 mt-0.5">
             <div className="flex items-center gap-1">
