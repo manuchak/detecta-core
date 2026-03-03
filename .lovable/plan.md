@@ -1,107 +1,74 @@
 
 
-# Corregir rutas de carga: libramientos y macrolibramientos en todas las ciudades
+# Corrección de ruta Manzanillo → Cuautitlán (15D)
 
-## El problema real
+## Análisis: Google Maps vs sistema actual
 
-Tienes razon. Un tractocamion que viene de Manzanillo **nunca entra a Guadalajara** — toma el **Macrolibramiento Sur (GUA-10D, 111km)** desde Acatlan de Juarez hasta Zapotlanejo. Actualmente los waypoints del segmento `mza-tam-2` pasan por `[-103.3000, 20.2800]` y `[-103.2600, 20.5200]`, que son coordenadas del periferico urbano, no del macrolibramiento que pasa por el sur (~20.1-20.3 lat).
-
-Este error se repite en **todas las ciudades principales** del sistema. Los corredores pasan "por el centro" de cada ciudad como si fueran autos particulares, no carga pesada.
-
-## Ciudades afectadas y libramientos reales
-
-Investigacion de infraestructura carretera actual para transporte de carga:
-
+La ruta real de Google Maps (796km, 15D) sigue:
 ```text
-Ciudad              Libramiento real                  Estado actual en sistema
-─────────────────────────────────────────────────────────────────────────────
-Guadalajara         Macrolibramiento Sur (GUA-10D)    Pasa por periferico urbano
-                    111km, cuota, Acatlan-Zapotlanejo
-Queretaro           Macrolibramiento Qro (Centenario) Pasa por centro urbano
-                    86km, cuota, Palmillas-Apaseo
-CDMX/ZMVM           Arco Norte + CEM                  Ya existe como corredor
-                    (unico que esta bien modelado)     separado ✓
-Celaya              Libramiento Sur + Nororiente       Corredor Bajio pasa por
-                    30km, cuota                        centro
-Leon                Libramiento Leon (45D bypass)      Corredor Bajio pasa por
-                    ~25km                              centro  
-Puebla              Periferico Ecologico + Arco Norte  Corredor Cordoba-Puebla
-                    conexion sur                       termina en centro urbano
-Morelia             Libramiento Sur                    Corredor LC-CDMX pasa
-                    4.3km, tuneles+viaducto            por centro
-SLP                 Libramiento SLP (periférico)       Corredor SLP-Hub ya usa
-                    ~30km                              periferico parcial
-Aguascalientes      Libramiento Poniente               Corredor Altiplano pasa
-                    ~20km, cuota                       por centro
-Saltillo            Libramiento Saltillo (periférico)  Corredor 40D pasa por
-                    ~25km                              centro urbano
-Monterrey           Anillo Periferico / Lib. Colombia  Corredor MTY-NL pasa
-                    ~40km                              por centro
-Chihuahua           Libramiento Chihuahua              Corredor Qro-Juarez pasa
-                    ~35km                              por centro
-Torreon             Periferico Raul Lopez Sanchez      Corredor Maz-Dur-Tor
-                    ~30km                              termina en centro
-Tuxtla Gutierrez    Libramiento Norte/Sur              Corredor Tuxtla-Oaxaca
-                    modernizado                        pasa por centro
-Tepic               Libramiento Tepic                  Corredor GDL-Tepic
-                    ~15km                              termina en centro
-Oaxaca              Libramiento Oaxaca                 Corredor Puebla-Oaxaca
-                    ~20km                              termina en centro
-Toluca              Libramiento Toluca                 Corredor Mex-Toluca
-                    ~15km                              termina en centro
+Manzanillo → Colima → Acatlán (Macrolib GDL sur) → La Barca → 
+Zamora de Hidalgo → Morelia (Lib. Sur) → Maravatío → Atlacomulco → 
+Toluca (Lib.) → Cuautitlán/CDMX
 ```
 
-## Plan de implementacion
+### Errores encontrados
 
-### A. Corregir waypoints de segmentos existentes (~25 segmentos)
+**1. Tramo faltante Macrolibramiento Este → Zamora → Morelia**
+El sistema tiene `mza-tam-2` que va de Colima al Macrolibramiento GDL y sale por **Zapotlanejo Norte** (hacia Lagos de Moreno/Tampico). Pero para ir a CDMX, el tracto sale del Macrolibramiento por el **este hacia La Barca**, toma la 15D por Zamora y conecta con Morelia. Este tramo (~180km) **no existe** en ningún segmento ni corredor.
 
-Para cada ciudad afectada, reemplazar las coordenadas urbanas por las del libramiento real. Ejemplo concreto para Guadalajara:
+**2. No hay forma de rutear Manzanillo → CDMX**
+El corredor `lazaro-cardenas-cdmx` empieza en LC (Uruapan → Morelia → CDMX), pero no conecta con Manzanillo. El corredor `guadalajara-colima` conecta GDL con Manzanillo pero no con Morelia. Resultado: no hay cadena de segmentos para la ruta más transitada por carga de puerto.
 
-**Antes** (periferico urbano):
+**3. Waypoints del corredor `guadalajara-colima` inconsistentes**
+El waypoint `[-103.4800, 20.5200]` cae dentro de GDL urbano, contradice el estándar de libramientos.
+
+**4. Segmento `mza-tam-2` cubre demasiado (100km Colima → Macrolib)**
+Google Maps muestra que este tramo pasa por zonas de sierra (Atenquique/barrancas) que merecen segmentación separada por riesgo.
+
+## Plan de corrección
+
+### A. Crear corredor `manzanillo-cdmx` (15D, ~450km)
+
+Nuevo corredor que represente la ruta real de carga Manzanillo → CDMX vía 15D:
+```text
+Manzanillo → Colima → Macrolib GDL (sur) → La Barca → Zamora → 
+Libramiento Morelia → [conecta con lc-cdmx-6 en Maravatío]
 ```
-mza-tam-2: [-103.3000, 20.2800], [-103.2600, 20.5200]  ← centro GDL
-```
 
-**Despues** (macrolibramiento sur):
-```
-mza-tam-2: [-103.5800, 20.1500], [-103.3500, 20.2000],  ← Acatlan
-           [-103.1500, 20.3200]                          ← Zapotlanejo sur
-```
+Con ~5 segmentos nuevos:
+| Segmento | Tramo | Km | Riesgo |
+|---|---|---|---|
+| mza-cdmx-1 | Manzanillo - Colima | 0-100 | medio |
+| mza-cdmx-2 | Colima - Macrolib GDL (Acatlán) | 100-210 | bajo |
+| mza-cdmx-3 | Macrolib GDL Sur - La Barca | 210-300 | bajo |
+| mza-cdmx-4 | La Barca - Zamora | 300-370 | medio |
+| mza-cdmx-5 | Zamora - Lib. Morelia (entronque 15D/37D) | 370-450 | medio |
 
-Se corregiran los waypoints de los siguientes segmentos por ciudad:
+A partir de Morelia, la ruta usa los segmentos existentes `lc-cdmx-6` (Morelia-Maravatío), `lc-cdmx-7` (Maravatío-Atlacomulco), `lc-cdmx-8` (Atlacomulco-Toluca-CDMX).
 
-| Ciudad | Segmentos a corregir | Libramiento |
-|---|---|---|
-| Guadalajara | `mza-tam-2`, `mza-tam-2b`, `nog-1`, `gdl-lag-1`, `gdl-tep-1` + corredor `guadalajara-colima` waypoints | Macrolibramiento GUA-10D |
-| Queretaro | `cdmx-qro-4` (si existe), corredor `mexico-queretaro` waypoint final | Macrolib. Centenario |
-| Celaya/Leon | Segmentos `bajio-industrial` | Lib. Celaya + Lib. Leon |
-| Morelia | Segmentos `lazaro-cardenas-cdmx` que pasan por Morelia | Lib. Sur Morelia |
-| Puebla | `cor-pue-4` y corredor waypoints | Periferico Ecologico |
-| Monterrey | Segmentos corredor `laredo-monterrey`, `torreon-monterrey` | Anillo Periferico MTY |
-| Saltillo | Segmentos `slp-mat-7`, `monterrey-saltillo` | Lib. Saltillo |
-| Chihuahua | `qro-jua-8`, `qro-jua-9` | Lib. Chihuahua |
-| Torreon | Segmentos `mazatlan-durango-torreon` | Periferico Lopez Sanchez |
-| Aguascalientes | `qro-jua-2`, `qro-jua-3` | Lib. Poniente Ags |
-| Tepic | `gdl-tep-4` | Lib. Tepic |
-| Toluca | Corredor `mexico-toluca` waypoint final | Lib. Toluca |
+### B. Corregir corredor `guadalajara-colima`
 
-### B. Actualizar corridors (highwayCorridors.ts)
+Arreglar waypoints para que sigan el Macrolibramiento correctamente sin pasar por zona urbana GDL.
 
-Los waypoints de los corredores tambien pasan por centros urbanos. Corregir ~12 corredores para que sus waypoints sigan los libramientos.
+### C. Ajustar segmento `mza-tam-2`
 
-### C. Re-enriquecer geometrias
+Renombrar/clarificar que este segmento es la ruta hacia **Tampico** (norte por Zapotlanejo), no hacia CDMX.
 
-Despues de corregir waypoints, invocar `enrich-segment-geometries` para los ~25 segmentos modificados. Esto hara que Mapbox trace la ruta real por el libramiento.
+### D. Agregar POIs del tramo nuevo
 
-### D. Agregar POIs de libramientos
+- Entronque La Barca (decisión: norte a Lagos o este a Zamora) → `referencia`
+- Caseta Zamora 15D → `referencia`  
+- Gasolinera La Barca → `descanso`
 
-Agregar ~10 POIs tipo `referencia` para los entronques de libramientos mas importantes (donde el operador decide si entra a ciudad o sigue de paso).
+### E. Re-enriquecer geometrías
+
+Invocar `enrich-segment-geometries` para los ~5 segmentos nuevos + correcciones.
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/security/highwaySegments.ts` | Corregir waypoints de ~25 segmentos para usar libramientos; agregar ~10 POIs de entronques |
-| `src/lib/security/highwayCorridors.ts` | Corregir waypoints de ~12 corredores |
-| Edge function `enrich-segment-geometries` | Invocar para re-procesar segmentos corregidos |
+| `src/lib/security/highwaySegments.ts` | Crear ~5 segmentos `mza-cdmx-*`, agregar POIs La Barca/Zamora |
+| `src/lib/security/highwayCorridors.ts` | Crear corredor `manzanillo-cdmx`; corregir waypoints `guadalajara-colima` |
+| Edge function `enrich-segment-geometries` | Invocar para nuevos segmentos |
 
