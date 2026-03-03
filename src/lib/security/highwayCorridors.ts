@@ -337,16 +337,18 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     id: 'guadalajara-colima',
     name: 'Guadalajara-Manzanillo',
     riskLevel: 'medio',
-    description: 'Conexión al Puerto de Manzanillo',
+    description: 'Conexión al Puerto de Manzanillo vía Macrolibramiento GDL',
     kilometers: 300,
     avgEventsPerHex: 4,
     waypoints: [
-      [-103.5800, 20.1300],  // Macrolibramiento GDL (Acatlán de Juárez)
-      [-103.4800, 20.5200],
-      [-103.7600, 20.2100],
-      [-103.9800, 19.9200],
-      [-104.2200, 19.5800],
-      [-104.3100, 19.1100],
+      [-103.0600, 20.3700],  // Macrolibramiento GDL este (Zapotlanejo)
+      [-103.3000, 20.1000],  // Macrolibramiento Sur (Tlajomulco)
+      [-103.5800, 20.0500],  // Acatlán de Juárez (sur Macrolibramiento)
+      [-103.6200, 19.7200],  // Sayula
+      [-103.6800, 19.4500],  // Atenquique
+      [-103.7200, 19.2400],  // Colima
+      [-103.9400, 19.1800],  // Tecomán
+      [-104.3100, 19.1100],  // Puerto Manzanillo
     ],
   },
   {
@@ -656,6 +658,32 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-110.9600, 30.3000],  // Magdalena
       [-110.9500, 30.6300],  // Santa Ana
       [-110.9400, 31.3100],  // Nogales
+    ],
+  },
+
+  // === CORREDOR: Manzanillo-CDMX (15D vía Zamora/Morelia) ===
+  {
+    id: 'manzanillo-cdmx',
+    name: 'Manzanillo-CDMX (15D)',
+    riskLevel: 'medio',
+    description: 'Ruta principal de carga Puerto Manzanillo → CDMX vía 15D. Macrolibramiento GDL → La Barca → Zamora → Morelia → Maravatío → Toluca',
+    kilometers: 800,
+    avgEventsPerHex: 3,
+    waypoints: [
+      [-104.3100, 19.1100],  // Puerto Manzanillo
+      [-103.7200, 19.2400],  // Colima
+      [-103.6200, 19.7200],  // Sayula
+      [-103.5800, 20.0500],  // Acatlán (inicio Macrolibramiento)
+      [-103.3000, 20.1000],  // Macrolibramiento Sur GDL
+      [-103.0600, 20.3700],  // Zapotlanejo Sur
+      [-102.5700, 20.2900],  // La Barca
+      [-102.2800, 19.8200],  // Zamora de Hidalgo
+      [-101.7800, 19.7200],  // Quiroga
+      [-101.2200, 19.6500],  // Libramiento Sur Morelia
+      [-100.4500, 19.7200],  // Maravatío
+      [-100.2800, 19.6500],  // Atlacomulco
+      [-99.5300, 19.5500],   // Toluca (Lib.)
+      [-99.1700, 19.4200],   // CDMX/Cuautitlán
     ],
   },
 ];
