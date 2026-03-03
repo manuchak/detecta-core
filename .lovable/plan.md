@@ -43,8 +43,13 @@ El plan ya fue presentado y aprobado. El usuario seleccionó:
 **Archivos modificados:**
 - `src/components/security/compliance/ComplianceTracker.tsx` — Sección "Cumplimiento — Gestión de Incidentes" con traffic lights y ISO Score
 
-### 🔲 Bloque 5 — Informe de Análisis de Ruta para Cliente (PDF)
-- Crear `src/hooks/security/useRouteAnalysisData.ts`
-- Crear `src/components/security/reports/RouteAnalysisReport.tsx`
+### ✅ Bloque 5 — Informe de Análisis de Ruta para Cliente (PDF) (COMPLETADO)
+
+**Archivos creados:**
+- `src/hooks/security/useRouteAnalysisData.ts` — Consolidador de datos multi-fuente (servicios, incidentes, RRSS, zonas, safe points) para un corredor específico
+- `src/components/security/reports/RouteAnalysisReport.tsx` — PDF de 3 páginas: portada con DRF, resumen ejecutivo + KPIs, historial de incidentes, inteligencia RRSS, recomendaciones ISO 28000
+
+**Archivos modificados:**
+- `src/components/security/routes/RouteRiskIntelligence.tsx` — Botón "Generar Informe de Ruta" con dialog origen/destino
 
 ### 🔲 Bloque 6 — Dashboard de Risk Posture mejorado (refinamientos finales)
