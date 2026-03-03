@@ -429,9 +429,10 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     recommendations: ['Macrolibramiento de cuota, infraestructura moderna', 'No detenerse'],
     waypoints: [
       [-103.5800, 20.0500],  // Acatlán de Juárez (Macrolibramiento GUA-10D)
-      [-103.3000, 20.1000],  // Macrolibramiento Sur (Tlajomulco)
-      [-103.0600, 20.3700],  // Zapotlanejo Sur (salida este Macrolibramiento)
-      [-102.8200, 20.4200],  // 80D norte de Lago Chapala (NO cruzar lago)
+      [-103.4400, 20.4700],  // Macrolibramiento Sur (Tlajomulco) — CORREGIDO
+      [-103.2400, 20.5200],  // El Salto (Macrolibramiento este)
+      [-103.0700, 20.6300],  // Zapotlanejo (salida este Macrolibramiento) — CORREGIDO
+      [-102.8200, 20.4200],  // 80D sur hacia La Barca
       [-102.5700, 20.2900],  // La Barca
     ],
     routeType: 'cuota',
@@ -507,9 +508,10 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     recommendations: ['Ruta hacia Lagos/SLP/Tampico (norte)', 'Usar Macrolibramiento obligatoriamente'],
     waypoints: [
       [-103.7200, 19.2400],
-      [-103.5800, 20.1300],  // Acatlán de Juárez (inicio Macrolibramiento GUA-10D)
-      [-103.3000, 20.1000],  // Macrolibramiento Sur (sur de Tlajomulco)
-      [-103.0600, 20.3700],  // Zapotlanejo Sur (salida este Macrolibramiento)
+      [-103.5800, 20.0500],  // Acatlán de Juárez (inicio Macrolibramiento GUA-10D)
+      [-103.4400, 20.4700],  // Macrolibramiento Sur (Tlajomulco) — CORREGIDO
+      [-103.2400, 20.5200],  // El Salto (Macrolibramiento este)
+      [-103.0700, 20.6300],  // Zapotlanejo (salida este Macrolibramiento) — CORREGIDO
     ],
   },
   {
@@ -524,9 +526,9 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['No detenerse', 'GPS activo'],
     waypoints: [
-      [-103.0600, 20.3700],  // Zapotlanejo Sur (Macrolibramiento)
-      [-102.9800, 20.5500],  // Entronque 80D norte
-      [-102.8500, 20.6800],  // Salida hacia Lagos de Moreno
+      [-103.0700, 20.6300],  // Zapotlanejo (Macrolibramiento) — CORREGIDO
+      [-102.9800, 20.7200],  // Entronque 80D norte
+      [-102.8500, 20.8000],  // Salida hacia Lagos de Moreno
     ],
   },
   {
@@ -541,7 +543,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Evitar tránsito nocturno', 'Monitoreo GPS estándar'],
     waypoints: [
-      [-102.8500, 20.6800],  // Desde Macrolibramiento salida norte
+      [-102.8500, 20.8000],  // Desde Macrolibramiento salida norte
       [-102.7500, 20.9500],
       [-102.3400, 21.3500],
     ],
@@ -583,7 +585,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Evitar paradas', 'Monitoreo GPS estándar'],
-    waypoints: [[-100.9800, 22.1500], [-99.1500, 22.2500]],
+    waypoints: [[-100.9800, 22.1500], [-100.4000, 22.0000], [-99.8500, 21.9800], [-99.5000, 21.9500], [-99.1500, 22.0000]],  // SLP → Tamazunchale → Cd. Valles (Hwy 70/85) — CORREGIDO con WP intermedios
   },
   {
     id: 'mza-tam-7',
@@ -1126,7 +1128,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo con violencia',
     recommendations: ['Evitar tránsito nocturno', 'Comunicación satelital recomendada'],
-    waypoints: [[-102.8700, 23.1700], [-102.2700, 22.4100], [-101.3800, 22.1600], [-100.9800, 22.1500]],  // Fresnillo → Ojocaliente → Villa de Arriaga → SLP (Hwy 49)
+    waypoints: [[-102.8700, 23.1700], [-102.5500, 22.7800], [-101.9500, 22.4000], [-100.9800, 22.1500]],  // Fresnillo → autopista 49 directa → SLP — CORREGIDO (ruta directa, sin triángulo Ojocaliente)
   },
 
   // ============================================================
@@ -1169,7 +1171,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Costa relativamente segura'],
-    waypoints: [[-102.1690, 17.9270], [-102.8500, 18.2200], [-103.5000, 18.7000], [-104.3100, 19.1100]],  // LC → Caleta de Campos → Coahuayana → Manzanillo (Costera 200)
+    waypoints: [[-102.1690, 17.9270], [-102.4500, 18.0500], [-102.8500, 18.2200], [-103.2000, 18.4500], [-103.5000, 18.7000], [-103.9400, 19.0500], [-104.3100, 19.1100]],  // LC → Costera 200 → Manzanillo — CORREGIDO con WP intermedios costa
   },
 
   // ============================================================
@@ -1744,7 +1746,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Corredor costero relativamente seguro'],
-    waypoints: [[-105.6000, 22.3000], [-105.9500, 22.8000], [-106.4200, 23.2300]],
+    waypoints: [[-105.6000, 22.3000], [-105.7500, 22.5000], [-105.9500, 22.8000], [-106.1500, 23.0000], [-106.4200, 23.2300]],  // Escuinapa → 15D costa → Mazatlán — CORREGIDO con WP
   },
 
   // ============================================================
@@ -1857,7 +1859,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Monitoreo GPS estándar',
       'Evitar paradas no programadas',
     ],
-    waypoints: [[-100.7500, 24.0500], [-100.8000, 24.3000], [-100.8500, 24.4500], [-101.0000, 25.0000]],
+    waypoints: [[-100.7500, 24.0500], [-100.8200, 24.3500], [-100.9200, 24.6500], [-100.9500, 24.8500], [-101.0000, 25.0000]],  // La Ventura → 57D directo → Saltillo — CORREGIDO
   },
   {
     id: 'slp-mat-7',
@@ -1912,7 +1914,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Precaución con vehículos pesados',
       'Monitoreo GPS estándar',
     ],
-    waypoints: [[-100.9500, 25.5400], [-100.6200, 25.5200], [-100.4500, 25.5800]],  // Sierra Cuesta de los Muertos
+    waypoints: [[-100.9500, 25.5400], [-100.8200, 25.4600], [-100.7000, 25.4300], [-100.6200, 25.4500], [-100.4500, 25.6800]],  // Sierra Cuesta de los Muertos (40D) — CORREGIDO con waypoints intermedios
   },
   {
     id: 'mty-sal-3',
@@ -1965,7 +1967,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Protocolo anti-jammer activo',
       'Convoy mínimo 2 unidades para carga >$2M',
     ],
-    waypoints: [[-105.9700, 23.4500], [-105.9500, 23.5500], [-105.8500, 23.6500], [-105.8000, 23.7500]],
+    waypoints: [[-105.9700, 23.4500], [-105.8800, 23.5200], [-105.7800, 23.6000], [-105.7000, 23.7000], [-105.6000, 23.7800]],  // Concordia → Espinazo del Diablo (40D Sierra) — CORREGIDO
   },
   {
     id: 'maz-dur-3',
@@ -2042,7 +2044,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Salida GDL hacia costa', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.5000, 20.1300], [-103.7500, 20.8500], [-104.1000, 20.9200]],  // Macrolibramiento GDL sur-poniente (Acatlán) → Tequila
+    waypoints: [[-103.4400, 20.4700], [-103.5800, 20.6800], [-103.7500, 20.8500], [-104.1000, 20.9200]],  // Macrolibramiento GDL (Tlajomulco) → Tequila — CORREGIDO
   },
   {
     id: 'nog-2',
@@ -2185,7 +2187,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Salida metropolitana', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.0600, 20.3700], [-102.9500, 20.5500]],  // Desde Macrolibramiento GDL este (Zapotlanejo)
+    waypoints: [[-103.0700, 20.6300], [-102.9500, 20.7200]],  // Desde Macrolibramiento GDL este (Zapotlanejo) — CORREGIDO
   },
   {
     id: 'gdl-lag-2',
@@ -2249,7 +2251,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Autopista moderna, zona turística', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.5800, 20.1300], [-103.7500, 20.8500]],  // Desde Macrolibramiento GDL oeste (Acatlán)
+    waypoints: [[-103.4400, 20.4700], [-103.5800, 20.6800], [-103.7500, 20.8500]],  // Desde Macrolibramiento GDL (Tlajomulco) → Tequila — CORREGIDO
   },
   {
     id: 'gdl-tep-2',
@@ -2275,7 +2277,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Sierra serrana, baja cobertura', 'Monitoreo GPS estándar'],
-    waypoints: [[-104.2000, 21.0500], [-104.4200, 21.1800], [-104.6200, 21.2400]],  // Sobre 15D Sierra de Nayarit
+    waypoints: [[-104.2000, 21.0500], [-104.3000, 21.1000], [-104.4200, 21.1800], [-104.5500, 21.2200], [-104.6800, 21.2200]],  // Sobre 15D Sierra de Nayarit — CORREGIDO con WP
   },
   {
     id: 'gdl-tep-4',
@@ -2577,7 +2579,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo con violencia / Bloqueos',
     recommendations: ['Evitar tránsito nocturno', 'SIN SEÑAL CELULAR en tramos', 'Comunicación satelital recomendada'],
-    waypoints: [[-98.4600, 18.5900], [-97.8000, 18.8800], [-97.7700, 17.8000]],
+    waypoints: [[-98.4600, 18.5900], [-98.0500, 18.3600], [-97.7700, 17.8000]],  // Izúcar → Acatlán → Huajuapan (135D) — CORREGIDO waypoint intermedio
   },
   {
     id: 'pue-oax-3',
@@ -2620,7 +2622,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Zona petrolera', 'Monitoreo GPS estándar'],
-    waypoints: [[-92.9200, 17.9900], [-92.2000, 18.3000], [-91.8400, 18.6400]],
+    waypoints: [[-92.9200, 17.9900], [-92.6500, 18.1000], [-92.2000, 18.3000], [-91.8400, 18.6400]],  // Villahermosa → 180 costera → Cd. del Carmen — CORREGIDO
   },
   {
     id: 'vhsa-can-2',
@@ -2685,7 +2687,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Autopista de cuota segura', 'Monitoreo GPS estándar'],
-    waypoints: [[-89.6300, 20.9700], [-88.2000, 20.6900], [-86.8500, 21.1600]],
+    waypoints: [[-89.6300, 20.9700], [-89.0000, 20.8500], [-88.2000, 20.6900], [-87.5000, 20.8000], [-86.8500, 21.1600]],  // Mérida → 180D → Cancún — CORREGIDO con WP
   },
 
   // ============================================================
@@ -2860,7 +2862,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo organizado / Bloqueos',
     recommendations: ['RESTRICCIÓN NOCTURNA', 'Comunicación satelital recomendada', 'Convoy recomendado'],
-    waypoints: [[-99.8300, 25.1900], [-98.9500, 24.8800], [-98.1600, 24.8500]],
+    waypoints: [[-99.8300, 25.1900], [-99.4000, 25.0500], [-98.9500, 24.8800], [-98.5000, 24.8600], [-98.1600, 24.8500]],  // Montemorelos → Hwy 85 → San Fernando — CORREGIDO con WP
   },
   {
     id: 'mty-mat-3',
@@ -3026,7 +3028,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Sierra Madre del Sur', 'Monitoreo GPS estándar'],
-    waypoints: [[-95.2400, 16.3200], [-96.2000, 16.7500], [-96.7500, 17.1000]],  // Libramiento Oaxaca
+    waypoints: [[-95.2400, 16.3200], [-95.7000, 16.5000], [-96.2000, 16.7500], [-96.5000, 16.9000], [-96.7500, 17.1000]],  // Tehuantepec → 190 sierra → Oaxaca — CORREGIDO con WP
   },
   // === CORREDOR QUERÉTARO - CD. JUÁREZ (57D/45D/45) ===
   {
@@ -3115,7 +3117,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '17:00-07:00',
     commonIncidentType: 'Robo con violencia, secuestro exprés',
     recommendations: ['TRAMO MÁS PELIGROSO del corredor', 'Custodia armada obligatoria', 'Desierto sin cobertura', 'Solo viaje diurno en convoy'],
-    waypoints: [[-103.0300, 23.8200], [-103.7500, 25.0000], [-104.9000, 26.2000], [-104.9200, 27.1300]],
+    waypoints: [[-103.0300, 23.8200], [-103.5500, 24.2000], [-104.0000, 24.8500], [-104.4500, 25.5000], [-104.8500, 26.3000], [-104.9200, 27.1300]],  // Río Grande → Hwy 45 norte → Jiménez — CORREGIDO con WP desierto
     routeType: 'libre',
     highwayDesignation: '45',
   },
@@ -3175,7 +3177,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-07:00',
     commonIncidentType: 'Robo de carga, narcobloqueos',
     recommendations: ['Carretera libre sin alternativa de cuota', 'Zona fronteriza de alta actividad delictiva', 'Custodia armada recomendada'],
-    waypoints: [[-106.1200, 28.7000], [-106.3000, 29.3000], [-106.4200, 30.3000], [-106.4400, 31.6900]],
+    waypoints: [[-106.1200, 28.7000], [-106.3500, 29.1000], [-106.4000, 29.6000], [-106.4200, 30.2000], [-106.4300, 30.8000], [-106.4400, 31.6900]],  // Chihuahua → Hwy 45 norte → Cd. Juárez — CORREGIDO con WP intermedios
     routeType: 'libre',
     highwayDesignation: '45',
   },
