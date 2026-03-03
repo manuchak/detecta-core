@@ -14838,6 +14838,33 @@ export type Database = {
         }
         Relationships: []
       }
+      segment_geometries: {
+        Row: {
+          coordinates: Json
+          created_at: string | null
+          distance_km: number | null
+          duration_minutes: number | null
+          enriched_at: string | null
+          segment_id: string
+        }
+        Insert: {
+          coordinates?: Json
+          created_at?: string | null
+          distance_km?: number | null
+          duration_minutes?: number | null
+          enriched_at?: string | null
+          segment_id: string
+        }
+        Update: {
+          coordinates?: Json
+          created_at?: string | null
+          distance_km?: number | null
+          duration_minutes?: number | null
+          enriched_at?: string | null
+          segment_id?: string
+        }
+        Relationships: []
+      }
       seguimiento_instalaciones: {
         Row: {
           calificacion_cliente: number | null

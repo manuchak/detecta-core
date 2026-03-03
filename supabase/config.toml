@@ -176,3 +176,9 @@ verify_jwt = false
 
 [functions.twitter-incident-search]
 verify_jwt = false
+
+[functions.enrich-segment-geometries]
+verify_jwt = false
+
+[functions.route-intelligence-report]
+verify_jwt = false

@@ -5,6 +5,7 @@ import { initializeMapboxToken } from '@/lib/mapbox';
 import { HIGHWAY_SEGMENTS, HIGHWAY_POIS, RISK_LEVEL_COLORS, type HighwaySegment, type RiskLevel } from '@/lib/security/highwaySegments';
 import { CELLULAR_DEAD_ZONES } from '@/lib/security/cellularCoverage';
 import { useSafePoints } from '@/hooks/security/useSafePoints';
+import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
 import { Loader2 } from 'lucide-react';
 
 interface LayerVisibility {
@@ -38,6 +39,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
   const [mapReady, setMapReady] = useState(false);
 
   const { data: safePoints } = useSafePoints({ activeOnly: true });
+  const { data: geometries } = useSegmentGeometries();
 
   // Initialize map
   useEffect(() => {
@@ -105,22 +107,27 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     const m = map.current;
 
     // Segments as a single source with data-driven styling
-    const segmentFeatures = HIGHWAY_SEGMENTS.map(seg => ({
-      type: 'Feature' as const,
-      properties: {
-        id: seg.id,
-        name: seg.name,
-        riskLevel: seg.riskLevel,
-        color: RISK_LEVEL_COLORS[seg.riskLevel],
-        kmStart: seg.kmStart,
-        kmEnd: seg.kmEnd,
-        avgMonthlyEvents: seg.avgMonthlyEvents,
-        criticalHours: seg.criticalHours,
-        commonIncidentType: seg.commonIncidentType,
-        recommendations: JSON.stringify(seg.recommendations),
-      },
-      geometry: { type: 'LineString' as const, coordinates: seg.waypoints },
-    }));
+    // Use cached geometries when available, fallback to simple waypoints
+    const segmentFeatures = HIGHWAY_SEGMENTS.map(seg => {
+      const cached = geometries?.[seg.id];
+      const coordinates = cached?.coordinates?.length ? cached.coordinates : seg.waypoints;
+      return {
+        type: 'Feature' as const,
+        properties: {
+          id: seg.id,
+          name: seg.name,
+          riskLevel: seg.riskLevel,
+          color: RISK_LEVEL_COLORS[seg.riskLevel],
+          kmStart: seg.kmStart,
+          kmEnd: seg.kmEnd,
+          avgMonthlyEvents: seg.avgMonthlyEvents,
+          criticalHours: seg.criticalHours,
+          commonIncidentType: seg.commonIncidentType,
+          recommendations: JSON.stringify(seg.recommendations),
+        },
+        geometry: { type: 'LineString' as const, coordinates },
+      };
+    });
 
     if (!m.getSource('segments')) {
       m.addSource('segments', {
@@ -293,7 +300,7 @@ export function RiskZonesMap({ layers, selectedSegmentId, onSegmentSelect }: Ris
     // Cursor
     m.on('mouseenter', 'segments-line', () => { m.getCanvas().style.cursor = 'pointer'; });
     m.on('mouseleave', 'segments-line', () => { m.getCanvas().style.cursor = ''; });
-  }, [mapReady, onSegmentSelect]);
+  }, [mapReady, onSegmentSelect, geometries]);
 
   // Add safe points when data loads
   useEffect(() => {

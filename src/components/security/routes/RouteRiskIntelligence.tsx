@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { PanelRightClose, PanelRightOpen, FileText, Loader2 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import type { HighwaySegment } from '@/lib/security/highwaySegments';
 import { fetchRouteAnalysisData } from '@/hooks/security/useRouteAnalysisData';
 import { RouteAnalysisReport } from '../reports/RouteAnalysisReport';
@@ -29,6 +30,7 @@ export function RouteRiskIntelligence() {
   const [reportOrigen, setReportOrigen] = useState('');
   const [reportDestino, setReportDestino] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState('');
 
   const toggleLayer = useCallback((key: keyof LayerVisibility) => {
     setLayers(prev => ({ ...prev, [key]: !prev[key] }));
@@ -45,8 +47,31 @@ export function RouteRiskIntelligence() {
     }
     setGenerating(true);
     try {
-      const data = await fetchRouteAnalysisData(reportOrigen.trim(), reportDestino.trim());
-      const blob = await pdf(<RouteAnalysisReport data={data} />).toBlob();
+      // Step 1: Fetch basic operational data
+      setGenerationStep('Consultando datos operativos...');
+      const baseData = await fetchRouteAnalysisData(reportOrigen.trim(), reportDestino.trim());
+
+      // Step 2: Call AI agent for enriched analysis
+      setGenerationStep('Agente AI analizando ruta (ISO 28000)...');
+      let agentData = null;
+      try {
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('route-intelligence-report', {
+          body: { origen: reportOrigen.trim(), destino: reportDestino.trim() },
+        });
+        if (fnError) {
+          console.warn('Agent error (will use basic report):', fnError);
+        } else {
+          agentData = fnData;
+        }
+      } catch (agentErr) {
+        console.warn('Agent call failed (will use basic report):', agentErr);
+      }
+
+      // Step 3: Generate PDF
+      setGenerationStep('Generando PDF...');
+      const blob = await pdf(
+        <RouteAnalysisReport data={baseData} agentData={agentData} />
+      ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -60,6 +85,7 @@ export function RouteRiskIntelligence() {
       toast.error('Error al generar informe: ' + (err.message || 'Error desconocido'));
     } finally {
       setGenerating(false);
+      setGenerationStep('');
     }
   };
 
@@ -99,8 +125,16 @@ export function RouteRiskIntelligence() {
               </div>
               <p className="text-[10px] text-muted-foreground">
                 El informe incluye: DRF del corredor, historial de incidentes operativos,
-                inteligencia RRSS, zonas de riesgo y recomendaciones ISO 28000.
+                inteligencia RRSS, zonas de riesgo, ETA, hora sugerida de salida,
+                paradas seguras recomendadas, zonas sin cobertura celular,
+                briefing operativo y recomendaciones ISO 28000.
               </p>
+              {generating && generationStep && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                  <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                  <span>{generationStep}</span>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button onClick={handleGenerateReport} disabled={generating} size="sm" className="gap-1.5">

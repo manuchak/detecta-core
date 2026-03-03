@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, Route, BarChart3, ClipboardCheck, Radio, ShieldAlert } from 'lucide-react';
 import { SecurityDashboard } from '@/components/security/dashboard/SecurityDashboard';
@@ -10,6 +10,16 @@ import { SiniestroHistoryPanel } from '@/components/security/siniestros/Siniestr
 
 const SecurityPage = () => {
   const [activeTab, setActiveTab] = useState('posture');
+
+  // Reset zoom to 1.0 when on routes tab (Mapbox canvas distorts at 0.7)
+  useEffect(() => {
+    if (activeTab === 'routes') {
+      const html = document.documentElement;
+      const original = html.style.zoom;
+      html.style.zoom = '1';
+      return () => { html.style.zoom = original; };
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col h-[var(--content-height-full)] overflow-hidden">
