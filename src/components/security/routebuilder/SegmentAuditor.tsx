@@ -8,24 +8,27 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { RefreshCw, AlertTriangle, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle, AlertCircle, Loader2, Database } from 'lucide-react';
 
-type AuditStatus = 'ERROR' | 'WARN' | 'OK' | 'NO_DATA';
+type AuditStatus = 'GEO_ERROR' | 'DATA_ERROR' | 'WARN' | 'OK' | 'NO_DATA';
 type FilterStatus = AuditStatus | 'ALL';
 
 interface AuditRow {
   segment: HighwaySegment;
-  expectedKm: number;
+  corridorKm: number;        // kmEnd - kmStart (corridor label)
+  expectedKm: number;        // expectedRoadKm || corridorKm
   mapboxKm: number | null;
-  ratio: number | null;
+  geoRatio: number | null;   // mapboxKm / expectedKm
+  dataRatio: number | null;  // corridorKm vs expectedKm divergence
   status: AuditStatus;
 }
 
-const STATUS_CONFIG: Record<AuditStatus, { color: string; icon: React.ReactNode; label: string }> = {
-  ERROR: { color: 'text-destructive', icon: <AlertTriangle className="h-3 w-3" />, label: 'ERROR' },
-  WARN: { color: 'text-yellow-600', icon: <AlertCircle className="h-3 w-3" />, label: 'WARN' },
-  OK: { color: 'text-green-600', icon: <CheckCircle className="h-3 w-3" />, label: 'OK' },
-  NO_DATA: { color: 'text-muted-foreground', icon: <AlertCircle className="h-3 w-3" />, label: 'SIN DATOS' },
+const STATUS_CONFIG: Record<AuditStatus, { color: string; icon: React.ReactNode; label: string; description: string }> = {
+  GEO_ERROR: { color: 'text-destructive', icon: <AlertTriangle className="h-3 w-3" />, label: 'GEO', description: 'Geometría Mapbox incorrecta' },
+  DATA_ERROR: { color: 'text-orange-500', icon: <Database className="h-3 w-3" />, label: 'DATOS', description: 'Rango km del corredor incorrecto' },
+  WARN: { color: 'text-yellow-600', icon: <AlertCircle className="h-3 w-3" />, label: 'WARN', description: 'Revisar' },
+  OK: { color: 'text-green-600', icon: <CheckCircle className="h-3 w-3" />, label: 'OK', description: 'Todo bien' },
+  NO_DATA: { color: 'text-muted-foreground', icon: <AlertCircle className="h-3 w-3" />, label: 'SIN DATOS', description: 'Sin geometría' },
 };
 
 export const SegmentAuditor: React.FC = () => {
@@ -37,21 +40,43 @@ export const SegmentAuditor: React.FC = () => {
 
   const rows = useMemo<AuditRow[]>(() => {
     return HIGHWAY_SEGMENTS.map(seg => {
-      const expectedKm = seg.kmEnd - seg.kmStart;
+      const corridorKm = seg.kmEnd - seg.kmStart;
+      const expectedKm = seg.expectedRoadKm || corridorKm;
       const geo = geometries?.[seg.id];
       const mapboxKm = geo?.distance_km ?? null;
-      let ratio: number | null = null;
+
+      let geoRatio: number | null = null;
+      let dataRatio: number | null = null;
       let status: AuditStatus = 'NO_DATA';
 
       if (mapboxKm !== null && expectedKm > 0) {
-        ratio = mapboxKm / expectedKm;
-        if (ratio > 2.0) status = 'ERROR';
-        else if (ratio > 1.5) status = 'WARN';
-        else status = 'OK';
+        geoRatio = mapboxKm / expectedKm;
+
+        // Data ratio: how much the corridor label diverges from expected road distance
+        if (seg.expectedRoadKm && corridorKm > 0) {
+          dataRatio = seg.expectedRoadKm / corridorKm;
+        }
+
+        // Classification logic
+        if (geoRatio > 2.0) {
+          status = 'GEO_ERROR'; // Mapbox geometry is wrong (bad waypoints)
+        } else if (dataRatio !== null && dataRatio > 2.0) {
+          status = 'DATA_ERROR'; // Corridor km labels are wrong
+        } else if (geoRatio > 1.5 || (dataRatio !== null && dataRatio > 1.5)) {
+          status = 'WARN';
+        } else {
+          status = 'OK';
+        }
       }
 
-      return { segment: seg, expectedKm, mapboxKm, ratio, status };
-    }).sort((a, b) => (b.ratio ?? 0) - (a.ratio ?? 0));
+      return { segment: seg, corridorKm, expectedKm, mapboxKm, geoRatio, dataRatio, status };
+    }).sort((a, b) => {
+      // Sort: GEO_ERROR first, then DATA_ERROR, then by ratio
+      const statusOrder: Record<AuditStatus, number> = { GEO_ERROR: 0, DATA_ERROR: 1, WARN: 2, NO_DATA: 3, OK: 4 };
+      const diff = statusOrder[a.status] - statusOrder[b.status];
+      if (diff !== 0) return diff;
+      return (b.geoRatio ?? 0) - (a.geoRatio ?? 0);
+    });
   }, [geometries]);
 
   const filtered = useMemo(() => {
@@ -74,7 +99,6 @@ export const SegmentAuditor: React.FC = () => {
 
     if (!segments.length) return;
 
-    // Process in batches of 10
     const batchSize = 10;
     let processed = 0;
 
@@ -105,9 +129,8 @@ export const SegmentAuditor: React.FC = () => {
       }
     }
 
-    // Invalidate cache so Rutas y Zonas updates
     queryClient.invalidateQueries({ queryKey: ['segment-geometries'] });
-    toast.success(`✅ ${processed} segmentos re-enriquecidos. Rutas y Zonas se actualizará.`);
+    toast.success(`✅ ${processed} segmentos re-enriquecidos.`);
   }, [queryClient]);
 
   const handleEnrichSelected = () => {
@@ -116,10 +139,10 @@ export const SegmentAuditor: React.FC = () => {
     setSelected(new Set());
   };
 
-  const handleEnrichAllErrors = () => {
-    const errorIds = rows.filter(r => r.status === 'ERROR').map(r => r.segment.id);
-    if (!errorIds.length) return toast.info('No hay segmentos con ERROR');
-    enrichSegments(errorIds);
+  const handleEnrichGeoErrors = () => {
+    const geoErrorIds = rows.filter(r => r.status === 'GEO_ERROR').map(r => r.segment.id);
+    if (!geoErrorIds.length) return toast.info('No hay segmentos con GEO_ERROR');
+    enrichSegments(geoErrorIds);
   };
 
   const toggleSelect = (id: string) => {
@@ -152,9 +175,9 @@ export const SegmentAuditor: React.FC = () => {
       <div className="shrink-0 px-3 py-2 border-b bg-muted/30 space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xs font-bold">🔍 Auditoría de Segmentos</h3>
+            <h3 className="text-xs font-bold">🔍 Auditoría de Segmentos (Doble Clasificación)</h3>
             <p className="text-[10px] text-muted-foreground">
-              Compara km esperados vs Mapbox — {counts.ALL} segmentos
+              GEO = geometría mal | DATOS = rango km mal — {counts.ALL} segmentos
             </p>
           </div>
           <div className="flex gap-1">
@@ -162,16 +185,23 @@ export const SegmentAuditor: React.FC = () => {
               <RefreshCw className="h-3 w-3 mr-1" />
               Re-enriquecer ({selected.size})
             </Button>
-            <Button size="sm" variant="destructive" className="text-[10px] h-6 px-2" onClick={handleEnrichAllErrors} disabled={enriching.size > 0 || !counts.ERROR}>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="text-[10px] h-6 px-2"
+              onClick={handleEnrichGeoErrors}
+              disabled={enriching.size > 0 || !counts.GEO_ERROR}
+              title="Solo re-enriquece errores de geometría (waypoints incorrectos)"
+            >
               <AlertTriangle className="h-3 w-3 mr-1" />
-              Fix ERROR ({counts.ERROR || 0})
+              Fix GEO ({counts.GEO_ERROR || 0})
             </Button>
           </div>
         </div>
 
         {/* Filter chips */}
         <div className="flex gap-1 flex-wrap">
-          {(['ALL', 'ERROR', 'WARN', 'OK', 'NO_DATA'] as FilterStatus[]).map(f => (
+          {(['ALL', 'GEO_ERROR', 'DATA_ERROR', 'WARN', 'OK', 'NO_DATA'] as FilterStatus[]).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -181,7 +211,7 @@ export const SegmentAuditor: React.FC = () => {
                   : 'bg-background text-muted-foreground border-border hover:bg-muted'
               }`}
             >
-              {f === 'ALL' ? 'TODOS' : f} ({counts[f] || 0})
+              {f === 'ALL' ? 'TODOS' : f === 'GEO_ERROR' ? '🔴 GEO' : f === 'DATA_ERROR' ? '🟠 DATOS' : f} ({counts[f] || 0})
             </button>
           ))}
         </div>
@@ -189,9 +219,9 @@ export const SegmentAuditor: React.FC = () => {
 
       {/* Table */}
       <ScrollArea className="flex-1">
-        <div className="min-w-[600px]">
+        <div className="min-w-[700px]">
           {/* Table header */}
-          <div className="grid grid-cols-[28px_1fr_70px_70px_60px_60px_40px] gap-1 px-2 py-1 border-b bg-muted/20 text-[9px] font-semibold text-muted-foreground sticky top-0">
+          <div className="grid grid-cols-[28px_1fr_65px_65px_65px_55px_70px_36px] gap-1 px-2 py-1 border-b bg-muted/20 text-[9px] font-semibold text-muted-foreground sticky top-0">
             <div className="flex items-center">
               <Checkbox
                 checked={selected.size === filtered.length && filtered.length > 0}
@@ -200,7 +230,8 @@ export const SegmentAuditor: React.FC = () => {
               />
             </div>
             <div>Segmento</div>
-            <div className="text-right">Esperado</div>
+            <div className="text-right">Corredor</div>
+            <div className="text-right">Dist. Real</div>
             <div className="text-right">Mapbox</div>
             <div className="text-right">Ratio</div>
             <div className="text-center">Status</div>
@@ -210,11 +241,12 @@ export const SegmentAuditor: React.FC = () => {
           {filtered.map(row => {
             const isEnriching = enriching.has(row.segment.id);
             const cfg = STATUS_CONFIG[row.status];
+            const hasOverride = !!row.segment.expectedRoadKm;
 
             return (
               <div
                 key={row.segment.id}
-                className="grid grid-cols-[28px_1fr_70px_70px_60px_60px_40px] gap-1 px-2 py-1.5 border-b border-border/50 hover:bg-muted/30 items-center text-[10px]"
+                className="grid grid-cols-[28px_1fr_65px_65px_65px_55px_70px_36px] gap-1 px-2 py-1.5 border-b border-border/50 hover:bg-muted/30 items-center text-[10px]"
               >
                 <div className="flex items-center">
                   <Checkbox
@@ -228,33 +260,41 @@ export const SegmentAuditor: React.FC = () => {
                   <br />
                   <span className="text-foreground">{row.segment.name}</span>
                 </div>
-                <div className="text-right font-mono">{row.expectedKm.toFixed(0)} km</div>
+                <div className="text-right font-mono text-muted-foreground">
+                  {row.corridorKm.toFixed(0)} km
+                </div>
+                <div className={`text-right font-mono ${hasOverride ? 'text-blue-500 font-semibold' : 'text-muted-foreground'}`}>
+                  {hasOverride ? `${row.expectedKm.toFixed(0)} km` : '—'}
+                </div>
                 <div className="text-right font-mono">
                   {row.mapboxKm !== null ? `${row.mapboxKm.toFixed(0)} km` : '—'}
                 </div>
                 <div className={`text-right font-bold font-mono ${cfg.color}`}>
-                  {row.ratio !== null ? `${row.ratio.toFixed(1)}x` : '—'}
+                  {row.geoRatio !== null ? `${row.geoRatio.toFixed(1)}x` : '—'}
                 </div>
                 <div className="flex justify-center">
-                  <Badge variant="outline" className={`text-[8px] px-1 py-0 ${cfg.color}`}>
+                  <Badge variant="outline" className={`text-[8px] px-1 py-0 ${cfg.color}`} title={cfg.description}>
                     {cfg.icon}
                     <span className="ml-0.5">{cfg.label}</span>
                   </Badge>
                 </div>
                 <div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-5 w-5 p-0"
-                    onClick={() => enrichSegments([row.segment.id])}
-                    disabled={isEnriching}
-                  >
-                    {isEnriching ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3" />
-                    )}
-                  </Button>
+                  {row.status !== 'DATA_ERROR' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-5 w-5 p-0"
+                      onClick={() => enrichSegments([row.segment.id])}
+                      disabled={isEnriching}
+                      title="Re-enriquecer"
+                    >
+                      {isEnriching ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-3 w-3" />
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             );
