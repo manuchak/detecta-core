@@ -59,7 +59,7 @@ function SemaforoKPI({ label, value, subtitle, icon: Icon, level, onClick }: Sem
 }
 
 export function CSPanorama() {
-  const { data: cartera, isLoading: carteraLoading } = useCSCartera();
+  const { data: cartera, isLoading: carteraLoading, isError: carteraError, refetch: refetchCartera } = useCSCartera();
   const { data: stats, isLoading: statsLoading } = useCSQuejaStats();
   const { data: overdueTps } = useOverdueTouchpoints();
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null);
@@ -92,6 +92,16 @@ export function CSPanorama() {
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-40" />
+      </div>
+    );
+  }
+
+  if (carteraError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <AlertTriangle className="h-10 w-10 text-destructive" />
+        <p className="text-muted-foreground">No se pudo cargar la cartera de clientes.</p>
+        <Button variant="outline" onClick={() => refetchCartera()}>Reintentar</Button>
       </div>
     );
   }
