@@ -10,6 +10,7 @@ const emptyMetrics = {
   onTimeRate: 0,
   otifRate: 0,
   checklistsCompletados: 0,
+  checklistsEvaluables: 0,
   checklistsRate: 0,
   custodiosActivos: 0,
   serviciosPorCustodio: 0,
