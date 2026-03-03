@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { subDays, subWeeks, subMonths, subQuarters, subYears, startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
+import { subDays, subWeeks, subMonths, subQuarters, subYears, startOfDay, startOfWeek, startOfMonth, startOfQuarter, startOfYear, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // =============================================================================
 // TYPES
@@ -9,11 +10,17 @@ import { subDays, subWeeks, subMonths, subQuarters, subYears, startOfDay, startO
 export type TrendPeriod = 'DoD' | 'WoW' | 'MoM' | 'QoQ' | 'YoY';
 
 export interface DRFBreakdown {
-  incidentRate: number;       // 0-100
-  severityIndex: number;      // 0-100
-  exposureScore: number;      // 0-100 — % zones alto/extremo
-  mitigationRate: number;     // 0-100 — checklist coverage
-  siniestralidad: number;     // 0-100 — siniestros per 1000 services
+  incidentRate: number;
+  severityIndex: number;
+  exposureScore: number;
+  mitigationRate: number;
+  siniestralidad: number;
+}
+
+export interface DRFHistoryPoint {
+  label: string;
+  score: number;
+  riskLevel: RiskLevel;
 }
 
 export interface DRFTrend {
@@ -24,6 +31,7 @@ export interface DRFTrend {
   changePercent: number;
   direction: 'improving' | 'stable' | 'worsening';
   breakdown: DRFBreakdown;
+  history: DRFHistoryPoint[];
 }
 
 export type RiskLevel = 'critico' | 'alto' | 'medio' | 'bajo';
@@ -39,15 +47,15 @@ export interface DetectaRiskFactorResult {
 }
 
 // =============================================================================
-// WEIGHTS — DRF Formula (revised)
+// WEIGHTS
 // =============================================================================
 
 const W = {
-  exposure: 0.35,        // How exposed are we by route geography
-  siniestralidad: 0.30,  // Historical loss rate
-  incidentRate: 0.15,    // General incident frequency
-  severityIndex: 0.10,   // Severity of incidents
-  mitigation: 0.10,      // Checklist coverage (reduces risk)
+  exposure: 0.35,
+  siniestralidad: 0.30,
+  incidentRate: 0.15,
+  severityIndex: 0.10,
+  mitigation: 0.10,
 };
 
 const SEVERITY_WEIGHTS: Record<string, number> = {
@@ -58,41 +66,69 @@ const SEVERITY_WEIGHTS: Record<string, number> = {
 // PERIOD HELPERS
 // =============================================================================
 
-function getPeriodRange(period: TrendPeriod, offset: 'current' | 'previous'): { from: string; to: string } {
+function getPeriodRangeOffset(period: TrendPeriod, offset: number): { from: string; to: string } {
   const now = new Date();
-  const shiftFn = offset === 'previous' ? 1 : 0;
-
   switch (period) {
     case 'DoD': {
-      const base = subDays(startOfDay(now), shiftFn);
-      const end = subDays(startOfDay(now), shiftFn - 1);
+      const base = subDays(startOfDay(now), offset);
+      const end = subDays(startOfDay(now), offset - 1);
       return { from: base.toISOString(), to: end.toISOString() };
     }
     case 'WoW': {
-      const base = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), shiftFn);
-      const end = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), shiftFn - 1);
+      const base = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), offset);
+      const end = subWeeks(startOfWeek(now, { weekStartsOn: 1 }), offset - 1);
       return { from: base.toISOString(), to: end.toISOString() };
     }
     case 'MoM': {
-      const base = subMonths(startOfMonth(now), shiftFn);
-      const end = subMonths(startOfMonth(now), shiftFn - 1);
+      const base = subMonths(startOfMonth(now), offset);
+      const end = subMonths(startOfMonth(now), offset - 1);
       return { from: base.toISOString(), to: end.toISOString() };
     }
     case 'QoQ': {
-      const base = subQuarters(startOfQuarter(now), shiftFn);
-      const end = subQuarters(startOfQuarter(now), shiftFn - 1);
+      const base = subQuarters(startOfQuarter(now), offset);
+      const end = subQuarters(startOfQuarter(now), offset - 1);
       return { from: base.toISOString(), to: end.toISOString() };
     }
     case 'YoY': {
-      const base = subYears(startOfYear(now), shiftFn);
-      const end = subYears(startOfYear(now), shiftFn - 1);
+      const base = subYears(startOfYear(now), offset);
+      const end = subYears(startOfYear(now), offset - 1);
       return { from: base.toISOString(), to: end.toISOString() };
     }
   }
 }
 
+function getPeriodLabel(period: TrendPeriod, offset: number): string {
+  const now = new Date();
+  switch (period) {
+    case 'DoD': {
+      if (offset === 0) return 'Hoy';
+      if (offset === 1) return 'Ayer';
+      const d = subDays(now, offset);
+      return format(d, 'dd MMM', { locale: es });
+    }
+    case 'WoW': {
+      if (offset === 0) return 'Esta sem';
+      if (offset === 1) return 'Sem ant';
+      return `-${offset} sem`;
+    }
+    case 'MoM': {
+      const d = subMonths(startOfMonth(now), offset);
+      return format(d, 'MMM', { locale: es }).replace(/^./, c => c.toUpperCase());
+    }
+    case 'QoQ': {
+      const d = subQuarters(startOfQuarter(now), offset);
+      const q = Math.ceil((d.getMonth() + 1) / 3);
+      return `Q${q}-${format(d, 'yy')}`;
+    }
+    case 'YoY': {
+      const d = subYears(startOfYear(now), offset);
+      return format(d, 'yyyy');
+    }
+  }
+}
+
 // =============================================================================
-// DRF CALCULATION ENGINE (revised)
+// DRF CALCULATION ENGINE
 // =============================================================================
 
 interface RawIncident {
@@ -120,38 +156,26 @@ function calculateDRF(
   checklistCount: number,
   totalServicesAll: number,
 ): { score: number; breakdown: DRFBreakdown } {
-  // 1. Exposure: % of zones in alto+extremo (structural floor)
   const highRiskZones = zones.filter(z => z.risk_level === 'extremo' || z.risk_level === 'alto').length;
   const exposureScore = zones.length > 0 ? (highRiskZones / zones.length) * 100 : 0;
 
-  // 2. Siniestralidad: siniestros per 1000 services from fill rate
   const totalFillServices = fillRateData.reduce((s, m) => s + m.servicios_completados, 0);
   const totalSiniestros = fillRateData.reduce((s, m) => s + m.siniestros, 0);
-  const rawSiniestralidad = totalFillServices > 0
-    ? (totalSiniestros / totalFillServices) * 1000
-    : 0;
-  // Normalize: 10 per 1000 = 100 score
+  const rawSiniestralidad = totalFillServices > 0 ? (totalSiniestros / totalFillServices) * 1000 : 0;
   const siniestralidad = Math.min((rawSiniestralidad / 10) * 100, 100);
 
-  // 3. Incident Rate: incidents per 100 services
   const totalServices = Math.max(totalServicesAll, 1);
   const rawRate = (incidents.length / totalServices) * 100;
-  const incidentRate = Math.min((rawRate / 5) * 100, 100); // 5% = max
+  const incidentRate = Math.min((rawRate / 5) * 100, 100);
 
-  // 4. Severity Index
   const totalIncidents = Math.max(incidents.length, 1);
   const weightedSum = incidents.reduce((sum, i) => {
     const base = SEVERITY_WEIGHTS[i.severidad] || 1;
     return sum + (i.es_siniestro ? Math.max(base, 4) : base);
   }, 0);
-  const severityIndex = incidents.length > 0
-    ? (weightedSum / (totalIncidents * 4)) * 100
-    : 0;
+  const severityIndex = incidents.length > 0 ? (weightedSum / (totalIncidents * 4)) * 100 : 0;
 
-  // 5. Mitigation: checklist coverage (higher = less risk)
-  const mitigationRate = totalServicesAll > 0
-    ? Math.min((checklistCount / totalServicesAll) * 100, 100)
-    : 0;
+  const mitigationRate = totalServicesAll > 0 ? Math.min((checklistCount / totalServicesAll) * 100, 100) : 0;
 
   const breakdown: DRFBreakdown = {
     incidentRate: Math.round(incidentRate * 10) / 10,
@@ -185,25 +209,17 @@ function getRiskLevel(score: number): RiskLevel {
 // HOOK
 // =============================================================================
 
+const HISTORY_DEPTH = 5; // current + 4 previous
+
 export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): DetectaRiskFactorResult {
   const query = useQuery({
-    queryKey: ['detecta-risk-factor-v2'],
+    queryKey: ['detecta-risk-factor-v3'],
     queryFn: async () => {
       const [incidentsRes, zonesRes, fillRateRes, checklistRes] = await Promise.all([
-        (supabase as any)
-          .from('incidentes_operativos')
-          .select('severidad, atribuible_operacion, fecha_incidente, es_siniestro'),
-        (supabase as any)
-          .from('risk_zone_scores')
-          .select('risk_level, final_score'),
-        (supabase as any)
-          .from('siniestros_historico')
-          .select('fecha, servicios_completados, siniestros')
-          .order('fecha', { ascending: true }),
-        (supabase as any)
-          .from('checklist_servicio')
-          .select('id, created_at')
-          .limit(5000),
+        (supabase as any).from('incidentes_operativos').select('severidad, atribuible_operacion, fecha_incidente, es_siniestro'),
+        (supabase as any).from('risk_zone_scores').select('risk_level, final_score'),
+        (supabase as any).from('siniestros_historico').select('fecha, servicios_completados, siniestros').order('fecha', { ascending: true }),
+        (supabase as any).from('checklist_servicio').select('id, created_at').limit(5000),
       ]);
 
       if (incidentsRes.error) throw incidentsRes.error;
@@ -215,60 +231,59 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
       const zones = (zonesRes.data || []) as RawZone[];
       const fillRate = (fillRateRes.data || []) as FillRateMonth[];
       const allChecklists = (checklistRes.data || []) as { id: string; created_at: string }[];
-
       const totalServicesAll = fillRate.reduce((s, m) => s + m.servicios_completados, 0);
 
-      // Global DRF
       const global = calculateDRF(allIncidents, zones, fillRate, allChecklists.length, totalServicesAll);
 
-      // Per-period trends
+      const filterIncidents = (from: string, to: string) =>
+        allIncidents.filter(i => i.fecha_incidente >= from && i.fecha_incidente < to);
+      const filterFillRate = (from: string, to: string) =>
+        fillRate.filter(m => m.fecha >= from.slice(0, 10) && m.fecha < to.slice(0, 10));
+      const filterChecklists = (from: string, to: string) =>
+        allChecklists.filter(c => c.created_at >= from && c.created_at < to);
+
+      const calcForOffset = (period: TrendPeriod, offset: number) => {
+        const range = getPeriodRangeOffset(period, offset);
+        const inc = filterIncidents(range.from, range.to);
+        const fr = filterFillRate(range.from, range.to);
+        const cl = filterChecklists(range.from, range.to);
+        const svc = fr.reduce((s, m) => s + m.servicios_completados, 0);
+        const effectiveSvc = svc > 0 ? svc : Math.max(Math.round(totalServicesAll / 24), 1);
+        return calculateDRF(inc, zones, fr.length > 0 ? fr : fillRate, cl.length, effectiveSvc);
+      };
+
       const periods: TrendPeriod[] = ['DoD', 'WoW', 'MoM', 'QoQ', 'YoY'];
       const trends: DRFTrend[] = periods.map(period => {
-        const currentRange = getPeriodRange(period, 'current');
-        const previousRange = getPeriodRange(period, 'previous');
+        const history: DRFHistoryPoint[] = [];
+        for (let offset = 0; offset < HISTORY_DEPTH; offset++) {
+          const result = calcForOffset(period, offset);
+          history.push({
+            label: getPeriodLabel(period, offset),
+            score: result.score,
+            riskLevel: getRiskLevel(result.score),
+          });
+        }
 
-        const filterIncidents = (from: string, to: string) =>
-          allIncidents.filter(i => i.fecha_incidente >= from && i.fecha_incidente < to);
-
-        const filterFillRate = (from: string, to: string) =>
-          fillRate.filter(m => m.fecha >= from.slice(0, 10) && m.fecha < to.slice(0, 10));
-
-        const filterChecklists = (from: string, to: string) =>
-          allChecklists.filter(c => c.created_at >= from && c.created_at < to);
-
-        const curInc = filterIncidents(currentRange.from, currentRange.to);
-        const curFR = filterFillRate(currentRange.from, currentRange.to);
-        const curCL = filterChecklists(currentRange.from, currentRange.to);
-        const curServices = curFR.reduce((s, m) => s + m.servicios_completados, 0);
-        // If no fill rate data for period, use proportional estimate
-        const effectiveCurServices = curServices > 0 ? curServices : Math.max(Math.round(totalServicesAll / 24), 1);
-
-        const prevInc = filterIncidents(previousRange.from, previousRange.to);
-        const prevFR = filterFillRate(previousRange.from, previousRange.to);
-        const prevCL = filterChecklists(previousRange.from, previousRange.to);
-        const prevServices = prevFR.reduce((s, m) => s + m.servicios_completados, 0);
-        const effectivePrevServices = prevServices > 0 ? prevServices : Math.max(Math.round(totalServicesAll / 24), 1);
-
-        const currentDRF = calculateDRF(curInc, zones, curFR.length > 0 ? curFR : fillRate, curCL.length, effectiveCurServices);
-        const prevDRF = calculateDRF(prevInc, zones, prevFR.length > 0 ? prevFR : fillRate, prevCL.length, effectivePrevServices);
-
-        const change = currentDRF.score - prevDRF.score;
-        const changePercent = prevDRF.score > 0
-          ? (change / prevDRF.score) * 100
-          : (currentDRF.score > 0 ? 100 : 0);
+        const current = history[0].score;
+        const previous = history[1].score;
+        const change = current - previous;
+        const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
 
         let direction: DRFTrend['direction'] = 'stable';
         if (change < -2) direction = 'improving';
         else if (change > 2) direction = 'worsening';
 
+        const currentResult = calcForOffset(period, 0);
+
         return {
           period,
-          current: currentDRF.score,
-          previous: prevDRF.score,
+          current,
+          previous,
           change: Math.round(change * 10) / 10,
           changePercent: Math.round(changePercent * 10) / 10,
           direction,
-          breakdown: currentDRF.breakdown,
+          breakdown: currentResult.breakdown,
+          history,
         };
       });
 
@@ -281,7 +296,6 @@ export function useDetectaRiskFactor(selectedPeriod: TrendPeriod = 'MoM'): Detec
   const trends = data?.trends || [];
   const selectedTrend = trends.find(t => t.period === selectedPeriod) || null;
 
-  // When a period is selected, show that period's DRF, not global
   const activeDRF = selectedTrend?.current ?? data?.global.score ?? 0;
   const activeBreakdown = selectedTrend?.breakdown ?? data?.global.breakdown ?? {
     incidentRate: 0, severityIndex: 0, exposureScore: 0, mitigationRate: 0, siniestralidad: 0,
