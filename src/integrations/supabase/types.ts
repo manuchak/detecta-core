@@ -16902,6 +16902,119 @@ export type Database = {
         }
         Relationships: []
       }
+      truck_route_versions: {
+        Row: {
+          created_at: string | null
+          diff_metrics: Json | null
+          id: string
+          params_used: Json | null
+          route_geojson: Json
+          route_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string | null
+          diff_metrics?: Json | null
+          id?: string
+          params_used?: Json | null
+          route_geojson: Json
+          route_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string | null
+          diff_metrics?: Json | null
+          id?: string
+          params_used?: Json | null
+          route_geojson?: Json
+          route_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truck_route_versions_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "truck_routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      truck_routes: {
+        Row: {
+          alley_bias: number
+          alt_route_geojson: Json | null
+          created_at: string | null
+          created_by: string | null
+          dest_lat: number
+          dest_lon: number
+          exclude_flags: Json | null
+          id: string
+          max_weight_tons: number
+          max_width_m: number
+          name: string
+          origin_lat: number
+          origin_lon: number
+          route_distance_km: number | null
+          route_duration_min: number | null
+          route_geojson: Json | null
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+          vehicle_profile: string
+          version: number
+          waypoints: Json | null
+        }
+        Insert: {
+          alley_bias?: number
+          alt_route_geojson?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          dest_lat: number
+          dest_lon: number
+          exclude_flags?: Json | null
+          id?: string
+          max_weight_tons?: number
+          max_width_m?: number
+          name: string
+          origin_lat: number
+          origin_lon: number
+          route_distance_km?: number | null
+          route_duration_min?: number | null
+          route_geojson?: Json | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vehicle_profile?: string
+          version?: number
+          waypoints?: Json | null
+        }
+        Update: {
+          alley_bias?: number
+          alt_route_geojson?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          dest_lat?: number
+          dest_lon?: number
+          exclude_flags?: Json | null
+          id?: string
+          max_weight_tons?: number
+          max_width_m?: number
+          name?: string
+          origin_lat?: number
+          origin_lon?: number
+          route_distance_km?: number | null
+          route_duration_min?: number | null
+          route_geojson?: Json | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vehicle_profile?: string
+          version?: number
+          waypoints?: Json | null
+        }
+        Relationships: []
+      }
       twitter_api_usage: {
         Row: {
           created_at: string
