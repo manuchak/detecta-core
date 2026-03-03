@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { propagateIncidentToSecurityEvents } from '@/hooks/security/useIncidentToRiskBridge';
 
 // =============================================================================
 // TYPES
@@ -249,11 +250,23 @@ export function useCreateIncidente() {
       if (error) throw error;
       return result as IncidenteOperativo;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['incidentes-operativos'] });
       queryClient.invalidateQueries({ queryKey: ['incidentes-resumen'] });
       queryClient.invalidateQueries({ queryKey: ['incidentes-operativos-recent'] });
       queryClient.invalidateQueries({ queryKey: ['starmap-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['security-dashboard-events'] });
+      queryClient.invalidateQueries({ queryKey: ['detecta-risk-factor'] });
+      // Fire-and-forget: propagate to security_events for risk zone recalibration
+      if (result) {
+        propagateIncidentToSecurityEvents({
+          incidenteId: result.id,
+          tipo: result.tipo,
+          severidad: result.severidad,
+          descripcion: result.descripcion,
+          fechaIncidente: result.fecha_incidente,
+        }).catch(() => {}); // Never block UI
+      }
     },
   });
 }
@@ -268,11 +281,23 @@ export function useUpdateIncidente() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['incidentes-operativos'] });
       queryClient.invalidateQueries({ queryKey: ['incidentes-resumen'] });
       queryClient.invalidateQueries({ queryKey: ['incidentes-operativos-recent'] });
       queryClient.invalidateQueries({ queryKey: ['starmap-kpis'] });
+      queryClient.invalidateQueries({ queryKey: ['security-dashboard-events'] });
+      queryClient.invalidateQueries({ queryKey: ['detecta-risk-factor'] });
+      // Re-propagate on update (type/severity may have changed)
+      if (variables.id && variables.tipo && variables.severidad) {
+        propagateIncidentToSecurityEvents({
+          incidenteId: variables.id,
+          tipo: variables.tipo,
+          severidad: variables.severidad,
+          descripcion: variables.descripcion || '',
+          fechaIncidente: variables.fecha_incidente || new Date().toISOString(),
+        }).catch(() => {});
+      }
     },
   });
 }
