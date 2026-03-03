@@ -1,41 +1,43 @@
 
 
-# Plan: Corregir waypoints y calibrar los 8 segmentos GEO_ERROR
+# Plan: Dar acceso completo al rol `customer_success` en el módulo CS
 
-## Diagnóstico por segmento
+## Diagnóstico
 
-Analicé los waypoints actuales contra la geografía real. Los problemas son:
+El rol `customer_success` **ya tiene acceso** a la ruta `/customer-success` (está en `allowedRoles` de `App.tsx`) y las 6 pestañas se muestran sin filtro de rol. Sin embargo, hay 3 gaps que pueden causar problemas:
 
-| Segmento | Corredor km | Mapbox km | Problema |
-|---|---|---|---|
-| `tep-maz-3` | 100 | 345 | Primer WP [-105.6, 22.3] demasiado al sur de Escuinapa real (~22.65) |
-| `vhsa-can-1` | 180 | 446 | Ruta Mapbox toma desvíos; faltan WP intermedios en Hwy 180 costera |
-| `tor-mty-2` | 90 | 219 | Solo 2 WP para 90km; falta WP intermedio en 40D por Paila |
-| `cdmx-aca-2` | 35 | 82 | Solo 2 WP; ruta toma curvas de montaña. Agregar WP en autopista cuota |
-| `cor-pue-2` | 35 | 75 | WPs razonables; sierra muy curva. Agregar WP en 150D directo |
-| `maz-dur-2` | 70 | 148 | Sierra con túneles, 148km es realista. Solo calibrar |
-| `cdmx-pac-3` | 40 | 83 | Último WP [-98.73, 20.101] demasiado al norte de Pachuca (20.07) |
-| `edomex-ind-2` | 23 | 46 | Ruta en V (sur→norte); waypoints deberían ser más lineales |
+1. **`AuthContext.tsx`**: El rol cae en el `default` case de `getPermissionsForRole` → `canViewDashboard: false`. Aunque el módulo CS no usa este flag, otros componentes compartidos sí podrían.
+
+2. **`useUnifiedAuth.ts`**: El tipo `UserRole` no incluye `customer_success` y no tiene entrada en `ROLE_PERMISSIONS`.
+
+3. **`useStableAuth.ts`**: Mismo problema — falta el rol en el mapeo de permisos.
+
+4. **Base de datos `role_permissions`**: El rol tiene **0 entradas** en la tabla. Si algún componente futuro usa `usePermissions()` para validar acceso a tabs CS, todo se bloqueará.
 
 ## Cambios
 
-### 1. Corregir waypoints en `highwaySegments.ts` (6 segmentos)
+### 1. `src/contexts/AuthContext.tsx`
+Agregar case `'customer_success'` en `getPermissionsForRole` con permisos apropiados:
+- `canViewLeads: true` (necesita ver clientes)
+- `canEditLeads: false`
+- `canAssignLeads: false`
+- `canManageUsers: false`
+- `canViewDashboard: true`
 
-- **tep-maz-3**: Corregir primer WP a Escuinapa real [-105.73, 22.65], agregar WPs en costera 15D
-- **vhsa-can-1**: Agregar WPs intermedios en Hwy 180 costera (Frontera, Paraíso, Comalcalco bypass)
-- **tor-mty-2**: Agregar WP intermedio en Paila [-102.85, 25.35] sobre 40D
-- **cdmx-aca-2**: Agregar WP intermedio en caseta La Pera [-99.23, 19.08] sobre autopista cuota
-- **cdmx-pac-3**: Corregir último WP a Pachuca real [-98.73, 20.07]
-- **edomex-ind-2**: Reordenar WPs para ruta lineal por zona industrial
+### 2. `src/hooks/useUnifiedAuth.ts`
+- Agregar `'customer_success'` al tipo `UserRole`
+- Agregar entrada en `ROLE_PERMISSIONS`
 
-### 2. Agregar `expectedRoadKm` para los 8 segmentos
+### 3. `src/hooks/useStableAuth.ts`
+- Agregar `'customer_success'` al tipo y al `PERMISSIONS_MAP`
 
-Para los 2 segmentos donde la distancia es realista pero el rango km del corredor no coincide (`maz-dur-2`, `cor-pue-2`), agregar calibración en `EXPECTED_ROAD_KM`.
+### 4. Base de datos: insertar permisos en `role_permissions`
+Insertar entradas para el rol `customer_success` con acceso a las páginas y features relevantes del módulo CS (dashboard, analytics, metrics).
 
-Para los 6 restantes, agregar `expectedRoadKm` con la distancia real esperada post-corrección (se actualizará tras re-enriquecer).
-
-### Archivo a modificar
 | Archivo | Cambio |
 |---|---|
-| `src/lib/security/highwaySegments.ts` | Corregir waypoints de 6 segmentos + agregar 8 entradas a `EXPECTED_ROAD_KM` |
+| `src/contexts/AuthContext.tsx` | Agregar case `customer_success` |
+| `src/hooks/useUnifiedAuth.ts` | Agregar al tipo y mapa |
+| `src/hooks/useStableAuth.ts` | Agregar al tipo y mapa |
+| DB migration | Insertar `role_permissions` para `customer_success` |
 
