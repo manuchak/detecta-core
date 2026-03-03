@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useDetectaRiskFactor, TrendPeriod, DRFBreakdown } from '@/hooks/security/useDetectaRiskFactor';
+import { useSiniestrosHistorico } from '@/hooks/security/useSiniestrosHistorico';
+import { DRFSparkline } from './DRFSparkline';
 import { Shield, TrendingDown, TrendingUp, Minus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 // GAUGE COMPONENT
 // =============================================================================
 
-function DRFGauge({ score, size = 120 }: { score: number; size?: number }) {
+function DRFGauge({ score, size = 110 }: { score: number; size?: number }) {
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -24,19 +26,13 @@ function DRFGauge({ score, size = 120 }: { score: number; size?: number }) {
     return 'hsl(142, 71%, 45%)';
   };
 
-  const color = getColor(score);
-
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={strokeWidth} className="stroke-muted" />
         <circle
           cx={size / 2} cy={size / 2} r={radius}
-          fill="none" strokeWidth={strokeWidth}
-          className="stroke-muted"
-        />
-        <circle
-          cx={size / 2} cy={size / 2} r={radius}
-          fill="none" stroke={color} strokeWidth={strokeWidth}
+          fill="none" stroke={getColor(score)} strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -56,11 +52,7 @@ function DRFGauge({ score, size = 120 }: { score: number; size?: number }) {
 // =============================================================================
 
 const PERIOD_LABELS: Record<TrendPeriod, string> = {
-  DoD: 'Día',
-  WoW: 'Semana',
-  MoM: 'Mes',
-  QoQ: 'Trimestre',
-  YoY: 'Año',
+  DoD: 'Día', WoW: 'Semana', MoM: 'Mes', QoQ: 'Trimestre', YoY: 'Año',
 };
 
 function PeriodSelector({ selected, onChange }: { selected: TrendPeriod; onChange: (p: TrendPeriod) => void }) {
@@ -73,9 +65,7 @@ function PeriodSelector({ selected, onChange }: { selected: TrendPeriod; onChang
           onClick={() => onChange(p)}
           className={cn(
             'px-1.5 py-0.5 text-[10px] rounded-md font-medium transition-colors',
-            selected === p
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            selected === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
         >
           {p}
@@ -86,7 +76,7 @@ function PeriodSelector({ selected, onChange }: { selected: TrendPeriod; onChang
 }
 
 // =============================================================================
-// BREAKDOWN ROW (updated keys)
+// BREAKDOWN
 // =============================================================================
 
 const BREAKDOWN_META: { key: keyof DRFBreakdown; label: string; weight: string; inverted?: boolean }[] = [
@@ -115,22 +105,35 @@ function BreakdownRow({ label, weight, value, inverted }: { label: string; weigh
 }
 
 // =============================================================================
-// MAIN COMPONENT
+// MAIN COMPONENT — DRF + Sparkline merged
 // =============================================================================
 
 export function DetectaRiskFactorCard() {
   const [period, setPeriod] = useState<TrendPeriod>('MoM');
   const [open, setOpen] = useState(false);
   const { currentDRF, riskLevel, breakdown, selectedTrend, isLoading } = useDetectaRiskFactor(period);
+  const { fillRate } = useSiniestrosHistorico();
+
+  // Build DRF sparkline from fill rate
+  const dailyDRFScores = React.useMemo(() => {
+    if (!fillRate.length) return [];
+    const exposureFloor = 33;
+    return fillRate.map(m => {
+      const rate = m.servicios_completados > 0
+        ? (m.siniestros / m.servicios_completados) * 1000
+        : 0;
+      const siniestComponent = Math.min((rate / 10) * 100, 100) * 0.30;
+      const incidentComponent = m.eventos_no_criticos > 0 ? Math.min(m.eventos_no_criticos * 2, 15) : 0;
+      const score = Math.round(Math.min(exposureFloor + siniestComponent + incidentComponent, 100));
+      return { date: m.fecha.slice(0, 7), score };
+    });
+  }, [fillRate]);
 
   if (isLoading) {
-    return <Skeleton className="h-48 rounded-lg" />;
+    return <Skeleton className="h-56 rounded-lg" />;
   }
 
-  const riskLabels: Record<string, string> = {
-    critico: 'Crítico', alto: 'Alto', medio: 'Medio', bajo: 'Bajo',
-  };
-
+  const riskLabels: Record<string, string> = { critico: 'Crítico', alto: 'Alto', medio: 'Medio', bajo: 'Bajo' };
   const riskBadgeVariant: Record<string, string> = {
     critico: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     alto: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
@@ -138,23 +141,14 @@ export function DetectaRiskFactorCard() {
     bajo: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   };
 
-  const TrendIcon = selectedTrend?.direction === 'improving'
-    ? TrendingDown
-    : selectedTrend?.direction === 'worsening'
-      ? TrendingUp
-      : Minus;
+  const TrendIcon = selectedTrend?.direction === 'improving' ? TrendingDown
+    : selectedTrend?.direction === 'worsening' ? TrendingUp : Minus;
 
-  const trendColor = selectedTrend?.direction === 'improving'
-    ? 'text-green-600'
-    : selectedTrend?.direction === 'worsening'
-      ? 'text-red-600'
-      : 'text-muted-foreground';
+  const trendColor = selectedTrend?.direction === 'improving' ? 'text-green-600'
+    : selectedTrend?.direction === 'worsening' ? 'text-red-600' : 'text-muted-foreground';
 
-  const trendLabel = selectedTrend?.direction === 'improving'
-    ? 'Mejorando'
-    : selectedTrend?.direction === 'worsening'
-      ? 'Empeorando'
-      : 'Estable';
+  const trendLabel = selectedTrend?.direction === 'improving' ? 'Mejorando'
+    : selectedTrend?.direction === 'worsening' ? 'Empeorando' : 'Estable';
 
   return (
     <Card className="border-l-4 border-l-primary">
@@ -175,7 +169,7 @@ export function DetectaRiskFactorCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Gauge + Trend */}
+        {/* Gauge + Trend + Period */}
         <div className="flex items-center gap-4">
           <DRFGauge score={currentDRF} />
           <div className="flex-1 space-y-2">
@@ -199,6 +193,9 @@ export function DetectaRiskFactorCard() {
             )}
           </div>
         </div>
+
+        {/* Integrated Sparkline */}
+        <DRFSparkline dailyScores={dailyDRFScores} />
 
         {/* Expandable Breakdown */}
         <Collapsible open={open} onOpenChange={setOpen}>
