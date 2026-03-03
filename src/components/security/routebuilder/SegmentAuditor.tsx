@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { HIGHWAY_SEGMENTS, type HighwaySegment } from '@/lib/security/highwaySegments';
 import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,18 +8,19 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { RefreshCw, AlertTriangle, CheckCircle, AlertCircle, Loader2, Database } from 'lucide-react';
+import { RefreshCw, AlertTriangle, CheckCircle, AlertCircle, Loader2, Database, Ban } from 'lucide-react';
 
 type AuditStatus = 'GEO_ERROR' | 'DATA_ERROR' | 'WARN' | 'OK' | 'NO_DATA';
 type FilterStatus = AuditStatus | 'ALL';
+type FixResult = 'corrected' | 'changed_no_effect' | 'no_change';
 
 interface AuditRow {
   segment: HighwaySegment;
-  corridorKm: number;        // kmEnd - kmStart (corridor label)
-  expectedKm: number;        // expectedRoadKm || corridorKm
+  corridorKm: number;
+  expectedKm: number;
   mapboxKm: number | null;
-  geoRatio: number | null;   // mapboxKm / expectedKm
-  dataRatio: number | null;  // corridorKm vs expectedKm divergence
+  geoRatio: number | null;
+  dataRatio: number | null;
   status: AuditStatus;
 }
 
@@ -37,6 +38,8 @@ export const SegmentAuditor: React.FC = () => {
   const [filter, setFilter] = useState<FilterStatus>('ALL');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [enriching, setEnriching] = useState<Set<string>>(new Set());
+  const [lastFixResults, setLastFixResults] = useState<Record<string, FixResult>>({});
+  const fixResultTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rows = useMemo<AuditRow[]>(() => {
     return HIGHWAY_SEGMENTS.map(seg => {
@@ -91,6 +94,12 @@ export const SegmentAuditor: React.FC = () => {
   }, [rows]);
 
   const enrichSegments = useCallback(async (segmentIds: string[]) => {
+    // 1. Capture pre-enrichment distances
+    const preDistances: Record<string, number | null> = {};
+    segmentIds.forEach(id => {
+      preDistances[id] = geometries?.[id]?.distance_km ?? null;
+    });
+
     const segments = segmentIds.map(id => {
       const seg = HIGHWAY_SEGMENTS.find(s => s.id === id);
       if (!seg) return null;
@@ -117,7 +126,6 @@ export const SegmentAuditor: React.FC = () => {
 
         if (error) throw error;
         processed += batch.length;
-        toast.success(`Batch ${Math.ceil((i + 1) / batchSize)}: ${batch.length} segmentos procesados`);
       } catch (err: any) {
         toast.error(`Error en batch: ${err.message}`);
       } finally {
@@ -129,9 +137,59 @@ export const SegmentAuditor: React.FC = () => {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ['segment-geometries'] });
-    toast.success(`✅ ${processed} segmentos re-enriquecidos.`);
-  }, [queryClient]);
+    // 2. Invalidate and wait for fresh data
+    await queryClient.invalidateQueries({ queryKey: ['segment-geometries'] });
+    // Small delay to let react-query refetch
+    await new Promise(r => setTimeout(r, 1500));
+
+    // 3. Get fresh geometries from cache
+    const freshGeometries = queryClient.getQueryData<Record<string, { distance_km: number | null }>>(['segment-geometries']) || {};
+
+    // 4. Compare pre vs post
+    let corrected = 0;
+    let changedNoEffect = 0;
+    let noChange = 0;
+    const results: Record<string, FixResult> = {};
+
+    segmentIds.forEach(id => {
+      const pre = preDistances[id];
+      const post = freshGeometries[id]?.distance_km ?? null;
+      const seg = HIGHWAY_SEGMENTS.find(s => s.id === id);
+      const expectedKm = seg?.expectedRoadKm || (seg ? seg.kmEnd - seg.kmStart : 1);
+
+      if (pre === null || post === null) {
+        results[id] = 'no_change';
+        noChange++;
+      } else if (Math.abs(pre - post) < 0.5) {
+        results[id] = 'no_change';
+        noChange++;
+      } else if (post / expectedKm < 2.0) {
+        results[id] = 'corrected';
+        corrected++;
+      } else {
+        results[id] = 'changed_no_effect';
+        changedNoEffect++;
+      }
+    });
+
+    // 5. Show differentiated toast
+    if (corrected === processed && corrected > 0) {
+      toast.success(`✅ ${corrected} segmentos corregidos exitosamente`);
+    } else if (noChange === processed) {
+      toast.warning(`⚠️ ${noChange} segmentos sin cambios — los waypoints producen la misma geometría. Requiere corrección manual de waypoints o calibración expectedRoadKm.`, { duration: 8000 });
+    } else {
+      const parts: string[] = [];
+      if (corrected > 0) parts.push(`✅ ${corrected} corregidos`);
+      if (changedNoEffect > 0) parts.push(`🟡 ${changedNoEffect} actualizados sin efecto`);
+      if (noChange > 0) parts.push(`🟠 ${noChange} sin cambios`);
+      toast.info(parts.join(', '), { duration: 6000 });
+    }
+
+    // 6. Set temporary visual indicator (5s)
+    setLastFixResults(results);
+    if (fixResultTimeout.current) clearTimeout(fixResultTimeout.current);
+    fixResultTimeout.current = setTimeout(() => setLastFixResults({}), 5000);
+  }, [queryClient, geometries]);
 
   const handleEnrichSelected = () => {
     if (selected.size === 0) return toast.warning('Selecciona al menos un segmento');
@@ -272,11 +330,26 @@ export const SegmentAuditor: React.FC = () => {
                 <div className={`text-right font-bold font-mono ${cfg.color}`}>
                   {row.geoRatio !== null ? `${row.geoRatio.toFixed(1)}x` : '—'}
                 </div>
-                <div className="flex justify-center">
+                <div className="flex justify-center gap-0.5">
                   <Badge variant="outline" className={`text-[8px] px-1 py-0 ${cfg.color}`} title={cfg.description}>
                     {cfg.icon}
                     <span className="ml-0.5">{cfg.label}</span>
                   </Badge>
+                  {lastFixResults[row.segment.id] === 'no_change' && (
+                    <span className="text-orange-500 animate-pulse" title="Sin cambios tras re-enriquecer">
+                      <Ban className="h-3 w-3" />
+                    </span>
+                  )}
+                  {lastFixResults[row.segment.id] === 'corrected' && (
+                    <span className="text-green-500 animate-pulse" title="¡Corregido!">
+                      <CheckCircle className="h-3 w-3" />
+                    </span>
+                  )}
+                  {lastFixResults[row.segment.id] === 'changed_no_effect' && (
+                    <span className="text-yellow-500 animate-pulse" title="Actualizado sin efecto">
+                      <AlertCircle className="h-3 w-3" />
+                    </span>
+                  )}
                 </div>
                 <div>
                   {row.status !== 'DATA_ERROR' && (
