@@ -2,7 +2,7 @@
  * Wizard principal del checklist de servicios
  * Orquesta los 4 pasos y maneja navegación
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, X } from 'lucide-react';
@@ -58,6 +58,7 @@ export function ChecklistWizard({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form persistence for wizard state
   const persistence = useFormPersistence<ChecklistWizardState>({
@@ -111,19 +112,30 @@ export function ChecklistWizard({
   }, [currentStep]);
 
   const handleSubmit = useCallback(() => {
+    if (isSubmitting) return; // Guard contra doble-submit
+    setIsSubmitting(true);
     saveChecklist(undefined, {
       onSuccess: () => {
         persistence.clearDraft(true);
+        // Limpiar cualquier rastro en localStorage/sessionStorage
+        try {
+          localStorage.removeItem(`checklist_wizard_${servicioId}`);
+          sessionStorage.removeItem(`checklist_wizard_${servicioId}`);
+        } catch {}
         queryClient.invalidateQueries({ queryKey: ['next-service'] });
+        queryClient.invalidateQueries({ queryKey: ['service-checklist', servicioId] });
         toast.success('¡Checklist completado!');
         if (onComplete) {
           onComplete();
         } else {
           navigate('/custodian');
         }
+      },
+      onError: () => {
+        setIsSubmitting(false);
       }
     });
-  }, [saveChecklist, onComplete, navigate, persistence, queryClient]);
+  }, [saveChecklist, onComplete, navigate, persistence, queryClient, servicioId, isSubmitting]);
 
   const handleExit = useCallback(() => {
     setShowExitDialog(true);
@@ -145,23 +157,23 @@ export function ChecklistWizard({
      );
    }
  
-   // Show completed state if checklist already exists
-   if (existingChecklist?.estado === 'completo') {
-     return (
-       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-         <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
-           <span className="text-4xl">✅</span>
-         </div>
-         <h2 className="text-xl font-semibold mb-2">Checklist Completado</h2>
-         <p className="text-muted-foreground mb-6">
-           Ya completaste el checklist para este servicio.
-         </p>
-         <Button onClick={() => navigate('/custodian')}>
-           Volver al inicio
-         </Button>
-       </div>
-     );
-   }
+    // Show completed state if checklist already exists
+    if (existingChecklist?.estado === 'completo') {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mb-6">
+            <span className="text-4xl">✅</span>
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Checklist Completado</h2>
+          <p className="text-muted-foreground mb-6">
+            Ya completaste el checklist para este servicio.
+          </p>
+          <Button onClick={() => navigate('/custodian')}>
+            Volver al inicio
+          </Button>
+        </div>
+      );
+    }
  
    return (
      <div className="min-h-screen bg-background">
@@ -224,7 +236,7 @@ export function ChecklistWizard({
              fotos={fotos}
              observaciones={observaciones}
              firma={firma}
-             isSaving={isSaving}
+             isSaving={isSaving || isSubmitting}
              onSetObservaciones={setObservaciones}
              onSetFirma={setFirma}
              onBack={handleBack}

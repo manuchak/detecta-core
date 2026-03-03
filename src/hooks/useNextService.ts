@@ -156,12 +156,11 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
         return { service: null, checklistStatus: null };
       }
 
-      // 5. Verificar si existe checklist para este servicio
+      // 5. Verificar si existe checklist para este servicio (solo por servicio_id, sin depender de teléfono)
       const { data: checklist } = await supabase
         .from('checklist_servicio')
         .select('estado')
         .eq('servicio_id', nextService.id_servicio)
-        .eq('custodio_telefono', normalizedPhone)
         .maybeSingle();
 
       return {
@@ -170,7 +169,9 @@ export function useNextService(custodianPhone: string | undefined, custodioId?: 
       };
     },
     enabled: !!custodianPhone || !!custodioId,
-    staleTime: 10000, // 10 segundos
+    staleTime: 0,
+    refetchOnMount: 'always' as const,
+    refetchOnWindowFocus: true,
   });
 
   return {

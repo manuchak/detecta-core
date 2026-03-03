@@ -207,9 +207,39 @@
    ]);
  }
  
- /**
-  * Obtiene el tamaño aproximado de datos offline almacenados
-  */
+/**
+ * Elimina fotos huérfanas: blobs cuyo servicioId no tiene draft asociado
+ * y fueron capturadas hace más de 48 horas.
+ */
+export async function cleanupOrphanedPhotos(): Promise<number> {
+  const db = await getDB();
+  const allPhotos = await db.getAll('photo_blobs');
+  const allDrafts = await db.getAll('checklist_drafts');
+  const draftServiceIds = new Set(allDrafts.map((d) => d.servicioId));
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  let cleaned = 0;
+
+  const tx = db.transaction('photo_blobs', 'readwrite');
+  for (const photo of allPhotos) {
+    if (!draftServiceIds.has(photo.servicioId)) {
+      const capturedAt = new Date(photo.capturedAt).getTime();
+      if (capturedAt < cutoff) {
+        await tx.store.delete(photo.id);
+        cleaned++;
+      }
+    }
+  }
+  await tx.done;
+
+  if (cleaned > 0) {
+    console.log(`[OfflineStorage] Cleaned ${cleaned} orphaned photos`);
+  }
+  return cleaned;
+}
+
+/**
+ * Obtiene el tamaño aproximado de datos offline almacenados
+ */
  export async function getOfflineStorageSize(): Promise<{
    drafts: number;
    photos: number;
