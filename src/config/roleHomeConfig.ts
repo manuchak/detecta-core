@@ -1,7 +1,9 @@
 import { 
   Users, Calendar, TrendingUp, AlertTriangle, UserPlus, 
   BarChart3, Truck, Package, Settings, Bell, Monitor, 
-  Shield, ClipboardList, Wrench, FileText, Map
+  Shield, ClipboardList, Wrench, FileText, Map,
+  Receipt, Building2, Scale, HeartHandshake, Route,
+  GraduationCap, ShieldCheck, UserCog, Target
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -187,6 +189,69 @@ export const MODULES: Record<string, ModuleConfig> = {
     icon: Map,
     color: 'hsl(280, 60%, 55%)'
   },
+  facturacion: { 
+    id: 'facturacion', 
+    label: 'Facturación', 
+    route: '/facturacion', 
+    icon: Receipt,
+    color: 'hsl(45, 93%, 47%)'
+  },
+  crm: { 
+    id: 'crm', 
+    label: 'CRM Hub', 
+    route: '/crm', 
+    icon: Building2,
+    color: 'hsl(199, 89%, 48%)'
+  },
+  legal: { 
+    id: 'legal', 
+    label: 'Legal', 
+    route: '/legal', 
+    icon: Scale,
+    color: 'hsl(220, 60%, 50%)'
+  },
+  customerSuccess: { 
+    id: 'customerSuccess', 
+    label: 'Customer Success', 
+    route: '/customer-success', 
+    icon: HeartHandshake,
+    color: 'hsl(340, 75%, 55%)'
+  },
+  rutas: { 
+    id: 'rutas', 
+    label: 'Rutas', 
+    route: '/rutas', 
+    icon: Route,
+    color: 'hsl(160, 60%, 45%)'
+  },
+  lms: { 
+    id: 'lms', 
+    label: 'Capacitación', 
+    route: '/lms', 
+    icon: GraduationCap,
+    color: 'hsl(270, 70%, 60%)'
+  },
+  seguridad: { 
+    id: 'seguridad', 
+    label: 'Seguridad', 
+    route: '/seguridad', 
+    icon: ShieldCheck,
+    color: 'hsl(0, 70%, 50%)'
+  },
+  perfiles: { 
+    id: 'perfiles', 
+    label: 'Perfiles', 
+    route: '/perfiles-operativos', 
+    icon: UserCog,
+    color: 'hsl(190, 60%, 50%)'
+  },
+  estrategia: { 
+    id: 'estrategia', 
+    label: 'Estrategia', 
+    route: '/recruitment-strategy', 
+    icon: Target,
+    color: 'hsl(15, 80%, 55%)'
+  },
 };
 
 // Role configurations
@@ -349,7 +414,7 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       { type: 'activeCustodiansWithContext', label: 'Fuerza Activa', isContext: true },
       { type: 'shiftPulse', label: 'Turno Actual', isContext: true }
     ],
-    modules: ['bi', 'leads', 'planeacion', 'monitoring', 'wms', 'settings']
+    modules: ['bi', 'leads', 'planeacion', 'services', 'monitoring', 'wms', 'facturacion', 'crm', 'customerSuccess', 'legal', 'rutas', 'lms', 'seguridad', 'perfiles', 'estrategia', 'tickets', 'installers', 'incidentes', 'reports', 'settings']
   },
 
   // Owner - Vista ejecutiva
@@ -366,7 +431,7 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
       { type: 'activeCustodians', label: 'Custodios', isContext: true },
       { type: 'monthlyServices', label: 'Servicios', isContext: true }
     ],
-    modules: ['bi', 'reports', 'leads', 'monitoring', 'settings']
+    modules: ['bi', 'leads', 'planeacion', 'services', 'monitoring', 'wms', 'facturacion', 'crm', 'customerSuccess', 'legal', 'rutas', 'lms', 'seguridad', 'perfiles', 'estrategia', 'tickets', 'installers', 'incidentes', 'reports', 'settings']
   },
 
   // Coordinador de Operaciones

@@ -7,7 +7,7 @@ interface ModuleGridProps {
 
 export const ModuleGrid = ({ modules }: ModuleGridProps) => {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
       {modules.map((module, index) => {
         const Icon = module.icon;
         
