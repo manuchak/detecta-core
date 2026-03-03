@@ -11,6 +11,7 @@ export interface PerformanceMetrics {
   onTimeRate: number;
   otifRate: number;
   checklistsCompletados: number;
+  checklistsEvaluables: number;
   checklistsRate: number;
   custodiosActivos: number;
   serviciosPorCustodio: number;
@@ -148,7 +149,13 @@ function computeMetrics(services: ServiceMerged[]) {
     }
   }
 
-  const checklistsCompletados = services.filter(s => s.checklist_completo).length;
+  // Filter services whose appointment time has already passed for checklist evaluation
+  const now = new Date();
+  const checklistEvaluable = services.filter(s => {
+    if (!s.fecha_hora_cita) return false;
+    return new Date(s.fecha_hora_cita).getTime() <= now.getTime();
+  });
+  const checklistsCompletados = checklistEvaluable.filter(s => s.checklist_completo).length;
   const custodiosUnicos = new Set(services.filter(s => s.custodio_asignado).map(s => s.custodio_asignado)).size;
 
   const metricas: PerformanceMetrics = {
@@ -157,7 +164,8 @@ function computeMetrics(services: ServiceMerged[]) {
     onTimeRate: evaluableCount > 0 ? Math.round((onTimeCount / evaluableCount) * 100) : 0,
     otifRate: evaluableCount > 0 ? Math.round((otifCount / evaluableCount) * 100) : 0,
     checklistsCompletados,
-    checklistsRate: total > 0 ? Math.round((checklistsCompletados / total) * 100) : 0,
+    checklistsEvaluables: checklistEvaluable.length,
+    checklistsRate: checklistEvaluable.length > 0 ? Math.round((checklistsCompletados / checklistEvaluable.length) * 100) : 0,
     custodiosActivos: custodiosUnicos,
     serviciosPorCustodio: custodiosUnicos > 0 ? Math.round((total / custodiosUnicos) * 10) / 10 : 0,
   };

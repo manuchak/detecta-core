@@ -53,7 +53,7 @@ export default function PerformanceMetricCards({ metricas, loading }: Props) {
       <MetricCard
         title="Checklists"
         value={`${metricas.checklistsCompletados}`}
-        subtitle={`${metricas.checklistsRate}% completados`}
+        subtitle={`${metricas.checklistsRate}% de ${metricas.checklistsEvaluables ?? metricas.totalServicios} evaluables`}
         icon={ClipboardCheck}
         variant={rateVariant(metricas.checklistsRate)}
         size="sm"

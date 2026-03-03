@@ -75,7 +75,15 @@ function isOnTime(arrivalISO: string | null, citaISO: string | null): boolean | 
 function computeGroupMetrics(services: MergedService[]): Omit<PeriodMetrics, 'label'> {
   const total = services.length;
   const conCustodio = services.filter(s => s.custodio_asignado).length;
-  const conChecklist = services.filter(s => s.checklistCompleto).length;
+
+  // Only count checklist completion for services whose appointment has already passed
+  const now = new Date();
+  const checklistEvaluable = services.filter(s => {
+    if (!s.fecha_hora_cita) return false;
+    return new Date(s.fecha_hora_cita).getTime() <= now.getTime();
+  });
+  const conChecklist = checklistEvaluable.filter(s => s.checklistCompleto).length;
+
   let onTimeCount = 0;
   let otifCount = 0;
   let evaluable = 0;
@@ -93,7 +101,7 @@ function computeGroupMetrics(services: MergedService[]): Omit<PeriodMetrics, 'la
     fillRate: total > 0 ? Math.round((conCustodio / total) * 100) : 0,
     onTimeRate: evaluable > 0 ? Math.round((onTimeCount / evaluable) * 100) : 0,
     otifRate: evaluable > 0 ? Math.round((otifCount / evaluable) * 100) : 0,
-    checklistsRate: total > 0 ? Math.round((conChecklist / total) * 100) : 0,
+    checklistsRate: checklistEvaluable.length > 0 ? Math.round((conChecklist / checklistEvaluable.length) * 100) : 0,
     total,
   };
 }
