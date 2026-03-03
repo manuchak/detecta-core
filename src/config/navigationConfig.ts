@@ -34,7 +34,8 @@ import {
   Receipt,
   MonitorPlay,
   HeartHandshake,
-  Scale
+  Scale,
+  UserCog
 } from 'lucide-react';
 
 // Roles with restricted navigation access (only see specific groups)
@@ -420,6 +421,18 @@ export const navigationModules: NavigationModule[] = [
         label: 'Operativo',
         path: '/customer-success?tab=operativo',
         icon: ClipboardList
+      },
+      {
+        id: 'cs_analisis',
+        label: 'Análisis Clientes',
+        path: '/customer-success?tab=analisis',
+        icon: BarChart3
+      },
+      {
+        id: 'cs_staff',
+        label: 'Staff CSM',
+        path: '/customer-success?tab=staff',
+        icon: UserCog
       }
     ]
   },
