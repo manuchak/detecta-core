@@ -195,7 +195,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar', 'Custodia opcional'],
-    waypoints: [[-98.4400, 19.2750], [-98.2000, 19.0414]],
+    waypoints: [[-98.4400, 19.2750], [-98.2500, 18.9800]],  // Periférico Ecológico Puebla norte
   },
 
   // ============================================================
@@ -338,7 +338,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '02:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Autopista segura'],
-    waypoints: [[-101.3000, 19.3500], [-101.1850, 19.7010]],
+    waypoints: [[-101.3000, 19.3500], [-101.2200, 19.6500]],  // Libramiento Sur Morelia
   },
   {
     id: 'lc-cdmx-6',
@@ -351,7 +351,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar', 'Evitar paradas no programadas'],
-    waypoints: [[-101.1850, 19.7010], [-100.4500, 19.7200]],
+    waypoints: [[-101.2200, 19.6500], [-100.4500, 19.7200]],  // Desde Libramiento Sur Morelia
   },
   {
     id: 'lc-cdmx-7',
@@ -409,27 +409,26 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     recommendations: ['Monitoreo GPS estándar', 'Usar periférico obligatoriamente'],
     waypoints: [
       [-103.7200, 19.2400],
-      [-103.4000, 19.9500],
-      [-103.3000, 20.2800],
-      [-103.2600, 20.5200],
+      [-103.5800, 20.1300],  // Acatlán de Juárez (inicio Macrolibramiento GUA-10D)
+      [-103.3000, 20.1000],  // Macrolibramiento Sur (sur de Tlajomulco)
+      [-103.0600, 20.3700],  // Zapotlanejo Sur (salida este Macrolibramiento)
     ],
   },
   {
     id: 'mza-tam-2b',
     corridorId: 'manzanillo-tampico',
-    name: 'Periférico GDL (Tonalá - Salida Norte)',
+    name: 'Macrolibramiento GDL - Entronque Norte (80D)',
     kmStart: 200,
     kmEnd: 240,
-    riskLevel: 'medio', // Recalibrado de alto
+    riskLevel: 'medio',
     avgMonthlyEvents: 2,
     criticalHours: '18:00-22:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['No detenerse', 'GPS activo'],
     waypoints: [
-      [-103.2600, 20.5200],
-      [-103.2300, 20.6500],
-      [-103.2100, 20.7200],
-      [-103.1800, 20.7600],
+      [-103.0600, 20.3700],  // Zapotlanejo Sur (Macrolibramiento)
+      [-102.9800, 20.5500],  // Entronque 80D norte
+      [-102.8500, 20.6800],  // Salida hacia Lagos de Moreno
     ],
   },
   {
@@ -444,7 +443,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Evitar tránsito nocturno', 'Monitoreo GPS estándar'],
     waypoints: [
-      [-103.1800, 20.7600],
+      [-102.8500, 20.6800],  // Desde Macrolibramiento salida norte
       [-102.7500, 20.9500],
       [-102.3400, 21.3500],
     ],
@@ -460,7 +459,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-04:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Autopista de cuota segura'],
-    waypoints: [[-102.3400, 21.3500], [-101.8800, 21.8800]],
+    waypoints: [[-102.3400, 21.3500], [-102.3500, 21.8200]],  // Libramiento Ags poniente
   },
   {
     id: 'mza-tam-5',
@@ -805,7 +804,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Zona industrial segura'],
-    waypoints: [[-99.9900, 20.3900], [-100.3900, 20.5900]],
+    waypoints: [[-99.9900, 20.3900], [-100.4500, 20.6500]],  // Macrolibramiento Qro (salida norte)
   },
 
   // ============================================================
@@ -822,7 +821,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Evitar horario nocturno', 'Monitoreo GPS estándar'],
-    waypoints: [[-100.3900, 20.5900], [-100.8000, 20.5200]],
+    waypoints: [[-100.4500, 20.6500], [-100.8200, 20.4800]],  // Macrolib Qro → Lib Celaya sur
   },
   {
     id: 'bajio-2',
@@ -835,7 +834,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-06:00',
     commonIncidentType: 'Robo organizado / Bloqueos',
     recommendations: ['Restricción horaria: Evitar 18:00-06:00', 'Convoy mínimo 2 unidades', 'Comunicación satelital'],
-    waypoints: [[-100.8000, 20.5200], [-101.2000, 20.5700]],
+    waypoints: [[-100.8200, 20.4800], [-101.1800, 20.5200]],  // Lib Celaya-Salamanca sur
   },
   {
     id: 'bajio-3',
@@ -848,7 +847,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-05:00',
     commonIncidentType: 'Robo con violencia',
     recommendations: ['Evitar tránsito nocturno', 'Check-in cada 10 min'],
-    waypoints: [[-101.2000, 20.5700], [-101.3500, 20.6700]],
+    waypoints: [[-101.1800, 20.5200], [-101.3500, 20.6700]],
   },
   {
     id: 'bajio-4',
@@ -861,7 +860,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar'],
-    waypoints: [[-101.3500, 20.6700], [-101.6800, 21.1200]],
+    waypoints: [[-101.3500, 20.6700], [-101.7200, 21.0800]],  // Libramiento León oeste
   },
   {
     id: 'bajio-5',
@@ -874,7 +873,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Autopista de cuota segura'],
-    waypoints: [[-101.6800, 21.1200], [-102.2900, 21.8800]],
+    waypoints: [[-101.7200, 21.0800], [-102.3500, 21.8200]],  // Lib León → Lib Ags poniente
   },
 
   // ============================================================
@@ -891,7 +890,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-22:00',
     commonIncidentType: 'Robo urbano',
     recommendations: ['Evitar horario pico', 'Monitoreo GPS estándar'],
-    waypoints: [[-100.3100, 25.6700], [-100.3000, 25.9500]],
+    waypoints: [[-100.3500, 25.6200], [-100.3000, 25.9500]],  // Desde Periférico MTY norte
   },
   {
     id: 'mty-nld-2',
@@ -1003,7 +1002,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Autopista de cuota segura'],
-    waypoints: [[-102.2900, 21.8800], [-102.5700, 22.7700]],
+    waypoints: [[-102.3500, 21.8200], [-102.5700, 22.7700]],  // Desde Lib Ags
   },
   {
     id: 'altiplano-2',
@@ -1293,7 +1292,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Puebla = 22% incidencia estatal',
       'Monitoreo GPS cada 10 min',
     ],
-    waypoints: [[-97.8500, 18.9200], [-98.0500, 19.0000], [-98.2000, 19.0414]],
+    waypoints: [[-97.8500, 18.9200], [-98.0500, 19.0000], [-98.2500, 18.9800]],  // Periférico Ecológico Puebla
   },
 
   // ============================================================
@@ -1454,7 +1453,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar', 'Evitar paradas urbanas'],
-    waypoints: [[-103.4500, 25.5400], [-103.2000, 25.4200]],
+    waypoints: [[-103.5000, 25.4800], [-103.2000, 25.4200]],  // Desde Periférico Torreón
   },
   {
     id: 'tor-mty-2',
@@ -1497,7 +1496,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia / Zona urbana',
     recommendations: ['Monitoreo GPS estándar', 'Evitar horario pico'],
-    waypoints: [[-101.0000, 25.4200], [-100.3100, 25.6700]],
+    waypoints: [[-100.9500, 25.3800], [-100.3500, 25.6200]],  // Lib Saltillo → Periférico MTY sur
   },
 
   // ============================================================
@@ -1514,7 +1513,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar'],
-    waypoints: [[-106.0889, 28.6353], [-106.3500, 29.1000]],
+    waypoints: [[-106.1200, 28.7000], [-106.3500, 29.1000]],  // Desde Libramiento Chihuahua norte
   },
   {
     id: 'chi-jua-2',
@@ -1777,7 +1776,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Conexión con 40D hacia Monterrey',
       'Monitoreo GPS estándar',
     ],
-    waypoints: [[-101.0000, 25.0000], [-101.0000, 25.2000], [-101.0000, 25.4200]],
+    waypoints: [[-101.0000, 25.0000], [-101.0000, 25.2000], [-100.9500, 25.3800]],  // Libramiento Saltillo sur
   },
 
   // ============================================================
@@ -1798,7 +1797,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Monitoreo GPS estándar',
       'Corredor relativamente seguro',
     ],
-    waypoints: [[-101.0000, 25.4200], [-100.9500, 25.5400]],
+    waypoints: [[-100.9500, 25.3800], [-100.9500, 25.5400]],  // Libramiento Saltillo
   },
   {
     id: 'mty-sal-2',
@@ -1815,7 +1814,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Precaución con vehículos pesados',
       'Monitoreo GPS estándar',
     ],
-    waypoints: [[-100.9500, 25.5400], [-100.6200, 25.5200], [-100.4500, 25.5800]],
+    waypoints: [[-100.9500, 25.5400], [-100.6200, 25.5200], [-100.4500, 25.5800]],  // Sierra Cuesta de los Muertos
   },
   {
     id: 'mty-sal-3',
@@ -1832,7 +1831,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Monitoreo GPS estándar',
       'Corredor urbano seguro',
     ],
-    waypoints: [[-100.4500, 25.5800], [-100.3100, 25.6700]],
+    waypoints: [[-100.4500, 25.5800], [-100.3500, 25.6200]],  // Periférico MTY sur
   },
 
   // ============================================================
@@ -1928,7 +1927,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Evitar tránsito nocturno',
       'Monitoreo GPS cada 10 min',
     ],
-    waypoints: [[-104.2000, 25.1000], [-103.7500, 25.3000], [-103.4500, 25.5400]],
+    waypoints: [[-104.2000, 25.1000], [-103.7500, 25.3000], [-103.5000, 25.4800]],  // Periférico Torreón sur
   },
 
   // ============================================================
@@ -1945,7 +1944,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Salida GDL hacia costa', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.3500, 20.6700], [-103.7500, 20.8500], [-104.1000, 20.9200]],
+    waypoints: [[-103.4500, 20.2000], [-103.7500, 20.8500], [-104.1000, 20.9200]],  // Macrolibramiento GDL salida noroeste
   },
   {
     id: 'nog-2',
@@ -2088,7 +2087,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Salida metropolitana', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.3500, 20.6700], [-103.1800, 20.7200]],
+    waypoints: [[-103.0600, 20.3700], [-102.9500, 20.5500]],  // Desde Macrolibramiento GDL este (Zapotlanejo)
   },
   {
     id: 'gdl-lag-2',
@@ -2105,7 +2104,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
       'Evitar tránsito nocturno',
       'Monitoreo GPS cada 10 min',
     ],
-    waypoints: [[-103.1800, 20.7200], [-102.9500, 20.8100], [-102.7500, 20.8500]],
+    waypoints: [[-102.9500, 20.5500], [-102.8500, 20.7500], [-102.7500, 20.8500]],  // Altos de Jalisco
   },
   {
     id: 'gdl-lag-3',
@@ -2152,7 +2151,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Autopista moderna, zona turística', 'Monitoreo GPS estándar'],
-    waypoints: [[-103.3500, 20.6700], [-103.7500, 20.8500]],
+    waypoints: [[-103.5800, 20.1300], [-103.7500, 20.8500]],  // Desde Macrolibramiento GDL oeste (Acatlán)
   },
   {
     id: 'gdl-tep-2',
@@ -2191,7 +2190,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Bajada al valle de Tepic', 'Monitoreo GPS estándar'],
-    waypoints: [[-104.6000, 21.2500], [-104.8950, 21.5040]],
+    waypoints: [[-104.6000, 21.2500], [-104.8500, 21.4800]],  // Libramiento Tepic
   },
 
   // ============================================================
@@ -2467,7 +2466,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar', 'Evitar paradas no programadas'],
-    waypoints: [[-98.2000, 19.0414], [-98.4600, 18.5900]],
+    waypoints: [[-98.2500, 18.9800], [-98.4600, 18.5900]],  // Periférico Ecológico Puebla sur
   },
   {
     id: 'pue-oax-2',
@@ -2506,7 +2505,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar', 'Entrada zona urbana'],
-    waypoints: [[-97.2200, 17.4600], [-96.7300, 17.0700]],
+    waypoints: [[-97.2200, 17.4600], [-96.7500, 17.1000]],  // Libramiento Oaxaca
   },
 
   // ============================================================
@@ -2693,7 +2692,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-04:00',
     commonIncidentType: 'Robo urbano',
     recommendations: ['Monitoreo GPS estándar', 'Salida metropolitana'],
-    waypoints: [[-100.3100, 25.6700], [-99.9800, 25.5900]],
+    waypoints: [[-100.2000, 25.6500], [-99.9800, 25.5900]],  // Periférico MTY este
   },
   {
     id: 'mty-rey-2',
@@ -2750,7 +2749,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Monitoreo GPS estándar'],
-    waypoints: [[-100.3100, 25.6700], [-99.8300, 25.1900]],
+    waypoints: [[-100.2000, 25.6500], [-99.8300, 25.1900]],  // Periférico MTY sureste
   },
   {
     id: 'mty-mat-2',
@@ -2864,7 +2863,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Incidentes aislados',
     recommendations: ['Monitoreo GPS estándar'],
-    waypoints: [[-93.1150, 16.7530], [-93.0100, 16.7100]],
+    waypoints: [[-93.1500, 16.7800], [-93.0100, 16.7100]],  // Libramiento Norte Tuxtla
   },
   {
     id: 'tux-oax-2',
@@ -2929,7 +2928,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '20:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Sierra Madre del Sur', 'Monitoreo GPS estándar'],
-    waypoints: [[-95.2400, 16.3200], [-96.2000, 16.7500], [-96.7300, 17.0700]],
+    waypoints: [[-95.2400, 16.3200], [-96.2000, 16.7500], [-96.7500, 17.1000]],  // Libramiento Oaxaca
   },
   // === CORREDOR QUERÉTARO - CD. JUÁREZ (57D/45D/45) ===
   {
@@ -2958,7 +2957,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '23:00-05:00',
     commonIncidentType: 'Asalto en paradas',
     recommendations: ['Autopista 45D hacia Aguascalientes', 'No detenciones innecesarias'],
-    waypoints: [[-100.9800, 22.1500], [-101.5000, 22.0000], [-102.2900, 21.8800]],
+    waypoints: [[-100.9800, 22.1500], [-101.5000, 22.0000], [-102.3500, 21.8200]],  // Libramiento Ags poniente
     routeType: 'cuota',
     highwayDesignation: '45D',
   },
@@ -2973,7 +2972,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '00:00-05:00',
     commonIncidentType: 'Robo de carga',
     recommendations: ['Autopista 45D', 'Tramo con buena cobertura celular'],
-    waypoints: [[-102.2900, 21.8800], [-102.5000, 22.3000], [-102.5500, 22.7700]],
+    waypoints: [[-102.3500, 21.8200], [-102.5000, 22.3000], [-102.5500, 22.7700]],  // Desde Lib Ags
     routeType: 'cuota',
     highwayDesignation: '45D',
   },
@@ -3048,7 +3047,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '22:00-05:00',
     commonIncidentType: 'Robo sin violencia',
     recommendations: ['Tramo con autopista de cuota disponible', 'Zona agrícola con menos incidentes'],
-    waypoints: [[-105.4700, 28.1900], [-105.8000, 28.4500], [-106.0900, 28.6300]],
+    waypoints: [[-105.4700, 28.1900], [-105.8000, 28.4500], [-106.1500, 28.5800]],  // Libramiento Chihuahua sur
     routeType: 'cuota',
     highwayDesignation: '45D',
   },
@@ -3063,7 +3062,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '23:00-05:00',
     commonIncidentType: 'Robo en zona suburbana',
     recommendations: ['Perímetro urbano de Chihuahua', 'Zona con cobertura policial'],
-    waypoints: [[-106.0900, 28.6300], [-106.0890, 28.6500]],
+    waypoints: [[-106.1500, 28.5800], [-106.1200, 28.7000]],  // Libramiento Chihuahua norte
     routeType: 'cuota',
     highwayDesignation: '45D',
   },
@@ -3078,7 +3077,7 @@ export const HIGHWAY_SEGMENTS: HighwaySegment[] = [
     criticalHours: '18:00-07:00',
     commonIncidentType: 'Robo de carga, narcobloqueos',
     recommendations: ['Carretera libre sin alternativa de cuota', 'Zona fronteriza de alta actividad delictiva', 'Custodia armada recomendada'],
-    waypoints: [[-106.0890, 28.6500], [-106.3000, 29.3000], [-106.4200, 30.3000], [-106.4400, 31.6900]],
+    waypoints: [[-106.1200, 28.7000], [-106.3000, 29.3000], [-106.4200, 30.3000], [-106.4400, 31.6900]],
     routeType: 'libre',
     highwayDesignation: '45',
   },

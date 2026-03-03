@@ -178,7 +178,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-99.8500, 20.2800],
       [-99.9900, 20.3900],
       [-100.1500, 20.4800],
-      [-100.3900, 20.5900],
+      [-100.4500, 20.6500],  // Macrolibramiento Qro norte
     ],
   },
   {
@@ -189,14 +189,14 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 180,
     avgEventsPerHex: 6,
     waypoints: [
-      [-100.3900, 20.5900],
+      [-100.4500, 20.6500],  // Macrolibramiento Qro
       [-100.5500, 20.5500],
-      [-100.8100, 20.5200],
-      [-101.0200, 20.5700],
+      [-100.8200, 20.4800],  // Libramiento Celaya sur
+      [-101.1800, 20.5200],
       [-101.3500, 20.6700],
-      [-101.4300, 20.9500],
+      [-101.7200, 21.0800],  // Libramiento León oeste
       [-101.5200, 21.0500],
-      [-101.6800, 21.1200],
+      [-102.3500, 21.8200],  // Libramiento Ags poniente
     ],
   },
   {
@@ -207,9 +207,9 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 190,
     avgEventsPerHex: 5,
     waypoints: [
-      [-103.3500, 20.6700],
-      [-103.1800, 20.7200],
-      [-102.9500, 20.8100],
+      [-103.0600, 20.3700],  // Macrolibramiento GDL este (Zapotlanejo)
+      [-102.9500, 20.5500],
+      [-102.8500, 20.7500],
       [-102.7200, 20.9300],
       [-102.3400, 21.3500],
       [-102.0800, 21.4200],
@@ -241,7 +241,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     avgEventsPerHex: 6,
     waypoints: [
       [-104.3100, 19.1100],
-      [-103.3500, 20.6700],
+      [-103.3000, 20.1000],  // Macrolibramiento GDL sur (no entra a ciudad)
       [-102.3400, 21.3500],
       [-101.8800, 21.8800],
       [-100.9800, 22.1500],
@@ -259,7 +259,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     waypoints: [
       [-102.1690, 17.9270],
       [-101.1900, 18.9200],
-      [-101.1850, 19.7010],
+      [-101.2200, 19.6500],  // Libramiento Sur Morelia
       [-100.4500, 19.7200],
       [-100.2800, 19.6500],
       [-99.5300, 19.5500],
@@ -274,7 +274,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 280,
     avgEventsPerHex: 6,
     waypoints: [
-      [-102.2900, 21.8800],
+      [-102.3500, 21.8200],  // Libramiento Ags poniente
       [-102.5700, 22.7700],
       [-102.2800, 23.1900],
       [-101.5200, 22.8500],
@@ -293,7 +293,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-105.8500, 23.6800],
       [-105.0200, 24.0200],
       [-104.4500, 24.8500],
-      [-103.4500, 25.5400],
+      [-103.5000, 25.4800],  // Periférico Torreón sur
     ],
   },
   {
@@ -304,10 +304,10 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 1200,
     avgEventsPerHex: 4,
     waypoints: [
-      [-100.3900, 20.5900],
+      [-100.4500, 20.6500],  // Macrolibramiento Qro
       [-100.9800, 22.1500],
       [-102.5700, 22.7700],
-      [-103.4500, 25.5400],
+      [-103.5000, 25.4800],  // Periférico Torreón
       [-105.4800, 28.6400],
       [-106.4300, 31.7400],
     ],
@@ -341,7 +341,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 300,
     avgEventsPerHex: 4,
     waypoints: [
-      [-103.3500, 20.6700],
+      [-103.5800, 20.1300],  // Macrolibramiento GDL (Acatlán de Juárez)
       [-103.4800, 20.5200],
       [-103.7600, 20.2100],
       [-103.9800, 19.9200],
@@ -357,11 +357,11 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 85,
     avgEventsPerHex: 3,
     waypoints: [
-      [-100.3100, 25.6700],
+      [-100.3500, 25.6200],  // Periférico MTY sur
       [-100.4500, 25.5800],
       [-100.6200, 25.5200],
       [-100.8500, 25.4300],
-      [-101.0000, 25.4200],
+      [-100.9500, 25.3800],  // Libramiento Saltillo
     ],
   },
   {
@@ -376,7 +376,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-99.6500, 27.1200],
       [-99.8200, 26.6800],
       [-100.0500, 26.2300],
-      [-100.3100, 25.6700],
+      [-100.3500, 25.6200],  // Periférico MTY
     ],
   },
   {
@@ -392,7 +392,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
       [-98.2000, 21.1500],
       [-99.1500, 22.2500],
       [-100.9800, 22.1500],
-      [-100.3100, 25.6700],
+      [-100.3500, 25.6200],  // Periférico MTY
     ],
   },
   {
@@ -432,7 +432,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     avgEventsPerHex: 3,
     waypoints: [
       [-99.1700, 19.4200],
-      [-103.3500, 20.6700],
+      [-103.4500, 20.2000],  // Macrolibramiento GDL oeste (no entra a ciudad)
       [-105.2500, 21.5000],
       [-106.4200, 23.2300],
       [-107.4000, 24.8000],
@@ -534,12 +534,12 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 300,
     avgEventsPerHex: 5,
     waypoints: [
-      [-103.4500, 25.5400],  // Torreón
+      [-103.5000, 25.4800],  // Periférico Torreón
       [-103.2000, 25.4200],  // Gómez Palacio
       [-102.5500, 25.3000],  // Parras
       [-101.4500, 25.3800],  // Saltillo Sur
-      [-101.0000, 25.4200],  // Saltillo
-      [-100.3100, 25.6700],  // Monterrey
+      [-100.9500, 25.3800],  // Libramiento Saltillo
+      [-100.3500, 25.6200],  // Periférico MTY
     ],
   },
   {
@@ -619,7 +619,7 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 220,
     avgEventsPerHex: 3,
     waypoints: [
-      [-103.3500, 20.6700],  // GDL
+      [-103.5800, 20.1300],  // Macrolibramiento GDL (Acatlán)
       [-103.7500, 20.8500],  // Tequila
       [-104.2000, 21.0500],  // Plan de Barrancas
       [-104.6000, 21.2500],  // Compostela
