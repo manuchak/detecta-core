@@ -52,4 +52,15 @@ El plan ya fue presentado y aprobado. El usuario seleccionó:
 **Archivos modificados:**
 - `src/components/security/routes/RouteRiskIntelligence.tsx` — Botón "Generar Informe de Ruta" con dialog origen/destino
 
-### 🔲 Bloque 6 — Dashboard de Risk Posture mejorado (refinamientos finales)
+### ✅ Bloque 6 — Dashboard de Risk Posture mejorado (COMPLETADO)
+
+**Archivos creados:**
+- `src/components/security/dashboard/PostureBanner.tsx` — Banner semáforo con postura operativa (Crítica/Elevada/Moderada/Estable) + narrativa contextual
+- `src/components/security/dashboard/DRFSparkline.tsx` — Sparkline de 30 días del DRF con media de referencia
+- `src/components/security/dashboard/IncidentHeatmap.tsx` — Heatmap semanal (4 semanas × 7 días) de incidentes por severidad
+- `src/components/security/dashboard/ActionableRecommendations.tsx` — Recomendaciones accionables auto-generadas desde KPIs
+
+**Archivos modificados:**
+- `src/hooks/security/useSecurityDashboard.ts` — Agregado heatmapData, intelByLevel, DailyIncidentEntry
+- `src/components/security/dashboard/RiskDistributionChart.tsx` — Reemplazado pie chart por barras horizontales con desglose intel
+- `src/components/security/dashboard/SecurityDashboard.tsx` — Layout reestructurado: banner → DRF+sparkline → KPIs → heatmap+distribución+recomendaciones → feeds

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format, subDays } from 'date-fns';
 
 export interface SecurityKPIs {
   totalIncidents: number;
@@ -22,6 +23,12 @@ export interface OperativeEvent {
   fecha_incidente: string;
   atribuible_operacion: boolean;
   control_efectivo: boolean | null;
+}
+
+export interface DailyIncidentEntry {
+  date: string;
+  count: number;
+  maxSeverity: string;
 }
 
 export function useSecurityDashboard() {
@@ -120,6 +127,52 @@ export function useSecurityDashboard() {
     controlEffectivenessRate,
   };
 
+  // Heatmap: daily incident counts last 28 days
+  const heatmapData: DailyIncidentEntry[] = (() => {
+    const map = new Map<string, { count: number; maxSev: string }>();
+    const sevOrder: Record<string, number> = { critica: 4, alta: 3, media: 2, baja: 1, critico: 4, alto: 3, medio: 2, bajo: 1 };
+    for (const e of operativeEvents) {
+      const d = e.fecha_incidente?.slice(0, 10);
+      if (!d) continue;
+      const existing = map.get(d);
+      const sevVal = sevOrder[e.severidad] || 0;
+      if (!existing) {
+        map.set(d, { count: 1, maxSev: e.severidad });
+      } else {
+        existing.count++;
+        if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severidad;
+      }
+    }
+    // Also include external events
+    for (const e of events) {
+      const d = e.event_date?.slice(0, 10);
+      if (!d) continue;
+      const existing = map.get(d);
+      const sevVal = sevOrder[e.severity] || 0;
+      if (!existing) {
+        map.set(d, { count: 1, maxSev: e.severity });
+      } else {
+        existing.count++;
+        if (sevVal > (sevOrder[existing.maxSev] || 0)) existing.maxSev = e.severity;
+      }
+    }
+    const result: DailyIncidentEntry[] = [];
+    for (let i = 27; i >= 0; i--) {
+      const key = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      const entry = map.get(key);
+      result.push({ date: key, count: entry?.count ?? 0, maxSeverity: entry?.maxSev ?? '' });
+    }
+    return result;
+  })();
+
+  // Risk distribution enriched: count intel sources feeding each level
+  const intelByLevel = {
+    extremo: events.filter(e => e.severity === 'critico').length,
+    alto: events.filter(e => e.severity === 'alto').length,
+    medio: events.filter(e => e.severity === 'medio').length,
+    bajo: events.filter(e => e.severity === 'bajo').length,
+  };
+
   // Separate recent events by source
   const recentOperative: OperativeEvent[] = operativeEvents.slice(0, 10);
   const recentExternal = events.slice(0, 10);
@@ -127,6 +180,8 @@ export function useSecurityDashboard() {
   return {
     kpis,
     riskDistribution,
+    intelByLevel,
+    heatmapData,
     recentEvents: recentExternal,
     recentOperative,
     isLoading: riskZonesQuery.isLoading || eventsQuery.isLoading || safePointsQuery.isLoading || operativeQuery.isLoading,

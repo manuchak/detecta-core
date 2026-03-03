@@ -1,6 +1,11 @@
 import React from 'react';
 import { useSecurityDashboard, OperativeEvent } from '@/hooks/security/useSecurityDashboard';
+import { useDetectaRiskFactor } from '@/hooks/security/useDetectaRiskFactor';
 import { DetectaRiskFactorCard } from './DetectaRiskFactorCard';
+import { PostureBanner } from './PostureBanner';
+import { DRFSparkline } from './DRFSparkline';
+import { IncidentHeatmap } from './IncidentHeatmap';
+import { ActionableRecommendations } from './ActionableRecommendations';
 import { RiskScoreCard } from './RiskScoreCard';
 import { SecurityAlertsTicker } from './SecurityAlertsTicker';
 import { RiskDistributionChart } from './RiskDistributionChart';
@@ -57,11 +62,21 @@ function OperativeAlertsTicker({ events }: { events: OperativeEvent[] }) {
 // =============================================================================
 
 export function SecurityDashboard() {
-  const { kpis, riskDistribution, recentEvents, recentOperative, isLoading } = useSecurityDashboard();
+  const { kpis, riskDistribution, intelByLevel, heatmapData, recentEvents, recentOperative, isLoading } = useSecurityDashboard();
+  const { trends } = useDetectaRiskFactor('MoM');
+
+  // Build daily DRF scores from trends data (simplified: use MoM current as baseline)
+  // For sparkline, we use heatmap data as proxy with inverse scoring
+  const dailyDRFScores = heatmapData.map(d => {
+    const sevWeight: Record<string, number> = { critica: 30, critico: 30, alta: 20, alto: 20, media: 10, medio: 10, baja: 5, bajo: 5 };
+    const baseScore = Math.min(d.count * (sevWeight[d.maxSeverity] || 5), 100);
+    return { date: d.date.slice(5), score: baseScore };
+  });
 
   if (isLoading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-14 rounded-lg" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-48 rounded-lg md:col-span-2" />
           <Skeleton className="h-48 rounded-lg" />
@@ -77,10 +92,18 @@ export function SecurityDashboard() {
 
   return (
     <div className="space-y-4">
+      {/* Row 0: Posture Banner */}
+      <PostureBanner kpis={kpis} />
+
       {/* Row 1: DRF (prominent, 2 cols) + Control Effectiveness */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 space-y-2">
           <DetectaRiskFactorCard />
+          <Card>
+            <CardContent className="pt-3 pb-2 px-4">
+              <DRFSparkline dailyScores={dailyDRFScores} />
+            </CardContent>
+          </Card>
         </div>
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
@@ -149,10 +172,17 @@ export function SecurityDashboard() {
         />
       </div>
 
-      {/* Row 3: Distribution + Operative Events + External Events */}
+      {/* Row 3: Heatmap + Distribution + Recommendations */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Risk Distribution */}
-        <Card className="md:col-span-1">
+        {/* Heatmap */}
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <IncidentHeatmap dailyData={heatmapData} />
+          </CardContent>
+        </Card>
+
+        {/* Risk Distribution (enriched) */}
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
@@ -160,12 +190,21 @@ export function SecurityDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <RiskDistributionChart distribution={riskDistribution} />
+            <RiskDistributionChart distribution={riskDistribution} intelByLevel={intelByLevel} />
           </CardContent>
         </Card>
 
-        {/* Operative Incidents (own) */}
-        <Card className="md:col-span-1">
+        {/* Actionable Recommendations */}
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <ActionableRecommendations kpis={kpis} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 4: Operative Events + External Events */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -178,8 +217,7 @@ export function SecurityDashboard() {
           </CardContent>
         </Card>
 
-        {/* External Events (H3 zones / RRSS) */}
-        <Card className="md:col-span-1">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Radio className="h-4 w-4 text-muted-foreground" />
