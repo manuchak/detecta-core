@@ -1,58 +1,58 @@
 
 
-# Corredor Cuautitlán → Chihuahua: ruta vacía en el mapa
+# Reducir ruido visual en POIs y hacer accionables claros
 
-## Diagnóstico
+## Problema
 
-El corredor `queretaro-ciudad-juarez` existe en `highwayCorridors.ts` (id: `queretaro-ciudad-juarez`, 1200km, waypoints de Querétaro a Cd. Juárez pasando por SLP, Zacatecas, Torreón y Chihuahua), pero **no tiene ningún segmento** en `highwaySegments.ts`. Busqué `corridorId: 'queretaro-ciudad-juarez'` y no hay coincidencias — por eso el mapa no dibuja nada en ese eje.
+Todos los POIs se renderizan como círculos uniformes de tamaño 5px con color por tipo. El usuario no puede distinguir rápidamente:
+- **¿Puedo parar aquí?** (gasolinera vigilada, área de descanso) vs **informativo** (caseta, base GN, entronque)
+- **¿Puedo pernoctar?** vs solo descanso breve
+- Los puntos verdes (`safe_area`) son demasiado grandes y genéricos — mezclan gasolineras, bases de custodia, áreas de descanso y puestos militares sin distinción
 
-La ruta real desde Cuautitlán a Chihuahua sería:
+## Solución: Categorización operativa + iconografía diferenciada
 
-```text
-Cuautitlán → Arco Norte/57D → Querétaro → SLP (57D) → Zacatecas (49) → 
-Fresnillo → Durango (45) → Parral → Delicias → Chihuahua (45)
-```
+### A. Nuevo campo `operationalCategory` en POI
 
-Alternativa por Torreón:
-```text
-... → Zacatecas → Fresnillo → Torreón (49) → Delicias → Chihuahua
-```
+Agregar a la interfaz `POI` un campo que clasifica cada punto por su accionabilidad para el operador:
 
-## Plan de implementación
+| Categoría | Significado | Ejemplos | Icono sugerido |
+|---|---|---|---|
+| `pernocta` | El tracto puede detenerse a dormir | Área de descanso, hotel de ruta, estacionamiento vigilado 24h | 🛏️ cuadrado azul |
+| `descanso` | Parada breve (<2h), combustible, sanitarios | Gasolinera vigilada, Pemex con vigilancia | ⛽ círculo verde pequeño |
+| `alerta` | Zona de peligro, no detenerse | Blackspot, punto de emboscada | 🔴 triángulo rojo |
+| `referencia` | Informativo, no parar | Caseta, entronque, base GN, zona industrial | Punto gris pequeño (3px) |
 
-### A. Crear ~10 segmentos para el corredor `queretaro-ciudad-juarez`
+### B. Cambios visuales en el mapa
 
-Dividir los 1,200km en segmentos operativos con waypoints precisos:
+En `RiskZonesMap.tsx`, reemplazar el layer uniforme `pois-circle` por renderizado diferenciado:
 
-| Segmento | Tramo | Km | Riesgo | Tipo |
-|---|---|---|---|---|
-| qro-jua-1 | Querétaro Norte - San Luis Potosí | 0-200 | medio | cuota (57D) |
-| qro-jua-2 | SLP - Aguascalientes (entronque) | 200-330 | medio | cuota (45D) |
-| qro-jua-3 | Aguascalientes - Zacatecas | 330-430 | medio | cuota (45D) |
-| qro-jua-4 | Zacatecas - Fresnillo | 430-500 | alto | mixta |
-| qro-jua-5 | Fresnillo - Río Grande | 500-620 | alto | libre (45) |
-| qro-jua-6 | Río Grande - Jiménez | 620-780 | extremo | libre (45) |
-| qro-jua-7 | Jiménez - Delicias | 780-880 | alto | libre (45) |
-| qro-jua-8 | Delicias - Chihuahua Sur | 880-980 | medio | cuota (45D) |
-| qro-jua-9 | Chihuahua Sur - Chihuahua | 980-1050 | medio | cuota |
-| qro-jua-10 | Chihuahua - Cd. Juárez (enlace) | 1050-1200 | alto | libre (45) |
+- **`alerta` (blackspots)**: Triángulo rojo o círculo rojo con borde pulsante, tamaño 7px — estos SÍ deben destacar
+- **`pernocta`**: Cuadrado azul 6px — el operador busca esto para planificar
+- **`descanso`**: Círculo verde 4px — visible pero no dominante
+- **`referencia`**: Círculo gris 3px, opacidad 0.6 — presente pero no compite visualmente
 
-### B. Agregar ~5 POIs operativos en el corredor
+### C. Popups mejorados con info operativa
 
-- Blackspot: Fresnillo-Río Grande (zona de asalto a transporte)
-- Blackspot: Jiménez-Camargo (Desierto de Chihuahua)
-- Caseta: Palmillas (57D)
-- Base GN: Delicias
-- Gasolinera segura: Matehuala (ya existe en otro corredor pero se referencia)
+Agregar al popup de POI:
+- **Accionable**: "✅ Puede pernoctar" / "⛽ Parada breve" / "⚠️ NO detenerse" / "ℹ️ Referencia"
+- **Servicios disponibles** (para `pernocta`/`descanso`): sanitarios, combustible, vigilancia, estacionamiento tracto
 
-### C. Enriquecer geometrías de los nuevos segmentos
+### D. Clasificar POIs existentes
 
-Invocar `enrich-segment-geometries` para los ~10 segmentos nuevos, para que se dibujen sobre la carretera real en lugar de líneas rectas.
+Recorrer los ~90+ POIs en `highwaySegments.ts` y asignar `operationalCategory`:
+- `blackspot` → `alerta`
+- `tollbooth` → `referencia` (en casetas NO se puede parar)
+- `junction` → `referencia`
+- `industrial` → `referencia`
+- `safe_area` con subtype `gasolinera_vigilada` → `descanso`
+- `safe_area` con subtype `area_descanso` → `pernocta`
+- `safe_area` con subtype `base_custodia` → `referencia`
+- `safe_area` con subtype `puesto_militar` → `referencia`
 
 ### Archivos a modificar
 
 | Archivo | Cambio |
 |---|---|
-| `src/lib/security/highwaySegments.ts` | Agregar ~10 segmentos + ~5 POIs para corredor `queretaro-ciudad-juarez` |
-| Edge function `enrich-segment-geometries` | Invocar para los nuevos segmentos |
+| `src/lib/security/highwaySegments.ts` | Agregar `operationalCategory` a interfaz POI; clasificar todos los POIs existentes |
+| `src/components/security/map/RiskZonesMap.tsx` | Renderizado diferenciado por categoría (tamaño, forma, color, opacidad); popups con info operativa |
 
