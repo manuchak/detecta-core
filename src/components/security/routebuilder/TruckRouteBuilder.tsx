@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { RouteBuilderMap } from './RouteBuilderMap';
 import { RouteBuilderControls } from './RouteBuilderControls';
+import { SegmentAuditor } from './SegmentAuditor';
 import { useRouteCalculation } from '@/hooks/security/useRouteCalculation';
 import { useSaveTruckRoute } from '@/hooks/security/useTruckRoutes';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export const TruckRouteBuilder: React.FC = () => {
@@ -89,51 +91,66 @@ export const TruckRouteBuilder: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full min-h-0 gap-0 border rounded-lg overflow-hidden bg-background">
-      {/* Sidebar */}
-      <div className="w-[300px] shrink-0 border-r overflow-hidden flex flex-col">
-        <div className="shrink-0 px-3 py-2 border-b bg-muted/30">
-          <h3 className="text-xs font-bold">🚛 Truck Route Builder</h3>
-          <p className="text-[10px] text-muted-foreground">Rutas realistas para transporte de carga</p>
-        </div>
-        <RouteBuilderControls
-          origin={origin}
-          destination={destination}
-          waypoints={waypoints}
-          onOriginChange={setOrigin}
-          onDestinationChange={setDestination}
-          onWaypointsChange={setWaypoints}
-          onCalculate={handleCalculate}
-          onSave={handleSave}
-          isCalculating={isCalculating}
-          result={result}
-          error={error}
-          vehicleProfile={vehicleProfile}
-          onVehicleProfileChange={setVehicleProfile}
-          maxWidth={maxWidth}
-          onMaxWidthChange={setMaxWidth}
-          maxWeight={maxWeight}
-          onMaxWeightChange={setMaxWeight}
-          alleyBias={alleyBias}
-          onAlleyBiasChange={setAlleyBias}
-          excludeFlags={excludeFlags}
-          onExcludeFlagsChange={setExcludeFlags}
-        />
-      </div>
+    <Tabs defaultValue="builder" className="flex flex-col h-full min-h-0">
+      <TabsList className="shrink-0 mx-2 mt-2 w-fit">
+        <TabsTrigger value="builder" className="text-xs">🚛 Crear Ruta</TabsTrigger>
+        <TabsTrigger value="auditor" className="text-xs">🔍 Auditoría Segmentos</TabsTrigger>
+      </TabsList>
 
-      {/* Map */}
-      <div className="flex-1 min-w-0">
-        <RouteBuilderMap
-          origin={origin}
-          destination={destination}
-          waypoints={waypoints}
-          routeGeojson={result?.route_geojson || null}
-          altRouteGeojson={result?.alt_route_geojson || null}
-          onOriginChange={handleOriginDrag}
-          onDestinationChange={handleDestDrag}
-          onWaypointChange={handleWaypointDrag}
-        />
-      </div>
-    </div>
+      <TabsContent value="builder" className="flex-1 min-h-0 mt-0">
+        <div className="flex h-full min-h-0 gap-0 border rounded-lg overflow-hidden bg-background">
+          {/* Sidebar */}
+          <div className="w-[300px] shrink-0 border-r overflow-hidden flex flex-col">
+            <div className="shrink-0 px-3 py-2 border-b bg-muted/30">
+              <h3 className="text-xs font-bold">🚛 Truck Route Builder</h3>
+              <p className="text-[10px] text-muted-foreground">Rutas realistas para transporte de carga</p>
+            </div>
+            <RouteBuilderControls
+              origin={origin}
+              destination={destination}
+              waypoints={waypoints}
+              onOriginChange={setOrigin}
+              onDestinationChange={setDestination}
+              onWaypointsChange={setWaypoints}
+              onCalculate={handleCalculate}
+              onSave={handleSave}
+              isCalculating={isCalculating}
+              result={result}
+              error={error}
+              vehicleProfile={vehicleProfile}
+              onVehicleProfileChange={setVehicleProfile}
+              maxWidth={maxWidth}
+              onMaxWidthChange={setMaxWidth}
+              maxWeight={maxWeight}
+              onMaxWeightChange={setMaxWeight}
+              alleyBias={alleyBias}
+              onAlleyBiasChange={setAlleyBias}
+              excludeFlags={excludeFlags}
+              onExcludeFlagsChange={setExcludeFlags}
+            />
+          </div>
+
+          {/* Map */}
+          <div className="flex-1 min-w-0">
+            <RouteBuilderMap
+              origin={origin}
+              destination={destination}
+              waypoints={waypoints}
+              routeGeojson={result?.route_geojson || null}
+              altRouteGeojson={result?.alt_route_geojson || null}
+              onOriginChange={handleOriginDrag}
+              onDestinationChange={handleDestDrag}
+              onWaypointChange={handleWaypointDrag}
+            />
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="auditor" className="flex-1 min-h-0 mt-0">
+        <div className="h-full border rounded-lg overflow-hidden bg-background">
+          <SegmentAuditor />
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 };
