@@ -1,5 +1,5 @@
 import React from 'react';
-import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, Tooltip, ReferenceLine, YAxis } from 'recharts';
 
 interface DRFSparklineProps {
   dailyScores: { date: string; score: number }[];
@@ -15,12 +15,13 @@ export function DRFSparkline({ dailyScores }: DRFSparklineProps) {
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[9px] text-muted-foreground">Últimos 30 días</span>
-        <span className="text-[9px] text-muted-foreground">Avg: {avg}</span>
+        <span className="text-[9px] text-muted-foreground">Tendencia DRF histórica ({dailyScores.length} periodos)</span>
+        <span className="text-[9px] text-muted-foreground">Avg: {avg} · Actual: {latest}</span>
       </div>
-      <div className="h-10">
+      <div className="h-12">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={dailyScores}>
+            <YAxis domain={[0, 100]} hide />
             <Line type="monotone" dataKey="score" stroke={color} strokeWidth={1.5} dot={false} />
             <ReferenceLine y={avg} stroke="hsl(var(--muted-foreground))" strokeDasharray="2 2" strokeOpacity={0.4} />
             <Tooltip
