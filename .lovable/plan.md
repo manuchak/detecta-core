@@ -1,66 +1,95 @@
 
 
-# Implementación del Plan de Maduración del Módulo de Seguridad
+# Plan: Incorporar Historial de Siniestros y Enriquecer BDD de Incidentes
 
-El plan ya fue presentado y aprobado. El usuario seleccionó:
-- **Prioridad**: Todo secuencial (Bloque 1→2→3→4→5→6)
-- **Visibilidad DRF**: Solo en Módulo de Seguridad
+## Contexto Actual
 
-## Estado de Implementación
+**Datos encontrados:**
+- La tabla `incidentes_operativos` solo tiene 10 registros (todos de Feb 2026).
+- El Fill Rate contiene **12 siniestros históricos** (Feb 2024 — Dic 2025) que no existen en la BDD.
+- Hay 3 informes detallados: **Monterosa** (Jul 2025, robo consumado con armas), **Doraldent/Benotto** (Sep 2025, intento de robo + secuestro custodio), y un **polígrafo** (Ago 2024, robo Benotto).
 
-### ✅ Bloque 1 — Factor de Riesgo Detecta (DRF) + Dashboard (COMPLETADO)
+**Criterio de criticidad del usuario:**
+- **Crítico (siniestro):** Robo consumado o pérdida humana
+- **No crítico:** Todo lo demás (falla mecánica, protocolo incumplido, retén, narco-bloqueo, etc.)
 
-**Archivos creados:**
-- `src/hooks/security/useDetectaRiskFactor.ts` — Cálculo DRF con fórmula ponderada y tendencias DoD/WoW/MoM/QoQ/YoY
-- `src/components/security/dashboard/DetectaRiskFactorCard.tsx` — Gauge, selector de periodo, badge de tendencia, breakdown expandible
+## Paso 1 — Insertar los 12 siniestros históricos en `incidentes_operativos`
 
-**Archivos modificados:**
-- `src/hooks/security/useSecurityDashboard.ts` — Query a incidentes_operativos, controlEffectivenessRate, recentOperative separado
-- `src/components/security/dashboard/SecurityDashboard.tsx` — DRF prominente (2 cols), Control Effectiveness, fuentes separadas
+Usar el insert tool para agregar los 12 registros del Fill Rate con los datos disponibles:
 
-### ✅ Bloque 2 — Puente incidentes operativos → security_events (COMPLETADO)
+| Fecha | Severidad | Tipo | Nota | Cliente |
+|-------|-----------|------|------|---------|
+| 2024-02-06 | crítica | robo | (sin detalle) | — |
+| 2024-02-10 | crítica | robo | (sin detalle) | — |
+| 2024-03-05 | crítica | robo | (sin detalle) | — |
+| 2024-04-27 | crítica | robo | (sin detalle) | — |
+| 2024-08-14 | crítica | robo | Robo Benotto (ver polígrafo) | Benotto |
+| 2024-09-07 | crítica | robo | (sin detalle) | — |
+| 2024-10-09 | crítica | robo | (sin detalle) | — |
+| 2024-11-30 | crítica | robo | (sin detalle) | — |
+| 2025-07-09 | crítica | asalto | Robo Monterosa — Lázaro Cárdenas a Tultepec | Monterosa |
+| 2025-09-03 | crítica | asalto | Intento robo Doraldent — secuestro custodio | Doraldent |
+| 2025-11-05 | crítica | robo | Robo unidad Monterosa, servicio local | Monterosa |
+| 2025-11-27 | crítica | robo | Robo Suave-Facil, Naucalpan-Monterrey | Suave-Facil |
+| 2025-12-02 | crítica | robo | Robo CrossMotion, entrando GDL, folio CRCSMTI-18 | CrossMotion |
 
-**Archivos creados:**
-- `src/hooks/security/useIncidentToRiskBridge.ts` — Propagación fire-and-forget de incidentes operativos a security_events vía geocode-to-h3
+Para los 3 con informes detallados (Monterosa Jul, Doraldent Sep, Benotto Ago), se enriquecerán con:
+- Coordenadas GPS exactas del evento
+- Zona geográfica precisa
+- Descripción narrativa del modus operandi
+- Acciones tomadas (protocolo de reacción, 911, polígrafos)
 
-**Archivos modificados:**
-- `src/hooks/useIncidentesOperativos.ts` — Integración del bridge en useCreateIncidente y useUpdateIncidente onSuccess
+## Paso 2 — Reclasificar severidad de los 10 incidentes existentes
 
-### ✅ Bloque 3 — Análisis de Riesgo por Ruta (Trend Temporal) (COMPLETADO)
+Los 10 incidentes actuales (Feb 2026) son todos no-críticos según el criterio del usuario (fallas mecánicas, protocolo incumplido, retén, narco-bloqueo). Actualizar los que tengan severidad "alta" a "media" si no involucran robo ni pérdida humana:
 
-**Archivos creados:**
-- `src/hooks/security/useRouteRiskTrend.ts` — Cruce servicios_planificados ↔ incidentes_operativos por corredor con tendencias DoD/WoW/MoM/QoQ/YoY
-- `src/components/security/analytics/RouteRiskTrendPanel.tsx` — Tabla de corredores con incident rate ×1k, control effectiveness, trend badges
+- `e7c7bb89` (derrame gasolina, alta → media)
+- `d3590558` (narco-bloqueo, alta → media)
+- `a61ccffe` (agresión/secuestro, alta → **se mantiene crítica** por involucrar privación de libertad)
 
-**Archivos modificados:**
-- `src/components/security/analytics/IncidentAnalytics.tsx` — Integración del RouteRiskTrendPanel en tab Análisis
+## Paso 3 — Agregar columna `es_siniestro` para distinción binaria
 
-### ✅ Bloque 4 — Perfil de Cumplimiento basado en Incidentes (COMPLETADO)
+Migración para agregar un campo booleano `es_siniestro` a `incidentes_operativos`:
+- `true` = siniestro (robo consumado, pérdida humana, asalto con armas)
+- `false` = evento no crítico
 
-**Archivos creados:**
-- `src/hooks/security/useComplianceFromIncidents.ts` — Métricas ISO 28000 §8: documentación, control coverage/effectiveness, MTTR, resolución SLA, ISO score compuesto
+Esto permite filtrar y calcular métricas como el **fill rate de siniestralidad** (siniestros / servicios totales).
 
-**Archivos modificados:**
-- `src/components/security/compliance/ComplianceTracker.tsx` — Sección "Cumplimiento — Gestión de Incidentes" con traffic lights y ISO Score
+## Paso 4 — Crear tabla `siniestros_historico` para el Fill Rate completo
 
-### ✅ Bloque 5 — Informe de Análisis de Ruta para Cliente (PDF) (COMPLETADO)
+Tabla ligera para almacenar el registro mensual de servicios/siniestros del Fill Rate, permitiendo análisis de tendencia:
 
-**Archivos creados:**
-- `src/hooks/security/useRouteAnalysisData.ts` — Consolidador de datos multi-fuente (servicios, incidentes, RRSS, zonas, safe points) para un corredor específico
-- `src/components/security/reports/RouteAnalysisReport.tsx` — PDF de 3 páginas: portada con DRF, resumen ejecutivo + KPIs, historial de incidentes, inteligencia RRSS, recomendaciones ISO 28000
+```
+siniestros_historico:
+  id, fecha (date), servicios_solicitados (int), servicios_completados (int),
+  siniestros (int), eventos_no_criticos (int), nota (text)
+```
 
-**Archivos modificados:**
-- `src/components/security/routes/RouteRiskIntelligence.tsx` — Botón "Generar Informe de Ruta" con dialog origen/destino
+Insertar las 12 filas del Fill Rate + los datos mensuales de servicios (Page 2 del xlsx) para tener el volumen operativo histórico desde Ene 2023.
 
-### ✅ Bloque 6 — Dashboard de Risk Posture mejorado (COMPLETADO)
+## Paso 5 — Dashboard: Panel de Siniestralidad Histórica
 
-**Archivos creados:**
-- `src/components/security/dashboard/PostureBanner.tsx` — Banner semáforo con postura operativa (Crítica/Elevada/Moderada/Estable) + narrativa contextual
-- `src/components/security/dashboard/DRFSparkline.tsx` — Sparkline de 30 días del DRF con media de referencia
-- `src/components/security/dashboard/IncidentHeatmap.tsx` — Heatmap semanal (4 semanas × 7 días) de incidentes por severidad
-- `src/components/security/dashboard/ActionableRecommendations.tsx` — Recomendaciones accionables auto-generadas desde KPIs
+Nuevo componente en el módulo de Seguridad:
 
-**Archivos modificados:**
-- `src/hooks/security/useSecurityDashboard.ts` — Agregado heatmapData, intelByLevel, DailyIncidentEntry
-- `src/components/security/dashboard/RiskDistributionChart.tsx` — Reemplazado pie chart por barras horizontales con desglose intel
-- `src/components/security/dashboard/SecurityDashboard.tsx` — Layout reestructurado: banner → DRF+sparkline → KPIs → heatmap+distribución+recomendaciones → feeds
+- **KPIs**: Total siniestros, tasa de siniestralidad (siniestros/servicios ×1000), tendencia MoM
+- **Gráfico de líneas**: Servicios vs Siniestros por mes (desde 2024)
+- **Timeline de siniestros**: Lista cronológica de los 12+ siniestros con badges de severidad, cliente afectado, y link al informe si existe
+- **Fill Rate visual**: Barra de progreso mostrando servicios completados vs solicitados por periodo
+
+## Paso 6 — Enriquecer DRF y analytics con datos históricos
+
+Los hooks existentes (`useDetectaRiskFactor`, `useIncidentAnalytics`, `useIncidentesExecutive`) automáticamente reflejarán los nuevos datos una vez insertados, ya que consultan `incidentes_operativos`. El campo `es_siniestro` permitirá segmentar el DRF para ponderar siniestros con mayor peso que eventos no críticos.
+
+## Resumen técnico de cambios
+
+| Acción | Tipo |
+|--------|------|
+| INSERT 12+ siniestros históricos | Data (insert tool) |
+| UPDATE severidad de 2 incidentes existentes | Data (insert tool) |
+| ADD columna `es_siniestro` boolean | Migración |
+| CREATE tabla `siniestros_historico` | Migración |
+| INSERT fill rate mensual (27 meses) | Data (insert tool) |
+| Nuevo `SiniestroHistoryPanel.tsx` | Componente UI |
+| Actualizar `useDetectaRiskFactor.ts` para ponderar siniestros | Hook |
+| Fix build error gl-matrix (tsconfig skipLibCheck) | Config |
+
