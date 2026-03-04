@@ -226,12 +226,12 @@ export const useCapacitacion = (candidatoId?: string) => {
         }
 
         const { error: uploadError } = await supabase.storage
-          .from('documentos-candidatos')
+          .from('candidato-documentos')
           .upload(sanitizedPath, fileToUpload, { contentType: archivo.type, upsert: true });
         if (uploadError) throw uploadError;
 
         const { data: urlData } = supabase.storage
-          .from('documentos-candidatos')
+          .from('candidato-documentos')
           .getPublicUrl(sanitizedPath);
 
         // Insertar registro en documentos_candidato
