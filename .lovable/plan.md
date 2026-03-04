@@ -1,110 +1,90 @@
 
 
-# Auditoría del Módulo Supply — RLS, Permisos y Workflow
+# Auditoría RLS — Customer Success y LMS (con capacitacion_admin full-access)
 
-## Resumen
+## Estado Actual del LMS
 
-Audité **18 tablas críticas** del pipeline de Supply (Candidatos → Evaluaciones → Liberación → Operativos) y encontré **~35 policies con subqueries directas a `user_roles`** (mismo anti-patrón de recursión que ya corregimos en Planeación) más **3 policies con roles obsoletos** que bloquean acceso silenciosamente.
+### Hallazgo critico: `capacitacion_admin` bloqueado en 5 tablas y 3 funciones RPC
 
----
+El rol `capacitacion_admin` tiene acceso correcto en `lms_cursos` e `lms_inscripciones`, pero esta **excluido** de:
 
-## Hallazgos
-
-### Hallazgo 1: 35 policies con subqueries directas a `user_roles` (riesgo recursión)
-
-Las siguientes tablas del workflow de Supply hacen `EXISTS (SELECT 1 FROM user_roles WHERE ...)` directamente en sus policies, sin usar funciones SECURITY DEFINER:
-
-| Tabla | # Policies afectadas | Etapa del pipeline |
+| Recurso | Roles actuales | Falta `capacitacion_admin` |
 |---|---|---|
-| `candidatos_custodios` | 4 | Candidatos |
-| `documentos_candidato` | 3 | Candidatos |
-| `documentos_custodio` | 2 | Candidatos/Operativos |
-| `entrevistas_estructuradas` | 2 | Evaluaciones |
-| `evaluaciones_psicometricas` | 3 | Evaluaciones |
-| `evaluaciones_toxicologicas` | 3 | Evaluaciones |
-| `evaluaciones_normas` | 1 | Evaluaciones |
-| `candidato_risk_checklist` | 2 | Evaluaciones |
-| `referencias_candidato` | 3 | Evaluaciones |
-| `siercp_results` | 3 | Evaluaciones SIERCP |
-| `siercp_invitations` | 1 | Evaluaciones SIERCP |
-| `lead_approval_process` | 1 | Aprobaciones |
-| `custodio_liberacion` | 1 | Liberación |
-| `custodio_state_transitions` | 1 | Liberación |
-| `custodian_invitations` | 2 | Invitaciones |
-| `armado_invitations` | 2 | Invitaciones |
-| `custodios_operativos` | 1 | Operativos |
-| `workflow_validation_config` | 1 | Config |
+| `lms_modulos` (4 policies: SELECT/INSERT/UPDATE/DELETE) | admin, owner, supply_admin | **Si** |
+| `lms_contenidos` (4 policies: SELECT/INSERT/UPDATE/DELETE) | admin, owner, supply_admin | **Si** |
+| `lms_preguntas` (4 policies: SELECT/INSERT/UPDATE/DELETE) | admin, owner, supply_admin | **Si** |
+| `lms_certificados_plantillas` (ALL policy) | admin, capacitacion_admin | Falta owner, supply_admin |
+| RPC `lms_archive_curso_secure` | owner, admin | **Si** |
+| RPC `lms_delete_curso_secure` | owner, admin | **Si** |
+| RPC `lms_reactivate_curso_secure` | owner, admin | **Si** |
 
-### Hallazgo 2: 3 policies con roles obsoletos (acceso roto)
+Ademas, el sidebar tiene dos problemas:
+- Modulo padre LMS (linea 534): **no incluye** `capacitacion_admin`
+- Hijo "Gestion" (linea 546): **no incluye** `capacitacion_admin`
 
-Policies que usan nombres de rol que **no existen en el sistema**:
+Y `roleHomeConfig.ts` no reconoce `capacitacion_admin` como tipo de rol, por lo que no tiene configuracion de home/redirect.
 
-| Tabla | Policy | Rol obsoleto | Rol correcto |
-|---|---|---|---|
-| `documentos_custodio` | "Staff ve todos los documentos" | `planeacion`, `monitoreo`, `coordinador` | `planificador`, `monitoring`, `coordinador_operaciones` |
-| `documentos_custodio` | "Staff actualiza documentos" | `planeacion`, `monitoreo`, `coordinador` | mismos |
-| `candidatos_custodios` | "Candidatos visibles para supply y admin" | `coordinador_operativo` | `coordinador_operaciones` |
-| `contactos_empresa` | "Contactos visibles para roles operativos" | `coordinador_operativo` | `coordinador_operaciones` |
-| `inventario_gps` | "Inventario GPS para roles de supply chain" | `coordinador_operativo`, `instalador_coordinador` | `coordinador_operaciones` |
-| `personal_proveedor_armados` | "Personal armados visible..." | `coordinador_operativo` | `coordinador_operaciones` |
+### Todas las policies LMS usan subqueries directas a `user_roles` (riesgo recursion)
 
-Estos roles nunca hacen match → las policies **nunca autorizan** a los coordinadores/planificadores aunque deberían.
+Las 18+ policies de LMS hacen `EXISTS (SELECT 1 FROM user_roles ...)` sin funciones SECURITY DEFINER.
 
-### Hallazgo 3: Sidebar de Supply Pipeline sin `roles` en el módulo padre
+### Customer Success: ~10 policies con subqueries directas + NPS/CSAT abiertos
 
-Similar al hallazgo de Planeación: el módulo `leads` (Pipeline) en `navigationConfig.ts` no tiene propiedad `roles` en el nivel padre, lo que hace que todos los autenticados vean el menú.
+(Sin cambios respecto al plan anterior — `has_cs_management_role()` ya existe para reutilizar.)
 
 ---
 
-## Plan de Corrección
+## Plan de Correccion
 
-### Fase 1 — Crear funciones SECURITY DEFINER para Supply
-
-Crear 3 funciones helper que cubran los distintos niveles de acceso del pipeline:
+### Fase 1 — Crear funcion SECURITY DEFINER para LMS
 
 ```text
-has_supply_role()        → admin, owner, supply_admin, supply_lead, coordinador_operaciones
-has_supply_read_role()   → + supply, ejecutivo_ventas, analista_seguridad, jefe_seguridad
-has_supply_eval_role()   → admin, owner, supply_admin, supply_lead, supply, coordinador_operaciones (SIERCP)
+has_lms_admin_role() → admin, owner, supply_admin, capacitacion_admin
 ```
 
-### Fase 2 — Migrar ~35 policies
+### Fase 2 — Migrar 18 policies LMS usando `has_lms_admin_role()`
 
-Recrear cada policy reemplazando la subquery directa con la función SECURITY DEFINER correspondiente. Esto incluye corregir simultáneamente los roles obsoletos (`planeacion` → `planificador`, `coordinador_operativo` → `coordinador_operaciones`, etc.).
+Recrear policies en:
+- `lms_cursos` (4) — ya incluyen capacitacion_admin, solo migrar a funcion
+- `lms_modulos` (4) — **fix: agregar capacitacion_admin**
+- `lms_contenidos` (4) — **fix: agregar capacitacion_admin**
+- `lms_preguntas` (4) — **fix: agregar capacitacion_admin**
+- `lms_inscripciones` (3) — ya incluyen, migrar a funcion
+- `lms_progreso` (1 SELECT) — ya incluye, migrar a funcion
+- `lms_certificados_plantillas` (1) — **fix: agregar owner, supply_admin**
 
-Tablas en scope:
-- `candidatos_custodios` (4 policies)
-- `documentos_custodio` (2 policies — fix roles obsoletos)
-- `documentos_candidato` (3 policies)
-- `entrevistas_estructuradas` (2 policies)
-- `evaluaciones_psicometricas` (3 policies)
-- `evaluaciones_toxicologicas` (3 policies)
-- `evaluaciones_normas` (1 policy)
-- `candidato_risk_checklist` (2 policies)
-- `referencias_candidato` (3 policies)
-- `siercp_results` (3 policies)
-- `siercp_invitations` (1 policy)
-- `lead_approval_process` (1 policy)
-- `custodio_liberacion` (1 policy)
-- `custodio_state_transitions` (1 policy)
-- `custodian_invitations` (2 policies)
-- `armado_invitations` (2 policies)
-- `custodios_operativos` (1 policy — admin manage)
-- `workflow_validation_config` (1 policy)
+### Fase 3 — Actualizar 3 funciones RPC para incluir `capacitacion_admin`
 
-También corregir las policies con roles obsoletos en:
-- `contactos_empresa`
-- `inventario_gps`
-- `personal_proveedor_armados`
+Recrear con role check ampliado:
+- `lms_archive_curso_secure` — agregar `supply_admin`, `capacitacion_admin`
+- `lms_delete_curso_secure` — agregar `supply_admin`, `capacitacion_admin`
+- `lms_reactivate_curso_secure` — agregar `supply_admin`, `capacitacion_admin`
 
-### Fase 3 — Frontend: Agregar `roles` al módulo Pipeline en sidebar
+### Fase 4 — Migrar ~10 policies CS + endurecer NPS/CSAT
 
-Agregar roles restrictivos al módulo padre `leads` en `navigationConfig.ts`.
+- `cs_quejas`: Drop duplicada, recrear ALL usando `has_cs_management_role()`
+- `cs_touchpoints`: Drop granulares redundantes, recrear ALL
+- `cs_capa`: Recrear usando `has_cs_management_role()`
+- `cs_health_scores`: Recrear ALL + BI read
+- `cs_nps_campaigns` (4): Restringir de `true` a `has_cs_management_role()`
+- `cs_nps_sends` (4): Igual
+- `cs_csat_surveys` (4): Igual
+
+### Fase 5 — Frontend: Agregar `capacitacion_admin` al sidebar y roleHomeConfig
+
+En `navigationConfig.ts`:
+- Linea 534: Agregar `capacitacion_admin` al array `roles` del modulo padre LMS
+- Linea 546: Agregar `capacitacion_admin` al array `roles` del hijo "Gestion"
+
+En `roleHomeConfig.ts`:
+- Agregar `capacitacion_admin` al tipo `UserRole`
+- Agregar configuracion de home con redirect a `/lms/admin` y modulos `['lms', 'settings']`
 
 ### Archivos a modificar
 
 | Capa | Archivo | Cambio |
 |---|---|---|
-| DB | Nueva migración SQL | Crear 3 funciones SECURITY DEFINER + recrear ~38 policies |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` al módulo Pipeline |
+| DB | Nueva migracion SQL | Crear `has_lms_admin_role()`, recrear ~28 policies LMS + CS + NPS/CSAT, actualizar 3 RPCs |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `capacitacion_admin` a LMS parent + Gestion |
+| Frontend | `src/config/roleHomeConfig.ts` | Agregar tipo y config para `capacitacion_admin` |
 
