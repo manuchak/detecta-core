@@ -1,25 +1,20 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Search, UserPlus, Trash2, RefreshCw, CheckCircle, Clock, XCircle, 
-  AlertTriangle, Filter, Users, PlayCircle, UsersRound
+  AlertTriangle, Filter, Users, PlayCircle
 } from "lucide-react";
-import { InscripcionMasivaDialog } from "./InscripcionMasivaDialog";
+import { InscripcionInteligente } from "./InscripcionInteligente";
 import { 
   useLMSAdminInscripciones, 
-  useLMSInscribirUsuarios, 
   useLMSActualizarInscripcion, 
   useLMSEliminarInscripcion,
-  useLMSUsuariosDisponibles,
   useLMSEstadisticasCurso
 } from "@/hooks/lms/useLMSAdminInscripciones";
 import { useLMSAdminCursos } from "@/hooks/lms/useLMSAdminCursos";
@@ -42,8 +37,7 @@ export function LMSInscripcionesPanel() {
   const [filterCurso, setFilterCurso] = useState<string>("all");
   const [filterEstado, setFilterEstado] = useState<string>("all");
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
-  const [masiveDialogOpen, setMasiveDialogOpen] = useState(false);
-  const [selectedCursoForEnroll, setSelectedCursoForEnroll] = useState<string>("");
+  
 
   const { data: cursos = [] } = useLMSAdminCursos();
   const { data: inscripciones = [], isLoading } = useLMSAdminInscripciones({
@@ -53,7 +47,6 @@ export function LMSInscripcionesPanel() {
   const { data: statsData } = useLMSEstadisticasCurso(filterCurso !== "all" ? filterCurso : undefined);
   const stats = statsData ? { totalInscritos: statsData.total, completados: statsData.completados, enProgreso: statsData.enProgreso, promedioProgreso: statsData.progresoPromedio } : null;
 
-  const enrollUser = useLMSInscribirUsuarios();
   const updateInscripcion = useLMSActualizarInscripcion();
   const deleteInscripcion = useLMSEliminarInscripcion();
 
@@ -145,10 +138,6 @@ export function LMSInscripcionesPanel() {
             {filteredInscripciones.length} inscripciones encontradas
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setMasiveDialogOpen(true)}>
-              <UsersRound className="w-4 h-4 mr-2" />
-              Inscripción Masiva
-            </Button>
             <Button className="apple-button-primary" onClick={() => setEnrollDialogOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
               Nueva Inscripción
@@ -301,132 +290,11 @@ export function LMSInscripcionesPanel() {
         </div>
       </div>
 
-      {/* Enroll Dialog */}
-      <EnrollDialog
+      {/* Inscripción Inteligente Dialog */}
+      <InscripcionInteligente
         open={enrollDialogOpen}
         onOpenChange={setEnrollDialogOpen}
-        cursos={cursos}
-        selectedCurso={selectedCursoForEnroll}
-        onCursoChange={setSelectedCursoForEnroll}
-        onEnroll={async (userId, cursoId) => {
-          try {
-            await enrollUser.mutateAsync({ cursoId, usuarioIds: [userId] });
-            toast.success("Usuario inscrito exitosamente");
-            setEnrollDialogOpen(false);
-          } catch (error) {
-            toast.error("Error al inscribir usuario");
-          }
-        }}
-        isLoading={enrollUser.isPending}
-      />
-
-      {/* Inscripción Masiva Dialog */}
-      <InscripcionMasivaDialog 
-        open={masiveDialogOpen} 
-        onOpenChange={setMasiveDialogOpen} 
       />
     </div>
-  );
-}
-
-interface EnrollDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  cursos: any[];
-  selectedCurso: string;
-  onCursoChange: (cursoId: string) => void;
-  onEnroll: (userId: string, cursoId: string) => Promise<void>;
-  isLoading: boolean;
-}
-
-function EnrollDialog({ open, onOpenChange, cursos, selectedCurso, onCursoChange, onEnroll, isLoading }: EnrollDialogProps) {
-  const [selectedUser, setSelectedUser] = useState("");
-  const [searchUser, setSearchUser] = useState("");
-  
-  const { data: availableUsers = [] } = useLMSUsuariosDisponibles(selectedCurso);
-
-  const filteredUsers = availableUsers.filter(u => {
-    if (!searchUser) return true;
-    const search = searchUser.toLowerCase();
-    return u.display_name?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search);
-  });
-
-  const handleEnroll = async () => {
-    if (!selectedUser || !selectedCurso) return;
-    await onEnroll(selectedUser, selectedCurso);
-    setSelectedUser("");
-    setSearchUser("");
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nueva Inscripción</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Curso</Label>
-            <Select value={selectedCurso} onValueChange={onCursoChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona un curso" />
-              </SelectTrigger>
-              <SelectContent>
-                {cursos.map(curso => (
-                  <SelectItem key={curso.id} value={curso.id}>
-                    {curso.titulo}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedCurso && (
-            <div className="space-y-2">
-              <Label>Usuario</Label>
-              <Input
-                placeholder="Buscar usuario..."
-                value={searchUser}
-                onChange={(e) => setSearchUser(e.target.value)}
-              />
-              <div className="max-h-48 overflow-y-auto border rounded-md">
-                {filteredUsers.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground text-center">
-                    No hay usuarios disponibles para inscribir
-                  </p>
-                ) : (
-                  filteredUsers.map(user => (
-                    <div
-                      key={user.id}
-                      className={`p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                        selectedUser === user.id ? 'bg-muted' : ''
-                      }`}
-                      onClick={() => setSelectedUser(user.id)}
-                    >
-                      <p className="font-medium">{user.display_name}</p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleEnroll} 
-            disabled={!selectedUser || !selectedCurso || isLoading}
-          >
-            {isLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-            Inscribir Usuario
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
