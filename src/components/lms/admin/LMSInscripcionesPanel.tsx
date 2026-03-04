@@ -39,8 +39,7 @@ export function LMSInscripcionesPanel() {
   const [filterCurso, setFilterCurso] = useState<string>("all");
   const [filterEstado, setFilterEstado] = useState<string>("all");
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
-  const [masiveDialogOpen, setMasiveDialogOpen] = useState(false);
-  const [selectedCursoForEnroll, setSelectedCursoForEnroll] = useState<string>("");
+  
 
   const { data: cursos = [] } = useLMSAdminCursos();
   const { data: inscripciones = [], isLoading } = useLMSAdminInscripciones({
@@ -142,10 +141,6 @@ export function LMSInscripcionesPanel() {
             {filteredInscripciones.length} inscripciones encontradas
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setMasiveDialogOpen(true)}>
-              <UsersRound className="w-4 h-4 mr-2" />
-              Inscripción Masiva
-            </Button>
             <Button className="apple-button-primary" onClick={() => setEnrollDialogOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
               Nueva Inscripción
