@@ -167,6 +167,7 @@ export const navigationModules: NavigationModule[] = [
     icon: UserCheck,
     path: '/leads',
     group: 'supply',
+    roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'supply', 'ejecutivo_ventas', 'coordinador_operaciones'],
     matchPaths: ['/leads/approvals', '/leads/liberacion', '/leads/evaluaciones'],
     children: [
       {
