@@ -181,6 +181,7 @@ const MonitoringPage = () => {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="bitacora">Bitácora</TabsTrigger>
         </TabsList>
 
         {/* Tab: Performance */}
