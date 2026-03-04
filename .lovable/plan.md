@@ -1,139 +1,97 @@
 
-# Auditoría RLS — Estado Completo del Sistema
 
-## ✅ Módulos Corregidos (LMS + Customer Success)
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-### LMS — Completamente migrado a SECURITY DEFINER
-- `has_lms_admin_role()` → admin, owner, supply_admin, capacitacion_admin
-- 21 policies migradas (cursos, modulos, contenidos, preguntas, inscripciones, progreso, certificados_plantillas)
-- 3 RPCs actualizados (archive/delete/reactivate) con roles ampliados
-- Old policies eliminadas, sin subqueries directas restantes
-- `capacitacion_admin` tiene acceso full al LMS (sidebar, roleHomeConfig, accessControl)
+## Roles confirmados por módulo
 
-### Customer Success — Completamente migrado a SECURITY DEFINER
-- `has_cs_management_role()` → admin, owner, customer_success, ejecutivo_ventas, coordinador_operaciones, planificador, bi
-- 10 policies CS migradas (quejas, touchpoints, capa, health_scores)
-- 12 policies NPS/CSAT endurecidas (de acceso abierto → restringido por rol)
-
-### Supply — Previamente migrado
-- `has_supply_role()` y `has_supply_eval_role()` ya existían
-- ~40 policies legacy eliminadas en migración anterior
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
 ---
 
-## 🔴 Módulos Pendientes — Auditoría de Subqueries Directas
+## Hallazgos actuales
 
-### Hallazgo: ~120+ policies con subqueries directas a `user_roles` en ~90 tablas
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-### Prioridad 1 — Riesgos de Seguridad Críticos
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-| Tabla | Problema | Severidad |
-|---|---|---|
-| `facturas` | **COMPLETAMENTE ABIERTA** (SELECT/INSERT/UPDATE con `true`) | 🔴 CRÍTICO |
-| `servicios_monitoreo` | ALL policy abierta a todos los autenticados | 🔴 CRÍTICO |
-| `zonas_operacion_nacional` | **15 policies duplicadas**, mix de funciones y subqueries | 🟡 ALTO |
-
-### Prioridad 2 — Roles Obsoletos Detectados
-
-Roles referenciados en policies que **NO existen** en el enum `app_role`:
-- `manager` → en tickets, points_history, points_system_config, redemptions, rewards, forecast_config, patrones_demanda, presupuestos_zona, servicios_custodia
-- `director` → en periodos_ajuste_operativo
-- `bi_analyst` → en forecast_accuracy_history
-- `c4` → en proveedores_armados
-- `monitoreo` → en proveedores_armados (debería ser `monitoring`)
-
-### Prioridad 3 — Tablas por Módulo con Subqueries Directas
-
-#### Monitoreo (parcialmente migrado)
-| Tabla | Policies con subqueries | Usa funciones DEFINER |
-|---|---|---|
-| `activos_monitoreo` | 0 | ✅ `user_has_role_direct()` |
-| `alertas_sistema_nacional` | 0 | ✅ `check_admin_secure()` + `user_has_role_direct()` |
-| `servicios_monitoreo` | 0 | ⚠️ Abierto a todos + `current_user_is_coordinator_or_admin()` |
-| `zonas_operacion_nacional` | 12 directas | 🔴 15 policies totales, muchas duplicadas |
-
-#### WMS (~10 tablas)
-| Tabla | Policies | Roles |
-|---|---|---|
-| `categorias_productos` | 1 ALL | owner, admin, supply_admin |
-| `configuraciones_producto` | 1 ALL | owner, admin, supply_admin |
-| `configuracion_wms` | 1 ALL | admin, owner |
-| `productos_inventario` | 1 ALL | owner, admin, supply_admin, coordinador_operaciones |
-| `productos_serie` | 1 ALL | owner, admin, supply_admin |
-| `ordenes_compra` | 1 ALL | owner, admin, supply_admin |
-| `detalles_orden_compra` | 1 ALL | owner, admin, supply_admin |
-| `recepciones_mercancia` | 1 ALL | owner, admin, supply_admin, coordinador_operaciones |
-| `detalles_recepcion` | 1 ALL | owner, admin, supply_admin, coordinador_operaciones |
-| `movimientos_inventario` | 2 (ALL + DELETE) | owner, admin, supply_admin, coordinador_operaciones |
-| `proveedores` | 1 ALL | owner, admin, supply_admin |
-| `stock_productos` | 1 | owner, admin, supply_admin |
-
-#### Facturación
-| Tabla | Policies | Problema |
-|---|---|---|
-| `facturas` | 3 (SELECT/INSERT/UPDATE) | **Todas abiertas con `true`** |
-| `audit_facturacion_accesos` | 1 SELECT | admin, owner, bi, finanzas_admin |
-| `pagos_proveedores_armados` | 5 | Subqueries directas |
-| `pagos_instaladores` | 1 ALL | admin, owner, supply_admin |
-
-#### CRM
-| Tabla | Policies | Roles |
-|---|---|---|
-| `crm_activities` | 1 SELECT | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi |
-| `crm_deals` | 1 SELECT | Mismos roles |
-| `crm_deal_stage_history` | 1 SELECT | Mismos roles |
-| `crm_webhook_logs` | 1 SELECT | admin, owner |
-
-#### Tickets
-| Tabla | Policies | Problema |
-|---|---|---|
-| `tickets` | 5 con subqueries | Usa rol obsoleto `manager` |
-| `ticket_business_hours` | 1 | admin, owner |
-| `ticket_categorias_custodio` | 1 | admin, owner, soporte |
-| `ticket_escalation_rules` | 1 | admin, owner |
-| `ticket_response_templates` | 1 | admin, owner, soporte |
-| `ticket_respuestas` | 1 | admin, owner, soporte |
-| `ticket_subcategorias_custodio` | 1 | admin, owner, soporte |
-
-#### Otros módulos con subqueries
-- `profiles` (5 policies)
-- `instaladores` y relacionadas (8+ policies)
-- `programacion_instalaciones` (4 policies)
-- `inventario_gps/sim/microsd` (3 policies)
-- `servicios_planificados` (3 policies)
-- `rewards/redemptions/points` (6+ policies con rol `manager`)
-- `proveedores_armados` (3 policies con roles obsoletos `c4`, `monitoreo`)
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
 ---
 
-## Plan de Corrección Propuesto
+## Plan de corrección
 
-### Fase 1 — Seguridad Crítica (Inmediata)
-1. Endurecer `facturas` — restringir de `true` a roles de facturación
-2. Limpiar `zonas_operacion_nacional` — consolidar 15 policies en ~3
-3. Restringir `servicios_monitoreo` ALL policy
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-### Fase 2 — Crear funciones SECURITY DEFINER faltantes
 ```text
-has_wms_admin_role() → admin, owner, supply_admin
-has_ticket_admin_role() → admin, owner, soporte
-has_ops_admin_role() → admin, owner, coordinador_operaciones
-has_crm_role() → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role() → admin, owner, facturacion_admin, finanzas_admin, bi
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-### Fase 3 — Migrar ~120 policies por módulo
-- WMS: ~12 policies
-- Tickets: ~10 policies
-- CRM: ~4 policies
-- Facturación: ~6 policies
-- Monitoreo/Zonas: ~15 policies
-- Instaladores: ~8 policies
-- Otros: ~60+ policies
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-### Fase 4 — Eliminar roles obsoletos
-- Reemplazar `manager` → `coordinador_operaciones` o eliminar
-- Reemplazar `director` → `owner`
-- Reemplazar `bi_analyst` → `bi`
-- Reemplazar `c4` → `monitoring`
-- Reemplazar `monitoreo` → `monitoring`
+### Fase 2 — Migrar policies por módulo
+
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+
