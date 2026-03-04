@@ -1,19 +1,16 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { 
   Search, UserPlus, Trash2, RefreshCw, CheckCircle, Clock, XCircle, 
-  AlertTriangle, Filter, Users, PlayCircle, UsersRound
+  AlertTriangle, Filter, Users, PlayCircle
 } from "lucide-react";
-import { InscripcionMasivaDialog } from "./InscripcionMasivaDialog";
+import { InscripcionInteligente } from "./InscripcionInteligente";
 import { 
   useLMSAdminInscripciones, 
   useLMSInscribirUsuarios, 
