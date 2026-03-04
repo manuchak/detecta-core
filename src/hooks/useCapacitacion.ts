@@ -277,6 +277,9 @@ export const useCapacitacion = (candidatoId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['progreso-capacitacion', candidatoId] });
       queryClient.invalidateQueries({ queryKey: ['profile-documents', candidatoId] });
       toast({ title: 'Capacitación completada', description: 'Todos los módulos fueron marcados como completados (presencial)' });
+    },
+    onError: (error) => {
+      console.error('Error in marcarCapacitacionManual:', error);
     }
   });
 

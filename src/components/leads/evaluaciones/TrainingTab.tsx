@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -85,10 +86,15 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
 
   const handleMarcarManual = async () => {
     if (!marcarCapacitacionManual || !archivo) return;
-    await marcarCapacitacionManual.mutateAsync({ notas: manualNotas, archivo });
-    setShowManualDialog(false);
-    setManualNotas('');
-    handleRemoveFile();
+    try {
+      await marcarCapacitacionManual.mutateAsync({ notas: manualNotas, archivo });
+      setShowManualDialog(false);
+      setManualNotas('');
+      handleRemoveFile();
+    } catch (error) {
+      console.error('Error completing training:', error);
+      toast({ title: 'Error', description: 'No se pudo completar la capacitación. Intenta de nuevo.', variant: 'destructive' });
+    }
   };
 
   const handleCloseDialog = (open: boolean) => {
