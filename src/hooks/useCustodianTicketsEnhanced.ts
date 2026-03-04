@@ -234,6 +234,9 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
         custodioId = custodioData?.id || null;
       }
 
+      // Default assignee: Daniela Castañeda (coordinador_operaciones / planeación)
+      const DEFAULT_TICKET_ASSIGNEE = 'df3b4dfc-c80c-45d0-8290-5d40341ab2ca';
+
       const { data, error } = await supabase
         .from('tickets')
         .insert({
@@ -245,6 +248,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
           tipo_ticket: 'custodio',
           custodio_telefono: custodianPhone,
           custodio_id: custodioId,
+          assigned_to: DEFAULT_TICKET_ASSIGNEE,
           categoria_custodio_id: ticketData.categoria_custodio_id,
           subcategoria_custodio_id: ticketData.subcategoria_custodio_id,
           servicio_id: ticketData.servicio_id,
@@ -373,13 +377,27 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
 
       const { data: userData } = await supabase.auth.getUser();
       
+      // Resolve custodian name from custodios_operativos by phone
+      let custodioNombre = 'Custodio';
+      if (custodianPhone) {
+        const normalized = normalizePhone(custodianPhone);
+        const { data: custodioData } = await supabase
+          .from('custodios_operativos')
+          .select('nombre')
+          .or(`telefono.eq.${normalized},telefono.eq.${custodianPhone}`)
+          .maybeSingle();
+        if (custodioData?.nombre) {
+          custodioNombre = custodioData.nombre;
+        }
+      }
+      
       const { error } = await supabase
         .from('ticket_respuestas')
         .insert({
           ticket_id: ticketId,
           autor_id: userData.user?.id || '00000000-0000-0000-0000-000000000000',
           autor_tipo: 'custodio',
-          autor_nombre: 'Custodio',
+          autor_nombre: custodioNombre,
           mensaje,
           adjuntos_urls: adjuntosUrls.length > 0 ? adjuntosUrls : null,
           es_resolucion: false,

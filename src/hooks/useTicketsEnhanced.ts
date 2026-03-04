@@ -364,7 +364,7 @@ export const useTicketsEnhanced = () => {
         }
       }
 
-      // Fetch custodio data
+      // Fetch custodio data - by ID first, fallback to phone match
       let custodio: any;
       if (data.custodio_id) {
         const { data: custodioData } = await supabase
@@ -375,6 +375,20 @@ export const useTicketsEnhanced = () => {
         
         if (custodioData) {
           custodio = custodioData;
+        }
+      }
+      // Fallback: resolve by phone if custodio_id didn't yield results
+      if (!custodio && data.custodio_telefono) {
+        const digits = data.custodio_telefono.replace(/\D/g, '');
+        const last10 = digits.length > 10 ? digits.slice(-10) : digits;
+        const { data: custodioByPhone } = await supabase
+          .from('custodios_operativos')
+          .select('id, nombre, telefono, email, zona_base, fecha_alta')
+          .or(`telefono.eq.${last10},telefono.eq.${data.custodio_telefono}`)
+          .maybeSingle();
+        
+        if (custodioByPhone) {
+          custodio = custodioByPhone;
         }
       }
 
