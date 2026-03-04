@@ -203,12 +203,13 @@ export const useDeleteReferencia = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('referencias_candidato')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', id);
 
       if (error) throw error;
+      if (count === 0) throw new Error('No se pudo eliminar la referencia. Verifica tus permisos.');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['referencias'] });
@@ -217,7 +218,7 @@ export const useDeleteReferencia = () => {
     },
     onError: (error) => {
       console.error('Error deleting referencia:', error);
-      toast.error('Error al eliminar referencia');
+      toast.error(error instanceof Error ? error.message : 'Error al eliminar referencia');
     },
   });
 };
