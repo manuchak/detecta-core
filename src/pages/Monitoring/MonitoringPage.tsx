@@ -27,8 +27,7 @@ import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigi
 import { IncidentListPanel } from "@/components/monitoring/incidents";
 import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
 import PerformanceDashboard from "@/components/monitoring/performance/PerformanceDashboard";
-import { EventTracker, EventTimeline, BitacoraMap, BitacoraGeneratorButton, BitacoraServiceSelector } from "@/components/monitoring/bitacora";
-import { useEventosRuta } from "@/hooks/useEventosRuta";
+import { BitacoraPanel } from "@/components/monitoring/bitacora";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
