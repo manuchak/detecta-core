@@ -121,7 +121,8 @@ export const useCustodianTickets = (custodianPhone?: string) => {
           priority: ticketData.priority || 'media',
           category: ticketData.category || 'General',
           customer_phone: custodianPhone,
-          created_by: custodianPhone // Using phone as identifier for now
+          created_by: custodianPhone,
+          assigned_to: 'df3b4dfc-c80c-45d0-8290-5d40341ab2ca'
         }])
         .select()
         .single();
