@@ -155,6 +155,40 @@ export const useTicketsEnhanced = () => {
         });
       }
 
+      // Fallback: resolve custodios by phone for tickets without custodio_id
+      const ticketsWithoutCustodio = (data || []).filter(t => !t.custodio_id && t.custodio_telefono);
+      if (ticketsWithoutCustodio.length > 0) {
+        const phones = [...new Set(ticketsWithoutCustodio.map(t => {
+          const digits = (t.custodio_telefono || '').replace(/\D/g, '');
+          return digits.length > 10 ? digits.slice(-10) : digits;
+        }).filter(Boolean))];
+        
+        if (phones.length > 0) {
+          const { data: phoneCustodios } = await supabase
+            .from('custodios_operativos')
+            .select('id, nombre, telefono, email, zona_base, fecha_alta')
+            .in('telefono', phones);
+          
+          // Build phone->custodio lookup
+          const phoneLookup: Record<string, any> = {};
+          phoneCustodios?.forEach(c => {
+            phoneLookup[c.telefono] = c;
+            if (c.telefono.length > 10) {
+              phoneLookup[c.telefono.slice(-10)] = c;
+            }
+          });
+          
+          // Attach to tickets via a special phone-based key
+          ticketsWithoutCustodio.forEach(t => {
+            const digits = (t.custodio_telefono || '').replace(/\D/g, '');
+            const last10 = digits.length > 10 ? digits.slice(-10) : digits;
+            if (phoneLookup[last10]) {
+              custodios[`phone:${t.custodio_telefono}`] = phoneLookup[last10];
+            }
+          });
+        }
+      }
+
       // Combine tickets with related data and calculate SLA
       const ticketsWithSLA: TicketEnhanced[] = (data || []).map(ticket => {
         const sla = calculateTicketSLA({
@@ -202,7 +236,7 @@ export const useTicketsEnhanced = () => {
           
           assigned_user: ticket.assigned_to ? profiles[ticket.assigned_to] : undefined,
           categoria_custodio: ticket.categoria_custodio,
-          custodio: ticket.custodio_id ? custodios[ticket.custodio_id] : undefined,
+          custodio: ticket.custodio_id ? custodios[ticket.custodio_id] : (ticket.custodio_telefono ? custodios[`phone:${ticket.custodio_telefono}`] : undefined),
           
           sla
         };
