@@ -13,10 +13,8 @@ import {
 import { InscripcionInteligente } from "./InscripcionInteligente";
 import { 
   useLMSAdminInscripciones, 
-  useLMSInscribirUsuarios, 
   useLMSActualizarInscripcion, 
   useLMSEliminarInscripcion,
-  useLMSUsuariosDisponibles,
   useLMSEstadisticasCurso
 } from "@/hooks/lms/useLMSAdminInscripciones";
 import { useLMSAdminCursos } from "@/hooks/lms/useLMSAdminCursos";
