@@ -173,7 +173,7 @@ export const useTickets = () => {
     try {
       const { data, error } = await supabase
         .from('tickets')
-        .insert([ticketData])
+        .insert([{ ...ticketData, assigned_to: 'df3b4dfc-c80c-45d0-8290-5d40341ab2ca' }])
         .select()
         .single();
 
