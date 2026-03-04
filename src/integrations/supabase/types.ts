@@ -13424,6 +13424,10 @@ export type Database = {
       progreso_capacitacion: {
         Row: {
           candidato_id: string
+          completado_manual: boolean
+          completado_manual_fecha: string | null
+          completado_manual_notas: string | null
+          completado_manual_por: string | null
           contenido_completado: boolean | null
           contenido_iniciado: boolean | null
           created_at: string | null
@@ -13445,6 +13449,10 @@ export type Database = {
         }
         Insert: {
           candidato_id: string
+          completado_manual?: boolean
+          completado_manual_fecha?: string | null
+          completado_manual_notas?: string | null
+          completado_manual_por?: string | null
           contenido_completado?: boolean | null
           contenido_iniciado?: boolean | null
           created_at?: string | null
@@ -13466,6 +13474,10 @@ export type Database = {
         }
         Update: {
           candidato_id?: string
+          completado_manual?: boolean
+          completado_manual_fecha?: string | null
+          completado_manual_notas?: string | null
+          completado_manual_por?: string | null
           contenido_completado?: boolean | null
           contenido_iniciado?: boolean | null
           created_at?: string | null

@@ -234,30 +234,43 @@ export const useCapacitacion = (candidatoId?: string) => {
           .from('candidato-documentos')
           .getPublicUrl(sanitizedPath);
 
-        // Insertar registro en documentos_candidato
-        const { error: docError } = await supabase
+        // Upsert idempotente: buscar documento existente antes de insertar
+        const { data: existingDoc } = await supabase
           .from('documentos_candidato')
-          .insert({
-            candidato_id: candidatoId,
-            tipo_documento: 'constancia_capacitacion',
-            archivo_url: urlData.publicUrl,
-            archivo_nombre: archivo.name,
-            archivo_tipo: archivo.type,
-            archivo_tamaño: archivo.size,
-            estado_validacion: 'pendiente',
-            documento_vigente: true,
-            subido_por: user?.id,
-            notas: notas || null,
-          });
-        if (docError) {
+          .select('id')
+          .eq('candidato_id', candidatoId)
+          .eq('tipo_documento', 'constancia_capacitacion')
+          .eq('documento_vigente', true)
+          .maybeSingle();
+
+        const docPayload = {
+          candidato_id: candidatoId,
+          tipo_documento: 'constancia_capacitacion',
+          archivo_url: urlData.publicUrl,
+          archivo_nombre: archivo.name,
+          archivo_tipo: archivo.type,
+          archivo_tamaño: archivo.size,
+          estado_validacion: 'pendiente',
+          documento_vigente: true,
+          subido_por: user?.id,
+          notas: notas || null,
+        };
+
+        const docResult = existingDoc?.id
+          ? await supabase.from('documentos_candidato').update(docPayload).eq('id', existingDoc.id)
+          : await supabase.from('documentos_candidato').insert(docPayload);
+
+        if (docResult.error) {
           // Rollback: eliminar archivo huérfano de storage
-          console.error('DB insert failed, rolling back storage upload:', docError);
+          console.error('DB upsert failed, rolling back storage upload:', docResult.error);
           await supabase.storage.from('candidato-documentos').remove([sanitizedPath]);
           
-          // Mapear error de constraint a mensaje legible
-          const msg = docError.code === '23514'
-            ? 'Tipo de documento no permitido por configuración de base de datos. Contacte al administrador.'
-            : docError.message || 'Error al registrar documento en base de datos';
+          const errCode = docResult.error.code;
+          const msg = errCode === '23514'
+            ? 'Tipo de documento no permitido por configuración de BD.'
+            : errCode === '23505'
+            ? 'Documento duplicado detectado. Recargue e intente de nuevo.'
+            : docResult.error.message || 'Error al registrar documento';
           throw new Error(msg);
         }
       }
