@@ -229,7 +229,7 @@ export const useLMSUsuariosDisponibles = (cursoId: string | undefined) => {
       // Obtener todos los usuarios activos
       const { data: usuarios, error } = await supabase
         .from('profiles')
-        .select('id, email, display_name, role')
+        .select('id, email, display_name')
         .order('display_name');
 
       if (error) throw error;
