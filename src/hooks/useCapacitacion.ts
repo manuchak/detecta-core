@@ -307,6 +307,74 @@ export const useCapacitacion = (candidatoId?: string) => {
     }
   });
 
+  // Resetear un módulo individual
+  const resetearModulo = useMutation({
+    mutationFn: async ({ moduloId }: { moduloId: string }) => {
+      if (!candidatoId) throw new Error('Candidato ID requerido');
+      const { count, error } = await supabase
+        .from('progreso_capacitacion')
+        .delete({ count: 'exact' })
+        .eq('candidato_id', candidatoId)
+        .eq('modulo_id', moduloId);
+      if (error) throw error;
+      if (!count || count === 0) throw new Error('No se encontró el registro a eliminar');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['progreso-capacitacion', candidatoId] });
+      toast({ title: 'Módulo reseteado', description: 'El progreso del módulo fue eliminado' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error?.message || 'No se pudo resetear el módulo', variant: 'destructive' });
+    }
+  });
+
+  // Resetear toda la capacitación
+  const resetearTodaCapacitacion = useMutation({
+    mutationFn: async () => {
+      if (!candidatoId) throw new Error('Candidato ID requerido');
+      // 1. Eliminar todos los registros de progreso
+      const { error: progresoError } = await supabase
+        .from('progreso_capacitacion')
+        .delete()
+        .eq('candidato_id', candidatoId);
+      if (progresoError) throw progresoError;
+      // 2. Buscar y eliminar documento constancia_capacitacion
+      const { data: docs } = await supabase
+        .from('documentos_candidato')
+        .select('id, archivo_url')
+        .eq('candidato_id', candidatoId)
+        .eq('tipo_documento', 'constancia_capacitacion');
+      if (docs && docs.length > 0) {
+        const storagePaths = docs
+          .map(d => {
+            try {
+              const url = new URL(d.archivo_url);
+              const parts = url.pathname.split('/candidato-documentos/');
+              return parts[1] ? decodeURIComponent(parts[1]) : null;
+            } catch { return null; }
+          })
+          .filter(Boolean) as string[];
+        if (storagePaths.length > 0) {
+          await supabase.storage.from('candidato-documentos').remove(storagePaths);
+        }
+        const { error: docError } = await supabase
+          .from('documentos_candidato')
+          .delete()
+          .eq('candidato_id', candidatoId)
+          .eq('tipo_documento', 'constancia_capacitacion');
+        if (docError) throw docError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['progreso-capacitacion', candidatoId] });
+      queryClient.invalidateQueries({ queryKey: ['profile-documents', candidatoId] });
+      toast({ title: 'Capacitación reseteada', description: 'Todo el progreso y constancias fueron eliminados' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error?.message || 'No se pudo resetear la capacitación', variant: 'destructive' });
+    }
+  });
+
   // Calcular progreso general
   const calcularProgresoGeneral = () => {
     if (!modulos || !progreso) return null;
@@ -337,6 +405,8 @@ export const useCapacitacion = (candidatoId?: string) => {
     completarContenido,
     enviarQuiz,
     marcarCapacitacionManual,
+    resetearModulo,
+    resetearTodaCapacitacion,
     calcularProgresoGeneral
   };
 };
