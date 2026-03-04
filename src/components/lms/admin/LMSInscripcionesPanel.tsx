@@ -47,7 +47,6 @@ export function LMSInscripcionesPanel() {
   const { data: statsData } = useLMSEstadisticasCurso(filterCurso !== "all" ? filterCurso : undefined);
   const stats = statsData ? { totalInscritos: statsData.total, completados: statsData.completados, enProgreso: statsData.enProgreso, promedioProgreso: statsData.progresoPromedio } : null;
 
-  const enrollUser = useLMSInscribirUsuarios();
   const updateInscripcion = useLMSActualizarInscripcion();
   const deleteInscripcion = useLMSEliminarInscripcion();
 
