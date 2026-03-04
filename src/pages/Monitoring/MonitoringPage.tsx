@@ -295,27 +295,35 @@ const MonitoringPage = () => {
 
         {/* Tab: Bitácora */}
         <TabsContent value="bitacora" className="space-y-4 mt-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Input
-                placeholder="ID del servicio..."
-                value={bitacoraServicioId}
-                onChange={e => setBitacoraServicioId(e.target.value)}
-                className="w-64 text-sm"
-              />
-            </div>
-            <BitacoraGeneratorButton
-              servicioId={bitacoraServicioId || null}
-              eventos={bitacoraEventos}
-            />
-          </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: '600px' }}>
             <div className="space-y-4">
-              <EventTracker servicioId={bitacoraServicioId || null} />
+              <BitacoraServiceSelector
+                selectedServiceId={bitacoraServicioId || null}
+                onSelect={setBitacoraServicioId}
+              />
+              {bitacoraServicioId && (
+                <>
+                  <div className="flex items-center justify-end">
+                    <BitacoraGeneratorButton
+                      servicioId={bitacoraServicioId}
+                      eventos={bitacoraEventos}
+                    />
+                  </div>
+                  <EventTracker servicioId={bitacoraServicioId} />
+                </>
+              )}
             </div>
             <div className="lg:col-span-2 grid grid-rows-2 gap-4" style={{ minHeight: '600px' }}>
-              <EventTimeline servicioId={bitacoraServicioId || null} />
-              <BitacoraMap servicioId={bitacoraServicioId || null} eventos={bitacoraEventos} />
+              {bitacoraServicioId ? (
+                <>
+                  <EventTimeline servicioId={bitacoraServicioId} />
+                  <BitacoraMap servicioId={bitacoraServicioId} eventos={bitacoraEventos} />
+                </>
+              ) : (
+                <div className="flex items-center justify-center text-muted-foreground col-span-full row-span-full">
+                  <p className="text-sm">Selecciona un servicio en sitio para ver su bitácora</p>
+                </div>
+              )}
             </div>
           </div>
         </TabsContent>
