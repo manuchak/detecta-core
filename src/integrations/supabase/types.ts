@@ -3236,7 +3236,7 @@ export type Database = {
           deal_id: string
           from_stage_id: string | null
           id: string
-          time_in_previous_stage: unknown
+          time_in_previous_stage: string | null
           to_stage_id: string | null
         }
         Insert: {
@@ -3244,7 +3244,7 @@ export type Database = {
           deal_id: string
           from_stage_id?: string | null
           id?: string
-          time_in_previous_stage?: unknown
+          time_in_previous_stage?: string | null
           to_stage_id?: string | null
         }
         Update: {
@@ -3252,7 +3252,7 @@ export type Database = {
           deal_id?: string
           from_stage_id?: string | null
           id?: string
-          time_in_previous_stage?: unknown
+          time_in_previous_stage?: string | null
           to_stage_id?: string | null
         }
         Relationships: [
@@ -15094,8 +15094,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -15149,7 +15149,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -15176,8 +15176,8 @@ export type Database = {
           destino?: string | null
           destino_lat?: number | null
           destino_lng?: number | null
-          duracion_estimada?: unknown
-          duracion_servicio?: unknown
+          duracion_estimada?: string | null
+          duracion_servicio?: string | null
           es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
@@ -15231,7 +15231,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: unknown
+          tiempo_retraso?: string | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -15258,8 +15258,8 @@ export type Database = {
           destino?: string | null
           destino_lat?: number | null
           destino_lng?: number | null
-          duracion_estimada?: unknown
-          duracion_servicio?: unknown
+          duracion_estimada?: string | null
+          duracion_servicio?: string | null
           es_ruta_reparto?: boolean | null
           estado?: string | null
           estado_planeacion?: string | null
@@ -15313,7 +15313,7 @@ export type Database = {
           telefono_operador_adicional?: string | null
           tiempo_estimado?: string | null
           tiempo_punto_origen?: string | null
-          tiempo_retraso?: unknown
+          tiempo_retraso?: string | null
           tipo_carga?: string | null
           tipo_carga_adicional?: string | null
           tipo_gadget?: string | null
@@ -17973,8 +17973,8 @@ export type Database = {
           custodio_id: string | null
           destino: string | null
           desviacion_km: number | null
-          duracion_calculada: unknown
-          duracion_servicio: unknown
+          duracion_calculada: string | null
+          duracion_servicio: string | null
           estado: string | null
           estado_planeacion: string | null
           fecha_asignacion: string | null
@@ -18014,7 +18014,7 @@ export type Database = {
           telefono_armado: string | null
           telefono_custodio: string | null
           telefono_operador: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_asignacion_armado: string | null
           tipo_carga: string | null
           tipo_gadget: string | null
@@ -18146,8 +18146,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -18201,7 +18201,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -18237,8 +18237,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -18292,7 +18292,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -18758,8 +18758,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -18813,7 +18813,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -19329,8 +19329,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -19384,7 +19384,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -19763,8 +19763,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -19818,7 +19818,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -20026,8 +20026,8 @@ export type Database = {
           destino: string | null
           destino_lat: number | null
           destino_lng: number | null
-          duracion_estimada: unknown
-          duracion_servicio: unknown
+          duracion_estimada: string | null
+          duracion_servicio: string | null
           es_ruta_reparto: boolean | null
           estado: string | null
           estado_planeacion: string | null
@@ -20081,7 +20081,7 @@ export type Database = {
           telefono_operador_adicional: string | null
           tiempo_estimado: string | null
           tiempo_punto_origen: string | null
-          tiempo_retraso: unknown
+          tiempo_retraso: string | null
           tipo_carga: string | null
           tipo_carga_adicional: string | null
           tipo_gadget: string | null
@@ -20462,7 +20462,7 @@ export type Database = {
           tipo_plan: string
         }[]
       }
-      parse_tiempo_retraso: { Args: { tiempo_str: string }; Returns: unknown }
+      parse_tiempo_retraso: { Args: { tiempo_str: string }; Returns: string }
       populate_historical_retention_data: { Args: never; Returns: undefined }
       procesar_bono_referido: {
         Args: { p_referido_id: string }
