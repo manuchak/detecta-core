@@ -18,7 +18,6 @@ import {
   useLMSEstadisticasCurso
 } from "@/hooks/lms/useLMSAdminInscripciones";
 import { useLMSAdminCursos } from "@/hooks/lms/useLMSAdminCursos";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { EstadoInscripcion } from "@/types/lms";
