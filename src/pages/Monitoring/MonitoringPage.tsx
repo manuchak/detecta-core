@@ -55,6 +55,8 @@ const MonitoringPage = () => {
     useState<ServicioConChecklist | null>(null);
   const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
   const [filtroAdopcion, setFiltroAdopcion] = useState<FiltroAdopcion>("todos");
+  const [bitacoraServicioId, setBitacoraServicioId] = useState<string>('');
+  const { eventos: bitacoraEventos } = useEventosRuta(bitacoraServicioId || null);
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
   const { 
