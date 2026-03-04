@@ -268,45 +268,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
       // Reload tickets and return data BEFORE attempting WhatsApp notification
       await loadTickets();
 
-      // 📲 WHATSAPP: Enviar template de ticket creado (no-bloqueante, no afecta resultado)
-      try {
-        const { data: categoriaData } = await supabase
-          .from('ticket_categorias_custodio')
-          .select('nombre')
-          .eq('id', ticketData.categoria_custodio_id)
-          .single();
-
-        supabase.functions.invoke('kapso-send-template', {
-          body: {
-            to: custodianPhone,
-            templateName: 'ticket_creado',
-            components: {
-              body: {
-                parameters: [
-                  { type: 'text', text: 'Custodio' },
-                  { type: 'text', text: ticketNumber },
-                  { type: 'text', text: categoriaData?.nombre || 'Soporte General' },
-                  { type: 'text', text: '24 horas' }
-                ]
-              }
-            },
-            context: {
-              ticket_id: data.id,
-              tipo_notificacion: 'ticket_creado'
-            }
-          }
-        }).then(response => {
-          if (response.error) {
-            console.warn('Error enviando template ticket_creado:', response.error);
-          } else {
-            console.log('Template ticket_creado enviado exitosamente');
-          }
-        }).catch(err => {
-          console.warn('Error enviando template ticket_creado:', err);
-        });
-      } catch (whatsappErr) {
-        console.warn('Error en lógica de WhatsApp (no afecta ticket):', whatsappErr);
-      }
+      // WhatsApp notification disabled — template 'ticket_creado' not configured in Meta Business Manager
 
       return data;
 
