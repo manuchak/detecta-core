@@ -13,7 +13,8 @@ export type TipoDocumento =
   | 'comprobante_domicilio'
   | 'carta_antecedentes'
   | 'portacion_arma'
-  | 'registro_arma';
+  | 'registro_arma'
+  | 'constancia_capacitacion';
 
 export type TipoOperativoDoc = 'custodio' | 'armado';
 
@@ -58,7 +59,8 @@ export const DOCUMENTO_LABELS: Record<TipoDocumento, string> = {
   comprobante_domicilio: 'Comprobante de Domicilio',
   carta_antecedentes: 'Carta de Antecedentes No Penales',
   portacion_arma: 'Licencia de Portación de Arma',
-  registro_arma: 'Registro del Arma'
+  registro_arma: 'Registro del Arma',
+  constancia_capacitacion: 'Constancia de Capacitación'
 };
 
 export const DOCUMENTOS_REQUERIDOS_CUSTODIO: TipoDocumento[] = [

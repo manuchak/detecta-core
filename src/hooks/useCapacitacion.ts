@@ -249,7 +249,17 @@ export const useCapacitacion = (candidatoId?: string) => {
             subido_por: user?.id,
             notas: notas || null,
           });
-        if (docError) throw docError;
+        if (docError) {
+          // Rollback: eliminar archivo huérfano de storage
+          console.error('DB insert failed, rolling back storage upload:', docError);
+          await supabase.storage.from('candidato-documentos').remove([sanitizedPath]);
+          
+          // Mapear error de constraint a mensaje legible
+          const msg = docError.code === '23514'
+            ? 'Tipo de documento no permitido por configuración de base de datos. Contacte al administrador.'
+            : docError.message || 'Error al registrar documento en base de datos';
+          throw new Error(msg);
+        }
       }
 
       // 2. Upsert all modules as manually completed
@@ -278,8 +288,9 @@ export const useCapacitacion = (candidatoId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['profile-documents', candidatoId] });
       toast({ title: 'Capacitación completada', description: 'Todos los módulos fueron marcados como completados (presencial)' });
     },
-    onError: (error) => {
-      console.error('Error in marcarCapacitacionManual:', error);
+    onError: (error: any) => {
+      console.error('Error in marcarCapacitacionManual:', { error, candidatoId });
+      toast({ title: 'Error', description: error?.message || 'No se pudo completar la capacitación', variant: 'destructive' });
     }
   });
 
