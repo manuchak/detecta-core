@@ -161,7 +161,6 @@ export default function SIERCPAssessmentPage() {
           p_score_veracidad: results.veracidad,
           p_score_entrevista: results.entrevista,
           p_score_global: results.globalScore,
-          p_resultado_semaforo: 'verde',  // Placeholder - DB trigger always overwrites
           p_interpretacion: `Evaluación SIERCP completada. Score global: ${results.globalScore}/100`
         });
 
