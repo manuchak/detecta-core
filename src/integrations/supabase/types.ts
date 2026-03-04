@@ -20183,6 +20183,9 @@ export type Database = {
         Returns: boolean
       }
       has_staff_checklist_role: { Args: never; Returns: boolean }
+      has_supply_eval_role: { Args: never; Returns: boolean }
+      has_supply_read_role: { Args: never; Returns: boolean }
+      has_supply_role: { Args: never; Returns: boolean }
       incidentes_en_radio: {
         Args: {
           p_dias_atras?: number
