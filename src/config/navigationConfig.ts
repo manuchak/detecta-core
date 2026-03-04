@@ -214,7 +214,7 @@ export const navigationModules: NavigationModule[] = [
     icon: TrendingUp,
     path: '/recruitment-strategy',
     group: 'supply',
-    roles: ['admin', 'owner', 'manager', 'coordinador_operaciones']
+    roles: ['admin', 'owner', 'coordinador_operaciones']
   },
   {
     id: 'perfiles_operativos',
@@ -371,7 +371,7 @@ export const navigationModules: NavigationModule[] = [
     icon: Package,
     path: '/wms',
     group: 'operations',
-    roles: ['admin', 'owner', 'monitoring_supervisor', 'monitoring', 'coordinador_operaciones']
+    roles: ['admin', 'owner', 'supply_admin', 'supply_lead', 'monitoring_supervisor', 'coordinador_operaciones']
   },
   // ===== FACTURACIÓN GROUP =====
   {
@@ -446,6 +446,7 @@ export const navigationModules: NavigationModule[] = [
     icon: Activity,
     path: '/monitoring',
     group: 'monitoring',
+    roles: ['admin', 'owner', 'monitoring', 'monitoring_supervisor', 'coordinador_operaciones', 'jefe_seguridad', 'analista_seguridad', 'planificador'],
     children: [
       {
         id: 'monitoring_general',
@@ -492,6 +493,7 @@ export const navigationModules: NavigationModule[] = [
     icon: Headphones,
     path: '/tickets',
     group: 'monitoring',
+    roles: ['admin', 'owner', 'soporte', 'coordinador_operaciones', 'planificador', 'monitoring', 'monitoring_supervisor'],
     matchPaths: ['/admin/ticket-config', '/admin/ticket-metrics', '/admin/ticket-templates'],
     children: [
       {

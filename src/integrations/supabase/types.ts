@@ -20172,12 +20172,17 @@ export type Database = {
           nombre: string
         }[]
       }
+      has_crm_role: { Args: never; Returns: boolean }
       has_cs_management_role:
         | { Args: never; Returns: boolean }
         | { Args: { _user_id: string }; Returns: boolean }
       has_facturacion_access: { Args: { user_id: string }; Returns: boolean }
+      has_facturacion_role: { Args: never; Returns: boolean }
+      has_facturacion_write_role: { Args: never; Returns: boolean }
       has_lms_admin_role: { Args: { _user_id: string }; Returns: boolean }
       has_management_role: { Args: never; Returns: boolean }
+      has_monitoring_role: { Args: never; Returns: boolean }
+      has_monitoring_write_role: { Args: never; Returns: boolean }
       has_planning_admin_role: { Args: never; Returns: boolean }
       has_planning_read_role: { Args: never; Returns: boolean }
       has_planning_role: { Args: never; Returns: boolean }
@@ -20189,6 +20194,8 @@ export type Database = {
       has_supply_eval_role: { Args: never; Returns: boolean }
       has_supply_read_role: { Args: never; Returns: boolean }
       has_supply_role: { Args: never; Returns: boolean }
+      has_ticket_admin_role: { Args: never; Returns: boolean }
+      has_ticket_role: { Args: never; Returns: boolean }
       incidentes_en_radio: {
         Args: {
           p_dias_atras?: number
