@@ -19,10 +19,11 @@ import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianG
 interface EconomicsTabProps {
   nombre: string;
   tipo: 'custodio' | 'armado';
+  custodioId?: string;
 }
 
-export function EconomicsTab({ nombre, tipo }: EconomicsTabProps) {
-  const { data: economics, isLoading: loadingEconomics, error: errorEconomics } = useProfileEconomics(nombre);
+export function EconomicsTab({ nombre, tipo, custodioId }: EconomicsTabProps) {
+  const { data: economics, isLoading: loadingEconomics, error: errorEconomics } = useProfileEconomics(nombre, custodioId);
   const { data: benchmarks, isLoading: loadingBenchmarks } = usePoolBenchmarks(nombre);
   const { data: armadoEconomics, isLoading: loadingArmado, error: errorArmado } = useArmadoEconomics(
     tipo === 'armado' ? nombre : undefined
