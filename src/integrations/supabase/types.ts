@@ -20175,10 +20175,14 @@ export type Database = {
       has_cs_management_role: { Args: never; Returns: boolean }
       has_facturacion_access: { Args: { user_id: string }; Returns: boolean }
       has_management_role: { Args: never; Returns: boolean }
+      has_planning_admin_role: { Args: never; Returns: boolean }
+      has_planning_read_role: { Args: never; Returns: boolean }
+      has_planning_role: { Args: never; Returns: boolean }
       has_role: {
         Args: { role_name: string; user_uuid: string }
         Returns: boolean
       }
+      has_staff_checklist_role: { Args: never; Returns: boolean }
       incidentes_en_radio: {
         Args: {
           p_dias_atras?: number
