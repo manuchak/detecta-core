@@ -320,7 +320,7 @@ const InternalChatModal = ({
     try {
       // Get first available category or use null
       const { data: categories } = await supabase
-        .from('categorias_ticket_custodio')
+        .from('ticket_categorias_custodio')
         .select('id')
         .eq('activo', true)
         .limit(1);
