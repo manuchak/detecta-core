@@ -1,0 +1,2 @@
+ALTER TABLE public.documentos_candidato DROP CONSTRAINT IF EXISTS documentos_candidato_tipo_documento_check;
+ALTER TABLE public.documentos_candidato ADD CONSTRAINT documentos_candidato_tipo_documento_check CHECK (tipo_documento IN ('ine_frente', 'ine_reverso', 'licencia_frente', 'licencia_reverso', 'curp', 'rfc', 'comprobante_domicilio', 'carta_antecedentes', 'constancia_capacitacion', 'portacion_arma', 'registro_arma'));
