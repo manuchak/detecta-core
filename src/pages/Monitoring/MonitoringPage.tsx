@@ -27,6 +27,9 @@ import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigi
 import { IncidentListPanel } from "@/components/monitoring/incidents";
 import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
 import PerformanceDashboard from "@/components/monitoring/performance/PerformanceDashboard";
+import { EventTracker, EventTimeline, BitacoraMap, BitacoraGeneratorButton } from "@/components/monitoring/bitacora";
+import { useEventosRuta } from "@/hooks/useEventosRuta";
+import { Input } from "@/components/ui/input";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,6 +55,8 @@ const MonitoringPage = () => {
     useState<ServicioConChecklist | null>(null);
   const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
   const [filtroAdopcion, setFiltroAdopcion] = useState<FiltroAdopcion>("todos");
+  const [bitacoraServicioId, setBitacoraServicioId] = useState<string>('');
+  const { eventos: bitacoraEventos } = useEventosRuta(bitacoraServicioId || null);
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
   const { 
@@ -176,6 +181,7 @@ const MonitoringPage = () => {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="bitacora">Bitácora</TabsTrigger>
         </TabsList>
 
         {/* Tab: Performance */}
@@ -286,6 +292,33 @@ const MonitoringPage = () => {
         {/* Tab: Incidentes */}
         <TabsContent value="incidentes" className="space-y-6 mt-0">
           <IncidentListPanel />
+        </TabsContent>
+
+        {/* Tab: Bitácora */}
+        <TabsContent value="bitacora" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Input
+                placeholder="ID del servicio..."
+                value={bitacoraServicioId}
+                onChange={e => setBitacoraServicioId(e.target.value)}
+                className="w-64 text-sm"
+              />
+            </div>
+            <BitacoraGeneratorButton
+              servicioId={bitacoraServicioId || null}
+              eventos={bitacoraEventos}
+            />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: '600px' }}>
+            <div className="space-y-4">
+              <EventTracker servicioId={bitacoraServicioId || null} />
+            </div>
+            <div className="lg:col-span-2 grid grid-rows-2 gap-4" style={{ minHeight: '600px' }}>
+              <EventTimeline servicioId={bitacoraServicioId || null} />
+              <BitacoraMap servicioId={bitacoraServicioId || null} eventos={bitacoraEventos} />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
