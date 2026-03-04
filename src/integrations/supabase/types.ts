@@ -20176,6 +20176,7 @@ export type Database = {
         | { Args: never; Returns: boolean }
         | { Args: { _user_id: string }; Returns: boolean }
       has_facturacion_access: { Args: { user_id: string }; Returns: boolean }
+      has_lms_admin_role: { Args: { _user_id: string }; Returns: boolean }
       has_management_role: { Args: never; Returns: boolean }
       has_planning_admin_role: { Args: never; Returns: boolean }
       has_planning_read_role: { Args: never; Returns: boolean }
@@ -20265,10 +20266,9 @@ export type Database = {
           linked_services: number
         }[]
       }
-      lms_archive_curso_secure: {
-        Args: { p_curso_id: string; p_reason?: string }
-        Returns: Json
-      }
+      lms_archive_curso_secure:
+        | { Args: { p_curso_id: string }; Returns: Json }
+        | { Args: { p_curso_id: string; p_reason?: string }; Returns: Json }
       lms_calcular_progreso: {
         Args: { p_inscripcion_id: string }
         Returns: Json
