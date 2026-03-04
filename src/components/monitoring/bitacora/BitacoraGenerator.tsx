@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page, View, Text, Image, StyleSheet, pdf } from '@react-pdf/renderer';
-import { SectionHeader, PDF_COLORS, PDFHeader } from '@/components/pdf';
+import { SectionHeader, PDF_COLORS, ReportHeader } from '@/components/pdf';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { type EventoRuta, type TipoEventoRuta, EVENTO_ICONS } from '@/hooks/useEventosRuta';
@@ -64,7 +64,7 @@ const BitacoraPDF: React.FC<BitacoraPDFProps> = ({ servicioId, eventos, servicio
   return (
     <Document>
       <Page size="LETTER" style={s.page}>
-        <PDFHeader title="Bitácora de Ruta" subtitle={servicioLabel || `Servicio: ${servicioId}`} />
+        <ReportHeader title="Bitácora de Ruta" subtitle={servicioLabel || `Servicio: ${servicioId}`} />
 
         <View style={s.meta}>
           <View>
