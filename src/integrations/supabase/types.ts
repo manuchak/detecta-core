@@ -15076,6 +15076,54 @@ export type Database = {
         }
         Relationships: []
       }
+      servicio_eventos_ruta: {
+        Row: {
+          created_at: string | null
+          descripcion: string | null
+          duracion_segundos: number | null
+          foto_urls: string[] | null
+          hora_fin: string | null
+          hora_inicio: string
+          id: string
+          lat: number | null
+          lng: number | null
+          registrado_por: string | null
+          servicio_id: string
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_ruta"]
+          ubicacion_texto: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          descripcion?: string | null
+          duracion_segundos?: number | null
+          foto_urls?: string[] | null
+          hora_fin?: string | null
+          hora_inicio?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          registrado_por?: string | null
+          servicio_id: string
+          tipo_evento: Database["public"]["Enums"]["tipo_evento_ruta"]
+          ubicacion_texto?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          descripcion?: string | null
+          duracion_segundos?: number | null
+          foto_urls?: string[] | null
+          hora_fin?: string | null
+          hora_inicio?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          registrado_por?: string | null
+          servicio_id?: string
+          tipo_evento?: Database["public"]["Enums"]["tipo_evento_ruta"]
+          ubicacion_texto?: string | null
+        }
+        Relationships: []
+      }
       servicios_custodia: {
         Row: {
           anio_auto: string | null
@@ -20899,6 +20947,17 @@ export type Database = {
         | "contacto_custodio"
         | "contacto_cliente"
         | "otro"
+      tipo_evento_ruta:
+        | "inicio_servicio"
+        | "fin_servicio"
+        | "combustible"
+        | "baño"
+        | "descanso"
+        | "pernocta"
+        | "checkpoint"
+        | "incidencia"
+        | "foto_evidencia"
+        | "otro"
       tipo_servicio_custodia:
         | "traslado"
         | "custodia_local"
@@ -21109,6 +21168,18 @@ export const Constants = {
         "arribo_poi",
         "contacto_custodio",
         "contacto_cliente",
+        "otro",
+      ],
+      tipo_evento_ruta: [
+        "inicio_servicio",
+        "fin_servicio",
+        "combustible",
+        "baño",
+        "descanso",
+        "pernocta",
+        "checkpoint",
+        "incidencia",
+        "foto_evidencia",
         "otro",
       ],
       tipo_servicio_custodia: [
