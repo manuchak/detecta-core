@@ -27,8 +27,7 @@ import { useAdopcionDigital, type FiltroAdopcion } from "@/hooks/useAdopcionDigi
 import { IncidentListPanel } from "@/components/monitoring/incidents";
 import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
 import PerformanceDashboard from "@/components/monitoring/performance/PerformanceDashboard";
-import { EventTracker, EventTimeline, BitacoraMap, BitacoraGeneratorButton, BitacoraServiceSelector } from "@/components/monitoring/bitacora";
-import { useEventosRuta } from "@/hooks/useEventosRuta";
+import { BitacoraPanel } from "@/components/monitoring/bitacora";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -54,8 +53,6 @@ const MonitoringPage = () => {
     useState<ServicioConChecklist | null>(null);
   const [isChecklistDetailOpen, setIsChecklistDetailOpen] = useState(false);
   const [filtroAdopcion, setFiltroAdopcion] = useState<FiltroAdopcion>("todos");
-  const [bitacoraServicioId, setBitacoraServicioId] = useState<string>('');
-  const { eventos: bitacoraEventos } = useEventosRuta(bitacoraServicioId || null);
   
   const { data, isLoading, refetch, dataUpdatedAt } = useServiciosTurno(timeWindow);
   const { 
@@ -295,37 +292,7 @@ const MonitoringPage = () => {
 
         {/* Tab: Bitácora */}
         <TabsContent value="bitacora" className="space-y-4 mt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{ minHeight: '600px' }}>
-            <div className="space-y-4">
-              <BitacoraServiceSelector
-                selectedServiceId={bitacoraServicioId || null}
-                onSelect={setBitacoraServicioId}
-              />
-              {bitacoraServicioId && (
-                <>
-                  <div className="flex items-center justify-end">
-                    <BitacoraGeneratorButton
-                      servicioId={bitacoraServicioId}
-                      eventos={bitacoraEventos}
-                    />
-                  </div>
-                  <EventTracker servicioId={bitacoraServicioId} />
-                </>
-              )}
-            </div>
-            <div className="lg:col-span-2 grid grid-rows-2 gap-4" style={{ minHeight: '600px' }}>
-              {bitacoraServicioId ? (
-                <>
-                  <EventTimeline servicioId={bitacoraServicioId} />
-                  <BitacoraMap servicioId={bitacoraServicioId} eventos={bitacoraEventos} />
-                </>
-              ) : (
-                <div className="flex items-center justify-center text-muted-foreground col-span-full row-span-full">
-                  <p className="text-sm">Selecciona un servicio en sitio para ver su bitácora</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <BitacoraPanel />
         </TabsContent>
       </Tabs>
 

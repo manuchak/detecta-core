@@ -1,62 +1,97 @@
 
 
-# Deep Research: Bitácora en Ruta vs. Soluciones del Mercado
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Benchmark de competidores analizados
+## Roles confirmados por módulo
 
-| Solución | Segmento | Modelo de registro | Fortalezas clave |
-|---|---|---|---|
-| **TrackVigilante** (MX) | Guardias / Custodias | App móvil del guardia: checkpoints NFC/QR, fotos, notas de voz | Registro desde campo, evidencia multimedia, reportes automáticos al cliente |
-| **Logytek** (MX) | Custodias de mercancía en tránsito | App del custodio + panel web del cliente | Trazabilidad fotográfica, cotización/contratación digital, visibilidad pre-servicio |
-| **CityTroops** (LATAM) | Field service / Seguridad | App de agente + dashboard supervisor | Formularios dinámicos, offline-first, reportes automáticos |
-| **Safetrac / GuardTrac** (US) | Security guard management | App del guardia: patrol tours, incident reports | Activity feed en tiempo real, incident logging con fotos, scheduling integrado |
-| **TrackTik** (US/Global) | Enterprise security | Guard tour + dispatch console | Checkpoints verificados, exception-based workflows, post orders |
-| **Dispatch Ops Platform** (case study Lindi Wheaton) | Fleet/freight dispatch | Console del dispatcher | Queue-based workflow, exception banners, role-based density, "leading identifiers" search |
-
-## Hallazgos clave y gaps en nuestro plan actual
-
-### 1. Nuestro plan ya es correcto en el concepto central
-El flujo "carrusel de servicios + registro rápido + timeline compacta" es sólido y alineado con lo que hace la industria. El monitorista es un **operador de consola**, no un agente de campo.
-
-### 2. Gaps identificados vs. mercado
-
-| Gap | Qué hacen los competidores | Qué nos falta |
+| Módulo | Lectura | Escritura/Gestión |
 |---|---|---|
-| **Keyboard shortcuts** | Dispatch consoles usan atajos (1-9 para tipo, Enter para confirmar, flechas para navegar servicios) | Nuestro plan solo contempla clicks. Un monitorista con 30 servicios necesita atajos de teclado |
-| **Pegar coordenadas de Google Maps** | Logytek y CityTroops aceptan un solo campo "19.4326, -99.1332" | Tenemos 2 campos separados lat/lng. Debemos aceptar ambos formatos (pegar Google Maps link o coords) |
-| **Notas de voz → texto** | TrackVigilante y CityTroops permiten notas de voz | No aplica directo (el monitorista está en escritorio), pero sí deberíamos soportar **pegar texto largo de WhatsApp** con un botón de "pegar mensaje completo" |
-| **Fotos como thumbnails inline** | Todos los competidores muestran thumbnails de evidencia fotográfica inline, no solo URLs | Nuestro EventTimeline muestra URLs. Debemos renderizar thumbnails clickeables |
-| **Contadores de alerta por servicio** | GuardTrac/Safetrac muestran badges de "incidencias pendientes" en el feed | Nuestro carrusel ya tiene badge de conteo, pero debería diferenciar **incidencias** (rojo) de eventos normales |
-| **Quick-duplicate** | Dispatch consoles permiten "repetir último evento" con un click para checkpoints repetitivos | No lo tenemos. Un botón "Repetir último" ahorraría clicks en checkpoints secuenciales |
-| **Modo offline / draft** | CityTroops y TrackVigilante guardan borradores offline | No crítico para monitorista en escritorio, pero sí útil tener **auto-save draft** en localStorage por si se refresca |
-| **Timestamp override** | Operadores de consola frecuentemente registran eventos que pasaron hace 5-10 minutos (el custodio reportó tarde) | Nuestro plan siempre usa `now()`. Necesitamos un campo opcional "hora real del evento" |
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-### 3. Mejoras recomendadas al plan
+---
 
-**Incorporar al rediseño:**
+## Hallazgos actuales
 
-1. **Campo unificado de coordenadas**: Un solo input que acepte `19.4326, -99.1332` o un link de Google Maps y parsee automáticamente lat/lng
-2. **Keyboard shortcuts**: `1-9` para seleccionar tipo, `Enter` para iniciar, `Esc` para cancelar, `←/→` para navegar servicios en carrusel
-3. **Botón "Repetir último"**: Cuando hay eventos previos, mostrar un botón que pre-llena tipo + ubicación del último evento registrado (ideal para checkpoints secuenciales)
-4. **Timestamp override opcional**: Un toggle "Hora real" que permite al monitorista poner la hora exacta que reportó el custodio (default: ahora)
-5. **Thumbnails de fotos**: En el mini-timeline, renderizar las fotos como thumbnails clickeables, no como texto de URL
-6. **Badge diferenciado en carrusel**: Incidencias en rojo, eventos normales en gris/azul
-7. **Auto-save draft en localStorage**: Si el monitorista estaba llenando datos y refresca, no pierde el borrador
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-**No incorporar (no aplica a nuestro caso):**
-- NFC/QR checkpoints (es para agentes de campo, no monitoristas de escritorio)
-- Notas de voz (el monitorista está en PC)
-- Offline-first (el monitorista siempre tiene conexión)
-- Scheduling/billing integrado (ya existe en otro módulo)
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-## Plan actualizado
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-El plan original del carrusel + tracker compacto se mantiene como base. Se agregan las 7 mejoras identificadas arriba como parte de la misma implementación. Los archivos a modificar son los mismos:
+---
 
-| Archivo | Cambio adicional |
-|---|---|
-| `EventTracker.tsx` | Campo unificado de coords, timestamp override, botón "Repetir último", keyboard shortcuts, auto-save draft |
-| `BitacoraServiceSelector.tsx` | Badge diferenciado incidencias vs normales, keyboard nav ←/→ |
-| `EventTimeline.tsx` | Thumbnails de fotos, timestamp real vs registrado |
-| `BitacoraPanel.tsx` | Keyboard event listener global para shortcuts |
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
+
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+
+### Fase 2 — Migrar policies por módulo
+
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
