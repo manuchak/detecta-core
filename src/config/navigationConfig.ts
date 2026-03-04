@@ -531,7 +531,7 @@ export const navigationModules: NavigationModule[] = [
     icon: GraduationCap,
     path: '/lms',
     group: 'capacitacion',
-    roles: ['admin', 'owner', 'supply_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte', 'customer_success'],
+    roles: ['admin', 'owner', 'supply_admin', 'capacitacion_admin', 'coordinador_operaciones', 'supply_lead', 'ejecutivo_ventas', 'bi', 'monitoring_supervisor', 'planificador', 'soporte', 'customer_success'],
     children: [
       {
         id: 'lms_cursos',
@@ -543,7 +543,7 @@ export const navigationModules: NavigationModule[] = [
         id: 'lms_admin',
         label: 'Gestión',
         path: '/lms/admin',
-        roles: ['admin', 'owner', 'supply_admin'],
+        roles: ['admin', 'owner', 'supply_admin', 'capacitacion_admin'],
         icon: Settings
       },
       {

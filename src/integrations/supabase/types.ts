@@ -20172,7 +20172,9 @@ export type Database = {
           nombre: string
         }[]
       }
-      has_cs_management_role: { Args: never; Returns: boolean }
+      has_cs_management_role:
+        | { Args: never; Returns: boolean }
+        | { Args: { _user_id: string }; Returns: boolean }
       has_facturacion_access: { Args: { user_id: string }; Returns: boolean }
       has_management_role: { Args: never; Returns: boolean }
       has_planning_admin_role: { Args: never; Returns: boolean }

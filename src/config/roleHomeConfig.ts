@@ -24,6 +24,7 @@ export type UserRole =
   | 'analista_seguridad'
   | 'soporte'
   | 'customer_success'
+  | 'capacitacion_admin'
   | 'pending'
   | 'unverified';
 
@@ -510,6 +511,12 @@ export const ROLE_HOME_CONFIG: Record<UserRole, RoleHomeConfiguration> = {
   customer_success: {
     redirect: '/customer-success',
     modules: ['settings', 'crm', 'lms']
+  },
+
+  // Capacitación Admin - Gestión completa del LMS
+  capacitacion_admin: {
+    redirect: '/lms/admin',
+    modules: ['lms', 'settings']
   },
 
   // Custodio - Redirige a portal dedicado

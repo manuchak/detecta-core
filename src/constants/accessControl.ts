@@ -195,6 +195,8 @@ export function getTargetRouteForRole(role: string): string {
       return '/leads';
     case 'customer_success':
       return '/customer-success';
+    case 'capacitacion_admin':
+      return '/lms/admin';
     case 'admin':
     case 'owner':
     case 'supply_admin':
