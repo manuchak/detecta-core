@@ -14,6 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useCapacitacion } from '@/hooks/useCapacitacion';
 import { ModuloCapacitacion, QUIZ_MIN_SCORE } from '@/types/capacitacion';
 import { 
@@ -30,7 +41,9 @@ import {
   FileText,
   Image,
   X,
-  Loader2
+  Loader2,
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { QuizDialog } from './QuizDialog';
 
@@ -48,7 +61,10 @@ const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png';
 const MAX_SIZE_MB = 20;
 
 export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
-  const { modulos, progreso, isLoading, calcularProgresoGeneral, marcarCapacitacionManual } = useCapacitacion(candidatoId);
+  const { 
+    modulos, progreso, isLoading, calcularProgresoGeneral, 
+    marcarCapacitacionManual, resetearModulo, resetearTodaCapacitacion 
+  } = useCapacitacion(candidatoId);
   const [moduloQuiz, setModuloQuiz] = useState<ModuloCapacitacion | null>(null);
   const [showManualDialog, setShowManualDialog] = useState(false);
   const [manualNotas, setManualNotas] = useState('');
@@ -107,6 +123,7 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
 
   // Check if any module has completado_manual
   const tieneCompletadoManual = progreso?.some((p: any) => p.completado_manual);
+  const tieneAlgunProgreso = progreso && progreso.length > 0;
 
   if (isLoading) {
     return (
@@ -165,20 +182,58 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
           </div>
           <Progress value={progresoGeneral?.porcentaje || 0} className="h-2" />
 
-          {/* Botón Capacitación Manual */}
-          {!progresoGeneral?.capacitacion_completa && (
-            <div className="mt-4 pt-4 border-t">
+          {/* Action buttons */}
+          <div className="mt-4 pt-4 border-t flex gap-2 flex-wrap">
+            {!progresoGeneral?.capacitacion_completa && (
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="flex-1"
                 onClick={() => setShowManualDialog(true)}
               >
                 <UserCheck className="h-4 w-4 mr-2" />
                 Marcar como Completada (Presencial)
               </Button>
-            </div>
-          )}
+            )}
+
+            {tieneAlgunProgreso && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={resetearTodaCapacitacion.isPending}
+                  >
+                    {resetearTodaCapacitacion.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-2" />
+                    )}
+                    Resetear Todo
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Resetear toda la capacitación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Se eliminará todo el progreso de capacitación de este candidato, incluyendo quizzes aprobados 
+                      y constancias de inducción. Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => resetearTodaCapacitacion.mutate()}
+                    >
+                      Sí, resetear todo
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -188,17 +243,18 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
           const progresoMod = getProgresoModulo(modulo.id);
           const Icono = iconosTipo[modulo.tipo_contenido] || BookOpen;
           const esManual = (progresoMod as any)?.completado_manual;
+          const moduloCompletado = progresoMod?.quiz_aprobado || esManual;
           
           return (
             <Card key={modulo.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                   <div className={`p-3 rounded-lg ${
-                    progresoMod?.quiz_aprobado || esManual
+                    moduloCompletado
                       ? 'bg-green-100 text-green-600' 
                       : 'bg-secondary text-muted-foreground'
                   }`}>
-                    {progresoMod?.quiz_aprobado || esManual ? (
+                    {moduloCompletado ? (
                       <CheckCircle2 className="h-6 w-6" />
                     ) : (
                       <Icono className="h-6 w-6" />
@@ -238,10 +294,42 @@ export const TrainingTab = ({ candidatoId }: TrainingTabProps) => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {progresoMod?.quiz_aprobado || esManual ? (
-                      <Badge className="bg-green-500">
-                        {esManual ? '✓' : `${progresoMod?.quiz_mejor_puntaje}%`}
-                      </Badge>
+                    {moduloCompletado ? (
+                      <>
+                        <Badge className="bg-green-500">
+                          {esManual ? '✓' : `${progresoMod?.quiz_mejor_puntaje}%`}
+                        </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              disabled={resetearModulo.isPending}
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Resetear módulo?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Se eliminará el progreso de "{modulo.nombre}". 
+                                El candidato deberá completarlo nuevamente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => resetearModulo.mutate({ moduloId: modulo.id })}
+                              >
+                                Sí, resetear
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
                     ) : (
                       <Button 
                         size="sm" 
