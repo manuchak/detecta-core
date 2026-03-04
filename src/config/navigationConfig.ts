@@ -282,6 +282,7 @@ export const navigationModules: NavigationModule[] = [
     icon: CalendarCheck,
     path: '/planeacion',
     group: 'operations',
+    roles: ['admin', 'owner', 'coordinador_operaciones', 'planificador'],
     matchPaths: ['/planeacion/reportes', '/planeacion/nuevo-servicio'],
     children: [
       {
