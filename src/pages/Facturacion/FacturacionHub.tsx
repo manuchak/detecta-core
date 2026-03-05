@@ -28,6 +28,7 @@ import { FacturasTab } from './components/Facturas/FacturasTab';
 import { IncidenciasTab } from './components/Incidencias/IncidenciasTab';
 import { GastosExtraTab } from './components/GastosExtraordinarios/GastosExtraTab';
 import { CxPProveedoresTab } from './components/CxPProveedores/CxPProveedoresTab';
+import { CxPOperativoTab } from './components/CxPOperativo/CxPOperativoTab';
 import { ManualFacturacionTab } from './components/Manual/ManualFacturacionTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
