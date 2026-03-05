@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   DollarSign,
   Building2,
+  UserCheck,
   HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +28,7 @@ import { FacturasTab } from './components/Facturas/FacturasTab';
 import { IncidenciasTab } from './components/Incidencias/IncidenciasTab';
 import { GastosExtraTab } from './components/GastosExtraordinarios/GastosExtraTab';
 import { CxPProveedoresTab } from './components/CxPProveedores/CxPProveedoresTab';
+import { CxPOperativoTab } from './components/CxPOperativo/CxPOperativoTab';
 import { ManualFacturacionTab } from './components/Manual/ManualFacturacionTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
@@ -189,9 +191,13 @@ export default function FacturacionHub() {
               <DollarSign className="h-3.5 w-3.5" />
               Gastos Extra
             </TabsTrigger>
-            <TabsTrigger value="cxp" className="text-xs h-7 px-3 gap-1.5">
+            <TabsTrigger value="cxp-oca" className="text-xs h-7 px-3 gap-1.5">
+              <UserCheck className="h-3.5 w-3.5" />
+              CxP OCA
+            </TabsTrigger>
+            <TabsTrigger value="cxp-pe" className="text-xs h-7 px-3 gap-1.5">
               <Building2 className="h-3.5 w-3.5" />
-              CxP Proveedores
+              CxP PE
             </TabsTrigger>
             <TabsTrigger value="ayuda" className="text-xs h-7 px-3 gap-1.5">
               <HelpCircle className="h-3.5 w-3.5" />
@@ -236,7 +242,11 @@ export default function FacturacionHub() {
           <GastosExtraTab />
         </TabsContent>
 
-        <TabsContent value="cxp" className="flex-1 overflow-auto px-4 py-3">
+        <TabsContent value="cxp-oca" className="flex-1 overflow-auto px-4 py-3">
+          <CxPOperativoTab />
+        </TabsContent>
+
+        <TabsContent value="cxp-pe" className="flex-1 overflow-auto px-4 py-3">
           <CxPProveedoresTab />
         </TabsContent>
 
