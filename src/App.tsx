@@ -578,6 +578,16 @@ function App() {
                   }
                 />
 
+                {/* Service Radar Videowall - Fullscreen, no layout */}
+                <Route
+                  path="/monitoring/radar"
+                  element={
+                    <ProtectedRoute>
+                      <ServiceRadarPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 {/* Monitoring routes */}
                 <Route
                   path="/monitoring"
