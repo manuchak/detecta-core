@@ -185,6 +185,7 @@ const MonitoringPage = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="bitacora">Bitácora</TabsTrigger>
+          <TabsTrigger value="tiempos">Tiempos</TabsTrigger>
           {isCoordinator && (
             <TabsTrigger value="coordinacion">Coordinación C4</TabsTrigger>
           )}
