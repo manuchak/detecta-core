@@ -83,14 +83,9 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Command Center panel */}
+      {/* Command Center as overlay */}
       {commandCenterOpen && (
-        <CoordinatorCommandCenter
-          activeServiceIds={activeServiceIds}
-          serviceLabelMap={serviceLabelMap}
-          serviceHoraCitaMap={serviceHoraCitaMap}
-          onClose={() => setCommandCenterOpen(false)}
-        />
+        <CoordinatorCommandCenter onClose={() => setCommandCenterOpen(false)} />
       )}
 
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
