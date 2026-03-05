@@ -250,27 +250,140 @@ export const TicketsList = () => {
           </TabsContent>
 
           {/* === TAB: Gestión (Kanban / Tabla) === */}
-          <TabsContent value="gestion" className="space-y-4 mt-0">
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1 w-fit">
-              <Button
-                variant={viewMode === "kanban" ? "default" : "ghost"}
-                size="sm"
-                className="gap-1.5 h-8"
-                onClick={() => setViewMode("kanban")}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                <span className="hidden sm:inline">Kanban</span>
-              </Button>
-              <Button
-                variant={viewMode === "table" ? "default" : "ghost"}
-                size="sm"
-                className="gap-1.5 h-8"
-                onClick={() => setViewMode("table")}
-              >
-                <TableIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Tabla</span>
-              </Button>
+          <TabsContent value="gestion" className="space-y-3 mt-0">
+            {/* Shared Filters + View Toggle */}
+            <div className="flex flex-col gap-3">
+              {/* Row: Search + Filters + View Toggle */}
+              <div className="flex items-center gap-2">
+                {/* Search - always visible */}
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Buscar #ticket, asunto, custodio..." 
+                    className="pl-10 h-9"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Desktop dropdowns */}
+                <div className="hidden md:flex gap-2">
+                  <Select value={slaFilter} onValueChange={setSlaFilter}>
+                    <SelectTrigger className="w-[140px] h-9">
+                      <SelectValue placeholder="SLA" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos SLA</SelectItem>
+                      <SelectItem value="vencidos">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-red-500" />
+                          Vencidos
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="proximos">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                          Próximos
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="en_tiempo">
+                        <span className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          En tiempo
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[130px] h-9">
+                      <SelectValue placeholder="Estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="abierto">Abierto</SelectItem>
+                      <SelectItem value="en_progreso">En progreso</SelectItem>
+                      <SelectItem value="resuelto">Resuelto</SelectItem>
+                      <SelectItem value="cerrado">Cerrado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="w-[120px] h-9">
+                      <SelectValue placeholder="Prioridad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas</SelectItem>
+                      <SelectItem value="baja">Baja</SelectItem>
+                      <SelectItem value="media">Media</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                      <SelectItem value="urgente">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Mobile filter sheet */}
+                <div className="md:hidden">
+                  <TicketFiltersSheet
+                    filters={{ search: searchTerm, status: statusFilter, priority: priorityFilter, sla: slaFilter }}
+                    onFiltersChange={handleMobileFiltersChange}
+                    activeFiltersCount={activeFiltersCount}
+                  />
+                </div>
+
+                {/* View Toggle */}
+                <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1 ml-auto">
+                  <Button
+                    variant={viewMode === "kanban" ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-1.5 h-7 px-2"
+                    onClick={() => setViewMode("kanban")}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Kanban</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    className="gap-1.5 h-7 px-2"
+                    onClick={() => setViewMode("table")}
+                  >
+                    <TableIcon className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs">Tabla</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Active Filters Chips */}
+              {activeFiltersCount > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {searchTerm && (
+                    <Badge variant="secondary" className="gap-1 pr-1">
+                      Búsqueda: "{searchTerm}"
+                      <button onClick={() => setSearchTerm('')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
+                    </Badge>
+                  )}
+                  {statusFilter !== 'todos' && (
+                    <Badge variant="secondary" className="gap-1 pr-1">
+                      Estado: {statusLabels[statusFilter as keyof typeof statusLabels]}
+                      <button onClick={() => setStatusFilter('todos')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
+                    </Badge>
+                  )}
+                  {priorityFilter !== 'todas' && (
+                    <Badge variant="secondary" className="gap-1 pr-1">
+                      Prioridad: {priorityFilter}
+                      <button onClick={() => setPriorityFilter('todas')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
+                    </Badge>
+                  )}
+                  {slaFilter !== 'todos' && (
+                    <Badge variant="secondary" className="gap-1 pr-1">
+                      SLA: {slaFilter}
+                      <button onClick={() => setSlaFilter('todos')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
+                    </Badge>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {filteredTickets.length} de {tickets.length} tickets
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Kanban View */}
@@ -308,119 +421,6 @@ export const TicketsList = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Filters - Desktop */}
-                  <div className="mb-6 hidden md:flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="Buscar por #ticket, asunto, cliente..." 
-                        className="pl-10"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Select value={slaFilter} onValueChange={setSlaFilter}>
-                        <SelectTrigger className="w-[150px]">
-                          <SelectValue placeholder="SLA" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todos SLA</SelectItem>
-                          <SelectItem value="vencidos">
-                            <span className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-red-500" />
-                              Vencidos
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="proximos">
-                            <span className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-yellow-500" />
-                              Próximos
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="en_tiempo">
-                            <span className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-green-500" />
-                              En tiempo
-                            </span>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todos</SelectItem>
-                          <SelectItem value="abierto">Abierto</SelectItem>
-                          <SelectItem value="en_progreso">En progreso</SelectItem>
-                          <SelectItem value="resuelto">Resuelto</SelectItem>
-                          <SelectItem value="cerrado">Cerrado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue placeholder="Prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todas">Todas</SelectItem>
-                          <SelectItem value="baja">Baja</SelectItem>
-                          <SelectItem value="media">Media</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="urgente">Urgente</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  {/* Filters - Mobile */}
-                  <div className="mb-4 flex md:hidden gap-2">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="Buscar..." 
-                        className="pl-10"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
-                    <TicketFiltersSheet
-                      filters={{ search: searchTerm, status: statusFilter, priority: priorityFilter, sla: slaFilter }}
-                      onFiltersChange={handleMobileFiltersChange}
-                      activeFiltersCount={activeFiltersCount}
-                    />
-                  </div>
-                  
-                  {/* Active Filters Chips */}
-                  {activeFiltersCount > 0 && (
-                    <div className="mb-4 flex flex-wrap gap-2">
-                      {searchTerm && (
-                        <Badge variant="secondary" className="gap-1 pr-1">
-                          Búsqueda: "{searchTerm}"
-                          <button onClick={() => setSearchTerm('')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
-                        </Badge>
-                      )}
-                      {statusFilter !== 'todos' && (
-                        <Badge variant="secondary" className="gap-1 pr-1">
-                          Estado: {statusLabels[statusFilter as keyof typeof statusLabels]}
-                          <button onClick={() => setStatusFilter('todos')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
-                        </Badge>
-                      )}
-                      {priorityFilter !== 'todas' && (
-                        <Badge variant="secondary" className="gap-1 pr-1">
-                          Prioridad: {priorityFilter}
-                          <button onClick={() => setPriorityFilter('todas')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
-                        </Badge>
-                      )}
-                      {slaFilter !== 'todos' && (
-                        <Badge variant="secondary" className="gap-1 pr-1">
-                          SLA: {slaFilter}
-                          <button onClick={() => setSlaFilter('todos')} className="ml-1 hover:bg-muted rounded-full p-0.5">×</button>
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                  
                   {/* Desktop Table */}
                   <div className="rounded-xl border hidden md:block overflow-hidden">
                     <Table>
