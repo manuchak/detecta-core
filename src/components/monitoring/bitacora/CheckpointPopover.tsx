@@ -51,6 +51,9 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
   const [geoLoading, setGeoLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
   const addFiles = useCallback((files: FileList | File[]) => {
     const images = Array.from(files).filter(f => f.type.startsWith('image/'));
     setPhotos(prev => [...prev, ...images].slice(0, 5));
@@ -58,8 +61,22 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
     addFiles(e.dataTransfer.files);
   }, [addFiles]);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }, []);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
@@ -115,13 +132,22 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
-        className="w-80 p-3 space-y-2.5"
+        className="w-80 p-3 space-y-2.5 relative"
         side="bottom"
         align="start"
         onDrop={handleDrop}
         onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
         onPaste={handlePaste}
       >
+        {/* Drag overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 rounded-md border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center pointer-events-none">
+            <span className="text-xs font-medium text-primary">Suelta aquí tus fotos</span>
+          </div>
+        )}
+
         <div className="text-xs font-medium text-muted-foreground truncate">
           Checkpoint — {clienteLabel}
         </div>
