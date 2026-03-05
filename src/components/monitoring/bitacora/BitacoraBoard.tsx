@@ -36,12 +36,19 @@ export const BitacoraBoard: React.FC = () => {
       `${s.id_servicio.slice(0, 8)} — ${s.nombre_cliente || ''}`.trim(),
     ])
   );
+  const serviceHoraCitaMap = Object.fromEntries(
+    [...pendingServices, ...enCursoServices, ...eventoEspecialServices].map(s => [
+      s.id_servicio,
+      s.fecha_hora_cita || '',
+    ])
+  );
 
   return (
     <div className="space-y-3">
       <MonitoristaAssignmentBar
         activeServiceIds={activeServiceIds}
         serviceLabelMap={serviceLabelMap}
+        serviceHoraCitaMap={serviceHoraCitaMap}
       />
 
       <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
