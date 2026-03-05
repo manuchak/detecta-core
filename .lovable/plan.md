@@ -1,74 +1,97 @@
 
 
-# Service Radar Videowall — Nuevo módulo independiente
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Enfoque
+## Roles confirmados por módulo
 
-Crear una ruta `/monitoring/radar` con su propia página y componentes dedicados, copiando la estructura visual del videowall actual (`/monitoring/tv`) pero alimentándose de datos operativos en tiempo real. El videowall original queda intacto en `/monitoring/tv`.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-## Arquitectura
+---
+
+## Hallazgos actuales
+
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
 ```text
-/monitoring/tv     → MonitoringTVPage (sin cambios, planeación)
-/monitoring/radar  → ServiceRadarPage (nuevo, operativo en vivo)
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-## Archivos a crear
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-| Archivo | Descripción |
-|---|---|
-| `src/hooks/useServiciosTurnoLive.ts` | Hook read-only: combina servicios activos + pendientes + eventos ruta + safe points. Reutiliza `computePhaseAndTimers` del board. Calcula `lastGPS` (lat/lng del último checkpoint con coords, fallback geocodificación), `phase`, `alertLevel`, `activeEvent`, `minutesSinceLastAction`. Query de completados hoy (count). Safe points tipo 'alerta' + certificación oro/plata cacheados 5min. Refetch 15s + realtime. |
-| `src/pages/Monitoring/ServiceRadarPage.tsx` | Página fullscreen dark, misma estructura que `MonitoringTVPage` (zoom override, reloj, header, KPIs, mapa+lista, weather+ticker). Título "RADAR OPERATIVO". Consume `useServiciosTurnoLive`. |
-| `src/components/monitoring/radar/RadarSummaryBar.tsx` | 5 KPIs operativos: En Ruta (verde), En Evento (morado), Alerta (rojo pulsante), Por Iniciar (azul), Completados (gris). Grid 5 cols, misma estética visual que `TVSummaryBar`. |
-| `src/components/monitoring/radar/RadarMapDisplay.tsx` | Mapa Mapbox dark-v11, no-interactivo. Marcadores por `lastGPS` con color por alertLevel (verde/amarillo/rojo pulsante/morado/gris). Capa de safe points: triángulos rojos (tipo alerta) y círculos verdes (oro/plata) a opacidad 0.3-0.4, solo visibles zoom ≥ 7. Leyenda actualizada. |
-| `src/components/monitoring/radar/RadarServicesList.tsx` | Lista agrupada por urgencia (Alerta → En Evento → En Ruta → Por Iniciar). Cada tarjeta: barra lateral por alertLevel, folio, cliente, ruta, custodio, timer monoespaciado de inactividad, badge de evento activo (⛽/☕/🛏️). Auto-scroll lento como el actual. |
+### Fase 2 — Migrar policies por módulo
 
-## Archivos a modificar
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-| Archivo | Cambio |
-|---|---|
-| `src/App.tsx` | Agregar lazy import de `ServiceRadarPage` y ruta `/monitoring/radar` (fullscreen, sin layout, como `/monitoring/tv`). |
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-## Datos del hook `useServiciosTurnoLive`
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-Queries (todas read-only, sin mutations):
-- **Q1**: `servicios_planificados` activos (hora_inicio_real NOT NULL, hora_fin_real NULL, últimas 24h)
-- **Q2**: `servicios_planificados` pendientes en ventana ±2h
-- **Q3**: `servicio_eventos_ruta` para todos los IDs activos (checkpoints con lat/lng)
-- **Q4**: Count de completados hoy
-- **Q5**: `safe_points` activos, tipo 'alerta' o certificación oro/plata (cacheada 5min)
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-Tipos de salida:
-```typescript
-interface RadarService {
-  // Datos base
-  id: string; id_servicio: string; nombre_cliente: string;
-  custodio_asignado: string | null; origen: string; destino: string;
-  fecha_hora_cita: string; tipo_servicio: string | null;
-  // Operativos (computados)
-  phase: ServicePhase; alertLevel: AlertLevel;
-  minutesSinceLastAction: number;
-  activeEvent: { tipo: string; minutosActivo: number } | null;
-  // GPS
-  lat: number | null; lng: number | null;
-  positionSource: 'gps' | 'geocoded';
-}
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
 
-interface RadarResumen {
-  enRuta: number; enEvento: number; alerta: number;
-  porIniciar: number; completados: number;
-}
-```
+### Fase 3 — Frontend: Sidebar ajustes menores
 
-## Capa de seguridad en mapa (sin recargar)
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
-- Safe points tipo `alerta` → triángulo rojo 10px, opacidad 0.4
-- Safe points certificación `oro`/`plata` → círculo verde 8px, opacidad 0.3
-- Solo visibles a zoom ≥ 7 (listener en `map.on('zoom')`)
-- Sin popups, sin labels, sin interactividad
-- No afectan fitBounds (solo los marcadores de unidades)
+### Archivos a modificar
 
-## Componentes reutilizados sin cambio
-
-- `TVWeatherStrip` y `TVAlertTicker` se importan directamente desde `monitoring/tv/` en `ServiceRadarPage` — son componentes puros sin dependencia del hook de planeación.
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
