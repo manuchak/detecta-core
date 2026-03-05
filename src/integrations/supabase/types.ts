@@ -4826,6 +4826,7 @@ export type Database = {
           numero_servicios: number | null
           pc_custodio_id: string | null
           preferencia_tipo_servicio: string | null
+          profile_id: string | null
           rating_promedio: number | null
           score_aceptacion: number | null
           score_comunicacion: number | null
@@ -4865,6 +4866,7 @@ export type Database = {
           numero_servicios?: number | null
           pc_custodio_id?: string | null
           preferencia_tipo_servicio?: string | null
+          profile_id?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
@@ -4904,6 +4906,7 @@ export type Database = {
           numero_servicios?: number | null
           pc_custodio_id?: string | null
           preferencia_tipo_servicio?: string | null
+          profile_id?: string | null
           rating_promedio?: number | null
           score_aceptacion?: number | null
           score_comunicacion?: number | null
@@ -4928,6 +4931,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pc_custodios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodios_operativos_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custodios_operativos_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_ticket_agent_workload"
+            referencedColumns: ["agent_id"]
           },
         ]
       }

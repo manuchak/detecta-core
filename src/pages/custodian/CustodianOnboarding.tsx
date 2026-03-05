@@ -148,18 +148,47 @@ export default function CustodianOnboarding() {
   }
 
   // Handler para actualizar teléfono desde el prompt
+  // Validates phone exists in custodios_operativos before saving, and auto-links profile_id
   const handlePhoneUpdate = async (newPhone: string): Promise<boolean> => {
     setPhoneError(null);
-    const success = await updateProfile({ phone: newPhone });
     
-    if (success) {
-      toast.success('Teléfono actualizado correctamente');
-      await refetchProfile(); // Recargar perfil para validar de nuevo
-      return true;
-    } else {
+    // 1. Normalize and verify phone exists in custodios_operativos
+    const digits = newPhone.replace(/\D/g, '');
+    const normalized = digits.length > 10 ? digits.slice(-10) : digits;
+    
+    const { data: custodio } = await supabase
+      .from('custodios_operativos')
+      .select('id')
+      .or(`telefono.eq.${normalized},telefono.ilike.%${normalized}%`)
+      .eq('estado', 'activo')
+      .limit(1)
+      .maybeSingle();
+    
+    if (!custodio) {
+      setPhoneError(
+        'Este número no está registrado como custodio activo en el sistema de Planeación. Verifica que sea el número correcto o contacta a tu coordinador.'
+      );
+      return false;
+    }
+    
+    // 2. Update profile phone
+    const success = await updateProfile({ phone: newPhone });
+    if (!success) {
       setPhoneError('No se pudo actualizar el teléfono. Intenta de nuevo.');
       return false;
     }
+    
+    // 3. Auto-link profile_id on custodios_operativos
+    if (profile?.id) {
+      await supabase
+        .from('custodios_operativos')
+        .update({ profile_id: profile.id })
+        .eq('id', custodio.id);
+    }
+    
+    toast.success('Teléfono verificado y vinculado correctamente');
+    await refetchProfile();
+    return true;
   };
 
   // Validación anticipada: teléfono inválido bloquea el flujo
