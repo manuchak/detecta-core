@@ -14,6 +14,7 @@ import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout"
 const DesktopCustodianDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
 
