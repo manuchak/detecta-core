@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { calculateTicketSLA, SLAInfo } from './useTicketSLA';
 
+export type NeedsReplyStatus = 'needs_agent_reply' | 'awaiting_custodian' | 'no_replies';
+
 export interface TicketEnhanced {
   id: string;
   ticket_number: string;
@@ -66,6 +68,10 @@ export interface TicketEnhanced {
   
   // Calculated SLA
   sla: SLAInfo;
+  
+  // Needs reply status
+  needsReply: NeedsReplyStatus;
+  lastReplyAt: string | null;
 }
 
 export interface TicketStatsEnhanced {
