@@ -77,6 +77,7 @@ const MobileDashboardLayout = () => {
   }, []);
 
   // Always find real custodio ID by phone (for all users, not just admins)
+  // Also auto-links profile_id if not yet set
   useEffect(() => {
     const findCustodioId = async () => {
       const role = await getCurrentUserRole();
@@ -88,6 +89,15 @@ const MobileDashboardLayout = () => {
         const custodioId = await findCustodioByPhone(profile.phone);
         if (custodioId) {
           setRealCustodioId(custodioId);
+          
+          // Auto-link profile_id if not yet set
+          if (profile.id) {
+            await supabase
+              .from('custodios_operativos')
+              .update({ profile_id: profile.id })
+              .eq('id', custodioId)
+              .is('profile_id', null);
+          }
         }
       }
     };
