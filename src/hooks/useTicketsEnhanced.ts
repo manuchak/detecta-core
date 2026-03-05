@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { calculateTicketSLA, SLAInfo } from './useTicketSLA';
 
+export type NeedsReplyStatus = 'needs_agent_reply' | 'awaiting_custodian' | 'no_replies';
+
 export interface TicketEnhanced {
   id: string;
   ticket_number: string;
@@ -66,6 +68,10 @@ export interface TicketEnhanced {
   
   // Calculated SLA
   sla: SLAInfo;
+  
+  // Needs reply status
+  needsReply: NeedsReplyStatus;
+  lastReplyAt: string | null;
 }
 
 export interface TicketStatsEnhanced {
@@ -97,19 +103,34 @@ export const useTicketsEnhanced = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch tickets with related data
-      const { data, error: ticketsError } = await supabase
-        .from('tickets')
-        .select(`
-          *,
-          categoria_custodio:ticket_categorias_custodio(
-            id, nombre, icono, color, departamento_responsable,
-            sla_horas_respuesta, sla_horas_resolucion
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // Fetch tickets with related data + last responder per ticket
+      const [ticketsResult, lastRespondersResult] = await Promise.all([
+        supabase
+          .from('tickets')
+          .select(`
+            *,
+            categoria_custodio:ticket_categorias_custodio(
+              id, nombre, icono, color, departamento_responsable,
+              sla_horas_respuesta, sla_horas_resolucion
+            )
+          `)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('ticket_respuestas')
+          .select('ticket_id, autor_tipo, created_at')
+          .order('created_at', { ascending: false })
+      ]);
 
+      const { data, error: ticketsError } = ticketsResult;
       if (ticketsError) throw ticketsError;
+
+      // Build last-responder lookup per ticket
+      const lastResponder: Record<string, { autor_tipo: string; created_at: string }> = {};
+      (lastRespondersResult.data || []).forEach(r => {
+        if (!lastResponder[r.ticket_id]) {
+          lastResponder[r.ticket_id] = { autor_tipo: r.autor_tipo, created_at: r.created_at };
+        }
+      });
 
       // Get unique assigned user IDs
       const assignedUserIds = [...new Set(
@@ -238,7 +259,12 @@ export const useTicketsEnhanced = () => {
           categoria_custodio: ticket.categoria_custodio,
           custodio: ticket.custodio_id ? custodios[ticket.custodio_id] : (ticket.custodio_telefono ? custodios[`phone:${ticket.custodio_telefono}`] : undefined),
           
-          sla
+          sla,
+          
+          needsReply: lastResponder[ticket.id]
+            ? (lastResponder[ticket.id].autor_tipo === 'custodio' ? 'needs_agent_reply' : 'awaiting_custodian')
+            : 'no_replies',
+          lastReplyAt: lastResponder[ticket.id]?.created_at || null
         };
       });
 
