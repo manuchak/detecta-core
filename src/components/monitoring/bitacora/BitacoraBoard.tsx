@@ -28,9 +28,21 @@ export const BitacoraBoard: React.FC = () => {
     );
   }
 
+  // Collect active service IDs and labels for coordinator assignment dialog
+  const activeServiceIds = [...enCursoServices, ...eventoEspecialServices].map(s => s.id_servicio);
+  const serviceLabelMap = Object.fromEntries(
+    [...pendingServices, ...enCursoServices, ...eventoEspecialServices].map(s => [
+      s.id_servicio,
+      `${s.id_servicio.slice(0, 8)} — ${s.nombre_cliente || ''}`.trim(),
+    ])
+  );
+
   return (
     <div className="space-y-3">
-      <MonitoristaAssignmentBar />
+      <MonitoristaAssignmentBar
+        activeServiceIds={activeServiceIds}
+        serviceLabelMap={serviceLabelMap}
+      />
 
       <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-3 h-[calc(100vh-220px)]">
         {/* Column 1: Por Iniciar */}
