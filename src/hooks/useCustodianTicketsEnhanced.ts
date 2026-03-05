@@ -169,7 +169,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
     }
   }, [custodianPhone, toast]);
 
-  const createTicket = async (ticketData: CreateTicketData, evidencias?: File[]) => {
+  const createTicket = async (ticketData: CreateTicketData, evidencias?: File[], onUploadProgress?: (current: number, total: number) => void) => {
     if (!custodianPhone) {
       toast({
         title: 'Error',
@@ -186,14 +186,29 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
       // Upload evidencias if any
       let evidenciaUrls: string[] = [];
       if (evidencias && evidencias.length > 0) {
-        for (const file of evidencias) {
+        for (let i = 0; i < evidencias.length; i++) {
+          const file = evidencias[i];
+          
+          // Report progress via callback
+          onUploadProgress?.(i + 1, evidencias.length);
+          
+          // Compress image files using Canvas API (standard: 1920x1080, 0.7 quality, ~400KB)
+          let fileToUpload: File | Blob = file;
+          if (file.type.startsWith('image/') && file.type !== 'image/gif') {
+            try {
+              fileToUpload = await compressImage(file);
+            } catch (compressErr) {
+              console.warn('Compression failed, using original:', compressErr);
+            }
+          }
+          
           // Sanitizar nombre de archivo para evitar problemas con caracteres especiales
           const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
           const fileName = `${ticketNumber}/${Date.now()}-${sanitizedName}`;
           
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('ticket-evidencias')
-            .upload(fileName, file, {
+            .upload(fileName, fileToUpload, {
               contentType: file.type || 'image/jpeg'
             });
           
