@@ -54,16 +54,6 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   const monitoristaColorIndex = assignedMonitorista
     ? monitoristas.findIndex(m => m.id === assignedMonitorista.id) % MONITORISTA_COLORS.length
     : -1;
-    ? 'text-destructive animate-pulse'
-    : service.alertLevel === 'warning'
-    ? 'text-chart-4'
-    : 'text-chart-2';
-
-  const borderAccent = service.alertLevel === 'critical'
-    ? 'border-l-destructive'
-    : service.alertLevel === 'warning'
-    ? 'border-l-chart-4'
-    : 'border-l-transparent';
 
   const timerColor = service.alertLevel === 'critical'
     ? 'text-destructive animate-pulse'
