@@ -36,6 +36,8 @@ const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', '
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
+  const { hasAnyRole } = useUserRole();
+  const isCoordinator = hasAnyRole(COORDINATOR_ROLES as any);
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
@@ -182,6 +184,9 @@ const MonitoringPage = () => {
             )}
           </TabsTrigger>
           <TabsTrigger value="bitacora">Bitácora</TabsTrigger>
+          {isCoordinator && (
+            <TabsTrigger value="coordinacion">Coordinación C4</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab: Performance */}
@@ -298,6 +303,13 @@ const MonitoringPage = () => {
         <TabsContent value="bitacora" className="space-y-4 mt-0">
           <BitacoraPanel />
         </TabsContent>
+
+        {/* Tab: Coordinación C4 */}
+        {isCoordinator && (
+          <TabsContent value="coordinacion" className="space-y-4 mt-0">
+            <CoordinatorCommandCenter />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Service Detail Modal */}
