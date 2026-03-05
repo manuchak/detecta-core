@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal } from 'lucide-react';
+import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import { CheckpointPopover } from './CheckpointPopover';
+import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
 import type { BoardService, SpecialEventType } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
@@ -25,11 +27,26 @@ const SPECIAL_EVENTS: { tipo: SpecialEventType; icon: React.ReactNode; label: st
   { tipo: 'incidencia', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Incidencia' },
 ];
 
+// Color palette for monitorista badges
+const MONITORISTA_COLORS = [
+  'bg-chart-1/15 text-chart-1 border-chart-1/30',
+  'bg-chart-2/15 text-chart-2 border-chart-2/30',
+  'bg-chart-3/15 text-chart-3 border-chart-3/30',
+  'bg-chart-4/15 text-chart-4 border-chart-4/30',
+  'bg-chart-5/15 text-chart-5 border-chart-5/30',
+];
+
 export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   service, onEventoEspecial, onCheckpoint, onLlegadaDestino,
   isCheckpointPending, isEventoPending, isLlegadaPending,
 }) => {
   const [llegadaConfirm, setLlegadaConfirm] = useState(false);
+  const { monitoristaByService, monitoristas } = useMonitoristaAssignment();
+
+  const assignedMonitorista = monitoristaByService.get(service.id_servicio);
+  const monitoristaColorIndex = assignedMonitorista
+    ? monitoristas.findIndex(m => m.id === assignedMonitorista.id) % MONITORISTA_COLORS.length
+    : -1;
 
   const timerColor = service.alertLevel === 'critical'
     ? 'text-destructive animate-pulse'
@@ -62,9 +79,23 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
           {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
         </div>
 
-        {/* Row 3: Folio + Actions */}
+        {/* Row 3: Folio + Monitorista badge + Actions */}
         <div className="flex items-center gap-1 mt-2">
           <span className="text-[10px] font-mono text-muted-foreground/60">{service.id_servicio}</span>
+
+          {assignedMonitorista && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[8px] px-1.5 py-0 gap-0.5 ml-1 border',
+                monitoristaColorIndex >= 0 ? MONITORISTA_COLORS[monitoristaColorIndex] : '',
+              )}
+            >
+              <User className="h-2 w-2" />
+              {assignedMonitorista.display_name.split(' ')[0]}
+            </Badge>
+          )}
+
           <div className="flex-1" />
 
           <CheckpointPopover

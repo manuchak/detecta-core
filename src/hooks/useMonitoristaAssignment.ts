@@ -19,6 +19,25 @@ export interface MonitoristaProfile {
   id: string;
   display_name: string;
   role: string;
+  /** Derived: has active assignments with inicio_turno within last 8h */
+  en_turno: boolean;
+}
+
+/** Derive current turno from hour of day */
+export function getCurrentTurno(): 'matutino' | 'vespertino' | 'nocturno' {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 14) return 'matutino';
+  if (h >= 14 && h < 22) return 'vespertino';
+  return 'nocturno';
+}
+
+export function getTurnoLabel(turno: string): string {
+  const map: Record<string, string> = {
+    matutino: 'Matutino',
+    vespertino: 'Vespertino',
+    nocturno: 'Nocturno',
+  };
+  return map[turno] || turno;
 }
 
 export function useMonitoristaAssignment() {
@@ -59,7 +78,7 @@ export function useMonitoristaAssignment() {
   });
 
   // Fetch users with monitoring roles + profiles
-  const monitoristas = useQuery({
+  const monitoristasQuery = useQuery({
     queryKey: [...queryKey, 'monitoristas'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -87,6 +106,7 @@ export function useMonitoristaAssignment() {
             id: r.user_id,
             display_name: profileMap.get(r.user_id) || r.user_id.slice(0, 8),
             role: r.role,
+            en_turno: false, // Will be computed below
           });
         }
       }
@@ -94,6 +114,15 @@ export function useMonitoristaAssignment() {
     },
     refetchInterval: 60_000,
   });
+
+  // Compute en_turno status based on active assignments
+  const eightHoursAgo = new Date(Date.now() - 8 * 3600_000).toISOString();
+  const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => ({
+    ...m,
+    en_turno: (allAssignments.data || []).some(
+      a => a.monitorista_id === m.id && a.activo && a.inicio_turno >= eightHoursAgo
+    ),
+  }));
 
   const assignService = useMutation({
     mutationFn: async (params: { servicioId: string; monitoristaId: string; turno?: string }) => {
@@ -104,7 +133,7 @@ export function useMonitoristaAssignment() {
           servicio_id: params.servicioId,
           monitorista_id: params.monitoristaId,
           asignado_por: user?.id || null,
-          turno: params.turno || 'matutino',
+          turno: params.turno || getCurrentTurno(),
         });
       if (error) throw error;
     },
@@ -115,15 +144,55 @@ export function useMonitoristaAssignment() {
     onError: () => toast.error('Error al asignar servicio'),
   });
 
+  // Auto-distribute: assign all unassigned services equitably
+  const autoDistribute = useMutation({
+    mutationFn: async (params: { unassignedServiceIds: string[]; monitoristaIds: string[] }) => {
+      if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
+      if (params.unassignedServiceIds.length === 0) throw new Error('No hay servicios sin asignar');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const turno = getCurrentTurno();
+
+      // Build load map
+      const load: Record<string, number> = {};
+      for (const mId of params.monitoristaIds) {
+        load[mId] = (allAssignments.data || []).filter(a => a.monitorista_id === mId).length;
+      }
+
+      const inserts: any[] = [];
+      for (const sId of params.unassignedServiceIds) {
+        // Find monitorista with lowest load
+        const target = params.monitoristaIds.reduce((a, b) => (load[a] <= load[b] ? a : b));
+        inserts.push({
+          servicio_id: sId,
+          monitorista_id: target,
+          asignado_por: user?.id || null,
+          turno,
+        });
+        load[target]++;
+      }
+
+      const { error } = await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .insert(inserts);
+      if (error) throw error;
+
+      return inserts.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey });
+      toast.success(`${count} servicios distribuidos equitativamente`);
+    },
+    onError: (err: Error) => toast.error(err.message || 'Error al distribuir'),
+  });
+
   const reassignService = useMutation({
     mutationFn: async (params: { assignmentId: string; newMonitoristaId: string; servicioId: string; turno: string }) => {
       const nowTs = new Date().toISOString();
-      // Close old assignment
       await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
         .eq('id', params.assignmentId);
-      // Create new
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
@@ -147,7 +216,6 @@ export function useMonitoristaAssignment() {
       const nowTs = new Date().toISOString();
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Get all active assignments for outgoing monitorist
       const { data: activeAssignments, error: fetchErr } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .select('*')
@@ -155,13 +223,11 @@ export function useMonitoristaAssignment() {
         .eq('activo', true);
       if (fetchErr) throw fetchErr;
 
-      // Auto-close stale services (no events in 6h) before transferring
       const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
       let closedCount = 0;
       const assignmentsToTransfer: any[] = [];
 
       for (const a of (activeAssignments || [])) {
-        // Check if this service has any recent events
         const { data: recentEvents } = await (supabase as any)
           .from('servicio_eventos_ruta')
           .select('id')
@@ -170,7 +236,6 @@ export function useMonitoristaAssignment() {
           .limit(1);
 
         if (!recentEvents || recentEvents.length === 0) {
-          // No recent activity — auto-close the service
           await (supabase as any)
             .from('servicios_planificados')
             .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
@@ -188,7 +253,6 @@ export function useMonitoristaAssignment() {
               hora_fin: nowTs,
             });
 
-          // Close the assignment, don't transfer
           await (supabase as any)
             .from('bitacora_asignaciones_monitorista')
             .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
@@ -200,7 +264,6 @@ export function useMonitoristaAssignment() {
         }
       }
 
-      // Close remaining assignments and transfer to incoming monitorist
       for (const a of assignmentsToTransfer) {
         await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
@@ -260,14 +323,23 @@ export function useMonitoristaAssignment() {
     {}
   );
 
+  // Map servicio_id -> monitorista for badge display
+  const monitoristaByService = new Map<string, MonitoristaProfile>();
+  for (const a of (allAssignments.data || [])) {
+    const m = monitoristas.find(m => m.id === a.monitorista_id);
+    if (m) monitoristaByService.set(a.servicio_id, m);
+  }
+
   return {
     myAssignments: myAssignments.data || [],
     allAssignments: allAssignments.data || [],
-    monitoristas: monitoristas.data || [],
+    monitoristas,
     assignedServiceIds,
     assignmentsByMonitorista,
+    monitoristaByService,
     isLoading: myAssignments.isLoading,
     assignService,
+    autoDistribute,
     reassignService,
     handoffTurno,
     endTurno,

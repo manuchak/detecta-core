@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Radio, UserPlus, ArrowRightLeft } from 'lucide-react';
-import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
+import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useUserRole } from '@/hooks/useUserRole';
-import { CoordinatorAssignmentDialog } from './CoordinatorAssignmentDialog';
+import { CoordinatorCommandCenter } from '../coordinator/CoordinatorCommandCenter';
 import { ShiftHandoffDialog } from './ShiftHandoffDialog';
 
 interface Props {
-  /** Active service IDs on the board for assignment dialog */
   activeServiceIds?: string[];
-  /** Map servicio_id -> label */
   serviceLabelMap?: Record<string, string>;
+  serviceHoraCitaMap?: Record<string, string>;
 }
 
 const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
@@ -19,22 +18,18 @@ const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', '
 export const MonitoristaAssignmentBar: React.FC<Props> = ({
   activeServiceIds = [],
   serviceLabelMap = {},
+  serviceHoraCitaMap = {},
 }) => {
   const { myAssignments, isLoading, monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
   const { hasAnyRole } = useUserRole();
   const isCoordinator = hasAnyRole(COORDINATOR_ROLES as any);
 
-  const [assignOpen, setAssignOpen] = useState(false);
+  const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
 
   if (isLoading) return null;
 
-  const turno = myAssignments.length > 0 ? myAssignments[0].turno : 'matutino';
-  const turnoLabel: Record<string, string> = {
-    matutino: 'Matutino',
-    vespertino: 'Vespertino',
-    nocturno: 'Nocturno',
-  };
+  const turno = getCurrentTurno();
 
   return (
     <>
@@ -65,7 +60,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
         {/* Coordinator: action buttons */}
         {isCoordinator && (
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setAssignOpen(true)}>
+            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setCommandCenterOpen(true)}>
               <UserPlus className="h-3 w-3" /> Asignar
             </Button>
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setHandoffOpen(true)}>
@@ -78,7 +73,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5">
             <User className="h-2.5 w-2.5" />
-            Turno: {turnoLabel[turno] || turno}
+            Turno: {getTurnoLabel(turno)}
           </Badge>
           {myAssignments.length > 0 && (
             <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
@@ -88,13 +83,16 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Dialogs */}
-      <CoordinatorAssignmentDialog
-        open={assignOpen}
-        onOpenChange={setAssignOpen}
-        activeServiceIds={activeServiceIds}
-        serviceLabelMap={serviceLabelMap}
-      />
+      {/* Command Center panel */}
+      {commandCenterOpen && (
+        <CoordinatorCommandCenter
+          activeServiceIds={activeServiceIds}
+          serviceLabelMap={serviceLabelMap}
+          serviceHoraCitaMap={serviceHoraCitaMap}
+          onClose={() => setCommandCenterOpen(false)}
+        />
+      )}
+
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
     </>
   );
