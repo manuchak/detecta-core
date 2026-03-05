@@ -90,6 +90,20 @@ const AdministrationHub = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="stale" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Limpieza de Servicios Zombi</CardTitle>
+              <CardDescription>
+                Servicios iniciados hace más de 48h sin actividad reciente que nunca fueron cerrados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StaleServiceCleanup />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="database" className="mt-6">
           <Card>
             <CardHeader>
