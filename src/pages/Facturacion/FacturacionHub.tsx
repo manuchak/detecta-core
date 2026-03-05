@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   DollarSign,
   Building2,
+  UserCheck,
   HelpCircle
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
