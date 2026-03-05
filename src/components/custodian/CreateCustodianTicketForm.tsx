@@ -269,15 +269,28 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
 
           {/* Evidence Upload */}
           <div className="space-y-3">
-            <Label>Evidencias (opcional)</Label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex items-center justify-between">
+              <Label>Evidencias (opcional)</Label>
+              {evidencias.length > 0 && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {evidencias.length}/{MAX_EVIDENCIAS}
+                </span>
+              )}
+            </div>
+            <div className={cn(
+              "flex flex-wrap gap-2",
+              evidencias.length > 5 && "max-h-[200px] overflow-y-auto pr-1"
+            )}>
               {evidencias.map((file, index) => (
                 <div
                   key={index}
-                  className="relative group flex items-center gap-2 px-3 py-2 bg-muted rounded-md"
+                  className={cn(
+                    "relative group flex items-center gap-2 px-3 py-2 bg-muted rounded-md",
+                    evidencias.length > 8 ? "max-w-[100px]" : "max-w-[160px]"
+                  )}
                 >
-                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate max-w-[120px]">{file.name}</span>
+                  <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm truncate">{file.name}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(index)}
@@ -288,7 +301,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
                 </div>
               ))}
               
-              {evidencias.length < 5 && (
+              {evidencias.length < MAX_EVIDENCIAS && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -309,7 +322,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Máximo 5 archivos. Formatos: JPG, PNG, PDF (5MB máx. por archivo)
+              Máximo {MAX_EVIDENCIAS} archivos. Formatos: JPG, PNG, PDF. Las imágenes se comprimen automáticamente.
             </p>
           </div>
 
