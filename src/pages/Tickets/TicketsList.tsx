@@ -23,8 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles, LayoutGrid, TableIcon } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles, LayoutGrid, TableIcon, BarChart3 } from "lucide-react";
 import { useTicketsEnhanced, type TicketEnhanced } from "@/hooks/useTicketsEnhanced";
 import { TicketKanbanBoard } from "@/components/tickets/TicketKanbanBoard";
 import { useState, useMemo } from "react";
