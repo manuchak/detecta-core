@@ -4,39 +4,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   LayoutDashboard, 
-  FileText, 
   RefreshCw,
   Calendar,
   Receipt,
-  Wallet,
-  Users,
-  AlertTriangle,
-  DollarSign,
-  Building2,
-  UserCheck,
-  HelpCircle
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FACTURACION_FULL_ACCESS_ROLES } from '@/constants/accessControl';
 import { useServiciosFacturacion, useClientesUnicos } from './hooks/useServiciosFacturacion';
 import { useFacturacionMetrics, useMetricasPorCliente } from './hooks/useFacturacionMetrics';
-import { FacturacionDashboard } from './components/FacturacionDashboard';
-import { ServiciosConsulta } from './components/ServiciosConsulta';
-import { CuentasPorCobrarTab } from './components/CuentasPorCobrar/CuentasPorCobrarTab';
-import { GestionClientesTab } from './components/GestionClientes/GestionClientesTab';
-import { FacturasTab } from './components/Facturas/FacturasTab';
-import { IncidenciasTab } from './components/Incidencias/IncidenciasTab';
-import { GastosExtraTab } from './components/GastosExtraordinarios/GastosExtraTab';
-import { CxPProveedoresTab } from './components/CxPProveedores/CxPProveedoresTab';
-import { CxPOperativoTab } from './components/CxPOperativo/CxPOperativoTab';
-import { ManualFacturacionTab } from './components/Manual/ManualFacturacionTab';
+import { FinanceOverview } from './components/Overview/FinanceOverview';
+import { IngresosTab } from './components/IngresosTab';
+import { EgresosTab } from './components/EgresosTab';
+import { OperacionesTab } from './components/OperacionesTab';
+import { ConfigTab } from './components/ConfigTab';
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function FacturacionHub() {
   const { userRole } = useAuth();
   const hasFullAccess = FACTURACION_FULL_ACCESS_ROLES.includes(userRole as any);
   
-  // Filtro de fechas - por defecto últimos 3 meses para dar visibilidad histórica
   const [fechaInicio, setFechaInicio] = useState(
     format(subDays(new Date(), 90), 'yyyy-MM-dd')
   );
@@ -50,8 +40,6 @@ export default function FacturacionHub() {
   });
   
   const { data: clientes = [] } = useClientesUnicos();
-  const metrics = useFacturacionMetrics(servicios);
-  const metricasPorCliente = useMetricasPorCliente(servicios);
 
   const handleQuickFilter = (days: number) => {
     const end = new Date();
@@ -68,190 +56,89 @@ export default function FacturacionHub() {
 
   return (
     <div className="flex flex-col h-[calc(var(--vh-full)-3.5rem)]">
-      {/* Header compacto con filtros inline */}
+      {/* Header */}
       <div className="flex items-center justify-between h-14 px-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-3">
           <Receipt className="h-5 w-5 text-primary" />
           <div>
-            <h1 className="text-base font-semibold leading-tight">Facturación y Cobranza</h1>
-            <p className="text-[10px] text-muted-foreground">Gestión financiera y cuentas por cobrar</p>
+            <h1 className="text-base font-semibold leading-tight">Finance Command Center</h1>
+            <p className="text-[10px] text-muted-foreground">Facturación, CxC, CxP — Tiempo Real</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Filtros de fecha inline */}
           <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-            <Input
-              type="date"
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-              className="h-7 w-[120px] text-xs border-0 bg-transparent"
-            />
+            <Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)}
+              className="h-7 w-[120px] text-xs border-0 bg-transparent" />
             <span className="text-muted-foreground text-xs">–</span>
-            <Input
-              type="date"
-              value={fechaFin}
-              onChange={(e) => setFechaFin(e.target.value)}
-              className="h-7 w-[120px] text-xs border-0 bg-transparent"
-            />
+            <Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)}
+              className="h-7 w-[120px] text-xs border-0 bg-transparent" />
           </div>
           
           <div className="flex gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => handleQuickFilter(7)}
-            >
-              7d
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => handleQuickFilter(30)}
-            >
-              30d
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => handleQuickFilter(90)}
-            >
-              3m
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => handleQuickFilter(180)}
-            >
-              6m
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => handleQuickFilter(365)}
-            >
-              1a
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={handleThisMonth}
-            >
+            {[7, 30, 90].map(d => (
+              <Button key={d} variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                onClick={() => handleQuickFilter(d)}>
+                {d}d
+              </Button>
+            ))}
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={handleThisMonth}>
               <Calendar className="h-3 w-3 mr-1" />
               Mes
             </Button>
           </div>
           
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-7 w-7"
-            onClick={() => refetch()}
-          >
+          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {/* Tabs y contenido */}
-      <Tabs defaultValue="dashboard" className="flex-1 flex flex-col overflow-hidden">
+      {/* 5 Tabs */}
+      <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">
         <div className="px-4 pt-2 shrink-0">
           <TabsList className="h-9">
-            <TabsTrigger value="dashboard" className="text-xs h-7 px-3">
-              <LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />
-              Dashboard
+            <TabsTrigger value="overview" className="text-xs h-7 px-3 gap-1.5">
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Overview
             </TabsTrigger>
-            <TabsTrigger value="servicios" data-value="servicios" className="text-xs h-7 px-3">
-              <FileText className="h-3.5 w-3.5 mr-1.5" />
-              Servicios
+            <TabsTrigger value="ingresos" className="text-xs h-7 px-3 gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Ingresos
             </TabsTrigger>
-            <TabsTrigger value="cxc" className="text-xs h-7 px-3">
-              <Wallet className="h-3.5 w-3.5 mr-1.5" />
-              Cuentas x Cobrar
+            <TabsTrigger value="egresos" className="text-xs h-7 px-3 gap-1.5">
+              <TrendingDown className="h-3.5 w-3.5" />
+              Egresos
             </TabsTrigger>
-            <TabsTrigger value="clientes" className="text-xs h-7 px-3">
-              <Users className="h-3.5 w-3.5 mr-1.5" />
-              Clientes
+            <TabsTrigger value="operaciones" className="text-xs h-7 px-3 gap-1.5">
+              <Briefcase className="h-3.5 w-3.5" />
+              Operaciones
             </TabsTrigger>
-            <TabsTrigger value="facturas" className="text-xs h-7 px-3 gap-1.5">
-              <Receipt className="h-3.5 w-3.5" />
-              Facturas
-            </TabsTrigger>
-            <TabsTrigger value="incidencias" className="text-xs h-7 px-3 gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Incidencias
-            </TabsTrigger>
-            <TabsTrigger value="gastos-extra" className="text-xs h-7 px-3 gap-1.5">
-              <DollarSign className="h-3.5 w-3.5" />
-              Gastos Extra
-            </TabsTrigger>
-            <TabsTrigger value="cxp-oca" className="text-xs h-7 px-3 gap-1.5">
-              <UserCheck className="h-3.5 w-3.5" />
-              CxP OCA
-            </TabsTrigger>
-            <TabsTrigger value="cxp-pe" className="text-xs h-7 px-3 gap-1.5">
-              <Building2 className="h-3.5 w-3.5" />
-              CxP PE
-            </TabsTrigger>
-            <TabsTrigger value="ayuda" className="text-xs h-7 px-3 gap-1.5">
-              <HelpCircle className="h-3.5 w-3.5" />
-              Ayuda
+            <TabsTrigger value="config" className="text-xs h-7 px-3 gap-1.5">
+              <Settings className="h-3.5 w-3.5" />
+              Config
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="dashboard" className="flex-1 overflow-auto px-4 py-3">
-          <FacturacionDashboard 
-            metrics={metrics}
-            metricasPorCliente={metricasPorCliente}
-            isLoading={isLoading}
-          />
+        <TabsContent value="overview" className="flex-1 overflow-auto px-4 py-3">
+          <FinanceOverview servicios={servicios} isLoading={isLoading} />
         </TabsContent>
 
-        <TabsContent value="servicios" className="flex-1 overflow-auto px-4 py-3">
-          <ServiciosConsulta 
-            servicios={servicios}
-            isLoading={isLoading}
-            clientes={clientes}
-          />
+        <TabsContent value="ingresos" className="flex-1 overflow-auto px-4 py-3">
+          <IngresosTab fechaInicio={fechaInicio} fechaFin={fechaFin} />
         </TabsContent>
 
-        <TabsContent value="cxc" className="flex-1 overflow-auto px-4 py-3">
-          <CuentasPorCobrarTab />
+        <TabsContent value="egresos" className="flex-1 overflow-auto px-4 py-3">
+          <EgresosTab />
         </TabsContent>
 
-        <TabsContent value="clientes" className="flex-1 overflow-auto px-4 py-3">
-          <GestionClientesTab />
+        <TabsContent value="operaciones" className="flex-1 overflow-auto px-4 py-3">
+          <OperacionesTab servicios={servicios} isLoading={isLoading} clientes={clientes} />
         </TabsContent>
 
-        <TabsContent value="facturas" className="flex-1 overflow-auto px-4 py-3">
-          <FacturasTab fechaInicio={fechaInicio} fechaFin={fechaFin} />
-        </TabsContent>
-
-        <TabsContent value="incidencias" className="flex-1 overflow-auto px-4 py-3">
-          <IncidenciasTab />
-        </TabsContent>
-
-        <TabsContent value="gastos-extra" className="flex-1 overflow-auto px-4 py-3">
-          <GastosExtraTab />
-        </TabsContent>
-
-        <TabsContent value="cxp-oca" className="flex-1 overflow-auto px-4 py-3">
-          <CxPOperativoTab />
-        </TabsContent>
-
-        <TabsContent value="cxp-pe" className="flex-1 overflow-auto px-4 py-3">
-          <CxPProveedoresTab />
-        </TabsContent>
-
-        <TabsContent value="ayuda" className="flex-1 overflow-auto px-4 py-3">
-          <ManualFacturacionTab />
+        <TabsContent value="config" className="flex-1 overflow-auto px-4 py-3">
+          <ConfigTab />
         </TabsContent>
       </Tabs>
     </div>

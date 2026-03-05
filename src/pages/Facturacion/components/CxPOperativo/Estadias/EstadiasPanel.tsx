@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +8,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Settings2 } from 'lucide-react';
-import { useReglasEstadias, useCreateReglaEstadia, useDeleteReglaEstadia } from '../../../hooks/useReglasEstadias';
+import { Plus, Settings2, Search } from 'lucide-react';
+import { useReglasEstadias, useCreateReglaEstadia } from '../../../hooks/useReglasEstadias';
+import { usePcClientes } from '../../../hooks/usePcClientes';
 
 export function EstadiasPanel() {
   const [showConfig, setShowConfig] = useState(false);
   const [showAddRule, setShowAddRule] = useState(false);
   const { data: reglas = [], isLoading } = useReglasEstadias();
+  const { data: clientes = [] } = usePcClientes();
+
+  // Map cliente IDs to names for display
+  const clienteMap = useMemo(() => {
+    const map = new Map<string, string>();
+    clientes.forEach(c => map.set(c.id, c.nombre));
+    return map;
+  }, [clientes]);
 
   return (
     <div className="space-y-4">
@@ -22,7 +31,7 @@ export function EstadiasPanel() {
         <div>
           <h3 className="text-base font-semibold">Estadías y Cortesías</h3>
           <p className="text-sm text-muted-foreground">
-            Reglas de horas de cortesía por cliente, tipo de servicio y ruta. Las estadías excedentes se incluyen automáticamente en los cortes semanales.
+            Reglas de horas de cortesía por cliente, tipo de servicio y ruta.
           </p>
         </div>
         <Button variant="outline" onClick={() => setShowConfig(!showConfig)}>
@@ -46,7 +55,7 @@ export function EstadiasPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Cliente ID</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead>Tipo Servicio</TableHead>
                   <TableHead>Ruta</TableHead>
                   <TableHead className="text-right">Hrs Cortesía</TableHead>
@@ -65,7 +74,9 @@ export function EstadiasPanel() {
                 ) : (
                   reglas.map(r => (
                     <TableRow key={r.id}>
-                      <TableCell className="text-xs font-mono">{r.cliente_id.slice(0, 8)}...</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        {clienteMap.get(r.cliente_id) || r.cliente_id.slice(0, 8) + '...'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{r.tipo_servicio || 'Default'}</Badge>
                       </TableCell>
@@ -89,27 +100,30 @@ export function EstadiasPanel() {
         </Card>
       )}
 
-      {/* Info card when config is hidden */}
       {!showConfig && (
         <Card className="p-6">
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              Las estadías se calculan automáticamente comparando las detenciones registradas en bitácora 
-              contra las horas de cortesía configuradas por cliente. Los montos se incluyen en los cortes semanales.
+              Las estadías se calculan automáticamente comparando las detenciones registradas 
+              contra las horas de cortesía configuradas por cliente.
             </p>
             <p className="text-xs text-muted-foreground">
-              {reglas.length} regla(s) de cortesía configurada(s). Click "Configurar Reglas" para gestionar.
+              {reglas.length} regla(s) configurada(s). Click "Configurar Reglas" para gestionar.
             </p>
           </div>
         </Card>
       )}
 
-      <AddRuleDialog open={showAddRule} onOpenChange={setShowAddRule} />
+      <AddRuleDialog open={showAddRule} onOpenChange={setShowAddRule} clientes={clientes} />
     </div>
   );
 }
 
-function AddRuleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function AddRuleDialog({ open, onOpenChange, clientes }: { 
+  open: boolean; 
+  onOpenChange: (v: boolean) => void; 
+  clientes: Array<{ id: string; nombre: string }>;
+}) {
   const [form, setForm] = useState({
     cliente_id: '',
     tipo_servicio: '',
@@ -120,7 +134,16 @@ function AddRuleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
     cobra_pernocta: false,
     notas: '',
   });
+  const [clienteSearch, setClienteSearch] = useState('');
   const createMutation = useCreateReglaEstadia();
+
+  const filteredClientes = useMemo(() => {
+    if (!clienteSearch) return clientes.slice(0, 20);
+    const term = clienteSearch.toLowerCase();
+    return clientes.filter(c => c.nombre.toLowerCase().includes(term)).slice(0, 20);
+  }, [clientes, clienteSearch]);
+
+  const selectedCliente = clientes.find(c => c.id === form.cliente_id);
 
   const handleSubmit = async () => {
     if (!form.cliente_id) return;
@@ -144,8 +167,41 @@ function AddRuleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v
         <DialogHeader><DialogTitle>Nueva Regla de Cortesía</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label className="text-xs">ID del Cliente (UUID) *</Label>
-            <Input value={form.cliente_id} onChange={e => setForm(f => ({ ...f, cliente_id: e.target.value }))} placeholder="UUID del cliente" />
+            <Label className="text-xs">Cliente *</Label>
+            {!form.cliente_id ? (
+              <div className="space-y-1">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input 
+                    value={clienteSearch} 
+                    onChange={e => setClienteSearch(e.target.value)} 
+                    placeholder="Buscar cliente por nombre..."
+                    className="pl-8"
+                  />
+                </div>
+                {filteredClientes.length > 0 && (
+                  <div className="max-h-[150px] overflow-auto border rounded-md">
+                    {filteredClientes.map(c => (
+                      <button
+                        key={c.id}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+                        onClick={() => { setForm(f => ({ ...f, cliente_id: c.id })); setClienteSearch(''); }}
+                      >
+                        {c.nombre}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">{selectedCliente?.nombre}</Badge>
+                <Button variant="ghost" size="sm" className="h-6 text-xs"
+                  onClick={() => setForm(f => ({ ...f, cliente_id: '' }))}>
+                  Cambiar
+                </Button>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
