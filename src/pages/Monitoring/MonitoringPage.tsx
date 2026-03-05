@@ -31,6 +31,8 @@ import { BitacoraPanel } from "@/components/monitoring/bitacora";
 import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
 import { useUserRole } from "@/hooks/useUserRole";
 
+const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
+
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
