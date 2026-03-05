@@ -93,6 +93,7 @@ export const TicketsList = () => {
   const [priorityFilter, setPriorityFilter] = useState("todas");
   const [slaFilter, setSlaFilter] = useState("todos");
   const [departmentFilter, setDepartmentFilter] = useState("todos");
+  const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
 
   // Calculate ticket counts per department
   const departmentCounts = useMemo(() => {
@@ -239,8 +240,46 @@ export const TicketsList = () => {
         
         {/* Tickets Table Section */}
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Gestión de Tickets</h2>
-          
+           <h2 className="text-lg font-semibold">Gestión de Tickets</h2>
+           
+           {/* View Toggle */}
+           <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1">
+             <Button
+               variant={viewMode === "kanban" ? "default" : "ghost"}
+               size="sm"
+               className="gap-1.5 h-8"
+               onClick={() => setViewMode("kanban")}
+             >
+               <LayoutGrid className="h-4 w-4" />
+               <span className="hidden sm:inline">Kanban</span>
+             </Button>
+             <Button
+               variant={viewMode === "table" ? "default" : "ghost"}
+               size="sm"
+               className="gap-1.5 h-8"
+               onClick={() => setViewMode("table")}
+             >
+               <TableIcon className="h-4 w-4" />
+               <span className="hidden sm:inline">Tabla</span>
+             </Button>
+           </div>
+         </section>
+
+         {/* Kanban View */}
+         {viewMode === "kanban" && (
+           <section>
+             <TicketKanbanBoard
+               tickets={filteredTickets}
+               loading={loading}
+               onStatusChange={updateTicketStatus}
+               onTicketClick={(id) => navigate(`/tickets/${id}`)}
+             />
+           </section>
+         )}
+
+         {/* Table View */}
+         {viewMode === "table" && (
+         <section className="space-y-3">
           <Card className="shadow-sm">
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -527,6 +566,7 @@ export const TicketsList = () => {
             </CardContent>
           </Card>
         </section>
+        )}
       </div>
     </div>
   );
