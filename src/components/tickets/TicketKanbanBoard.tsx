@@ -96,7 +96,7 @@ const KanbanColumn = ({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col rounded-xl border border-t-[3px] bg-muted/30 dark:bg-muted/10 min-w-[280px] flex-1",
+        "flex flex-col rounded-xl border border-t-[3px] bg-muted/30 dark:bg-muted/10 min-w-[260px] flex-1",
         column.borderColor,
         isOver && "ring-2 ring-primary/30 bg-primary/5"
       )}
