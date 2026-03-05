@@ -83,7 +83,8 @@ interface BatchMaintenanceData {
   notas?: string;
 }
 
-export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: number) => {
+export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) => {
+  const custodianPhone = rawPhone ? normalizePhone(rawPhone) : undefined;
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [customIntervals, setCustomIntervals] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
