@@ -80,6 +80,15 @@ const StaleServiceCleanup = () => {
         </div>
       </div>
 
+      {isClosing && progress.total > 0 && (
+        <div className="space-y-1">
+          <Progress value={(progress.closed / progress.total) * 100} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center">
+            {progress.closed} de {progress.total} servicios cerrados
+          </p>
+        </div>
+      )}
+
       {staleServices.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-30" />
