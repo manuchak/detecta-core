@@ -137,8 +137,17 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
         align="start"
         onDrop={handleDrop}
         onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
         onPaste={handlePaste}
       >
+        {/* Drag overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 rounded-md border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center pointer-events-none">
+            <span className="text-xs font-medium text-primary">Suelta aquí tus fotos</span>
+          </div>
+        )}
+
         <div className="text-xs font-medium text-muted-foreground truncate">
           Checkpoint — {clienteLabel}
         </div>
