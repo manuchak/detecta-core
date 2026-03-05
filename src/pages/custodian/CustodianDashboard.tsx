@@ -1,7 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
