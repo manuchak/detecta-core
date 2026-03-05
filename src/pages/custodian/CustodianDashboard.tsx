@@ -3,12 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useToast } from "@/hooks/use-toast";
-import { Link, useNavigate as useNavigateRRD } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout";
 
