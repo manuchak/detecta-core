@@ -25,6 +25,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { EvidenceThumbnail } from '@/components/shared/EvidenceThumbnail';
 
 interface TicketResponse {
   id: string;
