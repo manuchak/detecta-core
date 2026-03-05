@@ -1,8 +1,6 @@
 import React from 'react';
 import { ServiceCardActive } from './ServiceCardActive';
 import { ServiceCardEnDestino } from './ServiceCardEnDestino';
-import { Badge } from '@/components/ui/badge';
-import { Radio } from 'lucide-react';
 import type { BoardService, SpecialEventType } from '@/hooks/useBitacoraBoard';
 
 interface BoardColumnEnCursoProps {
@@ -26,18 +24,17 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 mb-3 px-1">
-        <Radio className="h-4 w-4 text-chart-1" />
-        <h3 className="text-sm font-semibold">En Curso</h3>
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{activeCount}</Badge>
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">En Curso</h3>
+        <span className="text-[10px] text-muted-foreground/70 font-mono">{activeCount}</span>
         {arrivedCount > 0 && (
-          <Badge className="text-[10px] px-1.5 py-0 bg-chart-2/20 text-chart-2 border-chart-2/30">{arrivedCount} en destino</Badge>
+          <span className="text-[10px] text-chart-2 font-mono ml-auto">{arrivedCount} en destino</span>
         )}
       </div>
       <div className="flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {services.length === 0 ? (
-            <div className="text-xs text-muted-foreground text-center py-8 col-span-full">
+            <div className="text-xs text-muted-foreground/50 text-center py-8 col-span-full">
               Sin servicios en curso
             </div>
           ) : (

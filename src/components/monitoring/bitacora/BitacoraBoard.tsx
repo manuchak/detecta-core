@@ -44,7 +44,7 @@ export const BitacoraBoard: React.FC = () => {
         serviceLabelMap={serviceLabelMap}
       />
 
-      <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-3 h-[calc(100vh-220px)]">
+      <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
         {/* Column 1: Por Iniciar */}
         <BoardColumnPorIniciar
           services={pendingServices}
