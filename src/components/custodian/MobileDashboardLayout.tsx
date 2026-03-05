@@ -196,28 +196,37 @@ const MobileDashboardLayout = () => {
   };
 
   // Handle phone update and retry unavailability report
+  // Validates phone exists in custodios_operativos before saving, and auto-links profile_id
   const handlePhoneUpdate = async (newPhone: string): Promise<boolean> => {
     setPhoneUpdateError(null);
     
-    // Update profile with new phone
+    // 1. Validate phone exists in custodios_operativos BEFORE updating profile
+    const custodioId = await findCustodioByPhone(newPhone);
+    
+    if (!custodioId) {
+      setPhoneUpdateError(
+        "Este número no está registrado como custodio activo en Planeación. Verifica que sea el número correcto o contacta a tu coordinador."
+      );
+      return false;
+    }
+    
+    // 2. Update profile with new phone
     const updateSuccess = await updateProfile({ phone: newPhone });
     if (!updateSuccess) {
       setPhoneUpdateError("No se pudo actualizar el teléfono. Intenta de nuevo.");
       return false;
     }
     
+    // 3. Auto-link profile_id on custodios_operativos
+    if (profile?.id) {
+      await supabase
+        .from('custodios_operativos')
+        .update({ profile_id: profile.id })
+        .eq('id', custodioId);
+    }
+    
     // Refetch profile to get updated data
     await refetchProfile();
-    
-    // Try to find custodio with new phone
-    const custodioId = await findCustodioByPhone(newPhone);
-    
-    if (!custodioId) {
-      setPhoneUpdateError(
-        "Este número no está registrado como custodio activo. Contacta a Planeación para que te vincule al sistema."
-      );
-      return false;
-    }
     
     // Success! Update state
     setRealCustodioId(custodioId);
