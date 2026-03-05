@@ -242,7 +242,11 @@ export default function FacturacionHub() {
           <GastosExtraTab />
         </TabsContent>
 
-        <TabsContent value="cxp" className="flex-1 overflow-auto px-4 py-3">
+        <TabsContent value="cxp-oca" className="flex-1 overflow-auto px-4 py-3">
+          <CxPOperativoTab />
+        </TabsContent>
+
+        <TabsContent value="cxp-pe" className="flex-1 overflow-auto px-4 py-3">
           <CxPProveedoresTab />
         </TabsContent>
 
