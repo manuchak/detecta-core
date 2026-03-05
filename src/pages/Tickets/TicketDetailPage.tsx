@@ -25,6 +25,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { EvidenceThumbnail } from '@/components/shared/EvidenceThumbnail';
 
 interface TicketResponse {
   id: string;
@@ -367,20 +368,16 @@ export const TicketDetailPage = () => {
                       </div>
                       <p className="text-sm whitespace-pre-wrap text-foreground/90">{ticket.description}</p>
                       
-                      {/* Evidences */}
+                      {/* Evidences - Image Thumbnails */}
                       {ticket.evidencia_urls && ticket.evidencia_urls.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-3">
                           {ticket.evidencia_urls.map((url, idx) => (
-                            <a
+                            <EvidenceThumbnail
                               key={idx}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 px-3 py-1.5 bg-background rounded-lg text-sm hover:bg-accent transition-colors border"
-                            >
-                              <ImageIcon className="h-4 w-4" />
-                              Archivo {idx + 1}
-                            </a>
+                              url={url}
+                              onRemove={() => {}}
+                              onReplace={() => {}}
+                            />
                           ))}
                         </div>
                       )}
