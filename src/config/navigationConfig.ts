@@ -33,6 +33,7 @@ import {
   ArrowLeftRight,
   Receipt,
   MonitorPlay,
+  Radar,
   HeartHandshake,
   Scale,
   UserCog
@@ -477,6 +478,13 @@ export const navigationModules: NavigationModule[] = [
         label: 'Modo TV (Videowall)',
         path: '/monitoring/tv',
         icon: MonitorPlay
+      },
+      {
+        id: 'monitoring_radar',
+        label: 'Radar Operativo',
+        path: '/monitoring/radar',
+        icon: Radar,
+        roles: ['admin', 'owner', 'monitoring', 'monitoring_supervisor', 'coordinador_operaciones']
       },
       {
         id: 'incidentes_rrss',
