@@ -18578,6 +18578,7 @@ export type Database = {
       can_view_financial_data: { Args: never; Returns: boolean }
       can_view_sensitive_kpis: { Args: never; Returns: boolean }
       can_view_sensitive_pricing: { Args: never; Returns: boolean }
+      cerrar_servicios_estancados: { Args: never; Returns: Json }
       check_admin_for_rewards: { Args: never; Returns: boolean }
       check_admin_secure: { Args: never; Returns: boolean }
       check_custodian_availability: {
@@ -18780,6 +18781,17 @@ export type Database = {
           pattern_type: string
           sample_data: string
           severity: string
+        }[]
+      }
+      detectar_servicios_estancados: {
+        Args: never
+        Returns: {
+          custodio_asignado: string
+          hora_inicio_real: string
+          id: string
+          id_servicio: string
+          nombre_cliente: string
+          ultima_actividad: string
         }[]
       }
       diagnose_phone_services: {

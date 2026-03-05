@@ -1,12 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Database, GitBranch, Target, UserX, FileSearch } from "lucide-react";
+import { Shield, Database, GitBranch, Target, UserX, FileSearch, Ghost } from "lucide-react";
 import DuplicateCleanupManager from "@/components/maintenance/DuplicateCleanupManager";
 import { VersionControlManager } from "@/components/version-control/VersionControlManager";
 import BusinessTargetsManager from "@/components/administration/BusinessTargetsManager";
 import InactivityCleanupManager from "@/components/administration/InactivityCleanupManager";
 import DataAuditManager from "@/components/administration/DataAuditManager";
-
+import StaleServiceCleanup from "@/components/administration/StaleServiceCleanup";
 const AdministrationHub = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -21,7 +21,7 @@ const AdministrationHub = () => {
       </div>
 
       <Tabs defaultValue="targets" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="targets" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
             Metas de Negocio
@@ -33,6 +33,10 @@ const AdministrationHub = () => {
           <TabsTrigger value="inactivity" className="flex items-center gap-2">
             <UserX className="h-4 w-4" />
             Custodios Inactivos
+          </TabsTrigger>
+          <TabsTrigger value="stale" className="flex items-center gap-2">
+            <Ghost className="h-4 w-4" />
+            Servicios Zombi
           </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -82,6 +86,20 @@ const AdministrationHub = () => {
             </CardHeader>
             <CardContent>
               <InactivityCleanupManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stale" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Limpieza de Servicios Zombi</CardTitle>
+              <CardDescription>
+                Servicios iniciados hace más de 48h sin actividad reciente que nunca fueron cerrados
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <StaleServiceCleanup />
             </CardContent>
           </Card>
         </TabsContent>
