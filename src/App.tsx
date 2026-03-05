@@ -62,6 +62,7 @@ const LandingManager = lazy(() => import('@/pages/Admin/LandingManager'));
 const CustodianInvitationsPage = lazy(() => import('@/pages/Admin/CustodianInvitationsPage'));
 const MonitoringPage = lazy(() => import('@/pages/Monitoring/MonitoringPage'));
 const MonitoringTVPage = lazy(() => import('@/pages/Monitoring/MonitoringTVPage'));
+const ServiceRadarPage = lazy(() => import('@/pages/Monitoring/ServiceRadarPage'));
 const IncidentesRRSSPage = lazy(() => import('@/pages/Incidentes/IncidentesRRSSPage'));
 const SecurityPage = lazy(() => import('@/pages/Security/SecurityPage'));
 const TicketsList = lazy(() => import('@/pages/Tickets/TicketsList'));
