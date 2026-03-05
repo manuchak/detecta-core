@@ -283,7 +283,7 @@ export const ServiceTimesTable: React.FC<Props> = ({ onSelectService }) => {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-auto max-h-[calc(100vh-280px)]">
+        <div className="overflow-auto max-h-[calc(var(--content-height-with-tabs,calc(100vh-200px))-100px)]">
           <Table>
             <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
               {table.getHeaderGroups().map(hg => (
