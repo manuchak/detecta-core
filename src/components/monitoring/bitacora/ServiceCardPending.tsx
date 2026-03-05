@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Clock, ArrowRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Clock, ArrowRight, Shield } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
+const TIPO_BADGE: Record<string, { label: string; class: string }> = {
+  custodia: { label: 'Custodia', class: 'bg-chart-1/15 text-chart-1 border-chart-1/30' },
+  monitoreo: { label: 'Monitoreo', class: 'bg-chart-3/15 text-chart-3 border-chart-3/30' },
+  transporte: { label: 'Transporte', class: 'bg-chart-4/15 text-chart-4 border-chart-4/30' },
+};
+
 interface ServiceCardPendingProps {
   service: BoardService;
   onIniciar: (id: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
 }
 
-export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service, onIniciar, isPending }) => {
+export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service, onIniciar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const cita = new Date(service.fecha_hora_cita);
@@ -26,9 +34,15 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
     ? `Hace ${Math.abs(minsToCita)}m`
     : `En ${minsToCita}m`;
 
+  const tipoMeta = TIPO_BADGE[(service.tipo_servicio || '').toLowerCase()];
+
   return (
     <>
-      <div className="rounded-lg bg-muted/20 hover:bg-muted/40 px-3 py-2 transition-colors">
+      <div
+        className="rounded-lg bg-muted/20 hover:bg-muted/40 px-3 py-2 transition-colors cursor-pointer select-none"
+        onDoubleClick={() => onDoubleClick?.(service)}
+        title="Doble clic para ver detalle"
+      >
         {/* Row 1: Client + Timer */}
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-medium truncate flex-1">{service.nombre_cliente}</span>
@@ -38,9 +52,17 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
           </span>
         </div>
 
-        {/* Row 2: Custodio · Route */}
-        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-          {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
+        {/* Row 2: Custodio · Route + badges */}
+        <div className="flex items-center gap-1 mt-0.5">
+          <span className="text-[11px] text-muted-foreground truncate flex-1">
+            {service.requiere_armado && <Shield className="h-2.5 w-2.5 inline mr-0.5 text-chart-4 relative -top-px" />}
+            {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
+          </span>
+          {tipoMeta && (
+            <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 shrink-0', tipoMeta.class)}>
+              {tipoMeta.label}
+            </Badge>
+          )}
         </div>
 
         {/* Row 3: Action */}

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
+import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { BoardColumnPorIniciar } from './BoardColumnPorIniciar';
 import { BoardColumnEnCurso } from './BoardColumnEnCurso';
 import { BoardColumnEventoEspecial } from './BoardColumnEventoEspecial';
 import { MonitoristaAssignmentBar } from './MonitoristaAssignmentBar';
+import { ServiceDetailDrawer } from './ServiceDetailDrawer';
 import { Loader2 } from 'lucide-react';
 
 export const BitacoraBoard: React.FC = () => {
@@ -18,7 +20,16 @@ export const BitacoraBoard: React.FC = () => {
     cerrarEventoEspecial,
     registrarLlegadaDestino,
     liberarCustodio,
+    getEventsForService,
   } = useBitacoraBoard();
+
+  const [selectedService, setSelectedService] = useState<BoardService | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const handleDoubleClick = useCallback((service: BoardService) => {
+    setSelectedService(service);
+    setDrawerOpen(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -56,6 +67,7 @@ export const BitacoraBoard: React.FC = () => {
         <BoardColumnPorIniciar
           services={pendingServices}
           onIniciar={(id) => iniciarServicio.mutate(id)}
+          onDoubleClick={handleDoubleClick}
           isPending={iniciarServicio.isPending}
         />
 
@@ -66,6 +78,7 @@ export const BitacoraBoard: React.FC = () => {
           onCheckpoint={(data) => registrarCheckpoint.mutate(data)}
           onLlegadaDestino={(uuid, sid) => registrarLlegadaDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
           onLiberar={(uuid, sid) => liberarCustodio.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+          onDoubleClick={handleDoubleClick}
           isCheckpointPending={registrarCheckpoint.isPending}
           isEventoPending={iniciarEventoEspecial.isPending}
           isLlegadaPending={registrarLlegadaDestino.isPending}
@@ -76,9 +89,17 @@ export const BitacoraBoard: React.FC = () => {
         <BoardColumnEventoEspecial
           services={eventoEspecialServices}
           onCerrar={(eventoId) => cerrarEventoEspecial.mutate(eventoId)}
+          onDoubleClick={handleDoubleClick}
           isPending={cerrarEventoEspecial.isPending}
         />
       </div>
+
+      <ServiceDetailDrawer
+        service={selectedService}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        getEventsForService={getEventsForService}
+      />
     </div>
   );
 };

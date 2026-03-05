@@ -5,10 +5,11 @@ import type { BoardService } from '@/hooks/useBitacoraBoard';
 interface BoardColumnPorIniciarProps {
   services: BoardService[];
   onIniciar: (id: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
 }
 
-export const BoardColumnPorIniciar: React.FC<BoardColumnPorIniciarProps> = ({ services, onIniciar, isPending }) => {
+export const BoardColumnPorIniciar: React.FC<BoardColumnPorIniciarProps> = ({ services, onIniciar, onDoubleClick, isPending }) => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 mb-2 px-1">
@@ -22,7 +23,7 @@ export const BoardColumnPorIniciar: React.FC<BoardColumnPorIniciarProps> = ({ se
           </div>
         ) : (
           services.map(s => (
-            <ServiceCardPending key={s.id} service={s} onIniciar={onIniciar} isPending={isPending} />
+            <ServiceCardPending key={s.id} service={s} onIniciar={onIniciar} onDoubleClick={onDoubleClick} isPending={isPending} />
           ))
         )}
       </div>

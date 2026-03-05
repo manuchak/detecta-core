@@ -11,6 +11,7 @@ interface BoardColumnEnCursoProps {
   onCheckpoint: (data: { servicioIdServicio: string; descripcion?: string; lat?: number; lng?: number; ubicacion_texto?: string; foto_urls?: string[] }) => void;
   onLlegadaDestino: (serviceUUID: string, servicioIdServicio: string) => void;
   onLiberar: (serviceUUID: string, servicioIdServicio: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isCheckpointPending: boolean;
   isEventoPending: boolean;
   isLlegadaPending: boolean;
@@ -18,7 +19,7 @@ interface BoardColumnEnCursoProps {
 }
 
 export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
-  services, onEventoEspecial, onCheckpoint, onLlegadaDestino, onLiberar,
+  services, onEventoEspecial, onCheckpoint, onLlegadaDestino, onLiberar, onDoubleClick,
   isCheckpointPending, isEventoPending, isLlegadaPending, isLiberarPending,
 }) => {
   const [filter, setFilter] = useState('');
@@ -72,6 +73,7 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
                   key={s.id}
                   service={s}
                   onLiberar={onLiberar}
+                  onDoubleClick={onDoubleClick}
                   isPending={isLiberarPending}
                 />
               ) : (
@@ -81,6 +83,7 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
                   onEventoEspecial={onEventoEspecial}
                   onCheckpoint={onCheckpoint}
                   onLlegadaDestino={onLlegadaDestino}
+                  onDoubleClick={onDoubleClick}
                   isCheckpointPending={isCheckpointPending}
                   isEventoPending={isEventoPending}
                   isLlegadaPending={isLlegadaPending}

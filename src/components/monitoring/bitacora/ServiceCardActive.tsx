@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User } from 'lucide-react';
+import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User, Shield } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import { CheckpointPopover } from './CheckpointPopover';
 import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
@@ -14,6 +14,7 @@ interface ServiceCardActiveProps {
   onEventoEspecial: (servicioIdServicio: string, tipo: SpecialEventType) => void;
   onCheckpoint: (data: { servicioIdServicio: string; descripcion?: string; lat?: number; lng?: number; ubicacion_texto?: string; foto_urls?: string[] }) => void;
   onLlegadaDestino: (serviceUUID: string, servicioIdServicio: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isCheckpointPending: boolean;
   isEventoPending: boolean;
   isLlegadaPending: boolean;
@@ -36,8 +37,14 @@ const MONITORISTA_COLORS = [
   'bg-chart-5/15 text-chart-5 border-chart-5/30',
 ];
 
+const TIPO_BADGE: Record<string, { label: string; class: string }> = {
+  custodia: { label: 'Custodia', class: 'bg-chart-1/15 text-chart-1 border-chart-1/30' },
+  monitoreo: { label: 'Monitoreo', class: 'bg-chart-3/15 text-chart-3 border-chart-3/30' },
+  transporte: { label: 'Transporte', class: 'bg-chart-4/15 text-chart-4 border-chart-4/30' },
+};
+
 export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
-  service, onEventoEspecial, onCheckpoint, onLlegadaDestino,
+  service, onEventoEspecial, onCheckpoint, onLlegadaDestino, onDoubleClick,
   isCheckpointPending, isEventoPending, isLlegadaPending,
 }) => {
   const [llegadaConfirm, setLlegadaConfirm] = useState(false);
@@ -60,12 +67,18 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
     ? 'border-l-chart-4'
     : 'border-l-transparent';
 
+  const tipoMeta = TIPO_BADGE[(service.tipo_servicio || '').toLowerCase()];
+
   return (
     <>
-      <div className={cn(
-        'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 px-3 py-3 transition-colors group',
-        borderAccent
-      )}>
+      <div
+        className={cn(
+          'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 px-3 py-3 transition-colors group cursor-pointer select-none',
+          borderAccent
+        )}
+        onDoubleClick={() => onDoubleClick?.(service)}
+        title="Doble clic para ver detalle"
+      >
         {/* Row 1: Timer hero — right aligned, dominant */}
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-medium truncate flex-1">{service.nombre_cliente}</span>
@@ -74,9 +87,17 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
           </span>
         </div>
 
-        {/* Row 2: Custodio · Route */}
-        <div className="text-[11px] text-muted-foreground truncate mt-1">
-          {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
+        {/* Row 2: Custodio · Route + badges */}
+        <div className="flex items-center gap-1 mt-1">
+          <span className="text-[11px] text-muted-foreground truncate flex-1">
+            {service.requiere_armado && <Shield className="h-2.5 w-2.5 inline mr-0.5 text-chart-4 relative -top-px" />}
+            {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
+          </span>
+          {tipoMeta && (
+            <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 shrink-0', tipoMeta.class)}>
+              {tipoMeta.label}
+            </Badge>
+          )}
         </div>
 
         {/* Row 3: Folio + Monitorista badge + Actions */}

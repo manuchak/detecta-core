@@ -11,12 +11,13 @@ import { cn } from '@/lib/utils';
 interface ServiceCardSpecialEventProps {
   service: BoardService;
   onCerrar: (eventoId: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
 }
 
 const ROUTINE_TYPES = ['combustible', 'baño', 'descanso'];
 
-export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = ({ service, onCerrar, isPending }) => {
+export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = ({ service, onCerrar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const event = service.activeEvent;
   if (!event) return null;
@@ -38,7 +39,7 @@ export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = (
 
   return (
     <>
-      <Card className={cn('p-3 space-y-2', borderColor)}>
+      <Card className={cn('p-3 space-y-2 cursor-pointer select-none', borderColor)} onDoubleClick={() => onDoubleClick?.(service)}>
         {/* Event type badge */}
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline" className="text-xs gap-1 px-2 py-0.5">
