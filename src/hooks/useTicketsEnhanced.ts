@@ -484,11 +484,24 @@ export const useTicketsEnhanced = () => {
         resuelto_at: data.resuelto_at
       });
 
+      // Fallback: resolve creator name from profiles
+      let resolvedCustomerName = data.customer_name;
+      if (!resolvedCustomerName && !custodio && data.created_by) {
+        const { data: creatorProfile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('id', data.created_by)
+          .maybeSingle();
+        if (creatorProfile?.display_name) {
+          resolvedCustomerName = creatorProfile.display_name;
+        }
+      }
+
       return {
         id: data.id,
         ticket_number: data.ticket_number || '',
         customer_phone: data.customer_phone,
-        customer_name: data.customer_name,
+        customer_name: resolvedCustomerName,
         subject: data.subject || '',
         description: data.description,
         status: data.status as TicketEnhanced['status'],
