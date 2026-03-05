@@ -1,97 +1,52 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+## UI Evaluation -- Issues Identified
 
-## Roles confirmados por módulo
+Looking at the screenshot with expert eyes, there are 5 concrete problems:
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+### 1. Category icons rendered as raw text characters
+The `categoria_custodio.icono` field stores emoji/text (e.g. "💲") and is rendered inline at `text-[10px]` -- at that size emojis render inconsistently across browsers and look like garbled symbols. The "DollarSign" category icon appears as a small unreadable character next to "Pagos y Comis...".
 
----
+### 2. Custodian names unreadable
+- Many cards show raw phone numbers (`+52 813 544 8899`) instead of names -- this is a data issue (no `custodio.nombre` resolved), but the UI should handle it better by formatting phone numbers readably.
+- The `max-w-[100px]` truncation cuts names too aggressively. On a card that's ~280px wide, there's room for more.
+- The `User` icon at `h-2.5 w-2.5` (10px) is nearly invisible.
 
-## Hallazgos actuales
+### 3. Cards don't use full column width
+The footer row crams custodian + category + timestamp into tiny truncated spans. The category name truncates at `max-w-[80px]` which makes "Pagos y Comisiones" show as "Pagos y Comis...".
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+### 4. Font sizes too small
+Nearly everything in the footer is `text-[10px]` (approximately 8px rendered). At normal zoom this is already at the limit of legibility. At 0.7x zoom it becomes unreadable.
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+### 5. Visual hierarchy is flat
+The custodian name (the person who raised the ticket) should be prominent -- it's a key identifier. Currently it's the same size and color as the category and timestamp.
 
 ---
 
-## Plan de corrección
+## Plan: Fix card readability and space usage
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+### File: `src/components/tickets/TicketKanbanCard.tsx`
 
+1. **Custodian name -- make it prominent**: Move custodian name to its own line right below the subject. Use `text-xs font-medium text-foreground` (not muted). Increase icon to `h-3 w-3`. Remove `max-w-[100px]` truncation -- let it use the full card width.
+
+2. **Format phone numbers**: When `custodianName` is a phone number (starts with `+` or is digits only), format it as a readable phone number. Add a small `Phone` icon instead of `User` icon for phone-only entries.
+
+3. **Category + timestamp as a separate compact footer**: Move category and timestamp to a final row. Use `text-[11px]` instead of `text-[10px]`. Remove the emoji icon for categories -- use only text. Increase `max-w` for category name to `max-w-[140px]`.
+
+4. **Bump minimum font sizes**: Change all `text-[10px]` to `text-[11px]` for reply indicators and footer metadata. This gains ~1px rendered which matters at reduced zoom.
+
+5. **Better card structure (3 clear rows)**:
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌──────────────────────────────────┐
+│ ██▓░░  22h 51m     CUS-MMC  Alta│  ← SLA bar + ticket# + priority
+│ Pagos y Comisiones - Reporte    │  ← Subject (2 lines max)
+│ 🔴 Esperando tu respuesta      │  ← Status (conditional)
+│ 👤 Daniel García Medina         │  ← Custodian name (prominent)
+│ Pagos y Comisiones · hace 39min │  ← Category + time (subtle)
+└──────────────────────────────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+### File: `src/components/tickets/TicketKanbanBoard.tsx`
 
-### Fase 2 — Migrar policies por módulo
-
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
-
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+6. **Column min-width**: Change `min-w-[280px]` to `min-w-[260px]` so columns can flex wider on large screens instead of leaving dead space.
 
