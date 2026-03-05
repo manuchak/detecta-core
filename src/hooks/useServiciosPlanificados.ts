@@ -996,8 +996,8 @@ export function useServiciosPlanificados() {
       logger.operation('updateOperationalStatus', 'start', { serviceId, action });
       
       const updateData = action === 'mark_on_site' 
-        ? { hora_inicio_real: new Date().toISOString() }
-        : { hora_inicio_real: null };
+        ? { hora_llegada_custodio: new Date().toISOString() }
+        : { hora_llegada_custodio: null };
       
       const { error } = await supabase
         .from('servicios_planificados')

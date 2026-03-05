@@ -51,8 +51,8 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
     };
   }
   
-  // En sitio - CHANGED to green (emerald)
-  if (service.hora_inicio_real) {
+  // En sitio - custodio llegó al punto (hora_llegada_custodio) pero monitoreo aún no inicia (hora_inicio_real)
+  if (service.hora_llegada_custodio && !service.hora_inicio_real) {
     return { 
       status: 'en_sitio', 
       color: 'bg-emerald-500', 
