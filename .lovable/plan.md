@@ -1,71 +1,97 @@
 
 
-# Análisis de compatibilidad: Fix "En sitio" con todos los workflows
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Resumen del hallazgo
+## Roles confirmados por módulo
 
-La columna `hora_llegada_custodio` es tipo **`time without time zone`** (HH:MM:SS). Hay **3 puntos** en el código que escriben a esta columna y **2 subsistemas downstream** que la leen.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-## Mapa completo de escrituras y lecturas
+---
 
-### Escrituras (3 puntos)
+## Hallazgos actuales
 
-| # | Función | Archivo | Valor actual | Compatible con `time`? |
-|---|---------|---------|-------------|----------------------|
-| 1 | `updateOperationalStatus` (mark_on_site) | `useServiciosPlanificados.ts:999` | `new Date().toISOString()` → `"2026-03-05T18:30:00.000Z"` | **NO — este es el bug de Axel** |
-| 2 | `updateOperationalStatus` (revert) | `useServiciosPlanificados.ts:1000` | `null` | OK |
-| 3 | `markFalsePositioning` | `useServiciosPlanificados.ts:1049` | `horaLlegada` viene del input `<time>` del dialog → formato `"HH:mm"` | OK — ya es formato time |
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-### Lecturas downstream (2 subsistemas)
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-| # | Subsistema | Archivo | Cómo lee | Impacto del fix |
-|---|-----------|---------|---------|-----------------|
-| 1 | **Auto-detectar incumplimientos** (edge function) | `auto-detectar-incumplimientos/index.ts:361-376` | Espera formato `"HH:MM:SS"`, hace `split(':')` y compara minutos | OK — el fix produce `"HH:MM:SS"` que es exactamente lo que espera |
-| 2 | **Vistas de custodias** (SQL views) | 6+ migraciones | Usa `sp.fecha_hora_cita::date + sp.hora_llegada_custodio` para construir `hora_presentacion` como timestamptz | OK — PostgreSQL suma `date + time` correctamente con tipo `time` nativo |
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-### Lecturas en frontend (2 componentes)
+---
 
-| # | Componente | Cómo lee | Impacto |
-|---|-----------|---------|---------|
-| 1 | `CompactServiceCard.tsx:55` | `if (service.hora_llegada_custodio && !service.hora_inicio_real)` → solo chequea truthy | OK — `"14:30:00"` es truthy |
-| 2 | `ScheduledServicesTabSimple.tsx:222` | Misma condición truthy | OK |
+## Plan de corrección
 
-## Diagnóstico
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-El fix es **100% compatible** con todos los workflows existentes. Solo hay **un punto de fallo** (línea 999) y el cambio de `new Date().toISOString()` a formato `HH:mm:ss` en timezone CDMX:
-
-- Alinea con lo que la edge function de incumplimientos ya espera
-- Alinea con lo que las SQL views ya hacen (date + time arithmetic)
-- Alinea con lo que el `FalsePositioningDialog` ya envía (formato HH:mm)
-- No rompe ninguna condición truthy en el frontend
-
-## Plan de corrección (1 archivo, 1 línea)
-
-**`src/hooks/useServiciosPlanificados.ts` línea 998-999**:
-
-Cambiar:
-```typescript
-const updateData = action === 'mark_on_site' 
-  ? { hora_llegada_custodio: new Date().toISOString() }
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-Por:
-```typescript
-const now = new Date();
-const timeOnly = now.toLocaleTimeString('en-GB', { 
-  hour: '2-digit', minute: '2-digit', second: '2-digit', 
-  hour12: false, timeZone: 'America/Mexico_City' 
-});
-const updateData = action === 'mark_on_site' 
-  ? { hora_llegada_custodio: timeOnly }
-```
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-## Sobre el RPC y la interfaz TypeScript
+### Fase 2 — Migrar policies por módulo
 
-El segundo problema (RPC no retorna `hora_llegada_custodio`) es de **visibilidad**, no de persistencia. Los componentes ya leen el campo, pero el RPC no lo incluye en el JSON, así que el campo siempre llega como `undefined`. Esto causa que después de marcar "En sitio" exitosamente, la UI no refleje el cambio hasta refrescar manualmente. Para corregir esto se necesita:
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-1. **SQL**: Agregar `'hora_llegada_custodio', sp.hora_llegada_custodio` al `jsonb_build_object` del RPC `get_real_planned_services_summary`
-2. **TypeScript**: Agregar `hora_llegada_custodio?: string` a la interfaz `ScheduledService` en `useScheduledServices.ts`
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-Estos 3 cambios (1 formato + 1 SQL + 1 tipo) resuelven completamente el problema de Axel sin afectar ningún otro workflow.
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

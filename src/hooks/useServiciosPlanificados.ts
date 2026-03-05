@@ -995,8 +995,15 @@ export function useServiciosPlanificados() {
     }) => {
       logger.operation('updateOperationalStatus', 'start', { serviceId, action });
       
+      // hora_llegada_custodio es tipo "time without time zone" (HH:MM:SS)
+      // Usar timezone CDMX para consistencia con edge functions y SQL views
+      const now = new Date();
+      const timeOnly = now.toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false, timeZone: 'America/Mexico_City'
+      });
       const updateData = action === 'mark_on_site' 
-        ? { hora_llegada_custodio: new Date().toISOString() }
+        ? { hora_llegada_custodio: timeOnly }
         : { hora_llegada_custodio: null };
       
       const { error } = await supabase
