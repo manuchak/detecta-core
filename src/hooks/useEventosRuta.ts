@@ -6,7 +6,8 @@ import { useRouteCalculation } from '@/hooks/security/useRouteCalculation';
 export type TipoEventoRuta =
   | 'inicio_servicio' | 'fin_servicio'
   | 'combustible' | 'baño' | 'descanso' | 'pernocta'
-  | 'checkpoint' | 'incidencia' | 'foto_evidencia' | 'otro';
+  | 'checkpoint' | 'incidencia' | 'foto_evidencia' | 'otro'
+  | 'llegada_destino' | 'liberacion_custodio';
 
 export interface EventoRuta {
   id: string;
@@ -35,6 +36,8 @@ export const EVENTO_ICONS: Record<TipoEventoRuta, { icon: string; label: string;
   incidencia: { icon: '⚠️', label: 'Incidencia', color: 'hsl(var(--destructive))' },
   foto_evidencia: { icon: '📸', label: 'Foto', color: 'hsl(var(--muted-foreground))' },
   otro: { icon: '📝', label: 'Otro', color: 'hsl(var(--muted-foreground))' },
+  llegada_destino: { icon: '🏁', label: 'Llegada Destino', color: 'hsl(var(--chart-2))' },
+  liberacion_custodio: { icon: '✅', label: 'Liberación', color: 'hsl(var(--chart-2))' },
 };
 
 export function useEventosRuta(servicioId: string | null) {
