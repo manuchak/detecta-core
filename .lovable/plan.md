@@ -1,97 +1,115 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Panel de Coordinación Operativa — Command Center para el C4
 
-## Roles confirmados por módulo
+## Análisis del diagrama vs. sistema actual
 
-| Módulo | Lectura | Escritura/Gestión |
+Tu diagrama describe 4 carriles (User, C4, Coordinación C4, Custodio) con estos pasos clave:
+
+1. Cliente cierra solicitud → Planificación asigna servicio (ya existe)
+2. Coordinador recibe demanda → analiza carga → asigna balanceadamente a monitoristas (existe parcialmente: el `CoordinatorAssignmentDialog` actual es funcional pero primitivo — asignación uno-a-uno, sin visibilidad de carga ni turno)
+3. Monitorista ejecuta ciclo de monitoreo (ya existe en BitacoraBoard)
+4. Cambio de guardia: saliente cierra pendientes → genera reporte → entrante toma servicios (existe básico en `ShiftHandoffDialog`)
+
+### Brechas identificadas
+
+| Capacidad del diagrama | Estado actual | Gap |
 |---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+| Visibilidad de demanda vs. capacidad | No existe | **Crítico** — El coordinador no ve cuántos servicios hay por turno ni cuántos monitoristas disponibles |
+| Asignación balanceada | Manual uno-a-uno | **Alto** — Sin auto-balance ni drag-and-drop |
+| Turno activo por monitorista | Se infiere del assignment | **Medio** — No hay registro explícito de "quién está en turno ahora" |
+| Reporte de entrega de turno | Solo notas en texto | **Medio** — Falta resumen visual de servicios transferidos vs cerrados |
+| Monitorista ve SUS servicios filtrados | No existe | **Alto** — Todos ven todo, sin scope personal |
+
+### Mejoras sugeridas al flujo (como Head de Producto)
+
+1. **Auto-balance inteligente**: En lugar de asignar manualmente, el coordinador debería poder hacer "Distribuir todos" y el sistema reparte equitativamente por carga actual. La asignación manual queda como override.
+
+2. **Turno como estado explícito**: Un monitorista debe "fichar entrada" a su turno, haciendo visible quiénes están activos en este momento vs. quiénes tienen rol pero no están en turno.
+
+3. **Vista personal del monitorista**: Cuando un `monitoring` entra a la bitácora, debería ver primero SUS servicios asignados destacados. La vista actual muestra todo sin distinción.
+
+4. **Handoff con resumen automático**: Al transferir turno, generar un resumen estructurado (N servicios en curso, N en destino, N con evento especial abierto) en lugar de depender de texto libre.
 
 ---
 
-## Hallazgos actuales
+## Plan de implementación: Panel de Coordinación v2
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+### Fase 1 — Panel dedicado (reemplaza el dialog actual)
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+Crear una **vista de página completa** tipo Command Center en lugar del dialog modal actual. Layout Apple-inspired:
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌─────────────────────────────────────────────────────┐
+│ ● Coordinación C4              Turno: Vespertino  ▼ │
+├───────────────────────┬─────────────────────────────┤
+│  MONITORISTAS EN      │  SERVICIOS SIN ASIGNAR      │
+│  TURNO (3 activos)    │  ┌──────────────────────┐   │
+│                       │  │ Folio · Cliente      │   │
+│  ┌─ Ana M. ──────┐   │  │ Custodio · Hora cita │   │
+│  │ ● En turno     │   │  │        [Asignar ▼]   │   │
+│  │ 4 servicios    │   │  └──────────────────────┘   │
+│  │ ██████░░ carga │   │  ┌──────────────────────┐   │
+│  └────────────────┘   │  │ ...                  │   │
+│  ┌─ Carlos R. ───┐   │  └──────────────────────┘   │
+│  │ ● En turno     │   │                             │
+│  │ 6 servicios    │   │  ─── ó ───                  │
+│  │ █████████ carga│   │                             │
+│  └────────────────┘   │  [⚡ Auto-distribuir]       │
+│  ┌─ Laura P. ────┐   │                             │
+│  │ ○ Sin turno    │   │                             │
+│  └────────────────┘   │                             │
+├───────────────────────┴─────────────────────────────┤
+│  DISTRIBUCIÓN ACTUAL          [🔄 Cambio de Turno]  │
+│  Ana: ████ 4  Carlos: ██████ 6  Laura: ░░ 0       │
+└─────────────────────────────────────────────────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+### Componentes nuevos
 
-### Fase 2 — Migrar policies por módulo
+| Componente | Propósito |
+|---|---|
+| `CoordinatorCommandCenter.tsx` | Layout principal con 2 paneles (monitoristas + servicios sin asignar) |
+| `MonitoristaCard.tsx` | Tarjeta de monitorista con indicador de turno, barra de carga, lista colapsable de sus servicios |
+| `UnassignedServiceRow.tsx` | Fila de servicio sin asignar con dropdown para asignar rápido a un monitorista |
+| `AutoDistributeButton.tsx` | Lógica de distribución equitativa: reparte servicios sin asignar priorizando monitoristas con menor carga |
+| `ShiftHandoffPanel.tsx` | Versión mejorada del handoff con resumen automático (reemplaza el dialog) |
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+### Lógica de auto-distribución
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+```text
+servicios_sin_asignar.sort(por hora_cita ASC)
+para cada servicio:
+  monitorista = monitoristas_en_turno.sort(por carga ASC)[0]
+  asignar(servicio, monitorista)
+```
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### Cambios en hook `useMonitoristaAssignment`
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+- Agregar campo `en_turno: boolean` al query de monitoristas (derivado de si tiene asignaciones activas con `inicio_turno` dentro de las últimas 8h, o un campo explícito)
+- Agregar mutation `autoDistribute` que toma los servicios sin asignar y ejecuta la lógica de balance
+- Agregar query para obtener el turno actual (matutino/vespertino/nocturno) basado en la hora
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+### Integración con BitacoraBoard
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+- El `MonitoristaAssignmentBar` actual se mantiene como barra compacta en la Bitácora
+- El botón "Asignar" abre el nuevo `CoordinatorCommandCenter` como panel lateral o página dedicada en lugar del dialog simple
+- Para monitoristas regulares: agregar highlight visual en las tarjetas de servicios que les están asignados (borde coloreado o badge con su nombre)
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### Archivos a crear/modificar
 
-### Archivos a modificar
+| Archivo | Acción |
+|---|---|
+| `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` | **Crear** — Panel principal |
+| `src/components/monitoring/coordinator/MonitoristaCard.tsx` | **Crear** — Tarjeta de monitorista con barra de carga |
+| `src/components/monitoring/coordinator/UnassignedServiceRow.tsx` | **Crear** — Servicio sin asignar |
+| `src/components/monitoring/coordinator/AutoDistributeButton.tsx` | **Crear** — Botón de auto-distribución |
+| `src/components/monitoring/coordinator/ShiftHandoffPanel.tsx` | **Crear** — Panel de handoff mejorado |
+| `src/hooks/useMonitoristaAssignment.ts` | **Modificar** — Agregar autoDistribute, mejorar queries |
+| `src/components/monitoring/bitacora/MonitoristaAssignmentBar.tsx` | **Modificar** — Abrir CommandCenter en vez de dialog |
+| `src/components/monitoring/bitacora/ServiceCardActive.tsx` | **Modificar** — Badge visual de monitorista asignado |
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+### Sin cambios de backend
+
+Toda la data necesaria ya existe en `bitacora_asignaciones_monitorista`, `servicios_planificados`, `user_roles` y `profiles`. Los permisos RLS ya están correctos tras la migración anterior.
 
