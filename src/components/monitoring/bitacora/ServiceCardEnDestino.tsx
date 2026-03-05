@@ -18,7 +18,7 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
 
   return (
     <>
-      <Card className="p-3 space-y-2 border-chart-2/30 bg-chart-2/5">
+      <Card className="p-3 py-4 space-y-2.5 border-chart-2/30 bg-chart-2/5">
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <Badge className="text-[10px] px-2 py-0 bg-chart-2/20 text-chart-2 border-chart-2/30 gap-1">
