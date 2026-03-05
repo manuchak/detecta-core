@@ -180,6 +180,7 @@ export function EditServiceForm({
           .select('id')
           .eq('id_servicio', debouncedServiceId)
           .neq('id', service?.id || '')
+          .neq('estado_planeacion', 'cancelado')
           .maybeSingle();
         
         if (error) throw error;
@@ -249,9 +250,10 @@ export function EditServiceForm({
       const { data, error } = await supabase
         .from('servicios_planificados')
         .select('id')
-        .eq('id_servicio', newId)
-        .neq('id', service?.id || '')
-        .maybeSingle();
+          .eq('id_servicio', newId)
+          .neq('id', service?.id || '')
+          .neq('estado_planeacion', 'cancelado')
+          .maybeSingle();
       
       if (error) throw error;
       

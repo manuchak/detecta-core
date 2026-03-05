@@ -156,6 +156,7 @@ export function useServiciosPlanificados() {
         .from('servicios_planificados')
         .select('id_servicio')
         .eq('id_servicio', data.id_servicio)
+        .neq('estado_planeacion', 'cancelado')
         .maybeSingle();
 
       if (checkError) {
