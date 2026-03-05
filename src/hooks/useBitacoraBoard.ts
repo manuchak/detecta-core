@@ -169,9 +169,14 @@ export function useBitacoraBoard() {
       phase = 'en_curso';
     }
 
-    // Last event time
-    const lastEvent = events.length > 0 ? events[0] : null; // already sorted desc
-    const lastEventAt = lastEvent ? new Date(lastEvent.hora_inicio) : (svc.hora_inicio_real ? new Date(svc.hora_inicio_real) : null);
+    // Last event time — use the most recent timestamp across all events (hora_inicio OR hora_fin)
+    const lastActionTime = events.reduce<Date | null>((latest, e) => {
+      const start = new Date(e.hora_inicio);
+      const end = e.hora_fin ? new Date(e.hora_fin) : null;
+      const eventLatest = end && end > start ? end : start;
+      return !latest || eventLatest > latest ? eventLatest : latest;
+    }, null);
+    const lastEventAt = lastActionTime || (svc.hora_inicio_real ? new Date(svc.hora_inicio_real) : null);
     const minutesSinceLastAction = lastEventAt ? Math.floor((now - lastEventAt.getTime()) / 60_000) : 0;
 
     // Alert level
