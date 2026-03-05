@@ -51,6 +51,9 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
   const [geoLoading, setGeoLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
   const addFiles = useCallback((files: FileList | File[]) => {
     const images = Array.from(files).filter(f => f.type.startsWith('image/'));
     setPhotos(prev => [...prev, ...images].slice(0, 5));
@@ -58,8 +61,22 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
     addFiles(e.dataTransfer.files);
   }, [addFiles]);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current++;
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }, []);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
