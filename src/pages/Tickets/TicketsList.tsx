@@ -24,8 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Search, RefreshCw, Eye, Sparkles, LayoutGrid, TableIcon } from "lucide-react";
 import { useTicketsEnhanced, type TicketEnhanced } from "@/hooks/useTicketsEnhanced";
+import { TicketKanbanBoard } from "@/components/tickets/TicketKanbanBoard";
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
