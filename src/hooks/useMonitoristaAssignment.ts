@@ -127,11 +127,18 @@ export function useMonitoristaAssignment() {
   });
 
   // NEW: Fetch recent activity from servicio_eventos_ruta to determine who is actively working
+  // Uses its own sub-query for monitorista IDs to avoid hook ordering issues
   const recentActivityQuery = useQuery({
     queryKey: [...queryKey, 'recent-activity'],
     queryFn: async () => {
-      // Get monitorista user IDs
-      const mIds = (monitoristasQuery.data || []).map(m => m.id);
+      // First get monitoring user IDs independently
+      const { data: roles, error: rolesErr } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .in('role', ['monitoring', 'monitoring_supervisor'])
+        .eq('is_active', true);
+      if (rolesErr) throw rolesErr;
+      const mIds = [...new Set((roles || []).map(r => r.user_id))];
       if (mIds.length === 0) return [] as RecentActivity[];
 
       const twoHoursAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
@@ -144,7 +151,6 @@ export function useMonitoristaAssignment() {
       if (error) throw error;
       return (data || []) as RecentActivity[];
     },
-    enabled: (monitoristasQuery.data || []).length > 0,
     refetchInterval: 30_000,
   });
 
