@@ -132,7 +132,7 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
-        className="w-80 p-3 space-y-2.5"
+        className="w-80 p-3 space-y-2.5 relative"
         side="bottom"
         align="start"
         onDrop={handleDrop}
