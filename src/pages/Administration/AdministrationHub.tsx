@@ -21,7 +21,7 @@ const AdministrationHub = () => {
       </div>
 
       <Tabs defaultValue="targets" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="targets" className="flex items-center gap-2">
             <Target className="h-4 w-4" />
             Metas de Negocio
@@ -33,6 +33,10 @@ const AdministrationHub = () => {
           <TabsTrigger value="inactivity" className="flex items-center gap-2">
             <UserX className="h-4 w-4" />
             Custodios Inactivos
+          </TabsTrigger>
+          <TabsTrigger value="stale" className="flex items-center gap-2">
+            <Ghost className="h-4 w-4" />
+            Servicios Zombi
           </TabsTrigger>
           <TabsTrigger value="database" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
