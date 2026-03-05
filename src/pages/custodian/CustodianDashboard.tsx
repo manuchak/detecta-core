@@ -77,6 +77,9 @@ const DesktopCustodianDashboard = () => {
                 No verificado
               </Badge>
             )}
+            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión">
+              <LogOut className="h-5 w-5 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
