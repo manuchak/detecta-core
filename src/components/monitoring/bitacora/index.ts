@@ -8,6 +8,8 @@ export { BitacoraBoard } from './BitacoraBoard';
 export { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 export { InlineReportControl } from './InlineReportControl';
 export { MonitoristaAssignmentBar } from './MonitoristaAssignmentBar';
+export { CoordinatorAssignmentDialog } from './CoordinatorAssignmentDialog';
+export { ShiftHandoffDialog } from './ShiftHandoffDialog';
 export { ServiceCardPending } from './ServiceCardPending';
 export { ServiceCardActive } from './ServiceCardActive';
 export { ServiceCardEnDestino } from './ServiceCardEnDestino';
