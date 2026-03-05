@@ -53,81 +53,68 @@ export const TicketKanbanCard = ({ ticket, onClick }: TicketKanbanCardProps) => 
       {...listeners}
       onClick={onClick}
       className={cn(
-        "group rounded-lg border bg-card p-3 cursor-pointer transition-all duration-200",
+        "group rounded-lg border bg-card p-2.5 cursor-pointer transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5",
         isDragging && "opacity-50 shadow-lg rotate-2 z-50",
         isNeedsReply && "border-l-[3px] border-l-orange-500",
         ticket.sla.estadoGeneral === "vencido" && "border-l-[3px] border-l-destructive"
       )}
     >
-      {/* SLA Bar */}
-      <div className="mb-2">
+      {/* Row 1: SLA + Ticket # + Priority */}
+      <div className="flex items-center gap-1.5 mb-1">
         <SLAProgressBar
           status={ticket.sla.estadoGeneral as any}
           percentage={ticket.sla.porcentajeConsumidoResolucion}
           remainingMinutes={ticket.sla.tiempoRestanteResolucion}
           compact
         />
-      </div>
-
-      {/* Ticket number + Priority */}
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-mono text-muted-foreground">{ticket.ticket_number}</span>
+        <span className="text-[10px] font-mono text-muted-foreground ml-auto">{ticket.ticket_number}</span>
         {showPriority && (
-          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", priorityConfig[ticket.priority]?.className)}>
+          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 shrink-0", priorityConfig[ticket.priority]?.className)}>
             {priorityConfig[ticket.priority]?.label}
           </Badge>
         )}
       </div>
 
-      {/* Subject */}
-      <p className="text-sm font-medium leading-tight line-clamp-2 mb-2">{ticket.subject}</p>
+      {/* Row 2: Subject */}
+      <p className="text-sm font-medium leading-tight line-clamp-2 mb-1">{ticket.subject}</p>
 
-      {/* Needs reply indicator */}
+      {/* Row 3: Reply indicator (conditional) */}
       {isNeedsReply && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="relative flex h-2 w-2">
+        <div className="flex items-center gap-1 mb-1">
+          <span className="relative flex h-1.5 w-1.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500" />
           </span>
-          <span className="text-[11px] font-medium text-orange-600 dark:text-orange-400">
+          <span className="text-[10px] font-medium text-orange-600 dark:text-orange-400">
             Esperando tu respuesta
           </span>
         </div>
       )}
       {isAwaitingCustodian && !["resuelto", "cerrado"].includes(ticket.status) && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <Clock className="h-3 w-3 text-muted-foreground" />
-          <span className="text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-1 mb-1">
+          <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground">
             Esperando respuesta del custodio
           </span>
         </div>
       )}
 
-      {/* Footer: Custodian + time */}
-      <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/50">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <User className="h-3 w-3 text-muted-foreground shrink-0" />
-          <span className="text-[11px] text-muted-foreground truncate">{custodianName}</span>
-        </div>
+      {/* Row 4: Custodian · Category · Time */}
+      <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1.5">
+        <User className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate max-w-[100px]">{custodianName}</span>
+        {ticket.categoria_custodio?.nombre && (
+          <>
+            <span>·</span>
+            {ticket.categoria_custodio.icono && <span className="text-[10px]">{ticket.categoria_custodio.icono}</span>}
+            <span className="truncate max-w-[80px]">{ticket.categoria_custodio.nombre}</span>
+          </>
+        )}
         {lastActivity && (
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
-            {lastActivity}
-          </span>
+          <span className="ml-auto whitespace-nowrap">{lastActivity}</span>
         )}
       </div>
-
-      {/* Category tag */}
-      {ticket.categoria_custodio?.nombre && (
-        <div className="mt-1.5">
-          <span
-            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
-          >
-            {ticket.categoria_custodio.icono && <span>{ticket.categoria_custodio.icono}</span>}
-            {ticket.categoria_custodio.nombre}
-          </span>
-        </div>
-      )}
     </div>
   );
 };
