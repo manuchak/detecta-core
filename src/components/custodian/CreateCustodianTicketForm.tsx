@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ import {
 import { useTicketCategories } from '@/hooks/useTicketCategories';
 import { useCustodianTicketsEnhanced, CreateTicketData } from '@/hooks/useCustodianTicketsEnhanced';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+const MAX_EVIDENCIAS = 15;
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   DollarSign,
@@ -40,7 +43,7 @@ interface CreateCustodianTicketFormProps {
 export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateCustodianTicketFormProps) => {
   const { categorias, subcategorias, getSubcategoriasByCategoria, getCategoriaById, loading: loadingCategories } = useTicketCategories();
   const { createTicket } = useCustodianTicketsEnhanced(custodianPhone);
-  
+  const { toast } = useToast();
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
   const [selectedSubcategoria, setSelectedSubcategoria] = useState<string>('');
   const [subject, setSubject] = useState('');
@@ -50,7 +53,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
   const [priority, setPriority] = useState<'baja' | 'media' | 'alta' | 'urgente'>('media');
   const [evidencias, setEvidencias] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCategoriaData = selectedCategoria ? getCategoriaById(selectedCategoria) : null;
@@ -58,10 +61,20 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + evidencias.length > 5) {
-      return; // Max 5 files
+    const remaining = MAX_EVIDENCIAS - evidencias.length;
+    if (files.length > remaining) {
+      toast({
+        title: 'Límite de archivos',
+        description: `Solo puedes agregar ${remaining} archivo(s) más (máximo ${MAX_EVIDENCIAS})`,
+        variant: 'destructive'
+      });
+      // Take only what fits
+      setEvidencias(prev => [...prev, ...files.slice(0, remaining)]);
+    } else {
+      setEvidencias(prev => [...prev, ...files]);
     }
-    setEvidencias(prev => [...prev, ...files]);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -84,8 +97,11 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
         monto_reclamado: monto ? parseFloat(monto) : undefined,
         priority
       };
+      const onProgress = (current: number, total: number) => {
+        setUploadProgress({ current, total });
+      };
 
-      const result = await createTicket(ticketData, evidencias);
+      const result = await createTicket(ticketData, evidencias, onProgress);
       
       if (result) {
         // Reset form
@@ -101,6 +117,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
       }
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
