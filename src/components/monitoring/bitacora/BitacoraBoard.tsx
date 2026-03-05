@@ -29,11 +29,11 @@ export const BitacoraBoard: React.FC = () => {
   }
 
   // Collect active service IDs and labels for coordinator assignment dialog
-  const activeServiceIds = [...enCursoServices, ...eventoEspecialServices].map(s => s.servicio_id);
+  const activeServiceIds = [...enCursoServices, ...eventoEspecialServices].map(s => s.id_servicio);
   const serviceLabelMap = Object.fromEntries(
     [...pendingServices, ...enCursoServices, ...eventoEspecialServices].map(s => [
-      s.servicio_id,
-      `${s.servicio_id.slice(0, 8)} — ${(s as any).cliente || ''}`.trim(),
+      s.id_servicio,
+      `${s.id_servicio.slice(0, 8)} — ${s.nombre_cliente || ''}`.trim(),
     ])
   );
 
