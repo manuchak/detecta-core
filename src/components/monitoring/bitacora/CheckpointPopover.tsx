@@ -100,6 +100,7 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     );
   };
 
+  const busy = uploading || isPending;
   const coordsValid = parseCoords(coords) !== null;
   const hasPhotos = photos.length > 0;
   const canSubmit = coordsValid && hasPhotos && !busy;
@@ -110,28 +111,9 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     setUploading(true);
     try {
       const parsed = parseCoords(coords);
-      const uploadedUrls: string[] = [];
-      for (const photo of photos) {
-        const compressed = await compressImage(photo);
-        const fileName = `bitacora/${servicioId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-        const { error } = await supabase.storage.from('ticket-evidencias').upload(fileName, compressed, { contentType: 'image/jpeg' });
-        if (error) { console.error('Upload error:', error); continue; }
-        const { data: urlData } = supabase.storage.from('ticket-evidencias').getPublicUrl(fileName);
-        if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
-      }
-      onSubmit({
-        descripcion: descripcion.trim() || undefined,
-        lat: parsed?.lat, lng: parsed?.lng,
-        ubicacion_texto: coords.trim() || undefined,
-        foto_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
-      });
-      setDescripcion(''); setCoords(''); setPhotos([]);
-      setOpen(false);
-    } catch { toast.error('Error al subir evidencia'); }
+...
     finally { setUploading(false); }
   };
-
-  const busy = uploading || isPending;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
