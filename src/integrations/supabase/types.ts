@@ -5134,6 +5134,151 @@ export type Database = {
         }
         Relationships: []
       }
+      cxp_cortes_detalle: {
+        Row: {
+          concepto: string
+          corte_id: string
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          monto: number
+          referencia_id: string | null
+          servicio_custodia_id: number | null
+        }
+        Insert: {
+          concepto: string
+          corte_id: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          monto?: number
+          referencia_id?: string | null
+          servicio_custodia_id?: number | null
+        }
+        Update: {
+          concepto?: string
+          corte_id?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          monto?: number
+          referencia_id?: string | null
+          servicio_custodia_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cxp_cortes_detalle_corte_id_fkey"
+            columns: ["corte_id"]
+            isOneToOne: false
+            referencedRelation: "cxp_cortes_semanales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cxp_cortes_detalle_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cxp_cortes_detalle_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cxp_cortes_semanales: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string | null
+          created_by: string | null
+          documento_dispersion_url: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          fecha_pago: string | null
+          fecha_revision: string | null
+          id: string
+          metodo_pago: string | null
+          monto_apoyos_extra: number | null
+          monto_casetas: number | null
+          monto_deducciones: number | null
+          monto_estadias: number | null
+          monto_hoteles: number | null
+          monto_servicios: number | null
+          monto_total: number | null
+          notas: string | null
+          operativo_id: string | null
+          operativo_nombre: string
+          referencia_pago: string | null
+          revisado_por: string | null
+          semana_fin: string
+          semana_inicio: string
+          tipo_operativo: string
+          total_servicios: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          documento_dispersion_url?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_pago?: string | null
+          fecha_revision?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto_apoyos_extra?: number | null
+          monto_casetas?: number | null
+          monto_deducciones?: number | null
+          monto_estadias?: number | null
+          monto_hoteles?: number | null
+          monto_servicios?: number | null
+          monto_total?: number | null
+          notas?: string | null
+          operativo_id?: string | null
+          operativo_nombre: string
+          referencia_pago?: string | null
+          revisado_por?: string | null
+          semana_fin: string
+          semana_inicio: string
+          tipo_operativo: string
+          total_servicios?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          documento_dispersion_url?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_pago?: string | null
+          fecha_revision?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto_apoyos_extra?: number | null
+          monto_casetas?: number | null
+          monto_deducciones?: number | null
+          monto_estadias?: number | null
+          monto_hoteles?: number | null
+          monto_servicios?: number | null
+          monto_total?: number | null
+          notas?: string | null
+          operativo_id?: string | null
+          operativo_nombre?: string
+          referencia_pago?: string | null
+          revisado_por?: string | null
+          semana_fin?: string
+          semana_inicio?: string
+          tipo_operativo?: string
+          total_servicios?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cxp_detalle_servicios: {
         Row: {
           asignacion_id: string
@@ -14225,6 +14370,59 @@ export type Database = {
           },
         ]
       }
+      reglas_estadias_cliente: {
+        Row: {
+          activo: boolean | null
+          cliente_id: string
+          cobra_pernocta: boolean | null
+          created_at: string | null
+          horas_cortesia: number
+          id: string
+          notas: string | null
+          ruta_patron: string | null
+          tarifa_hora_excedente: number | null
+          tarifa_pernocta: number | null
+          tipo_servicio: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          cliente_id: string
+          cobra_pernocta?: boolean | null
+          created_at?: string | null
+          horas_cortesia?: number
+          id?: string
+          notas?: string | null
+          ruta_patron?: string | null
+          tarifa_hora_excedente?: number | null
+          tarifa_pernocta?: number | null
+          tipo_servicio?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          cliente_id?: string
+          cobra_pernocta?: boolean | null
+          created_at?: string | null
+          horas_cortesia?: number
+          id?: string
+          notas?: string | null
+          ruta_patron?: string | null
+          tarifa_hora_excedente?: number | null
+          tarifa_pernocta?: number | null
+          tipo_servicio?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reglas_estadias_cliente_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       respuestas_analisis_riesgo: {
         Row: {
           analisis_id: string | null
@@ -16288,6 +16486,108 @@ export type Database = {
           siniestros?: number
         }
         Relationships: []
+      }
+      solicitudes_apoyo_extraordinario: {
+        Row: {
+          aprobado_por: string | null
+          cliente_nombre: string | null
+          comprobante_url: string | null
+          created_at: string | null
+          custodio_id: string | null
+          custodio_nombre: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          fecha_pago: string | null
+          fecha_solicitud: string | null
+          id: string
+          id_servicio: string | null
+          metodo_pago: string | null
+          moneda: string | null
+          monto_aprobado: number | null
+          monto_solicitado: number
+          motivo: string
+          motivo_rechazo: string | null
+          notas: string | null
+          pagado_por: string | null
+          referencia_pago: string | null
+          servicio_custodia_id: number | null
+          solicitado_por: string | null
+          tipo_apoyo: string
+          updated_at: string | null
+          urgencia: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          cliente_nombre?: string | null
+          comprobante_url?: string | null
+          created_at?: string | null
+          custodio_id?: string | null
+          custodio_nombre?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_pago?: string | null
+          fecha_solicitud?: string | null
+          id?: string
+          id_servicio?: string | null
+          metodo_pago?: string | null
+          moneda?: string | null
+          monto_aprobado?: number | null
+          monto_solicitado: number
+          motivo: string
+          motivo_rechazo?: string | null
+          notas?: string | null
+          pagado_por?: string | null
+          referencia_pago?: string | null
+          servicio_custodia_id?: number | null
+          solicitado_por?: string | null
+          tipo_apoyo: string
+          updated_at?: string | null
+          urgencia?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          cliente_nombre?: string | null
+          comprobante_url?: string | null
+          created_at?: string | null
+          custodio_id?: string | null
+          custodio_nombre?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fecha_pago?: string | null
+          fecha_solicitud?: string | null
+          id?: string
+          id_servicio?: string | null
+          metodo_pago?: string | null
+          moneda?: string | null
+          monto_aprobado?: number | null
+          monto_solicitado?: number
+          motivo?: string
+          motivo_rechazo?: string | null
+          notas?: string | null
+          pagado_por?: string | null
+          referencia_pago?: string | null
+          servicio_custodia_id?: number | null
+          solicitado_por?: string | null
+          tipo_apoyo?: string
+          updated_at?: string | null
+          urgencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_apoyo_extraordinario_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_custodia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_apoyo_extraordinario_servicio_custodia_id_fkey"
+            columns: ["servicio_custodia_id"]
+            isOneToOne: false
+            referencedRelation: "vw_servicios_facturacion"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_productos: {
         Row: {
