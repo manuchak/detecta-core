@@ -1,29 +1,97 @@
 
 
-# Diagnóstico: 93 servicios fantasma en la Bitácora
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Hallazgo
+## Roles confirmados por módulo
 
-Los 93 servicios en "En Curso" **sí fueron iniciados** (alguien hizo clic en "Iniciar" en la bitácora), pero **92 de 93 no tienen ni un solo evento registrado** — ni checkpoints, ni llegada a destino, ni liberación. Solo se les asignó `hora_inicio_real` y quedaron flotando.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-El equipo de monitoreo está iniciando los servicios pero no completa el flujo operativo (registrar checkpoints → llegada destino → liberar custodio). Como `hora_fin_real` nunca se establece, permanecen en la columna "En Curso" indefinidamente hasta que el cleanup de 48h los recoge.
+---
 
-Los 93 servicios actuales tienen < 48 horas de antigüedad, por lo que el cleanup aún no los toca.
+## Hallazgos actuales
 
-## Solución propuesta: Reducir ventana activa + auto-cierre más agresivo
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-| Cambio | Detalle |
-|---|---|
-| **Reducir ventana activa de 7 días a 24 horas** | En `useBitacoraBoard.ts` Q2 (línea 94), cambiar el filtro de `7 * 24 * 3600_000` a `24 * 3600_000`. Servicios con > 24h sin cerrar desaparecen del tablero. |
-| **Reducir umbral del cleanup de 48h a 18h** | En la función SQL `cerrar_servicios_estancados`, cambiar `interval '48 hours'` a `interval '18 hours'`. Los servicios sin actividad en 18h se cierran automáticamente. |
-| **Agregar auto-cierre al cambio de turno** | Cuando el monitorista hace "Cambio de Turno", cerrar automáticamente todos los servicios activos sin eventos en las últimas 6 horas, asumiendo que ya terminaron. |
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
+
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+
+### Fase 2 — Migrar policies por módulo
+
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
 ### Archivos a modificar
 
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useBitacoraBoard.ts` | Línea 94: ventana de 7 días → 24 horas |
-| SQL Migration | Actualizar `cerrar_servicios_estancados` y `detectar_servicios_estancados` con umbral de 18h |
-
-Esto eliminaría inmediatamente ~85 de los 93 servicios del tablero (los que tienen > 24h) y el cleanup automático cerraría los que tienen > 18h de inactividad.
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

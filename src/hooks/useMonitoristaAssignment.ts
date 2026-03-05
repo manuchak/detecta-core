@@ -155,16 +155,58 @@ export function useMonitoristaAssignment() {
         .eq('activo', true);
       if (fetchErr) throw fetchErr;
 
-      // Close all old assignments
+      // Auto-close stale services (no events in 6h) before transferring
+      const sixHoursAgo = new Date(Date.now() - 6 * 3600_000).toISOString();
+      let closedCount = 0;
+      const assignmentsToTransfer: any[] = [];
+
       for (const a of (activeAssignments || [])) {
+        // Check if this service has any recent events
+        const { data: recentEvents } = await (supabase as any)
+          .from('servicio_eventos_ruta')
+          .select('id')
+          .eq('servicio_id', a.servicio_id)
+          .gte('hora_inicio', sixHoursAgo)
+          .limit(1);
+
+        if (!recentEvents || recentEvents.length === 0) {
+          // No recent activity — auto-close the service
+          await (supabase as any)
+            .from('servicios_planificados')
+            .update({ hora_fin_real: nowTs, estado_planeacion: 'completado' })
+            .eq('id_servicio', a.servicio_id)
+            .is('hora_fin_real', null);
+
+          await (supabase as any)
+            .from('servicio_eventos_ruta')
+            .insert({
+              servicio_id: a.servicio_id,
+              tipo_evento: 'fin_servicio',
+              descripcion: 'Cerrado automáticamente en cambio de turno (>6h sin actividad)',
+              registrado_por: user?.id || null,
+              hora_inicio: nowTs,
+              hora_fin: nowTs,
+            });
+
+          // Close the assignment, don't transfer
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
+            .eq('id', a.id);
+
+          closedCount++;
+        } else {
+          assignmentsToTransfer.push(a);
+        }
+      }
+
+      // Close remaining assignments and transfer to incoming monitorist
+      for (const a of assignmentsToTransfer) {
         await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
           .eq('id', a.id);
-      }
 
-      // Create new assignments for incoming monitorist
-      for (const a of (activeAssignments || [])) {
         const { error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .insert({
@@ -176,10 +218,16 @@ export function useMonitoristaAssignment() {
           });
         if (error) throw error;
       }
+
+      return { closedCount, transferredCount: assignmentsToTransfer.length };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey });
-      toast.success('Turno entregado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['bitacora-board-active'] });
+      const parts: string[] = ['Turno entregado'];
+      if (result.transferredCount > 0) parts.push(`${result.transferredCount} transferidos`);
+      if (result.closedCount > 0) parts.push(`${result.closedCount} cerrados por inactividad`);
+      toast.success(parts.join(' · '));
     },
     onError: () => toast.error('Error en cambio de turno'),
   });
