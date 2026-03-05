@@ -8,7 +8,7 @@ import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
+import { Link, useNavigate as useNavigateRRD } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout";
 
