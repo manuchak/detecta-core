@@ -210,6 +210,27 @@ export const useTicketsEnhanced = () => {
         }
       }
 
+      // Fallback: resolve creator names from profiles for tickets without custodio or customer_name
+      const creatorProfiles: Record<string, string> = {};
+      const ticketsNeedingCreatorName = (data || []).filter(t => 
+        !t.customer_name && !t.custodio_id && t.created_by
+      );
+      if (ticketsNeedingCreatorName.length > 0) {
+        const creatorIds = [...new Set(ticketsNeedingCreatorName.map(t => t.created_by).filter(Boolean))] as string[];
+        if (creatorIds.length > 0) {
+          const { data: creatorData } = await supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', creatorIds);
+          
+          creatorData?.forEach(p => {
+            if (p.display_name) {
+              creatorProfiles[p.id] = p.display_name;
+            }
+          });
+        }
+      }
+
       // Combine tickets with related data and calculate SLA
       const ticketsWithSLA: TicketEnhanced[] = (data || []).map(ticket => {
         const sla = calculateTicketSLA({
@@ -226,7 +247,7 @@ export const useTicketsEnhanced = () => {
           id: ticket.id,
           ticket_number: ticket.ticket_number || '',
           customer_phone: ticket.customer_phone,
-          customer_name: ticket.customer_name,
+          customer_name: ticket.customer_name || (ticket.created_by ? creatorProfiles[ticket.created_by] : null) || null,
           subject: ticket.subject || '',
           description: ticket.description,
           status: ticket.status as TicketEnhanced['status'],
