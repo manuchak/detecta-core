@@ -62,7 +62,7 @@ export function useBitacoraBoard() {
   const pendingQuery = useQuery({
     queryKey: ['bitacora-board-pending'],
     queryFn: async () => {
-      const windowHours = 6;
+      const windowHours = 1;
       const desde = new Date(Date.now() - windowHours * 3600_000);
       const hasta = new Date(Date.now() + windowHours * 3600_000);
 
@@ -213,7 +213,9 @@ export function useBitacoraBoard() {
   );
 
   const enCursoServices = useMemo(
-    () => activeServices.filter(s => s.phase === 'en_curso' || s.phase === 'en_destino'),
+    () => activeServices
+      .filter(s => s.phase === 'en_curso' || s.phase === 'en_destino')
+      .sort((a, b) => b.minutesSinceLastAction - a.minutesSinceLastAction),
     [activeServices]
   );
 

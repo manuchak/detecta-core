@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, MapPin, User, Clock } from 'lucide-react';
+import { Play, Clock } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
@@ -30,36 +30,26 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
 
   return (
     <>
-      <Card className="p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
+      <Card className="p-2 space-y-1">
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] text-muted-foreground font-mono">{service.id_servicio}</span>
           <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 font-mono', urgencyColor)}>
             <Clock className="h-2.5 w-2.5 mr-0.5" />
             {timeLabel}
           </Badge>
-          <span className="text-[10px] text-muted-foreground font-mono">{service.id_servicio}</span>
         </div>
-
-        <div className="text-sm font-medium truncate">{service.nombre_cliente}</div>
-
-        <div className="space-y-0.5 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1 truncate">
-            <User className="h-3 w-3 shrink-0" />
-            <span className="truncate">{service.custodio_asignado || 'Sin custodio'}</span>
-          </div>
-          <div className="flex items-center gap-1 truncate">
-            <MapPin className="h-3 w-3 shrink-0" />
-            <span className="truncate">{service.origen} → {service.destino}</span>
-          </div>
+        <div className="text-xs font-medium truncate">{service.nombre_cliente}</div>
+        <div className="text-[10px] text-muted-foreground truncate">
+          {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
         </div>
-
         <Button
           size="sm"
-          className="w-full h-8 gap-1.5 text-xs"
+          className="w-full h-7 gap-1 text-xs"
           onClick={() => setConfirmOpen(true)}
           disabled={isPending}
         >
-          <Play className="h-3.5 w-3.5" />
-          Iniciar Servicio
+          <Play className="h-3 w-3" />
+          Iniciar
         </Button>
       </Card>
 
