@@ -306,6 +306,10 @@ const MonitoringPage = () => {
           <BitacoraPanel />
         </TabsContent>
 
+        {/* Tab: Tiempos */}
+        <TabsContent value="tiempos" className="space-y-4 mt-0">
+          <ServiceTimesPanel />
+        </TabsContent>
         {/* Tab: Coordinación C4 */}
         {isCoordinator && (
           <TabsContent value="coordinacion" className="space-y-4 mt-0">
