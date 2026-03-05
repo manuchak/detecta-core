@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { normalizePhone } from '@/lib/phoneUtils';
+import { compressImage } from '@/lib/imageCompression';
 
 export interface CustodianTicket {
   id: string;
