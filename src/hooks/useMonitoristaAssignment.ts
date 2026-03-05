@@ -13,14 +13,20 @@ export interface MonitoristaAssignment {
   fin_turno: string | null;
   notas_handoff: string | null;
   created_at: string;
+  /** Whether this assignment was inferred from event activity (not formal) */
+  inferred?: boolean;
 }
 
 export interface MonitoristaProfile {
   id: string;
   display_name: string;
   role: string;
-  /** Derived: has active assignments with inicio_turno within last 8h */
+  /** Derived: has real activity in recent hours OR formal assignment */
   en_turno: boolean;
+  /** Timestamp of last registered event (ISO string) */
+  last_activity?: string;
+  /** Count of events registered today */
+  event_count?: number;
 }
 
 /** Derive current turno from hour of day */
@@ -38,6 +44,12 @@ export function getTurnoLabel(turno: string): string {
     nocturno: 'Nocturno',
   };
   return map[turno] || turno;
+}
+
+interface RecentActivity {
+  registrado_por: string;
+  servicio_id: string;
+  created_at: string;
 }
 
 export function useMonitoristaAssignment() {
@@ -62,7 +74,7 @@ export function useMonitoristaAssignment() {
     refetchInterval: 30_000,
   });
 
-  // All active assignments (coordinator view)
+  // All active formal assignments (coordinator view)
   const allAssignments = useQuery({
     queryKey: [...queryKey, 'all'],
     queryFn: async () => {
@@ -97,7 +109,6 @@ export function useMonitoristaAssignment() {
       if (pErr) throw pErr;
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p.display_name]));
-      // Deduplicate by user_id, prefer monitoring_supervisor role
       const byUser = new Map<string, MonitoristaProfile>();
       for (const r of data) {
         const existing = byUser.get(r.user_id);
@@ -106,7 +117,7 @@ export function useMonitoristaAssignment() {
             id: r.user_id,
             display_name: profileMap.get(r.user_id) || r.user_id.slice(0, 8),
             role: r.role,
-            en_turno: false, // Will be computed below
+            en_turno: false, // Will be computed from activity
           });
         }
       }
@@ -115,14 +126,114 @@ export function useMonitoristaAssignment() {
     refetchInterval: 60_000,
   });
 
-  // Compute en_turno status based on active assignments
+  // NEW: Fetch recent activity from servicio_eventos_ruta to determine who is actively working
+  const recentActivityQuery = useQuery({
+    queryKey: [...queryKey, 'recent-activity'],
+    queryFn: async () => {
+      // Get monitorista user IDs
+      const mIds = (monitoristasQuery.data || []).map(m => m.id);
+      if (mIds.length === 0) return [] as RecentActivity[];
+
+      const twoHoursAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
+      const { data, error } = await (supabase as any)
+        .from('servicio_eventos_ruta')
+        .select('registrado_por, servicio_id, created_at')
+        .in('registrado_por', mIds)
+        .gte('created_at', twoHoursAgo)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as RecentActivity[];
+    },
+    enabled: (monitoristasQuery.data || []).length > 0,
+    refetchInterval: 30_000,
+  });
+
+  // Compute en_turno + activity stats from real event data
+  const activityByMonitorista = new Map<string, { lastActivity: string; eventCount: number; serviceIds: Set<string> }>();
+  for (const evt of (recentActivityQuery.data || [])) {
+    const existing = activityByMonitorista.get(evt.registrado_por);
+    if (!existing) {
+      activityByMonitorista.set(evt.registrado_por, {
+        lastActivity: evt.created_at,
+        eventCount: 1,
+        serviceIds: new Set([evt.servicio_id]),
+      });
+    } else {
+      existing.eventCount++;
+      existing.serviceIds.add(evt.servicio_id);
+      if (evt.created_at > existing.lastActivity) {
+        existing.lastActivity = evt.created_at;
+      }
+    }
+  }
+
+  // Also consider formal assignments for en_turno
   const eightHoursAgo = new Date(Date.now() - 8 * 3600_000).toISOString();
-  const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => ({
-    ...m,
-    en_turno: (allAssignments.data || []).some(
+
+  const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
+    const activity = activityByMonitorista.get(m.id);
+    const hasFormalAssignment = (allAssignments.data || []).some(
       a => a.monitorista_id === m.id && a.activo && a.inicio_turno >= eightHoursAgo
-    ),
-  }));
+    );
+    return {
+      ...m,
+      en_turno: !!activity || hasFormalAssignment,
+      last_activity: activity?.lastActivity,
+      event_count: activity?.eventCount || 0,
+    };
+  });
+
+  // Build inferred assignments from activity (service -> monitorista who last registered event)
+  const inferredServiceMonitorista = new Map<string, string>();
+  for (const evt of (recentActivityQuery.data || [])) {
+    if (!inferredServiceMonitorista.has(evt.servicio_id)) {
+      inferredServiceMonitorista.set(evt.servicio_id, evt.registrado_por);
+    }
+  }
+
+  // Build combined assignments: formal + inferred
+  const formalAssignedServiceIds = new Set((allAssignments.data || []).map(a => a.servicio_id));
+
+  const inferredAssignments: MonitoristaAssignment[] = [];
+  for (const [servicioId, monitoristaId] of inferredServiceMonitorista.entries()) {
+    if (!formalAssignedServiceIds.has(servicioId)) {
+      inferredAssignments.push({
+        id: `inferred-${servicioId}`,
+        servicio_id: servicioId,
+        monitorista_id: monitoristaId,
+        asignado_por: null,
+        turno: getCurrentTurno(),
+        activo: true,
+        inicio_turno: new Date().toISOString(),
+        fin_turno: null,
+        notas_handoff: null,
+        created_at: new Date().toISOString(),
+        inferred: true,
+      });
+    }
+  }
+
+  const combinedAssignments = [...(allAssignments.data || []), ...inferredAssignments];
+
+  // Compute assigned service IDs (formal + inferred)
+  const assignedServiceIds = new Set(combinedAssignments.map(a => a.servicio_id));
+
+  // Group assignments by monitorista (formal + inferred)
+  const assignmentsByMonitorista = combinedAssignments.reduce<Record<string, MonitoristaAssignment[]>>(
+    (acc, a) => {
+      if (!acc[a.monitorista_id]) acc[a.monitorista_id] = [];
+      acc[a.monitorista_id].push(a);
+      return acc;
+    },
+    {}
+  );
+
+  // Map servicio_id -> monitorista for badge display
+  const monitoristaByService = new Map<string, MonitoristaProfile>();
+  for (const a of combinedAssignments) {
+    const m = monitoristas.find(m => m.id === a.monitorista_id);
+    if (m) monitoristaByService.set(a.servicio_id, m);
+  }
 
   const assignService = useMutation({
     mutationFn: async (params: { servicioId: string; monitoristaId: string; turno?: string }) => {
@@ -153,15 +264,14 @@ export function useMonitoristaAssignment() {
       const { data: { user } } = await supabase.auth.getUser();
       const turno = getCurrentTurno();
 
-      // Build load map
+      // Build load map from combined assignments
       const load: Record<string, number> = {};
       for (const mId of params.monitoristaIds) {
-        load[mId] = (allAssignments.data || []).filter(a => a.monitorista_id === mId).length;
+        load[mId] = (assignmentsByMonitorista[mId] || []).length;
       }
 
       const inserts: any[] = [];
       for (const sId of params.unassignedServiceIds) {
-        // Find monitorista with lowest load
         const target = params.monitoristaIds.reduce((a, b) => (load[a] <= load[b] ? a : b));
         inserts.push({
           servicio_id: sId,
@@ -308,31 +418,9 @@ export function useMonitoristaAssignment() {
     },
   });
 
-  // Compute assigned service IDs for quick lookup
-  const assignedServiceIds = new Set(
-    (allAssignments.data || []).map(a => a.servicio_id)
-  );
-
-  // Group assignments by monitorista
-  const assignmentsByMonitorista = (allAssignments.data || []).reduce<Record<string, MonitoristaAssignment[]>>(
-    (acc, a) => {
-      if (!acc[a.monitorista_id]) acc[a.monitorista_id] = [];
-      acc[a.monitorista_id].push(a);
-      return acc;
-    },
-    {}
-  );
-
-  // Map servicio_id -> monitorista for badge display
-  const monitoristaByService = new Map<string, MonitoristaProfile>();
-  for (const a of (allAssignments.data || [])) {
-    const m = monitoristas.find(m => m.id === a.monitorista_id);
-    if (m) monitoristaByService.set(a.servicio_id, m);
-  }
-
   return {
     myAssignments: myAssignments.data || [],
-    allAssignments: allAssignments.data || [],
+    allAssignments: combinedAssignments,
     monitoristas,
     assignedServiceIds,
     assignmentsByMonitorista,
