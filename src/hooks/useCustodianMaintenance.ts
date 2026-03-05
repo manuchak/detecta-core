@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { normalizePhone } from '@/lib/phoneUtils';
 
 export type MaintenanceType = 
   | 'aceite' 
@@ -82,7 +83,8 @@ interface BatchMaintenanceData {
   notas?: string;
 }
 
-export const useCustodianMaintenance = (custodianPhone?: string, currentKm?: number) => {
+export const useCustodianMaintenance = (rawPhone?: string, currentKm?: number) => {
+  const custodianPhone = rawPhone ? normalizePhone(rawPhone) : undefined;
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [customIntervals, setCustomIntervals] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
