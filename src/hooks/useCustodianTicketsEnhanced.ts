@@ -234,6 +234,22 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
         custodioId = custodioData?.id || null;
       }
 
+      // Resolve customer_name from authenticated user's profile
+      let customerName: string | null = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', user.id)
+            .maybeSingle();
+          customerName = profileData?.display_name || user.email?.split('@')[0] || null;
+        }
+      } catch (e) {
+        console.warn('Could not resolve customer name:', e);
+      }
+
       // Default assignee: Daniela Castañeda (coordinador_operaciones / planeación)
       const DEFAULT_TICKET_ASSIGNEE = 'df3b4dfc-c80c-45d0-8290-5d40341ab2ca';
 
@@ -248,6 +264,7 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
           tipo_ticket: 'custodio',
           custodio_telefono: custodianPhone,
           custodio_id: custodioId,
+          customer_name: customerName,
           assigned_to: DEFAULT_TICKET_ASSIGNEE,
           categoria_custodio_id: ticketData.categoria_custodio_id,
           subcategoria_custodio_id: ticketData.subcategoria_custodio_id,
