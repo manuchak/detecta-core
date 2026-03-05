@@ -1,97 +1,131 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Fishbone Analysis: Fallas en Guardado de Evaluaciones Psicométricas
 
-## Roles confirmados por módulo
+## Error Reportado
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
-
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
+insert or update on table "evaluaciones_psicometricas" violates foreign key constraint
+"evaluaciones_psicometricas_evaluador_id_fkey"
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+---
 
-### Fase 2 — Migrar policies por módulo
+## Diagrama Fishbone
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+```text
+                                    ┌─────────────────────────────────┐
+                                    │  FK VIOLATION al guardar eval   │
+                                    └────────────────┬────────────────┘
+                                                     │
+         ┌───────────────────┬───────────────────┬───┴───┬───────────────────┬──────────────────┐
+         │                   │                   │       │                   │                  │
+    ┌────┴────┐       ┌──────┴──────┐     ┌──────┴─────┐ │            ┌──────┴──────┐    ┌──────┴──────┐
+    │  RPC    │       │  Schema /   │     │  Datos     │ │            │  Frontend   │    │  RLS /      │
+    │  Logic  │       │  FK Design  │     │  Integridad│ │            │  Hook       │    │  Permisos   │
+    └────┬────┘       └──────┬──────┘     └──────┬─────┘ │            └──────┬──────┘    └──────┬──────┘
+         │                   │                   │       │                   │                  │
+    ▼ evaluador_id     ▼ evaluador_id      ▼ 13 invit.  │            ▼ user.id como   ▼ anon puede
+      se setea como      → profiles(id)     activas sin  │              evaluador_id     insertar pero
+      candidato_           FK rígido        profile       │              (correcto solo   no tiene profile
+      custodio_id                           asociado     │              para internos)
+                     ▼ candidato_id                      │
+                       → candidatos_                     │
+                       custodios(id)              ┌──────┴──────┐
+                       (OK)                       │  Trigger    │
+                                                  │  Semáforo   │
+                                                  └──────┬──────┘
+                                                         │
+                                                  ▼ Sin problemas
+                                                    (70/50 thresholds)
+```
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+---
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+## Rama 1: RPC `complete_siercp_assessment` — CAUSA RAÍZ PRINCIPAL
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+El RPC inserta:
+```sql
+evaluador_id = v_invitation.candidato_custodio_id
+```
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+El `candidato_custodio_id` es un UUID de la tabla `candidatos_custodios`, **NO** de `profiles`. Pero la FK exige:
+```sql
+FOREIGN KEY (evaluador_id) REFERENCES profiles(id)
+```
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+Los candidatos externos **no tienen registro en `profiles`** (solo los usuarios internos con cuenta auth lo tienen). De las 13 invitaciones activas, **ninguna tiene un profile asociado**.
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+Resultado: cada vez que un candidato externo completa la prueba SIERCP, el INSERT falla con el error de FK.
+
+## Rama 2: Schema / FK Design
+
+- `candidato_id → candidatos_custodios(id)` — correcto, los candidatos existen en esa tabla
+- `evaluador_id → profiles(id)` — incorrecto para el flujo externo. Un candidato externo no es un "evaluador" con perfil de usuario
+- `aval_coordinacion_id → profiles(id)` — correcto, siempre es un usuario interno
+
+## Rama 3: Datos / Integridad
+
+- 13 invitaciones activas (started/pending) donde `candidato_custodio_id` NO existe en `profiles`
+- Las evaluaciones que SÍ se guardaron exitosamente corresponden a candidatos que coincidentemente tenían un registro en profiles (ej: admins haciendo pruebas)
+
+## Rama 4: Frontend Hook (`useCreateEvaluacionPsicometrica`)
+
+- Usa `evaluador_id: user.id` — correcto para creación manual por usuario interno
+- No afecta el flujo externo (que usa el RPC)
+
+## Rama 5: RLS / Permisos
+
+- Política `anon_insert_siercp_evaluation` permite INSERT anónimo si hay invitación válida — correcto
+- El error NO es de RLS, es de FK constraint — la política pasa pero el constraint de la base falla
+
+## Rama 6: Trigger Semáforo
+
+- `calculate_semaforo_psicometrico` funciona correctamente con umbrales 70/50
+- No contribuye al error
+
+---
+
+## Solución
+
+### Cambio en DB: Hacer `evaluador_id` nullable y eliminar/relajar la FK
+
+`evaluador_id` debe ser **nullable** para evaluaciones auto-completadas por candidatos externos (donde no hay "evaluador" humano interno).
+
+**Migración SQL:**
+```sql
+-- Hacer evaluador_id nullable (ya lo es en el schema)
+-- Eliminar FK rígida a profiles
+ALTER TABLE evaluaciones_psicometricas 
+  DROP CONSTRAINT evaluaciones_psicometricas_evaluador_id_fkey;
+
+-- Re-crear con ON DELETE SET NULL para evaluadores internos
+ALTER TABLE evaluaciones_psicometricas 
+  ADD CONSTRAINT evaluaciones_psicometricas_evaluador_id_fkey 
+  FOREIGN KEY (evaluador_id) REFERENCES profiles(id) ON DELETE SET NULL;
+```
+
+### Cambio en RPC: Setear `evaluador_id` como NULL para externos
+
+```sql
+-- En complete_siercp_assessment, cambiar:
+evaluador_id = v_invitation.candidato_custodio_id
+-- Por:
+evaluador_id = NULL
+```
+
+Un candidato externo completando su propia prueba no es un "evaluador". El evaluador es NULL (auto-evaluación).
+
+### Cambio en Frontend: Manejo de evaluador NULL en UI
+
+En los componentes que muestran `evaluador.display_name`, agregar fallback para cuando `evaluador` es null:
+- Mostrar "Auto-evaluación" o el nombre del candidato en su lugar
 
 ### Archivos a modificar
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---|---|
+| DB Migration | Drop + recrear FK con ON DELETE SET NULL; actualizar RPC |
+| `src/hooks/useEvaluacionesPsicometricas.ts` | Sin cambios necesarios (ya maneja nullable) |
+| Componentes de visualización | Fallback para evaluador null |
 
