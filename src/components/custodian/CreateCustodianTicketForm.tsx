@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ import {
 import { useTicketCategories } from '@/hooks/useTicketCategories';
 import { useCustodianTicketsEnhanced, CreateTicketData } from '@/hooks/useCustodianTicketsEnhanced';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+
+const MAX_EVIDENCIAS = 15;
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   DollarSign,
@@ -40,7 +43,7 @@ interface CreateCustodianTicketFormProps {
 export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateCustodianTicketFormProps) => {
   const { categorias, subcategorias, getSubcategoriasByCategoria, getCategoriaById, loading: loadingCategories } = useTicketCategories();
   const { createTicket } = useCustodianTicketsEnhanced(custodianPhone);
-  
+  const { toast } = useToast();
   const [selectedCategoria, setSelectedCategoria] = useState<string>('');
   const [selectedSubcategoria, setSelectedSubcategoria] = useState<string>('');
   const [subject, setSubject] = useState('');
@@ -50,7 +53,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
   const [priority, setPriority] = useState<'baja' | 'media' | 'alta' | 'urgente'>('media');
   const [evidencias, setEvidencias] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCategoriaData = selectedCategoria ? getCategoriaById(selectedCategoria) : null;
@@ -58,10 +61,20 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + evidencias.length > 5) {
-      return; // Max 5 files
+    const remaining = MAX_EVIDENCIAS - evidencias.length;
+    if (files.length > remaining) {
+      toast({
+        title: 'Límite de archivos',
+        description: `Solo puedes agregar ${remaining} archivo(s) más (máximo ${MAX_EVIDENCIAS})`,
+        variant: 'destructive'
+      });
+      // Take only what fits
+      setEvidencias(prev => [...prev, ...files.slice(0, remaining)]);
+    } else {
+      setEvidencias(prev => [...prev, ...files]);
     }
-    setEvidencias(prev => [...prev, ...files]);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -84,8 +97,11 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
         monto_reclamado: monto ? parseFloat(monto) : undefined,
         priority
       };
+      const onProgress = (current: number, total: number) => {
+        setUploadProgress({ current, total });
+      };
 
-      const result = await createTicket(ticketData, evidencias);
+      const result = await createTicket(ticketData, evidencias, onProgress);
       
       if (result) {
         // Reset form
@@ -101,6 +117,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
       }
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -252,15 +269,28 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
 
           {/* Evidence Upload */}
           <div className="space-y-3">
-            <Label>Evidencias (opcional)</Label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex items-center justify-between">
+              <Label>Evidencias (opcional)</Label>
+              {evidencias.length > 0 && (
+                <span className="text-xs font-medium text-muted-foreground">
+                  {evidencias.length}/{MAX_EVIDENCIAS}
+                </span>
+              )}
+            </div>
+            <div className={cn(
+              "flex flex-wrap gap-2",
+              evidencias.length > 5 && "max-h-[200px] overflow-y-auto pr-1"
+            )}>
               {evidencias.map((file, index) => (
                 <div
                   key={index}
-                  className="relative group flex items-center gap-2 px-3 py-2 bg-muted rounded-md"
+                  className={cn(
+                    "relative group flex items-center gap-2 px-3 py-2 bg-muted rounded-md",
+                    evidencias.length > 8 ? "max-w-[100px]" : "max-w-[160px]"
+                  )}
                 >
-                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm truncate max-w-[120px]">{file.name}</span>
+                  <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm truncate">{file.name}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(index)}
@@ -271,7 +301,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
                 </div>
               ))}
               
-              {evidencias.length < 5 && (
+              {evidencias.length < MAX_EVIDENCIAS && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -292,7 +322,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Máximo 5 archivos. Formatos: JPG, PNG, PDF (5MB máx. por archivo)
+              Máximo {MAX_EVIDENCIAS} archivos. Formatos: JPG, PNG, PDF. Las imágenes se comprimen automáticamente.
             </p>
           </div>
 
@@ -317,7 +347,7 @@ export const CreateCustodianTicketForm = ({ custodianPhone, onSuccess }: CreateC
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Enviando...
+                {uploadProgress ? `Subiendo ${uploadProgress.current}/${uploadProgress.total}...` : 'Enviando...'}
               </>
             ) : (
               <>
