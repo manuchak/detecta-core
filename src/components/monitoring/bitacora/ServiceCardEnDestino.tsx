@@ -10,15 +10,16 @@ import { cn } from '@/lib/utils';
 interface ServiceCardEnDestinoProps {
   service: BoardService;
   onLiberar: (serviceUUID: string, servicioIdServicio: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
 }
 
-export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ service, onLiberar, isPending }) => {
+export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ service, onLiberar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <>
-      <Card className="p-3 py-4 space-y-2.5 border-chart-2/30 bg-chart-2/5">
+      <Card className="p-3 py-4 space-y-2.5 border-chart-2/30 bg-chart-2/5 cursor-pointer select-none" onDoubleClick={() => onDoubleClick?.(service)}>
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
           <Badge className="text-[10px] px-2 py-0 bg-chart-2/20 text-chart-2 border-chart-2/30 gap-1">
