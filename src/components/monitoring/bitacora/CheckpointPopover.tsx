@@ -100,8 +100,14 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     );
   };
 
+  const busy = uploading || isPending;
+  const coordsValid = parseCoords(coords) !== null;
+  const hasPhotos = photos.length > 0;
+  const canSubmit = coordsValid && hasPhotos && !busy;
+
   const handleSubmit = async () => {
-    if (!descripcion.trim() && photos.length === 0) { toast.error('Agrega descripción o foto'); return; }
+    if (!coordsValid) { toast.error('Coordenadas obligatorias'); return; }
+    if (!hasPhotos) { toast.error('Al menos 1 foto obligatoria'); return; }
     setUploading(true);
     try {
       const parsed = parseCoords(coords);
@@ -125,8 +131,6 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
     } catch { toast.error('Error al subir evidencia'); }
     finally { setUploading(false); }
   };
-
-  const busy = uploading || isPending;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -162,10 +166,10 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
 
         <div className="flex gap-1.5">
           <Input
-            placeholder="Coords / Google Maps link"
+            placeholder="Coords / Google Maps link *"
             value={coords}
             onChange={e => setCoords(e.target.value)}
-            className="h-7 text-xs"
+            className={cn("h-7 text-xs", !coordsValid && coords.length > 0 && "border-destructive")}
             disabled={busy}
           />
           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={requestGeo} disabled={busy || geoLoading}>
@@ -173,8 +177,8 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
           </Button>
         </div>
 
-        {/* Photo strip */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Photo strip — required */}
+        <div className={cn("flex items-center gap-1.5 flex-wrap rounded p-1 -m-1", !hasPhotos && "ring-1 ring-destructive/40")}>
           {photos.map((p, i) => (
             <div key={i} className="relative h-9 w-9 rounded border overflow-hidden group">
               <img src={URL.createObjectURL(p)} className="h-full w-full object-cover" alt="" />
@@ -200,7 +204,7 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
           <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && addFiles(e.target.files)} />
         </div>
 
-        <Button size="sm" className="w-full h-7 text-xs gap-1" onClick={handleSubmit} disabled={busy || (!descripcion.trim() && photos.length === 0)}>
+        <Button size="sm" className="w-full h-7 text-xs gap-1" onClick={handleSubmit} disabled={!canSubmit}>
           {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
           Enviar Checkpoint
         </Button>
