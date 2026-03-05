@@ -20558,10 +20558,10 @@ export type Database = {
           }
       move_lead_to_pool_v2: {
         Args: {
+          p_estado_id: string
           p_is_test?: boolean
           p_lead_id: string
-          p_motivo: string
-          p_zona_id: string
+          p_motivo?: string
         }
         Returns: boolean
       }
