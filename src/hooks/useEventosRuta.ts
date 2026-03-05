@@ -86,6 +86,20 @@ export function useEventosRuta(servicioId: string | null) {
       foto_urls?: string[];
     }) => {
       if (!servicioId) throw new Error('No servicio selected');
+
+      // Guard: unique events can only exist once per servicio
+      const UNIQUE_EVENTS: TipoEventoRuta[] = ['inicio_servicio', 'llegada_destino', 'liberacion_custodio'];
+      if (UNIQUE_EVENTS.includes(params.tipo)) {
+        const { data: existing } = await (supabase as any)
+          .from('servicio_eventos_ruta')
+          .select('id')
+          .eq('servicio_id', servicioId)
+          .eq('tipo_evento', params.tipo)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          throw new Error(`Ya existe un evento "${EVENTO_ICONS[params.tipo].label}" para este servicio`);
+        }
+      }
       const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await (supabase as any)
         .from('servicio_eventos_ruta')

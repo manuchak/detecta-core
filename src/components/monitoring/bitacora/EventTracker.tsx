@@ -11,9 +11,12 @@ import {
 } from '@/hooks/useEventosRuta';
 import { toast } from 'sonner';
 
+// Transition events are triggered by Board state changes, not manually
+const TRANSITION_TYPES: TipoEventoRuta[] = ['inicio_servicio', 'fin_servicio', 'llegada_destino', 'liberacion_custodio'];
+
 const EVENT_TYPES: TipoEventoRuta[] = [
-  'inicio_servicio', 'combustible', 'baño', 'descanso',
-  'pernocta', 'checkpoint', 'incidencia', 'foto_evidencia', 'otro', 'fin_servicio',
+  'combustible', 'baño', 'descanso',
+  'pernocta', 'checkpoint', 'incidencia', 'foto_evidencia', 'otro',
 ];
 
 const DRAFT_KEY = 'bitacora-draft';
