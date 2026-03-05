@@ -151,56 +151,55 @@ export function CxPOperativoTab() {
                   const badge = ESTADO_CORTE_LABELS[c.estado] || ESTADO_CORTE_LABELS.borrador;
                   const isExpanded = expandedId === c.id;
                   return (
-                    <Collapsible key={c.id} open={isExpanded} onOpenChange={() => setExpandedId(isExpanded ? null : c.id)} asChild>
-                      <>
-                        <CollapsibleTrigger asChild>
-                          <TableRow className="cursor-pointer hover:bg-muted/50">
-                            <TableCell className="w-8 px-2">
-                              <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
-                            </TableCell>
-                            <TableCell className="font-medium text-sm">{c.operativo_nombre}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
-                                {c.tipo_operativo === 'custodio' ? 'Custodio' : 'Armado Int.'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {format(new Date(c.semana_inicio), 'dd/MM')} – {format(new Date(c.semana_fin), 'dd/MM/yy')}
-                            </TableCell>
-                            <TableCell className="text-center">{c.total_servicios}</TableCell>
-                            <TableCell className="text-right font-bold text-sm">{formatCurrency(c.monto_total)}</TableCell>
-                            <TableCell><Badge variant={badge.color as any}>{badge.label}</Badge></TableCell>
-                            <TableCell>
-                              <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                                {c.estado === 'borrador' && (
-                                  <Button size="sm" variant="outline" className="h-7 text-xs"
-                                    onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
-                                )}
-                                {c.estado === 'revision_ops' && (
-                                  <Button size="sm" variant="outline" className="h-7 text-xs"
-                                    onClick={() => handleTransition(c.id, 'aprobado_finanzas')}>Aprobar</Button>
-                                )}
-                                {c.estado === 'aprobado_finanzas' && (
-                                  <Button size="sm" variant="outline" className="h-7 text-xs"
-                                    onClick={() => handleTransition(c.id, 'dispersado')}>Dispersar</Button>
-                                )}
-                                {c.estado === 'dispersado' && (
-                                  <Button size="sm" variant="default" className="h-7 text-xs"
-                                    onClick={() => handleTransition(c.id, 'pagado')}>Pagar</Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent asChild>
-                          <tr>
-                            <td colSpan={8} className="p-0">
-                              <CorteDetalleInline corteId={c.id} corte={c} />
-                            </td>
-                          </tr>
-                        </CollapsibleContent>
-                      </>
-                    </Collapsible>
+                    <React.Fragment key={c.id}>
+                      <TableRow 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                      >
+                        <TableCell className="w-8 px-2">
+                          <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{c.operativo_nombre}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {c.tipo_operativo === 'custodio' ? 'Custodio' : 'Armado Int.'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {format(new Date(c.semana_inicio), 'dd/MM')} – {format(new Date(c.semana_fin), 'dd/MM/yy')}
+                        </TableCell>
+                        <TableCell className="text-center">{c.total_servicios}</TableCell>
+                        <TableCell className="text-right font-bold text-sm">{formatCurrency(c.monto_total)}</TableCell>
+                        <TableCell><Badge variant={badge.color as any}>{badge.label}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                            {c.estado === 'borrador' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs"
+                                onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
+                            )}
+                            {c.estado === 'revision_ops' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs"
+                                onClick={() => handleTransition(c.id, 'aprobado_finanzas')}>Aprobar</Button>
+                            )}
+                            {c.estado === 'aprobado_finanzas' && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs"
+                                onClick={() => handleTransition(c.id, 'dispersado')}>Dispersar</Button>
+                            )}
+                            {c.estado === 'dispersado' && (
+                              <Button size="sm" variant="default" className="h-7 text-xs"
+                                onClick={() => handleTransition(c.id, 'pagado')}>Pagar</Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={8} className="p-0">
+                            <CorteDetalleInline corteId={c.id} corte={c} />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })
               )}
