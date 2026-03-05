@@ -5,10 +5,11 @@ import type { BoardService } from '@/hooks/useBitacoraBoard';
 interface BoardColumnEventoEspecialProps {
   services: BoardService[];
   onCerrar: (eventoId: string) => void;
+  onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
 }
 
-export const BoardColumnEventoEspecial: React.FC<BoardColumnEventoEspecialProps> = ({ services, onCerrar, isPending }) => {
+export const BoardColumnEventoEspecial: React.FC<BoardColumnEventoEspecialProps> = ({ services, onCerrar, onDoubleClick, isPending }) => {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 mb-2 px-1">
@@ -22,7 +23,7 @@ export const BoardColumnEventoEspecial: React.FC<BoardColumnEventoEspecialProps>
           </div>
         ) : (
           services.map(s => (
-            <ServiceCardSpecialEvent key={s.id} service={s} onCerrar={onCerrar} isPending={isPending} />
+            <ServiceCardSpecialEvent key={s.id} service={s} onCerrar={onCerrar} onDoubleClick={onDoubleClick} isPending={isPending} />
           ))
         )}
       </div>
