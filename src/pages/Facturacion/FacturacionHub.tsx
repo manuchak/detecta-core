@@ -191,9 +191,13 @@ export default function FacturacionHub() {
               <DollarSign className="h-3.5 w-3.5" />
               Gastos Extra
             </TabsTrigger>
-            <TabsTrigger value="cxp" className="text-xs h-7 px-3 gap-1.5">
+            <TabsTrigger value="cxp-oca" className="text-xs h-7 px-3 gap-1.5">
+              <UserCheck className="h-3.5 w-3.5" />
+              CxP OCA
+            </TabsTrigger>
+            <TabsTrigger value="cxp-pe" className="text-xs h-7 px-3 gap-1.5">
               <Building2 className="h-3.5 w-3.5" />
-              CxP Proveedores
+              CxP PE
             </TabsTrigger>
             <TabsTrigger value="ayuda" className="text-xs h-7 px-3 gap-1.5">
               <HelpCircle className="h-3.5 w-3.5" />
