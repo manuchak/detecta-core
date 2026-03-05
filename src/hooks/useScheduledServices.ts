@@ -33,6 +33,7 @@ export interface ScheduledService {
   observaciones?: string;
   created_at?: string;
   // Campos para estado operativo
+  hora_llegada_custodio?: string;
   hora_inicio_real?: string;
   hora_fin_real?: string;
   // Campo para comentarios internos de planeación
