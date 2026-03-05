@@ -2,7 +2,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Radio, ArrowRightLeft, X } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Activity } from 'lucide-react';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import { MonitoristaCard } from './MonitoristaCard';
@@ -12,7 +12,6 @@ import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandof
 import { cn } from '@/lib/utils';
 
 interface Props {
-  /** If provided, renders as overlay panel. If omitted, renders inline. */
   onClose?: () => void;
 }
 
@@ -40,6 +39,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
+  // Only truly unassigned = no formal assignment AND no inferred activity
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
@@ -47,12 +47,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const sinTurno = monitoristas.filter(m => !m.en_turno);
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
 
-  // Distribution bar data
-  const distData = monitoristas.map(m => ({
-    name: m.display_name.split(' ')[0],
-    count: (assignmentsByMonitorista[m.id] || []).length,
-    enTurno: m.en_turno,
-  }));
+  // Count inferred vs formal
+  const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
+  const totalFormal = Object.values(assignmentsByMonitorista).flat().filter(a => !a.inferred).length;
 
   const isOverlay = !!onClose;
 
@@ -72,8 +69,14 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             Turno: {getTurnoLabel(turno)}
           </Badge>
           <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-            {allActive.length} activos · {unassigned.length} sin asignar
+            {allActive.length} activos · {unassigned.length} sin cobertura
           </Badge>
+          {totalInferred > 0 && (
+            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-dashed text-chart-2">
+              <Activity className="h-2.5 w-2.5 mr-1" />
+              {totalInferred} auto-detectados
+            </Badge>
+          )}
           {isOverlay && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -88,7 +91,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         <div className="border-r flex flex-col">
           <div className="px-4 py-2.5 border-b">
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Monitoristas ({enTurno.length} en turno)
+              Monitoristas ({enTurno.length} activos)
             </h3>
           </div>
           <ScrollArea className="flex-1 px-3 py-2">
@@ -105,7 +108,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               {sinTurno.length > 0 && (
                 <>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-widest pt-2 px-1">
-                    Sin turno activo
+                    Sin actividad reciente
                   </p>
                   {sinTurno.map(m => (
                     <MonitoristaCard
@@ -127,18 +130,22 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           </ScrollArea>
         </div>
 
-        {/* Right: Unassigned services */}
+        {/* Right: Unassigned services (truly without coverage) */}
         <div className="flex flex-col">
           <div className="px-4 py-2.5 border-b flex items-center justify-between">
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Sin asignar ({unassigned.length})
+              Sin cobertura ({unassigned.length})
             </h3>
           </div>
           <ScrollArea className="flex-1 px-3 py-2">
             <div className="space-y-1.5">
               {unassigned.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-xs text-muted-foreground">Todos los servicios están asignados</p>
+                  <Activity className="h-8 w-8 mx-auto text-chart-2/40 mb-2" />
+                  <p className="text-xs text-muted-foreground">Todos los servicios tienen cobertura</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {totalFormal} asignados · {totalInferred} detectados por actividad
+                  </p>
                 </div>
               ) : (
                 unassigned.map(sId => (
@@ -186,20 +193,28 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
             Distribución
           </span>
-          {distData.map(d => (
-            <div key={d.name} className="flex items-center gap-1.5">
-              <span className={cn('text-[10px] font-medium', d.enTurno ? 'text-foreground' : 'text-muted-foreground')}>
-                {d.name}
-              </span>
-              <div className="flex gap-px">
-                {Array.from({ length: Math.max(d.count, 0) }).map((_, i) => (
-                  <div key={i} className="h-2.5 w-1.5 rounded-sm bg-primary" />
-                ))}
-                {d.count === 0 && <div className="h-2.5 w-1.5 rounded-sm bg-muted" />}
+          {monitoristas.filter(m => m.en_turno).map(m => {
+            const assignments = assignmentsByMonitorista[m.id] || [];
+            const inferredCount = assignments.filter(a => a.inferred).length;
+            const formalCount = assignments.length - inferredCount;
+            return (
+              <div key={m.id} className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium text-foreground">
+                  {m.display_name.split(' ')[0]}
+                </span>
+                <div className="flex gap-px">
+                  {Array.from({ length: formalCount }).map((_, i) => (
+                    <div key={`f-${i}`} className="h-2.5 w-1.5 rounded-sm bg-primary" />
+                  ))}
+                  {Array.from({ length: inferredCount }).map((_, i) => (
+                    <div key={`i-${i}`} className="h-2.5 w-1.5 rounded-sm bg-chart-2/60 border border-chart-2/30" />
+                  ))}
+                  {assignments.length === 0 && <div className="h-2.5 w-1.5 rounded-sm bg-muted" />}
+                </div>
+                <span className="text-[10px] tabular-nums text-muted-foreground">{assignments.length}</span>
               </div>
-              <span className="text-[10px] tabular-nums text-muted-foreground">{d.count}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
