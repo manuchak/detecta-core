@@ -18578,7 +18578,9 @@ export type Database = {
       can_view_financial_data: { Args: never; Returns: boolean }
       can_view_sensitive_kpis: { Args: never; Returns: boolean }
       can_view_sensitive_pricing: { Args: never; Returns: boolean }
-      cerrar_servicios_estancados: { Args: never; Returns: Json }
+      cerrar_servicios_estancados:
+        | { Args: never; Returns: Json }
+        | { Args: { p_limit?: number }; Returns: Json }
       check_admin_for_rewards: { Args: never; Returns: boolean }
       check_admin_secure: { Args: never; Returns: boolean }
       check_custodian_availability: {

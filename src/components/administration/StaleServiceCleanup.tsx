@@ -6,6 +6,7 @@ import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const StaleServiceCleanup = () => {
-  const { staleServices, isLoading, refetch, closeAll, isClosing } = useStaleServiceCleanup();
+  const { staleServices, isLoading, refetch, closeAll, isClosing, progress } = useStaleServiceCleanup();
 
   if (isLoading) {
     return (
@@ -52,9 +53,9 @@ const StaleServiceCleanup = () => {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" disabled={isClosing}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Cerrar todos ({staleServices.length})
-                </Button>
+                   <Trash2 className="h-4 w-4 mr-1" />
+                   {isClosing ? `Cerrando... (${progress.closed}/${progress.total})` : `Cerrar todos (${staleServices.length})`}
+                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -78,6 +79,15 @@ const StaleServiceCleanup = () => {
           )}
         </div>
       </div>
+
+      {isClosing && progress.total > 0 && (
+        <div className="space-y-1">
+          <Progress value={(progress.closed / progress.total) * 100} className="h-2" />
+          <p className="text-xs text-muted-foreground text-center">
+            {progress.closed} de {progress.total} servicios cerrados
+          </p>
+        </div>
+      )}
 
       {staleServices.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
