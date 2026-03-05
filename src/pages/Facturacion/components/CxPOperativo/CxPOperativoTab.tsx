@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, HandCoins } from 'lucide-react';
 import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, HandCoins } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
