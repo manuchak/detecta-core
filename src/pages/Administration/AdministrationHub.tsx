@@ -1,12 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Database, GitBranch, Target, UserX, FileSearch } from "lucide-react";
+import { Shield, Database, GitBranch, Target, UserX, FileSearch, Ghost } from "lucide-react";
 import DuplicateCleanupManager from "@/components/maintenance/DuplicateCleanupManager";
 import { VersionControlManager } from "@/components/version-control/VersionControlManager";
 import BusinessTargetsManager from "@/components/administration/BusinessTargetsManager";
 import InactivityCleanupManager from "@/components/administration/InactivityCleanupManager";
 import DataAuditManager from "@/components/administration/DataAuditManager";
-
+import StaleServiceCleanup from "@/components/administration/StaleServiceCleanup";
 const AdministrationHub = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
