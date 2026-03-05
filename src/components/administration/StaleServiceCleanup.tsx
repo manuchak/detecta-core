@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const StaleServiceCleanup = () => {
-  const { staleServices, isLoading, refetch, closeAll, isClosing } = useStaleServiceCleanup();
+  const { staleServices, isLoading, refetch, closeAll, isClosing, progress } = useStaleServiceCleanup();
 
   if (isLoading) {
     return (
@@ -53,9 +53,9 @@ const StaleServiceCleanup = () => {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" disabled={isClosing}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Cerrar todos ({staleServices.length})
-                </Button>
+                   <Trash2 className="h-4 w-4 mr-1" />
+                   {isClosing ? `Cerrando... (${progress.closed}/${progress.total})` : `Cerrar todos (${staleServices.length})`}
+                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
