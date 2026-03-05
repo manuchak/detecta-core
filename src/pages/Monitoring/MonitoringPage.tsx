@@ -28,6 +28,8 @@ import { IncidentListPanel } from "@/components/monitoring/incidents";
 import { useIncidenteResumen } from "@/hooks/useIncidentesOperativos";
 import PerformanceDashboard from "@/components/monitoring/performance/PerformanceDashboard";
 import { BitacoraPanel } from "@/components/monitoring/bitacora";
+import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
