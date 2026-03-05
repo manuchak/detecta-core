@@ -207,18 +207,12 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
             continue;
           }
           
-          // Verificar que el archivo existe antes de generar URL
-          const { data: fileCheck } = await supabase.storage
+          // Upload succeeded — generate public URL directly
+          const { data: urlData } = supabase.storage
             .from('ticket-evidencias')
-            .list(ticketNumber, { search: sanitizedName });
+            .getPublicUrl(uploadData.path);
           
-          if (fileCheck && fileCheck.length > 0) {
-            const { data: urlData } = supabase.storage
-              .from('ticket-evidencias')
-              .getPublicUrl(uploadData.path);
-            
-            evidenciaUrls.push(urlData.publicUrl);
-          }
+          evidenciaUrls.push(urlData.publicUrl);
         }
       }
 
@@ -343,18 +337,12 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
             continue;
           }
           
-          // Verificar que el archivo existe
-          const { data: fileCheck } = await supabase.storage
+          // Upload succeeded — generate public URL directly
+          const { data: urlData } = supabase.storage
             .from('ticket-evidencias')
-            .list(ticketId, { search: sanitizedName });
+            .getPublicUrl(uploadData.path);
           
-          if (fileCheck && fileCheck.length > 0) {
-            const { data: urlData } = supabase.storage
-              .from('ticket-evidencias')
-              .getPublicUrl(uploadData.path);
-            
-            adjuntosUrls.push(urlData.publicUrl);
-          }
+          adjuntosUrls.push(urlData.publicUrl);
         }
       }
 
