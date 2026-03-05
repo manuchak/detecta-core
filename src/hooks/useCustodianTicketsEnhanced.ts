@@ -197,7 +197,8 @@ export const useCustodianTicketsEnhanced = (custodianPhone?: string) => {
           let fileToUpload: File | Blob = file;
           if (file.type.startsWith('image/') && file.type !== 'image/gif') {
             try {
-              fileToUpload = await compressImage(file);
+              const result = await compressImage(file);
+              fileToUpload = result.blob;
             } catch (compressErr) {
               console.warn('Compression failed, using original:', compressErr);
             }
