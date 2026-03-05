@@ -126,7 +126,7 @@ const KanbanColumn = ({
       </div>
 
       {/* Cards */}
-      <ScrollArea className="flex-1 max-h-[calc(100vh-420px)]">
+      <ScrollArea className="flex-1 max-h-[calc(100vh-280px)]">
         <SortableContext
           items={tickets.map((t) => t.id)}
           strategy={verticalListSortingStrategy}

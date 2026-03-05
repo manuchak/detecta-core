@@ -178,12 +178,12 @@ export const TicketsList = () => {
 
   return (
     <div className="min-h-screen bg-muted/30 dark:bg-background">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-fade-in">
+       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5 space-y-3 animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Centro de Tickets</h1>
-            <p className="text-muted-foreground mt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">Centro de Tickets</h1>
+            <p className="text-muted-foreground text-sm hidden sm:block">
               Gestiona solicitudes de soporte de custodios y clientes
             </p>
           </div>
