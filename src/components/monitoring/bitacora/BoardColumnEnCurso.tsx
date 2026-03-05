@@ -35,7 +35,7 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
         )}
       </div>
       <div className="flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {services.length === 0 ? (
             <div className="text-xs text-muted-foreground text-center py-8 col-span-full">
               Sin servicios en curso
