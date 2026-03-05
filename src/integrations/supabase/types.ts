@@ -18669,7 +18669,7 @@ export type Database = {
       }
       complete_siercp_assessment: {
         Args: {
-          p_interpretacion: string
+          p_interpretacion?: string
           p_score_afrontamiento: number
           p_score_agresividad: number
           p_score_entrevista: number

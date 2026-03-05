@@ -139,7 +139,7 @@ export function PsychometricResultCard({ evaluation, isLatest, candidateName }: 
         {/* Evaluador */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
           <User className="h-3 w-3" />
-          Evaluado por: {evaluation.evaluador?.display_name || 'Usuario'}
+          Evaluado por: {evaluation.evaluador?.display_name || 'Auto-evaluación (externo)'}
         </div>
       </CardContent>
 
