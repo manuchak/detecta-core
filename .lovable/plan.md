@@ -1,97 +1,93 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Prevención de Desincronización de Teléfonos entre Subsistemas
 
-## Roles confirmados por módulo
+## Diagnóstico Actual
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+**Estado de la base de datos (152 custodios activos):**
+- 53 con profile y teléfono sincronizado
+- 3 con profile y teléfono desincronizado (JUAN PABLO RIVERA, MARCO ANTONIO CARDENAS, JAVIER ROMERO)
+- 96 sin profile (aún no se registran en la app)
 
----
+**Triggers existentes (bidireccionales):**
+1. `trg_sync_profile_phone` — profiles → custodios_operativos (por email match)
+2. `trg_sync_operativo_phone_to_profile` — custodios_operativos → profiles (por email match)
 
-## Hallazgos actuales
+**Por qué siguen ocurriendo desincs a pesar de los triggers:**
+- Los triggers dependen de que el **email coincida** entre ambas tablas. Si un custodio se registra con un email diferente al que tiene en `custodios_operativos`, el trigger no encuentra match y la sincronización falla silenciosamente.
+- Cuando un custodio actualiza su teléfono desde el PhoneUpdatePrompt, se actualiza `profiles.phone` pero el trigger busca en `custodios_operativos` por el **teléfono anterior**. Si el teléfono anterior tampoco coincidía, no hay match.
+- No hay validación que impida registrar un teléfono que no existe en `custodios_operativos`.
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+## Solución: Validación + Sincronización por ID directo
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+### 1. Agregar columna `profile_id` a `custodios_operativos`
+Un FK directo que vincule de forma inmutable el custodio operativo con su profile, eliminando la dependencia frágil de email/teléfono para sincronización.
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+```sql
+ALTER TABLE custodios_operativos 
+ADD COLUMN IF NOT EXISTS profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL;
 
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
-
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+-- Backfill: vincular los 53+ que ya tienen email match
+UPDATE custodios_operativos co
+SET profile_id = p.id
+FROM profiles p
+WHERE LOWER(co.email) = LOWER(p.email)
+AND co.profile_id IS NULL;
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+### 2. Trigger mejorado: sincronizar por `profile_id` (no email)
+Reemplazar el trigger actual `trg_sync_profile_phone` para que use `profile_id` como vínculo primario, con fallback a email.
 
-### Fase 2 — Migrar policies por módulo
+```sql
+CREATE OR REPLACE FUNCTION sync_profile_phone_to_operatives()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.phone IS NOT DISTINCT FROM OLD.phone THEN RETURN NEW; END IF;
+  
+  -- Normalizar
+  normalized_new := RIGHT(regexp_replace(NEW.phone,'[^0-9]','','g'),10);
+  
+  -- Actualizar por profile_id (vínculo directo, siempre funciona)
+  UPDATE custodios_operativos
+  SET telefono = normalized_new, updated_at = now()
+  WHERE profile_id = NEW.id AND estado = 'activo';
+  
+  -- También actualizar servicios planificados futuros
+  UPDATE servicios_planificados
+  SET custodio_telefono = normalized_new
+  WHERE custodio_id IN (SELECT id FROM custodios_operativos WHERE profile_id = NEW.id)
+    AND fecha_hora_cita >= now()
+    AND estado_planeacion NOT IN ('cancelado','completado','finalizado');
+  
+  RETURN NEW;
+END;
+```
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+### 3. Validación en frontend: PhoneUpdatePrompt verifica contra `custodios_operativos`
+Antes de guardar un teléfono nuevo, verificar que el número existe en `custodios_operativos`. Si no existe, mostrar error y no permitir el cambio. Esto ya se hace parcialmente en `MobileDashboardLayout.handlePhoneUpdate` (llama `findCustodioByPhone`), pero falta en `CustodianOnboarding.handlePhoneUpdate` donde se actualiza sin validar.
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+**Cambios en `CustodianOnboarding.tsx`:**
+- Después de actualizar `profiles.phone`, verificar que el nuevo teléfono tiene match en `custodios_operativos`
+- Si hay match, vincular `profile_id` automáticamente
+- Si no hay match, advertir al usuario
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### 4. Auto-vincular `profile_id` en login/onboarding
+Cuando un custodio hace login o completa onboarding, buscar automáticamente su registro en `custodios_operativos` por teléfono normalizado y setear `profile_id`.
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+### 5. Fix inmediato: corregir los 3 casos desincronizados actuales
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+| Custodio | co_phone | profile_phone | Acción |
+|---|---|---|---|
+| JAVIER ROMERO | 5530201454 | (vacío) | Setear profile.phone = co.telefono |
+| JUAN PABLO RIVERA | 5537045855 | 5545453426 | Confirmar cuál es correcto con Planning |
+| MARCO ANTONIO CARDENAS | 7774988416 | 5640016408 | Confirmar cuál es correcto con Planning |
 
 ### Archivos a modificar
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo/Target | Cambio |
+|---|---|
+| DB Migration | Agregar `profile_id` a `custodios_operativos`, backfill, trigger mejorado |
+| `src/pages/custodian/CustodianOnboarding.tsx` | Validar teléfono contra `custodios_operativos` antes de guardar |
+| `src/components/custodian/MobileDashboardLayout.tsx` | Auto-vincular `profile_id` cuando se encuentra match |
+| DB Data fix | Corregir los 3 desincs actuales |
 
