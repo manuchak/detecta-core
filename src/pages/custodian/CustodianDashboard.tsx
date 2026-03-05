@@ -1,17 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Phone, Mail, AlertCircle, CheckCircle, TrendingUp, DollarSign, Route, Activity, Ticket, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useCustodianProfile } from "@/hooks/useCustodianProfile";
 import { useCustodianServices } from "@/hooks/useCustodianServices";
 import { useCustodianTickets } from "@/hooks/useCustodianTickets";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileDashboardLayout from "@/components/custodian/MobileDashboardLayout";
 
 const DesktopCustodianDashboard = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { profile, loading: profileLoading, updateAvailability } = useCustodianProfile();
   const { services, stats, loading: servicesLoading, getRecentServices, getUpcomingServices } = useCustodianServices(profile?.phone);
   const { stats: ticketStats, loading: ticketsLoading } = useCustodianTickets(profile?.phone);
@@ -34,6 +36,11 @@ const DesktopCustodianDashboard = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
   };
 
   if (loading) {
@@ -70,6 +77,9 @@ const DesktopCustodianDashboard = () => {
                 No verificado
               </Badge>
             )}
+            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión">
+              <LogOut className="h-5 w-5 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
