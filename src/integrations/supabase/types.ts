@@ -1586,6 +1586,45 @@ export type Database = {
         }
         Relationships: []
       }
+      bitacora_asignaciones_monitorista: {
+        Row: {
+          activo: boolean
+          asignado_por: string | null
+          created_at: string
+          fin_turno: string | null
+          id: string
+          inicio_turno: string
+          monitorista_id: string
+          notas_handoff: string | null
+          servicio_id: string
+          turno: string
+        }
+        Insert: {
+          activo?: boolean
+          asignado_por?: string | null
+          created_at?: string
+          fin_turno?: string | null
+          id?: string
+          inicio_turno?: string
+          monitorista_id: string
+          notas_handoff?: string | null
+          servicio_id: string
+          turno?: string
+        }
+        Update: {
+          activo?: boolean
+          asignado_por?: string | null
+          created_at?: string
+          fin_turno?: string | null
+          id?: string
+          inicio_turno?: string
+          monitorista_id?: string
+          notas_handoff?: string | null
+          servicio_id?: string
+          turno?: string
+        }
+        Relationships: []
+      }
       business_targets: {
         Row: {
           created_at: string | null
@@ -7345,6 +7384,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      geofence_zones: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          id: string
+          lat: number
+          lng: number
+          nombre: string
+          radio_metros: number
+          tipo: string
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          lat: number
+          lng: number
+          nombre: string
+          radio_metros?: number
+          tipo?: string
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          lat?: number
+          lng?: number
+          nombre?: string
+          radio_metros?: number
+          tipo?: string
+        }
+        Relationships: []
       }
       incidencias_facturacion: {
         Row: {
@@ -15812,6 +15884,7 @@ export type Database = {
           destino: string
           email_cliente: string | null
           empresa_cliente: string | null
+          en_destino: boolean
           estado_confirmacion_custodio: string | null
           estado_planeacion: string
           fecha_asignacion: string | null
@@ -15874,6 +15947,7 @@ export type Database = {
           destino: string
           email_cliente?: string | null
           empresa_cliente?: string | null
+          en_destino?: boolean
           estado_confirmacion_custodio?: string | null
           estado_planeacion?: string
           fecha_asignacion?: string | null
@@ -15936,6 +16010,7 @@ export type Database = {
           destino?: string
           email_cliente?: string | null
           empresa_cliente?: string | null
+          en_destino?: boolean
           estado_confirmacion_custodio?: string | null
           estado_planeacion?: string
           fecha_asignacion?: string | null
@@ -20970,6 +21045,8 @@ export type Database = {
         | "incidencia"
         | "foto_evidencia"
         | "otro"
+        | "llegada_destino"
+        | "liberacion_custodio"
       tipo_servicio_custodia:
         | "traslado"
         | "custodia_local"
@@ -21193,6 +21270,8 @@ export const Constants = {
         "incidencia",
         "foto_evidencia",
         "otro",
+        "llegada_destino",
+        "liberacion_custodio",
       ],
       tipo_servicio_custodia: [
         "traslado",
