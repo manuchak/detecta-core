@@ -46,7 +46,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   return (
     <>
       <div className={cn(
-        'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 px-3 py-2 transition-colors group',
+        'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 px-3 py-3 transition-colors group',
         borderAccent
       )}>
         {/* Row 1: Timer hero — right aligned, dominant */}
@@ -58,12 +58,12 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
         </div>
 
         {/* Row 2: Custodio · Route */}
-        <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+        <div className="text-[11px] text-muted-foreground truncate mt-1">
           {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
         </div>
 
         {/* Row 3: Folio + Actions */}
-        <div className="flex items-center gap-1 mt-1.5">
+        <div className="flex items-center gap-1 mt-2">
           <span className="text-[10px] font-mono text-muted-foreground/60">{service.id_servicio}</span>
           <div className="flex-1" />
 
