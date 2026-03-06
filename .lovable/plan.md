@@ -1,97 +1,87 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Analysis: The Evaluation Panel is NOT Apple-Inspired
 
-## Roles confirmados por módulo
+Looking at the screenshot critically, there are fundamental UX problems that prevent the user from understanding where they are, what to do next, and how to release:
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Problems (Fishbone)
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+                         USER DOESN'T KNOW WHAT TO DO
+                                     │
+        ┌────────────────────────────┼───────────────────────────┐
+        │                            │                           │
+   13 TABS OVERLOAD           NO CLEAR CTA              NO STATUS SUMMARY
+        │                            │                           │
+ ├─ Horizontal scroll     ├─ "Liberar" is hidden    ├─ Progress bar says
+ │  hides 4+ tabs →       │  beyond scroll — user   │  "Progreso del
+ │  user can't see all    │  never sees it          │  candidato" with no
+ │                        │                          │  context of what's
+ ├─ Category labels       ├─ Interview tab opens    │  missing
+ │  ("Evaluación Core")   │  by default — shows     │
+ │  are 10px, invisible   │  completed data, not    ├─ The tiny badges
+ │                        │  what's PENDING          │  (●4/4, ●8/8) are
+ ├─ All tabs look the     │                          │  unreadable at this
+ │  same weight — no      └─ No "next step"          │  size and density
+ │  visual hierarchy        guidance anywhere        │
+ └─ Tab bar dominates                                └─ No blockers/warnings
+    50% of visible space                                visible at first glance
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Solution: Replace tabs with a guided Apple-inspired layout
 
-### Fase 2 — Migrar policies por módulo
+Instead of 13 equal-weight tabs, restructure the panel into:
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+**1. Hero Status Card** (always visible at top)
+- Large circular progress ring (like Apple Watch rings)
+- Clear text: "8 de 10 completados — 2 bloqueos"
+- Primary CTA button: "Liberar" or "Resolver bloqueos" depending on state
+- This replaces the generic progress bar AND the hidden Liberar tab
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+**2. Smart Sections with Progressive Disclosure** (replaces tab bar)
+Three collapsible groups that auto-expand based on status:
+- **Bloqueos** (auto-expanded if any exist, red accent) — clickable items that open inline
+- **Advertencias** (collapsed if blockers exist)  
+- **Completado** (always collapsed, green check count)
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+Each item is clickable and opens inline (accordion-style) instead of switching tabs — no context lost.
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+**3. Inline Detail Panels** (replaces TabsContent)
+When user clicks a gate item (e.g., "Documentación — faltan 2"), the detail expands below it showing the actual DocumentsTab content inline. User resolves, collapses, moves to next.
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+## Implementation Plan
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+### A. New component: `EvaluationHeroStatus.tsx`
+- Circular progress indicator (SVG ring, Apple Watch style)
+- Shows: completed/total, blocker count, warning count
+- Primary action button that either says "Liberar a Planificación" (green, enabled) or "Resolver X bloqueos" (scrolls to first blocker)
+- Candidate name, state badge, and tipo operativo
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### B. Refactor `CandidateEvaluationPanel.tsx`
+Major restructure:
+- Remove the 13-tab `TabsList` entirely
+- Replace with: `EvaluationHeroStatus` → Sections (Blockers/Warnings/Completed) → Each item expandable inline
+- Reuse ALL existing tab content components (DocumentsTab, ToxicologyTab, etc.) but render them inside collapsible sections instead of TabsContent
+- Keep the `LiberacionWizardTab` gate logic but integrate it into the hero + sections directly
+- Merge the gate computation from `LiberacionWizardTab` into the panel itself
 
-### Archivos a modificar
+### C. Remove `LiberacionWizardTab` as separate tab
+Its logic gets absorbed into the panel's hero status and section layout. The release button lives in the hero card, always visible.
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+### Files
+
+| File | Action |
+|---|---|
+| **New**: `src/components/recruitment/EvaluationHeroStatus.tsx` | Progress ring + CTA + summary |
+| **Rewrite**: `src/components/recruitment/CandidateEvaluationPanel.tsx` | Replace tabs with guided sections |
+| **Keep**: All existing tab content components (DocumentsTab, ToxicologyTab, etc.) | Reused inside expandable sections |
+
+### User Flow (Apple-inspired)
+
+1. **Open panel** → Hero shows "8/10 ✓ — 2 bloqueos" with disabled "Liberar" button
+2. **Blockers section** is auto-expanded → user sees "Documentación — faltan 2 docs" and "Tóxico — sin resultado"
+3. **Click "Documentación"** → DocumentsTab expands inline, user uploads docs
+4. **Collapse** → blocker auto-resolves to green ✓
+5. **All blockers resolved** → Hero button turns green: "Liberar a Planificación"
+6. **Click** → Release happens, success modal
 
