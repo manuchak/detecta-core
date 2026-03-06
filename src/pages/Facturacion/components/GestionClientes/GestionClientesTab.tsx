@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { FileSpreadsheet } from 'lucide-react';
 import { 
   Table, 
   TableBody, 
@@ -182,7 +183,7 @@ export function GestionClientesTab() {
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -192,6 +193,15 @@ export function GestionClientesTab() {
                   className="pl-9 h-9"
                 />
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9"
+                onClick={() => setShowImportWizard(true)}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                Importar Maestro
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
