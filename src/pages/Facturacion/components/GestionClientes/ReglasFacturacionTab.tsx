@@ -128,7 +128,7 @@ export function ReglasFacturacionTab({ formData, onChange }: ReglasFacturacionTa
             return (
               <Badge key={ev.value}
                 variant={selected ? 'default' : 'outline'}
-                className="cursor-pointer text-xs"
+                className={`cursor-pointer text-xs ${!selected ? 'border-border text-foreground/70 bg-muted/60' : ''}`}
                 onClick={() => toggleEvidencia(ev.value)}>
                 {ev.label}
               </Badge>
