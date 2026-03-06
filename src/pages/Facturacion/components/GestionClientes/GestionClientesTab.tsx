@@ -28,6 +28,7 @@ import { useClientesCreditoResumen } from '../../hooks/useClienteCredito';
 import { ClienteFormModal } from './ClienteFormModal';
 import { ClienteDetalleDrawer } from './ClienteDetalleDrawer';
 import { CreditoSummaryCards } from './CreditoSummaryCards';
+import { ImportMaestroWizard } from './ImportMaestroWizard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/utils/formatUtils';
@@ -40,6 +41,7 @@ export function GestionClientesTab() {
   const [selectedCliente, setSelectedCliente] = useState<ClienteFiscal | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetalleDrawer, setShowDetalleDrawer] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
   const [activeFilter, setActiveFilter] = useState('todos');
 
   // Create a map for credit data
