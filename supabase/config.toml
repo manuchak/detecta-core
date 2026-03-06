@@ -188,3 +188,6 @@ verify_jwt = false
 
 [functions.create-staff-account]
 verify_jwt = false
+
+[functions.generate-recovery-link]
+verify_jwt = false
