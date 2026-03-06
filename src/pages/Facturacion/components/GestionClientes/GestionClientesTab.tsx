@@ -317,7 +317,28 @@ export function GestionClientesTab() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          {estado.badge}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium ${estado.bgClass} ${estado.colorClass} cursor-default`}>
+                                  <estado.Icon className="h-3 w-3" />
+                                  {estado.count}/4
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs">
+                                {estado.count === 4 ? (
+                                  <p>Datos fiscales completos ✓</p>
+                                ) : (
+                                  <div>
+                                    <p className="font-medium mb-1">Faltan {estado.missing.length} campos:</p>
+                                    <ul className="list-disc pl-3 space-y-0.5">
+                                      {estado.missing.map(f => <li key={f}>{f}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
