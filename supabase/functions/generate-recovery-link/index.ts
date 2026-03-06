@@ -35,13 +35,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email } = await req.json();
+    const { email, origin } = await req.json();
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email es requerido' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const appOrigin = origin || 'https://detecta-core.lovable.app';
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
@@ -69,11 +71,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Recovery link generated for ${email} by admin`);
+    // Rewrite redirect_to so the link points to the real app, not localhost
+    const correctedUrl = new URL(actionLink);
+    correctedUrl.searchParams.set('redirect_to', `${appOrigin}/reset-password`);
+    const correctedLink = correctedUrl.toString();
+
+    console.log(`Recovery link generated for ${email} by admin, redirecting to ${appOrigin}`);
 
     return new Response(JSON.stringify({
       success: true,
-      recovery_link: actionLink,
+      recovery_link: correctedLink,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

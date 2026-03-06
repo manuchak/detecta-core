@@ -185,7 +185,7 @@ export const RoleManager = () => {
   const handleGenerateRecoveryLink = async (email: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('generate-recovery-link', {
-        body: { email },
+        body: { email, origin: window.location.origin },
       });
 
       if (error) {
