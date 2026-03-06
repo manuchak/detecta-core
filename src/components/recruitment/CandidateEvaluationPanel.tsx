@@ -39,7 +39,7 @@ import { useProgramacionInstalacionesCandidato } from '@/hooks/useProgramacionIn
 import { useCapacitacion } from '@/hooks/useCapacitacion';
 import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { 
   User, Loader2, Plus, Star, Clock,
@@ -116,6 +116,21 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       const { data, error } = await supabase.from('custodio_liberacion').select('*').eq('candidato_id', candidatoId).maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: !!candidatoId,
+  });
+
+  const { data: invitationToken } = useQuery({
+    queryKey: ['custodian-invitation-token', candidatoId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('custodian_invitations')
+        .select('token')
+        .eq('candidato_id', candidatoId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.token ?? null;
     },
     enabled: !!candidatoId,
   });
@@ -233,6 +248,8 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     });
   }, []);
 
+  const queryClient = useQueryClient();
+
   const handleRelease = async () => {
     setIsLiberating(true);
     try {
@@ -249,6 +266,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       }
       const result = await liberarCustodio.mutateAsync({ liberacion_id: libId, forzar: true });
       setSuccessData(result);
+      // Invalidate to reflect released state immediately
+      queryClient.invalidateQueries({ queryKey: ['custodio-liberacion-by-candidato', candidatoId] });
+      queryClient.invalidateQueries({ queryKey: ['custodian-invitation-token', candidatoId] });
     } finally {
       setIsLiberating(false);
     }
@@ -383,6 +403,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           canRelease={canRelease}
           isLiberating={isLiberating}
           isAlreadyReleased={isAlreadyReleased}
+          invitationToken={invitationToken ?? undefined}
           onRelease={handleRelease}
           onScrollToBlockers={() => blockersRef.current?.scrollIntoView({ behavior: 'smooth' })}
         />

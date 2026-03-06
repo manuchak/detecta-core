@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Rocket, Loader2, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Rocket, Loader2, AlertTriangle, CheckCircle2, XCircle, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Gate {
@@ -19,6 +19,7 @@ interface Props {
   canRelease: boolean;
   isLiberating: boolean;
   isAlreadyReleased: boolean;
+  invitationToken?: string;
   onRelease: () => void;
   onScrollToBlockers?: () => void;
 }
@@ -71,9 +72,12 @@ export function EvaluationHeroStatus({
   canRelease,
   isLiberating,
   isAlreadyReleased,
+  invitationToken,
   onRelease,
   onScrollToBlockers,
 }: Props) {
+  const [copied, setCopied] = useState(false);
+
   const stats = useMemo(() => {
     const requiredGates = gates.filter(g => g.level !== 'info');
     const passed = requiredGates.filter(g => g.passed).length;
@@ -83,16 +87,43 @@ export function EvaluationHeroStatus({
     return { passed, total: requiredGates.length, blockers, warnings, percentage };
   }, [gates]);
 
+  const invitationLink = invitationToken
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/registro-custodio?token=${invitationToken}`
+    : null;
+
+  const handleCopy = async () => {
+    if (!invitationLink) return;
+    await navigator.clipboard.writeText(invitationLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (isAlreadyReleased) {
     return (
-      <div className="flex items-center gap-4 rounded-2xl border border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/5 p-5">
-        <div className="h-14 w-14 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center shrink-0">
-          <CheckCircle2 className="h-7 w-7 text-[hsl(var(--success))]" />
+      <div className="rounded-2xl border border-[hsl(var(--success))]/20 bg-[hsl(var(--success))]/5 p-5 space-y-3">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-7 w-7 text-[hsl(var(--success))]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">Custodio liberado</p>
+            <p className="text-sm text-muted-foreground truncate">{candidatoNombre} fue liberado a Planificación</p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground">Custodio liberado</p>
-          <p className="text-sm text-muted-foreground truncate">{candidatoNombre} fue liberado a Planificación</p>
-        </div>
+        {invitationLink && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+            <p className="text-xs text-muted-foreground">Comparte este link con el custodio para que complete su registro:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs bg-background rounded px-2 py-1.5 truncate border border-border select-all">
+                {invitationLink}
+              </code>
+              <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={handleCopy}>
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'Copiado' : 'Copiar'}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
