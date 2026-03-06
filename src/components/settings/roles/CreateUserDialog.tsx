@@ -55,7 +55,23 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         body: { email: email.trim(), nombre: nombre.trim(), rol },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract the JSON error message from the edge function response
+        let errorMessage = 'Error al crear el usuario';
+        try {
+          // FunctionsHttpError contains the response context
+          if (error.context && error.context instanceof Response) {
+            const errorBody = await error.context.json();
+            errorMessage = errorBody?.error || errorMessage;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+        } catch {
+          errorMessage = error.message || errorMessage;
+        }
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        return;
+      }
 
       if (data?.error) {
         toast({ title: 'Error', description: data.error, variant: 'destructive' });
