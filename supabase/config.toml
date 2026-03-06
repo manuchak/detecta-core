@@ -185,3 +185,6 @@ verify_jwt = false
 
 [functions.calculate-truck-route]
 verify_jwt = false
+
+[functions.create-staff-account]
+verify_jwt = false

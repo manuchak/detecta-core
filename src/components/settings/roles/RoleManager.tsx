@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,18 +15,21 @@ import {
 } from '@/components/ui/select';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useUserSkills } from '@/hooks/useUserSkills';
-import { Search, Users, Shield, UserPlus, UserMinus, UserCheck, Archive, Calendar } from 'lucide-react';
+import { Search, Users, Shield, UserPlus, UserMinus, UserCheck, Archive, Calendar, Clock, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArchiveUserDialog } from './ArchiveUserDialog';
+import { CreateUserDialog } from './CreateUserDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { UserWithRole } from '@/types/roleTypes';
 
 export const RoleManager = () => {
-  const { users, updateUserRole, archiveUser, reactivateUser } = useUserRoles();
+  const { users, updateUserRole, verifyUserEmail, archiveUser, reactivateUser } = useUserRoles();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
 
   // Obtener usuarios únicos por email y mostrar el rol de mayor prioridad
@@ -40,9 +44,9 @@ export const RoleManager = () => {
           'jefe_seguridad': 5, 'analista_seguridad': 6, 'supply_lead': 7,
           'ejecutivo_ventas': 8, 'bi': 9, 'monitoring_supervisor': 10,
           'monitoring': 11, 'supply': 12, 'instalador': 13, 'planificador': 14,
-          'soporte': 15, 'custodio': 16, 'pending': 17
+          'soporte': 15, 'custodio': 16, 'pending': 17, 'unverified': 18
         };
-        return priorities[role] || 18;
+        return priorities[role] || 19;
       };
       
       if (priority(user.role) < priority(existingUser.role)) {
@@ -65,12 +69,14 @@ export const RoleManager = () => {
 
   const activeCount = uniqueUsers.filter(u => u.is_active !== false).length;
   const archivedCount = uniqueUsers.filter(u => u.is_active === false).length;
+  const pendingCount = uniqueUsers.filter(u => u.role === 'pending' || u.role === 'unverified').length;
 
   const availableRoles = [
     'admin', 'supply_admin', 'capacitacion_admin', 'coordinador_operaciones', 'jefe_seguridad',
     'analista_seguridad', 'supply_lead', 'ejecutivo_ventas', 'custodio', 'bi',
     'monitoring_supervisor', 'monitoring', 'supply', 'instalador', 'planificador', 'soporte',
-    'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'customer_success'
+    'facturacion_admin', 'facturacion', 'finanzas_admin', 'finanzas', 'customer_success',
+    'pending', 'unverified'
   ];
 
   const getRoleDisplayName = (role: string) => {
@@ -95,7 +101,9 @@ export const RoleManager = () => {
       'facturacion_admin': 'Admin Facturación',
       'facturacion': 'Facturación',
       'finanzas_admin': 'Admin Finanzas',
-      'finanzas': 'Finanzas'
+      'finanzas': 'Finanzas',
+      'pending': 'Pendiente de Activación',
+      'unverified': 'Sin Verificar'
     };
     return roleNames[role] || role;
   };
@@ -119,6 +127,10 @@ export const RoleManager = () => {
       case 'monitoring':
       case 'instalador':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'unverified':
+        return 'bg-gray-200 text-gray-700 border-gray-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -131,13 +143,19 @@ export const RoleManager = () => {
       'coordinador_operaciones': ['Leads', 'Instaladores', 'Monitoreo'],
       'analista_seguridad': ['Análisis de riesgo', 'Reportes'],
       'instalador': ['Portal de instalación', 'Documentación'],
-      'planificador': ['Planeación de servicios', 'Asignación de recursos']
+      'planificador': ['Planeación de servicios', 'Asignación de recursos'],
+      'pending': ['Sin acceso — pendiente de activación'],
+      'unverified': ['Sin acceso — email no verificado']
     };
     return skillsByRole[role] || ['Permisos básicos'];
   };
 
   const handleRoleChange = (userId: string, newRole: string) => {
     updateUserRole.mutate({ userId, role: newRole as any });
+  };
+
+  const handleVerifyUser = (userId: string) => {
+    verifyUserEmail.mutate({ userId });
   };
 
   const handleArchiveClick = (user: UserWithRole) => {
@@ -160,14 +178,20 @@ export const RoleManager = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Users className="h-6 w-6 text-primary" />
-        <div>
-          <h2 className="text-2xl font-bold">Gestión de Roles y Usuarios</h2>
-          <p className="text-sm text-muted-foreground">
-            Administra roles de usuarios para dar acceso a diferentes funcionalidades
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Users className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-2xl font-bold">Gestión de Roles y Usuarios</h2>
+            <p className="text-sm text-muted-foreground">
+              Administra roles de usuarios para dar acceso a diferentes funcionalidades
+            </p>
+          </div>
         </div>
+        <Button onClick={() => setCreateDialogOpen(true)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Crear Usuario
+        </Button>
       </div>
 
       {/* Search and Toggle */}
@@ -202,6 +226,12 @@ export const RoleManager = () => {
                 <UserCheck className="h-4 w-4 text-green-600" />
                 {activeCount} activos
               </span>
+              {pendingCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-4 w-4 text-yellow-600" />
+                  {pendingCount} pendientes
+                </span>
+              )}
               <span className="flex items-center gap-1">
                 <Archive className="h-4 w-4 text-gray-500" />
                 {archivedCount} egresados
@@ -239,12 +269,14 @@ export const RoleManager = () => {
             user={user}
             availableRoles={availableRoles}
             onRoleChange={handleRoleChange}
+            onVerify={handleVerifyUser}
             onArchive={() => handleArchiveClick(user)}
             onReactivate={() => handleReactivate(user.id)}
             getRoleDisplayName={getRoleDisplayName}
             getRoleBadgeColor={getRoleBadgeColor}
             getSkillSummary={getSkillSummary}
             isReactivating={reactivateUser.isPending}
+            isVerifying={verifyUserEmail.isPending}
           />
         ))}
       </div>
@@ -278,6 +310,17 @@ export const RoleManager = () => {
           isLoading={archiveUser.isPending}
         />
       )}
+
+      {/* Create User Dialog */}
+      <CreateUserDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        availableRoles={availableRoles}
+        getRoleDisplayName={getRoleDisplayName}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
+        }}
+      />
     </div>
   );
 };
@@ -287,36 +330,43 @@ const UserRoleCard = ({
   user, 
   availableRoles, 
   onRoleChange,
+  onVerify,
   onArchive,
   onReactivate,
   getRoleDisplayName, 
   getRoleBadgeColor,
   getSkillSummary,
-  isReactivating
+  isReactivating,
+  isVerifying
 }: {
   user: UserWithRole;
   availableRoles: string[];
   onRoleChange: (userId: string, role: string) => void;
+  onVerify: (userId: string) => void;
   onArchive: () => void;
   onReactivate: () => void;
   getRoleDisplayName: (role: string) => string;
   getRoleBadgeColor: (role: string) => string;
   getSkillSummary: (role: string) => string[];
   isReactivating: boolean;
+  isVerifying: boolean;
 }) => {
   const { userSkills } = useUserSkills(user.id);
   const isArchived = user.is_active === false;
+  const isPending = user.role === 'pending' || user.role === 'unverified';
 
   return (
-    <Card className={`hover:shadow-md transition-shadow ${isArchived ? 'opacity-75 bg-muted/30' : ''}`}>
+    <Card className={`hover:shadow-md transition-shadow ${isArchived ? 'opacity-75 bg-muted/30' : ''} ${isPending ? 'border-yellow-300 bg-yellow-50/30' : ''}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
-              isArchived ? 'bg-gray-100' : 'bg-primary/10'
+              isArchived ? 'bg-gray-100' : isPending ? 'bg-yellow-100' : 'bg-primary/10'
             }`}>
               {isArchived ? (
                 <Archive className="h-6 w-6 text-gray-500" />
+              ) : isPending ? (
+                <Clock className="h-6 w-6 text-yellow-600" />
               ) : (
                 <Users className="h-6 w-6 text-primary" />
               )}
@@ -389,6 +439,18 @@ const UserRoleCard = ({
               </Button>
             ) : (
               <>
+                {isPending && (
+                  <Button
+                    size="sm"
+                    onClick={() => onVerify(user.id)}
+                    disabled={isVerifying}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {isVerifying ? 'Verificando...' : 'Verificar y Activar'}
+                  </Button>
+                )}
+                
                 <div className="text-xs font-medium text-muted-foreground">CAMBIAR ROL:</div>
                 <Select
                   defaultValue={user.role}
