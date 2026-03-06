@@ -98,7 +98,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const contractsProgress = useContratosProgress(candidatoId);
   const { data: refsProgress } = useReferenciasProgress(candidatoId);
   const { instalacionCompletada, ultimaInstalacion } = useProgramacionInstalacionesCandidato(candidatoId);
-  const { modulos, progreso } = useCapacitacion(candidatoId);
+  const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
   const { liberarCustodio } = useCustodioLiberacion();
 
   const { data: candidatoData } = useQuery({
@@ -125,10 +125,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   // Training
   const trainingComplete = useMemo(() => {
-    if (!modulos || !progreso) return false;
-    const completed = progreso.filter((p: any) => p.estado === 'completado').length;
-    return modulos.length > 0 && completed >= modulos.length;
-  }, [modulos, progreso]);
+    const stats = calcularProgresoGeneral();
+    return stats?.capacitacion_completa ?? false;
+  }, [calcularProgresoGeneral]);
 
   // Compute gates
   const gates: Gate[] = useMemo(() => {
