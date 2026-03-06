@@ -145,9 +145,14 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
     tipo_servicio: '',
     ruta_patron: '',
     horas_cortesia: '0',
+    horas_cortesia_local: '',
+    horas_cortesia_foraneo: '',
     tarifa_hora_excedente: '0',
+    tarifa_sin_arma: '',
+    tarifa_con_arma: '',
     tarifa_pernocta: '0',
     cobra_pernocta: false,
+    requiere_tickets: false,
     notas: '',
   });
   const [clienteSearch, setClienteSearch] = useState('');
@@ -173,7 +178,12 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
       cobra_pernocta: form.cobra_pernocta,
       notas: form.notas || null,
       activo: true,
-    });
+      horas_cortesia_local: form.horas_cortesia_local ? Number(form.horas_cortesia_local) : null,
+      horas_cortesia_foraneo: form.horas_cortesia_foraneo ? Number(form.horas_cortesia_foraneo) : null,
+      tarifa_sin_arma: form.tarifa_sin_arma ? Number(form.tarifa_sin_arma) : null,
+      tarifa_con_arma: form.tarifa_con_arma ? Number(form.tarifa_con_arma) : null,
+      requiere_tickets: form.requiere_tickets,
+    } as any);
     onOpenChange(false);
   };
 
