@@ -377,6 +377,12 @@ export function GestionClientesTab() {
           setShowEditModal(true);
         }}
       />
+
+      {/* Import Maestro Wizard */}
+      <ImportMaestroWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
+      />
     </div>
   );
 }
