@@ -218,7 +218,7 @@ export const useCustodioLiberacion = () => {
       
       if (error) {
         console.error('❌ Error RPC liberación:', error);
-        if (error.message?.includes('schema cache') || error.message?.includes('function')) {
+        if (error.message?.includes('schema cache') || error.message?.includes('Could not find the function')) {
           throw new Error('Tu app parece desactualizada. Recarga con Ctrl+Shift+R o abre en modo incógnito.');
         }
         throw error;
