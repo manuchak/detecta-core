@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package } from 'lucide-react';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe } from 'lucide-react';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
@@ -32,6 +32,8 @@ import { NOMBRE_COMERCIAL_EDIT_ROLES } from '@/constants/accessControl';
 import { ReglasFacturacionTab } from './ReglasFacturacionTab';
 import { ContactosTab } from './ContactosTab';
 import { GadgetsTab } from './GadgetsTab';
+import { ContratosTab } from './ContratosTab';
+import { PortalesTab } from './PortalesTab';
 
 interface ClienteFormModalProps {
   open: boolean;
@@ -199,6 +201,14 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
               <TabsTrigger value="gadgets" className="gap-1 text-[11px] px-2 py-1.5">
                 <Package className="h-3 w-3" />
                 Gadgets
+              </TabsTrigger>
+              <TabsTrigger value="contratos" className="gap-1 text-[11px] px-2 py-1.5">
+                <ScrollText className="h-3 w-3" />
+                Contratos
+              </TabsTrigger>
+              <TabsTrigger value="portales" className="gap-1 text-[11px] px-2 py-1.5">
+                <Globe className="h-3 w-3" />
+                Portales
               </TabsTrigger>
               <TabsTrigger value="contactoPrincipal" className="gap-1 text-[11px] px-2 py-1.5">
                 <User className="h-3 w-3" />
@@ -379,6 +389,15 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
             {/* Gadgets (NEW) */}
             <TabsContent value="gadgets" className="mt-4">
               {cliente && <GadgetsTab clienteId={cliente.id} />}
+            </TabsContent>
+            {/* Contratos */}
+            <TabsContent value="contratos" className="mt-4">
+              {cliente && <ContratosTab clienteId={cliente.id} />}
+            </TabsContent>
+
+            {/* Portales */}
+            <TabsContent value="portales" className="mt-4">
+              {cliente && <PortalesTab clienteId={cliente.id} />}
             </TabsContent>
 
             {/* Contacto Principal (legacy) */}
