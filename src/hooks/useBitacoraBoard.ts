@@ -92,7 +92,6 @@ export function useBitacoraBoard() {
         .from('servicios_planificados')
         .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
         .not('hora_inicio_real', 'is', null)
-        .gte('hora_inicio_real', new Date(Date.now() - 24 * 3600_000).toISOString())
         .is('hora_fin_real', null)
         .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('hora_inicio_real', { ascending: true });

@@ -1,60 +1,97 @@
 
 
-# Servicios Astra desaparecen del tablero de Bitácora
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Problema raíz
+## Roles confirmados por módulo
 
-En `useBitacoraBoard.ts`, la query Q2 (servicios activos) tiene un filtro de ventana de **24 horas**:
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-```typescript
-// Línea 95
-.gte('hora_inicio_real', new Date(Date.now() - 24 * 3600_000).toISOString())
+---
+
+## Hallazgos actuales
+
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-Los servicios de Astra estaban en **pernocta** (evento especial nocturno). Si un servicio inicio hace más de 24h y aún no ha sido liberado, esta condición lo excluye del query — el servicio desaparece del tablero aunque siga activo y sin `hora_fin_real`.
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-Al "finalizar la detención" (cerrar el evento pernocta), el servicio debería volver a la columna "En Curso", pero como ya pasaron las 24h desde `hora_inicio_real`, nunca vuelve a aparecer.
+### Fase 2 — Migrar policies por módulo
 
-**Flujo que causó el bug:**
-1. Servicio Astra inicia a las 08:00 del día anterior
-2. A las 22:00 se registra pernocta (evento especial)
-3. A las 07:14 del día siguiente (>23h después del inicio), David Corona cierra la pernocta
-4. El servicio tiene `hora_inicio_real` de hace >23h → fuera de la ventana de 24h → desaparece
-5. No se puede dar seguimiento ni liberar al custodio
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-## Solución
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-**Eliminar el filtro temporal de 24h** en la query de servicios activos. Un servicio activo se define por:
-- `hora_inicio_real` no es null (ya inició)
-- `hora_fin_real` es null (no ha terminado)
-- `estado_planeacion` no es cancelado ni completado
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-Estos tres filtros **ya existen** en las líneas 94, 96-97. La línea 95 es redundante y peligrosa.
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-### Cambio en `useBitacoraBoard.ts`
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
 
-Remover línea 95 (`.gte('hora_inicio_real', ...)`). La query queda:
+### Fase 3 — Frontend: Sidebar ajustes menores
 
-```typescript
-const { data, error } = await supabase
-  .from('servicios_planificados')
-  .select('...')
-  .not('hora_inicio_real', 'is', null)    // Ya inició
-  .is('hora_fin_real', null)               // No ha terminado
-  .not('estado_planeacion', 'in', '(cancelado,completado)')
-  .order('hora_inicio_real', { ascending: true });
-```
-
-### Mismo fix en `useServiciosTurnoLive.ts` (Radar)
-
-Verificar si tiene el mismo filtro temporal y corregirlo también para mantener consistencia entre Bitácora y Radar.
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
 ### Archivos a modificar
 
-| Archivo | Cambio |
-|---|---|
-| `src/hooks/useBitacoraBoard.ts` | Remover `.gte('hora_inicio_real', ...)` de Q2 (línea 95) |
-| `src/hooks/useServiciosTurnoLive.ts` | Verificar y corregir filtro equivalente si existe |
-
-Un cambio de una sola línea que resuelve la desaparición de servicios de larga duración.
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
