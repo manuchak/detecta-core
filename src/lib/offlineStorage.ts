@@ -297,13 +297,6 @@ export async function aggressiveCleanup(): Promise<{ photosRemoved: number; byte
      total: draftsSize + photosSize + queueSize,
    };
  }
- export async function getOfflineStorageSize(): Promise<{
-   drafts: number;
-   photos: number;
-   queue: number;
-   total: number;
- }> {
-   const db = await getDB();
    const drafts = await db.getAll('checklist_drafts');
    const photos = await db.getAll('photo_blobs');
    const queue = await db.getAll('sync_queue');
