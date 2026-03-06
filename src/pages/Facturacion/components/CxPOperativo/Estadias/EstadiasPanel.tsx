@@ -71,9 +71,9 @@ export function EstadiasPanel() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
                 ) : reglas.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">
                     Sin reglas configuradas. Se usará el fallback de horas_cortesia del cliente.
                   </TableCell></TableRow>
                 ) : (
@@ -87,10 +87,21 @@ export function EstadiasPanel() {
                       </TableCell>
                       <TableCell className="text-sm">{r.ruta_patron || 'Todas'}</TableCell>
                       <TableCell className="text-right font-medium">{r.horas_cortesia}h</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).horas_cortesia_local ?? '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).horas_cortesia_foraneo ?? '—'}</TableCell>
                       <TableCell className="text-right text-sm">${r.tarifa_hora_excedente}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).tarifa_sin_arma != null ? `$${(r as any).tarifa_sin_arma}` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).tarifa_con_arma != null ? `$${(r as any).tarifa_con_arma}` : '—'}</TableCell>
                       <TableCell>
                         {r.cobra_pernocta ? (
                           <Badge variant="secondary" className="text-xs">${r.tarifa_pernocta}</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(r as any).requiere_tickets ? (
+                          <Badge variant="outline" className="text-xs">Sí</Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">No</span>
                         )}
