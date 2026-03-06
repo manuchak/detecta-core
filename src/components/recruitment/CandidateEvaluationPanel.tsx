@@ -98,7 +98,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const contractsProgress = useContratosProgress(candidatoId);
   const { data: refsProgress } = useReferenciasProgress(candidatoId);
   const { instalacionCompletada, ultimaInstalacion } = useProgramacionInstalacionesCandidato(candidatoId);
-  const { modulos, progreso } = useCapacitacion(candidatoId);
+  const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
   const { liberarCustodio } = useCustodioLiberacion();
 
   const { data: candidatoData } = useQuery({
