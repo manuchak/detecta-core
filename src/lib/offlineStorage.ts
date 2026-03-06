@@ -297,8 +297,6 @@ export async function aggressiveCleanup(): Promise<{ photosRemoved: number; byte
      total: draftsSize + photosSize + queueSize,
    };
  }
- 
-   const draftsSize = new Blob([JSON.stringify(drafts)]).size;
    const photosSize = photos.reduce((acc, p) => acc + p.blob.size, 0);
    const queueSize = new Blob([JSON.stringify(queue)]).size;
  
