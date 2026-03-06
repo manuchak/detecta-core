@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,10 +39,30 @@ export default function CursoViewer() {
     return curso.modulos.flatMap(m => m.contenidos || []);
   }, [curso]);
 
+  // Helper: check if a content item is completed
+  const isCompletado = useCallback((contenidoId: string) => {
+    return progresos?.some(p => p.contenido_id === contenidoId && p.completado) || false;
+  }, [progresos]);
+
+  // Helper: check if a content item is unlocked (sequential locking)
+  const isDesbloqueado = useCallback((contenidoId: string) => {
+    const idx = todosLosContenidos.findIndex(c => c.id === contenidoId);
+    if (idx <= 0) return true; // First item always unlocked
+
+    // Walk backwards to find the nearest previous mandatory content
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = todosLosContenidos[i];
+      if (prev.es_obligatorio) {
+        return isCompletado(prev.id);
+      }
+    }
+    // No previous mandatory content found — unlocked
+    return true;
+  }, [todosLosContenidos, isCompletado]);
+
   // Seleccionar primer contenido no completado o el primero
   useEffect(() => {
     if (todosLosContenidos.length > 0 && !contenidoActualId) {
-      // Buscar el primer contenido no completado
       const primerNoCompletado = todosLosContenidos.find(c => 
         !progresos?.some(p => p.contenido_id === c.id && p.completado)
       );
@@ -66,6 +86,13 @@ export default function CursoViewer() {
   const hasPrevious = indiceActual > 0;
   const hasNext = indiceActual < todosLosContenidos.length - 1;
 
+  // Can advance to next? Current mandatory content must be completed
+  const canGoNext = useMemo(() => {
+    if (!hasNext) return false;
+    const nextId = todosLosContenidos[indiceActual + 1]?.id;
+    return nextId ? isDesbloqueado(nextId) : false;
+  }, [hasNext, todosLosContenidos, indiceActual, isDesbloqueado]);
+
   const goToPrevious = () => {
     if (hasPrevious) {
       setContenidoActualId(todosLosContenidos[indiceActual - 1].id);
@@ -73,10 +100,17 @@ export default function CursoViewer() {
   };
 
   const goToNext = () => {
-    if (hasNext) {
+    if (canGoNext) {
       setContenidoActualId(todosLosContenidos[indiceActual + 1].id);
     }
   };
+
+  // Safe navigation — only if unlocked
+  const handleSelectContenido = useCallback((id: string) => {
+    if (isDesbloqueado(id)) {
+      setContenidoActualId(id);
+    }
+  }, [isDesbloqueado]);
 
   // Calcular progreso general
   const progresoGeneral = useMemo(() => {
@@ -91,8 +125,8 @@ export default function CursoViewer() {
 
   // Verificar si contenido actual está completado
   const contenidoCompletado = useMemo(() => 
-    progresos?.some(p => p.contenido_id === contenidoActualId && p.completado) || false,
-    [progresos, contenidoActualId]
+    isCompletado(contenidoActualId || ''),
+    [isCompletado, contenidoActualId]
   );
 
   // Auto-generate certificate when course is completed
@@ -107,7 +141,6 @@ export default function CursoViewer() {
       ) {
         setCertificadoGenerado(true);
         
-        // Award points for completing course
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
@@ -128,7 +161,6 @@ export default function CursoViewer() {
           console.error('Error awarding course completion points:', err);
         }
         
-        // Generate certificate
         generarCertificado.mutate(inscripcion.id);
       }
     };
@@ -136,17 +168,31 @@ export default function CursoViewer() {
     generateCertificate();
   }, [progresoGeneral, inscripcion, certificadoGenerado, generarCertificado.isPending, cursoId]);
 
-  // Handlers
+  // Handler for non-quiz content completion
   const handleComplete = () => {
     if (contenidoActualId && inscripcion?.id && contenidoActual) {
+      // Don't call lms_marcar_contenido_completado for quizzes — 
+      // useLMSGuardarQuiz already handles quiz progress directly
+      if (contenidoActual.tipo === 'quiz') {
+        // Just auto-advance to next content
+        if (hasNext && isDesbloqueado(todosLosContenidos[indiceActual + 1]?.id)) {
+          setContenidoActualId(todosLosContenidos[indiceActual + 1].id);
+        }
+        return;
+      }
+
       marcarCompletado.mutate({ 
         contenidoId: contenidoActualId,
         tipoContenido: contenidoActual.tipo as 'video' | 'documento' | 'texto_enriquecido' | 'embed' | 'quiz'
       }, {
         onSuccess: () => {
-          // Auto-avanzar al siguiente contenido
+          // Auto-avanzar al siguiente contenido si está desbloqueado
           if (hasNext) {
-            setContenidoActualId(todosLosContenidos[indiceActual + 1].id);
+            const nextId = todosLosContenidos[indiceActual + 1]?.id;
+            if (nextId) {
+              // After marking current as complete, next should be unlocked
+              setContenidoActualId(nextId);
+            }
           }
         }
       });
@@ -155,7 +201,6 @@ export default function CursoViewer() {
 
   const handleVideoProgress = (posicion: number, porcentaje: number) => {
     if (inscripcion?.id && contenidoActualId) {
-      // Solo guardar cada 10 segundos para no saturar
       actualizarVideoProgreso.mutate({
         inscripcionId: inscripcion.id,
         contenidoId: contenidoActualId,
@@ -212,7 +257,6 @@ export default function CursoViewer() {
     quiz_respuestas: progresoContenido.quiz_respuestas as any
   } : undefined;
 
-  // Progreso de video para persistencia por contenido individual
   const progresoVideo = progresoContenido ? {
     video_posicion_seg: progresoContenido.video_posicion_seg ?? 0,
     video_porcentaje_visto: progresoContenido.video_porcentaje_visto ?? 0
@@ -244,10 +288,11 @@ export default function CursoViewer() {
               progresos={progresos || []}
               contenidoActualId={contenidoActualId || undefined}
               onSelectContenido={(id) => {
-                setContenidoActualId(id);
+                handleSelectContenido(id);
                 setSidebarOpen(false);
               }}
               progresoGeneral={progresoGeneral}
+              isDesbloqueado={isDesbloqueado}
             />
           </SheetContent>
         </Sheet>
@@ -260,8 +305,9 @@ export default function CursoViewer() {
             modulos={curso.modulos || []}
             progresos={progresos || []}
             contenidoActualId={contenidoActualId || undefined}
-            onSelectContenido={setContenidoActualId}
+            onSelectContenido={handleSelectContenido}
             progresoGeneral={progresoGeneral}
+            isDesbloqueado={isDesbloqueado}
           />
         </aside>
 
@@ -291,8 +337,8 @@ export default function CursoViewer() {
                   initialVideoPosition={videoPosition}
                 />
 
-                {/* Botón manual de completar (para tipos sin auto-complete) */}
-                {!contenidoCompletado && ['documento', 'embed', 'texto_enriquecido'].includes(contenidoActual.tipo) && (
+                {/* Botón manual de completar — solo para documento (embed y texto_enriquecido ya tienen su propio botón interno) */}
+                {!contenidoCompletado && contenidoActual.tipo === 'documento' && (
                   <div className="flex justify-center pt-4">
                     <Button 
                       onClick={handleComplete}
@@ -321,7 +367,7 @@ export default function CursoViewer() {
 
                   <Button
                     onClick={goToNext}
-                    disabled={!hasNext}
+                    disabled={!canGoNext}
                   >
                     Siguiente
                     <ArrowRight className="h-4 w-4 ml-2" />
