@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight, Package, Award } from "lucide-react";
+import { CheckCircle2, Circle, Play, FileText, Code, HelpCircle, Sparkles, ChevronDown, ChevronRight, Package, Award, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +11,7 @@ interface ModuleSidebarProps {
   contenidoActualId?: string;
   onSelectContenido: (contenidoId: string) => void;
   progresoGeneral: number;
+  isDesbloqueado?: (contenidoId: string) => boolean;
 }
 
 const iconosContenido: Record<TipoContenido, React.ReactNode> = {
@@ -29,7 +30,8 @@ export function ModuleSidebar({
   progresos, 
   contenidoActualId, 
   onSelectContenido,
-  progresoGeneral 
+  progresoGeneral,
+  isDesbloqueado,
 }: ModuleSidebarProps) {
   // Determinar qué módulo abrir inicialmente
   const moduloConContenidoActual = modulos.findIndex(m => 
@@ -125,23 +127,29 @@ export function ModuleSidebar({
                   {modulo.contenidos.map((contenido) => {
                     const completado = isContenidoCompletado(contenido.id);
                     const isActive = contenido.id === contenidoActualId;
+                    const bloqueado = isDesbloqueado ? !isDesbloqueado(contenido.id) : false;
 
                     return (
                       <button
                         key={contenido.id}
-                        onClick={() => onSelectContenido(contenido.id)}
+                        onClick={() => !bloqueado && onSelectContenido(contenido.id)}
+                        disabled={bloqueado}
                         className={cn(
                           "w-full flex items-center gap-3 p-3 pl-6 transition-colors text-left",
-                          "hover:bg-accent/50",
-                          isActive && "bg-primary/10 border-l-2 border-primary"
+                          bloqueado 
+                            ? "opacity-50 cursor-not-allowed" 
+                            : "hover:bg-accent/50 cursor-pointer",
+                          isActive && !bloqueado && "bg-primary/10 border-l-2 border-primary"
                         )}
                       >
                         {/* Icono de estado */}
                         <div className={cn(
                           "flex-shrink-0",
-                          completado ? "text-green-600" : "text-muted-foreground"
+                          completado ? "text-green-600" : bloqueado ? "text-muted-foreground/50" : "text-muted-foreground"
                         )}>
-                          {completado ? (
+                          {bloqueado ? (
+                            <Lock className="h-4 w-4" />
+                          ) : completado ? (
                             <CheckCircle2 className="h-4 w-4" />
                           ) : (
                             <Circle className="h-4 w-4" />
@@ -149,7 +157,7 @@ export function ModuleSidebar({
                         </div>
 
                         {/* Icono de tipo */}
-                        <div className="flex-shrink-0 text-muted-foreground">
+                        <div className={cn("flex-shrink-0", bloqueado ? "text-muted-foreground/50" : "text-muted-foreground")}>
                           {iconosContenido[contenido.tipo]}
                         </div>
 
@@ -157,7 +165,7 @@ export function ModuleSidebar({
                         <div className="flex-1 min-w-0">
                           <p className={cn(
                             "text-sm truncate",
-                            isActive ? "text-primary font-medium" : "text-foreground"
+                            isActive && !bloqueado ? "text-primary font-medium" : "text-foreground"
                           )}>
                             {contenido.titulo}
                           </p>

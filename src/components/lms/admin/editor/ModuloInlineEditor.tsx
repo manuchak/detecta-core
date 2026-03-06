@@ -339,7 +339,7 @@ export function ModuloInlineEditor({ modulo, cursoId, cursoTitulo, defaultOpen, 
                     />
                     <Select value={newContentType} onValueChange={v => setNewContentType(v as TipoContenido)}>
                       <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" sideOffset={4} className="z-50">
                         {TIPOS_CONTENIDO.map(t => (
                           <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                         ))}

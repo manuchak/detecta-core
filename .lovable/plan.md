@@ -1,149 +1,97 @@
 
 
-# Plan de Corrección: 5 Bugs LMS (UAT Lupita Ruedas)
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Resumen de Bugs Interconectados
+## Roles confirmados por módulo
 
-Los 5 bugs reportados afectan el flujo completo de capacitación: desde la creación de contenido (admin) hasta la experiencia del alumno y la emisión de certificados. No son problemas aislados — son fallas en diferentes puntos de un pipeline secuencial.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+
+---
+
+## Hallazgos actuales
+
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
 ```text
-FLUJO DEL ALUMNO:
-  Contenido A (Mod 1) → Contenido B (Mod 1) → Contenido C (Mod 2) → Quiz → Certificado
-       ↑ BUG 1              ↑ BUG 2                                  ↑ BUG 3    ↑ BUG 4
-  (auto-complete)       (sin candado)                            (intentos ∞)  (título/fecha)
-
-FLUJO DEL ADMIN:
-  Crear Módulo → Agregar Contenido → Seleccionar Tipo
-                      ↑ BUG 5
-                 (dropdown descuadrado)
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
----
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-## Bug 1: Embed y Texto Enriquecido se auto-completan
+### Fase 2 — Migrar policies por módulo
 
-**Causa raíz:** `EmbedRenderer.tsx` tiene un `setTimeout` de 5 segundos que llama `onComplete()` automáticamente. En `CursoViewer.tsx`, `onComplete` dispara `handleComplete` que a su vez invoca `marcarCompletado.mutate()`. El contenido se marca como completado sin que el usuario lo haya consumido.
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-Para `TextoEnriquecidoViewer.tsx`, el problema es diferente pero relacionado: tiene un botón "He terminado de leer" que sí es manual, pero TAMBIÉN `CursoViewer.tsx` muestra un segundo botón "Marcar como completado" (línea 295-304) para tipos `documento`, `embed`, `texto_enriquecido`. Hay duplicación de mecanismo de completado.
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-**Archivos a modificar:**
-- `src/components/lms/EmbedRenderer.tsx`: Eliminar el `useEffect` con `setTimeout` de 5 segundos. Reemplazar con un botón manual "He terminado de ver" similar al de `TextoEnriquecidoViewer`.
-- `src/pages/LMS/CursoViewer.tsx`: Ajustar la lógica en líneas 295-305 para no mostrar el botón duplicado cuando el componente hijo ya tiene su propio botón de completado (embed y texto_enriquecido). Mantenerlo solo para `documento`.
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
----
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-## Bug 2: Sin candado de avance secuencial
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
 
-**Causa raíz:** `CursoViewer.tsx` permite navegar libremente entre contenidos. Los botones "Anterior"/"Siguiente" (líneas 308-329) no tienen restricciones. El sidebar (`ModuleSidebar.tsx`) permite clic en cualquier contenido sin verificar si el anterior está completado (línea 130-132, `onClick` sin condición).
+### Fase 3 — Frontend: Sidebar ajustes menores
 
-**Archivos a modificar:**
-- `src/pages/LMS/CursoViewer.tsx`:
-  - Agregar función `isContenidoDesbloqueado(contenidoId)` que verifica si todos los contenidos obligatorios anteriores (en orden global) están completados.
-  - Deshabilitar botón "Siguiente" si el contenido actual obligatorio no está completado.
-  - Interceptar `setContenidoActualId` para validar que el contenido destino esté desbloqueado.
-- `src/components/lms/ModuleSidebar.tsx`:
-  - Recibir nueva prop `isDesbloqueado: (contenidoId: string) => boolean`.
-  - Aplicar `disabled` visual (opacidad, cursor, candado icon) a contenidos bloqueados.
-  - Prevenir `onClick` en contenidos no desbloqueados.
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
-**Lógica de desbloqueo:**
-```text
-Para contenido en posición N:
-  - Si N === 0 → siempre desbloqueado
-  - Si contenido[N-1].es_obligatorio === false → mirar más atrás hasta encontrar uno obligatorio
-  - Si contenido[N-1].es_obligatorio === true → debe estar completado en progresos[]
-  - Contenidos opcionales siempre están desbloqueados si el anterior obligatorio está completado
-```
+### Archivos a modificar
 
----
-
-## Bug 3: Intentos infinitos en quiz (ignora configuración)
-
-**Causa raíz:** La función `puedeReintentar()` en `useLMSQuiz.ts` (línea 189-194) tiene la lógica correcta: `if (intentosPermitidos === 0) return true` — 0 significa ilimitados. PERO el problema está en cómo se lee `progresoActual` en `CursoViewer.tsx`.
-
-En `CursoViewer.tsx` línea 209-213, se construye `progresoQuiz` desde `progresos[]`, pero el campo `quiz_intentos` se pasa como `progresoContenido.quiz_intentos ?? undefined`. Si el registro de progreso no existe aún, `progresoQuiz` es `undefined`, lo cual hace que `QuizComponent` use `intentosUsados = 0`.
-
-**El bug real:** Cuando el quiz se guarda vía `useLMSGuardarQuiz` (línea 139), se hace `quiz_intentos: intentosActuales + 1`. Pero `lms_marcar_contenido_completado` (la función SQL, líneas 534-544 del migration) hace un `ON CONFLICT DO UPDATE SET ... quiz_intentos = COALESCE(EXCLUDED.quiz_intentos, lms_progreso.quiz_intentos)`. Si `handleComplete` se llama después de aprobar el quiz (línea 99 de QuizComponent), esto podría sobrescribir `quiz_intentos` con 0 (el default del EXCLUDED).
-
-**Archivos a modificar:**
-- `src/pages/LMS/CursoViewer.tsx`: En `handleComplete`, NO llamar `lms_marcar_contenido_completado` para quizzes. El quiz ya se marca como completado dentro de `useLMSGuardarQuiz`. Actualmente, cuando el quiz se aprueba, `onComplete()` se llama (línea 99 de QuizComponent), lo cual dispara `handleComplete` en CursoViewer, que llama `lms_marcar_contenido_completado` — esta segunda llamada sobrescribe `quiz_intentos` con 0.
-- `src/components/lms/ContentRenderer.tsx`: Para tipo `quiz`, no pasar `onComplete` al QuizComponent directamente. En su lugar, usar un callback que solo avance al siguiente contenido sin re-llamar a marcar completado.
-
-**Verificación adicional:** Confirmar que `quizData.intentos_permitidos` se está leyendo correctamente del campo `contenido.contenido.intentos_permitidos` (línea 43 de QuizComponent). Si el admin configuró 3 intentos, ese valor debe llegar intacto.
-
----
-
-## Bug 4: Certificado muestra "Curso estándar" y fecha se resetea
-
-**Causa raíz (título):** En `lms_generar_certificado` (migración línea 179), el título del curso se obtiene de `v_curso.titulo`:
-```sql
-SELECT * INTO v_curso FROM lms_cursos WHERE id = v_inscripcion.curso_id;
-'titulo_curso', v_curso.titulo,
-```
-Si `v_curso.titulo` es NULL o el curso tiene un título genérico como "Curso estándar" (que es probablemente el valor por defecto o placeholder), eso se graba en `datos_certificado`. Esto es un problema de datos, no de código — verificar en la tabla `lms_cursos` que el curso real tenga el título correcto.
-
-**Causa raíz (fecha se cambia):** En `lms_marcar_contenido_completado` (línea 536), cada vez que se llama:
-```sql
-ON CONFLICT DO UPDATE SET
-  completado = true,
-  fecha_completado = NOW(),  -- ← AQUÍ: se sobrescribe SIEMPRE
-```
-Y luego `lms_calcular_progreso` (línea 357-359):
-```sql
-fecha_completado = CASE 
-  WHEN v_porcentaje >= 100 AND fecha_completado IS NULL THEN NOW()
-  ELSE fecha_completado  -- ← Protegida, solo se pone una vez
-END,
-```
-La fecha de la **inscripción** está protegida, pero la fecha del **progreso individual** se sobrescribe cada vez que el usuario re-visita un contenido completado y vuelve a hacer clic en "Marcar como completado". Y el certificado usa `v_inscripcion.fecha_completado` que está protegida... pero si se re-calcula progreso y el porcentaje baja temporalmente y vuelve a subir, la condición `fecha_completado IS NULL` ya no aplica porque ya fue seteada.
-
-El bug más probable: si el usuario entra de nuevo a una actividad completada y el frontend vuelve a mostrar el botón "Marcar como completado" (porque `contenidoCompletado` no se verifica antes de renderizar el botón en algunos renderers), y hace clic, esto dispara `lms_marcar_contenido_completado` → `lms_calcular_progreso`. Si en algún momento intermedio el estado cambió, la fecha puede resetearse.
-
-**Archivos a modificar:**
-- **Migración SQL nueva:** Modificar `lms_marcar_contenido_completado` para proteger `fecha_completado` en el `ON CONFLICT`:
-  ```sql
-  fecha_completado = CASE 
-    WHEN lms_progreso.fecha_completado IS NULL THEN NOW()
-    ELSE lms_progreso.fecha_completado
-  END,
-  ```
-- `src/pages/LMS/CursoViewer.tsx`: No mostrar botón "Marcar como completado" si `contenidoCompletado === true` (ya existe esta lógica en línea 295, pero verificar que aplique a TODOS los renderers).
-- **Certificado título:** Agregar validación en `lms_generar_certificado` para que si `v_curso.titulo` está vacío use un fallback más inteligente. También agregar un query de diagnóstico para verificar los cursos actuales en producción.
-
----
-
-## Bug 5: Dropdown de tipo de contenido aparece descuadrado (admin)
-
-**Causa raíz:** En `ModuloInlineEditor.tsx` líneas 329-357, el formulario inline de "Agregar contenido" usa un `Select` de Radix dentro de un contenedor con `overflow: hidden` (heredado del `Collapsible`). El `SelectContent` (portal del dropdown) puede renderizarse fuera del viewport o en una posición incorrecta porque el contenedor padre tiene restricciones de layout.
-
-La imagen de Lupita muestra que el dropdown aparece en la parte inferior de la pantalla, separado del trigger. Esto es un problema conocido de Radix Select dentro de contenedores con scroll o colapsables.
-
-**Archivos a modificar:**
-- `src/components/lms/admin/editor/ModuloInlineEditor.tsx`: Agregar `position="popper"` y `sideOffset` al `SelectContent` para forzar posicionamiento relativo al trigger:
-  ```tsx
-  <SelectContent position="popper" sideOffset={4} className="z-50">
-  ```
-- Si persiste, considerar usar `align="start"` y asegurar que el contenedor padre no tenga `overflow: hidden`.
-
----
-
-## Resumen de Archivos a Modificar
-
-| Archivo | Bugs |
-|---------|------|
-| `src/components/lms/EmbedRenderer.tsx` | #1 |
-| `src/pages/LMS/CursoViewer.tsx` | #1, #2, #3, #4 |
-| `src/components/lms/ModuleSidebar.tsx` | #2 |
-| `src/components/lms/ContentRenderer.tsx` | #3 |
-| `src/hooks/useLMSQuiz.ts` | #3 (verificar) |
-| `supabase/migrations/nuevo.sql` | #3, #4 |
-| `src/components/lms/admin/editor/ModuloInlineEditor.tsx` | #5 |
-
-## Orden de Implementación Recomendado
-
-1. **Bug 3** (quiz intentos) — impacto funcional más alto, afecta evaluaciones
-2. **Bug 4** (certificado) — afecta entregable final del alumno
-3. **Bug 1** (auto-complete) — afecta integridad del progreso
-4. **Bug 2** (candado secuencial) — mejora UX de aprendizaje dirigido
-5. **Bug 5** (dropdown admin) — cosmético pero afecta productividad del creador de contenido
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
