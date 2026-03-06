@@ -59,8 +59,13 @@ export function EstadiasPanel() {
                   <TableHead>Tipo Servicio</TableHead>
                   <TableHead>Ruta</TableHead>
                   <TableHead className="text-right">Hrs Cortesía</TableHead>
+                  <TableHead className="text-right">Hrs Local</TableHead>
+                  <TableHead className="text-right">Hrs Foráneo</TableHead>
                   <TableHead className="text-right">$/Hr Excedente</TableHead>
+                  <TableHead className="text-right">$/Sin Arma</TableHead>
+                  <TableHead className="text-right">$/Con Arma</TableHead>
                   <TableHead>Pernocta</TableHead>
+                  <TableHead>Tickets</TableHead>
                   <TableHead>Notas</TableHead>
                 </TableRow>
               </TableHeader>
