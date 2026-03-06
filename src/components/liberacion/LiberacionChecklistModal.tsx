@@ -231,7 +231,25 @@ const LiberacionChecklistModal = ({
           tieneVehiculoPropio: initialLiberacion.candidato?.vehiculo_propio ?? false
         });
       } else {
-        console.log('📋 [LiberacionChecklist] Existing draft found, preserving user data');
+        console.log('📋 [LiberacionChecklist] Existing draft found, merging server TRUE values');
+        // Merge: server TRUE values always win over stale draft FALSE values
+        updateDraft(prev => ({
+          ...prev,
+          liberacion: {
+            ...prev.liberacion,
+            ...(initialLiberacion.documentacion_ine && { documentacion_ine: true }),
+            ...(initialLiberacion.documentacion_licencia && { documentacion_licencia: true }),
+            ...(initialLiberacion.documentacion_antecedentes && { documentacion_antecedentes: true }),
+            ...(initialLiberacion.documentacion_domicilio && { documentacion_domicilio: true }),
+            ...(initialLiberacion.documentacion_rfc && { documentacion_rfc: true }),
+            ...(initialLiberacion.psicometricos_completado && { psicometricos_completado: true }),
+            ...(initialLiberacion.toxicologicos_completado && { toxicologicos_completado: true }),
+            ...(initialLiberacion.vehiculo_capturado && { vehiculo_capturado: true }),
+            ...(initialLiberacion.instalacion_gps_completado && { instalacion_gps_completado: true }),
+            ...(initialLiberacion.vehiculo_tarjeta_circulacion && { vehiculo_tarjeta_circulacion: true }),
+            ...(initialLiberacion.vehiculo_poliza_seguro && { vehiculo_poliza_seguro: true }),
+          }
+        }));
       }
       setPrefillApplied({ docs: false, psico: false });
     }, 50);
@@ -411,7 +429,9 @@ const LiberacionChecklistModal = ({
       red.push('INE faltante');
     }
     if (!liberacion.documentacion_licencia) {
-      red.push('Licencia faltante');
+      red.push(liberacion.tipo_operativo === 'armado' 
+        ? 'Portación de arma faltante' 
+        : 'Licencia de conducir faltante');
     }
     // Estudio socioeconómico desfavorable = RED
     if (latestSocioeconomico?.resultado_general === 'desfavorable') {
@@ -695,7 +715,7 @@ const LiberacionChecklistModal = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* 1. Documentación */}
+             {/* 1. Documentación */}
             <AccordionItem value="docs">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -711,13 +731,26 @@ const LiberacionChecklistModal = ({
                       {docPrefillData.count} prellenados
                     </Badge>
                   )}
+                  {/* Gate badge for docs */}
+                  {(!liberacion.documentacion_ine || !liberacion.documentacion_licencia) && (
+                    <Badge variant="destructive" className="ml-auto text-xs">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Bloqueo
+                    </Badge>
+                  )}
+                  {liberacion.documentacion_ine && liberacion.documentacion_licencia && progress.documentacion === 100 && (
+                    <Badge variant="success" className="ml-auto text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      OK
+                    </Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { field: 'documentacion_ine', label: 'INE' },
-                    { field: 'documentacion_licencia', label: 'Licencia' },
+                    { field: 'documentacion_licencia', label: liberacion.tipo_operativo === 'armado' ? 'Portación de arma' : 'Licencia de conducir' },
                     { field: 'documentacion_antecedentes', label: 'Antecedentes penales' },
                     { field: 'documentacion_domicilio', label: 'Comprobante domicilio' },
                     
@@ -829,6 +862,15 @@ const LiberacionChecklistModal = ({
                     <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
                   )}
                   <span>3. Toxicológicos ({progress.toxicologicos}%)</span>
+                  {liberacion.toxicologicos_completado && liberacion.toxicologicos_resultado === 'positivo' && (
+                    <Badge variant="destructive" className="ml-auto text-xs">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Positivo
+                    </Badge>
+                  )}
+                  {!liberacion.toxicologicos_completado && (
+                    <Badge variant="secondary" className="ml-auto text-xs">Pendiente</Badge>
+                  )}
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-3">
@@ -1114,54 +1156,58 @@ const LiberacionChecklistModal = ({
           </Accordion>
         </div>
 
-        {/* Gate Summary */}
-        {(gates.red.length > 0 || gates.yellow.length > 0) && (
-          <div className="space-y-2 px-1">
-            {gates.red.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                <XCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-red-700 dark:text-red-300">
-                  <span className="font-semibold">Bloqueos:</span>{' '}
-                  {gates.red.join(' · ')}
-                </div>
+        {/* Sticky Footer with Gate Summary */}
+        <div className="sticky bottom-0 bg-background border-t pt-3 pb-1 mt-auto shrink-0 space-y-2">
+          {/* Gate status inline - always visible */}
+          {gates.red.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/20">
+              <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="text-xs text-destructive">
+                <span className="font-semibold">Bloqueos:</span>{' '}
+                {gates.red.join(' · ')}
               </div>
-            )}
-            {gates.yellow.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
-                <div className="text-xs text-yellow-700 dark:text-yellow-300">
-                  <span className="font-semibold">Advertencias:</span>{' '}
-                  {gates.yellow.join(' · ')}
-                </div>
+            </div>
+          )}
+          {gates.red.length === 0 && gates.yellow.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+              <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-yellow-700 dark:text-yellow-300">
+                <span className="font-semibold">{gates.yellow.length} advertencia(s)</span> — se puede continuar
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+          {gates.red.length === 0 && gates.yellow.length === 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-md bg-success/10 border border-success/20">
+              <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+              <span className="text-xs text-success font-medium">Todos los requisitos completados — listo para liberar</span>
+            </div>
+          )}
 
-        {/* Sticky Footer */}
-        <div className="sticky bottom-0 bg-background border-t pt-3 pb-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:justify-end mt-auto shrink-0">
-          <Button variant="outline" onClick={onClose} disabled={isSaving} className="sm:order-1">
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="sm:order-2">
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
-          </Button>
-          <Button
-            onClick={handleLiberar}
-            disabled={isSaving || !gates.canLiberate}
-            className={`sm:order-3 ${gates.canLiberate ? 'bg-green-600 hover:bg-green-700' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
-          >
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Rocket className="mr-2 h-4 w-4" />
-            )}
-            {gates.canLiberate 
-              ? (gates.yellow.length > 0 ? 'Liberar con advertencias' : 'Liberar a Planificación')
-              : 'Resolver bloqueos primero'
-            }
-          </Button>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:justify-end">
+            <Button variant="outline" onClick={onClose} disabled={isSaving} className="sm:order-1">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="sm:order-2">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cambios
+            </Button>
+            <Button
+              onClick={handleLiberar}
+              disabled={isSaving || !gates.canLiberate}
+              className={`sm:order-3 ${gates.canLiberate ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
+            >
+              {isSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Rocket className="mr-2 h-4 w-4" />
+              )}
+              {gates.canLiberate 
+                ? (gates.yellow.length > 0 ? 'Liberar con advertencias' : 'Liberar a Planificación')
+                : 'Resolver bloqueos primero'
+              }
+            </Button>
+          </div>
         </div>
       </DialogContent>
 
