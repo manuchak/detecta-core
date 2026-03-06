@@ -20,7 +20,8 @@ import {
   FileText,
   ChevronRight,
   Brain,
-  AlertTriangle
+  AlertTriangle,
+  Rocket
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
