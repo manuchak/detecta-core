@@ -420,6 +420,7 @@ export default function EvaluacionesPage() {
                           <Badge variant="secondary">
                             {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
                           </Badge>
+                          {getLiberacionCTA(candidato.id)}
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
