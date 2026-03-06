@@ -3135,6 +3135,71 @@ export type Database = {
           },
         ]
       }
+      contratos_monitoreo: {
+        Row: {
+          archivo_url: string | null
+          cliente_id: string
+          condiciones_especiales: string | null
+          created_at: string | null
+          created_by: string | null
+          estado: string
+          fecha_fin: string | null
+          fecha_inicio: string
+          id: string
+          moneda: string | null
+          monto_mensual: number | null
+          notas: string | null
+          numero_contrato: string
+          renovacion_automatica: boolean | null
+          tipo_contrato: string
+          updated_at: string | null
+        }
+        Insert: {
+          archivo_url?: string | null
+          cliente_id: string
+          condiciones_especiales?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio: string
+          id?: string
+          moneda?: string | null
+          monto_mensual?: number | null
+          notas?: string | null
+          numero_contrato: string
+          renovacion_automatica?: boolean | null
+          tipo_contrato?: string
+          updated_at?: string | null
+        }
+        Update: {
+          archivo_url?: string | null
+          cliente_id?: string
+          condiciones_especiales?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          moneda?: string | null
+          monto_mensual?: number | null
+          notas?: string | null
+          numero_contrato?: string
+          renovacion_automatica?: boolean | null
+          tipo_contrato?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_monitoreo_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       criterios_evaluacion_financiera: {
         Row: {
           activo: boolean | null
@@ -12218,6 +12283,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "pc_clientes_gadgets_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_clientes_portales: {
+        Row: {
+          activo: boolean | null
+          cliente_id: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          instrucciones: string | null
+          nombre_portal: string
+          password_portal: string | null
+          tipo_portal: string | null
+          updated_at: string | null
+          url_portal: string | null
+          usuario_portal: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          cliente_id: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instrucciones?: string | null
+          nombre_portal: string
+          password_portal?: string | null
+          tipo_portal?: string | null
+          updated_at?: string | null
+          url_portal?: string | null
+          usuario_portal?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          cliente_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          instrucciones?: string | null
+          nombre_portal?: string
+          password_portal?: string | null
+          tipo_portal?: string | null
+          updated_at?: string | null
+          url_portal?: string | null
+          usuario_portal?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_clientes_portales_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "pc_clientes"
