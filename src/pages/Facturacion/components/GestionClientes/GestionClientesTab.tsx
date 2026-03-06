@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { FileSpreadsheet } from 'lucide-react';
 import { 
   Table, 
   TableBody, 
@@ -28,6 +29,7 @@ import { useClientesCreditoResumen } from '../../hooks/useClienteCredito';
 import { ClienteFormModal } from './ClienteFormModal';
 import { ClienteDetalleDrawer } from './ClienteDetalleDrawer';
 import { CreditoSummaryCards } from './CreditoSummaryCards';
+import { ImportMaestroWizard } from './ImportMaestroWizard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency } from '@/utils/formatUtils';
@@ -40,6 +42,7 @@ export function GestionClientesTab() {
   const [selectedCliente, setSelectedCliente] = useState<ClienteFiscal | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetalleDrawer, setShowDetalleDrawer] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
   const [activeFilter, setActiveFilter] = useState('todos');
 
   // Create a map for credit data
@@ -180,7 +183,7 @@ export function GestionClientesTab() {
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
               <div className="relative w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -190,6 +193,15 @@ export function GestionClientesTab() {
                   className="pl-9 h-9"
                 />
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9"
+                onClick={() => setShowImportWizard(true)}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+                Importar Maestro
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -364,6 +376,12 @@ export function GestionClientesTab() {
           setShowDetalleDrawer(false);
           setShowEditModal(true);
         }}
+      />
+
+      {/* Import Maestro Wizard */}
+      <ImportMaestroWizard
+        open={showImportWizard}
+        onOpenChange={setShowImportWizard}
       />
     </div>
   );

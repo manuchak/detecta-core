@@ -11976,6 +11976,8 @@ export type Database = {
           fecha_baja: string | null
           forma_pago_preferida: string | null
           horas_cortesia: number | null
+          horas_cortesia_foraneo: number | null
+          horas_cortesia_local: number | null
           id: string
           limite_credito: number | null
           margen_objetivo_porcentaje: number | null
@@ -11996,6 +11998,8 @@ export type Database = {
           search_vector: unknown
           sla_minutos_asignacion: number | null
           sla_respuesta_horas: number | null
+          tarifa_con_arma: number | null
+          tarifa_sin_arma: number | null
           tarifas_especiales: boolean | null
           tipo_facturacion: string | null
           updated_at: string | null
@@ -12029,6 +12033,8 @@ export type Database = {
           fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
+          horas_cortesia_foraneo?: number | null
+          horas_cortesia_local?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
@@ -12049,6 +12055,8 @@ export type Database = {
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
+          tarifa_con_arma?: number | null
+          tarifa_sin_arma?: number | null
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null
           updated_at?: string | null
@@ -12082,6 +12090,8 @@ export type Database = {
           fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
+          horas_cortesia_foraneo?: number | null
+          horas_cortesia_local?: number | null
           id?: string
           limite_credito?: number | null
           margen_objetivo_porcentaje?: number | null
@@ -12102,6 +12112,8 @@ export type Database = {
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
+          tarifa_con_arma?: number | null
+          tarifa_sin_arma?: number | null
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null
           updated_at?: string | null
