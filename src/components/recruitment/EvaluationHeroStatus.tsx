@@ -111,17 +111,12 @@ export function EvaluationHeroStatus({
           </div>
         </div>
         {invitationLink && (
-          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-            <p className="text-xs text-muted-foreground">Comparte este link con el custodio para que complete su registro:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-background rounded px-2 py-1.5 truncate border border-border select-all">
-                {invitationLink}
-              </code>
-              <Button size="sm" variant="outline" className="shrink-0 gap-1.5" onClick={handleCopy}>
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'Copiado' : 'Copiar'}
-              </Button>
-            </div>
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">Comparte este link con el custodio para que complete su registro</p>
+            <Button size="sm" variant="outline" className="shrink-0 gap-1.5 ml-3" onClick={handleCopy}>
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? 'Copiado' : 'Copiar link'}
+            </Button>
           </div>
         )}
       </div>
