@@ -15,10 +15,13 @@ import {
 } from '@/components/ui/select';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useUserSkills } from '@/hooks/useUserSkills';
-import { Search, Users, Shield, UserPlus, UserMinus, UserCheck, Archive, Calendar, Clock, CheckCircle } from 'lucide-react';
+import { Search, Users, Shield, UserPlus, UserMinus, UserCheck, Archive, Calendar, Clock, CheckCircle, Link, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArchiveUserDialog } from './ArchiveUserDialog';
 import { CreateUserDialog } from './CreateUserDialog';
+import { RecoveryLinkDialog } from './RecoveryLinkDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { UserWithRole } from '@/types/roleTypes';
@@ -31,6 +34,10 @@ export const RoleManager = () => {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+  const [recoveryLink, setRecoveryLink] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryDialogOpen, setRecoveryDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Obtener usuarios únicos por email y mostrar el rol de mayor prioridad
   const uniqueUsers = users?.reduce((acc, user) => {
@@ -175,6 +182,39 @@ export const RoleManager = () => {
     reactivateUser.mutate({ userId });
   };
 
+  const handleGenerateRecoveryLink = async (email: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-recovery-link', {
+        body: { email },
+      });
+
+      if (error) {
+        let errorMessage = 'Error al generar link';
+        try {
+          if (error.context && error.context instanceof Response) {
+            const errorBody = await error.context.json();
+            errorMessage = errorBody?.error || errorMessage;
+          }
+        } catch { /* ignore */ }
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+        return;
+      }
+
+      if (data?.error) {
+        toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        return;
+      }
+
+      if (data?.recovery_link) {
+        setRecoveryLink(data.recovery_link);
+        setRecoveryEmail(email);
+        setRecoveryDialogOpen(true);
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Error inesperado', variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -272,6 +312,7 @@ export const RoleManager = () => {
             onVerify={handleVerifyUser}
             onArchive={() => handleArchiveClick(user)}
             onReactivate={() => handleReactivate(user.id)}
+            onGenerateRecoveryLink={() => handleGenerateRecoveryLink(user.email)}
             getRoleDisplayName={getRoleDisplayName}
             getRoleBadgeColor={getRoleBadgeColor}
             getSkillSummary={getSkillSummary}
@@ -311,6 +352,14 @@ export const RoleManager = () => {
         />
       )}
 
+      {/* Recovery Link Dialog */}
+      <RecoveryLinkDialog
+        open={recoveryDialogOpen}
+        onOpenChange={setRecoveryDialogOpen}
+        recoveryLink={recoveryLink}
+        userEmail={recoveryEmail}
+      />
+
       {/* Create User Dialog */}
       <CreateUserDialog
         open={createDialogOpen}
@@ -333,6 +382,7 @@ const UserRoleCard = ({
   onVerify,
   onArchive,
   onReactivate,
+  onGenerateRecoveryLink,
   getRoleDisplayName, 
   getRoleBadgeColor,
   getSkillSummary,
@@ -345,6 +395,7 @@ const UserRoleCard = ({
   onVerify: (userId: string) => void;
   onArchive: () => void;
   onReactivate: () => void;
+  onGenerateRecoveryLink: () => void;
   getRoleDisplayName: (role: string) => string;
   getRoleBadgeColor: (role: string) => string;
   getSkillSummary: (role: string) => string[];
@@ -468,6 +519,16 @@ const UserRoleCard = ({
                   </SelectContent>
                 </Select>
                 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onGenerateRecoveryLink}
+                  className="w-full text-muted-foreground hover:text-foreground"
+                >
+                  <Link className="h-4 w-4 mr-2" />
+                  Link de recuperación
+                </Button>
+
                 <Button 
                   variant="ghost" 
                   size="sm" 
