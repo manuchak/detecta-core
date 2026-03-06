@@ -125,10 +125,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   // Training
   const trainingComplete = useMemo(() => {
-    if (!modulos || !progreso) return false;
-    const completed = progreso.filter((p: any) => p.estado === 'completado').length;
-    return modulos.length > 0 && completed >= modulos.length;
-  }, [modulos, progreso]);
+    const stats = calcularProgresoGeneral();
+    return stats?.capacitacion_completa ?? false;
+  }, [calcularProgresoGeneral]);
 
   // Compute gates
   const gates: Gate[] = useMemo(() => {
