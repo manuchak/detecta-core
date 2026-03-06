@@ -1,97 +1,66 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Diagnostico: "En sitio" se revierte a "Pendiente arribar"
 
-## Roles confirmados por módulo
+## Problema raiz
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+La funcion `getOperationalStatus` en `ScheduledServicesTabSimple.tsx` y `CompactServiceCard.tsx` tiene esta logica:
 
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
-
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```typescript
+// En sitio: hora_llegada_custodio existe Y hora_inicio_real NO existe
+if (service.hora_llegada_custodio && !service.hora_inicio_real) {
+  return { status: 'en_sitio' };
+}
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+Cuando el monitorista inicia el servicio en Bitacora (`useBitacoraBoard.iniciarServicio`), se escribe `hora_inicio_real` en `servicios_planificados`. Esto invalida la condicion `!service.hora_inicio_real`, y el servicio cae al siguiente caso:
 
-### Fase 2 — Migrar policies por módulo
+```typescript
+// La hora de cita ya paso + custodio asignado = "Pendiente arribar"
+if (citaTime < now && isFullyAssigned) {
+  return { status: 'pendiente_inicio', label: 'Pendiente arribar' };
+}
+```
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+**Resultado**: Un servicio que estaba "En sitio" se muestra como "Pendiente arribar" despues de que Bitacora lo inicia. Los datos de la BD de hoy lo confirman: servicios con `hora_llegada_custodio = '05:48:09'` y `hora_inicio_real = '2026-03-06T11:27:49'` muestran "Pendiente arribar" en Planeacion.
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+## Comportamiento esperado (confirmado por usuario)
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+Cuando `hora_inicio_real` ya existe, Planeacion debe mostrar el servicio como **"En curso"** (estado de solo lectura) y el boton "En sitio" debe desaparecer. La edicion de estado se bloquea una vez que Bitacora toma control.
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+## Solucion
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+Agregar un nuevo estado `'en_curso'` a la logica de `getOperationalStatus`, evaluado **antes** de `pendiente_inicio`:
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+```typescript
+// En curso - monitoreo activo (hora_inicio_real existe, hora_fin_real no)
+if (service.hora_inicio_real && !service.hora_fin_real) {
+  return { status: 'en_curso', label: 'En curso', icon: Activity, ... };
+}
+```
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### Orden corregido de evaluacion:
+1. `completado` — `hora_fin_real` existe
+2. `en_curso` — `hora_inicio_real` existe (NUEVO)
+3. `en_sitio` — `hora_llegada_custodio` existe, sin `hora_inicio_real`
+4. `sin_asignar` — sin custodio
+5. `armado_pendiente` — falta armado
+6. `pendiente_inicio` — hora paso, completamente asignado
+7. `programado` — completamente asignado, hora no ha pasado
 
-### Archivos a modificar
+### Archivos a modificar:
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---|---|
+| `ScheduledServicesTabSimple.tsx` | Agregar estado `en_curso` a `getOperationalStatus` (lineas 200-295) y a `ESTADO_OPERATIVO_CONFIG` (lineas 108-116) |
+| `CompactServiceCard.tsx` | Agregar estado `en_curso` a `getOperationalStatus` (lineas 31-128) |
+| `StatusUpdateButton.tsx` | Agregar `en_curso` al tipo `OperationalStatus` y asegurar que retorna `null` para ese estado (ya lo hace con el guard existente) |
+
+### Impacto en StatusUpdateButton:
+- `canMarkOnSite` ya excluye `en_curso` (solo permite `programado`, `armado_pendiente`, `pendiente_inicio`)
+- `canRevert` solo aplica a `en_sitio`
+- Para `en_curso`, ambos son `false` → el boton no se renderiza → correcto
+
+### Impacto en semaforo de conteos:
+Se agregara `en_curso` al config de estados operativos con color azul para distinguirlo visualmente de "En sitio" (verde) y "Completado" (verde oscuro).
 
