@@ -390,6 +390,15 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
             <TabsContent value="gadgets" className="mt-4">
               {cliente && <GadgetsTab clienteId={cliente.id} />}
             </TabsContent>
+            {/* Contratos */}
+            <TabsContent value="contratos" className="mt-4">
+              {cliente && <ContratosTab clienteId={cliente.id} />}
+            </TabsContent>
+
+            {/* Portales */}
+            <TabsContent value="portales" className="mt-4">
+              {cliente && <PortalesTab clienteId={cliente.id} />}
+            </TabsContent>
 
             {/* Contacto Principal (legacy) */}
             <TabsContent value="contactoPrincipal" className="space-y-4 mt-4">
