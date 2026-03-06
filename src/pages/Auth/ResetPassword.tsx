@@ -55,7 +55,7 @@ export const ResetPassword = () => {
   const { isRecoveryMode, clearRecoveryMode, userRole } = useAuth();
 
   useEffect(() => {
-    // First check for hash errors (e.g. otp_expired)
+    // First check for hash errors (e.g. otp_expired from native Supabase flow)
     const hashError = parseHashErrors();
     if (hashError) {
       setError(hashError.message);
@@ -76,7 +76,35 @@ export const ResetPassword = () => {
       }
     });
 
-    // Fallback: check hash for manual token handling
+    // Check for indirect recovery link: ?token_hash=...&type=recovery
+    // This is the bot-prefetch-immune approach — the token is verified client-side
+    // via verifyOtp instead of the direct /auth/v1/verify GET endpoint.
+    const searchParams = new URLSearchParams(window.location.search);
+    const tokenHash = searchParams.get('token_hash');
+    const tokenType = searchParams.get('type');
+
+    if (tokenHash && tokenType === 'recovery') {
+      supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: 'recovery',
+      }).then(({ error: verifyError }) => {
+        if (verifyError) {
+          console.error('verifyOtp error:', verifyError);
+          if (verifyError.message?.includes('expired') || verifyError.message?.includes('otp_expired')) {
+            setError('El enlace de recuperación ha expirado. Por favor solicita uno nuevo.');
+            setErrorType('expired');
+          } else {
+            setError('El enlace de recuperación es inválido o ha expirado.');
+            setErrorType('invalid');
+          }
+        } else {
+          setSessionReady(true);
+        }
+      });
+      return () => subscription.unsubscribe();
+    }
+
+    // Fallback: check hash for native Supabase token handling (forgot-password flow)
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const accessToken = hashParams.get("access_token");
     const type = hashParams.get("type");
