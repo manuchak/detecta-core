@@ -1,41 +1,97 @@
 
 
-# Diagnostico: Workflow de Recuperacion de Contrasena Roto
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Problema encontrado
+## Roles confirmados por módulo
 
-El edge function `send-password-reset` falla con error **403 de Resend**:
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
+---
+
+## Hallazgos actuales
+
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
-The detecta.app domain is not verified. Please, add and verify your domain on https://resend.com/domains
-```
 
-El dominio `detecta.app` no esta verificado en Resend, por lo que el email con el enlace de recuperacion **nunca llega** al usuario. El link se genera correctamente en Supabase, pero Resend rechaza el envio.
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-La funcion envia desde `notificaciones@detecta.app` (linea 76 del edge function).
+### Fase 2 — Migrar policies por módulo
 
-## Solucion: 2 opciones
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-### Opcion A (rapida, recomendada): Usar `resetPasswordForEmail` nativo de Supabase
-Elimina la dependencia de Resend completamente para password reset. Supabase envia el correo de recuperacion directamente via su servicio de emails integrado.
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-**Cambio en `ForgotPassword.tsx`**: Reemplazar la llamada a `supabase.functions.invoke("send-password-reset")` por:
-```typescript
-await supabase.auth.resetPasswordForEmail(email, {
-  redirectTo: `${window.location.origin}/reset-password`
-});
-```
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-Esto funciona sin necesidad de dominio verificado en Resend — usa el email service nativo de Supabase.
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-### Opcion B: Verificar el dominio `detecta.app` en Resend
-Requiere acceso a la cuenta de Resend y configuracion DNS del dominio. Proceso externo a Lovable.
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
 
-## Plan de implementacion (Opcion A)
+### Fase 3 — Frontend: Sidebar ajustes menores
 
-1. **Modificar `ForgotPassword.tsx`**: Reemplazar `supabase.functions.invoke` por `supabase.auth.resetPasswordForEmail` con `redirectTo` apuntando a `/reset-password`
-2. **`ResetPassword.tsx`**: Ya funciona correctamente — detecta el hash `type=recovery` y permite `updateUser({ password })`
-3. **El edge function `send-password-reset` queda obsoleto** pero no se elimina (por si se quiere reactivar con dominio verificado)
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
-Un solo archivo modificado, ~5 lineas cambiadas. El usuario podra recuperar su contrasena inmediatamente.
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
