@@ -69,6 +69,7 @@ interface Props {
 }
 
 export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, currentState, tipoOperativo = 'custodio', isOpen, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState('interview');
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const { data: interviews, isLoading: loadingInterviews } = useStructuredInterviews(candidatoId);
   const { data: riskChecklist, isLoading: loadingRisk } = useRiskChecklist(candidatoId);
@@ -127,7 +128,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           </div>
         )}
 
-        <Tabs defaultValue="interview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Group labels visible on desktop */}
           <div className="hidden sm:flex gap-1 text-[10px] text-muted-foreground mb-1 px-1">
             <span className="w-[350px]">── Evaluación Core ──</span>
