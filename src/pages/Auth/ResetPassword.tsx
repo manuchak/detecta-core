@@ -5,7 +5,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getTargetRouteForRole } from "@/constants/accessControl";
+import { Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Clock } from "lucide-react";
+
+type ErrorType = 'expired' | 'invalid' | 'generic';
+
+interface HashError {
+  type: ErrorType;
+  message: string;
+}
+
+function parseHashErrors(): HashError | null {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return null;
+  
+  const params = new URLSearchParams(hash);
+  const error = params.get('error');
+  const errorCode = params.get('error_code');
+  const errorDescription = params.get('error_description');
+
+  if (!error) return null;
+
+  if (errorCode === 'otp_expired') {
+    return {
+      type: 'expired',
+      message: 'El enlace de recuperación ha expirado. Por favor solicita uno nuevo.',
+    };
+  }
+
+  return {
+    type: 'invalid',
+    message: errorDescription?.replace(/\+/g, ' ') || 'El enlace de recuperación es inválido.',
+  };
+}
 
 export const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -15,58 +48,71 @@ export const ResetPassword = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<ErrorType | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isRecoveryMode, clearRecoveryMode, userRole } = useAuth();
 
-  // Check for valid session from the reset link
   useEffect(() => {
-    const checkSession = async () => {
-      // The hash fragment contains the access token from Supabase
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get("access_token");
-      const type = hashParams.get("type");
+    // First check for hash errors (e.g. otp_expired)
+    const hashError = parseHashErrors();
+    if (hashError) {
+      setError(hashError.message);
+      setErrorType(hashError.type);
+      return;
+    }
 
-      if (accessToken && type === "recovery") {
-        // Set the session with the recovery token
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: hashParams.get("refresh_token") || "",
-        });
+    // If AuthContext already detected PASSWORD_RECOVERY, session is ready
+    if (isRecoveryMode) {
+      setSessionReady(true);
+      return;
+    }
 
-        if (error) {
-          console.error("Error setting session:", error);
+    // Listen for PASSWORD_RECOVERY event (in case it fires after mount)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setSessionReady(true);
+      }
+    });
+
+    // Fallback: check hash for manual token handling
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get("access_token");
+    const type = hashParams.get("type");
+
+    if (accessToken && type === "recovery") {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: hashParams.get("refresh_token") || "",
+      }).then(({ error: sessionError }) => {
+        if (sessionError) {
           setError("El enlace de recuperación es inválido o ha expirado");
+          setErrorType('invalid');
         } else {
           setSessionReady(true);
         }
-      } else {
-        // Check if there's already a valid session
-        const { data: { session } } = await supabase.auth.getSession();
+      });
+    } else {
+      // Check existing session
+      supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           setSessionReady(true);
         } else {
           setError("No se encontró un enlace de recuperación válido. Por favor solicita uno nuevo.");
+          setErrorType('invalid');
         }
-      }
-    };
+      });
+    }
 
-    checkSession();
-  }, []);
+    return () => subscription.unsubscribe();
+  }, [isRecoveryMode]);
 
   const validatePassword = (pwd: string): string | null => {
-    if (pwd.length < 8) {
-      return "La contraseña debe tener al menos 8 caracteres";
-    }
-    if (!/[A-Z]/.test(pwd)) {
-      return "La contraseña debe contener al menos una mayúscula";
-    }
-    if (!/[a-z]/.test(pwd)) {
-      return "La contraseña debe contener al menos una minúscula";
-    }
-    if (!/[0-9]/.test(pwd)) {
-      return "La contraseña debe contener al menos un número";
-    }
+    if (pwd.length < 8) return "La contraseña debe tener al menos 8 caracteres";
+    if (!/[A-Z]/.test(pwd)) return "La contraseña debe contener al menos una mayúscula";
+    if (!/[a-z]/.test(pwd)) return "La contraseña debe contener al menos una minúscula";
+    if (!/[0-9]/.test(pwd)) return "La contraseña debe contener al menos un número";
     return null;
   };
 
@@ -75,7 +121,6 @@ export const ResetPassword = () => {
     setLoading(true);
     setError(null);
 
-    // Validate passwords
     const validationError = validatePassword(password);
     if (validationError) {
       setError(validationError);
@@ -104,16 +149,17 @@ export const ResetPassword = () => {
         });
       } else {
         setSuccess(true);
+        clearRecoveryMode();
         toast({
           title: "¡Contraseña actualizada!",
-          description: "Tu contraseña ha sido actualizada exitosamente",
+          description: "Tu contraseña ha sido actualizada exitosamente. Ingresando al sistema...",
         });
 
-        // Sign out and redirect to login after a delay
-        setTimeout(async () => {
-          await supabase.auth.signOut();
-          navigate("/auth/login");
-        }, 3000);
+        // Redirect to dashboard based on role (user is already authenticated)
+        setTimeout(() => {
+          const target = getTargetRouteForRole(userRole || 'admin');
+          navigate(target, { replace: true });
+        }, 2000);
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -137,16 +183,30 @@ export const ResetPassword = () => {
         </div>
         <h2 className="text-xl font-semibold text-foreground">¡Contraseña actualizada!</h2>
         <p className="text-muted-foreground">
-          Tu contraseña ha sido actualizada exitosamente. Serás redirigido al inicio de sesión...
+          Tu contraseña ha sido actualizada exitosamente. Ingresando al sistema...
         </p>
-        <Link to="/auth/login" className="text-primary hover:underline text-sm">
-          Ir a iniciar sesión
+        <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary" />
+      </div>
+    );
+  }
+
+  // Error state — expired link
+  if (error && !sessionReady && errorType === 'expired') {
+    return (
+      <div className="text-center space-y-4">
+        <div className="flex justify-center">
+          <Clock className="h-16 w-16 text-amber-500" />
+        </div>
+        <h2 className="text-xl font-semibold text-foreground">Enlace expirado</h2>
+        <p className="text-muted-foreground">{error}</p>
+        <Link to="/auth/forgot-password">
+          <Button variant="default">Solicitar nuevo enlace</Button>
         </Link>
       </div>
     );
   }
 
-  // Error state (invalid/expired link)
+  // Error state — invalid link
   if (error && !sessionReady) {
     return (
       <div className="text-center space-y-4">
