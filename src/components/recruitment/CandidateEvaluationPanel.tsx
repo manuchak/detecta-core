@@ -382,7 +382,6 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           gates={gates}
           canRelease={canRelease}
           isLiberating={isLiberating}
-          hasLiberacionRecord={!!liberacionRecord}
           isAlreadyReleased={isAlreadyReleased}
           onRelease={handleRelease}
           onScrollToBlockers={() => blockersRef.current?.scrollIntoView({ behavior: 'smooth' })}
