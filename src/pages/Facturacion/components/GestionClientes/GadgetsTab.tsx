@@ -49,8 +49,8 @@ export function GadgetsTab({ clienteId }: GadgetsTabProps) {
 
       {showAdd && (
         <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Tipo *</Label>
               <Select value={form.tipo} onValueChange={v => setForm(p => ({ ...p, tipo: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -59,11 +59,13 @@ export function GadgetsTab({ clienteId }: GadgetsTabProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Precio *</Label>
               <Input type="number" value={form.precio} onChange={e => setForm(p => ({ ...p, precio: e.target.value }))} placeholder="$0.00" />
             </div>
-            <div className="space-y-1">
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Facturación</Label>
               <Select value={form.facturacion} onValueChange={v => setForm(p => ({ ...p, facturacion: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -73,16 +75,16 @@ export function GadgetsTab({ clienteId }: GadgetsTabProps) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1 min-w-0">
+              <Input value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Notas..." className="text-xs mt-5" />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <input type="checkbox" id="incluido" checked={form.incluido_en_tarifa}
                 onChange={e => setForm(p => ({ ...p, incluido_en_tarifa: e.target.checked }))}
                 className="h-4 w-4 rounded border-border" />
               <label htmlFor="incluido" className="text-xs">Incluido en tarifa base</label>
-            </div>
-            <div className="flex-1">
-              <Input value={form.notas} onChange={e => setForm(p => ({ ...p, notas: e.target.value }))} placeholder="Notas..." className="text-xs" />
             </div>
             <Button size="sm" onClick={handleAdd} disabled={!form.precio || upsertMutation.isPending}>Guardar</Button>
           </div>

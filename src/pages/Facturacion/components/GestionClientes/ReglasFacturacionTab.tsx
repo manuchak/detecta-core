@@ -59,32 +59,32 @@ export function ReglasFacturacionTab({ formData, onChange }: ReglasFacturacionTa
     <div className="space-y-4">
       {/* Portal */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-3">
             <input type="checkbox" id="requiere_portal" checked={formData.requiere_portal ?? false}
               onChange={e => onChange({ requiere_portal: e.target.checked })}
-              className="h-4 w-4 rounded border-border" />
-            <Label htmlFor="requiere_portal">Requiere portal</Label>
+              className="h-4 w-4 rounded border-border shrink-0" />
+            <Label htmlFor="requiere_portal" className="text-xs">Requiere portal</Label>
           </div>
           {formData.requiere_portal && (
             <Input value={formData.url_portal || ''} onChange={e => onChange({ url_portal: e.target.value })}
-              placeholder="https://portal.cliente.com" />
+              placeholder="https://portal.cliente.com" className="text-xs" />
           )}
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <div className="flex items-center gap-3">
             <input type="checkbox" id="requiere_prefactura" checked={formData.requiere_prefactura ?? false}
               onChange={e => onChange({ requiere_prefactura: e.target.checked })}
-              className="h-4 w-4 rounded border-border" />
-            <Label htmlFor="requiere_prefactura">Requiere prefactura</Label>
+              className="h-4 w-4 rounded border-border shrink-0" />
+            <Label htmlFor="requiere_prefactura" className="text-xs">Requiere prefactura</Label>
           </div>
         </div>
       </div>
 
       {/* Dia entrega + formato */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Día de entrega de factura</Label>
+        <div className="space-y-2 min-w-0">
+          <Label className="text-xs">Día de entrega de factura</Label>
           <Select value={formData.dia_entrega_factura || ''} onValueChange={v => onChange({ dia_entrega_factura: v })}>
             <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
             <SelectContent>
@@ -92,8 +92,8 @@ export function ReglasFacturacionTab({ formData, onChange }: ReglasFacturacionTa
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label>Formato descripción factura</Label>
+        <div className="space-y-2 min-w-0">
+          <Label className="text-xs">Formato descripción factura</Label>
           <Select value={formData.descripcion_factura_formato || ''} onValueChange={v => onChange({ descripcion_factura_formato: v })}>
             <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
             <SelectContent>
