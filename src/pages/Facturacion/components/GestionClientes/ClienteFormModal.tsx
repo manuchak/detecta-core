@@ -156,9 +156,10 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
         toast.success('Cliente actualizado correctamente');
       }
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating cliente:', error);
-      toast.error('Error al actualizar el cliente');
+      const msg = error?.message || 'Error desconocido';
+      toast.error(`Error al actualizar el cliente: ${msg}`);
     }
   };
 
