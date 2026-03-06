@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getTargetRouteForRole } from '@/constants/accessControl';
@@ -10,7 +10,8 @@ interface AuthLayoutProps {
 }
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, isRecoveryMode } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -28,8 +29,12 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
     );
   }
 
+  // If user is in recovery mode and on /reset-password, let them stay
+  const isOnResetPage = location.pathname === '/reset-password';
+  
   // If user is authenticated, redirect to their role-specific route
-  if (user && userRole) {
+  // UNLESS they're in recovery mode on the reset password page
+  if (user && userRole && !(isRecoveryMode && isOnResetPage)) {
     const target = getTargetRouteForRole(userRole);
     return <Navigate to={target} replace />;
   }

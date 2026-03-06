@@ -17,6 +17,8 @@ interface AuthContextType {
   userRole: string | null;
   loading: boolean;
   roleLoading: boolean;
+  isRecoveryMode: boolean;
+  clearRecoveryMode: () => void;
   permissions: AuthPermissions;
   hasPermission: (permission: keyof AuthPermissions) => boolean;
   hasRole: (roles: string | string[]) => boolean;
@@ -35,7 +37,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const { toast } = useToast();
+
+  const clearRecoveryMode = () => setIsRecoveryMode(false);
 
   /**
    * ⚠️ SECURITY NOTE: UI-ONLY permission mapping
@@ -221,6 +226,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log("Auth state changed:", event, currentSession?.user?.email);
 
+        // Detect PASSWORD_RECOVERY event before processing session
+        if (event === 'PASSWORD_RECOVERY') {
+          console.log('PASSWORD_RECOVERY event detected — entering recovery mode');
+          setIsRecoveryMode(true);
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          // Don't fetch role or show toast — user needs to change password first
+          setLoading(false);
+          setRoleLoading(false);
+          return;
+        }
+
         if (currentSession?.user) {
           const isSameUser = lastAuthUserId.current === currentSession.user.id;
           const isTokenRefresh = event === 'TOKEN_REFRESHED';
@@ -265,8 +282,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastAuthUserId.current = null;
         }
 
-        // Handle auth events — only show toast for genuine logins
-        if (event === 'SIGNED_IN' && currentSession?.user) {
+        // Handle auth events — only show toast for genuine logins (not recovery)
+        if (event === 'SIGNED_IN' && currentSession?.user && !isRecoveryMode) {
           const wasAlreadyLoggedIn = lastAuthUserId.current === currentSession.user.id;
           // Update ref after check
           lastAuthUserId.current = currentSession.user.id;
@@ -519,6 +536,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userRole,
     loading,
     roleLoading,
+    isRecoveryMode,
+    clearRecoveryMode,
     permissions,
     hasPermission,
     hasRole,
@@ -545,6 +564,8 @@ export const useAuth = () => {
       userRole: null,
       loading: true,
       roleLoading: true,
+      isRecoveryMode: false,
+      clearRecoveryMode: () => {},
       permissions: {
         canViewLeads: false,
         canEditLeads: false,
