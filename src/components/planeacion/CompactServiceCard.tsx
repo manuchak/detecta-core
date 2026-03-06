@@ -51,8 +51,21 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
     };
   }
   
+  // En curso - monitoreo activo (hora_inicio_real existe, hora_fin_real no)
+  if (service.hora_inicio_real) {
+    return { 
+      status: 'en_curso', 
+      color: 'bg-blue-500', 
+      textColor: 'text-blue-700 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+      icon: Clock, 
+      label: 'En curso',
+      priority: 4
+    };
+  }
+
   // En sitio - custodio llegó al punto (hora_llegada_custodio) pero monitoreo aún no inicia (hora_inicio_real)
-  if (service.hora_llegada_custodio && !service.hora_inicio_real) {
+  if (service.hora_llegada_custodio) {
     return { 
       status: 'en_sitio', 
       color: 'bg-emerald-500', 
@@ -60,7 +73,7 @@ export function getOperationalStatus(service: any, nowOverride?: Date) {
       bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
       icon: MapPinCheck, 
       label: 'En sitio',
-      priority: 4
+      priority: 5
     };
   }
   

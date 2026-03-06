@@ -112,7 +112,8 @@ export function ScheduledServicesTab() {
     'pendiente': { label: 'Pendiente', bgColor: 'bg-yellow-500', textColor: 'text-yellow-600 dark:text-yellow-400', priority: 4 },
     'programado': { label: 'Programado', bgColor: 'bg-slate-400', textColor: 'text-slate-600 dark:text-slate-400', priority: 5 },
     'en_sitio': { label: 'En sitio', bgColor: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400', priority: 6 },
-    'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400', priority: 7 },
+    'en_curso': { label: 'En curso', bgColor: 'bg-blue-500', textColor: 'text-blue-600 dark:text-blue-400', priority: 7 },
+    'completado': { label: 'Completado', bgColor: 'bg-green-600', textColor: 'text-green-600 dark:text-green-400', priority: 8 },
   };
 
   // Group services by client for breakdown popover

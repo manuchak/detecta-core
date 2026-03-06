@@ -9,7 +9,7 @@ import {
 import { MapPinCheck, RotateCcw, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type OperationalStatus = 'sin_asignar' | 'programado' | 'armado_pendiente' | 'pendiente_inicio' | 'en_sitio' | 'completado';
+export type OperationalStatus = 'sin_asignar' | 'programado' | 'armado_pendiente' | 'pendiente_inicio' | 'en_sitio' | 'en_curso' | 'completado';
 
 interface StatusUpdateButtonProps {
   serviceId: string;
