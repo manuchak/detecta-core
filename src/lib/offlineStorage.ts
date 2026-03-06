@@ -238,8 +238,65 @@ export async function cleanupOrphanedPhotos(): Promise<number> {
 }
 
 /**
+ * Limpieza agresiva: elimina TODOS los blobs huérfanos (sin filtro de 48h)
+ * y limpia la cola de sync completada. Retorna estadísticas de lo liberado.
+ */
+export async function aggressiveCleanup(): Promise<{ photosRemoved: number; bytesFreed: number }> {
+  const db = await getDB();
+  const allPhotos = await db.getAll('photo_blobs');
+  const allDrafts = await db.getAll('checklist_drafts');
+  const draftServiceIds = new Set(allDrafts.map((d) => d.servicioId));
+  let photosRemoved = 0;
+  let bytesFreed = 0;
+
+  // 1. Eliminar TODOS los blobs huérfanos sin importar antigüedad
+  const tx = db.transaction('photo_blobs', 'readwrite');
+  for (const photo of allPhotos) {
+    if (!draftServiceIds.has(photo.servicioId)) {
+      bytesFreed += photo.blob.size;
+      await tx.store.delete(photo.id);
+      photosRemoved++;
+    }
+  }
+  await tx.done;
+
+  // 2. Limpiar toda la cola de sync
+  const queue = await db.getAll('sync_queue');
+  if (queue.length > 0) {
+    const queueSize = new Blob([JSON.stringify(queue)]).size;
+    bytesFreed += queueSize;
+    await db.clear('sync_queue');
+  }
+
+  console.log(`[OfflineStorage] Aggressive cleanup: ${photosRemoved} photos, ${(bytesFreed / 1024 / 1024).toFixed(2)} MB freed`);
+  return { photosRemoved, bytesFreed };
+}
+
+/**
  * Obtiene el tamaño aproximado de datos offline almacenados
  */
+ export async function getOfflineStorageSize(): Promise<{
+   drafts: number;
+   photos: number;
+   queue: number;
+   total: number;
+ }> {
+   const db = await getDB();
+   const drafts = await db.getAll('checklist_drafts');
+   const photos = await db.getAll('photo_blobs');
+   const queue = await db.getAll('sync_queue');
+ 
+   const draftsSize = new Blob([JSON.stringify(drafts)]).size;
+   const photosSize = photos.reduce((acc, p) => acc + p.blob.size, 0);
+   const queueSize = new Blob([JSON.stringify(queue)]).size;
+ 
+   return {
+     drafts: draftsSize,
+     photos: photosSize,
+     queue: queueSize,
+     total: draftsSize + photosSize + queueSize,
+   };
+ }
  export async function getOfflineStorageSize(): Promise<{
    drafts: number;
    photos: number;
