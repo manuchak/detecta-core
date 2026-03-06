@@ -313,6 +313,15 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           <TabsContent value="timeline" className="mt-4">
             <CandidateStateTimeline candidatoId={candidatoId} currentState={currentState} />
           </TabsContent>
+
+          <TabsContent value="liberar" className="mt-4">
+            <LiberacionWizardTab
+              candidatoId={candidatoId}
+              candidatoNombre={candidatoNombre}
+              tipoOperativo={tipoOperativo}
+              onSwitchTab={(tab) => setActiveTab(tab)}
+            />
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
