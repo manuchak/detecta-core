@@ -128,29 +128,20 @@ export function GestionClientesTab() {
   };
 
   const getEstadoFiscal = (cliente: ClienteFiscal) => {
-    const hasRFC = !!cliente.rfc;
-    const hasRazonSocial = !!cliente.razon_social;
-    const hasRegimen = !!cliente.regimen_fiscal;
-    const hasCP = !!cliente.codigo_postal_fiscal;
+    const fields = [
+      { name: 'RFC', has: !!cliente.rfc },
+      { name: 'Razón Social', has: !!cliente.razon_social },
+      { name: 'Régimen Fiscal', has: !!cliente.regimen_fiscal },
+      { name: 'C.P. Fiscal', has: !!cliente.codigo_postal_fiscal },
+    ];
+    const count = fields.filter(f => f.has).length;
+    const missing = fields.filter(f => !f.has).map(f => f.name);
     
-    if (hasRFC && hasRazonSocial && hasRegimen && hasCP) {
-      return { 
-        status: 'completo', 
-        icon: CheckCircle2, 
-        badge: <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0 text-[10px]">Completo</Badge>
-      };
-    } else if (hasRFC || hasRazonSocial) {
-      return { 
-        status: 'parcial', 
-        icon: AlertTriangle, 
-        badge: <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-0 text-[10px]">Incompleto</Badge>
-      };
-    }
-    return { 
-      status: 'pendiente', 
-      icon: XCircle, 
-      badge: <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-0 text-[10px]">Sin Datos</Badge>
-    };
+    const colorClass = count === 4 ? 'text-emerald-600' : count >= 3 ? 'text-blue-600' : count >= 1 ? 'text-amber-600' : 'text-destructive';
+    const bgClass = count === 4 ? 'bg-emerald-500/10' : count >= 3 ? 'bg-blue-500/10' : count >= 1 ? 'bg-amber-500/10' : 'bg-destructive/10';
+    const Icon = count === 4 ? CheckCircle2 : count >= 1 ? AlertTriangle : XCircle;
+
+    return { count, missing, colorClass, bgClass, Icon };
   };
 
   if (isLoading) {
