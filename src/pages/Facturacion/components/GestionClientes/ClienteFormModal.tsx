@@ -202,6 +202,14 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
                 <Package className="h-3 w-3" />
                 Gadgets
               </TabsTrigger>
+              <TabsTrigger value="contratos" className="gap-1 text-[11px] px-2 py-1.5">
+                <ScrollText className="h-3 w-3" />
+                Contratos
+              </TabsTrigger>
+              <TabsTrigger value="portales" className="gap-1 text-[11px] px-2 py-1.5">
+                <Globe className="h-3 w-3" />
+                Portales
+              </TabsTrigger>
               <TabsTrigger value="contactoPrincipal" className="gap-1 text-[11px] px-2 py-1.5">
                 <User className="h-3 w-3" />
                 Cto. Ppal
