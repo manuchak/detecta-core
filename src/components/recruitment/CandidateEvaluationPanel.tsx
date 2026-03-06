@@ -1,10 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { EvaluationHeroStatus } from './EvaluationHeroStatus';
 import { StructuredInterviewForm } from './interviews/StructuredInterviewForm';
 import { RiskChecklistForm, RiskLevelBadge } from './risk/RiskChecklistForm';
 import { CandidateStateTimeline, CandidateStateProgress } from './state/CandidateStateTimeline';
@@ -26,35 +25,27 @@ import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
 import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
-import { LiberacionWizardTab } from './liberacion/LiberacionWizardTab';
+import { LiberacionSuccessModal } from '@/components/liberacion/LiberacionSuccessModal';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
 import { useLatestMidot } from '@/hooks/useEvaluacionesMidot';
 import { useLatestToxicologia } from '@/hooks/useEvaluacionesToxicologicas';
 import { useLatestEstudioSocioeconomico } from '@/hooks/useEstudioSocioeconomico';
+import { useDocumentosProgress } from '@/hooks/useDocumentosCandidato';
+import { useContratosProgress } from '@/hooks/useContratosCandidato';
+import { useReferenciasProgress } from '@/hooks/useReferencias';
+import { useProgramacionInstalacionesCandidato } from '@/hooks/useProgramacionInstalacionesCandidato';
+import { useCapacitacion } from '@/hooks/useCapacitacion';
+import { useCustodioLiberacion } from '@/hooks/useCustodioLiberacion';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 import { 
-  MessageSquare, 
-  Shield, 
-  GitBranch, 
-  Star, 
-  Clock,
-  Plus,
-  User,
-  Loader2,
-  Brain,
-  TestTube,
-  Users,
-  FileText,
-  FileSignature,
-  GraduationCap,
-  Cpu,
-  ShieldCheck,
-  CheckCircle2,
-  Home,
-  Rocket
+  User, Loader2, Plus, Star, Clock,
+  MessageSquare, Shield, Brain, ShieldCheck, TestTube,
+  FileText, FileSignature, Users, GraduationCap, Cpu, Home,
+  GitBranch, ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -68,262 +59,506 @@ interface Props {
   onClose: () => void;
 }
 
+type GateLevel = 'blocker' | 'warning' | 'info';
+
+interface Gate {
+  id: string;
+  label: string;
+  level: GateLevel;
+  passed: boolean;
+  detail: string;
+  tabTarget?: string;
+}
+
+// Section item config
+interface SectionItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  badge?: React.ReactNode;
+  content: React.ReactNode;
+  gate?: Gate;
+}
+
 export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, currentState, tipoOperativo = 'custodio', isOpen, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState('interview');
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showInterviewForm, setShowInterviewForm] = useState(false);
+  const [isLiberating, setIsLiberating] = useState(false);
+  const [successData, setSuccessData] = useState<any>(null);
+  const blockersRef = useRef<HTMLDivElement>(null);
+
+  // Data hooks
   const { data: interviews, isLoading: loadingInterviews } = useStructuredInterviews(candidatoId);
-  const { data: riskChecklist, isLoading: loadingRisk } = useRiskChecklist(candidatoId);
+  const { data: riskChecklist } = useRiskChecklist(candidatoId);
   const { data: latestPsicometrico } = useLatestEvaluacionPsicometrica(candidatoId);
   const { data: latestToxicologia } = useLatestToxicologia(candidatoId);
   const latestMidot = useLatestMidot(candidatoId);
   const latestSocioeconomico = useLatestEstudioSocioeconomico(candidatoId);
+  const docsProgress = useDocumentosProgress(candidatoId, tipoOperativo);
+  const contractsProgress = useContratosProgress(candidatoId);
+  const { data: refsProgress } = useReferenciasProgress(candidatoId);
+  const { instalacionCompletada, ultimaInstalacion } = useProgramacionInstalacionesCandidato(candidatoId);
+  const { modulos, progreso } = useCapacitacion(candidatoId);
+  const { liberarCustodio } = useCustodioLiberacion();
+
   const { data: candidatoData } = useQuery({
     queryKey: ['candidato-vehiculo', candidatoId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('candidatos_custodios')
-        .select('vehiculo_propio')
-        .eq('id', candidatoId)
-        .single();
+      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio').eq('id', candidatoId).single();
       return data;
     },
     enabled: !!candidatoId,
   });
+
+  const { data: liberacionRecord, isLoading: loadingLib } = useQuery({
+    queryKey: ['custodio-liberacion-by-candidato', candidatoId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('custodio_liberacion').select('*').eq('candidato_id', candidatoId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!candidatoId,
+  });
+
   const vehiculoPropio = candidatoData?.vehiculo_propio ?? false;
   const latestInterview = interviews?.[0];
 
-  // Calculate completion progress
-  const completionInfo = useMemo(() => {
-    const items = [
-      { name: 'Entrevista', done: !!latestInterview },
-      { name: 'Riesgo', done: !!riskChecklist },
-      { name: 'Psicométricos', done: !!latestPsicometrico },
-      { name: 'Midot', done: !!latestMidot },
-      { name: 'Toxicológicos', done: !!latestToxicologia },
-    ];
-    const completed = items.filter(i => i.done).length;
-    return { completed, total: items.length, percentage: Math.round((completed / items.length) * 100) };
-  }, [latestInterview, riskChecklist, latestPsicometrico, latestMidot, latestToxicologia]);
+  // Training
+  const trainingComplete = useMemo(() => {
+    if (!modulos || !progreso) return false;
+    const completed = progreso.filter((p: any) => p.estado === 'completado').length;
+    return modulos.length > 0 && completed >= modulos.length;
+  }, [modulos, progreso]);
+
+  // Compute gates
+  const gates: Gate[] = useMemo(() => {
+    const g: Gate[] = [];
+
+    // BLOCKERS
+    g.push({
+      id: 'docs', label: 'Documentación completa', level: 'blocker',
+      passed: docsProgress.isComplete,
+      detail: docsProgress.isComplete ? `${docsProgress.completados}/${docsProgress.totalRequeridos} validados` : `Faltan ${docsProgress.totalRequeridos - docsProgress.completados} documentos`,
+      tabTarget: 'documents',
+    });
+
+    const toxicoOk = latestToxicologia?.resultado === 'negativo';
+    g.push({
+      id: 'toxico', label: 'Toxicológico negativo', level: 'blocker',
+      passed: toxicoOk,
+      detail: !latestToxicologia ? 'Sin resultado registrado' : latestToxicologia.resultado === 'positivo' ? 'Resultado POSITIVO' : 'Negativo verificado',
+      tabTarget: 'toxicology',
+    });
+
+    g.push({
+      id: 'socio', label: 'Socioeconómico no desfavorable', level: 'blocker',
+      passed: !latestSocioeconomico || latestSocioeconomico.resultado_general !== 'desfavorable',
+      detail: !latestSocioeconomico ? 'Sin estudio — se puede proceder' : latestSocioeconomico.resultado_general === 'desfavorable' ? 'DESFAVORABLE' : `${latestSocioeconomico.resultado_general}`,
+      tabTarget: 'socioeconomico',
+    });
+
+    // WARNINGS
+    g.push({
+      id: 'interview', label: 'Entrevista estructurada', level: 'warning',
+      passed: !!latestInterview,
+      detail: latestInterview ? `Rating: ${latestInterview.rating_promedio?.toFixed(1)}/5` : 'Sin entrevista registrada',
+      tabTarget: 'interview',
+    });
+
+    g.push({
+      id: 'risk', label: 'Checklist de riesgo', level: 'warning',
+      passed: !!riskChecklist,
+      detail: riskChecklist ? `Nivel: ${riskChecklist.risk_level}` : 'Sin evaluación de riesgo',
+      tabTarget: 'risk',
+    });
+
+    g.push({
+      id: 'psico', label: 'Evaluación psicométrica', level: 'warning',
+      passed: !!latestPsicometrico,
+      detail: latestPsicometrico ? `Score: ${latestPsicometrico.score_global}` : 'Sin evaluación',
+      tabTarget: 'psychometric',
+    });
+
+    g.push({
+      id: 'midot', label: 'Evaluación Midot', level: 'warning',
+      passed: !!latestMidot,
+      detail: latestMidot ? `${latestMidot.resultado_semaforo}` : 'Sin evaluación',
+      tabTarget: 'midot',
+    });
+
+    g.push({
+      id: 'contracts', label: 'Contratos firmados', level: 'warning',
+      passed: contractsProgress.isComplete,
+      detail: `${contractsProgress.firmados}/${contractsProgress.totalRequeridos} contratos`,
+      tabTarget: 'contracts',
+    });
+
+    g.push({
+      id: 'training', label: 'Capacitación completa', level: 'warning',
+      passed: trainingComplete,
+      detail: trainingComplete ? 'Módulos completados' : 'Pendiente',
+      tabTarget: 'training',
+    });
+
+    const refsOk = (refsProgress?.totalOk ?? 0) >= 4;
+    g.push({
+      id: 'refs', label: 'Referencias verificadas (4/4)', level: 'warning',
+      passed: refsOk,
+      detail: `${refsProgress?.totalOk ?? 0}/${refsProgress?.totalRefs ?? 0} verificadas`,
+      tabTarget: 'references',
+    });
+
+    // INFO
+    g.push({
+      id: 'gps', label: 'GPS instalado', level: 'info',
+      passed: instalacionCompletada,
+      detail: !ultimaInstalacion ? 'Opcional — sin instalación' : `Estado: ${ultimaInstalacion.estado}`,
+      tabTarget: 'installation',
+    });
+
+    return g;
+  }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion]);
+
+  const blockers = gates.filter(g => g.level === 'blocker' && !g.passed);
+  const warnings = gates.filter(g => g.level === 'warning' && !g.passed);
+  const passed = gates.filter(g => g.passed);
+  const canRelease = blockers.length === 0;
+  const isAlreadyReleased = liberacionRecord?.estado_liberacion === 'liberado';
+
+  const toggleSection = useCallback((id: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleRelease = async () => {
+    if (!liberacionRecord) return;
+    setIsLiberating(true);
+    try {
+      const result = await liberarCustodio.mutateAsync({ liberacion_id: liberacionRecord.id, forzar: true });
+      setSuccessData(result);
+    } finally {
+      setIsLiberating(false);
+    }
+  };
+
+  // Build section items with content
+  const sectionItems: SectionItem[] = useMemo(() => [
+    {
+      id: 'interview', label: 'Entrevista', icon: <MessageSquare className="h-4 w-4" />,
+      badge: latestInterview ? <Badge variant="outline" className="text-xs gap-1"><Star className="h-2.5 w-2.5" />{latestInterview.rating_promedio?.toFixed(1)}</Badge> : null,
+      gate: gates.find(g => g.id === 'interview'),
+      content: showInterviewForm ? (
+        <StructuredInterviewForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} onClose={() => setShowInterviewForm(false)} onSuccess={() => setShowInterviewForm(false)} />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-sm">Entrevistas</h3>
+            <Button onClick={() => setShowInterviewForm(true)} size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" />Nueva</Button>
+          </div>
+          {loadingInterviews ? (
+            <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+          ) : !interviews?.length ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Sin entrevistas registradas</p>
+          ) : (
+            <div className="space-y-2">
+              {interviews.map((iv) => (
+                <Card key={iv.id} className="bg-muted/30 border-border/50">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{iv.tipo_entrevista}</Badge>
+                        <span className="text-xs text-muted-foreground">{format(new Date(iv.fecha_entrevista), "d MMM yyyy", { locale: es })}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={iv.decision === 'aprobar' ? 'default' : iv.decision === 'rechazar' ? 'destructive' : 'secondary'} className="text-xs">
+                          {iv.decision === 'aprobar' ? 'Aprobado' : iv.decision === 'rechazar' ? 'Rechazado' : 'Pendiente'}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs gap-0.5"><Star className="h-2.5 w-2.5" />{iv.rating_promedio?.toFixed(1)}</Badge>
+                      </div>
+                    </div>
+                    {iv.notas_generales && <p className="text-xs text-muted-foreground line-clamp-2">{iv.notas_generales}</p>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'risk', label: 'Riesgo', icon: <Shield className="h-4 w-4" />,
+      badge: riskChecklist ? <RiskLevelBadge level={riskChecklist.risk_level} /> : null,
+      gate: gates.find(g => g.id === 'risk'),
+      content: <RiskChecklistForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} compact />,
+    },
+    {
+      id: 'psychometric', label: 'Psicométricos', icon: <Brain className="h-4 w-4" />,
+      badge: latestPsicometrico ? <SemaforoBadge resultado={latestPsicometrico.resultado_semaforo} size="sm" avalDecision={latestPsicometrico.aval_decision} /> : null,
+      gate: gates.find(g => g.id === 'psico'),
+      content: <PsychometricEvaluationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+    {
+      id: 'midot', label: 'Midot', icon: <ShieldCheck className="h-4 w-4" />,
+      badge: latestMidot ? <MidotBadge resultado={latestMidot.resultado_semaforo} size="sm" /> : null,
+      gate: gates.find(g => g.id === 'midot'),
+      content: <MidotEvaluationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+    {
+      id: 'toxicology', label: 'Toxicológicos', icon: <TestTube className="h-4 w-4" />,
+      badge: latestToxicologia ? <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" /> : null,
+      gate: gates.find(g => g.id === 'toxico'),
+      content: <ToxicologyTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+    {
+      id: 'documents', label: 'Documentación', icon: <FileText className="h-4 w-4" />,
+      badge: <DocumentsProgressBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'docs'),
+      content: <DocumentsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} tipoOperativo={tipoOperativo} />,
+    },
+    {
+      id: 'contracts', label: 'Contratos', icon: <FileSignature className="h-4 w-4" />,
+      badge: <ContractsProgressBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'contracts'),
+      content: <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} />,
+    },
+    {
+      id: 'references', label: 'Referencias', icon: <Users className="h-4 w-4" />,
+      badge: <ReferencesProgressBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'refs'),
+      content: <ReferencesTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+    {
+      id: 'training', label: 'Capacitación', icon: <GraduationCap className="h-4 w-4" />,
+      badge: <TrainingProgressBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'training'),
+      content: <TrainingTab candidatoId={candidatoId} />,
+    },
+    {
+      id: 'installation', label: 'GPS', icon: <Cpu className="h-4 w-4" />,
+      badge: <InstallationProgressBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'gps'),
+      content: <InstallationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+    {
+      id: 'socioeconomico', label: 'Socioeconómico', icon: <Home className="h-4 w-4" />,
+      badge: latestSocioeconomico ? <SocioeconomicoBadge estudio={latestSocioeconomico} size="sm" /> : null,
+      gate: gates.find(g => g.id === 'socio'),
+      content: <SocioeconomicoTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />,
+    },
+  ], [candidatoId, candidatoNombre, tipoOperativo, vehiculoPropio, gates, interviews, loadingInterviews, latestInterview, riskChecklist, latestPsicometrico, latestMidot, latestToxicologia, latestSocioeconomico, showInterviewForm]);
+
+  // Group sections by gate status
+  const blockerItems = sectionItems.filter(s => s.gate && s.gate.level === 'blocker' && !s.gate.passed);
+  const warningItems = sectionItems.filter(s => s.gate && s.gate.level === 'warning' && !s.gate.passed);
+  const passedItems = sectionItems.filter(s => s.gate?.passed);
+  const infoItems = sectionItems.filter(s => s.gate && s.gate.level === 'info' && !s.gate.passed);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-6xl overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-4xl overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-base sm:text-lg">
             <User className="h-5 w-5" />
             <span className="truncate">Evaluación de {candidatoNombre}</span>
           </DialogTitle>
-          {/* Progress bar */}
-          <div className="flex items-center gap-3 mt-2">
-            <Progress value={completionInfo.percentage} className="h-2 flex-1" />
-            <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
-              {completionInfo.completed}/{completionInfo.total} evaluaciones
-            </span>
-          </div>
         </DialogHeader>
 
+        {/* Hero Status */}
+        <EvaluationHeroStatus
+          candidatoNombre={candidatoNombre}
+          gates={gates}
+          canRelease={canRelease}
+          isLiberating={isLiberating}
+          hasLiberacionRecord={!!liberacionRecord}
+          isAlreadyReleased={isAlreadyReleased}
+          onRelease={handleRelease}
+          onScrollToBlockers={() => blockersRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        />
+
         {currentState && (
-          <div className="mb-4">
+          <div className="mt-2">
             <CandidateStateProgress currentState={currentState} />
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Group labels visible on desktop */}
-          <div className="hidden sm:flex gap-1 text-[10px] text-muted-foreground mb-1 px-1">
-            <span className="w-[350px]">── Evaluación Core ──</span>
-            <span className="w-[210px]">── Documentación ──</span>
-            <span className="w-[140px]">── Preparación ──</span>
-          </div>
-          <TabsList className="flex w-full overflow-x-auto justify-start gap-0.5 h-auto p-1">
-            {/* EVALUACIÓN CORE */}
-            <TabsTrigger value="interview" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span>Entrevista</span>
-              {latestInterview && (
-                <Badge variant="secondary" className="ml-0.5 text-xs px-1">
-                  <Star className="h-2 w-2 mr-0.5" />
-                  {latestInterview.rating_promedio?.toFixed(1)}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="risk" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <Shield className="h-3.5 w-3.5" />
-              <span>Riesgo</span>
-              {riskChecklist && <RiskLevelBadge level={riskChecklist.risk_level} />}
-            </TabsTrigger>
-            <TabsTrigger value="psychometric" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <Brain className="h-3.5 w-3.5" />
-              <span>Psico</span>
-              {latestPsicometrico && (
-                <SemaforoBadge resultado={latestPsicometrico.resultado_semaforo} size="sm" avalDecision={latestPsicometrico.aval_decision} />
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="midot" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Midot</span>
-              {latestMidot && <MidotBadge resultado={latestMidot.resultado_semaforo} size="sm" />}
-            </TabsTrigger>
-            <TabsTrigger value="toxicology" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <TestTube className="h-3.5 w-3.5" />
-              <span>Tóxico</span>
-              {latestToxicologia && <ToxicologyBadge resultado={latestToxicologia.resultado} size="sm" />}
-            </TabsTrigger>
+        {/* Sections */}
+        <div className="space-y-4 mt-4">
+          {/* BLOCKERS */}
+          {blockerItems.length > 0 && (
+            <SectionGroup
+              ref={blockersRef}
+              title={`Bloqueos — ${blockerItems.length}`}
+              variant="destructive"
+              icon={<XCircle className="h-4 w-4" />}
+              defaultOpen
+            >
+              {blockerItems.map(item => (
+                <AccordionItem
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedSections.has(item.id)}
+                  onToggle={() => toggleSection(item.id)}
+                  statusIcon={<XCircle className="h-3.5 w-3.5 text-destructive" />}
+                />
+              ))}
+            </SectionGroup>
+          )}
 
-            {/* DOCUMENTACIÓN */}
-            <TabsTrigger value="documents" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <FileText className="h-3.5 w-3.5" />
-              <span>Docs</span>
-              <DocumentsProgressBadge candidatoId={candidatoId} size="sm" />
-            </TabsTrigger>
-            <TabsTrigger value="contracts" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <FileSignature className="h-3.5 w-3.5" />
-              <span>Contratos</span>
-              <ContractsProgressBadge candidatoId={candidatoId} size="sm" />
-            </TabsTrigger>
-            <TabsTrigger value="references" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <Users className="h-3.5 w-3.5" />
-              <span>Refs</span>
-              <ReferencesProgressBadge candidatoId={candidatoId} size="sm" />
-            </TabsTrigger>
+          {/* WARNINGS */}
+          {warningItems.length > 0 && (
+            <SectionGroup
+              title={`Advertencias — ${warningItems.length}`}
+              variant="warning"
+              icon={<AlertTriangle className="h-4 w-4" />}
+              defaultOpen={blockerItems.length === 0}
+            >
+              {warningItems.map(item => (
+                <AccordionItem
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedSections.has(item.id)}
+                  onToggle={() => toggleSection(item.id)}
+                  statusIcon={<AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />}
+                />
+              ))}
+            </SectionGroup>
+          )}
 
-            {/* PREPARACIÓN */}
-            <TabsTrigger value="training" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <GraduationCap className="h-3.5 w-3.5" />
-              <span>Capacitación</span>
-              <TrainingProgressBadge candidatoId={candidatoId} size="sm" />
-            </TabsTrigger>
-            <TabsTrigger value="installation" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <Cpu className="h-3.5 w-3.5" />
-              <span>GPS</span>
-              <InstallationProgressBadge candidatoId={candidatoId} size="sm" />
-            </TabsTrigger>
-            <TabsTrigger value="socioeconomico" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <Home className="h-3.5 w-3.5" />
-              <span>Socio</span>
-              {latestSocioeconomico && <SocioeconomicoBadge estudio={latestSocioeconomico} size="sm" />}
-            </TabsTrigger>
+          {/* INFO */}
+          {infoItems.length > 0 && (
+            <SectionGroup
+              title="Informativos"
+              variant="info"
+              icon={<Info className="h-4 w-4" />}
+            >
+              {infoItems.map(item => (
+                <AccordionItem
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedSections.has(item.id)}
+                  onToggle={() => toggleSection(item.id)}
+                  statusIcon={<Info className="h-3.5 w-3.5 text-muted-foreground" />}
+                />
+              ))}
+            </SectionGroup>
+          )}
 
-            {/* INFO */}
-            <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
-              <GitBranch className="h-3.5 w-3.5" />
-              <span>Historial</span>
-            </TabsTrigger>
+          {/* COMPLETED */}
+          {passedItems.length > 0 && (
+            <SectionGroup
+              title={`Completado — ${passedItems.length}`}
+              variant="success"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            >
+              {passedItems.map(item => (
+                <AccordionItem
+                  key={item.id}
+                  item={item}
+                  isExpanded={expandedSections.has(item.id)}
+                  onToggle={() => toggleSection(item.id)}
+                  statusIcon={<CheckCircle2 className="h-3.5 w-3.5 text-[hsl(var(--success))]" />}
+                />
+              ))}
+            </SectionGroup>
+          )}
 
-            {/* LIBERAR */}
-            <TabsTrigger value="liberar" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[80px] shrink-0 data-[state=active]:bg-[hsl(var(--success))]/10 data-[state=active]:text-[hsl(var(--success))]">
-              <Rocket className="h-3.5 w-3.5" />
-              <span className="font-semibold">Liberar</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="interview" className="mt-4">
-            {showInterviewForm ? (
-              <StructuredInterviewForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} onClose={() => setShowInterviewForm(false)} onSuccess={() => setShowInterviewForm(false)} />
-            ) : (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold">Entrevistas Realizadas</h3>
-                  <Button onClick={() => setShowInterviewForm(true)} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />Nueva Entrevista
-                  </Button>
+          {/* Timeline — always available */}
+          <SectionGroup title="Historial" variant="info" icon={<GitBranch className="h-4 w-4" />}>
+            <div className="px-1">
+              <button
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-muted/70 transition-colors"
+                onClick={() => toggleSection('timeline')}
+              >
+                <GitBranch className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium flex-1">Timeline de estados</span>
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedSections.has('timeline') && "rotate-180")} />
+              </button>
+              {expandedSections.has('timeline') && (
+                <div className="px-3 pb-3">
+                  <CandidateStateTimeline candidatoId={candidatoId} currentState={currentState} />
                 </div>
-                {loadingInterviews ? (
-                  <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
-                ) : !interviews || interviews.length === 0 ? (
-                  <Card><CardContent className="text-center py-8 text-muted-foreground">
-                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>No hay entrevistas registradas</p>
-                    <Button variant="outline" className="mt-4" onClick={() => setShowInterviewForm(true)}>Registrar Primera Entrevista</Button>
-                  </CardContent></Card>
-                ) : (
-                  <div className="space-y-3">
-                    {interviews.map((interview) => (
-                      <Card key={interview.id}>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base flex items-center justify-between">
-                            <span className="flex items-center gap-2">
-                              <Badge variant="outline">{interview.tipo_entrevista}</Badge>
-                              {format(new Date(interview.fecha_entrevista), "d MMM yyyy", { locale: es })}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={interview.decision === 'aprobar' ? 'default' : interview.decision === 'rechazar' ? 'destructive' : 'secondary'}>
-                                {interview.decision === 'aprobar' ? 'Aprobado' : interview.decision === 'rechazar' ? 'Rechazado' : interview.decision === 'segunda_entrevista' ? '2da Entrevista' : 'Pendiente'}
-                              </Badge>
-                              <Badge variant="outline" className="gap-1"><Star className="h-3 w-3" />{interview.rating_promedio?.toFixed(1)} / 5</Badge>
-                            </div>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="grid grid-cols-6 gap-2 mb-3">
-                            {[{ label: 'Comunicación', value: interview.rating_comunicacion },{ label: 'Actitud', value: interview.rating_actitud },{ label: 'Experiencia', value: interview.rating_experiencia },{ label: 'Disponibilidad', value: interview.rating_disponibilidad },{ label: 'Motivación', value: interview.rating_motivacion },{ label: 'Profesionalismo', value: interview.rating_profesionalismo }].map((item) => (
-                              <div key={item.label} className="text-center"><div className="text-xs text-muted-foreground">{item.label}</div><div className="font-semibold">{item.value}/5</div></div>
-                            ))}
-                          </div>
-                          {interview.notas_generales && <p className="text-sm text-muted-foreground border-t pt-2">{interview.notas_generales}</p>}
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{interview.duracion_minutos} minutos</div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </TabsContent>
+              )}
+            </div>
+          </SectionGroup>
+        </div>
 
-          <TabsContent value="psychometric" className="mt-4">
-            <PsychometricEvaluationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="toxicology" className="mt-4">
-            <ToxicologyTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="references" className="mt-4">
-            <ReferencesTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="midot" className="mt-4">
-            <MidotEvaluationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="risk" className="mt-4">
-            <RiskChecklistForm candidatoId={candidatoId} candidatoNombre={candidatoNombre} compact />
-          </TabsContent>
-
-          <TabsContent value="documents" className="mt-4">
-            <DocumentsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} tipoOperativo={tipoOperativo} />
-          </TabsContent>
-
-          <TabsContent value="contracts" className="mt-4">
-            <ContractsTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} vehiculoPropio={vehiculoPropio} />
-          </TabsContent>
-
-          <TabsContent value="training" className="mt-4">
-            <TrainingTab candidatoId={candidatoId} />
-          </TabsContent>
-
-          <TabsContent value="installation" className="mt-4">
-            <InstallationTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="socioeconomico" className="mt-4">
-            <SocioeconomicoTab candidatoId={candidatoId} candidatoNombre={candidatoNombre} />
-          </TabsContent>
-
-          <TabsContent value="timeline" className="mt-4">
-            <CandidateStateTimeline candidatoId={candidatoId} currentState={currentState} />
-          </TabsContent>
-
-          <TabsContent value="liberar" className="mt-4">
-            <LiberacionWizardTab
-              candidatoId={candidatoId}
-              candidatoNombre={candidatoNombre}
-              tipoOperativo={tipoOperativo}
-              onSwitchTab={(tab) => setActiveTab(tab)}
-            />
-          </TabsContent>
-        </Tabs>
+        {successData && (
+          <LiberacionSuccessModal isOpen={!!successData} onClose={() => setSuccessData(null)} data={successData} />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// --- Sub-components ---
+
+import { forwardRef } from 'react';
+
+const SectionGroup = forwardRef<HTMLDivElement, {
+  title: string;
+  variant: 'destructive' | 'warning' | 'success' | 'info';
+  icon: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}>(({ title, variant, icon, defaultOpen = false, children }, ref) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const styles = {
+    destructive: { border: 'border-destructive/20', text: 'text-destructive', bg: 'bg-destructive/5' },
+    warning: { border: 'border-[hsl(var(--warning))]/20', text: 'text-[hsl(var(--warning))]', bg: 'bg-[hsl(var(--warning))]/5' },
+    success: { border: 'border-[hsl(var(--success))]/20', text: 'text-[hsl(var(--success))]', bg: 'bg-[hsl(var(--success))]/5' },
+    info: { border: 'border-border', text: 'text-muted-foreground', bg: 'bg-muted/30' },
+  }[variant];
+
+  return (
+    <div ref={ref} className={cn('rounded-xl border overflow-hidden', styles.border)}>
+      <button
+        className={cn('w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-muted/30', isOpen && styles.bg)}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className={styles.text}>{icon}</span>
+        <span className="text-sm font-semibold flex-1">{title}</span>
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
+      </button>
+      {isOpen && <div className="px-2 pb-2 space-y-0.5">{children}</div>}
+    </div>
+  );
+});
+SectionGroup.displayName = 'SectionGroup';
+
+function AccordionItem({ item, isExpanded, onToggle, statusIcon }: {
+  item: SectionItem;
+  isExpanded: boolean;
+  onToggle: () => void;
+  statusIcon: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg overflow-hidden">
+      <button
+        className={cn(
+          "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-lg",
+          isExpanded ? "bg-muted/50" : "hover:bg-muted/30"
+        )}
+        onClick={onToggle}
+      >
+        {statusIcon}
+        <span className="text-muted-foreground">{item.icon}</span>
+        <span className="text-sm font-medium flex-1 truncate">{item.label}</span>
+        {!isExpanded && item.badge && <span className="shrink-0">{item.badge}</span>}
+        {item.gate && !item.gate.passed && (
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{item.gate.detail}</span>
+        )}
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0", isExpanded && "rotate-180")} />
+      </button>
+      {isExpanded && (
+        <div className="px-3 pb-3 pt-1 border-t border-border/50 mt-0.5">
+          {item.content}
+        </div>
+      )}
+    </div>
   );
 }
