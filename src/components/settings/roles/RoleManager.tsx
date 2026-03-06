@@ -318,8 +318,7 @@ export const RoleManager = () => {
         availableRoles={availableRoles}
         getRoleDisplayName={getRoleDisplayName}
         onSuccess={() => {
-          // Refetch users list
-          window.location.reload();
+          queryClient.invalidateQueries({ queryKey: ['users-with-roles'] });
         }}
       />
     </div>
