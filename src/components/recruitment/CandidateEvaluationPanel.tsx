@@ -234,10 +234,20 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   }, []);
 
   const handleRelease = async () => {
-    if (!liberacionRecord) return;
     setIsLiberating(true);
     try {
-      const result = await liberarCustodio.mutateAsync({ liberacion_id: liberacionRecord.id, forzar: true });
+      let libId = liberacionRecord?.id;
+      // Auto-create liberación record if it doesn't exist
+      if (!libId) {
+        const { data: newRec, error } = await supabase
+          .from('custodio_liberacion')
+          .insert({ candidato_id: candidatoId, estado_liberacion: 'aprobado_final' })
+          .select('id')
+          .single();
+        if (error || !newRec) throw error || new Error('No se pudo crear el registro de liberación');
+        libId = newRec.id;
+      }
+      const result = await liberarCustodio.mutateAsync({ liberacion_id: libId, forzar: true });
       setSuccessData(result);
     } finally {
       setIsLiberating(false);
