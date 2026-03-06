@@ -28,17 +28,17 @@ const LiberacionPage = () => {
     // Filtrar por estado según tab
     switch (selectedTab) {
       case 'en_proceso':
-        filtered = liberaciones.filter(l => 
+        filtered = filtered.filter(l => 
           !['liberado', 'rechazado'].includes(l.estado_liberacion)
         );
         break;
       case 'pendientes_gps':
-        filtered = liberaciones.filter(l => 
+        filtered = filtered.filter(l => 
           !l.instalacion_gps_completado && l.estado_liberacion !== 'liberado'
         );
         break;
       case 'completados':
-        filtered = liberaciones.filter(l => l.estado_liberacion === 'liberado');
+        filtered = filtered.filter(l => l.estado_liberacion === 'liberado');
         break;
     }
 

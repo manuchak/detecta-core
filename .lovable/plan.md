@@ -1,70 +1,97 @@
 
 
-# Validacion del Flujo de Liberaciones para Supply en Live
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Estado actual encontrado
+## Roles confirmados por módulo
 
-### 1. Ghost record activo en Live
-Existe un registro `custodio_liberacion` con id `e531328f` para ANGEL DIONISIO MENDOZA PLONEDA en estado `aprobado_final` (creado hoy 2026-03-06 17:54). Este es el record "fantasma" que quedó cuando la liberación falló por el unique constraint. Aparece en la pestaña "En proceso" del modulo de Liberaciones.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-### 2. La migración del RPC NO está en Live
-La función `liberar_custodio_a_planeacion_v2` en Live **no tiene** el fallback lookup por nombre/telefono. Sigue siendo la versión vieja que solo busca por `pc_custodio_id`. Si Mariana intenta liberar nuevamente, el RPC creará un nuevo `pc_custodios` (porque no hay uno previo vinculado), luego buscará en `custodios_operativos` por ese nuevo `pc_custodio_id` (no lo encontrará), e intentará INSERT -- que fallará por el unique constraint en nombre.
+---
 
-### 3. `custodios_operativos` con `pc_custodio_id = NULL`
-Hay ~20 registros legacy en `custodios_operativos` sin `pc_custodio_id`. Cualquiera de estos puede causar el mismo bug si un candidato con nombre idéntico pasa por liberación.
+## Hallazgos actuales
 
-## Problemas que bloquean al equipo de Supply
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
+
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
+
+---
+
+## Plan de corrección
+
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
 ```text
-PROBLEMA 1: Ghost record (dato huérfano)
-  → ANGEL DIONISIO aparece "pendiente" en Liberaciones
-  → Fue liberado via Evaluaciones pero la RPC falló
-  → Fix: DELETE o UPDATE a 'liberado' en Live
-
-PROBLEMA 2: RPC sin fallback (schema no publicado)
-  → La migración 20260306180848 solo existe en Test
-  → Fix: Publicar proyecto para aplicar a Live
-
-PROBLEMA 3: Bug en filtro "en_proceso" (línea 31)
-  → El filtro usa `liberaciones` sin aplicar `tipoOperativo`
-  → Los tabs pendientes_gps y completados sí filtran correctamente
-  → Fix: Cambiar `liberaciones` → `filtered` en línea 31
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-## Plan de corrección (3 cambios)
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-### 1. SQL: Limpiar ghost record en Live
-Ejecutar manualmente en Cloud View > Run SQL (con **Live** seleccionado):
-```sql
--- Opción A: Eliminar el ghost (recomendado si se va a re-liberar desde Evaluaciones)
-DELETE FROM custodio_liberacion WHERE id = 'e531328f-8e44-44b0-81c0-cad4f3074871';
+### Fase 2 — Migrar policies por módulo
 
--- Opción B: Vincular el operativo existente y marcar como liberado
--- (si ya no se necesita re-liberar)
-```
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-### 2. Publicar el proyecto
-La migración que agrega el fallback lookup por nombre/telefono al RPC debe llegar a Live. Esto requiere **publicar** el proyecto.
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-### 3. Fix del filtro en LiberacionPage.tsx (línea 31)
-El tab "en_proceso" ignora el filtro de `tipoOperativo` porque usa `liberaciones` (sin filtrar) en lugar de `filtered`:
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-```typescript
-// Línea 31 actual:
-filtered = liberaciones.filter(l => 
-  !['liberado', 'rechazado'].includes(l.estado_liberacion)
-);
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-// Corrección:
-filtered = filtered.filter(l => 
-  !['liberado', 'rechazado'].includes(l.estado_liberacion)
-);
-```
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
 ### Archivos a modificar
-- `src/pages/Leads/LiberacionPage.tsx` -- fix filtro tipoOperativo en tab en_proceso (línea 31)
 
-### Acciones manuales requeridas
-1. Ejecutar SQL de limpieza del ghost record en **Live** via Supabase Dashboard
-2. **Publicar** el proyecto para que la migración del RPC se aplique a Live
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
