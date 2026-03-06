@@ -252,12 +252,38 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
               <Input type="number" value={form.horas_cortesia} onChange={e => setForm(f => ({ ...f, horas_cortesia: e.target.value }))} />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">Hrs Local</Label>
+              <Input type="number" value={form.horas_cortesia_local} onChange={e => setForm(f => ({ ...f, horas_cortesia_local: e.target.value }))} placeholder="—" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Hrs Foráneo</Label>
+              <Input type="number" value={form.horas_cortesia_foraneo} onChange={e => setForm(f => ({ ...f, horas_cortesia_foraneo: e.target.value }))} placeholder="—" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs">$/Hr Excedente</Label>
               <Input type="number" value={form.tarifa_hora_excedente} onChange={e => setForm(f => ({ ...f, tarifa_hora_excedente: e.target.value }))} />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">$/Sin Arma</Label>
+              <Input type="number" value={form.tarifa_sin_arma} onChange={e => setForm(f => ({ ...f, tarifa_sin_arma: e.target.value }))} placeholder="—" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">$/Con Arma</Label>
+              <Input type="number" value={form.tarifa_con_arma} onChange={e => setForm(f => ({ ...f, tarifa_con_arma: e.target.value }))} placeholder="—" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs">$/Pernocta</Label>
               <Input type="number" value={form.tarifa_pernocta} onChange={e => setForm(f => ({ ...f, tarifa_pernocta: e.target.value }))} />
+            </div>
+            <div className="flex items-end pb-1">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="req_tickets" checked={form.requiere_tickets} onChange={e => setForm(f => ({ ...f, requiere_tickets: e.target.checked }))} className="h-4 w-4 rounded border-border" />
+                <label htmlFor="req_tickets" className="text-xs">Requiere tickets</label>
+              </div>
             </div>
           </div>
           <div className="space-y-1">
