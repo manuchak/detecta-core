@@ -37,7 +37,13 @@ export function InstallationProgressBadge({ candidatoId, size = 'default' }: Ins
   const Icon = status.icon;
   
   if (size === 'sm') {
-    if (!ultimaInstalacion) return null;
+    if (!ultimaInstalacion) {
+      return (
+        <Badge variant="outline" className="text-xs px-1 text-muted-foreground">
+          —
+        </Badge>
+      );
+    }
     
     return (
       <Badge 

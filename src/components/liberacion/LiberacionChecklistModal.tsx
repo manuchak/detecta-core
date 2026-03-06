@@ -571,6 +571,12 @@ const LiberacionChecklistModal = ({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Tip banner */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border/50 text-xs text-muted-foreground">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          <span>Tip: Puedes liberar directamente desde la pestaña <strong>Liberar</strong> en el panel de Evaluación del candidato.</span>
+        </div>
+
         <div className="space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Progreso General */}
           <LiberacionProgressBar progress={progress} />

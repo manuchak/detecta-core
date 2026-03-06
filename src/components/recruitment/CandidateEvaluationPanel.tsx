@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
 import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
+import { LiberacionWizardTab } from './liberacion/LiberacionWizardTab';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
@@ -52,7 +53,8 @@ import {
   Cpu,
   ShieldCheck,
   CheckCircle2,
-  Home
+  Home,
+  Rocket
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -67,6 +69,7 @@ interface Props {
 }
 
 export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, currentState, tipoOperativo = 'custodio', isOpen, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState('interview');
   const [showInterviewForm, setShowInterviewForm] = useState(false);
   const { data: interviews, isLoading: loadingInterviews } = useStructuredInterviews(candidatoId);
   const { data: riskChecklist, isLoading: loadingRisk } = useRiskChecklist(candidatoId);
@@ -125,7 +128,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           </div>
         )}
 
-        <Tabs defaultValue="interview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Group labels visible on desktop */}
           <div className="hidden sm:flex gap-1 text-[10px] text-muted-foreground mb-1 px-1">
             <span className="w-[350px]">── Evaluación Core ──</span>
@@ -205,6 +208,12 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
             <TabsTrigger value="timeline" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[70px] shrink-0">
               <GitBranch className="h-3.5 w-3.5" />
               <span>Historial</span>
+            </TabsTrigger>
+
+            {/* LIBERAR */}
+            <TabsTrigger value="liberar" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[80px] shrink-0 data-[state=active]:bg-[hsl(var(--success))]/10 data-[state=active]:text-[hsl(var(--success))]">
+              <Rocket className="h-3.5 w-3.5" />
+              <span className="font-semibold">Liberar</span>
             </TabsTrigger>
           </TabsList>
 
@@ -303,6 +312,15 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
           <TabsContent value="timeline" className="mt-4">
             <CandidateStateTimeline candidatoId={candidatoId} currentState={currentState} />
+          </TabsContent>
+
+          <TabsContent value="liberar" className="mt-4">
+            <LiberacionWizardTab
+              candidatoId={candidatoId}
+              candidatoNombre={candidatoNombre}
+              tipoOperativo={tipoOperativo}
+              onSwitchTab={(tab) => setActiveTab(tab)}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
