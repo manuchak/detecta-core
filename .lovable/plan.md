@@ -1,97 +1,97 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Análisis Fishbone: Recovery Link Expirado Inmediatamente
 
-## Roles confirmados por módulo
+## Evidencia de los Logs
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+Timeline del incidente de Liliana (06 Mar 2026):
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+20:11:06Z  generate_link → status 200 (link generado OK)
+20:11:19Z  /verify desde IP 100.54.208.164 (IAD, Virginia) → LOGIN exitoso ← BOT
+20:11:25Z  /verify desde IP 201.113.215.182 (QRO, México) → "One-time token not found" ← LILIANA
+20:11:37Z  /verify desde IP 201.113.215.182 (QRO, México) → "One-time token not found" ← LILIANA retry
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Causa Raíz Identificada
 
-### Fase 2 — Migrar policies por módulo
+```text
+                              LINK EXPIRADO
+                                   │
+         ┌─────────────┬───────────┼───────────┬──────────────┐
+         │             │           │           │              │
+    GENERACIÓN     TRANSPORTE   CONSUMO    FRONTEND      SUPABASE
+         │             │           │           │              │
+    Link OK ✓     Compartido   ★ BOT DE    AuthLayout     Token es
+    Token OK ✓    por Teams    PREFETCH    redirige si    one-time
+    redirect_to   o chat       consume     hay sesión     use only
+    corregido ✓   interno      el token    activa         (by design)
+                       │        antes del       │
+                  El chat       usuario     No detecta
+                  genera        real        PASSWORD_
+                  preview           │       RECOVERY
+                  del link     IP 100.54    si el token
+                       │       (Virginia    ya fue
+                  GET a        = AWS/bot)   consumido
+                  /verify          │
+                  endpoint    Liliana ve
+                              "otp_expired"
+```
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+**Causa raíz:** El link de recuperación apunta directamente al endpoint `/auth/v1/verify` de Supabase, que es una petición GET. Cuando se comparte por **Teams, Slack o cualquier chat**, el bot del chat **pre-fetches la URL** para generar la vista previa del enlace. Esto **consume el token one-time** antes de que el usuario real haga clic.
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+La IP `100.54.208.164` (Virginia/IAD) es un bot de prefetch — NO es Liliana. La IP real de Liliana es `201.113.215.182` (Querétaro).
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+## Solución Definitiva
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+En lugar de compartir el link directo de Supabase (`/auth/v1/verify?token=...`), construir un **link indirecto** que apunte a la app:
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+```text
+ANTES (vulnerable a prefetch):
+https://supabase.co/auth/v1/verify?token=ABC&type=recovery&redirect_to=...
+  → Bot hace GET → token consumido → usuario ve "expirado"
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+DESPUÉS (inmune a prefetch):
+https://detecta-core.lovable.app/reset-password?token_hash=ABC&type=recovery
+  → Bot hace GET → ve HTML estático (no consume token)
+  → Usuario carga la página → JS llama verifyOtp() → sesión establecida → formulario
+```
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### Cambios requeridos
 
-### Archivos a modificar
+**1. Edge Function `generate-recovery-link/index.ts`**
+- Extraer `token_hash` del `action_link` generado por Supabase
+- Construir URL que apunte a la app con `token_hash` como query param
+- Ya no compartir el link directo de Supabase
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+**2. `ResetPassword.tsx`**
+- Detectar `token_hash` y `type` en query params (no en hash)
+- Llamar `supabase.auth.verifyOtp({ token_hash, type: 'recovery' })` para establecer sesión
+- Mantener el fallback para hash params (compatibilidad con forgot-password nativo)
+
+**3. Sin cambios en AuthContext ni AuthLayout** — la lógica de `isRecoveryMode` ya funciona correctamente una vez que el evento `PASSWORD_RECOVERY` se emite (lo cual ocurre después de `verifyOtp`).
+
+### Detalle técnico
+
+Edge Function — extraer token_hash:
+```typescript
+const actionUrl = new URL(actionLink);
+const tokenHash = actionUrl.searchParams.get('token');
+const recoveryUrl = `${appOrigin}/reset-password?token_hash=${tokenHash}&type=recovery`;
+```
+
+ResetPassword — verificar token en el cliente:
+```typescript
+const params = new URLSearchParams(window.location.search);
+const tokenHash = params.get('token_hash');
+const type = params.get('type');
+
+if (tokenHash && type === 'recovery') {
+  const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+  if (error) { /* mostrar error específico */ }
+  else { setSessionReady(true); }
+}
+```
+
+Esta solución está documentada en la guía oficial de Supabase como "Option 2" para mitigar email prefetching, y es compatible con la experiencia de 1 clic que se requiere.
 
