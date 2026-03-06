@@ -22,7 +22,7 @@ export function OperacionesTab({ servicios, isLoading, clientes }: Props) {
         </p>
       </div>
 
-      <Tabs defaultValue="historico" className="w-full">
+      <Tabs defaultValue="tiempos" className="w-full">
         <TabsList className="h-9">
           <TabsTrigger value="historico" className="text-xs h-7 px-3 gap-1.5">
             <BarChart3 className="h-3.5 w-3.5" />
