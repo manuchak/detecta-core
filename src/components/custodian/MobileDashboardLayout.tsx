@@ -16,6 +16,7 @@ import DashboardHeroAlert from "./DashboardHeroAlert";
 import CompactStatsBar from "./CompactStatsBar";
 import QuickActionsGrid from "./QuickActionsGrid";
 import RecentServicesCollapsible from "./RecentServicesCollapsible";
+import StorageCleanupCard from "./StorageCleanupCard";
 import ResolvedTicketAlert from "./ResolvedTicketAlert";
 import PendingTicketAlert from "./PendingTicketAlert";
 import UnavailabilityStatusBanner from "./UnavailabilityStatusBanner";
@@ -498,6 +499,11 @@ const MobileDashboardLayout = () => {
             services={recentServices}
             onViewAll={() => navigate('/custodian/services')}
           />
+        </section>
+
+        {/* Liberar espacio de almacenamiento local */}
+        <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <StorageCleanupCard />
         </section>
       </main>
 
