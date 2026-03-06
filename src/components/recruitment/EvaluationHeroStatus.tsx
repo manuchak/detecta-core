@@ -77,11 +77,12 @@ export function EvaluationHeroStatus({
   onScrollToBlockers,
 }: Props) {
   const stats = useMemo(() => {
-    const passed = gates.filter(g => g.passed).length;
+    const requiredGates = gates.filter(g => g.level !== 'info');
+    const passed = requiredGates.filter(g => g.passed).length;
     const blockers = gates.filter(g => g.level === 'blocker' && !g.passed).length;
     const warnings = gates.filter(g => g.level === 'warning' && !g.passed).length;
-    const percentage = gates.length > 0 ? (passed / gates.length) * 100 : 0;
-    return { passed, total: gates.length, blockers, warnings, percentage };
+    const percentage = requiredGates.length > 0 ? (passed / requiredGates.length) * 100 : 0;
+    return { passed, total: requiredGates.length, blockers, warnings, percentage };
   }, [gates]);
 
   if (isAlreadyReleased) {

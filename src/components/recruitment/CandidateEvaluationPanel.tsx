@@ -378,11 +378,6 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           onScrollToBlockers={() => blockersRef.current?.scrollIntoView({ behavior: 'smooth' })}
         />
 
-        {currentState && (
-          <div className="mt-2">
-            <CandidateStateProgress currentState={currentState} />
-          </div>
-        )}
 
         {/* Sections */}
         <div className="space-y-4 mt-4">
