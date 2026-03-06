@@ -49,9 +49,9 @@ const fmtDelta = (min: number | null) => {
   return `${min}`;
 };
 
-export const ServiceTimesTable: React.FC<Props> = ({ onSelectService }) => {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const weekAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+export const ServiceTimesTable: React.FC<Props> = ({ onSelectService, defaultDateFrom, defaultDateTo }) => {
+  const today = defaultDateTo ?? format(new Date(), 'yyyy-MM-dd');
+  const weekAgo = defaultDateFrom ?? format(subDays(new Date(), 7), 'yyyy-MM-dd');
 
   const [dateFrom, setDateFrom] = useState(weekAgo);
   const [dateTo, setDateTo] = useState(today);
