@@ -51,6 +51,16 @@ export interface ClienteFiscalUpdate {
   cobra_pernocta?: boolean | null;
   tipo_facturacion?: 'inmediata' | 'corte' | null;
   dias_max_facturacion?: number | null;
+  // Billing rules (Phase 1 Maestro)
+  requiere_portal?: boolean;
+  url_portal?: string;
+  dia_entrega_factura?: string;
+  descripcion_factura_formato?: string;
+  requiere_prefactura?: boolean;
+  requiere_tickets_estadia?: boolean;
+  evidencia_requerida?: string[];
+  observaciones_facturacion?: string;
+  facturacion_intercompania?: boolean;
 }
 
 export function useClientesFiscales() {
