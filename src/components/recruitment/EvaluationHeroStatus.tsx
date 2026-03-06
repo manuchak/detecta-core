@@ -18,7 +18,6 @@ interface Props {
   gates: Gate[];
   canRelease: boolean;
   isLiberating: boolean;
-  hasLiberacionRecord: boolean;
   isAlreadyReleased: boolean;
   onRelease: () => void;
   onScrollToBlockers?: () => void;
@@ -71,7 +70,6 @@ export function EvaluationHeroStatus({
   gates,
   canRelease,
   isLiberating,
-  hasLiberacionRecord,
   isAlreadyReleased,
   onRelease,
   onScrollToBlockers,
