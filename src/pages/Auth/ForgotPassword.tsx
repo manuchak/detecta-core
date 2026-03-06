@@ -31,16 +31,13 @@ export const ForgotPassword = () => {
     setLoading(true);
     
     try {
-      // Call Edge Function instead of Supabase directly
-      const { data, error: fnError } = await supabase.functions.invoke("send-password-reset", {
-        body: { 
-          email: email.trim().toLowerCase(),
-          redirectTo: window.location.origin 
-        },
-      });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: `${window.location.origin}/reset-password` }
+      );
       
-      if (fnError) {
-        console.error("Edge function error:", fnError);
+      if (resetError) {
+        console.error("Reset password error:", resetError);
         toast({
           title: "Error",
           description: "Ocurrió un error al procesar tu solicitud",
