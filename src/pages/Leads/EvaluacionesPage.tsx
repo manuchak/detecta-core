@@ -127,7 +127,44 @@ export default function EvaluacionesPage() {
     },
   });
 
-  // Filter candidates by pill
+  // Bulk-fetch liberación status for all visible candidates
+  const candidatoIds = useMemo(() => candidatos?.map(c => c.id) || [], [candidatos]);
+  
+  const { data: liberacionMap } = useQuery({
+    queryKey: ['bulk-liberacion-status', candidatoIds],
+    queryFn: async () => {
+      if (candidatoIds.length === 0) return new Map();
+      const { data } = await supabase
+        .from('custodio_liberacion')
+        .select('candidato_id, estado_liberacion, documentacion_completa, psicometricos_completado, toxicologicos_completado, vehiculo_capturado, vehiculo_tarjeta_circulacion, vehiculo_poliza_seguro')
+        .in('candidato_id', candidatoIds);
+      
+      const map = new Map<string, { ready: boolean; pending: number; released: boolean }>();
+      data?.forEach((row: any) => {
+        const isReleased = row.estado_liberacion === 'liberado';
+        const isApproved = row.estado_liberacion === 'aprobado_final';
+        const requiredFields = [
+          row.documentacion_completa,
+          row.psicometricos_completado,
+          row.toxicologicos_completado,
+          row.vehiculo_capturado,
+          row.vehiculo_tarjeta_circulacion,
+          row.vehiculo_poliza_seguro,
+        ];
+        const completedCount = requiredFields.filter(Boolean).length;
+        const pendingCount = requiredFields.length - completedCount;
+        map.set(row.candidato_id, {
+          ready: isApproved || (completedCount === requiredFields.length),
+          pending: pendingCount,
+          released: isReleased,
+        });
+      });
+      return map;
+    },
+    enabled: candidatoIds.length > 0,
+    staleTime: 30_000,
+  });
+
   const filteredCandidatos = useMemo(() => {
     if (!candidatos) return [];
     if (activeFilter === 'todos') return candidatos;
