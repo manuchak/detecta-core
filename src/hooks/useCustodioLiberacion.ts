@@ -213,7 +213,8 @@ export const useCustodioLiberacion = () => {
       const { data, error } = await supabase.rpc('liberar_custodio_a_planeacion_v2', {
         p_custodio_liberacion_id: liberacion_id,
         p_aprobado_por: user.user?.id,
-        p_forzar_liberacion: forzar
+        p_forzar_liberacion: forzar,
+        p_notas: ''
       });
       
       if (error) {

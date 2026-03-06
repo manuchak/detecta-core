@@ -20984,24 +20984,15 @@ export type Database = {
         }
         Returns: Json
       }
-      liberar_custodio_a_planeacion_v2:
-        | {
-            Args: {
-              p_aprobado_por: string
-              p_custodio_liberacion_id: string
-              p_forzar_liberacion?: boolean
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_aprobado_por: string
-              p_custodio_liberacion_id: string
-              p_forzar_liberacion?: boolean
-              p_notas?: string
-            }
-            Returns: Json
-          }
+      liberar_custodio_a_planeacion_v2: {
+        Args: {
+          p_aprobado_por: string
+          p_custodio_liberacion_id: string
+          p_forzar_liberacion?: boolean
+          p_notas?: string
+        }
+        Returns: Json
+      }
       limpiar_rechazos_expirados: { Args: never; Returns: number }
       link_user_to_custodio_services: {
         Args: { p_phone: string; p_user_id: string }
