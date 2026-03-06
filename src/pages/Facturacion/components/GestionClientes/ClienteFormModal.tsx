@@ -108,15 +108,15 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
         tipo_facturacion: cliente.tipo_facturacion || 'corte',
         dias_max_facturacion: cliente.dias_max_facturacion,
         // New fields from DB
-        requiere_portal: (cliente as any).requiere_portal ?? false,
-        url_portal: (cliente as any).url_portal || '',
-        dia_entrega_factura: (cliente as any).dia_entrega_factura || '',
-        descripcion_factura_formato: (cliente as any).descripcion_factura_formato || '',
-        requiere_prefactura: (cliente as any).requiere_prefactura ?? false,
-        requiere_tickets_estadia: (cliente as any).requiere_tickets_estadia ?? false,
-        evidencia_requerida: (cliente as any).evidencia_requerida || [],
-        observaciones_facturacion: (cliente as any).observaciones_facturacion || '',
-        facturacion_intercompania: (cliente as any).facturacion_intercompania ?? false,
+        requiere_portal: cliente.requiere_portal ?? false,
+        url_portal: cliente.url_portal || '',
+        dia_entrega_factura: cliente.dia_entrega_factura || '',
+        descripcion_factura_formato: cliente.descripcion_factura_formato || '',
+        requiere_prefactura: cliente.requiere_prefactura ?? false,
+        requiere_tickets_estadia: cliente.requiere_tickets_estadia ?? false,
+        evidencia_requerida: cliente.evidencia_requerida || [],
+        observaciones_facturacion: cliente.observaciones_facturacion || '',
+        facturacion_intercompania: cliente.facturacion_intercompania ?? false,
       });
     }
   }, [cliente]);
