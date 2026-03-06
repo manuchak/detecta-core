@@ -252,6 +252,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   const handleRelease = async () => {
     setIsLiberating(true);
+    let autoCreatedId: string | null = null;
     try {
       let libId = liberacionRecord?.id;
       // Auto-create liberación record if it doesn't exist
@@ -263,12 +264,19 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
           .single();
         if (error || !newRec) throw error || new Error('No se pudo crear el registro de liberación');
         libId = newRec.id;
+        autoCreatedId = libId;
       }
       const result = await liberarCustodio.mutateAsync({ liberacion_id: libId, forzar: true });
       setSuccessData(result);
       // Invalidate to reflect released state immediately
       queryClient.invalidateQueries({ queryKey: ['custodio-liberacion-by-candidato', candidatoId] });
       queryClient.invalidateQueries({ queryKey: ['custodian-invitation-token', candidatoId] });
+    } catch (err) {
+      // Cleanup ghost record if we auto-created it and the RPC failed
+      if (autoCreatedId) {
+        await supabase.from('custodio_liberacion').delete().eq('id', autoCreatedId);
+      }
+      throw err;
     } finally {
       setIsLiberating(false);
     }
