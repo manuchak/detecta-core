@@ -59,6 +59,15 @@ async function generarNumeroFactura(): Promise<string> {
 /**
  * Hook para generar una factura con sus partidas
  */
+export interface ConceptoExtra {
+  tipo: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  importe: number;
+  servicioId?: number;
+}
+
 export function useGenerarFactura() {
   const queryClient = useQueryClient();
 
@@ -66,23 +75,26 @@ export function useGenerarFactura() {
     mutationFn: async ({
       datosFactura,
       servicios,
+      conceptosExtra = [],
     }: {
       datosFactura: DatosFactura;
       servicios: ServicioFacturacion[];
+      conceptosExtra?: ConceptoExtra[];
     }): Promise<FacturaGenerada> => {
       if (servicios.length === 0) {
         throw new Error('Debe seleccionar al menos un servicio');
       }
 
-      // Calcular totales
-      const subtotal = servicios.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      // Calcular totales: base + extras
+      const subtotalBase = servicios.reduce((sum, s) => sum + (s.cobro_cliente || 0), 0);
+      const subtotalExtras = conceptosExtra.reduce((sum, c) => sum + c.importe, 0);
+      const subtotal = subtotalBase + subtotalExtras;
       const iva = subtotal * IVA_RATE;
       const total = subtotal + iva;
 
-      // Generar número si no se proporcionó
       const numeroFactura = datosFactura.numeroFactura || await generarNumeroFactura();
 
-      // 1. Insertar la factura
+      // 1. Insertar factura
       const { data: factura, error: errorFactura } = await supabase
         .from('facturas')
         .insert({
@@ -114,7 +126,7 @@ export function useGenerarFactura() {
         throw new Error(`Error al crear factura: ${errorFactura.message}`);
       }
 
-      // 2. Insertar las partidas
+      // 2. Build partidas: service lines + extra concept lines
       const partidas = servicios.map(servicio => ({
         factura_id: factura.id,
         servicio_id: servicio.id,
@@ -126,16 +138,33 @@ export function useGenerarFactura() {
         cantidad: 1,
         precio_unitario: servicio.cobro_cliente || 0,
         importe: servicio.cobro_cliente || 0,
-        clave_prod_serv: '78101802', // Servicios de escolta y seguridad
-        clave_unidad: 'E48', // Unidad de servicio
+        clave_prod_serv: '78101802',
+        clave_unidad: 'E48',
       }));
+
+      // Extra concept lines (casetas, estadías, pernoctas, gastos)
+      for (const c of conceptosExtra) {
+        partidas.push({
+          factura_id: factura.id,
+          servicio_id: c.servicioId || null,
+          id_servicio: null,
+          id_interno_cliente: null,
+          descripcion: c.descripcion,
+          fecha_servicio: null,
+          ruta: null,
+          cantidad: c.cantidad,
+          precio_unitario: c.precioUnitario,
+          importe: c.importe,
+          clave_prod_serv: '78101802',
+          clave_unidad: 'E48',
+        } as any);
+      }
 
       const { error: errorPartidas } = await supabase
         .from('factura_partidas')
         .insert(partidas);
 
       if (errorPartidas) {
-        // Rollback: eliminar la factura creada
         await supabase.from('facturas').delete().eq('id', factura.id);
         console.error('Error creando partidas:', errorPartidas);
         throw new Error(`Error al crear partidas: ${errorPartidas.message}`);
@@ -145,7 +174,7 @@ export function useGenerarFactura() {
         id: factura.id,
         numero_factura: factura.numero_factura,
         total: factura.total,
-        partidas: servicios.length,
+        partidas: partidas.length,
       };
     },
     onSuccess: (data) => {
