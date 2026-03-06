@@ -865,7 +865,13 @@ const LiberacionChecklistModal = ({
                   {liberacion.toxicologicos_completado && liberacion.toxicologicos_resultado === 'positivo' && (
                     <Badge variant="destructive" className="ml-auto text-xs">
                       <XCircle className="h-3 w-3 mr-1" />
-                      Positivo
+                      Positivo — Bloquea
+                    </Badge>
+                  )}
+                  {liberacion.toxicologicos_completado && liberacion.toxicologicos_resultado === 'negativo' && (
+                    <Badge variant="success" className="ml-auto text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Negativo
                     </Badge>
                   )}
                   {!liberacion.toxicologicos_completado && (
@@ -1032,7 +1038,7 @@ const LiberacionChecklistModal = ({
               </AccordionContent>
             </AccordionItem>
 
-            {/* 5. GPS - FLEXIBLE */}
+            {/* 5. GPS - OPCIONAL (no bloquea liberación) */}
             <AccordionItem value="gps">
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
@@ -1044,8 +1050,12 @@ const LiberacionChecklistModal = ({
                     <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
                   )}
                   <span>5. GPS ({progress.gps === 100 ? '100%' : liberacion.gps_pendiente ? 'Diferido' : '0%'})</span>
+                  <Badge variant="outline" className="ml-2 text-xs text-muted-foreground border-muted">
+                    <Info className="h-3 w-3 mr-1" />
+                    Opcional — No bloquea
+                  </Badge>
                   {liberacion.gps_pendiente && (
-                    <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200">
+                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200">
                       Pendiente post-entrenamiento
                     </Badge>
                   )}
@@ -1160,12 +1170,35 @@ const LiberacionChecklistModal = ({
         <div className="sticky bottom-0 bg-background border-t pt-3 pb-1 mt-auto shrink-0 space-y-2">
           {/* Gate status inline - always visible */}
           {gates.red.length > 0 && (
-            <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10 border border-destructive/20">
-              <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-              <div className="text-xs text-destructive">
-                <span className="font-semibold">Bloqueos:</span>{' '}
-                {gates.red.join(' · ')}
+            <div className="p-2 rounded-md bg-destructive/10 border border-destructive/20 space-y-1">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                <span className="text-xs font-semibold text-destructive">
+                  {gates.red.length} bloqueo(s) — resolver para liberar:
+                </span>
               </div>
+              <ul className="pl-6 space-y-0.5">
+                {gates.red.map((gate, i) => {
+                  // Map each gate to the section where it can be resolved
+                  const sectionMap: Record<string, string> = {
+                    'INE faltante': 'Documentación',
+                    'Licencia de conducir faltante': 'Documentación',
+                    'Portación de arma faltante': 'Documentación',
+                    'Toxicológico positivo': 'Toxicológicos',
+                    'Estudio socioeconómico desfavorable': 'Estudio Socioeconómico',
+                  };
+                  const section = sectionMap[gate] || '';
+                  return (
+                    <li key={i} className="text-xs text-destructive flex items-center gap-1.5">
+                      <span className="h-1 w-1 rounded-full bg-destructive shrink-0" />
+                      <span>{gate}</span>
+                      {section && (
+                        <span className="text-destructive/60">→ Sección: {section}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
           {gates.red.length === 0 && gates.yellow.length > 0 && (
