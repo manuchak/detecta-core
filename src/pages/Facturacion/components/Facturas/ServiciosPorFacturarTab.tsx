@@ -375,8 +375,7 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
                       );
 
                       return (
-                        <Collapsible key={cliente.cliente} open={isExpanded} asChild>
-                          <>
+                        <Fragment key={cliente.cliente}>
                             <TableRow 
                               className={`cursor-pointer ${isExpanded ? 'bg-muted/30' : ''}`}
                               onClick={() => handleToggleExpand(cliente.cliente)}
@@ -442,17 +441,14 @@ export function ServiciosPorFacturarTab({ fechaInicio, fechaFin }: ServiciosPorF
                             {isExpanded && (
                               <tr>
                                 <td colSpan={9} className="p-0">
-                                  <CollapsibleContent forceMount>
-                                    <ClienteExpandedRow
-                                      cliente={cliente}
-                                      onFacturar={() => handleFacturarCliente(cliente)}
-                                    />
-                                  </CollapsibleContent>
+                                  <ClienteExpandedRow
+                                    cliente={cliente}
+                                    onFacturar={() => handleFacturarCliente(cliente)}
+                                  />
                                 </td>
                               </tr>
                             )}
-                          </>
-                        </Collapsible>
+                        </Fragment>
                       );
                     })
                   )}
