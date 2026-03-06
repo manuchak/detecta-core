@@ -162,46 +162,46 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Cliente: {cliente?.nombre}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="fiscal" className="w-full">
-            <TabsList className="flex w-full overflow-x-auto">
+            <TabsList className="flex flex-wrap h-auto w-full gap-1 p-1.5">
               {canEditNombreComercial && (
-                <TabsTrigger value="comercialName" className="gap-1 text-xs">
-                  <Store className="h-3.5 w-3.5" />
+                <TabsTrigger value="comercialName" className="gap-1 text-[11px] px-2 py-1.5">
+                  <Store className="h-3 w-3" />
                   Nombre
                 </TabsTrigger>
               )}
-              <TabsTrigger value="fiscal" className="gap-1 text-xs">
-                <Building2 className="h-3.5 w-3.5" />
+              <TabsTrigger value="fiscal" className="gap-1 text-[11px] px-2 py-1.5">
+                <Building2 className="h-3 w-3" />
                 Fiscales
               </TabsTrigger>
-              <TabsTrigger value="comercial" className="gap-1 text-xs">
-                <CreditCard className="h-3.5 w-3.5" />
+              <TabsTrigger value="comercial" className="gap-1 text-[11px] px-2 py-1.5">
+                <CreditCard className="h-3 w-3" />
                 Crédito
               </TabsTrigger>
-              <TabsTrigger value="facturacion" className="gap-1 text-xs">
-                <Clock className="h-3.5 w-3.5" />
+              <TabsTrigger value="facturacion" className="gap-1 text-[11px] px-2 py-1.5">
+                <Clock className="h-3 w-3" />
                 Fact.
               </TabsTrigger>
-              <TabsTrigger value="reglas" className="gap-1 text-xs">
-                <FileText className="h-3.5 w-3.5" />
+              <TabsTrigger value="reglas" className="gap-1 text-[11px] px-2 py-1.5">
+                <FileText className="h-3 w-3" />
                 Reglas
               </TabsTrigger>
-              <TabsTrigger value="contactos" className="gap-1 text-xs">
-                <Users className="h-3.5 w-3.5" />
+              <TabsTrigger value="contactos" className="gap-1 text-[11px] px-2 py-1.5">
+                <Users className="h-3 w-3" />
                 Contactos
               </TabsTrigger>
-              <TabsTrigger value="gadgets" className="gap-1 text-xs">
-                <Package className="h-3.5 w-3.5" />
+              <TabsTrigger value="gadgets" className="gap-1 text-[11px] px-2 py-1.5">
+                <Package className="h-3 w-3" />
                 Gadgets
               </TabsTrigger>
-              <TabsTrigger value="contactoPrincipal" className="gap-1 text-xs">
-                <User className="h-3.5 w-3.5" />
+              <TabsTrigger value="contactoPrincipal" className="gap-1 text-[11px] px-2 py-1.5">
+                <User className="h-3 w-3" />
                 Cto. Ppal
               </TabsTrigger>
             </TabsList>

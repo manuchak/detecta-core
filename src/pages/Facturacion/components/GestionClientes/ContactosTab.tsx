@@ -54,21 +54,21 @@ export function ContactosTab({ clienteId }: ContactosTabProps) {
       {showAdd && (
         <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Nombre</Label>
               <Input value={newContact.nombre} onChange={e => setNewContact(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre completo" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Email *</Label>
               <Input type="email" value={newContact.email} onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))} placeholder="email@empresa.com" />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Teléfono</Label>
               <Input value={newContact.telefono} onChange={e => setNewContact(p => ({ ...p, telefono: e.target.value }))} placeholder="55 1234 5678" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <Label className="text-xs">Rol</Label>
               <Select value={newContact.rol} onValueChange={v => setNewContact(p => ({ ...p, rol: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -77,11 +77,11 @@ export function ContactosTab({ clienteId }: ContactosTabProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
-              <Button size="sm" onClick={handleAdd} disabled={!newContact.email || upsertMutation.isPending}>
-                Guardar
-              </Button>
-            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={handleAdd} disabled={!newContact.email || upsertMutation.isPending}>
+              Guardar
+            </Button>
           </div>
         </div>
       )}
