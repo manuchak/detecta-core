@@ -70,7 +70,7 @@ export function LiberacionWizardTab({ candidatoId, candidatoNombre, tipoOperativ
   // Training progress
   const trainingComplete = useMemo(() => {
     if (!modulos || !progreso) return false;
-    const completedModules = progreso.filter(p => p.completado).length;
+    const completedModules = progreso.filter((p: any) => p.estado === 'completado').length;
     return modulos.length > 0 && completedModules >= modulos.length;
   }, [modulos, progreso]);
 
@@ -162,13 +162,13 @@ export function LiberacionWizardTab({ candidatoId, candidatoNombre, tipoOperativ
       tabTarget: 'training',
     });
 
-    const refsOk = (refsProgress?.verificadas ?? 0) >= 4;
+    const refsOk = (refsProgress?.totalOk ?? 0) >= 4;
     g.push({
       id: 'refs',
       label: 'Referencias verificadas (4/4)',
       level: 'warning',
       passed: refsOk,
-      detail: `${refsProgress?.verificadas ?? 0}/${refsProgress?.total ?? 0} referencias verificadas`,
+      detail: `${refsProgress?.totalOk ?? 0}/${refsProgress?.totalRefs ?? 0} referencias verificadas`,
       tabTarget: 'references',
     });
 
