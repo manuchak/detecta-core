@@ -27,6 +27,16 @@ export interface ClienteFiscal {
   cobra_pernocta: boolean | null;
   tipo_facturacion: 'inmediata' | 'corte' | null;
   dias_max_facturacion: number | null;
+  // Billing rules (Phase 1 Maestro)
+  requiere_portal: boolean | null;
+  url_portal: string | null;
+  dia_entrega_factura: string | null;
+  descripcion_factura_formato: string | null;
+  requiere_prefactura: boolean | null;
+  requiere_tickets_estadia: boolean | null;
+  evidencia_requerida: string[] | null;
+  observaciones_facturacion: string | null;
+  facturacion_intercompania: boolean | null;
 }
 
 export interface ClienteFiscalUpdate {
@@ -51,6 +61,16 @@ export interface ClienteFiscalUpdate {
   cobra_pernocta?: boolean | null;
   tipo_facturacion?: 'inmediata' | 'corte' | null;
   dias_max_facturacion?: number | null;
+  // Billing rules (Phase 1 Maestro)
+  requiere_portal?: boolean;
+  url_portal?: string;
+  dia_entrega_factura?: string;
+  descripcion_factura_formato?: string;
+  requiere_prefactura?: boolean;
+  requiere_tickets_estadia?: boolean;
+  evidencia_requerida?: string[];
+  observaciones_facturacion?: string;
+  facturacion_intercompania?: boolean;
 }
 
 export function useClientesFiscales() {
@@ -83,7 +103,16 @@ export function useClientesFiscales() {
           pernocta_tarifa,
           cobra_pernocta,
           tipo_facturacion,
-          dias_max_facturacion
+          dias_max_facturacion,
+          requiere_portal,
+          url_portal,
+          dia_entrega_factura,
+          descripcion_factura_formato,
+          requiere_prefactura,
+          requiere_tickets_estadia,
+          evidencia_requerida,
+          observaciones_facturacion,
+          facturacion_intercompania
         `)
         .order('nombre');
 

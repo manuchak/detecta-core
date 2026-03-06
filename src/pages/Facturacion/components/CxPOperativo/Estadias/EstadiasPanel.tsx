@@ -59,16 +59,21 @@ export function EstadiasPanel() {
                   <TableHead>Tipo Servicio</TableHead>
                   <TableHead>Ruta</TableHead>
                   <TableHead className="text-right">Hrs Cortesía</TableHead>
+                  <TableHead className="text-right">Hrs Local</TableHead>
+                  <TableHead className="text-right">Hrs Foráneo</TableHead>
                   <TableHead className="text-right">$/Hr Excedente</TableHead>
+                  <TableHead className="text-right">$/Sin Arma</TableHead>
+                  <TableHead className="text-right">$/Con Arma</TableHead>
                   <TableHead>Pernocta</TableHead>
+                  <TableHead>Tickets</TableHead>
                   <TableHead>Notas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
                 ) : reglas.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">
                     Sin reglas configuradas. Se usará el fallback de horas_cortesia del cliente.
                   </TableCell></TableRow>
                 ) : (
@@ -82,10 +87,21 @@ export function EstadiasPanel() {
                       </TableCell>
                       <TableCell className="text-sm">{r.ruta_patron || 'Todas'}</TableCell>
                       <TableCell className="text-right font-medium">{r.horas_cortesia}h</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).horas_cortesia_local ?? '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).horas_cortesia_foraneo ?? '—'}</TableCell>
                       <TableCell className="text-right text-sm">${r.tarifa_hora_excedente}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).tarifa_sin_arma != null ? `$${(r as any).tarifa_sin_arma}` : '—'}</TableCell>
+                      <TableCell className="text-right text-sm">{(r as any).tarifa_con_arma != null ? `$${(r as any).tarifa_con_arma}` : '—'}</TableCell>
                       <TableCell>
                         {r.cobra_pernocta ? (
                           <Badge variant="secondary" className="text-xs">${r.tarifa_pernocta}</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(r as any).requiere_tickets ? (
+                          <Badge variant="outline" className="text-xs">Sí</Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">No</span>
                         )}
@@ -129,9 +145,14 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
     tipo_servicio: '',
     ruta_patron: '',
     horas_cortesia: '0',
+    horas_cortesia_local: '',
+    horas_cortesia_foraneo: '',
     tarifa_hora_excedente: '0',
+    tarifa_sin_arma: '',
+    tarifa_con_arma: '',
     tarifa_pernocta: '0',
     cobra_pernocta: false,
+    requiere_tickets: false,
     notas: '',
   });
   const [clienteSearch, setClienteSearch] = useState('');
@@ -157,7 +178,12 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
       cobra_pernocta: form.cobra_pernocta,
       notas: form.notas || null,
       activo: true,
-    });
+      horas_cortesia_local: form.horas_cortesia_local ? Number(form.horas_cortesia_local) : null,
+      horas_cortesia_foraneo: form.horas_cortesia_foraneo ? Number(form.horas_cortesia_foraneo) : null,
+      tarifa_sin_arma: form.tarifa_sin_arma ? Number(form.tarifa_sin_arma) : null,
+      tarifa_con_arma: form.tarifa_con_arma ? Number(form.tarifa_con_arma) : null,
+      requiere_tickets: form.requiere_tickets,
+    } as any);
     onOpenChange(false);
   };
 
@@ -226,12 +252,38 @@ function AddRuleDialog({ open, onOpenChange, clientes }: {
               <Input type="number" value={form.horas_cortesia} onChange={e => setForm(f => ({ ...f, horas_cortesia: e.target.value }))} />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">Hrs Local</Label>
+              <Input type="number" value={form.horas_cortesia_local} onChange={e => setForm(f => ({ ...f, horas_cortesia_local: e.target.value }))} placeholder="—" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Hrs Foráneo</Label>
+              <Input type="number" value={form.horas_cortesia_foraneo} onChange={e => setForm(f => ({ ...f, horas_cortesia_foraneo: e.target.value }))} placeholder="—" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs">$/Hr Excedente</Label>
               <Input type="number" value={form.tarifa_hora_excedente} onChange={e => setForm(f => ({ ...f, tarifa_hora_excedente: e.target.value }))} />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">$/Sin Arma</Label>
+              <Input type="number" value={form.tarifa_sin_arma} onChange={e => setForm(f => ({ ...f, tarifa_sin_arma: e.target.value }))} placeholder="—" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">$/Con Arma</Label>
+              <Input type="number" value={form.tarifa_con_arma} onChange={e => setForm(f => ({ ...f, tarifa_con_arma: e.target.value }))} placeholder="—" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
               <Label className="text-xs">$/Pernocta</Label>
               <Input type="number" value={form.tarifa_pernocta} onChange={e => setForm(f => ({ ...f, tarifa_pernocta: e.target.value }))} />
+            </div>
+            <div className="flex items-end pb-1">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="req_tickets" checked={form.requiere_tickets} onChange={e => setForm(f => ({ ...f, requiere_tickets: e.target.checked }))} className="h-4 w-4 rounded border-border" />
+                <label htmlFor="req_tickets" className="text-xs">Requiere tickets</label>
+              </div>
             </div>
           </div>
           <div className="space-y-1">

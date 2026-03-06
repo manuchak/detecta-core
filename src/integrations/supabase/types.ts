@@ -11962,13 +11962,17 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           csm_asignado: string | null
+          descripcion_factura_formato: string | null
           descuentos_aplicables: Json | null
           dia_corte: number | null
+          dia_entrega_factura: string | null
           dia_pago: number | null
           dias_credito: number | null
           dias_max_facturacion: number | null
           direccion_fiscal: string | null
           es_embajador: boolean | null
+          evidencia_requerida: string[] | null
+          facturacion_intercompania: boolean | null
           fecha_baja: string | null
           forma_pago_preferida: string | null
           horas_cortesia: number | null
@@ -11980,10 +11984,14 @@ export type Database = {
           notas: string | null
           notas_cobranza: string | null
           notas_fidelidad: string | null
+          observaciones_facturacion: string | null
           pernocta_tarifa: number | null
           prioridad_cobranza: string | null
           razon_social: string | null
           regimen_fiscal: string | null
+          requiere_portal: boolean | null
+          requiere_prefactura: boolean | null
+          requiere_tickets_estadia: boolean | null
           rfc: string | null
           search_vector: unknown
           sla_minutos_asignacion: number | null
@@ -11991,6 +11999,7 @@ export type Database = {
           tarifas_especiales: boolean | null
           tipo_facturacion: string | null
           updated_at: string | null
+          url_portal: string | null
           uso_cfdi_default: string | null
         }
         Insert: {
@@ -12006,13 +12015,17 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           csm_asignado?: string | null
+          descripcion_factura_formato?: string | null
           descuentos_aplicables?: Json | null
           dia_corte?: number | null
+          dia_entrega_factura?: string | null
           dia_pago?: number | null
           dias_credito?: number | null
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           es_embajador?: boolean | null
+          evidencia_requerida?: string[] | null
+          facturacion_intercompania?: boolean | null
           fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
@@ -12024,10 +12037,14 @@ export type Database = {
           notas?: string | null
           notas_cobranza?: string | null
           notas_fidelidad?: string | null
+          observaciones_facturacion?: string | null
           pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null
           regimen_fiscal?: string | null
+          requiere_portal?: boolean | null
+          requiere_prefactura?: boolean | null
+          requiere_tickets_estadia?: boolean | null
           rfc?: string | null
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
@@ -12035,6 +12052,7 @@ export type Database = {
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null
           updated_at?: string | null
+          url_portal?: string | null
           uso_cfdi_default?: string | null
         }
         Update: {
@@ -12050,13 +12068,17 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           csm_asignado?: string | null
+          descripcion_factura_formato?: string | null
           descuentos_aplicables?: Json | null
           dia_corte?: number | null
+          dia_entrega_factura?: string | null
           dia_pago?: number | null
           dias_credito?: number | null
           dias_max_facturacion?: number | null
           direccion_fiscal?: string | null
           es_embajador?: boolean | null
+          evidencia_requerida?: string[] | null
+          facturacion_intercompania?: boolean | null
           fecha_baja?: string | null
           forma_pago_preferida?: string | null
           horas_cortesia?: number | null
@@ -12068,10 +12090,14 @@ export type Database = {
           notas?: string | null
           notas_cobranza?: string | null
           notas_fidelidad?: string | null
+          observaciones_facturacion?: string | null
           pernocta_tarifa?: number | null
           prioridad_cobranza?: string | null
           razon_social?: string | null
           regimen_fiscal?: string | null
+          requiere_portal?: boolean | null
+          requiere_prefactura?: boolean | null
+          requiere_tickets_estadia?: boolean | null
           rfc?: string | null
           search_vector?: unknown
           sla_minutos_asignacion?: number | null
@@ -12079,6 +12105,7 @@ export type Database = {
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null
           updated_at?: string | null
+          url_portal?: string | null
           uso_cfdi_default?: string | null
         }
         Relationships: [
@@ -12095,6 +12122,94 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_ticket_agent_workload"
             referencedColumns: ["agent_id"]
+          },
+        ]
+      }
+      pc_clientes_contactos: {
+        Row: {
+          activo: boolean | null
+          cliente_id: string
+          created_at: string | null
+          email: string
+          id: string
+          nombre: string | null
+          principal: boolean | null
+          rol: string | null
+          telefono: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          cliente_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          nombre?: string | null
+          principal?: boolean | null
+          rol?: string | null
+          telefono?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          cliente_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          nombre?: string | null
+          principal?: boolean | null
+          rol?: string | null
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_clientes_contactos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pc_clientes_gadgets: {
+        Row: {
+          activo: boolean | null
+          cliente_id: string
+          created_at: string | null
+          facturacion: string | null
+          id: string
+          incluido_en_tarifa: boolean | null
+          notas: string | null
+          precio: number
+          tipo: string
+        }
+        Insert: {
+          activo?: boolean | null
+          cliente_id: string
+          created_at?: string | null
+          facturacion?: string | null
+          id?: string
+          incluido_en_tarifa?: boolean | null
+          notas?: string | null
+          precio?: number
+          tipo: string
+        }
+        Update: {
+          activo?: boolean | null
+          cliente_id?: string
+          created_at?: string | null
+          facturacion?: string | null
+          id?: string
+          incluido_en_tarifa?: boolean | null
+          notas?: string | null
+          precio?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pc_clientes_gadgets_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "pc_clientes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -14377,11 +14492,16 @@ export type Database = {
           cobra_pernocta: boolean | null
           created_at: string | null
           horas_cortesia: number
+          horas_cortesia_foraneo: number | null
+          horas_cortesia_local: number | null
           id: string
           notas: string | null
+          requiere_tickets: boolean | null
           ruta_patron: string | null
+          tarifa_con_arma: number | null
           tarifa_hora_excedente: number | null
           tarifa_pernocta: number | null
+          tarifa_sin_arma: number | null
           tipo_servicio: string | null
           updated_at: string | null
         }
@@ -14391,11 +14511,16 @@ export type Database = {
           cobra_pernocta?: boolean | null
           created_at?: string | null
           horas_cortesia?: number
+          horas_cortesia_foraneo?: number | null
+          horas_cortesia_local?: number | null
           id?: string
           notas?: string | null
+          requiere_tickets?: boolean | null
           ruta_patron?: string | null
+          tarifa_con_arma?: number | null
           tarifa_hora_excedente?: number | null
           tarifa_pernocta?: number | null
+          tarifa_sin_arma?: number | null
           tipo_servicio?: string | null
           updated_at?: string | null
         }
@@ -14405,11 +14530,16 @@ export type Database = {
           cobra_pernocta?: boolean | null
           created_at?: string | null
           horas_cortesia?: number
+          horas_cortesia_foraneo?: number | null
+          horas_cortesia_local?: number | null
           id?: string
           notas?: string | null
+          requiere_tickets?: boolean | null
           ruta_patron?: string | null
+          tarifa_con_arma?: number | null
           tarifa_hora_excedente?: number | null
           tarifa_pernocta?: number | null
+          tarifa_sin_arma?: number | null
           tipo_servicio?: string | null
           updated_at?: string | null
         }
