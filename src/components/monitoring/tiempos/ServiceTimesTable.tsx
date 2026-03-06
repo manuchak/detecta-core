@@ -28,6 +28,8 @@ import * as XLSX from 'xlsx';
 
 interface Props {
   onSelectService: (row: ServiceTimeRow) => void;
+  defaultDateFrom?: string;
+  defaultDateTo?: string;
 }
 
 const fmtTime = (iso: string | null) => {
