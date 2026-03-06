@@ -20,7 +20,8 @@ import {
   FileText,
   ChevronRight,
   Brain,
-  AlertTriangle
+  AlertTriangle,
+  Rocket
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -126,7 +127,44 @@ export default function EvaluacionesPage() {
     },
   });
 
-  // Filter candidates by pill
+  // Bulk-fetch liberación status for all visible candidates
+  const candidatoIds = useMemo(() => candidatos?.map(c => c.id) || [], [candidatos]);
+  
+  const { data: liberacionMap } = useQuery({
+    queryKey: ['bulk-liberacion-status', candidatoIds],
+    queryFn: async () => {
+      if (candidatoIds.length === 0) return new Map();
+      const { data } = await supabase
+        .from('custodio_liberacion')
+        .select('candidato_id, estado_liberacion, documentacion_completa, psicometricos_completado, toxicologicos_completado, vehiculo_capturado, vehiculo_tarjeta_circulacion, vehiculo_poliza_seguro')
+        .in('candidato_id', candidatoIds);
+      
+      const map = new Map<string, { ready: boolean; pending: number; released: boolean }>();
+      data?.forEach((row: any) => {
+        const isReleased = row.estado_liberacion === 'liberado';
+        const isApproved = row.estado_liberacion === 'aprobado_final';
+        const requiredFields = [
+          row.documentacion_completa,
+          row.psicometricos_completado,
+          row.toxicologicos_completado,
+          row.vehiculo_capturado,
+          row.vehiculo_tarjeta_circulacion,
+          row.vehiculo_poliza_seguro,
+        ];
+        const completedCount = requiredFields.filter(Boolean).length;
+        const pendingCount = requiredFields.length - completedCount;
+        map.set(row.candidato_id, {
+          ready: isApproved || (completedCount === requiredFields.length),
+          pending: pendingCount,
+          released: isReleased,
+        });
+      });
+      return map;
+    },
+    enabled: candidatoIds.length > 0,
+    staleTime: 30_000,
+  });
+
   const filteredCandidatos = useMemo(() => {
     if (!candidatos) return [];
     if (activeFilter === 'todos') return candidatos;
@@ -162,6 +200,34 @@ export default function EvaluacionesPage() {
     if (days >= 30) return <Badge variant="destructive" className="text-xs gap-1"><AlertTriangle className="h-2.5 w-2.5" />{days}d</Badge>;
     if (days >= 15) return <Badge className="text-xs gap-1 bg-orange-500 hover:bg-orange-600 text-white"><AlertTriangle className="h-2.5 w-2.5" />{days}d</Badge>;
     if (days >= 7) return <Badge className="text-xs gap-1 bg-yellow-500 hover:bg-yellow-600 text-white">{days}d</Badge>;
+    return null;
+  };
+
+  const getLiberacionCTA = (candidatoId: string) => {
+    const status = liberacionMap?.get(candidatoId);
+    if (!status) return null;
+    if (status.released) {
+      return <Badge variant="success" className="text-xs gap-1">Liberado</Badge>;
+    }
+    if (status.ready) {
+      return (
+        <Button
+          size="sm"
+          className="gap-1.5 rounded-full bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] font-semibold h-7 px-3 text-xs"
+          onClick={(e) => { e.stopPropagation(); }}
+        >
+          <Rocket className="h-3 w-3" />
+          Liberar
+        </Button>
+      );
+    }
+    if (status.pending > 0 && status.pending <= 3) {
+      return (
+        <Badge className="text-xs gap-1 bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]">
+          {status.pending} pendiente{status.pending !== 1 ? 's' : ''}
+        </Badge>
+      );
+    }
     return null;
   };
 
@@ -311,6 +377,7 @@ export default function EvaluacionesPage() {
                           <Badge variant="secondary" className="text-xs">
                             {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
                           </Badge>
+                          {getLiberacionCTA(candidato.id)}
                           {getUrgencyBadge(daysStale)}
                         </div>
                       </div>
@@ -353,6 +420,7 @@ export default function EvaluacionesPage() {
                           <Badge variant="secondary">
                             {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
                           </Badge>
+                          {getLiberacionCTA(candidato.id)}
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
