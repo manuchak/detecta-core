@@ -203,6 +203,34 @@ export default function EvaluacionesPage() {
     return null;
   };
 
+  const getLiberacionCTA = (candidatoId: string) => {
+    const status = liberacionMap?.get(candidatoId);
+    if (!status) return null;
+    if (status.released) {
+      return <Badge variant="success" className="text-xs gap-1">Liberado</Badge>;
+    }
+    if (status.ready) {
+      return (
+        <Button
+          size="sm"
+          className="gap-1.5 rounded-full bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] font-semibold h-7 px-3 text-xs"
+          onClick={(e) => { e.stopPropagation(); }}
+        >
+          <Rocket className="h-3 w-3" />
+          Liberar
+        </Button>
+      );
+    }
+    if (status.pending > 0 && status.pending <= 3) {
+      return (
+        <Badge className="text-xs gap-1 bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]">
+          {status.pending} pendiente{status.pending !== 1 ? 's' : ''}
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-6 space-y-4 sm:space-y-6">
       <SupplyPipelineBreadcrumb />
