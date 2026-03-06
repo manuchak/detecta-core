@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package } from 'lucide-react';
+import { Save, Building2, CreditCard, User, AlertTriangle, Store, Clock, Moon, FileText, Users, Package, ScrollText, Globe } from 'lucide-react';
 import { 
   ClienteFiscal, 
   ClienteFiscalUpdate, 
@@ -32,6 +32,8 @@ import { NOMBRE_COMERCIAL_EDIT_ROLES } from '@/constants/accessControl';
 import { ReglasFacturacionTab } from './ReglasFacturacionTab';
 import { ContactosTab } from './ContactosTab';
 import { GadgetsTab } from './GadgetsTab';
+import { ContratosTab } from './ContratosTab';
+import { PortalesTab } from './PortalesTab';
 
 interface ClienteFormModalProps {
   open: boolean;
