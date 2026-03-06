@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
 import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
+import { LiberacionWizardTab } from './liberacion/LiberacionWizardTab';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
 import { useLatestEvaluacionPsicometrica } from '@/hooks/useEvaluacionesPsicometricas';
@@ -52,7 +53,8 @@ import {
   Cpu,
   ShieldCheck,
   CheckCircle2,
-  Home
+  Home,
+  Rocket
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
