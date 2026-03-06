@@ -25,6 +25,7 @@ import { UserWithRole } from '@/types/roleTypes';
 
 export const RoleManager = () => {
   const { users, updateUserRole, verifyUserEmail, archiveUser, reactivateUser } = useUserRoles();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
