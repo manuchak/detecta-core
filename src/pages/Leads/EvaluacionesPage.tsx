@@ -377,6 +377,7 @@ export default function EvaluacionesPage() {
                           <Badge variant="secondary" className="text-xs">
                             {candidato.estado_detallado || candidato.estado_proceso || 'lead'}
                           </Badge>
+                          {getLiberacionCTA(candidato.id)}
                           {getUrgencyBadge(daysStale)}
                         </div>
                       </div>
