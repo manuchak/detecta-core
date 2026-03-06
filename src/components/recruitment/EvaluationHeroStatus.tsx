@@ -18,7 +18,6 @@ interface Props {
   gates: Gate[];
   canRelease: boolean;
   isLiberating: boolean;
-  hasLiberacionRecord: boolean;
   isAlreadyReleased: boolean;
   onRelease: () => void;
   onScrollToBlockers?: () => void;
@@ -71,7 +70,6 @@ export function EvaluationHeroStatus({
   gates,
   canRelease,
   isLiberating,
-  hasLiberacionRecord,
   isAlreadyReleased,
   onRelease,
   onScrollToBlockers,
@@ -135,7 +133,7 @@ export function EvaluationHeroStatus({
 
         {/* CTA */}
         <div className="shrink-0">
-          {canRelease && hasLiberacionRecord ? (
+          {canRelease ? (
             <Button
               size="lg"
               className="gap-2 rounded-xl bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90 text-[hsl(var(--success-foreground))] font-semibold px-6 h-12"
@@ -145,15 +143,23 @@ export function EvaluationHeroStatus({
               {isLiberating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
               {isLiberating ? 'Liberando...' : 'Liberar'}
             </Button>
+          ) : stats.blockers > 0 ? (
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 rounded-xl font-semibold px-6 h-12"
+              onClick={onScrollToBlockers}
+            >
+              Resolver {stats.blockers} bloqueo{stats.blockers !== 1 ? 's' : ''}
+            </Button>
           ) : (
             <Button
               size="lg"
               variant="outline"
               className="gap-2 rounded-xl font-semibold px-6 h-12"
               onClick={onScrollToBlockers}
-              disabled={stats.blockers === 0 && !hasLiberacionRecord}
             >
-              {!hasLiberacionRecord ? 'Sin proceso iniciado' : `Resolver ${stats.blockers} bloqueo${stats.blockers !== 1 ? 's' : ''}`}
+              {stats.warnings > 0 ? `${stats.warnings} advertencia${stats.warnings !== 1 ? 's' : ''}` : 'Revisar evaluación'}
             </Button>
           )}
         </div>
