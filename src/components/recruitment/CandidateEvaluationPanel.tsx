@@ -209,6 +209,12 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
               <GitBranch className="h-3.5 w-3.5" />
               <span>Historial</span>
             </TabsTrigger>
+
+            {/* LIBERAR */}
+            <TabsTrigger value="liberar" className="flex items-center gap-1 text-xs px-2 py-2 min-w-[80px] shrink-0 data-[state=active]:bg-[hsl(var(--success))]/10 data-[state=active]:text-[hsl(var(--success))]">
+              <Rocket className="h-3.5 w-3.5" />
+              <span className="font-semibold">Liberar</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="interview" className="mt-4">
