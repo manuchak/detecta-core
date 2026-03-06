@@ -62,7 +62,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the recovery URL using the token from the generated link
     const actionLink = linkData?.properties?.action_link;
     if (!actionLink) {
       return new Response(JSON.stringify({ error: 'No se pudo generar el link de recuperación' }), {
@@ -71,16 +70,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Rewrite redirect_to so the link points to the real app, not localhost
-    const correctedUrl = new URL(actionLink);
-    correctedUrl.searchParams.set('redirect_to', `${appOrigin}/reset-password`);
-    const correctedLink = correctedUrl.toString();
+    // Extract token_hash from the Supabase action_link and build an indirect URL
+    // that points to our app instead of Supabase's /auth/v1/verify endpoint.
+    // This prevents chat bots (Teams, Slack, WhatsApp) from consuming the
+    // one-time token via link-preview prefetch requests.
+    const actionUrl = new URL(actionLink);
+    const tokenHash = actionUrl.searchParams.get('token');
 
-    console.log(`Recovery link generated for ${email} by admin, redirecting to ${appOrigin}`);
+    if (!tokenHash) {
+      console.error('Could not extract token from action_link:', actionLink);
+      return new Response(JSON.stringify({ error: 'No se pudo extraer el token del link generado' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Build app-level recovery URL — bot prefetch will only load static HTML, not consume the token
+    const recoveryUrl = `${appOrigin}/reset-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+
+    console.log(`Recovery link generated for ${email} by admin (indirect URL, immune to prefetch), redirecting to ${appOrigin}`);
 
     return new Response(JSON.stringify({
       success: true,
-      recovery_link: correctedLink,
+      recovery_link: recoveryUrl,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
