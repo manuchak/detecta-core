@@ -107,13 +107,13 @@ const TouchpointGauge = ({ value }: { value: number }) => {
   const valPath = `M ${bgX1} ${bgY1} A ${r} ${r} 0 ${largeArc} 1 ${valX2} ${valY2}`;
 
   // Color by threshold
-  const color = value <= 15
+  const color = value < 30
     ? 'hsl(var(--chart-2))' // green
-    : value <= 30
+    : value <= 40
       ? 'hsl(45, 93%, 47%)' // amber
       : 'hsl(var(--destructive))'; // red
 
-  const label = value <= 15 ? 'Excelente' : value <= 30 ? 'Aceptable' : 'Atención';
+  const label = value < 30 ? 'Excelente' : value <= 40 ? 'Aceptable' : 'Atención';
 
   return (
     <div className="flex flex-col items-center">
