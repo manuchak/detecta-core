@@ -103,19 +103,20 @@ const RouteMap = ({ service, events }: { service: RadarService; events: EventoRu
     </div>
   );
 
-  // Collect all geo points from events (chronological order)
+  // Collect valid geo points from events (chronological order)
   const trailPoints = events
-    .filter(e => e.lat && e.lng)
+    .filter(e => e.lat && e.lng && Number.isFinite(e.lat) && Number.isFinite(e.lng))
     .sort((a, b) => new Date(a.hora_inicio).getTime() - new Date(b.hora_inicio).getTime())
-    .map(e => ({ lat: e.lat!, lng: e.lng! }));
+    .map(e => [Math.round(e.lng! * 1e6) / 1e6, Math.round(e.lat! * 1e6) / 1e6] as [number, number]);
 
-  const currentPos = service.lat && service.lng ? { lat: service.lat, lng: service.lng } : null;
+  const currentPos = service.lat && service.lng && Number.isFinite(service.lat) && Number.isFinite(service.lng)
+    ? [Math.round(service.lng * 1e6) / 1e6, Math.round(service.lat * 1e6) / 1e6] as [number, number]
+    : null;
 
-  // All points for bounding
-  const allPoints = [...trailPoints];
-  if (currentPos) allPoints.push(currentPos);
+  const allCoords = [...trailPoints];
+  if (currentPos) allCoords.push(currentPos);
 
-  if (allPoints.length === 0) {
+  if (allCoords.length === 0) {
     return (
       <div className="h-36 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
         Sin posición GPS disponible
@@ -123,60 +124,37 @@ const RouteMap = ({ service, events }: { service: RadarService; events: EventoRu
     );
   }
 
-  // Build Mapbox Static API URL with overlays
-  const overlays: string[] = [];
+  // Build overlays using geojson() for trail line + pin markers
+  const overlayParts: string[] = [];
 
-  // Trail path (polyline from event coords) — blue line
-  if (trailPoints.length >= 2) {
-    const pathCoords = trailPoints.map(p => `[${p.lng},${p.lat}]`).join(',');
-    overlays.push(`path-4+3b82f6-0.6(${encodeURIComponent(`{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[${pathCoords}]}}`)})`);
+  // Trail line via geojson overlay (limit to last 10 points to keep URL short)
+  const lineCoords = trailPoints.slice(-10);
+  if (currentPos) lineCoords.push(currentPos);
+  if (lineCoords.length >= 2) {
+    const geojson = {
+      type: 'Feature',
+      properties: { 'stroke': '#3b82f6', 'stroke-width': 3, 'stroke-opacity': 0.7 },
+      geometry: { type: 'LineString', coordinates: lineCoords }
+    };
+    overlayParts.push(`geojson(${encodeURIComponent(JSON.stringify(geojson))})`);
   }
 
-  // Simpler approach: use path encoding with coordinates
-  // Trail as small dots
-  trailPoints.forEach((p, i) => {
-    if (i < trailPoints.length - 1) { // skip last if it's the current pos
-      overlays.push(`pin-s+3b82f6(${p.lng},${p.lat})`);
-    }
+  // Trail pins (last 8)
+  trailPoints.slice(-8).forEach(([lng, lat]) => {
+    overlayParts.push(`pin-s+3b82f6(${lng},${lat})`);
   });
 
-  // Current position — large red pin
+  // Current position pin
   if (currentPos) {
-    overlays.push(`pin-l+ef4444(${currentPos.lng},${currentPos.lat})`);
+    overlayParts.push(`pin-l+ef4444(${currentPos[0]},${currentPos[1]})`);
   }
 
-  // Auto-fit bounds
-  let position: string;
-  if (allPoints.length === 1) {
-    position = `${allPoints[0].lng},${allPoints[0].lat},12,0`;
-  } else {
-    // Use auto to fit all markers
-    position = 'auto';
-  }
+  // Position: auto-fit or center on single point
+  const position = allCoords.length === 1
+    ? `${allCoords[0][0]},${allCoords[0][1]},12,0`
+    : 'auto';
 
-  // Limit overlays to avoid URL length issues (keep last 8 trail + current)
-  const limitedOverlays: string[] = [];
-  const trailPins = trailPoints.slice(-8).map(p => `pin-s+3b82f6(${p.lng},${p.lat})`);
-  limitedOverlays.push(...trailPins);
-  if (currentPos) {
-    limitedOverlays.push(`pin-l+ef4444(${currentPos.lng},${currentPos.lat})`);
-  }
-
-  // Build path GeoJSON for trail line
-  let pathOverlay = '';
-  if (trailPoints.length >= 2) {
-    const lastPoints = trailPoints.slice(-8);
-    if (currentPos) lastPoints.push(currentPos);
-    const coords = lastPoints.map(p => `[${p.lng},${p.lat}]`).join(',');
-    pathOverlay = `path-3+3b82f6-0.5(${encodeURIComponent(`{\"type\":\"LineString\",\"coordinates\":[${coords}]}`)})`;
-  }
-
-  const allOverlays = pathOverlay
-    ? [pathOverlay, ...limitedOverlays]
-    : limitedOverlays;
-
-  const overlayStr = allOverlays.join(',');
-  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlayStr}/${position}/400x220@2x?padding=40&access_token=${token}`;
+  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlayParts.join(',')}/${position}/400x220@2x?padding=40&access_token=${token}`;
 
   return (
     <img
@@ -184,6 +162,14 @@ const RouteMap = ({ service, events }: { service: RadarService; events: EventoRu
       alt="Ruta del servicio"
       className="w-full h-48 rounded-lg object-cover border border-border/40"
       loading="lazy"
+      onError={(e) => {
+        console.warn('Map image failed:', url.substring(0, 200));
+        (e.target as HTMLImageElement).style.display = 'none';
+        (e.target as HTMLImageElement).parentElement?.insertAdjacentHTML(
+          'beforeend',
+          '<div class="h-48 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">Mapa no disponible</div>'
+        );
+      }}
     />
   );
 };
