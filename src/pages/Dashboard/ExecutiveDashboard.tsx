@@ -44,6 +44,7 @@ import { MobileOperationalDashboard } from '@/components/executive/MobileOperati
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
   
   const getInitialTab = () => {
     if (location.pathname === '/dashboard/kpis') return 'kpis';
@@ -72,7 +73,6 @@ const ExecutiveDashboard = () => {
     else navigate('/dashboard');
   };
 
-  const isMobile = useIsMobile();
 
   return (
     <div className="min-h-screen bg-background">
