@@ -44,13 +44,16 @@ const PhaseCard = ({ value, label, icon: Icon, accent, pulse }: PhaseCardProps) 
 );
 
 /* ─── Alert Row ─── */
-const AlertRow = ({ alert }: { alert: PulseAlertService }) => (
-  <div className={cn(
-    'flex items-center gap-3 px-3 py-2.5 rounded-lg border',
-    alert.nivel === 'critical'
-      ? 'bg-destructive/10 border-destructive/30'
-      : 'bg-amber-500/10 border-amber-500/30'
-  )}>
+const AlertRow = ({ alert, onDoubleClick }: { alert: PulseAlertService; onDoubleClick?: () => void }) => (
+  <div
+    className={cn(
+      'flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer select-none active:scale-[0.98] transition-transform',
+      alert.nivel === 'critical'
+        ? 'bg-destructive/10 border-destructive/30'
+        : 'bg-amber-500/10 border-amber-500/30'
+    )}
+    onDoubleClick={onDoubleClick}
+  >
     <AlertTriangle className={cn(
       'h-4 w-4 flex-shrink-0',
       alert.nivel === 'critical' ? 'text-destructive' : 'text-amber-500'
