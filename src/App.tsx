@@ -335,6 +335,7 @@ function App() {
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
                   }
+                />
                 
                 {/* Reports Page */}
                 <Route
