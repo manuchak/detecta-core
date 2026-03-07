@@ -6,7 +6,6 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from '@/components/ui/drawer';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import type { RadarService } from '@/hooks/useServiciosTurnoLive';
 import type { EventoRuta } from '@/hooks/useEventosRuta';
 import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
@@ -17,7 +16,6 @@ import {
   AlertTriangle,
   Shield,
   User,
-  ArrowRight,
   Fuel,
   Coffee,
   Moon,
@@ -85,20 +83,95 @@ const PhaseBadge = ({ phase }: { phase: string }) => {
   );
 };
 
-/* ─── Static map image ─── */
-const StaticMap = ({ lat, lng }: { lat: number; lng: number }) => {
+/* ─── Route map with trail + current position ─── */
+const RouteMap = ({ service, events }: { service: RadarService; events: EventoRuta[] }) => {
   const token = MAPBOX_ACCESS_TOKEN;
   if (!token) return (
-    <div className="h-40 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
+    <div className="h-48 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
       Mapa no disponible
     </div>
   );
-  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ef4444(${lng},${lat})/${lng},${lat},12,0/400x200@2x?access_token=${token}`;
+
+  // Collect all geo points from events (chronological order)
+  const trailPoints = events
+    .filter(e => e.lat && e.lng)
+    .sort((a, b) => new Date(a.hora_inicio).getTime() - new Date(b.hora_inicio).getTime())
+    .map(e => ({ lat: e.lat!, lng: e.lng! }));
+
+  const currentPos = service.lat && service.lng ? { lat: service.lat, lng: service.lng } : null;
+
+  // All points for bounding
+  const allPoints = [...trailPoints];
+  if (currentPos) allPoints.push(currentPos);
+
+  if (allPoints.length === 0) {
+    return (
+      <div className="h-36 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
+        Sin posición GPS disponible
+      </div>
+    );
+  }
+
+  // Build Mapbox Static API URL with overlays
+  const overlays: string[] = [];
+
+  // Trail path (polyline from event coords) — blue line
+  if (trailPoints.length >= 2) {
+    const pathCoords = trailPoints.map(p => `[${p.lng},${p.lat}]`).join(',');
+    overlays.push(`path-4+3b82f6-0.6(${encodeURIComponent(`{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[${pathCoords}]}}`)})`);
+  }
+
+  // Simpler approach: use path encoding with coordinates
+  // Trail as small dots
+  trailPoints.forEach((p, i) => {
+    if (i < trailPoints.length - 1) { // skip last if it's the current pos
+      overlays.push(`pin-s+3b82f6(${p.lng},${p.lat})`);
+    }
+  });
+
+  // Current position — large red pin
+  if (currentPos) {
+    overlays.push(`pin-l+ef4444(${currentPos.lng},${currentPos.lat})`);
+  }
+
+  // Auto-fit bounds
+  let position: string;
+  if (allPoints.length === 1) {
+    position = `${allPoints[0].lng},${allPoints[0].lat},12,0`;
+  } else {
+    // Use auto to fit all markers
+    position = 'auto';
+  }
+
+  // Limit overlays to avoid URL length issues (keep last 8 trail + current)
+  const limitedOverlays: string[] = [];
+  const trailPins = trailPoints.slice(-8).map(p => `pin-s+3b82f6(${p.lng},${p.lat})`);
+  limitedOverlays.push(...trailPins);
+  if (currentPos) {
+    limitedOverlays.push(`pin-l+ef4444(${currentPos.lng},${currentPos.lat})`);
+  }
+
+  // Build path GeoJSON for trail line
+  let pathOverlay = '';
+  if (trailPoints.length >= 2) {
+    const lastPoints = trailPoints.slice(-8);
+    if (currentPos) lastPoints.push(currentPos);
+    const coords = lastPoints.map(p => `[${p.lng},${p.lat}]`).join(',');
+    pathOverlay = `path-3+3b82f6-0.5(${encodeURIComponent(`{\"type\":\"LineString\",\"coordinates\":[${coords}]}`)})`;
+  }
+
+  const allOverlays = pathOverlay
+    ? [pathOverlay, ...limitedOverlays]
+    : limitedOverlays;
+
+  const overlayStr = allOverlays.join(',');
+  const url = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${overlayStr}/${position}/400x220@2x?padding=40&access_token=${token}`;
+
   return (
     <img
       src={url}
-      alt="Posición del servicio"
-      className="w-full h-40 rounded-lg object-cover border border-border/40"
+      alt="Ruta del servicio"
+      className="w-full h-48 rounded-lg object-cover border border-border/40"
       loading="lazy"
     />
   );
@@ -198,34 +271,26 @@ export const AlertServiceDrawer: React.FC<AlertServiceDrawerProps> = ({
           </DrawerDescription>
         </DrawerHeader>
 
-        <ScrollArea className="flex-1 px-4 pb-4" style={{ maxHeight: 'calc(92vh - 120px)' }}>
+        {/* Native scroll — avoids vaul + Radix ScrollArea gesture conflicts */}
+        <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ maxHeight: 'calc(92vh - 120px)' }}>
           <div className="space-y-4">
-            {/* Map */}
-            {service.lat && service.lng && (
-              <StaticMap lat={service.lat} lng={service.lng} />
-            )}
-            {!service.lat && (
-              <div className="h-28 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                Sin posición GPS disponible
-              </div>
-            )}
+            {/* Route Map with trail + current position */}
+            <RouteMap service={service} events={sortedEvents} />
 
             {/* Route info */}
-            <div className="space-y-2">
-              <div className="flex items-start gap-2 text-sm">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
                 <Navigation className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground truncate">{service.origen || '—'}</p>
+                  <p className="text-sm font-semibold text-foreground uppercase">{service.origen || '—'}</p>
                   <p className="text-[10px] text-muted-foreground">Origen</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center">
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-              <div className="flex items-start gap-2 text-sm">
+
+              <div className="flex items-start gap-3">
                 <MapPin className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground truncate">{service.destino || '—'}</p>
+                  <p className="text-sm font-semibold text-foreground uppercase">{service.destino || '—'}</p>
                   <p className="text-[10px] text-muted-foreground">Destino</p>
                 </div>
               </div>
@@ -284,7 +349,7 @@ export const AlertServiceDrawer: React.FC<AlertServiceDrawerProps> = ({
                 <div className="relative pl-5 space-y-0">
                   {/* Vertical line */}
                   <div className="absolute left-[7px] top-1 bottom-1 w-px bg-border" />
-                  {sortedEvents.slice(-15).map((evt, i) => (
+                  {sortedEvents.map((evt, i) => (
                     <div key={evt.id} className="relative flex items-start gap-2 py-1.5">
                       {/* Dot */}
                       <div className="absolute left-[-13px] top-2 w-2.5 h-2.5 rounded-full bg-card border-2 border-border z-10 flex items-center justify-center">
@@ -303,8 +368,8 @@ export const AlertServiceDrawer: React.FC<AlertServiceDrawerProps> = ({
                         {evt.descripcion && (
                           <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{evt.descripcion}</p>
                         )}
-                        {evt.ubicacion_texto && (
-                          <p className="text-[10px] text-muted-foreground/70 truncate">{evt.ubicacion_texto}</p>
+                        {evt.lat && evt.lng && (
+                          <p className="text-[10px] text-muted-foreground/70 tabular-nums">{evt.lat.toFixed(4)}, {evt.lng.toFixed(4)}</p>
                         )}
                       </div>
                     </div>
@@ -314,11 +379,11 @@ export const AlertServiceDrawer: React.FC<AlertServiceDrawerProps> = ({
             </div>
 
             {/* GPS source note */}
-            <p className="text-[9px] text-center text-muted-foreground/50">
+            <p className="text-[9px] text-center text-muted-foreground/50 pb-2">
               Posición: {service.positionSource === 'gps' ? 'GPS real' : 'Geocodificada'} · ID: {service.id_servicio}
             </p>
           </div>
-        </ScrollArea>
+        </div>
       </DrawerContent>
     </Drawer>
   );
