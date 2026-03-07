@@ -323,6 +323,20 @@ function App() {
                   }
                 />
                 
+                {/* Operational Dashboard */}
+                <Route
+                  path="/dashboard/operativo"
+                  element={
+                    <ProtectedRoute>
+                      <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
+                        <UnifiedLayout>
+                          <ExecutiveDashboard />
+                        </UnifiedLayout>
+                      </PermissionProtectedRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                
                 {/* Reports Page */}
                 <Route
                   path="/dashboard/reports"
