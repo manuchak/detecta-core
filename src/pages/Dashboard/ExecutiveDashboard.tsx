@@ -73,7 +73,6 @@ const ExecutiveDashboard = () => {
     else navigate('/dashboard');
   };
 
-  const isMobile = useIsMobile();
 
   return (
     <div className="min-h-screen bg-background">
