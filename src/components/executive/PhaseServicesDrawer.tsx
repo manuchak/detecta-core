@@ -1,10 +1,10 @@
 import React from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Clock, Navigation, MapPin, Zap, AlertTriangle, CheckCircle2, Shield, User } from 'lucide-react';
 import type { RadarService } from '@/hooks/useServiciosTurnoLive';
+import { EVENTO_ICONS, type TipoEventoRuta } from '@/hooks/useEventosRuta';
 import { format } from 'date-fns';
 
 interface PhaseServicesDrawerProps {
@@ -83,6 +83,19 @@ const ServiceCard = ({ service }: { service: RadarService }) => {
         )}
       </div>
 
+      {/* Event type badge */}
+      {service.activeEvent && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-sm">
+            {EVENTO_ICONS[service.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}
+          </span>
+          <span className="text-xs font-medium text-violet-500">
+            {EVENTO_ICONS[service.activeEvent.tipo as TipoEventoRuta]?.label || service.activeEvent.tipo}
+            {' · '}{service.activeEvent.minutosActivo}m
+          </span>
+        </div>
+      )}
+
       {/* Alert badge */}
       {isAlert && (
         <div className="pt-1">
@@ -123,7 +136,7 @@ export const PhaseServicesDrawer: React.FC<PhaseServicesDrawerProps> = ({
           </div>
         </DrawerHeader>
 
-        <ScrollArea className="px-4 pb-4" style={{ maxHeight: 'calc(85vh - 100px)' }}>
+        <div className="px-4 pb-4 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 100px)' }}>
           <div className="space-y-2 pb-2">
             {services.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
@@ -133,7 +146,7 @@ export const PhaseServicesDrawer: React.FC<PhaseServicesDrawerProps> = ({
               services.map(s => <ServiceCard key={s.id} service={s} />)
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DrawerContent>
     </Drawer>
   );
