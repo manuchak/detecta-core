@@ -198,7 +198,15 @@ const SectionHeader = ({ icon: Icon, title, badge }: { icon: React.ElementType; 
 /* ═══════ MAIN ═══════ */
 export const MobileOperationalDashboard: React.FC = () => {
   const pulse = useOperationalPulse();
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
+  const selectedService = selectedAlertId
+    ? pulse.rawServicios.find(s => s.id === selectedAlertId) || null
+    : null;
+
+  const selectedEvents = selectedAlertId && selectedService
+    ? pulse.rawEventsByService[selectedService.id_servicio] || []
+    : [];
   if (pulse.isLoading) {
     return (
       <div className="space-y-4 p-4 max-w-lg mx-auto">
@@ -268,7 +276,7 @@ export const MobileOperationalDashboard: React.FC = () => {
           />
           <div className="space-y-1.5">
             {pulse.alertas.servicios.slice(0, 5).map(a => (
-              <AlertRow key={a.id} alert={a} />
+              <AlertRow key={a.id} alert={a} onDoubleClick={() => setSelectedAlertId(a.id)} />
             ))}
           </div>
         </div>
@@ -309,6 +317,14 @@ export const MobileOperationalDashboard: React.FC = () => {
       <p className="text-[10px] text-center text-muted-foreground">
         Datos actualizados cada 15s · {pulse.ultimaActualizacion.toLocaleTimeString('es-MX')}
       </p>
+
+      {/* Alert detail drawer */}
+      <AlertServiceDrawer
+        open={!!selectedAlertId}
+        onOpenChange={(open) => { if (!open) setSelectedAlertId(null); }}
+        service={selectedService}
+        events={selectedEvents}
+      />
     </div>
   );
 };
