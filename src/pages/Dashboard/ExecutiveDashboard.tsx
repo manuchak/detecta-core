@@ -90,7 +90,7 @@ const ExecutiveDashboard = () => {
             </div>
             
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-5"}>
+              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-4"}>
                 <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <TrendingUp className="h-4 w-4" />{!isMobile && 'Proyecciones'}
                 </TabsTrigger>
@@ -103,9 +103,11 @@ const ExecutiveDashboard = () => {
                 <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <BarChart3 className="h-4 w-4" />{!isMobile && 'KPIs'}
                 </TabsTrigger>
-                <TabsTrigger value="operativo" className="flex items-center gap-2 min-h-[44px] shrink-0">
-                  <Radio className="h-4 w-4" />{!isMobile && 'Operativo'}
-                </TabsTrigger>
+                {isMobile && (
+                  <TabsTrigger value="operativo" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                    <Radio className="h-4 w-4" />
+                  </TabsTrigger>
+                )}
               </TabsList>
             </Tabs>
           </div>
