@@ -311,6 +311,7 @@ export function useServiciosTurnoLive() {
     servicios: allServices,
     resumen,
     safePoints: safePointsQuery.data || [],
+    eventsByService,
     isLoading: activeQuery.isLoading || pendingQuery.isLoading,
   };
 }

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOperationalPulse, PulseAlertService, PulseMonitorista } from '@/hooks/useOperationalPulse';
 import { cn } from '@/lib/utils';
 import { Activity, AlertTriangle, Clock, Users, CheckCircle2, MapPin, Navigation, Zap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertServiceDrawer } from './AlertServiceDrawer';
 
 /* ─── Live Clock ─── */
 const LiveClock = () => {
@@ -43,13 +44,16 @@ const PhaseCard = ({ value, label, icon: Icon, accent, pulse }: PhaseCardProps) 
 );
 
 /* ─── Alert Row ─── */
-const AlertRow = ({ alert }: { alert: PulseAlertService }) => (
-  <div className={cn(
-    'flex items-center gap-3 px-3 py-2.5 rounded-lg border',
-    alert.nivel === 'critical'
-      ? 'bg-destructive/10 border-destructive/30'
-      : 'bg-amber-500/10 border-amber-500/30'
-  )}>
+const AlertRow = ({ alert, onDoubleClick }: { alert: PulseAlertService; onDoubleClick?: () => void }) => (
+  <div
+    className={cn(
+      'flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer select-none active:scale-[0.98] transition-transform',
+      alert.nivel === 'critical'
+        ? 'bg-destructive/10 border-destructive/30'
+        : 'bg-amber-500/10 border-amber-500/30'
+    )}
+    onDoubleClick={onDoubleClick}
+  >
     <AlertTriangle className={cn(
       'h-4 w-4 flex-shrink-0',
       alert.nivel === 'critical' ? 'text-destructive' : 'text-amber-500'
@@ -194,7 +198,15 @@ const SectionHeader = ({ icon: Icon, title, badge }: { icon: React.ElementType; 
 /* ═══════ MAIN ═══════ */
 export const MobileOperationalDashboard: React.FC = () => {
   const pulse = useOperationalPulse();
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
 
+  const selectedService = selectedAlertId
+    ? pulse.rawServicios.find(s => s.id === selectedAlertId) || null
+    : null;
+
+  const selectedEvents = selectedAlertId && selectedService
+    ? pulse.rawEventsByService[selectedService.id_servicio] || []
+    : [];
   if (pulse.isLoading) {
     return (
       <div className="space-y-4 p-4 max-w-lg mx-auto">
@@ -264,7 +276,7 @@ export const MobileOperationalDashboard: React.FC = () => {
           />
           <div className="space-y-1.5">
             {pulse.alertas.servicios.slice(0, 5).map(a => (
-              <AlertRow key={a.id} alert={a} />
+              <AlertRow key={a.id} alert={a} onDoubleClick={() => setSelectedAlertId(a.id)} />
             ))}
           </div>
         </div>
@@ -305,6 +317,14 @@ export const MobileOperationalDashboard: React.FC = () => {
       <p className="text-[10px] text-center text-muted-foreground">
         Datos actualizados cada 15s · {pulse.ultimaActualizacion.toLocaleTimeString('es-MX')}
       </p>
+
+      {/* Alert detail drawer */}
+      <AlertServiceDrawer
+        open={!!selectedAlertId}
+        onOpenChange={(open) => { if (!open) setSelectedAlertId(null); }}
+        service={selectedService}
+        events={selectedEvents}
+      />
     </div>
   );
 };
