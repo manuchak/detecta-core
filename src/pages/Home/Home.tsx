@@ -1,14 +1,17 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHomeData } from '@/hooks/useHomeData';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HeroActionCard } from '@/components/home/HeroActionCard';
 import { MetricWidget } from '@/components/home/MetricWidget';
 import { ModuleGrid } from '@/components/home/ModuleGrid';
+import { MobileHomeLayout } from '@/components/home/MobileHomeLayout';
 import type { UserRole } from '@/config/roleHomeConfig';
 
 const Home = () => {
   const { user, userRole, signOut } = useAuth();
+  const isMobile = useIsMobile();
   const { hero, contextWidgets, widgets, modules, shouldRedirect, isLoading } = useHomeData(userRole as UserRole);
 
   // Redirect for roles with dedicated portals (custodio)
@@ -18,6 +21,20 @@ const Home = () => {
 
   // Determine which widgets to show (prefer contextWidgets, fallback to widgets)
   const displayWidgets = contextWidgets.length > 0 ? contextWidgets : widgets;
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <MobileHomeLayout
+        userName={user?.user_metadata?.display_name}
+        userEmail={user?.email}
+        onSignOut={signOut}
+        hero={hero}
+        widgets={displayWidgets}
+        modules={modules}
+      />
+    );
+  }
 
   // Show loading state
   if (isLoading && !hero && displayWidgets.length === 0) {

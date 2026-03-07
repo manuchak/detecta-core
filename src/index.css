@@ -1499,3 +1499,101 @@
   60% { transform: translateX(-4px); }
   80% { transform: translateX(4px); }
 }
+
+/* ============================================
+   Mobile Home - Glassmorphism System
+   ============================================ */
+
+/* Mobile Hero Card - Compact glassmorphism */
+.liquid-glass-hero-mobile {
+  @apply relative overflow-hidden rounded-2xl px-5 py-4;
+  background: hsla(0, 0%, 100%, 0.55);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid hsla(0, 0%, 100%, 0.35);
+  box-shadow:
+    0 4px 24px hsla(0, 0%, 0%, 0.06),
+    0 0 0 1px hsla(0, 0%, 100%, 0.15) inset;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.dark .liquid-glass-hero-mobile {
+  background: hsla(0, 0%, 14%, 0.55);
+  border: 1px solid hsla(0, 0%, 100%, 0.08);
+  box-shadow:
+    0 4px 24px hsla(0, 0%, 0%, 0.25),
+    0 0 0 1px hsla(0, 0%, 100%, 0.04) inset;
+}
+
+.liquid-glass-hero-mobile:active {
+  transform: scale(0.98);
+}
+
+/* Metric Pill - Compact inline widget */
+.liquid-glass-metric-pill {
+  @apply relative overflow-hidden rounded-xl px-3 py-2.5;
+  background: hsla(0, 0%, 100%, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid hsla(0, 0%, 100%, 0.2);
+  box-shadow: 0 2px 8px hsla(0, 0%, 0%, 0.03);
+}
+
+.dark .liquid-glass-metric-pill {
+  background: hsla(0, 0%, 18%, 0.4);
+  border: 1px solid hsla(0, 0%, 100%, 0.06);
+}
+
+/* Mobile App Icon - iOS style square */
+.liquid-glass-app-mobile {
+  @apply relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer;
+  background: hsla(0, 0%, 100%, 0.4);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid hsla(0, 0%, 100%, 0.2);
+  box-shadow: 0 1px 6px hsla(0, 0%, 0%, 0.03);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  aspect-ratio: 1;
+  min-height: 72px;
+}
+
+.dark .liquid-glass-app-mobile {
+  background: hsla(0, 0%, 20%, 0.4);
+  border: 1px solid hsla(0, 0%, 100%, 0.05);
+}
+
+.liquid-glass-app-mobile:active {
+  transform: scale(0.92);
+}
+
+/* Bottom Navigation - Glassmorphism */
+.liquid-glass-bottom-nav {
+  @apply fixed bottom-0 left-0 right-0 z-50;
+  background: hsla(0, 0%, 100%, 0.7);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-top: 1px solid hsla(0, 0%, 100%, 0.3);
+  box-shadow: 0 -4px 24px hsla(0, 0%, 0%, 0.04);
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+  padding-top: 6px;
+}
+
+.dark .liquid-glass-bottom-nav {
+  background: hsla(0, 0%, 10%, 0.7);
+  border-top: 1px solid hsla(0, 0%, 100%, 0.06);
+  box-shadow: 0 -4px 24px hsla(0, 0%, 0%, 0.2);
+}
+
+/* Safe area top padding */
+.pt-safe-top {
+  padding-top: env(safe-area-inset-top, 12px);
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
