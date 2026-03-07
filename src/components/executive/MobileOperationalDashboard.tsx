@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useOperationalPulse, PulseAlertService, PulseMonitorista } from '@/hooks/useOperationalPulse';
 import { cn } from '@/lib/utils';
 import { Activity, AlertTriangle, Clock, Users, CheckCircle2, MapPin, Navigation, Zap } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AlertServiceDrawer } from './AlertServiceDrawer';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 
