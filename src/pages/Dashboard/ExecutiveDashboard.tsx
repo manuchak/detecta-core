@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, TrendingUp, Target, Star } from 'lucide-react';
+import { BarChart3, TrendingUp, Target, Star, Radio } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CriticalAlertsBar } from '@/components/executive/CriticalAlertsBar';
 import { MobileChartBlock } from '@/components/executive/MobileChartBlock';
@@ -39,6 +39,7 @@ import { ArmedServicesMoMChart } from '@/components/executive/ArmedServicesMoMCh
 import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
 import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+import { MobileOperationalDashboard } from '@/components/executive/MobileOperationalDashboard';
 
 const ExecutiveDashboard = () => {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ const ExecutiveDashboard = () => {
     if (location.pathname === '/dashboard/kpis') return 'kpis';
     if (location.pathname === '/dashboard/plan') return 'plan';
     if (location.pathname === '/dashboard/starmap') return 'starmap';
+    if (location.pathname === '/dashboard/operativo') return 'operativo';
     return 'executive';
   };
   
@@ -57,6 +59,7 @@ const ExecutiveDashboard = () => {
     if (value === 'kpis') navigate('/dashboard/kpis');
     else if (value === 'plan') navigate('/dashboard/plan');
     else if (value === 'starmap') navigate('/dashboard/starmap');
+    else if (value === 'operativo') navigate('/dashboard/operativo');
     else navigate('/dashboard');
   };
 
@@ -78,7 +81,7 @@ const ExecutiveDashboard = () => {
             </div>
             
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-4"}>
+              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-5"}>
                 <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <TrendingUp className="h-4 w-4" />{!isMobile && 'Proyecciones'}
                 </TabsTrigger>
@@ -91,6 +94,9 @@ const ExecutiveDashboard = () => {
                 <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
                   <BarChart3 className="h-4 w-4" />{!isMobile && 'KPIs'}
                 </TabsTrigger>
+                <TabsTrigger value="operativo" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Radio className="h-4 w-4" />{!isMobile && 'Operativo'}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -99,7 +105,9 @@ const ExecutiveDashboard = () => {
           </div>
         </div>
 
-        {currentTab === 'plan' ? (
+        {currentTab === 'operativo' ? (
+          <MobileOperationalDashboard />
+        ) : currentTab === 'plan' ? (
           <StrategicPlanTracker />
         ) : (
           <>
