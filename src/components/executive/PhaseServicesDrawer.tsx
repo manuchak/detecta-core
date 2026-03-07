@@ -136,7 +136,7 @@ export const PhaseServicesDrawer: React.FC<PhaseServicesDrawerProps> = ({
           </div>
         </DrawerHeader>
 
-        <ScrollArea className="px-4 pb-4" style={{ maxHeight: 'calc(85vh - 100px)' }}>
+        <div className="px-4 pb-4 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 100px)' }}>
           <div className="space-y-2 pb-2">
             {services.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
@@ -146,7 +146,7 @@ export const PhaseServicesDrawer: React.FC<PhaseServicesDrawerProps> = ({
               services.map(s => <ServiceCard key={s.id} service={s} />)
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DrawerContent>
     </Drawer>
   );
