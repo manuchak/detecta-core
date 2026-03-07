@@ -148,23 +148,25 @@
     font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   }
   
-  /* Escala visual por defecto al 70% - Optimizado para densidad de información */
-  html {
-    zoom: 0.7;
-  }
-  
-  /* Fallback para Firefox que no soporta zoom */
-  @supports not (zoom: 0.7) {
+  /* Escala visual por defecto al 70% - Solo desktop (evita desplazamiento de tooltips en móvil) */
+  @media (min-width: 768px) {
     html {
-      transform: scale(0.7);
-      transform-origin: top left;
-      width: 142.86%; /* 100 / 0.7 */
-      min-height: 142.86vh;
+      zoom: 0.7;
     }
     
-    body {
-      width: 142.86%;
-      overflow-x: hidden;
+    /* Fallback para Firefox que no soporta zoom */
+    @supports not (zoom: 0.7) {
+      html {
+        transform: scale(0.7);
+        transform-origin: top left;
+        width: 142.86%; /* 100 / 0.7 */
+        min-height: 142.86vh;
+      }
+      
+      body {
+        width: 142.86%;
+        overflow-x: hidden;
+      }
     }
   }
   
