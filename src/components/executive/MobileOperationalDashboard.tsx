@@ -5,8 +5,6 @@ import { Activity, AlertTriangle, Clock, Users, CheckCircle2, MapPin, Navigation
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertServiceDrawer } from './AlertServiceDrawer';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 
 /* ─── Live Clock ─── */
 const LiveClock = () => {
