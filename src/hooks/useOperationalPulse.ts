@@ -49,10 +49,12 @@ export interface OperationalPulse {
   totalServiciosActivos: number;
   ultimaActualizacion: Date;
   isLoading: boolean;
+  rawServicios: import('./useServiciosTurnoLive').RadarService[];
+  rawEventsByService: Record<string, import('./useEventosRuta').EventoRuta[]>;
 }
 
 export function useOperationalPulse(): OperationalPulse {
-  const { servicios, resumen, isLoading: radarLoading } = useServiciosTurnoLive();
+  const { servicios, resumen, isLoading: radarLoading, eventsByService } = useServiciosTurnoLive();
   const {
     monitoristas,
     assignmentsByMonitorista,
@@ -136,8 +138,10 @@ export function useOperationalPulse(): OperationalPulse {
       totalServiciosActivos: activeServices.length,
       ultimaActualizacion: new Date(),
       isLoading: radarLoading || monLoading,
+      rawServicios: servicios,
+      rawEventsByService: eventsByService,
     };
-  }, [servicios, resumen, monitoristas, assignmentsByMonitorista, radarLoading, monLoading]);
+  }, [servicios, resumen, monitoristas, assignmentsByMonitorista, radarLoading, monLoading, eventsByService]);
 
   return pulse;
 }
