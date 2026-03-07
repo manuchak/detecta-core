@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOperationalPulse, PulseAlertService, PulseMonitorista } from '@/hooks/useOperationalPulse';
 import { cn } from '@/lib/utils';
-import { Activity, AlertTriangle, Clock, Radio, Users, CheckCircle2, Loader2, MapPin, Navigation, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, Users, CheckCircle2, MapPin, Navigation, Zap } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -69,45 +69,116 @@ const AlertRow = ({ alert }: { alert: PulseAlertService }) => (
   </div>
 );
 
-/* ─── Monitorista Row ─── */
+/* ─── Touchpoint Gauge (semicircular SVG) ─── */
+const TouchpointGauge = ({ value }: { value: number }) => {
+  const maxScale = 60; // max 60 minutes
+  const clamped = Math.min(Math.max(value, 0), maxScale);
+  const ratio = clamped / maxScale;
+
+  // SVG arc params
+  const cx = 100, cy = 90;
+  const r = 70;
+  const startAngle = Math.PI; // left
+  const endAngle = 0; // right
+  const totalArc = Math.PI; // 180°
+  const sweepAngle = ratio * totalArc;
+
+  // Background arc (full semicircle)
+  const bgX1 = cx + r * Math.cos(startAngle);
+  const bgY1 = cy - r * Math.sin(startAngle);
+  const bgX2 = cx + r * Math.cos(endAngle);
+  const bgY2 = cy - r * Math.sin(endAngle);
+  const bgPath = `M ${bgX1} ${bgY1} A ${r} ${r} 0 0 1 ${bgX2} ${bgY2}`;
+
+  // Value arc
+  const valEndAngle = startAngle - sweepAngle;
+  const valX2 = cx + r * Math.cos(valEndAngle);
+  const valY2 = cy - r * Math.sin(valEndAngle);
+  const largeArc = sweepAngle > Math.PI ? 1 : 0;
+  const valPath = `M ${bgX1} ${bgY1} A ${r} ${r} 0 ${largeArc} 1 ${valX2} ${valY2}`;
+
+  // Color by threshold
+  const color = value <= 15
+    ? 'hsl(var(--chart-2))' // green
+    : value <= 30
+      ? 'hsl(45, 93%, 47%)' // amber
+      : 'hsl(var(--destructive))'; // red
+
+  const label = value <= 15 ? 'Excelente' : value <= 30 ? 'Aceptable' : 'Atención';
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 200 110" className="w-44 h-auto">
+        {/* Background track */}
+        <path
+          d={bgPath}
+          fill="none"
+          stroke="hsl(var(--muted))"
+          strokeWidth="12"
+          strokeLinecap="round"
+        />
+        {/* Value arc */}
+        {value > 0 && (
+          <path
+            d={valPath}
+            fill="none"
+            stroke={color}
+            strokeWidth="12"
+            strokeLinecap="round"
+            style={{ transition: 'all 0.6s ease-out' }}
+          />
+        )}
+        {/* Center value */}
+        <text
+          x={cx}
+          y={cy - 14}
+          textAnchor="middle"
+          className="text-3xl font-bold"
+          fill="currentColor"
+          style={{ fontSize: '32px', fontWeight: 700 }}
+        >
+          {value}
+        </text>
+        <text
+          x={cx}
+          y={cy + 6}
+          textAnchor="middle"
+          fill="hsl(var(--muted-foreground))"
+          style={{ fontSize: '11px', fontWeight: 500 }}
+        >
+          min promedio
+        </text>
+      </svg>
+      <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color }}>
+        {label}
+      </span>
+    </div>
+  );
+};
+
+/* ─── Monitorista Row (compact, active only) ─── */
 const MonitoristaRow = ({ m, maxServices }: { m: PulseMonitorista; maxServices: number }) => (
-  <div className="flex items-center gap-3 py-2">
-    <div className={cn(
-      'w-2 h-2 rounded-full flex-shrink-0',
-      m.enTurno ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-    )} />
+  <div className="flex items-center gap-3 py-2.5">
     <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-foreground truncate">{m.nombre}</p>
+      <p className="text-sm font-medium text-foreground truncate">
+        {m.nombre.split(' ').slice(0, 2).join(' ')}
+      </p>
       <div className="flex items-center gap-2 mt-0.5">
         <Progress
           value={maxServices > 0 ? (m.serviciosAsignados / maxServices) * 100 : 0}
           className="h-1.5 flex-1"
         />
         <span className="text-[10px] text-muted-foreground tabular-nums flex-shrink-0">
-          {m.serviciosAsignados} svcs
+          {m.serviciosAsignados}s
         </span>
       </div>
     </div>
-    <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">
-      {m.eventosRegistrados} evt
+    <span className="text-xs font-semibold text-muted-foreground tabular-nums flex-shrink-0">
+      {m.eventosRegistrados}
+      <span className="text-[9px] font-normal ml-0.5">evt</span>
     </span>
   </div>
 );
-
-/* ─── Touchpoint Bar ─── */
-const TouchpointBar = ({ nombre, promedioMin, maxMin }: { nombre: string; promedioMin: number; maxMin: number }) => {
-  const pct = maxMin > 0 ? (promedioMin / maxMin) * 100 : 0;
-  const color = promedioMin <= 15 ? 'bg-emerald-500' : promedioMin <= 25 ? 'bg-amber-500' : 'bg-destructive';
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span className="text-sm text-foreground w-24 truncate">{nombre}</span>
-      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-        <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-      <span className="text-xs font-medium text-muted-foreground tabular-nums w-8 text-right">{promedioMin}m</span>
-    </div>
-  );
-};
 
 /* ─── Section Header ─── */
 const SectionHeader = ({ icon: Icon, title, badge }: { icon: React.ElementType; title: string; badge?: React.ReactNode }) => (
@@ -137,8 +208,8 @@ export const MobileOperationalDashboard: React.FC = () => {
     );
   }
 
-  const maxServices = Math.max(...pulse.monitoristas.listado.map(m => m.serviciosAsignados), 1);
-  const maxTouchpoint = Math.max(...pulse.touchpoints.porMonitorista.map(t => t.promedioMin), 1);
+  const activeMonitoristas = pulse.monitoristas.listado.filter(m => m.enTurno);
+  const maxServices = Math.max(...activeMonitoristas.map(m => m.serviciosAsignados), 1);
 
   return (
     <div className="space-y-4 max-w-lg mx-auto">
@@ -199,27 +270,16 @@ export const MobileOperationalDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Touchpoints */}
-      {pulse.touchpoints.porMonitorista.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <SectionHeader
-            icon={Clock}
-            title="Touchpoints"
-            badge={
-              <span className="text-xs font-medium text-muted-foreground">
-                Prom: <span className="text-foreground font-bold">{pulse.touchpoints.promedioGlobalMin}m</span>
-              </span>
-            }
-          />
-          <div className="space-y-0.5">
-            {pulse.touchpoints.porMonitorista.map(t => (
-              <TouchpointBar key={t.nombre} {...t} maxMin={maxTouchpoint} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Touchpoint Gauge */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <SectionHeader
+          icon={Clock}
+          title="Performance"
+        />
+        <TouchpointGauge value={pulse.touchpoints.promedioGlobalMin} />
+      </div>
 
-      {/* Monitoristas */}
+      {/* Monitoristas — only active */}
       <div className="rounded-xl border border-border bg-card p-4">
         <SectionHeader
           icon={Users}
@@ -232,11 +292,11 @@ export const MobileOperationalDashboard: React.FC = () => {
           }
         />
         <div className="divide-y divide-border/50">
-          {pulse.monitoristas.listado.map(m => (
+          {activeMonitoristas.map(m => (
             <MonitoristaRow key={m.id} m={m} maxServices={maxServices} />
           ))}
-          {pulse.monitoristas.listado.length === 0 && (
-            <p className="text-sm text-muted-foreground py-4 text-center">Sin monitoristas registrados</p>
+          {activeMonitoristas.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">Sin monitoristas en turno</p>
           )}
         </div>
       </div>
