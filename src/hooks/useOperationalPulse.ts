@@ -75,7 +75,7 @@ export function useOperationalPulse(): OperationalPulse {
 
     // --- Alertas ---
     const alertServices: PulseAlertService[] = activeServices
-      .filter(s => s.alertLevel === 'warning' || s.alertLevel === 'critical')
+      .filter(s => (s.alertLevel === 'warning' || s.alertLevel === 'critical') && s.minutesSinceLastAction <= 1440)
       .sort((a, b) => b.minutesSinceLastAction - a.minutesSinceLastAction)
       .map(s => ({
         id: s.id,

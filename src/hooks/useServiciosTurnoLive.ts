@@ -316,7 +316,7 @@ export function useServiciosTurnoLive() {
   const resumen = useMemo((): RadarResumen => ({
     enRuta: activeServices.filter(s => s.phase === 'en_curso' && s.alertLevel === 'normal').length,
     enEvento: activeServices.filter(s => s.phase === 'evento_especial').length,
-    alerta: activeServices.filter(s => s.alertLevel === 'warning' || s.alertLevel === 'critical').length,
+    alerta: activeServices.filter(s => (s.alertLevel === 'warning' || s.alertLevel === 'critical') && s.minutesSinceLastAction <= 1440).length,
     porIniciar: pendingServices.length,
     completados: completedServices.length,
   }), [activeServices, pendingServices, completedServices]);
