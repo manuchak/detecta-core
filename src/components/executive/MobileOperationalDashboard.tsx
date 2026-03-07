@@ -245,7 +245,7 @@ export const MobileOperationalDashboard: React.FC = () => {
   const maxServices = Math.max(...activeMonitoristas.map(m => m.serviciosAsignados), 1);
 
   return (
-    <div className="space-y-4 max-w-lg mx-auto">
+    <div className="space-y-4 max-w-lg mx-auto pb-24" style={{ overscrollBehaviorY: 'contain' }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
