@@ -214,7 +214,7 @@ export const MobileOperationalDashboard: React.FC = () => {
         case 'En Ruta': return s.phase === 'en_curso' && s.alertLevel === 'normal';
         case 'En Destino': return s.phase === 'en_destino';
         case 'Evento': return s.phase === 'evento_especial';
-        case 'Alerta': return s.alertLevel === 'warning' || s.alertLevel === 'critical';
+        case 'Alerta': return (s.alertLevel === 'warning' || s.alertLevel === 'critical') && s.minutesSinceLastAction <= 1440;
         case 'Completados': return (s.phase as string) === 'completado';
         default: return false;
       }
