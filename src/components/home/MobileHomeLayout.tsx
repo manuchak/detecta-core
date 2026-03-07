@@ -220,8 +220,9 @@ export const MobileHomeLayout = ({
                       style={{ backgroundColor: `${module.color}15` }}
                     >
                       <Icon
-                        className="h-6 w-6"
+                        className="h-7 w-7"
                         style={{ color: module.color }}
+                        strokeWidth={1.5}
                       />
                     </div>
                     <span className="text-[10px] font-medium text-foreground/80 text-center leading-tight line-clamp-2">

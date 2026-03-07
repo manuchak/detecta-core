@@ -245,7 +245,7 @@ export const MobileOperationalDashboard: React.FC = () => {
   const maxServices = Math.max(...activeMonitoristas.map(m => m.serviciosAsignados), 1);
 
   return (
-    <div className="space-y-4 max-w-lg mx-auto pb-[calc(env(safe-area-inset-bottom)+6rem)] touch-pan-y">
+    <div className="space-y-4 max-w-lg mx-auto pb-[calc(env(safe-area-inset-bottom)+6rem)]">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -342,7 +342,15 @@ export const MobileOperationalDashboard: React.FC = () => {
       {/* Alert detail drawer */}
       <AlertServiceDrawer
         open={!!selectedAlertId}
-        onOpenChange={(open) => { if (!open) setSelectedAlertId(null); }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedAlertId(null);
+            requestAnimationFrame(() => {
+              document.body.style.overflow = '';
+              document.body.style.pointerEvents = '';
+            });
+          }
+        }}
         service={selectedService}
         events={selectedEvents}
       />
@@ -350,7 +358,15 @@ export const MobileOperationalDashboard: React.FC = () => {
       {/* Phase services drawer */}
       <PhaseServicesDrawer
         open={!!selectedPhase}
-        onOpenChange={(open) => { if (!open) setSelectedPhase(null); }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedPhase(null);
+            requestAnimationFrame(() => {
+              document.body.style.overflow = '';
+              document.body.style.pointerEvents = '';
+            });
+          }
+        }}
         phase={selectedPhase}
         services={phaseFilteredServices}
       />
