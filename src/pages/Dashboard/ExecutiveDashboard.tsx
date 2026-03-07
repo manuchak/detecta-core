@@ -53,7 +53,16 @@ const ExecutiveDashboard = () => {
     return 'executive';
   };
   
-  const currentTab = getInitialTab();
+  const rawTab = getInitialTab();
+  
+  // Redirect desktop users away from mobile-only "operativo" tab
+  React.useEffect(() => {
+    if (!isMobile && rawTab === 'operativo') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isMobile, rawTab, navigate]);
+  
+  const currentTab = (!isMobile && rawTab === 'operativo') ? 'executive' : rawTab;
 
   const handleTabChange = (value: string) => {
     if (value === 'kpis') navigate('/dashboard/kpis');
