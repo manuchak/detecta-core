@@ -21,6 +21,8 @@ export interface RadarService {
   destino: string;
   fecha_hora_cita: string;
   tipo_servicio: string | null;
+  armado_asignado: string | null;
+  requiere_armado: boolean;
   // Computed
   phase: ServicePhase;
   alertLevel: AlertLevel;
@@ -81,7 +83,7 @@ export function useServiciosTurnoLive() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('servicios_planificados')
-        .select('id, id_servicio, nombre_cliente, custodio_asignado, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio')
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, armado_asignado, requiere_armado')
         .not('hora_inicio_real', 'is', null)
         .is('hora_fin_real', null)
         .not('estado_planeacion', 'in', '(cancelado,completado)')
@@ -101,7 +103,7 @@ export function useServiciosTurnoLive() {
       const hasta = new Date(Date.now() + 2 * 3600_000);
       const { data, error } = await supabase
         .from('servicios_planificados')
-        .select('id, id_servicio, nombre_cliente, custodio_asignado, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio')
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, armado_asignado, requiere_armado')
         .is('hora_inicio_real', null)
         .in('estado_planeacion', ['confirmado', 'planificado'])
         .gte('fecha_hora_cita', desde.toISOString())
@@ -137,19 +139,20 @@ export function useServiciosTurnoLive() {
     staleTime: 5_000,
   });
 
-  /* ── Q4: Completed today (count) ── */
+  /* ── Q4: Completed today (full query for listing) ── */
   const completedQuery = useQuery({
     queryKey: ['radar-completed'],
     queryFn: async () => {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      const { count, error } = await supabase
+      const { data, error } = await supabase
         .from('servicios_planificados')
-        .select('id', { count: 'exact', head: true })
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, armado_asignado, requiere_armado')
         .eq('estado_planeacion', 'completado')
-        .gte('hora_fin_real', todayStart.toISOString());
+        .gte('hora_fin_real', todayStart.toISOString())
+        .order('hora_fin_real', { ascending: false });
       if (error) throw error;
-      return count || 0;
+      return (data || []) as any[];
     },
     refetchInterval: 60_000,
     staleTime: 30_000,
@@ -274,6 +277,8 @@ export function useServiciosTurnoLive() {
       destino: svc.destino || '',
       fecha_hora_cita: svc.fecha_hora_cita,
       tipo_servicio: svc.tipo_servicio,
+      armado_asignado: svc.armado_asignado || null,
+      requiere_armado: !!svc.requiere_armado,
       phase,
       alertLevel,
       minutesSinceLastAction,
@@ -294,9 +299,18 @@ export function useServiciosTurnoLive() {
     [pendingQuery.data, computeRadarService]
   );
 
+  const completedServices = useMemo(
+    () => (completedQuery.data || []).map(s => {
+      const svc = computeRadarService(s, false);
+      // Override phase since completedQuery already filters by estado_planeacion=completado
+      return { ...svc, phase: 'completado' as ServicePhase };
+    }),
+    [completedQuery.data, computeRadarService]
+  );
+
   const allServices = useMemo(
-    () => [...activeServices, ...pendingServices],
-    [activeServices, pendingServices]
+    () => [...activeServices, ...pendingServices, ...completedServices],
+    [activeServices, pendingServices, completedServices]
   );
 
   const resumen = useMemo((): RadarResumen => ({
@@ -304,8 +318,8 @@ export function useServiciosTurnoLive() {
     enEvento: activeServices.filter(s => s.phase === 'evento_especial').length,
     alerta: activeServices.filter(s => s.alertLevel === 'warning' || s.alertLevel === 'critical').length,
     porIniciar: pendingServices.length,
-    completados: completedQuery.data || 0,
-  }), [activeServices, pendingServices, completedQuery.data]);
+    completados: completedServices.length,
+  }), [activeServices, pendingServices, completedServices]);
 
   return {
     servicios: allServices,

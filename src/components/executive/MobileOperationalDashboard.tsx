@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, Clock, Users, CheckCircle2, MapPin, Navigation
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertServiceDrawer } from './AlertServiceDrawer';
+import { PhaseServicesDrawer } from './PhaseServicesDrawer';
 
 /* ─── Live Clock ─── */
 const LiveClock = () => {
@@ -29,14 +30,18 @@ interface PhaseCardProps {
   icon: React.ElementType;
   accent: string;
   pulse?: boolean;
+  onDoubleClick?: () => void;
 }
 
-const PhaseCard = ({ value, label, icon: Icon, accent, pulse }: PhaseCardProps) => (
-  <div className={cn(
-    'rounded-xl border p-3 flex flex-col items-center justify-center gap-1 transition-all',
-    'bg-card border-border/60',
-    pulse && value > 0 && 'border-destructive/50 animate-pulse'
-  )}>
+const PhaseCard = ({ value, label, icon: Icon, accent, pulse, onDoubleClick }: PhaseCardProps) => (
+  <div
+    className={cn(
+      'rounded-xl border p-3 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer select-none active:scale-[0.97]',
+      'bg-card border-border/60',
+      pulse && value > 0 && 'border-destructive/50 animate-pulse'
+    )}
+    onDoubleClick={onDoubleClick}
+  >
     <Icon className={cn('h-4 w-4', accent)} />
     <span className={cn('text-2xl font-bold tabular-nums', accent)}>{value}</span>
     <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider leading-tight text-center">{label}</span>
@@ -199,6 +204,22 @@ const SectionHeader = ({ icon: Icon, title, badge }: { icon: React.ElementType; 
 export const MobileOperationalDashboard: React.FC = () => {
   const pulse = useOperationalPulse();
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+
+  const phaseFilteredServices = React.useMemo(() => {
+    if (!selectedPhase) return [];
+    return pulse.rawServicios.filter(s => {
+      switch (selectedPhase) {
+        case 'Por Salir': return s.phase === 'por_iniciar';
+        case 'En Ruta': return s.phase === 'en_curso' && s.alertLevel === 'normal';
+        case 'En Destino': return s.phase === 'en_destino';
+        case 'Evento': return s.phase === 'evento_especial';
+        case 'Alerta': return s.alertLevel === 'warning' || s.alertLevel === 'critical';
+        case 'Completados': return (s.phase as string) === 'completado';
+        default: return false;
+      }
+    });
+  }, [selectedPhase, pulse.rawServicios]);
 
   const selectedService = selectedAlertId
     ? pulse.rawServicios.find(s => s.id === selectedAlertId) || null
@@ -236,12 +257,12 @@ export const MobileOperationalDashboard: React.FC = () => {
 
       {/* Phase Grid 2x3 */}
       <div className="grid grid-cols-3 gap-2.5">
-        <PhaseCard value={pulse.fases.porSalir} label="Por Salir" icon={Clock} accent="text-blue-500" />
-        <PhaseCard value={pulse.fases.enRuta} label="En Ruta" icon={Navigation} accent="text-emerald-500" />
-        <PhaseCard value={pulse.fases.enDestino} label="En Destino" icon={MapPin} accent="text-violet-500" />
-        <PhaseCard value={pulse.fases.enEvento} label="Evento" icon={Zap} accent="text-purple-500" />
-        <PhaseCard value={pulse.fases.enAlerta} label="Alerta" icon={AlertTriangle} accent="text-destructive" pulse />
-        <PhaseCard value={pulse.fases.completados} label="Completados" icon={CheckCircle2} accent="text-emerald-600" />
+        <PhaseCard value={pulse.fases.porSalir} label="Por Salir" icon={Clock} accent="text-blue-500" onDoubleClick={() => setSelectedPhase('Por Salir')} />
+        <PhaseCard value={pulse.fases.enRuta} label="En Ruta" icon={Navigation} accent="text-emerald-500" onDoubleClick={() => setSelectedPhase('En Ruta')} />
+        <PhaseCard value={pulse.fases.enDestino} label="En Destino" icon={MapPin} accent="text-violet-500" onDoubleClick={() => setSelectedPhase('En Destino')} />
+        <PhaseCard value={pulse.fases.enEvento} label="Evento" icon={Zap} accent="text-purple-500" onDoubleClick={() => setSelectedPhase('Evento')} />
+        <PhaseCard value={pulse.fases.enAlerta} label="Alerta" icon={AlertTriangle} accent="text-destructive" pulse onDoubleClick={() => setSelectedPhase('Alerta')} />
+        <PhaseCard value={pulse.fases.completados} label="Completados" icon={CheckCircle2} accent="text-emerald-600" onDoubleClick={() => setSelectedPhase('Completados')} />
       </div>
 
       {/* Active services banner */}
@@ -324,6 +345,14 @@ export const MobileOperationalDashboard: React.FC = () => {
         onOpenChange={(open) => { if (!open) setSelectedAlertId(null); }}
         service={selectedService}
         events={selectedEvents}
+      />
+
+      {/* Phase services drawer */}
+      <PhaseServicesDrawer
+        open={!!selectedPhase}
+        onOpenChange={(open) => { if (!open) setSelectedPhase(null); }}
+        phase={selectedPhase}
+        services={phaseFilteredServices}
       />
     </div>
   );
