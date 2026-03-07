@@ -63,7 +63,7 @@ export function useOperationalPulse(): OperationalPulse {
 
   const pulse = useMemo<OperationalPulse>(() => {
     // --- Fases ---
-    const activeServices = servicios.filter(s => s.phase !== 'por_iniciar');
+    const activeServices = servicios.filter(s => s.phase !== 'por_iniciar' && (s.phase as string) !== 'completado');
     const fases: PulseServicePhase = {
       porSalir: resumen.porIniciar,
       enRuta: activeServices.filter(s => s.phase === 'en_curso' && s.alertLevel === 'normal').length,
