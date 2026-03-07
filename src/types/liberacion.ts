@@ -77,6 +77,9 @@ export interface CustodioLiberacion {
   estado_residencia_id?: string;
   ciudad_residencia?: string;
   
+  // Vinculación operativa
+  pc_custodio_id?: string;
+  
   // Metadata
   created_at: string;
   updated_at: string;
