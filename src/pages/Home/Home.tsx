@@ -22,6 +22,20 @@ const Home = () => {
   // Determine which widgets to show (prefer contextWidgets, fallback to widgets)
   const displayWidgets = contextWidgets.length > 0 ? contextWidgets : widgets;
 
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <MobileHomeLayout
+        userName={user?.user_metadata?.display_name}
+        userEmail={user?.email}
+        onSignOut={signOut}
+        hero={hero}
+        widgets={displayWidgets}
+        modules={modules}
+      />
+    );
+  }
+
   // Show loading state
   if (isLoading && !hero && displayWidgets.length === 0) {
     return (
