@@ -1550,8 +1550,8 @@
 .liquid-glass-app-mobile {
   @apply relative overflow-hidden rounded-2xl p-3 flex flex-col items-center justify-center gap-1 cursor-pointer;
   background: hsla(0, 0%, 100%, 0.4);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   border: 1px solid hsla(0, 0%, 100%, 0.2);
   box-shadow: 0 1px 6px hsla(0, 0%, 0%, 0.03);
   transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
