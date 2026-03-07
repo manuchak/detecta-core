@@ -83,6 +83,19 @@ const ServiceCard = ({ service }: { service: RadarService }) => {
         )}
       </div>
 
+      {/* Event type badge */}
+      {service.activeEvent && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-sm">
+            {EVENTO_ICONS[service.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}
+          </span>
+          <span className="text-xs font-medium text-violet-500">
+            {EVENTO_ICONS[service.activeEvent.tipo as TipoEventoRuta]?.label || service.activeEvent.tipo}
+            {' · '}{service.activeEvent.minutosActivo}m
+          </span>
+        </div>
+      )}
+
       {/* Alert badge */}
       {isAlert && (
         <div className="pt-1">
