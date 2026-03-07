@@ -75,7 +75,7 @@ const UnifiedLayout: React.FC<UnifiedLayoutProps> = ({
         <div className="flex flex-1 min-h-0 w-full">
           <UnifiedSidebar stats={sidebarStats} />
           
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch]">
             {children}
           </main>
         </div>

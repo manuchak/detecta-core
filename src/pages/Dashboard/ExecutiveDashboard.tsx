@@ -75,7 +75,7 @@ const ExecutiveDashboard = () => {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full bg-background">
       <div className="container mx-auto px-3 py-4 md:px-6 md:py-8 space-y-4 md:space-y-6">
         {/* Header with Navigation */}
         <div className="flex items-center justify-between">
