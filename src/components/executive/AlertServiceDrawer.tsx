@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Drawer,
   DrawerContent,
@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/drawer';
 import type { RadarService } from '@/hooks/useServiciosTurnoLive';
 import type { EventoRuta } from '@/hooks/useEventosRuta';
-import { MAPBOX_ACCESS_TOKEN } from '@/lib/mapbox';
+import { initializeMapboxToken } from '@/lib/mapbox';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin,
   Navigation,
@@ -85,7 +86,17 @@ const PhaseBadge = ({ phase }: { phase: string }) => {
 
 /* ─── Route map with trail + current position ─── */
 const RouteMap = ({ service, events }: { service: RadarService; events: EventoRuta[] }) => {
-  const token = MAPBOX_ACCESS_TOKEN;
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    initializeMapboxToken().then(t => {
+      setToken(t);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <Skeleton className="h-48 w-full rounded-lg" />;
   if (!token) return (
     <div className="h-48 rounded-lg bg-muted flex items-center justify-center text-xs text-muted-foreground">
       Mapa no disponible
