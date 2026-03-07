@@ -1,10 +1,10 @@
 import React from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Clock, Navigation, MapPin, Zap, AlertTriangle, CheckCircle2, Shield, User } from 'lucide-react';
 import type { RadarService } from '@/hooks/useServiciosTurnoLive';
+import { EVENTO_ICONS, type TipoEventoRuta } from '@/hooks/useEventosRuta';
 import { format } from 'date-fns';
 
 interface PhaseServicesDrawerProps {
