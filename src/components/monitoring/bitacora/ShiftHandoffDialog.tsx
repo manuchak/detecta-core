@@ -52,6 +52,8 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   const [notasPorServicio, setNotasPorServicio] = useState<Record<string, string>>({});
   const [distribucionMode, setDistribucionMode] = useState<'auto' | 'manual'>('auto');
   const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
+  const [firmaEntrega, setFirmaEntrega] = useState<string | null>(null);
+  const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
 
   // Reset on open
   useEffect(() => {
