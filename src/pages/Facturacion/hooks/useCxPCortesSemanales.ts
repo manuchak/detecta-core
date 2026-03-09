@@ -176,20 +176,21 @@ export function useCreateCxPCorte() {
       }
 
       // 2) Fetch detenciones pagables al custodio for these services
+      //    If no manual detenciones exist, calculate automatically from route events
       let montoEstadias = 0;
       if (data.tipo_operativo === 'custodio' && detalles.length > 0) {
         const svcIds = detalles.filter(d => d.concepto === 'servicio' && d.servicio_custodia_id).map(d => d.servicio_custodia_id!);
         if (svcIds.length > 0) {
+          // Try manual detenciones first
           const { data: dets } = await supabase
             .from('detenciones_servicio')
             .select('servicio_id, duracion_minutos, tipo_detencion')
             .in('servicio_id', svcIds)
             .eq('pagable_custodio', true);
 
-          if (dets) {
+          if (dets && dets.length > 0) {
             for (const d of dets) {
               const hrs = (d.duracion_minutos || 0) / 60;
-              // Tarifa configurable — TODO: enrich from esquema_pago_custodios per operativo
               const monto = Math.round(hrs * CXP_TARIFA_ESTADIA_HORA * 100) / 100;
               montoEstadias += monto;
               detalles.push({
@@ -198,6 +199,58 @@ export function useCreateCxPCorte() {
                 monto,
                 servicio_custodia_id: d.servicio_id,
               });
+            }
+          } else {
+            // Fallback: calculate from route events (llegada_destino → liberacion_custodio)
+            // Get id_servicio for each svcId to match events
+            const svcDetalles = detalles.filter(d => d.concepto === 'servicio' && d.servicio_custodia_id);
+            const { data: svcRows } = await supabase
+              .from('servicios_custodia')
+              .select('id, id_servicio')
+              .in('id', svcIds);
+
+            if (svcRows && svcRows.length > 0) {
+              const idServicioMap = new Map<string, number>();
+              for (const s of svcRows) {
+                if (s.id_servicio) idServicioMap.set(s.id_servicio, s.id);
+              }
+              const idServicios = Array.from(idServicioMap.keys());
+
+              if (idServicios.length > 0) {
+                const { data: eventos } = await (supabase as any)
+                  .from('servicio_eventos_ruta')
+                  .select('servicio_id, tipo_evento, hora_inicio')
+                  .in('servicio_id', idServicios)
+                  .in('tipo_evento', ['llegada_destino', 'liberacion_custodio']);
+
+                if (eventos && eventos.length > 0) {
+                  // Group events by servicio_id
+                  const evMap = new Map<string, { llegada?: string; liberacion?: string }>();
+                  for (const ev of eventos) {
+                    const entry = evMap.get(ev.servicio_id) || {};
+                    if (ev.tipo_evento === 'llegada_destino') entry.llegada = ev.hora_inicio;
+                    if (ev.tipo_evento === 'liberacion_custodio') entry.liberacion = ev.hora_inicio;
+                    evMap.set(ev.servicio_id, entry);
+                  }
+
+                  for (const [idSvc, times] of evMap) {
+                    if (!times.llegada || !times.liberacion) continue;
+                    const deltaHrs = (new Date(times.liberacion).getTime() - new Date(times.llegada).getTime()) / 3600000;
+                    const excedente = Math.max(0, deltaHrs - CXP_UMBRAL_CORTESIA_HORAS);
+                    if (excedente <= 0) continue;
+
+                    const monto = Math.round(excedente * CXP_TARIFA_ESTADIA_HORA * 100) / 100;
+                    montoEstadias += monto;
+                    const custodiaId = idServicioMap.get(idSvc);
+                    detalles.push({
+                      concepto: 'estadia',
+                      descripcion: `Estadía auto ${idSvc} (${Math.round(excedente * 10) / 10}h excedente de ${Math.round(deltaHrs * 10) / 10}h)`,
+                      monto,
+                      servicio_custodia_id: custodiaId,
+                    });
+                  }
+                }
+              }
             }
           }
         }
