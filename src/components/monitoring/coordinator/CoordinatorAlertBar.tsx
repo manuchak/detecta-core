@@ -12,9 +12,9 @@ interface Props {
 }
 
 export const CoordinatorAlertBar: React.FC<Props> = ({
-  unassignedCount, correctionCount, gastosCount, handoffCount = 0,
+  unassignedCount, correctionCount, gastosCount, handoffCount = 0, abandonedCount = 0,
 }) => {
-  const total = unassignedCount + correctionCount + gastosCount + handoffCount;
+  const total = unassignedCount + correctionCount + gastosCount + handoffCount + abandonedCount;
 
   if (total === 0) {
     return (
