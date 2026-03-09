@@ -181,7 +181,7 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
 
       {/* Fixed alert zone — always visible, never auto-scrolled */}
       {hasAlerts && (
-        <div className="shrink-0 max-h-[40%] overflow-y-auto bg-red-950/20 border-b-2 border-red-500/40">
+        <div className="shrink-0 max-h-[45%] overflow-y-auto bg-red-950/20 border-b-2 border-red-500/40">
           {alertGroup.map(group => (
             <div key={group.key}>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/40 animate-pulse">
@@ -191,7 +191,13 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
                 </span>
                 <div className="h-px flex-1 bg-red-500/30" />
               </div>
-              {group.items.map(s => renderServiceItem(s, true))}
+              <div className="grid grid-cols-2 gap-px bg-white/5">
+                {group.items.map(s => (
+                  <div key={s.id} className="bg-gray-950">
+                    {renderServiceItem(s, true)}
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
