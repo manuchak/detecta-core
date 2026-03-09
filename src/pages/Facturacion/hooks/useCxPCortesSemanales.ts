@@ -118,7 +118,7 @@ export function useCreateCxPCorte() {
         // Query servicios_custodia where custodio matches
         const { data: servicios } = await supabase
           .from('servicios_custodia')
-          .select('id, id_servicio, costo_custodio, casetas, cliente')
+          .select('id, id_servicio, costo_custodio, casetas, nombre_cliente')
           .eq('id_custodio', data.operativo_id)
           .eq('estado', 'Finalizado')
           .gte('fecha_hora_cita', `${data.semana_inicio}T00:00:00`)
