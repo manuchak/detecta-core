@@ -36,6 +36,9 @@ export function CxPOperativoTab() {
   const totalPagado = cortes
     .filter(c => c.estado === 'pagado')
     .reduce((s, c) => s + c.monto_total, 0);
+  const totalEstadias = cortes
+    .filter(c => ['borrador', 'revision_ops', 'aprobado_finanzas'].includes(c.estado))
+    .reduce((s, c) => s + (c.monto_estadias || 0), 0);
 
   const handleTransition = (id: string, estado: string) => {
     const extras: any = {};
