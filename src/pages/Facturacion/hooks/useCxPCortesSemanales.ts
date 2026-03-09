@@ -378,6 +378,42 @@ export function useUpdateCxPCorte() {
   });
 }
 
+export function useDeleteCxPCorte() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Verify it's a draft before deleting
+      const { data: corte, error: fetchErr } = await supabase
+        .from('cxp_cortes_semanales')
+        .select('estado')
+        .eq('id', id)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if (corte.estado !== 'borrador') throw new Error('Solo se pueden eliminar cortes en estado borrador');
+
+      // Delete details first (FK dependency)
+      const { error: detErr } = await supabase
+        .from('cxp_cortes_detalle')
+        .delete()
+        .eq('corte_id', id);
+      if (detErr) throw detErr;
+
+      // Delete the corte
+      const { error } = await supabase
+        .from('cxp_cortes_semanales')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast.success('Corte borrador eliminado');
+    },
+    onError: (err: any) => toast.error(err?.message || 'Error al eliminar corte'),
+  });
+}
+
 export const ESTADO_CORTE_LABELS: Record<string, { label: string; color: string }> = {
   borrador: { label: 'Borrador', color: 'outline' },
   revision_ops: { label: 'Revisión Ops', color: 'default' },

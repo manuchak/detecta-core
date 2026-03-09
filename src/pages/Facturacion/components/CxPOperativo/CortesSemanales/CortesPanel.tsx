@@ -4,14 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, DollarSign, FileCheck2, ClipboardList } from 'lucide-react';
+import { Plus, DollarSign, FileCheck2, ClipboardList, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   useCxPCortesSemanales,
   useUpdateCxPCorte,
+  useDeleteCxPCorte,
   ESTADO_CORTE_LABELS,
 } from '../../../hooks/useCxPCortesSemanales';
 import { GenerarCorteDialog } from './GenerarCorteDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
@@ -21,6 +33,7 @@ export function CortesPanel() {
   const [showDialog, setShowDialog] = useState(false);
   const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado);
   const updateMutation = useUpdateCxPCorte();
+  const deleteMutation = useDeleteCxPCorte();
 
   const totalPendiente = cortes
     .filter(c => ['borrador', 'revision_ops', 'aprobado_finanzas'].includes(c.estado))
@@ -140,10 +153,36 @@ export function CortesPanel() {
                       <TableCell>
                         <div className="flex gap-1">
                           {c.estado === 'borrador' && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs"
-                              onClick={() => handleTransition(c.id, 'revision_ops')}>
-                              Enviar a Ops
-                            </Button>
+                            <>
+                              <Button size="sm" variant="outline" className="h-7 text-xs"
+                                onClick={() => handleTransition(c.id, 'revision_ops')}>
+                                Enviar a Ops
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={deleteMutation.isPending}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar corte borrador?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Se eliminará el corte de "{c.operativo_nombre}" y todos sus detalles. Esta acción no se puede deshacer.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => deleteMutation.mutate(c.id)}
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
                           )}
                           {c.estado === 'revision_ops' && (
                             <Button size="sm" variant="outline" className="h-7 text-xs"

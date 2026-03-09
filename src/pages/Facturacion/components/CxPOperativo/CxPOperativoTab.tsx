@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, ChevronLeft, HandCoins, Users, CheckCircle2, ArrowRightCircle } from 'lucide-react';
+import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, ChevronLeft, HandCoins, Users, CheckCircle2, ArrowRightCircle, Trash2 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -13,8 +13,20 @@ import {
   useCxPCortesSemanales,
   useCxPCorteDetalle,
   useUpdateCxPCorte,
+  useDeleteCxPCorte,
   ESTADO_CORTE_LABELS,
 } from '../../hooks/useCxPCortesSemanales';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { GenerarCorteDialog } from './CortesSemanales/GenerarCorteDialog';
 import { GenerarCortesMasivosDialog } from './CortesSemanales/GenerarCortesMasivosDialog';
 import { ApoyosPanel } from './ApoyosExtraordinarios/ApoyosPanel';
@@ -69,6 +81,7 @@ export function CxPOperativoTab() {
 
   const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado, semanaInicio, semanaFin);
   const updateMutation = useUpdateCxPCorte();
+  const deleteMutation = useDeleteCxPCorte();
 
   // Pipeline stats
   const pipeline = useMemo(() => {
@@ -293,6 +306,42 @@ export function CxPOperativoTab() {
                   {TRANSITION_LABELS[batchNextState]} ({selectedCorteIds.size})
                 </Button>
               )}
+              {selectedCortes.some(c => c.estado === 'borrador') && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={deleteMutation.isPending}>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar Borradores ({selectedCortes.filter(c => c.estado === 'borrador').length})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar cortes borrador?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminarán {selectedCortes.filter(c => c.estado === 'borrador').length} corte(s) en estado borrador y sus detalles. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async () => {
+                          const drafts = selectedCortes.filter(c => c.estado === 'borrador');
+                          let errors = 0;
+                          for (const c of drafts) {
+                            try { await deleteMutation.mutateAsync(c.id); } catch { errors++; }
+                          }
+                          const ok = drafts.length - errors;
+                          if (ok > 0) toast.success(`${ok} corte(s) borrador eliminado(s)`);
+                          setSelectedCorteIds(new Set());
+                        }}
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -389,8 +438,34 @@ export function CxPOperativoTab() {
                         <TableCell>
                           <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                             {c.estado === 'borrador' && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs"
-                                onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
+                              <>
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                  onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={deleteMutation.isPending}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar corte borrador?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Se eliminará el corte de "{c.operativo_nombre}" y todos sus detalles. Esta acción no se puede deshacer.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => deleteMutation.mutate(c.id)}
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </>
                             )}
                             {c.estado === 'revision_ops' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs"
