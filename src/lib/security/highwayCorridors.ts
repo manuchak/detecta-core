@@ -470,6 +470,24 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     ],
   },
   {
+    id: 'nogales-tijuana',
+    name: 'Nogales-Mexicali-Tijuana (Hwy 2/2D)',
+    riskLevel: 'medio',
+    description: 'Corredor fronterizo norte Sonora-BC',
+    kilometers: 620,
+    avgEventsPerHex: 2,
+    waypoints: [
+      [-110.9400, 31.3100],  // Nogales
+      [-111.5200, 31.3300],  // Santa Ana
+      [-112.0600, 31.3200],  // Caborca
+      [-113.5500, 31.8500],  // San Luis Río Colorado
+      [-114.7700, 32.4500],  // Algodones / Los Algodones
+      [-115.4700, 32.6300],  // Mexicali
+      [-116.5600, 32.5700],  // Tecate
+      [-117.0200, 32.5300],  // Tijuana
+    ],
+  },
+  {
     id: 'tijuana-ensenada',
     name: 'Tijuana-Ensenada (1D)',
     riskLevel: 'bajo',

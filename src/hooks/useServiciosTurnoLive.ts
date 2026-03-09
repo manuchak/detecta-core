@@ -297,7 +297,7 @@ export function useServiciosTurnoLive() {
       positionSource,
       destLat: destGeo?.lat ?? null,
       destLng: destGeo?.lng ?? null,
-      corridorId: route?.corridorId ?? null,
+      corridorIds: route?.corridorIds ?? [],
     };
   }, [eventsByService, now]);
 
