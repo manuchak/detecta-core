@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { useMonitoristaAssignment, MonitoristaProfile, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useShiftHandoff, distributeEquitably, type ServiceContext } from '@/hooks/useShiftHandoff';
+import { useUserRole } from '@/hooks/useUserRole';
+
+const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
 interface Props {
   open: boolean;
@@ -34,6 +37,10 @@ const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar'];
 
 export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMonitoristaId }) => {
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const { userId, hasAnyRole } = useUserRole();
+  const isPrivileged = hasAnyRole(PRIVILEGED_ROLES as any);
+  // Effective self ID: explicit prop OR auto-detected for non-privileged users
+  const effectiveSelfId = selfMonitoristaId || (!isPrivileged ? userId : null);
   const [step, setStep] = useState(0);
   const [selectedSalienteIds, setSelectedSalienteIds] = useState<Set<string>>(new Set());
   const [selectedEntranteIds, setSelectedEntranteIds] = useState<Set<string>>(new Set());
@@ -47,13 +54,13 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   useEffect(() => {
     if (open) {
       setStep(0);
-      setSelectedSalienteIds(selfMonitoristaId ? new Set([selfMonitoristaId]) : new Set());
+      setSelectedSalienteIds(effectiveSelfId ? new Set([effectiveSelfId]) : new Set());
       setSelectedEntranteIds(new Set());
       setNotasGenerales('');
       setNotasPorServicio({});
       setManualDistribucion({});
     }
-  }, [open, selfMonitoristaId]);
+  }, [open, effectiveSelfId]);
 
   const salientes = monitoristas.filter(m => selectedSalienteIds.has(m.id));
   const { serviciosContext, totalIncidentes, isLoading, executeHandoff } = useShiftHandoff(salientes);
@@ -76,7 +83,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
 
   // Toggle saliente
   const toggleSaliente = (id: string) => {
-    if (selfMonitoristaId) return; // locked in self-mode
+    if (effectiveSelfId) return; // locked in self-mode or non-privileged
     setSelectedSalienteIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -133,21 +140,21 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
           {step === 0 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  {selfMonitoristaId ? 'Monitorista saliente (tú)' : 'Monitoristas salientes'}
+              <label className="text-xs font-medium text-muted-foreground">
+                  {effectiveSelfId ? 'Monitorista saliente (tú)' : 'Monitoristas salientes'}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {(selfMonitoristaId ? monitoristas.filter(m => m.id === selfMonitoristaId) : monitoristas.filter(m => m.en_turno)).map(m => {
+                  {(effectiveSelfId ? monitoristas.filter(m => m.id === effectiveSelfId) : monitoristas.filter(m => m.en_turno)).map(m => {
                     const count = (assignmentsByMonitorista[m.id] || []).length;
                     const selected = selectedSalienteIds.has(m.id);
                     return (
                       <button
                         key={m.id}
                         onClick={() => toggleSaliente(m.id)}
-                        disabled={!!selfMonitoristaId}
+                        disabled={!!effectiveSelfId}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs transition-colors ${
                           selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-accent'
-                        } ${selfMonitoristaId ? 'cursor-default' : 'cursor-pointer'}`}
+                        } ${effectiveSelfId ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <User className="h-3 w-3" />
                         {m.display_name.split(' ')[0]} · {count} serv.
