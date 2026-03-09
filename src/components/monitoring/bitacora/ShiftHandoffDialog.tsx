@@ -83,7 +83,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
 
   // Toggle saliente
   const toggleSaliente = (id: string) => {
-    if (selfMonitoristaId) return; // locked in self-mode
+    if (effectiveSelfId) return; // locked in self-mode or non-privileged
     setSelectedSalienteIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
