@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
@@ -86,6 +87,44 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return merged;
   }, [boardLabelMap, missingLabels]);
 
+  const enTurno = monitoristas.filter(m => m.en_turno);
+  const sinTurno = monitoristas.filter(m => !m.en_turno);
+
+  // ── Auto-assign services ≤2h before fecha_hora_cita ──
+  const autoAssignedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (enTurno.length === 0 || autoDistribute.isPending) return;
+
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    const eligibleIds = activeServiceIds.filter(id => {
+      if (assignedServiceIds.has(id)) return false;
+      if (autoAssignedRef.current.has(id)) return false;
+      const citaStr = serviceHoraCitaMap[id];
+      if (!citaStr) return false;
+      const timeUntil = new Date(citaStr).getTime() - now;
+      return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
+    });
+
+    if (eligibleIds.length === 0) return;
+
+    eligibleIds.forEach(id => autoAssignedRef.current.add(id));
+
+    autoDistribute.mutate(
+      { unassignedServiceIds: eligibleIds, monitoristaIds: enTurno.map(m => m.id) },
+      {
+        onSuccess: (count) => {
+          toast.info(`${count} servicios auto-asignados (próximos 2h)`);
+        },
+        onError: () => {
+          eligibleIds.forEach(id => autoAssignedRef.current.delete(id));
+        },
+      }
+    );
+  }, [activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, autoDistribute]);
+
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
@@ -95,8 +134,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     horaCita: serviceHoraCitaMap[sId],
   }));
 
-  const enTurno = monitoristas.filter(m => m.en_turno);
-  const sinTurno = monitoristas.filter(m => !m.en_turno);
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
 
   const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
