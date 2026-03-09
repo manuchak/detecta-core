@@ -62,14 +62,18 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-2 gap-2">
-          {filtered.length === 0 ? (
-            <div className="text-xs text-muted-foreground/50 text-center py-8 col-span-full">
-              {isFiltered ? 'Sin resultados' : 'Sin servicios en curso'}
-            </div>
-          ) : (
-            filtered.map(s =>
+      <div className="flex-1 flex gap-2 min-h-0">
+        {filtered.length === 0 ? (
+          <div className="text-xs text-muted-foreground/50 text-center py-8 w-full">
+            {isFiltered ? 'Sin resultados' : 'Sin servicios en curso'}
+          </div>
+        ) : (
+          (() => {
+            const half = Math.ceil(filtered.length / 2);
+            const leftCol = filtered.slice(0, half);
+            const rightCol = filtered.slice(half);
+
+            const renderCard = (s: BoardService) =>
               s.phase === 'en_destino' ? (
                 <ServiceCardEnDestino
                   key={s.id}
@@ -92,10 +96,20 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
                   isEventoPending={isEventoPending}
                   isLlegadaPending={isLlegadaPending}
                 />
-              )
-            )
-          )}
-        </div>
+              );
+
+            return (
+              <>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                  {leftCol.map(renderCard)}
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                  {rightCol.map(renderCard)}
+                </div>
+              </>
+            );
+          })()
+        )}
       </div>
     </div>
   );
