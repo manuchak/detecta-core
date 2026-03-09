@@ -12,6 +12,7 @@ import { AutoDistributeButton } from './AutoDistributeButton';
 import { CoordinatorAlertBar } from './CoordinatorAlertBar';
 import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
+import { HandoffRevertSection } from './HandoffRevertSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { cn } from '@/lib/utils';
 
