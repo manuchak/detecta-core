@@ -4,14 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, DollarSign, FileCheck2, ClipboardList } from 'lucide-react';
+import { Plus, DollarSign, FileCheck2, ClipboardList, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   useCxPCortesSemanales,
   useUpdateCxPCorte,
+  useDeleteCxPCorte,
   ESTADO_CORTE_LABELS,
 } from '../../../hooks/useCxPCortesSemanales';
 import { GenerarCorteDialog } from './GenerarCorteDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
