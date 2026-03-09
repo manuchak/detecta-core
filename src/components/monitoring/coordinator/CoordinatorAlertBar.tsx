@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
