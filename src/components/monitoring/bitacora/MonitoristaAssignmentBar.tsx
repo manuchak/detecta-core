@@ -100,6 +100,22 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
           <span className="text-xs font-medium">Hoja de Seguimiento</span>
         </div>
 
+        {/* Clave de No Amago — prominent badge */}
+        {claveNoAmago && (
+          <div
+            className="flex items-center gap-1.5 rounded-md border-2 border-chart-4 bg-chart-4/15 px-3 py-1"
+            title="Clave de verificación diaria. Solicitar al custodio en situaciones de emergencia para confirmar que no está bajo coacción."
+          >
+            <ShieldCheck className="h-4 w-4 text-chart-4" />
+            <span className="text-[11px] font-semibold tracking-wide text-chart-4 uppercase">
+              No Amago:
+            </span>
+            <span className="text-sm font-bold tracking-widest text-foreground uppercase font-mono">
+              {claveNoAmago}
+            </span>
+          </div>
+        )}
+
         <div className="flex-1" />
 
         {/* Coordinator: monitorist chips */}
