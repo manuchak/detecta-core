@@ -49,13 +49,24 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
     queryKey: ['operativos-con-servicios', semanaInicio, semanaFin],
     queryFn: async (): Promise<OperativoPreview[]> => {
       // 1) Fetch all finalized services in the week with nombre_custodio
-      const { data: servicios } = await supabase
-        .from('servicios_custodia')
-        .select('id, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino')
-        .eq('estado', 'Finalizado')
-        .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
-        .lte('fecha_hora_cita', `${semanaFin}T23:59:59`)
-        .not('id_custodio', 'is', null);
+      const [{ data: servicios }, { data: asignaciones }] = await Promise.all([
+        supabase
+          .from('servicios_custodia')
+          .select('id, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino')
+          .eq('estado', 'Finalizado')
+          .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
+          .lte('fecha_hora_cita', `${semanaFin}T23:59:59`)
+          .not('id_custodio', 'is', null),
+        // Fetch completed internal armed guard assignments in the week
+        supabase
+          .from('asignacion_armados')
+          .select('id, armado_id, armado_nombre_verificado, tarifa_acordada, servicio_custodia_id, hora_encuentro')
+          .eq('tipo_asignacion', 'interno')
+          .eq('estado_asignacion', 'completado')
+          .gte('hora_encuentro', `${semanaInicio}T00:00:00`)
+          .lte('hora_encuentro', `${semanaFin}T23:59:59`)
+          .not('armado_id', 'is', null),
+      ]);
 
       // 2) Fetch existing cortes for this week
       const { data: cortesExistentes } = await supabase
@@ -72,12 +83,13 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
       );
 
       // 3) Group services by custodio
-      const grouped: Record<string, { nombre: string; total: number; monto: number; servicios: ServicioDetalle[] }> = {};
+      const grouped: Record<string, { nombre: string; tipo: 'custodio' | 'armado_interno'; total: number; monto: number; servicios: ServicioDetalle[] }> = {};
       for (const s of servicios || []) {
         if (!s.id_custodio) continue;
         if (!grouped[s.id_custodio]) {
           grouped[s.id_custodio] = {
             nombre: s.nombre_custodio || `Custodio ${s.id_custodio}`,
+            tipo: 'custodio',
             total: 0,
             monto: 0,
             servicios: [],
@@ -95,17 +107,44 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
         });
       }
 
-      const custodioIds = Object.keys(grouped);
-      if (custodioIds.length === 0) return [];
+      // 4) Group armados internos by armado_id
+      for (const a of asignaciones || []) {
+        if (!a.armado_id) continue;
+        const key = `armado_${a.armado_id}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            nombre: a.armado_nombre_verificado || `Armado ${a.armado_id.slice(0, 8)}`,
+            tipo: 'armado_interno',
+            total: 0,
+            monto: 0,
+            servicios: [],
+          };
+        }
+        const tarifa = Number(a.tarifa_acordada) || 0;
+        grouped[key].total += 1;
+        grouped[key].monto += tarifa;
+        grouped[key].servicios.push({
+          id: a.servicio_custodia_id || a.id,
+          fecha_hora_cita: a.hora_encuentro,
+          origen: null,
+          destino: null,
+          costo_custodio: null,
+          casetas: null,
+          tarifa_acordada: tarifa,
+        });
+      }
 
-      // 4) Build preview list using nombre_custodio directly
-      const result: OperativoPreview[] = custodioIds.map(id => ({
-        id,
+      const allIds = Object.keys(grouped);
+      if (allIds.length === 0) return [];
+
+      // 5) Build preview list
+      const result: OperativoPreview[] = allIds.map(id => ({
+        id: grouped[id].tipo === 'armado_interno' ? id.replace('armado_', '') : id,
         nombre: grouped[id].nombre,
-        tipo: 'custodio' as const,
+        tipo: grouped[id].tipo,
         totalServicios: grouped[id].total,
         montoEstimado: Math.round(grouped[id].monto * 100) / 100,
-        yaGenerado: cortesSet.has(id),
+        yaGenerado: cortesSet.has(grouped[id].tipo === 'armado_interno' ? id.replace('armado_', '') : id),
         servicios: grouped[id].servicios.sort((a, b) =>
           (a.fecha_hora_cita || '').localeCompare(b.fecha_hora_cita || '')
         ),
