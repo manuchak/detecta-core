@@ -41,6 +41,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
   serviceHoraCitaMap = {},
 }) => {
   const { myAssignments, isLoading, monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const { palabra: claveNoAmago, isLoading: claveLoading } = useClaveNoAmago();
   const { hasAnyRole } = useUserRole();
   const isCoordinator = hasAnyRole(COORDINATOR_ROLES as any);
 
