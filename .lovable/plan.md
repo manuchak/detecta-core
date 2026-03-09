@@ -1,97 +1,119 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Auditoría de Integridad de Datos — Módulo de Facturación
 
-## Roles confirmados por módulo
+## Resumen Ejecutivo
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+El módulo de facturación tiene **infraestructura de código funcional** pero **0 datos generados** en todas las tablas transaccionales. Hay **3 bugs críticos** que impiden que el sistema opere, y **$18.1M MXN en servicios sin facturar**.
 
 ---
 
-## Hallazgos actuales
+## Estado de Datos por Tabla
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+| Tabla | Registros | Estado |
+|-------|-----------|--------|
+| `facturas` | **0** | Sin uso |
+| `factura_partidas` | **0** | Sin uso |
+| `pagos` | **0** | Sin uso |
+| `cxp_cortes_semanales` | **0** | Sin uso |
+| `cxp_cortes_detalle` | **0** | Sin uso |
+| `cxp_proveedores_armados` | **0** | Sin uso |
+| `cxp_detalle_servicios` | **0** | Sin uso |
+| `detenciones_servicio` | **0** | Sin alimentar |
+| `gastos_extraordinarios_servicio` | **0** | Sin alimentar |
+| `solicitudes_apoyo_extraordinario` | **0** | Sin alimentar |
+| `servicio_eventos_ruta` | **4,070** | Parcialmente alimentada |
+| `pc_clientes` | **107 activos** | Operativa, con gaps |
+| `servicios_custodia` (Finalizados, 90d) | **2,302** / $18.1M | SoT operativa OK |
 
 ---
 
-## Plan de corrección
+## Bugs Críticos Detectados
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+### BUG 1: `useFinanceOverview` consulta columna inexistente (SEVERIDAD: ALTA)
 
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+**Archivo**: `useFinanceOverview.ts`, líneas 63-71
+**Problema**: Filtra por `.gte('fecha_servicio', mtdStart)` pero la columna `fecha_servicio` **NO EXISTE** en `servicios_custodia`. La columna correcta es `fecha_hora_cita`.
+
+**Impacto**: El dashboard financiero (P&L MTD) retorna **$0 en todos los KPIs** porque Supabase ignora silenciosamente filtros con columnas inexistentes o retorna error. Los datos de red muestran que otras queries al mismo endpoint SÍ usan `fecha_hora_cita` correctamente, confirmando la inconsistencia.
+
+**Datos reales**: Marzo 2026 tiene $2.4M en ingresos y $1.07M en costos que el overview NO muestra.
+
+### BUG 2: CxP Cortes — tarifa de estadía hardcodeada a $50/hr (SEVERIDAD: MEDIA)
+
+**Archivo**: `useCxPCortesSemanales.ts`, línea 180
+```typescript
+const monto = Math.round(hrs * 50 * 100) / 100; // ← hardcoded $50/hr
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+**Problema**: La tarifa por hora de estadía pagable al custodio está hardcodeada en $50. No consulta ninguna tabla de configuración (ni `esquema_pago_custodios`, ni `pc_clientes`). Como `detenciones_servicio` tiene 0 registros, este bug no genera errores visibles pero producirá cálculos incorrectos cuando se alimente data.
 
-### Fase 2 — Migrar policies por módulo
+### BUG 3: Clientes no matcheados entre `servicios_custodia` y `pc_clientes` (SEVERIDAD: ALTA)
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+**Problema**: **20+ clientes activos** con servicios en los últimos 60 días no tienen match en `pc_clientes` (lookup por `LOWER(nombre)`). Los más críticos:
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+| Cliente | Servicios (60d) | Impacto |
+|---------|-----------------|---------|
+| MONTE ROSAS | 106 | Sin reglas cortesía/facturación |
+| ANDREA | 97 | Sin reglas cortesía/facturación |
+| ENVIALO | 52 | Sin reglas cortesía/facturación |
+| PRODUCTOS PENNSYLVANIA | 46 | Sin reglas cortesía/facturación |
+| YOKOHAMA | 34 | Sin reglas cortesía/facturación |
+| YOUNG GUNS | 31 | Sin reglas cortesía/facturación |
+| CANTABRIA | 30 | Sin reglas cortesía/facturación |
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+**Impacto**: `usePreFacturaInteligente` busca el cliente por `nombre.toLowerCase()` — si no hay match, se aplica cortesía 0, tarifa 0, y las pre-facturas salen sin estadías. Estos 20+ clientes representan **~600+ servicios** que generarían facturas incompletas.
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+---
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+## Gaps de Calidad en `pc_clientes`
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+De 107 clientes activos:
+- **91/107** (85%) tienen RFC
+- **95/107** (89%) tienen razón social
+- **54/107** (50%) tienen cortesía local/foráneo configurada
+- **0/107** (0%) tienen `tarifa_hora_estadia` — recién se creó la columna pero nadie la pobló
+- **2/107** (2%) usan el campo legacy `horas_cortesia` — el resto usa `horas_cortesia_local/foraneo`
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+**Conclusión**: La columna `tarifa_hora_estadia` es crítica para el cálculo de estadías pero está vacía en el 100% de los clientes. Sin este dato, todas las estadías se calculan con tarifa $0.
 
-### Archivos a modificar
+---
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+## Tabla de Eventos de Ruta (Base para Estadías)
+
+- **234 llegadas** a destino
+- **224 liberaciones** de custodio
+- **16 pernoctas**
+- Cobertura: solo **~10%** de los 2,302 servicios finalizados tienen eventos de ruta
+
+**Impacto**: El motor de estadías (`useEstadiasCalculadas`, `usePreFacturaInteligente`) solo puede calcular estadías para ~200 servicios. El 90% restante no tiene datos de tiempos en destino.
+
+---
+
+## Tablas Vacías que Bloquean Features
+
+| Tabla | Usada por | Consecuencia |
+|-------|-----------|-------------|
+| `detenciones_servicio` | CxP cortes, pre-factura | 0 estadías en cortes, 0 en facturas |
+| `gastos_extraordinarios_servicio` | CxP cortes, CxP proveedores, pre-factura | 0 extras en todo |
+| `solicitudes_apoyo_extraordinario` | CxP cortes | 0 apoyos en cortes |
+
+Estas tablas son alimentadas operativamente. Hasta que no se genere data real, los workflows financieros generarán documentos vacíos.
+
+---
+
+## Plan de Corrección (3 cambios de código)
+
+### Fix 1: `useFinanceOverview.ts` — columna `fecha_servicio` → `fecha_hora_cita`
+- Líneas 63-71: Reemplazar todas las referencias a `fecha_servicio` por `fecha_hora_cita`
+- Esto desbloqueará el P&L MTD mostrando los $2.4M reales de marzo
+
+### Fix 2: `useCxPCortesSemanales.ts` — tarifa estadía configurable
+- Línea 180: Reemplazar `50` hardcodeado por lookup a esquema de pago o al menos un valor configurable por constante exportable
+
+### Fix 3: Crear script de reconciliación `nombre_cliente` ↔ `pc_clientes`
+- Agregar los 20+ clientes faltantes a `pc_clientes` (INSERT) o generar un mapeo de alias
+- Esto es un INSERT de datos, no un cambio de esquema
+
+Estos 3 fixes son quirúrgicos (sin cambios de UI) y desbloquean la integridad del flujo completo de facturación.
 
