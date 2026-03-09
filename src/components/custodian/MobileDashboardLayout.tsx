@@ -180,6 +180,9 @@ const MobileDashboardLayout = () => {
       case 'support':
         navigate('/custodian/support');
         break;
+      case 'expenses':
+        navigate('/custodian/expenses');
+        break;
       default:
         break;
     }
