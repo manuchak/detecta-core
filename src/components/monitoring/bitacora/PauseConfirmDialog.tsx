@@ -127,7 +127,7 @@ export const PauseConfirmDialog: React.FC<PauseConfirmDialogProps> = ({
                   htmlFor="pause-confirm"
                   className="text-xs text-muted-foreground cursor-pointer leading-tight"
                 >
-                  Confirmo que inicio mi pausa de {getPauseLabel(tipoPausa).toLowerCase()} (máx {duracion} min)
+                  Confirmo que inicio mi pausa de {getPauseLabel(tipoPausa).toLowerCase()} (máx {duracion} min). La redistribución es automática y se revertirá al retomar.
                 </Label>
               </div>
             </>
