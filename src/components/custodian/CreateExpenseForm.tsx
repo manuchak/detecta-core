@@ -40,15 +40,15 @@ const CreateExpenseForm = () => {
   };
 
   const handleSubmit = async () => {
-    if (!tipo || !motivo || !monto) return;
+    if (!tipo || !motivo || !monto || !folio.trim()) return;
 
     await createExpense.mutateAsync({
       tipo_apoyo: tipo,
       motivo,
       monto_solicitado: parseFloat(monto),
-      urgencia,
+      urgencia: 'normal',
       custodio_nombre: profile?.display_name || undefined,
-      notas: notas || undefined,
+      notas: folio.trim(),
       archivo: archivo || undefined,
     });
 
