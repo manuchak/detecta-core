@@ -118,7 +118,7 @@ export function useCreateCxPCorte() {
         // Query servicios_custodia where custodio matches
         const { data: servicios } = await supabase
           .from('servicios_custodia')
-          .select('id, id_servicio, costo_custodio, casetas, cliente')
+          .select('id, id_servicio, costo_custodio, casetas, nombre_cliente')
           .eq('id_custodio', data.operativo_id)
           .eq('estado', 'Finalizado')
           .gte('fecha_hora_cita', `${data.semana_inicio}T00:00:00`)
@@ -131,7 +131,7 @@ export function useCreateCxPCorte() {
             montoServicios += costoBase;
             detalles.push({
               concepto: 'servicio',
-              descripcion: `Servicio ${s.id_servicio || s.id} - ${s.cliente || ''}`,
+              descripcion: `Servicio ${s.id_servicio || s.id} - ${s.nombre_cliente || ''}`,
               monto: costoBase,
               servicio_custodia_id: s.id,
             });

@@ -59,11 +59,16 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
       // 2) Fetch existing cortes for this week
       const { data: cortesExistentes } = await supabase
         .from('cxp_cortes_semanales')
-        .select('operativo_id')
+        .select('operativo_id, total_servicios')
         .gte('semana_inicio', semanaInicio)
         .lte('semana_fin', semanaFin);
 
-      const cortesSet = new Set((cortesExistentes || []).map(c => c.operativo_id));
+      // Ignore empty cortes (total_servicios = 0) so they can be regenerated
+      const cortesSet = new Set(
+        (cortesExistentes || [])
+          .filter(c => (c.total_servicios ?? 0) > 0)
+          .map(c => c.operativo_id)
+      );
 
       // 3) Group services by custodio
       const grouped: Record<string, { nombre: string; total: number; monto: number; servicios: ServicioDetalle[] }> = {};
