@@ -165,6 +165,11 @@ export function usePreFacturaInteligente(
         const minutosDetenciones = dets.reduce((sum: number, d: any) => sum + (d.duracion_minutos || 0), 0);
         horasEstadia += minutosDetenciones / 60;
 
+        // Resolve courtesy hours based on local/foráneo classification
+        const horasCortesia = svc.local_foraneo === 'Foráneo'
+          ? horasCortesiaForaneo
+          : horasCortesiaLocal;
+
         const horasExcedentes = Math.max(0, horasEstadia - horasCortesia);
         if (horasExcedentes > 0 && tarifaHoraExcedente > 0) {
           const hrs = Math.round(horasExcedentes * 100) / 100;

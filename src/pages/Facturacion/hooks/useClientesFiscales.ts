@@ -102,6 +102,8 @@ export function useClientesFiscales() {
           activo,
           created_at,
           horas_cortesia,
+          horas_cortesia_local,
+          horas_cortesia_foraneo,
           pernocta_tarifa,
           cobra_pernocta,
           tipo_facturacion,
