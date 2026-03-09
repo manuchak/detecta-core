@@ -202,7 +202,7 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
         {restGroups.map(group => (
           <div key={group.key}>
             {renderGroupHeader(group)}
-            {group.items.map(renderServiceItem)}
+            {group.items.map(s => renderServiceItem(s))}
           </div>
         ))}
       </div>
