@@ -306,6 +306,42 @@ export function CxPOperativoTab() {
                   {TRANSITION_LABELS[batchNextState]} ({selectedCorteIds.size})
                 </Button>
               )}
+              {selectedCortes.some(c => c.estado === 'borrador') && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={deleteMutation.isPending}>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar Borradores ({selectedCortes.filter(c => c.estado === 'borrador').length})
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar cortes borrador?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminarán {selectedCortes.filter(c => c.estado === 'borrador').length} corte(s) en estado borrador y sus detalles. Esta acción no se puede deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async () => {
+                          const drafts = selectedCortes.filter(c => c.estado === 'borrador');
+                          let errors = 0;
+                          for (const c of drafts) {
+                            try { await deleteMutation.mutateAsync(c.id); } catch { errors++; }
+                          }
+                          const ok = drafts.length - errors;
+                          if (ok > 0) toast.success(`${ok} corte(s) borrador eliminado(s)`);
+                          setSelectedCorteIds(new Set());
+                        }}
+                      >
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button
                 variant="outline"
                 size="sm"
