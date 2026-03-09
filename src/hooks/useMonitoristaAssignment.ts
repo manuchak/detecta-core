@@ -411,6 +411,54 @@ export function useMonitoristaAssignment() {
     onError: () => toast.error('Error en cambio de turno'),
   });
 
+  // ── BalanceGuard: batch rebalance across monitoristas ──
+  const rebalanceLoad = useMutation({
+    mutationFn: async (params: { reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] }) => {
+      const nowTs = new Date().toISOString();
+      const { data: { user } } = await supabase.auth.getUser();
+      const turnoActual = getCurrentTurno();
+
+      for (const r of params.reassignments) {
+        // Deactivate old assignment
+        await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .update({ activo: false, fin_turno: nowTs })
+          .eq('id', r.fromAssignmentId);
+
+        // Create new assignment
+        const { error } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .insert({
+            servicio_id: r.servicioId,
+            monitorista_id: r.toMonitoristaId,
+            asignado_por: user?.id || null,
+            turno: turnoActual,
+          });
+        if (error) throw error;
+      }
+
+      // Log anomaly
+      await (supabase as any).from('bitacora_anomalias_turno').insert({
+        tipo: 'rebalanceo_por_incorporacion',
+        descripcion: `Rebalanceo automático: ${params.reassignments.length} servicios redistribuidos`,
+        ejecutado_por: user?.id || null,
+        metadata: {
+          reassignments: params.reassignments.map(r => ({
+            servicio_id: r.servicioId,
+            to: r.toMonitoristaId,
+          })),
+        },
+      });
+
+      return params.reassignments.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey });
+      toast.info(`⚖️ Carga rebalanceada: ${count} servicios redistribuidos`);
+    },
+    onError: () => toast.error('Error al rebalancear carga'),
+  });
+
   const endTurno = useMutation({
     mutationFn: async (assignmentId: string) => {
       const { error } = await (supabase as any)
