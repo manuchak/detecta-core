@@ -21,8 +21,8 @@ interface BoardColumnEnCursoProps {
 }
 
 export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
-  services, onEventoEspecial, onCheckpoint, onLlegadaDestino, onLiberar, onDoubleClick,
-  isCheckpointPending, isEventoPending, isLlegadaPending, isLiberarPending,
+  services, onEventoEspecial, onCheckpoint, onLlegadaDestino, onLiberar, onRevertir, onDoubleClick,
+  isCheckpointPending, isEventoPending, isLlegadaPending, isLiberarPending, isRevertirPending,
 }) => {
   const [filter, setFilter] = useState('');
 
