@@ -952,6 +952,7 @@ function App() {
                   <Route index element={<CustodianDashboard />} />
                   <Route path="services" element={<CustodianServicesPage />} />
                   <Route path="vehicle" element={<CustodianVehiclePage />} />
+                  <Route path="expenses" element={<CustodianExpensesPage />} />
                   <Route path="support" element={<CustodianSupportPage />} />
                   <Route path="tickets" element={<Navigate to="/custodian/support" replace />} />
                 </Route>
