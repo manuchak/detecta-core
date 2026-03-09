@@ -12064,6 +12064,7 @@ export type Database = {
           sla_minutos_asignacion: number | null
           sla_respuesta_horas: number | null
           tarifa_con_arma: number | null
+          tarifa_hora_estadia: number | null
           tarifa_sin_arma: number | null
           tarifas_especiales: boolean | null
           tipo_facturacion: string | null
@@ -12121,6 +12122,7 @@ export type Database = {
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifa_con_arma?: number | null
+          tarifa_hora_estadia?: number | null
           tarifa_sin_arma?: number | null
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null
@@ -12178,6 +12180,7 @@ export type Database = {
           sla_minutos_asignacion?: number | null
           sla_respuesta_horas?: number | null
           tarifa_con_arma?: number | null
+          tarifa_hora_estadia?: number | null
           tarifa_sin_arma?: number | null
           tarifas_especiales?: boolean | null
           tipo_facturacion?: string | null

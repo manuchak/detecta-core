@@ -1,0 +1,1 @@
+ALTER TABLE public.pc_clientes ADD COLUMN IF NOT EXISTS tarifa_hora_estadia NUMERIC DEFAULT 0;
