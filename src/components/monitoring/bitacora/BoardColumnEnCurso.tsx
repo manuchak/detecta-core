@@ -75,8 +75,10 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
                   key={s.id}
                   service={s}
                   onLiberar={onLiberar}
+                  onRevertir={onRevertir}
                   onDoubleClick={onDoubleClick}
                   isPending={isLiberarPending}
+                  isRevertirPending={isRevertirPending}
                 />
               ) : (
                 <ServiceCardActive

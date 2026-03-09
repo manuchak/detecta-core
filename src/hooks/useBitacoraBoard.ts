@@ -524,6 +524,7 @@ export function useBitacoraBoard() {
     cerrarEventoEspecial,
     registrarLlegadaDestino,
     liberarCustodio,
+    revertirEnDestino,
     // Helpers
     getEventsForService: (idServicio: string) => eventsByService[idServicio] || [],
   };
