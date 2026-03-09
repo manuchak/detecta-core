@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { useMonitoristaAssignment, MonitoristaProfile, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useShiftHandoff, distributeEquitably, type ServiceContext } from '@/hooks/useShiftHandoff';
+import { useUserRole } from '@/hooks/useUserRole';
+
+const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
 interface Props {
   open: boolean;
