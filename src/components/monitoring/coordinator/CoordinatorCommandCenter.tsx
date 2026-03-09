@@ -12,6 +12,7 @@ import { AutoDistributeButton } from './AutoDistributeButton';
 import { CoordinatorAlertBar } from './CoordinatorAlertBar';
 import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
+import { AbandonedServicesSection } from './AbandonedServicesSection';
 import { HandoffRevertSection } from './HandoffRevertSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
@@ -24,7 +25,7 @@ interface Props {
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute,
+    assignService, autoDistribute, reassignService,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
@@ -64,6 +65,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   // Counts for alert bar
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
+  const abandonedCount = sinTurno.reduce(
+    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length,
+    0
+  );
 
   const isOverlay = !!onClose;
 
@@ -106,6 +111,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             correctionCount={enDestinoCount}
             gastosCount={0}
             handoffCount={entregasRevertibles.length}
+            abandonedCount={abandonedCount}
           />
 
           {/* ── Global Actions ── */}
@@ -194,7 +200,17 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             </CardContent>
           </Card>
 
-          {/* ── Section 2: Correcciones en Destino (conditional) ── */}
+          {/* ── Section 2: Servicios Abandonados ── */}
+          <AbandonedServicesSection
+            monitoristas={monitoristas}
+            assignmentsByMonitorista={assignmentsByMonitorista}
+            serviceLabelMap={serviceLabelMap}
+            onReassign={(p) => reassignService.mutate(p)}
+            isReassigning={reassignService.isPending}
+            currentTurno={turno}
+          />
+
+          {/* ── Section 3: Correcciones en Destino (conditional) ── */}
           {enDestinoCount > 0 && (
             <DestinoCorrectionSection
               services={enCursoServices}

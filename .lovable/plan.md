@@ -1,51 +1,97 @@
 
 
-# Reasignación de Servicios Abandonados — Coordinador Ops
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Concepto
+## Roles confirmados por módulo
 
-Cuando un monitorista se retira sin hacer entrega de turno, sus servicios quedan "huérfanos". El coordinador necesita una sección dedicada donde pueda ver todos los servicios asignados a monitoristas inactivos (sin actividad reciente) y reasignarlos con un click a otro monitorista disponible.
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-## Detección de "abandono"
+---
 
-Un monitorista se considera inactivo/ausente si:
-- Tiene asignaciones activas (`activo = true`)
-- No ha registrado eventos en `servicio_eventos_ruta` en las últimas 2 horas
-- No tiene una pausa activa en `bitacora_pausas_monitorista`
-- No está marcado como `en_turno` por actividad reciente
+## Hallazgos actuales
 
-Esto no requiere cambios de base de datos — toda la lógica es derivada de datos existentes (asignaciones activas + actividad reciente + pausas).
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-## Cambios
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-### 1. Nuevo componente: `src/components/monitoring/coordinator/AbandonedServicesSection.tsx`
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-- Card con estilo similar a `DestinoCorrectionSection`
-- Icono: `UserX` (lucide), color rojo/destructivo
-- Lista servicios cuyo monitorista asignado está inactivo
-- Cada fila muestra: cliente, monitorista original (tachado o dimmed), última actividad ("hace 3h"), selector para reasignar a monitorista en turno
-- Usa `reassignService` del hook existente `useMonitoristaAssignment`
-- Dialog de confirmación con `ConfirmTransitionDialog` (destructive, double confirm)
+---
 
-### 2. Actualizar `CoordinatorCommandCenter.tsx`
+## Plan de corrección
 
-- Importar y renderizar `AbandonedServicesSection` entre "Equipo en Turno" y "Correcciones en Destino"
-- Pasar datos necesarios: monitoristas, assignments, activity data
-- Agregar conteo de abandonados al `CoordinatorAlertBar`
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-### 3. Actualizar `CoordinatorAlertBar.tsx`
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
 
-- Nuevo prop `abandonedCount` con badge e icono `UserX`, color rojo
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-### 4. Lógica de detección (dentro del componente)
+### Fase 2 — Migrar policies por módulo
 
-- Cruza `assignmentsByMonitorista` con `monitoristas` que tienen `en_turno = false`
-- Filtra monitoristas sin pausa activa (consulta `bitacora_pausas_monitorista`)
-- Agrupa servicios por monitorista ausente para mostrar agrupado
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/monitoring/coordinator/AbandonedServicesSection.tsx` | Nuevo: card con lista de servicios abandonados y selector de reasignación |
-| `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` | Integrar sección + pasar conteo a alert bar |
-| `src/components/monitoring/coordinator/CoordinatorAlertBar.tsx` | Nuevo badge `abandonedCount` |
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -8,12 +8,13 @@ interface Props {
   correctionCount: number;
   gastosCount: number;
   handoffCount?: number;
+  abandonedCount?: number;
 }
 
 export const CoordinatorAlertBar: React.FC<Props> = ({
-  unassignedCount, correctionCount, gastosCount, handoffCount = 0,
+  unassignedCount, correctionCount, gastosCount, handoffCount = 0, abandonedCount = 0,
 }) => {
-  const total = unassignedCount + correctionCount + gastosCount + handoffCount;
+  const total = unassignedCount + correctionCount + gastosCount + handoffCount + abandonedCount;
 
   if (total === 0) {
     return (
@@ -50,6 +51,12 @@ export const CoordinatorAlertBar: React.FC<Props> = ({
           <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5 border-chart-4/40 text-chart-4">
             <ArrowRightLeft className="h-3 w-3" />
             {handoffCount} entregas
+          </Badge>
+        )}
+        {abandonedCount > 0 && (
+          <Badge variant="destructive" className="text-[10px] gap-1 px-2 py-0.5">
+            <UserX className="h-3 w-3" />
+            {abandonedCount} abandonados
           </Badge>
         )}
       </div>
