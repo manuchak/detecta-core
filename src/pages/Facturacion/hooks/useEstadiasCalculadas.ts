@@ -40,7 +40,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
 
       // 2. Get route events for these services
       const idServicios = servicios
-        .map(s => s.id_servicio || s.folio_saphiro)
+        .map(s => s.id_servicio || s.folio_cliente)
         .filter(Boolean) as string[];
 
       if (!idServicios.length) return [];
