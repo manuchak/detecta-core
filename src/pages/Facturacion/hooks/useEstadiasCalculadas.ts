@@ -30,7 +30,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
 
       const { data: servicios, error: svcErr } = await supabase
         .from('servicios_custodia')
-        .select('id, id_servicio, folio_saphiro, cliente, ruta, local_foraneo, fecha_hora_cita, estado')
+        .select('id, id_servicio, folio_cliente, nombre_cliente, ruta, local_foraneo, fecha_hora_cita, estado')
         .eq('estado', 'Finalizado')
         .gte('fecha_hora_cita', since.toISOString())
         .order('fecha_hora_cita', { ascending: false })
