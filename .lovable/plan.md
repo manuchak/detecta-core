@@ -1,97 +1,72 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Acta de Entrega de Turno — Firma Digital + PDF + Guardián de Servicios Huérfanos
 
-## Roles confirmados por módulo
+## Observación del usuario
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+Correcto: el plan original no incluía firma digital en el flujo de entrega de turno. Actualmente el handoff tiene 3 pasos (Contexto → Entrantes → Confirmar) y al confirmar solo inserta un registro JSON en `bitacora_entregas_turno`. No hay firma ni PDF.
 
----
+## Plan actualizado
 
-## Hallazgos actuales
+### 1. Firma digital en el paso de confirmación
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+**`ShiftHandoffDialog.tsx`** — Agregar un 4to paso "Firma" (o integrar en el paso Confirmar):
+- Importar el `SignaturePad` existente (`@/components/custodian/checklist/SignaturePad`)
+- Agregar estado `firmaEntrega: string | null`
+- El botón "Entregar Turno" requiere firma (`disabled` si `!firmaEntrega`)
+- Pasar la firma como parte del payload al `executeHandoff`
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+**`useShiftHandoff.ts`** — Agregar `firma_data_url` al `HandoffPayload` y guardarlo en `bitacora_entregas_turno`.
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+**Migración SQL** — Agregar columna `firma_data_url text` a `bitacora_entregas_turno`.
 
----
+### 2. PDF del Acta de Entrega
 
-## Plan de corrección
+**Nuevo: `src/components/monitoring/bitacora/pdf/HandoffActaPDF.tsx`**
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+Documento `@react-pdf/renderer` usando el design system existente:
+- `ReportPage` + `ReportHeader` con título "Acta de Entrega de Turno"
+- `SectionHeader` + `FieldRow` para datos generales (fecha, turno saliente/entrante, monitoristas)
+- `DataTable` para servicios transferidos y servicios cerrados
+- `DataTable` para incidentes abiertos heredados
+- Notas generales
+- Declaración normativa fija de aceptación y compromiso
+- `SignatureBlock` con la firma capturada, email y timestamp
 
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+**`ShiftHandoffDialog.tsx`** — En `onSuccess` del handoff, generar y descargar el PDF automáticamente con `@react-pdf/renderer`'s `pdf().toBlob()`.
+
+### 3. Guardián de servicios huérfanos + Tabla de anomalías
+
+**Migración SQL** — Crear tabla `bitacora_anomalias_turno`:
+```sql
+create table public.bitacora_anomalias_turno (
+  id uuid primary key default gen_random_uuid(),
+  tipo text not null,
+  descripcion text,
+  servicio_id text,
+  monitorista_original text,
+  monitorista_reasignado text,
+  ejecutado_por uuid references auth.users(id),
+  metadata jsonb default '{}',
+  created_at timestamptz default now()
+);
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+**`CoordinatorCommandCenter.tsx`** — Consolidar en un único "OrphanGuard" `useEffect`:
+1. Servicios pendientes a ≤2h → auto-asignar (ya existe)
+2. Servicios activos sin asignación → auto-asignar inmediatamente
+3. Servicios de monitorista offline (`!en_turno`) → reasignar round-robin + insertar anomalía en `bitacora_anomalias_turno`
 
-### Fase 2 — Migrar policies por módulo
+**Nuevo: `AnomaliasBadge.tsx`** — Badge en la barra de alertas del coordinador mostrando anomalías del día.
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+### Archivos a modificar/crear
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---------|--------|
+| Migración SQL | Agregar `firma_data_url` a `bitacora_entregas_turno` + crear `bitacora_anomalias_turno` |
+| `ShiftHandoffDialog.tsx` | Agregar `SignaturePad` al paso de confirmación, requerir firma, descargar PDF en onSuccess |
+| `useShiftHandoff.ts` | Agregar `firma_data_url` al payload e insertarlo en la tabla |
+| `bitacora/pdf/HandoffActaPDF.tsx` | **Nuevo** — PDF formal del acta usando design system |
+| `CoordinatorCommandCenter.tsx` | Consolidar OrphanGuard con reasignación + log de anomalías |
+| `coordinator/AnomaliasBadge.tsx` | **Nuevo** — Badge de anomalías recientes |
 
