@@ -51,7 +51,7 @@ const CreateExpenseForm = () => {
       motivo,
       monto_solicitado: parseFloat(monto),
       urgencia,
-      custodio_nombre: profile?.nombre || undefined,
+      custodio_nombre: profile?.display_name || undefined,
       notas: notas || undefined,
       archivo: archivo || undefined,
     });
