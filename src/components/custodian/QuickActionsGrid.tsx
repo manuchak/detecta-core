@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Wrench, MessageSquarePlus, AlertCircle, Phone, FileText } from "lucide-react";
+import { Wrench, MessageSquarePlus, AlertCircle, Phone, FileText, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QuickActionsGridProps {
@@ -63,6 +63,15 @@ const QuickActionsGrid = ({
       color: "text-green-600",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",
+    },
+    {
+      icon: Receipt,
+      label: "Gastos Extra",
+      sublabel: "Solicitar reembolso",
+      onClick: () => navigate('/custodian/expenses'),
+      color: "text-orange-600",
+      bgColor: "bg-orange-500/10",
+      borderColor: "border-orange-500/20",
     },
   ];
 
