@@ -364,7 +364,14 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                             <AlertCircle className="h-4 w-4 text-muted-foreground" />
                           )}
                         </TableCell>
-                        <TableCell className="font-medium text-sm">{op.nombre}</TableCell>
+                        <TableCell className="font-medium text-sm">
+                          <span className="flex items-center gap-1.5">
+                            {op.nombre}
+                            {op.tipo === 'armado_interno' && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/40 text-primary">Armado</Badge>
+                            )}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-center">{op.totalServicios}</TableCell>
                         <TableCell className="text-right font-semibold text-sm">{fmt(op.montoEstimado)}</TableCell>
                         <TableCell>
