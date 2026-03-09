@@ -54,13 +54,13 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   useEffect(() => {
     if (open) {
       setStep(0);
-      setSelectedSalienteIds(selfMonitoristaId ? new Set([selfMonitoristaId]) : new Set());
+      setSelectedSalienteIds(effectiveSelfId ? new Set([effectiveSelfId]) : new Set());
       setSelectedEntranteIds(new Set());
       setNotasGenerales('');
       setNotasPorServicio({});
       setManualDistribucion({});
     }
-  }, [open, selfMonitoristaId]);
+  }, [open, effectiveSelfId]);
 
   const salientes = monitoristas.filter(m => selectedSalienteIds.has(m.id));
   const { serviciosContext, totalIncidentes, isLoading, executeHandoff } = useShiftHandoff(salientes);
