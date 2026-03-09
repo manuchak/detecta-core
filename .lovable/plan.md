@@ -1,97 +1,82 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Rediseño UX — Centro de Coordinación Ops
 
-## Roles confirmados por módulo
+## Principio de diseño
+**"Escanear en 3 segundos, actuar en 1 click"** — El coordinador debe ver el estado global al instante y resolver cada situación con el mínimo de interacciones.
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Estructura propuesta
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌─────────────────────────────────────────────────────┐
+│  Coordinación Ops          Turno: Matutino          │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─ ALERTAS (solo si hay) ────────────────────────┐ │
+│  │ 🔴 2 sin asignar  🟡 1 corrección  💰 0 gastos │ │
+│  │ [Auto-distribuir (2)]    [Cambio Turno]        │ │
+│  └────────────────────────────────────────────────┘ │
+│                                                     │
+│  ┌─ EQUIPO ───────────────────────────────────────┐ │
+│  │ ┌──────────┐ ┌──────────┐ ┌──────────┐        │ │
+│  │ │ Jose  2  │ │ Iñaki 2  │ │ Karla 3  │        │ │
+│  │ │ ●Cliente1│ │ ●Cliente3│ │ ●Cliente5│        │ │
+│  │ │ ●Cliente2│ │ ●Cliente4│ │ ●Cliente6│        │ │
+│  │ │          │ │          │ │ ●Cliente7│        │ │
+│  │ │ [+Asignar]│ │[+Asignar]│ │ ●Cliente8│        │ │
+│  │ └──────────┘ └──────────┘ └──────────┘        │ │
+│  │                                                │ │
+│  │ ── Sin turno (colapsado) ──                    │ │
+│  └────────────────────────────────────────────────┘ │
+│                                                     │
+│  ┌─ CORRECCIONES ─────────────────────────────────┐ │
+│  │ (Solo visible si hay items, colapsado a 0)     │ │
+│  └────────────────────────────────────────────────┘ │
+│                                                     │
+│  ┌─ GASTOS ───────────────────────────────────────┐ │
+│  │ (Solo visible si hay pendientes)               │ │
+│  └────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Cambios clave
 
-### Fase 2 — Migrar policies por módulo
+### 1. Barra de Alertas Ejecutiva (nuevo)
+- Strip horizontal fijo arriba con contadores: sin asignar, correcciones, gastos pendientes
+- Solo aparece si hay al menos 1 alerta. Si todo está limpio, muestra "✓ Operación al día"
+- Botones de acción global (Auto-distribuir, Cambio turno) aquí, no enterrados abajo
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+### 2. MonitoristaCard rediseñada — servicios visibles por default
+- Mostrar lista de clientes asignados **sin necesidad de expandir** (siempre abierto)
+- Cada card tiene un botón "+Asignar" que abre un popover con los servicios sin asignar para asignar **directamente a ese monitorista** (acción + contexto juntos)
+- Quitar barra de progreso abstracta, reemplazar con conteo claro "3 servicios"
+- Color del borde cambia según carga: normal (border), cargado (amber), sobrecargado (red)
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+### 3. Servicios sin asignar integrados en cada MonitoristaCard
+- Eliminar la sección separada "Sin cobertura" con su Select dropdown
+- En su lugar, el servicio sin asignar se asigna desde un popover dentro de la card del monitorista destino
+- O alternativamente: mantener una lista compacta pero con drag-intent visual (click en servicio → click en monitorista)
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### 4. Fix del bug en DestinoCorrectionSection
+- Actualmente recibe `enCursoServices` pero filtra `phase === 'en_destino'` — estos son mutuamente excluyentes
+- Corregir: pasar todos los servicios del board o crear una lista específica de `enDestinoServices` desde el hook
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+### 5. Gastos: flujo de rechazo corregido
+- Mover el campo "motivo de rechazo" **arriba** del botón rechazar
+- Separar visualmente aprobar (verde, prominente) de rechazar (outline, secundario)
+- El botón rechazar se deshabilita hasta que haya motivo escrito
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+### 6. Secciones condicionales
+- Correcciones y Gastos se colapsan automáticamente si están vacíos (solo header con "0")
+- Se expanden con animación si tienen items pendientes
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+## Archivos a modificar
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---------|--------|
+| `CoordinatorCommandCenter.tsx` | Agregar barra de alertas ejecutiva, reorganizar layout, fix de datos para correcciones |
+| `MonitoristaCard.tsx` | Mostrar servicios siempre visibles, agregar botón "+Asignar" con Popover, bordes por carga |
+| `UnassignedServiceRow.tsx` | Convertir en item de Popover en vez de row independiente |
+| `DestinoCorrectionSection.tsx` | Fix: recibir servicios en_destino correctamente |
+| `GastosAprobacionSection.tsx` | Reordenar dialog: motivo arriba de botón rechazar, deshabilitar rechazar sin motivo |
 
