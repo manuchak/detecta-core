@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle2, AlertCircle, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA } from '../../../hooks/useCxPCortesSemanales';
+import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA, CXP_UMBRAL_CORTESIA_HORAS } from '../../../hooks/useCxPCortesSemanales';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -29,6 +29,8 @@ interface ServicioDetalle {
   costo_custodio: number | null;
   casetas: number | null;
   tarifa_acordada?: number | null;
+  estadiaHrs?: number;
+  estadiaMonto?: number;
 }
 
 interface OperativoPreview {
@@ -37,6 +39,7 @@ interface OperativoPreview {
   tipo: 'custodio' | 'armado_interno';
   totalServicios: number;
   montoEstimado: number;
+  montoEstadias: number;
   yaGenerado: boolean;
   servicios: ServicioDetalle[];
 }
@@ -83,7 +86,7 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
       );
 
       // 3) Group services by custodio
-      const grouped: Record<string, { nombre: string; tipo: 'custodio' | 'armado_interno'; total: number; monto: number; servicios: ServicioDetalle[] }> = {};
+      const grouped: Record<string, { nombre: string; tipo: 'custodio' | 'armado_interno'; total: number; monto: number; montoEstadias: number; servicios: ServicioDetalle[] }> = {};
       for (const s of servicios || []) {
         if (!s.id_custodio) continue;
         if (!grouped[s.id_custodio]) {
@@ -92,6 +95,7 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
             tipo: 'custodio',
             total: 0,
             monto: 0,
+            montoEstadias: 0,
             servicios: [],
           };
         }
@@ -117,6 +121,7 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
             tipo: 'armado_interno',
             total: 0,
             monto: 0,
+            montoEstadias: 0,
             servicios: [],
           };
         }
@@ -134,16 +139,85 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
         });
       }
 
+      // 5) Calculate estadías from route events for custodios
+      const custodioKeys = Object.keys(grouped).filter(k => grouped[k].tipo === 'custodio');
+      if (custodioKeys.length > 0) {
+        // Get id_servicio for all custodio services
+        const allSvcIds = custodioKeys.flatMap(k => grouped[k].servicios.map(s => s.id as number));
+        if (allSvcIds.length > 0) {
+          const { data: svcRows } = await supabase
+            .from('servicios_custodia')
+            .select('id, id_servicio')
+            .in('id', allSvcIds);
+
+          if (svcRows && svcRows.length > 0) {
+            const idToIdServicio = new Map<number, string>();
+            const idServicioToId = new Map<string, number>();
+            for (const s of svcRows) {
+              if (s.id_servicio) {
+                idToIdServicio.set(s.id, s.id_servicio);
+                idServicioToId.set(s.id_servicio, s.id);
+              }
+            }
+            const idServicios = Array.from(idServicioToId.keys());
+
+            if (idServicios.length > 0) {
+              const { data: eventos } = await (supabase as any)
+                .from('servicio_eventos_ruta')
+                .select('servicio_id, tipo_evento, hora_inicio')
+                .in('servicio_id', idServicios)
+                .in('tipo_evento', ['llegada_destino', 'liberacion_custodio']);
+
+              if (eventos && eventos.length > 0) {
+                const evMap = new Map<string, { llegada?: string; liberacion?: string }>();
+                for (const ev of eventos) {
+                  const entry = evMap.get(ev.servicio_id) || {};
+                  if (ev.tipo_evento === 'llegada_destino') entry.llegada = ev.hora_inicio;
+                  if (ev.tipo_evento === 'liberacion_custodio') entry.liberacion = ev.hora_inicio;
+                  evMap.set(ev.servicio_id, entry);
+                }
+
+                // Map estadía back to each service detail
+                const svcIdToStadia = new Map<number, { hrs: number; monto: number }>();
+                for (const [idSvc, times] of evMap) {
+                  if (!times.llegada || !times.liberacion) continue;
+                  const deltaHrs = (new Date(times.liberacion).getTime() - new Date(times.llegada).getTime()) / 3600000;
+                  const excedente = Math.max(0, deltaHrs - CXP_UMBRAL_CORTESIA_HORAS);
+                  if (excedente <= 0) continue;
+                  const monto = Math.round(excedente * CXP_TARIFA_ESTADIA_HORA * 100) / 100;
+                  const numId = idServicioToId.get(idSvc);
+                  if (numId) svcIdToStadia.set(numId, { hrs: Math.round(excedente * 10) / 10, monto });
+                }
+
+                // Enrich grouped data
+                for (const key of custodioKeys) {
+                  for (const svc of grouped[key].servicios) {
+                    const est = svcIdToStadia.get(svc.id as number);
+                    if (est) {
+                      svc.estadiaHrs = est.hrs;
+                      svc.estadiaMonto = est.monto;
+                      grouped[key].montoEstadias += est.monto;
+                      grouped[key].monto += est.monto;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       const allIds = Object.keys(grouped);
       if (allIds.length === 0) return [];
 
-      // 5) Build preview list
+      // 6) Build preview list
       const result: OperativoPreview[] = allIds.map(id => ({
         id: grouped[id].tipo === 'armado_interno' ? id.replace('armado_', '') : id,
         nombre: grouped[id].nombre,
         tipo: grouped[id].tipo,
         totalServicios: grouped[id].total,
         montoEstimado: Math.round(grouped[id].monto * 100) / 100,
+        montoEstadias: Math.round(grouped[id].montoEstadias * 100) / 100,
         yaGenerado: cortesSet.has(grouped[id].tipo === 'armado_interno' ? id.replace('armado_', '') : id),
         servicios: grouped[id].servicios.sort((a, b) =>
           (a.fecha_hora_cita || '').localeCompare(b.fecha_hora_cita || '')
@@ -373,7 +447,14 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                           </span>
                         </TableCell>
                         <TableCell className="text-center">{op.totalServicios}</TableCell>
-                        <TableCell className="text-right font-semibold text-sm">{fmt(op.montoEstimado)}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm">
+                          <div>{fmt(op.montoEstimado)}</div>
+                          {op.montoEstadias > 0 && (
+                            <div className="text-[10px] text-muted-foreground font-normal">
+                              incl. {fmt(op.montoEstadias)} estadías
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {op.yaGenerado ? (
                             <Badge variant="secondary" className="text-[10px]">Ya generado</Badge>
@@ -402,6 +483,7 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                                         <th className="text-left py-1 font-medium">Destino</th>
                                         <th className="text-right py-1 font-medium">Costo</th>
                                         <th className="text-right py-1 font-medium">Casetas</th>
+                                        <th className="text-right py-1 font-medium">Estadía</th>
                                       </>
                                     ) : (
                                       <th className="text-right py-1 font-medium">Tarifa</th>
@@ -419,6 +501,11 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                                           <td className="py-1">{truncate(svc.destino)}</td>
                                           <td className="py-1 text-right font-medium">{fmt(svc.costo_custodio || 0)}</td>
                                           <td className="py-1 text-right">{fmt(svc.casetas || 0)}</td>
+                                          <td className="py-1 text-right">
+                                            {svc.estadiaMonto ? (
+                                              <span className="text-primary">{fmt(svc.estadiaMonto)} <span className="text-muted-foreground">({svc.estadiaHrs}h)</span></span>
+                                            ) : '—'}
+                                          </td>
                                         </>
                                       ) : (
                                         <td className="py-1 text-right font-medium">{fmt(svc.tarifa_acordada || 0)}</td>
