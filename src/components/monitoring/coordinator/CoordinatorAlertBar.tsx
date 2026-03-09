@@ -1,18 +1,19 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
   unassignedCount: number;
   correctionCount: number;
   gastosCount: number;
+  handoffCount?: number;
 }
 
 export const CoordinatorAlertBar: React.FC<Props> = ({
-  unassignedCount, correctionCount, gastosCount,
+  unassignedCount, correctionCount, gastosCount, handoffCount = 0,
 }) => {
-  const total = unassignedCount + correctionCount + gastosCount;
+  const total = unassignedCount + correctionCount + gastosCount + handoffCount;
 
   if (total === 0) {
     return (
@@ -43,6 +44,12 @@ export const CoordinatorAlertBar: React.FC<Props> = ({
           <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5 border-emerald-500/40 text-emerald-600">
             <Receipt className="h-3 w-3" />
             {gastosCount} gastos
+          </Badge>
+        )}
+        {handoffCount > 0 && (
+          <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5 border-chart-4/40 text-chart-4">
+            <ArrowRightLeft className="h-3 w-3" />
+            {handoffCount} entregas
           </Badge>
         )}
       </div>

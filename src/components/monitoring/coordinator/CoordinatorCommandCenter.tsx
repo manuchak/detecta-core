@@ -12,7 +12,9 @@ import { AutoDistributeButton } from './AutoDistributeButton';
 import { CoordinatorAlertBar } from './CoordinatorAlertBar';
 import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
+import { HandoffRevertSection } from './HandoffRevertSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
+import { useRevertHandoff } from '@/hooks/useRevertHandoff';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -26,6 +28,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
+  const { entregas: entregasRevertibles } = useRevertHandoff();
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
@@ -102,6 +105,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             unassignedCount={unassigned.length}
             correctionCount={enDestinoCount}
             gastosCount={0}
+            handoffCount={entregasRevertibles.length}
           />
 
           {/* ── Global Actions ── */}
@@ -199,7 +203,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             />
           )}
 
-          {/* ── Section 3: Gastos Extraordinarios ── */}
+          {/* ── Section 3: Reversión de Entregas de Turno ── */}
+          <HandoffRevertSection />
+
+          {/* ── Section 4: Gastos Extraordinarios ── */}
           <GastosAprobacionSection />
 
         </div>

@@ -1650,11 +1650,14 @@ export type Database = {
         Row: {
           created_at: string | null
           ejecutado_por: string | null
+          estado: string
           id: string
           incidentes_abiertos: Json | null
           monitoristas_entrantes: Json
           monitoristas_salientes: Json
           notas_generales: string | null
+          revertida_at: string | null
+          revertida_por: string | null
           servicios_cerrados: Json | null
           servicios_transferidos: Json
           turno_entrante: string
@@ -1663,11 +1666,14 @@ export type Database = {
         Insert: {
           created_at?: string | null
           ejecutado_por?: string | null
+          estado?: string
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
           monitoristas_salientes?: Json
           notas_generales?: string | null
+          revertida_at?: string | null
+          revertida_por?: string | null
           servicios_cerrados?: Json | null
           servicios_transferidos?: Json
           turno_entrante: string
@@ -1676,11 +1682,14 @@ export type Database = {
         Update: {
           created_at?: string | null
           ejecutado_por?: string | null
+          estado?: string
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
           monitoristas_salientes?: Json
           notas_generales?: string | null
+          revertida_at?: string | null
+          revertida_por?: string | null
           servicios_cerrados?: Json | null
           servicios_transferidos?: Json
           turno_entrante?: string
