@@ -118,8 +118,8 @@ export function CxPProveedoresTab() {
                 <TableHead className="text-right">Deducciones</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Factura Prov.</TableHead>
+                <TableHead>Conciliación</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
