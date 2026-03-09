@@ -220,6 +220,10 @@ export function GastosExtraTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Aprobación de solicitudes de custodios */}
+      <div className="mt-8">
+        <AprobacionGastosPanel />
+      </div>
     </div>
   );
 }
