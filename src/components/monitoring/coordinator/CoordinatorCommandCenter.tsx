@@ -203,7 +203,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             />
           )}
 
-          {/* ── Section 3: Gastos Extraordinarios ── */}
+          {/* ── Section 3: Reversión de Entregas de Turno ── */}
+          <HandoffRevertSection />
+
+          {/* ── Section 4: Gastos Extraordinarios ── */}
           <GastosAprobacionSection />
 
         </div>
