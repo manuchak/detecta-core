@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Play, Pause } from 'lucide-react';
+import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Play, Pause, ShieldCheck } from 'lucide-react';
+import { useClaveNoAmago } from '@/hooks/useClaveNoAmago';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useMonitoristaPause, type TipoPausa, getPauseLabel } from '@/hooks/useMonitoristaPause';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -40,6 +41,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
   serviceHoraCitaMap = {},
 }) => {
   const { myAssignments, isLoading, monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const { palabra: claveNoAmago, isLoading: claveLoading } = useClaveNoAmago();
   const { hasAnyRole } = useUserRole();
   const isCoordinator = hasAnyRole(COORDINATOR_ROLES as any);
 
@@ -97,6 +99,22 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
           <Radio className="h-3.5 w-3.5 text-chart-2 animate-pulse" />
           <span className="text-xs font-medium">Hoja de Seguimiento</span>
         </div>
+
+        {/* Clave de No Amago — prominent badge */}
+        {claveNoAmago && (
+          <div
+            className="flex items-center gap-1.5 rounded-md border-2 border-chart-4 bg-chart-4/15 px-3 py-1"
+            title="Clave de verificación diaria. Solicitar al custodio en situaciones de emergencia para confirmar que no está bajo coacción."
+          >
+            <ShieldCheck className="h-4 w-4 text-chart-4" />
+            <span className="text-[11px] font-semibold tracking-wide text-chart-4 uppercase">
+              No Amago:
+            </span>
+            <span className="text-sm font-bold tracking-widest text-foreground uppercase font-mono">
+              {claveNoAmago}
+            </span>
+          </div>
+        )}
 
         <div className="flex-1" />
 

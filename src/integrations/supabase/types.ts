@@ -1625,6 +1625,27 @@ export type Database = {
         }
         Relationships: []
       }
+      bitacora_clave_no_amago: {
+        Row: {
+          created_at: string | null
+          fecha: string
+          id: string
+          palabra: string
+        }
+        Insert: {
+          created_at?: string | null
+          fecha: string
+          id?: string
+          palabra: string
+        }
+        Update: {
+          created_at?: string | null
+          fecha?: string
+          id?: string
+          palabra?: string
+        }
+        Relationships: []
+      }
       bitacora_entregas_turno: {
         Row: {
           created_at: string | null
