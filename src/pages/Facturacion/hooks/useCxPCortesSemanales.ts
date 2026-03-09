@@ -176,8 +176,8 @@ export function useCreateCxPCorte() {
           if (dets) {
             for (const d of dets) {
               const hrs = (d.duracion_minutos || 0) / 60;
-              // Base rate for custodio stays — could be enriched with esquema_pago
-              const monto = Math.round(hrs * 50 * 100) / 100;
+              // Tarifa configurable — TODO: enrich from esquema_pago_custodios per operativo
+              const monto = Math.round(hrs * CXP_TARIFA_ESTADIA_HORA * 100) / 100;
               montoEstadias += monto;
               detalles.push({
                 concepto: 'estadia',
