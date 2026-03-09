@@ -17,6 +17,7 @@ export function SignaturePad({
   value,
   onChange,
   className,
+  label = '✍️ Firma Digital',
 }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
