@@ -196,42 +196,40 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
           ) : (
             <>
               {myAssignments.length > 0 && (
-                <>
-                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                    {myAssignments.length} asignados
-                  </Badge>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                  {myAssignments.length} asignados
+                </Badge>
+              )}
 
-                  {/* Pause dropdown */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2">
-                        <Coffee className="h-3 w-3" /> Pausa
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[180px]">
-                      <DropdownMenuItem onClick={() => handlePauseSelect('comida')} className="text-xs gap-2">
-                        <Coffee className="h-3.5 w-3.5" /> Comida <span className="ml-auto text-muted-foreground">(máx 1h)</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePauseSelect('bano')} className="text-xs gap-2">
-                        <Bath className="h-3.5 w-3.5" /> Baño <span className="ml-auto text-muted-foreground">(máx 10m)</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handlePauseSelect('descanso')} className="text-xs gap-2">
-                        <Eye className="h-3.5 w-3.5" /> Descanso visual <span className="ml-auto text-muted-foreground">(máx 10m)</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+              {/* Pause dropdown — always visible */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2">
+                    <Coffee className="h-3 w-3" /> Pausa
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem onClick={() => handlePauseSelect('comida')} className="text-xs gap-2">
+                    <Coffee className="h-3.5 w-3.5" /> Comida <span className="ml-auto text-muted-foreground">(máx 1h)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePauseSelect('bano')} className="text-xs gap-2">
+                    <Bath className="h-3.5 w-3.5" /> Baño <span className="ml-auto text-muted-foreground">(máx 10m)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePauseSelect('descanso')} className="text-xs gap-2">
+                    <Eye className="h-3.5 w-3.5" /> Descanso visual <span className="ml-auto text-muted-foreground">(máx 10m)</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                  {!isCoordinator && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-[10px] gap-1 px-2"
-                      onClick={() => setSelfHandoffOpen(true)}
-                    >
-                      <LogOut className="h-3 w-3" /> Entregar mi turno
-                    </Button>
-                  )}
-                </>
+              {myAssignments.length > 0 && !isCoordinator && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px] gap-1 px-2"
+                  onClick={() => setSelfHandoffOpen(true)}
+                >
+                  <LogOut className="h-3 w-3" /> Entregar mi turno
+                </Button>
               )}
             </>
           )}
