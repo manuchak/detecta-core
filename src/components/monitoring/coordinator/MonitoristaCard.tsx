@@ -107,10 +107,17 @@ export const MonitoristaCard: React.FC<Props> = ({
         {assignments.length === 0 ? (
           <p className="text-[10px] text-muted-foreground text-center py-1">Sin servicios</p>
         ) : (
-          assignments.map(a => (
+          assignments.map(a => {
+            const rawLabel = serviceLabelMap[a.servicio_id] || a.servicio_id.slice(0, 12);
+            const [folio, ...clienteParts] = rawLabel.split(' — ');
+            const cliente = clienteParts.join(' — ');
+            return (
             <div key={a.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground py-0.5">
               <User className="h-2.5 w-2.5 shrink-0" />
-              <span className="truncate">{serviceLabelMap[a.servicio_id] || a.servicio_id.slice(0, 12)}</span>
+              <span className="truncate">
+                <span className="font-mono font-medium text-foreground/80">{folio}</span>
+                {cliente && <span className="ml-1">{cliente}</span>}
+              </span>
               <div className="ml-auto flex items-center gap-1 shrink-0">
                 {a.inferred && (
                   <Badge variant="outline" className="text-[7px] px-1 py-0 border-dashed text-chart-2">
