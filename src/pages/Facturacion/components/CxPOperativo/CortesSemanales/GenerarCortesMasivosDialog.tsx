@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -285,9 +285,9 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                 operativos.map(op => {
                   const isExpanded = expandedIds.has(op.id);
                   return (
-                    <>
+                    <React.Fragment key={op.id}>
                       <TableRow
-                        key={op.id}
+
                         className={op.yaGenerado ? 'opacity-50' : 'cursor-pointer'}
                         onClick={() => !op.yaGenerado && op.totalServicios > 0 && toggleExpand(op.id)}
                       >
@@ -367,7 +367,7 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })
               )}
