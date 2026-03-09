@@ -79,11 +79,13 @@ export const BitacoraBoard: React.FC = () => {
           onCheckpoint={(data) => registrarCheckpoint.mutate(data)}
           onLlegadaDestino={(uuid, sid) => registrarLlegadaDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
           onLiberar={(uuid, sid) => liberarCustodio.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+          onRevertir={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
           onDoubleClick={handleDoubleClick}
           isCheckpointPending={registrarCheckpoint.isPending}
           isEventoPending={iniciarEventoEspecial.isPending}
           isLlegadaPending={registrarLlegadaDestino.isPending}
           isLiberarPending={liberarCustodio.isPending}
+          isRevertirPending={revertirEnDestino.isPending}
         />
 
         {/* Column 3: Evento Especial */}
