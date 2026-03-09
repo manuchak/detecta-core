@@ -37,6 +37,7 @@ export interface HandoffPayload {
   distribucion: Record<string, string>;
   notasGenerales: string;
   firmaDataUrl?: string;
+  firmaEntranteDataUrl?: string;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
