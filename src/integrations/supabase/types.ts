@@ -1667,6 +1667,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bitacora_pausas_monitorista: {
+        Row: {
+          created_at: string | null
+          estado: string
+          fin_esperado: string
+          fin_real: string | null
+          id: string
+          inicio: string
+          monitorista_id: string
+          servicios_redistribuidos: Json
+          tipo_pausa: string
+        }
+        Insert: {
+          created_at?: string | null
+          estado?: string
+          fin_esperado: string
+          fin_real?: string | null
+          id?: string
+          inicio?: string
+          monitorista_id: string
+          servicios_redistribuidos?: Json
+          tipo_pausa: string
+        }
+        Update: {
+          created_at?: string | null
+          estado?: string
+          fin_esperado?: string
+          fin_real?: string | null
+          id?: string
+          inicio?: string
+          monitorista_id?: string
+          servicios_redistribuidos?: Json
+          tipo_pausa?: string
+        }
+        Relationships: []
+      }
       business_targets: {
         Row: {
           created_at: string | null
