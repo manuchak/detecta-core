@@ -367,7 +367,7 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })
               )}
