@@ -481,7 +481,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             ) : (
               <Button
                 size="sm"
-                disabled={executeHandoff.isPending}
+                disabled={executeHandoff.isPending || !firmaEntrega}
                 onClick={handleConfirm}
               >
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
