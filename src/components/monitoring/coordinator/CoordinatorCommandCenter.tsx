@@ -111,6 +111,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             correctionCount={enDestinoCount}
             gastosCount={0}
             handoffCount={entregasRevertibles.length}
+            abandonedCount={abandonedCount}
           />
 
           {/* ── Global Actions ── */}
