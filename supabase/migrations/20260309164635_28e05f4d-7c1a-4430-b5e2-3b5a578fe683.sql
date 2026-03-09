@@ -1,0 +1,1 @@
+ALTER TABLE cxp_cortes_semanales ALTER COLUMN operativo_id TYPE text;
