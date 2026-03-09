@@ -273,6 +273,10 @@ export function useServiciosTurnoLive() {
       };
     }
 
+    // Route matching
+    const destGeo = geocodeDestino(svc.destino);
+    const route = matchRoute(svc.origen || '', svc.destino || '');
+
     return {
       id: svc.id,
       id_servicio: svc.id_servicio,
@@ -291,6 +295,9 @@ export function useServiciosTurnoLive() {
       lat,
       lng,
       positionSource,
+      destLat: destGeo?.lat ?? null,
+      destLng: destGeo?.lng ?? null,
+      corridorId: route?.corridorId ?? null,
     };
   }, [eventsByService, now]);
 
