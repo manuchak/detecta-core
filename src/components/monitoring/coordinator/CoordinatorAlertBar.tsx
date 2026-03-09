@@ -8,6 +8,7 @@ interface Props {
   correctionCount: number;
   gastosCount: number;
   handoffCount?: number;
+  abandonedCount?: number;
 }
 
 export const CoordinatorAlertBar: React.FC<Props> = ({
