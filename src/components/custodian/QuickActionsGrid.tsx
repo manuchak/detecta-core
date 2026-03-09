@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Wrench, MessageSquarePlus, AlertCircle, Phone, FileText } from "lucide-react";
+import { Wrench, MessageSquarePlus, AlertCircle, Phone, FileText, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QuickActionsGridProps {
