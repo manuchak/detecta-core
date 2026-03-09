@@ -36,6 +36,7 @@ export interface HandoffPayload {
   /** Map: servicio_id → entrante monitorista_id */
   distribucion: Record<string, string>;
   notasGenerales: string;
+  firmaDataUrl?: string;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
