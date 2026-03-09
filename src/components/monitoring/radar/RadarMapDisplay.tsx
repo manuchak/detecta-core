@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { initializeMapboxToken } from '@/lib/mapbox';
 import { RadarService, RadarSafePoint, AlertLevel, ServicePhase } from '@/hooks/useServiciosTurnoLive';
 import { matchRoute, splitRouteAtPosition } from '@/lib/radar/routeMatcher';
+import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
 
 interface RadarMapDisplayProps {
   servicios: RadarService[];
