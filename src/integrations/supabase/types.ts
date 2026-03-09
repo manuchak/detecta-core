@@ -20363,6 +20363,13 @@ export type Database = {
           tipo_vehiculo: string
         }[]
       }
+      get_monitoring_staff_profiles: {
+        Args: never
+        Returns: {
+          display_name: string
+          id: string
+        }[]
+      }
       get_monitoring_user_ids: { Args: never; Returns: string[] }
       get_monthly_productivity_stats: {
         Args: never

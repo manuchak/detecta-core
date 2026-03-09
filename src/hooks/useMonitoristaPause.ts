@@ -185,13 +185,12 @@ export function useMonitoristaPause() {
         loads[a.monitorista_id] = (loads[a.monitorista_id] || 0) + 1;
       }
 
-      // Get profiles for display
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, display_name')
-        .in('id', availableIds);
-
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.display_name]));
+      // Get profiles via SECURITY DEFINER RPC (bypasses RLS on profiles)
+      const { data: staffProfiles } = await supabase.rpc('get_monitoring_staff_profiles' as any);
+      const profileMap = new Map(
+        ((staffProfiles || []) as Array<{ id: string; display_name: string }>)
+          .map(p => [p.id, p.display_name])
+      );
 
       const distribution = distributeEquitably(
         myAssignments.map((a: any) => a.servicio_id),

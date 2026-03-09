@@ -103,7 +103,7 @@ export const PauseConfirmDialog: React.FC<PauseConfirmDialogProps> = ({
             <>
               <div className="p-3 rounded-md border bg-muted/20 space-y-2">
                 <p className="text-xs font-medium">
-                  {preview.assignments.length} servicio{preview.assignments.length !== 1 ? 's' : ''} se redistribuirán a:
+                  {preview.assignments.length} servicio{preview.assignments.length !== 1 ? 's' : ''} se redistribuirán <strong>automáticamente</strong> a:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {preview.available
@@ -127,7 +127,7 @@ export const PauseConfirmDialog: React.FC<PauseConfirmDialogProps> = ({
                   htmlFor="pause-confirm"
                   className="text-xs text-muted-foreground cursor-pointer leading-tight"
                 >
-                  Confirmo que inicio mi pausa de {getPauseLabel(tipoPausa).toLowerCase()} (máx {duracion} min)
+                  Confirmo que inicio mi pausa de {getPauseLabel(tipoPausa).toLowerCase()} (máx {duracion} min). La redistribución es automática y se revertirá al retomar.
                 </Label>
               </div>
             </>
