@@ -39,6 +39,7 @@ interface OperativoPreview {
   tipo: 'custodio' | 'armado_interno';
   totalServicios: number;
   montoEstimado: number;
+  montoEstadias: number;
   yaGenerado: boolean;
   servicios: ServicioDetalle[];
 }
