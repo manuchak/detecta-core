@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import { RadarService } from '@/hooks/useServiciosTurnoLive';
 import { EVENTO_ICONS, TipoEventoRuta } from '@/hooks/useEventosRuta';
 
@@ -27,6 +27,7 @@ interface GroupDef {
   sort: (a: RadarService, b: RadarService) => number;
 }
 
+// Order: Alerta → En Ruta → Por Iniciar → En Evento
 const GROUPS: GroupDef[] = [
   {
     key: 'alerta',
@@ -34,13 +35,6 @@ const GROUPS: GroupDef[] = [
     color: 'hsl(0, 84%, 60%)',
     filter: s => s.alertLevel === 'critical' || s.alertLevel === 'warning',
     sort: (a, b) => b.minutesSinceLastAction - a.minutesSinceLastAction,
-  },
-  {
-    key: 'evento',
-    label: 'EN EVENTO',
-    color: 'hsl(271, 91%, 65%)',
-    filter: s => s.phase === 'evento_especial' && s.alertLevel === 'normal',
-    sort: (a, b) => (b.activeEvent?.minutosActivo || 0) - (a.activeEvent?.minutosActivo || 0),
   },
   {
     key: 'enruta',
@@ -56,6 +50,13 @@ const GROUPS: GroupDef[] = [
     filter: s => s.phase === 'por_iniciar',
     sort: (a, b) => new Date(a.fecha_hora_cita).getTime() - new Date(b.fecha_hora_cita).getTime(),
   },
+  {
+    key: 'evento',
+    label: 'EN EVENTO',
+    color: 'hsl(271, 91%, 65%)',
+    filter: s => s.phase === 'evento_especial' && s.alertLevel === 'normal',
+    sort: (a, b) => (b.activeEvent?.minutosActivo || 0) - (a.activeEvent?.minutosActivo || 0),
+  },
 ];
 
 function getBarColor(s: RadarService): string {
@@ -70,15 +71,15 @@ function formatTimer(mins: number): string {
   return `${h}h${m > 0 ? ` ${m}m` : ''}`;
 }
 
-const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+/** Auto-scroll hook for a single block */
+function useBlockAutoScroll(items: RadarService[]) {
+  const ref = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll (only for the non-alert zone)
   useEffect(() => {
-    const el = scrollRef.current;
+    const el = ref.current;
     if (!el) return;
     let animFrame: number;
-    const speed = 0.5;
+    const speed = 0.4;
     const step = () => {
       if (!el) return;
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
@@ -89,88 +90,98 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
       animFrame = requestAnimationFrame(step);
     };
     const timer = setTimeout(() => {
-      if (el.scrollHeight > el.clientHeight + 20) {
+      if (el.scrollHeight > el.clientHeight + 10) {
         animFrame = requestAnimationFrame(step);
       }
     }, 3000);
     return () => { clearTimeout(timer); cancelAnimationFrame(animFrame); };
-  }, [servicios]);
+  }, [items]);
 
+  return ref;
+}
+
+/** A single equitable block with its own scroll */
+const ServiceBlock = ({ group, items }: { group: GroupDef; items: RadarService[] }) => {
+  const scrollRef = useBlockAutoScroll(items);
+  const isAlert = group.key === 'alerta';
+
+  return (
+    <div className={`h-1/4 flex flex-col min-h-0 border-b border-white/10 last:border-b-0 ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
+      {/* Group header */}
+      <div className={`flex items-center gap-2 px-3 py-1 shrink-0 ${isAlert && items.length > 0 ? 'bg-red-950/40' : 'bg-white/[0.07]'}`}>
+        <div className="h-px flex-1 bg-white/20" />
+        <span
+          className={`text-xs font-bold tracking-wider shrink-0 ${isAlert && items.length > 0 ? 'animate-pulse' : ''}`}
+          style={{ color: group.color }}
+        >
+          {group.label} ({items.length})
+        </span>
+        <div className="h-px flex-1 bg-white/20" />
+      </div>
+
+      {/* Scrollable content */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
+        {items.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-600 text-xs">
+            Sin servicios
+          </div>
+        ) : (
+          items.map(s => (
+            <div key={s.id} className="flex border-b border-white/5">
+              <div
+                className="w-1 shrink-0 rounded-full my-1"
+                style={{ backgroundColor: getBarColor(s) }}
+              />
+              <div className="flex-1 pl-3 min-w-0 py-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-semibold truncate text-base">
+                    {s.nombre_cliente}
+                  </span>
+                </div>
+                <div className="text-gray-500 truncate text-xs">
+                  {s.origen} → {s.destino}
+                </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-gray-400 truncate text-xs">
+                    {s.custodio_asignado || 'Sin custodio'}
+                  </span>
+                  {s.phase !== 'por_iniciar' && (
+                    <span
+                      className="font-mono font-bold tabular-nums shrink-0 text-xs"
+                      style={{ color: getBarColor(s) }}
+                    >
+                      ⏱ {formatTimer(s.minutesSinceLastAction)}
+                    </span>
+                  )}
+                  {s.activeEvent && (
+                    <span className="shrink-0 text-xs" style={{ color: 'hsl(271, 91%, 65%)' }}>
+                      {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}{' '}
+                      {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.label || s.activeEvent.tipo}{' '}
+                      · {s.activeEvent.minutosActivo}m
+                    </span>
+                  )}
+                  {s.phase === 'por_iniciar' && s.fecha_hora_cita && (
+                    <span className="font-mono text-blue-400 shrink-0 text-xs">
+                      {new Date(s.fecha_hora_cita).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
   const groupedData = useMemo(() => {
     return GROUPS.map(g => ({
       ...g,
       items: servicios.filter(g.filter).sort(g.sort),
-    })).filter(g => g.items.length > 0);
+    }));
   }, [servicios]);
-
-  const alertGroup = useMemo(() => groupedData.filter(g => g.key === 'alerta'), [groupedData]);
-  const restGroups = useMemo(() => groupedData.filter(g => g.key !== 'alerta'), [groupedData]);
-  const hasAlerts = alertGroup.length > 0 && alertGroup[0].items.length > 0;
-
-  if (servicios.length === 0) {
-    return (
-      <div className="h-full flex items-center justify-center text-gray-500 text-lg">
-        Sin servicios activos
-      </div>
-    );
-  }
-
-  const renderServiceItem = (s: RadarService, compact = false) => (
-    <div key={s.id} className="flex border-b border-white/5">
-      <div
-        className="w-1 shrink-0 rounded-full my-1"
-        style={{ backgroundColor: getBarColor(s) }}
-      />
-      <div className={`flex-1 pl-3 min-w-0 ${compact ? 'py-2' : 'py-3'}`}>
-        <div className="flex items-center gap-3">
-          <span className={`text-white font-semibold truncate ${compact ? 'text-base' : 'text-lg'}`}>
-            {s.nombre_cliente}
-          </span>
-        </div>
-        <div className={`text-gray-500 truncate ${compact ? 'text-xs' : 'text-sm'}`}>
-          {s.origen} → {s.destino}
-        </div>
-        <div className="flex items-center gap-3 mt-0.5">
-          <span className={`text-gray-400 truncate ${compact ? 'text-xs' : 'text-sm'}`}>
-            {s.custodio_asignado || 'Sin custodio'}
-          </span>
-          {s.phase !== 'por_iniciar' && (
-            <span
-              className={`font-mono font-bold tabular-nums shrink-0 ${compact ? 'text-xs' : 'text-sm'}`}
-              style={{ color: getBarColor(s) }}
-            >
-              ⏱ {formatTimer(s.minutesSinceLastAction)}
-            </span>
-          )}
-          {s.activeEvent && (
-            <span className={`shrink-0 ${compact ? 'text-xs' : 'text-sm'}`} style={{ color: 'hsl(271, 91%, 65%)' }}>
-              {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}{' '}
-              {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.label || s.activeEvent.tipo}{' '}
-              · {s.activeEvent.minutosActivo}m
-            </span>
-          )}
-          {s.phase === 'por_iniciar' && s.fecha_hora_cita && (
-            <span className={`font-mono text-blue-400 shrink-0 ${compact ? 'text-xs' : 'text-sm'}`}>
-              {new Date(s.fecha_hora_cita).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderGroupHeader = (group: typeof groupedData[0]) => (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.07]">
-      <div className="h-px flex-1 bg-white/20" />
-      <span
-        className="text-sm font-bold tracking-wider shrink-0"
-        style={{ color: group.color }}
-      >
-        {group.label} ({group.items.length})
-      </span>
-      <div className="h-px flex-1 bg-white/20" />
-    </div>
-  );
 
   return (
     <div className="h-full flex flex-col">
@@ -179,37 +190,10 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
         SERVICIOS ({servicios.length})
       </div>
 
-      {/* Fixed alert zone — always visible, never auto-scrolled */}
-      {hasAlerts && (
-        <div className="shrink-0 max-h-[45%] overflow-y-auto bg-red-950/20 border-b-2 border-red-500/40">
-          {alertGroup.map(group => (
-            <div key={group.key}>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/40 animate-pulse">
-                <div className="h-px flex-1 bg-red-500/30" />
-                <span className="text-sm font-bold tracking-wider shrink-0 text-red-400">
-                  {group.label} ({group.items.length})
-                </span>
-                <div className="h-px flex-1 bg-red-500/30" />
-              </div>
-              <div className="grid grid-cols-2 gap-px bg-white/5">
-                {group.items.map(s => (
-                  <div key={s.id} className="bg-gray-950">
-                    {renderServiceItem(s, true)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Scrollable zone — auto-scroll for remaining groups */}
-      <div ref={scrollRef} className="flex-1 overflow-hidden min-h-0">
-        {restGroups.map(group => (
-          <div key={group.key}>
-            {renderGroupHeader(group)}
-            {group.items.map(s => renderServiceItem(s))}
-          </div>
+      {/* 4 equitable blocks */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {groupedData.map(group => (
+          <ServiceBlock key={group.key} group={group} items={group.items} />
         ))}
       </div>
     </div>
