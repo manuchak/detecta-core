@@ -1,97 +1,103 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Rediseño: Cambio de Turno Efectivo
 
-## Roles confirmados por módulo
+## Diagnóstico del diseño actual
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+El cambio de turno actual tiene problemas fundamentales de modelo operativo:
 
----
+| Problema | Detalle |
+|----------|---------|
+| **Ejecutor incorrecto** | Lo ejecuta el coordinador desde el Command Center. El monitorista saliente debería ser quien entrega su turno — él conoce el contexto de cada servicio |
+| **Solo 1:1** | Un from → un to. No soporta el caso real: 2 monitoristas matutinos → 1 nocturno, o 1 nocturno → 3 matutinos |
+| **Sin contexto por servicio** | Muestra UUIDs truncados. El entrante no sabe qué cliente es, en qué fase está, si hay incidencias |
+| **Sin documento de entrega** | La nota es un texto libre global. No hay acta firmada que deslinde responsabilidades |
+| **Ciego a incidentes** | No consulta `incidentes_operativos` abiertos. El entrante puede heredar una crisis sin saberlo |
+| **Sin distribución inteligente** | Al ir de 1→N, no distribuye equitativamente; al ir de N→1, requiere N operaciones manuales |
 
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Modelo operativo propuesto
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+CASO 1: Matutino → Nocturno (N:1)
+┌──────────┐  ┌──────────┐
+│ Jose (5)  │  │ Maria (3)│    ──→   Carlos (8 servicios)
+│ entrega   │  │ entrega  │          recibe todo
+└──────────┘  └──────────┘
+
+CASO 2: Nocturno → Matutino (1:N)  
+┌──────────┐
+│ Carlos(8) │    ──→   Jose (3) + Maria (3) + Karla (2)
+│ entrega   │          distribución equitativa
+└──────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Flujo UX propuesto
 
-### Fase 2 — Migrar policies por módulo
+### Paso 1: Contexto del turno saliente
+- Auto-detectar monitoristas en turno activo (salientes)
+- Mostrar resumen: X servicios activos, Y incidentes abiertos, Z eventos especiales en curso
+- El saliente agrega **notas por servicio** (no solo una nota global)
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+### Paso 2: Selección de entrantes
+- Multi-select de monitoristas entrantes (1 o más)
+- Si hay más de 1 entrante → mostrar opción de distribución:
+  - **Automática** (equitativa por carga)
+  - **Manual** (drag o assign individual)
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+### Paso 3: Resumen con alertas
+- Lista de cada servicio con: cliente, fase actual, último evento, tiempo sin actividad
+- Bandera roja en servicios con incidentes abiertos
+- Bandera ámbar en servicios con eventos especiales activos (pausa, desvío)
+- Notas del saliente visibles por servicio
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### Paso 4: Confirmación y Acta
+- Generar un registro de entrega en una nueva tabla `bitacora_entregas_turno`
+- Campos: timestamp, salientes[], entrantes[], servicios transferidos, servicios cerrados por inactividad, incidentes heredados, notas por servicio, firmado por (user que confirma)
+- Toast de confirmación con resumen
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+## Cambios técnicos
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+### 1. Nueva tabla: `bitacora_entregas_turno`
+```sql
+CREATE TABLE bitacora_entregas_turno (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  turno_saliente text NOT NULL,
+  turno_entrante text NOT NULL,
+  ejecutado_por uuid REFERENCES auth.users(id),
+  monitoristas_salientes jsonb NOT NULL, -- [{id, display_name}]
+  monitoristas_entrantes jsonb NOT NULL,
+  servicios_transferidos jsonb NOT NULL, -- [{servicio_id, cliente, fase, notas_servicio}]
+  servicios_cerrados jsonb DEFAULT '[]',
+  incidentes_abiertos jsonb DEFAULT '[]', -- [{incidente_id, tipo, severidad}]
+  notas_generales text,
+  created_at timestamptz DEFAULT now()
+);
+```
+Con RLS para monitoring roles.
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+### 2. Hook `useShiftHandoff.ts` (nuevo)
+- Reemplaza la lógica inline de `handoffTurno` en `useMonitoristaAssignment`
+- Soporta N:1 y 1:N
+- Consulta `incidentes_operativos` abiertos vinculados a servicios activos
+- Genera registro en `bitacora_entregas_turno`
+- Distribuye equitativamente cuando hay múltiples entrantes
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### 3. `ShiftHandoffDialog.tsx` (rediseño completo)
+- Wizard de 3 pasos en vez de formulario plano
+- Paso 1: Auto-detecta salientes, muestra resumen
+- Paso 2: Multi-select entrantes + modo distribución
+- Paso 3: Resumen con alertas de incidentes + confirmación
+- Notas por servicio (expandible) además de nota general
 
-### Archivos a modificar
+### 4. Acceso dual
+- **Coordinador**: accede desde Command Center (como hoy) — puede ejecutar para cualquiera
+- **Monitorista**: nuevo botón "Entregar mi turno" en la `MonitoristaAssignmentBar` — solo entrega sus propios servicios
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---------|--------|
+| Migración SQL | Crear `bitacora_entregas_turno` + RLS |
+| `src/hooks/useShiftHandoff.ts` | Nuevo hook con lógica N:M, incidentes, acta |
+| `src/components/monitoring/bitacora/ShiftHandoffDialog.tsx` | Rediseño wizard 3 pasos |
+| `src/hooks/useMonitoristaAssignment.ts` | Remover `handoffTurno` inline (mover a nuevo hook) |
+| `src/components/monitoring/bitacora/MonitoristaAssignmentBar.tsx` | Agregar botón "Entregar mi turno" para monitoristas |
 
