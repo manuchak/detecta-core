@@ -447,7 +447,14 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                           </span>
                         </TableCell>
                         <TableCell className="text-center">{op.totalServicios}</TableCell>
-                        <TableCell className="text-right font-semibold text-sm">{fmt(op.montoEstimado)}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm">
+                          <div>{fmt(op.montoEstimado)}</div>
+                          {op.montoEstadias > 0 && (
+                            <div className="text-[10px] text-muted-foreground font-normal">
+                              incl. {fmt(op.montoEstadias)} estadías
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {op.yaGenerado ? (
                             <Badge variant="secondary" className="text-[10px]">Ya generado</Badge>
