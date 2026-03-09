@@ -14,8 +14,7 @@ const CreateExpenseForm = () => {
   const [tipo, setTipo] = useState('');
   const [motivo, setMotivo] = useState('');
   const [monto, setMonto] = useState('');
-  const [urgencia, setUrgencia] = useState('normal');
-  const [notas, setNotas] = useState('');
+  const [folio, setFolio] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
