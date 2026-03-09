@@ -396,21 +396,33 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                                   <tr className="text-muted-foreground">
                                     <th className="text-left py-1 font-medium">ID</th>
                                     <th className="text-left py-1 font-medium">Fecha</th>
-                                    <th className="text-left py-1 font-medium">Origen</th>
-                                    <th className="text-left py-1 font-medium">Destino</th>
-                                    <th className="text-right py-1 font-medium">Costo</th>
-                                    <th className="text-right py-1 font-medium">Casetas</th>
+                                    {op.tipo === 'custodio' ? (
+                                      <>
+                                        <th className="text-left py-1 font-medium">Origen</th>
+                                        <th className="text-left py-1 font-medium">Destino</th>
+                                        <th className="text-right py-1 font-medium">Costo</th>
+                                        <th className="text-right py-1 font-medium">Casetas</th>
+                                      </>
+                                    ) : (
+                                      <th className="text-right py-1 font-medium">Tarifa</th>
+                                    )}
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {op.servicios.map(svc => (
-                                    <tr key={svc.id} className="border-t border-border/50">
+                                    <tr key={String(svc.id)} className="border-t border-border/50">
                                       <td className="py-1 text-muted-foreground">{svc.id}</td>
                                       <td className="py-1">{formatFecha(svc.fecha_hora_cita)}</td>
-                                      <td className="py-1">{truncate(svc.origen)}</td>
-                                      <td className="py-1">{truncate(svc.destino)}</td>
-                                      <td className="py-1 text-right font-medium">{fmt(svc.costo_custodio || 0)}</td>
-                                      <td className="py-1 text-right">{fmt(svc.casetas || 0)}</td>
+                                      {op.tipo === 'custodio' ? (
+                                        <>
+                                          <td className="py-1">{truncate(svc.origen)}</td>
+                                          <td className="py-1">{truncate(svc.destino)}</td>
+                                          <td className="py-1 text-right font-medium">{fmt(svc.costo_custodio || 0)}</td>
+                                          <td className="py-1 text-right">{fmt(svc.casetas || 0)}</td>
+                                        </>
+                                      ) : (
+                                        <td className="py-1 text-right font-medium">{fmt(svc.tarifa_acordada || 0)}</td>
+                                      )}
                                     </tr>
                                   ))}
                                 </tbody>
