@@ -69,7 +69,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
       const result: EstadiaCalculada[] = [];
 
       for (const svc of servicios) {
-        const key = svc.id_servicio || svc.folio_saphiro;
+        const key = svc.id_servicio || svc.folio_cliente;
         if (!key) continue;
         const evts = eventosMap.get(key) || [];
         const llegada = evts.find((e: any) => e.tipo_evento === 'llegada_destino');
