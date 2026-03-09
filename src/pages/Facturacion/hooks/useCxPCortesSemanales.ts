@@ -162,7 +162,35 @@ export function useCreateCxPCorte() {
         }
       }
 
-      // 2) Fetch approved apoyos extraordinarios in the week
+      // 2) Fetch detenciones pagables al custodio for these services
+      let montoEstadias = 0;
+      if (data.tipo_operativo === 'custodio' && detalles.length > 0) {
+        const svcIds = detalles.filter(d => d.concepto === 'servicio' && d.servicio_custodia_id).map(d => d.servicio_custodia_id!);
+        if (svcIds.length > 0) {
+          const { data: dets } = await supabase
+            .from('detenciones_servicio')
+            .select('servicio_id, duracion_minutos, tipo_detencion')
+            .in('servicio_id', svcIds)
+            .eq('pagable_custodio', true);
+
+          if (dets) {
+            for (const d of dets) {
+              const hrs = (d.duracion_minutos || 0) / 60;
+              // Base rate for custodio stays — could be enriched with esquema_pago
+              const monto = Math.round(hrs * 50 * 100) / 100;
+              montoEstadias += monto;
+              detalles.push({
+                concepto: 'estadia',
+                descripcion: `Estadía ${d.tipo_detencion || ''} (${Math.round(hrs * 10) / 10}h)`,
+                monto,
+                servicio_custodia_id: d.servicio_id,
+              });
+            }
+          }
+        }
+      }
+
+      // 3) Fetch approved apoyos extraordinarios in the week
       let montoApoyos = 0;
       if (data.operativo_id) {
         const { data: apoyos } = await supabase
@@ -187,7 +215,7 @@ export function useCreateCxPCorte() {
         }
       }
 
-      // 3) Fetch hotel gastos
+      // 4) Fetch hotel gastos
       let montoHoteles = 0;
       if (data.operativo_id) {
         const { data: hoteles } = await supabase
@@ -213,7 +241,7 @@ export function useCreateCxPCorte() {
         }
       }
 
-      const montoTotal = montoServicios + montoCasetas + montoHoteles + montoApoyos;
+      const montoTotal = montoServicios + montoCasetas + montoEstadias + montoHoteles + montoApoyos;
 
       // 4) Insert corte header
       const { data: corte, error } = await supabase
