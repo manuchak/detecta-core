@@ -11,7 +11,7 @@ import { useCreateCxPCorte } from '../../../hooks/useCxPCortesSemanales';
 import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, AlertTriangle } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -88,8 +88,6 @@ function usePreviewCorte(
             montoServicios += Number(s.costo_custodio) || 0;
             montoCasetas += Number(s.casetas) || 0;
           }
-
-          // Check detenciones pagables
           if (servicios.length > 0) {
             const svcIds = servicios.map(s => s.id);
             const { data: dets } = await supabase
@@ -98,7 +96,6 @@ function usePreviewCorte(
               .in('servicio_id', svcIds)
               .eq('pagable_custodio', true);
             if (dets) {
-              // Estimate stay cost (flat for preview)
               montoEstadias = dets.reduce((s, d) => s + ((d.duracion_minutos || 0) / 60) * 50, 0);
             }
           }
@@ -112,14 +109,12 @@ function usePreviewCorte(
           .eq('estado_asignacion', 'completado')
           .gte('hora_encuentro', `${semanaInicio}T00:00:00`)
           .lte('hora_encuentro', `${semanaFin}T23:59:59`);
-
         if (asignaciones) {
           totalServicios = asignaciones.length;
           montoServicios = asignaciones.reduce((s, a) => s + (Number(a.tarifa_acordada) || 0), 0);
         }
       }
 
-      // Hoteles
       const { data: hoteles } = await supabase
         .from('gastos_extraordinarios_servicio')
         .select('monto')
@@ -130,7 +125,6 @@ function usePreviewCorte(
         .lte('created_at', `${semanaFin}T23:59:59`);
       if (hoteles) montoHoteles = hoteles.reduce((s, h) => s + (Number(h.monto) || 0), 0);
 
-      // Apoyos
       const { data: apoyos } = await supabase
         .from('solicitudes_apoyo_extraordinario')
         .select('monto_aprobado')
@@ -152,6 +146,27 @@ function usePreviewCorte(
     },
     enabled: !!operativoId && !!semanaInicio && !!semanaFin,
     staleTime: 30_000,
+  });
+}
+
+// Duplicate check hook
+function useDuplicateCheck(operativoId: string, semanaInicio: string, semanaFin: string) {
+  return useQuery({
+    queryKey: ['corte-duplicate-check', operativoId, semanaInicio, semanaFin],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cxp_cortes_semanales')
+        .select('id, estado')
+        .eq('operativo_id', operativoId)
+        .gte('semana_inicio', semanaInicio)
+        .lte('semana_fin', semanaFin)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!operativoId && !!semanaInicio && !!semanaFin,
+    staleTime: 10_000,
   });
 }
 
@@ -185,6 +200,12 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
     form.semana_fin,
   );
 
+  const { data: duplicate } = useDuplicateCheck(
+    form.operativo_id,
+    form.semana_inicio,
+    form.semana_fin,
+  );
+
   const operativosFiltrados = useMemo(() => {
     if (!busqueda) return operativos;
     const q = busqueda.toLowerCase();
@@ -194,7 +215,7 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
   const selectedOp = operativos.find(o => o.id === form.operativo_id);
 
   const handleCreate = async () => {
-    if (!form.operativo_id || !selectedOp) return;
+    if (!form.operativo_id || !selectedOp || duplicate) return;
     await createMutation.mutateAsync({
       tipo_operativo: form.tipo_operativo,
       operativo_nombre: selectedOp.nombre,
@@ -205,6 +226,8 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
     });
     onOpenChange(false);
   };
+
+  const isDisabled = !form.operativo_id || createMutation.isPending || (preview?.totalServicios === 0) || !!duplicate;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -273,6 +296,16 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
             )}
           </div>
 
+          {/* Duplicate warning */}
+          {duplicate && (
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+              <p className="text-xs text-destructive">
+                Este operativo ya tiene un corte generado para esta semana (estado: {duplicate.estado}). No se puede crear otro.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{startLabel} *</Label>
@@ -293,7 +326,7 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
           </div>
 
           {/* Preview */}
-          {form.operativo_id && (
+          {form.operativo_id && !duplicate && (
             <Card className="p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">Preview del Corte</p>
@@ -356,10 +389,7 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button
-            onClick={handleCreate}
-            disabled={!form.operativo_id || createMutation.isPending || (preview?.totalServicios === 0)}
-          >
+          <Button onClick={handleCreate} disabled={isDisabled}>
             Generar Corte
           </Button>
         </DialogFooter>
