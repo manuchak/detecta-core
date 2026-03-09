@@ -283,6 +283,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           incidentes_abiertos: allIncidents,
           notas_generales: payload.notasGenerales,
           firma_data_url: payload.firmaDataUrl || null,
+          firma_entrante_data_url: payload.firmaEntranteDataUrl || null,
         });
 
       return {

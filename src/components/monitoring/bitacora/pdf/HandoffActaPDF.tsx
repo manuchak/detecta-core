@@ -136,16 +136,25 @@ export const HandoffActaPDF: React.FC<{ data: HandoffActaData }> = ({ data }) =>
           </Text>
         </View>
 
-        {/* 7. Firma Digital */}
-        {data.firmaBase64 && (
+        {/* 7. Firmas de Entrega */}
+        {(data.firmaBase64 || data.firmaEntranteBase64) && (
           <>
-            <SectionHeader title="7. Firma de Entrega" />
-            <SignatureBlock
-              title="Firma del Coordinador / Monitorista Saliente"
-              signatureBase64={data.firmaBase64}
-              email={data.firmaEmail}
-              timestamp={data.firmaTimestamp}
-            />
+            <SectionHeader title="7. Firmas de Entrega" />
+            {data.firmaBase64 && (
+              <SignatureBlock
+                title="Firma del Monitorista Saliente"
+                signatureBase64={data.firmaBase64}
+                email={data.firmaEmail}
+                timestamp={data.firmaTimestamp}
+              />
+            )}
+            {data.firmaEntranteBase64 && (
+              <SignatureBlock
+                title="Firma del Monitorista Entrante"
+                signatureBase64={data.firmaEntranteBase64}
+                timestamp={data.firmaTimestamp}
+              />
+            )}
           </>
         )}
       </ReportPage>
