@@ -73,7 +73,7 @@ function formatTimer(mins: number): string {
 const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll
+  // Auto-scroll (only for the non-alert zone)
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -103,6 +103,10 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
     })).filter(g => g.items.length > 0);
   }, [servicios]);
 
+  const alertGroup = useMemo(() => groupedData.filter(g => g.key === 'alerta'), [groupedData]);
+  const restGroups = useMemo(() => groupedData.filter(g => g.key !== 'alerta'), [groupedData]);
+  const hasAlerts = alertGroup.length > 0 && alertGroup[0].items.length > 0;
+
   if (servicios.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500 text-lg">
@@ -111,80 +115,94 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
     );
   }
 
+  const renderServiceItem = (s: RadarService) => (
+    <div key={s.id} className="flex border-b border-white/5">
+      <div
+        className="w-1 shrink-0 rounded-full my-1"
+        style={{ backgroundColor: getBarColor(s) }}
+      />
+      <div className="flex-1 pl-3 py-3 min-w-0">
+        <div className="flex items-center gap-3">
+          <span className="text-lg text-white font-semibold truncate">
+            {s.nombre_cliente}
+          </span>
+        </div>
+        <div className="text-sm text-gray-500 truncate">
+          {s.origen} → {s.destino}
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-sm text-gray-400 truncate">
+            {s.custodio_asignado || 'Sin custodio'}
+          </span>
+          {s.phase !== 'por_iniciar' && (
+            <span
+              className="text-sm font-mono font-bold tabular-nums shrink-0"
+              style={{ color: getBarColor(s) }}
+            >
+              ⏱ {formatTimer(s.minutesSinceLastAction)}
+            </span>
+          )}
+          {s.activeEvent && (
+            <span className="text-sm shrink-0" style={{ color: 'hsl(271, 91%, 65%)' }}>
+              {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}{' '}
+              {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.label || s.activeEvent.tipo}{' '}
+              · {s.activeEvent.minutosActivo}m
+            </span>
+          )}
+          {s.phase === 'por_iniciar' && s.fecha_hora_cita && (
+            <span className="text-sm font-mono text-blue-400 shrink-0">
+              {new Date(s.fecha_hora_cita).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderGroupHeader = (group: typeof groupedData[0]) => (
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.07]">
+      <div className="h-px flex-1 bg-white/20" />
+      <span
+        className="text-sm font-bold tracking-wider shrink-0"
+        style={{ color: group.color }}
+      >
+        {group.label} ({group.items.length})
+      </span>
+      <div className="h-px flex-1 bg-white/20" />
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col">
-      <div className="text-base font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10">
+      {/* Header */}
+      <div className="text-base font-semibold tracking-widest text-gray-500 uppercase px-3 py-2 border-b border-white/10 shrink-0">
         SERVICIOS ({servicios.length})
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-hidden">
-        {groupedData.map(group => (
-          <div key={group.key}>
-            {/* Group header */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/[0.07]">
-              <div className="h-px flex-1 bg-white/20" />
-              <span
-                className="text-sm font-bold tracking-wider shrink-0"
-                style={{ color: group.color }}
-              >
-                {group.label} ({group.items.length})
-              </span>
-              <div className="h-px flex-1 bg-white/20" />
-            </div>
 
-            {/* Services */}
-            {group.items.map(s => (
-              <div key={s.id} className="flex border-b border-white/5">
-                {/* Status bar */}
-                <div
-                  className="w-1 shrink-0 rounded-full my-1"
-                  style={{ backgroundColor: getBarColor(s) }}
-                />
-                <div className="flex-1 pl-3 py-3 min-w-0">
-                  {/* Line 1: folio + client */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg text-white font-semibold truncate">
-                      {s.nombre_cliente}
-                    </span>
-                  </div>
-                  {/* Line 2: route */}
-                  <div className="text-sm text-gray-500 truncate">
-                    {s.origen} → {s.destino}
-                  </div>
-                  {/* Line 3: custodian + timer/event */}
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-sm text-gray-400 truncate">
-                      {s.custodio_asignado || 'Sin custodio'}
-                    </span>
-
-                    {/* Timer (only for active services) */}
-                    {s.phase !== 'por_iniciar' && (
-                      <span
-                        className="text-sm font-mono font-bold tabular-nums shrink-0"
-                        style={{ color: getBarColor(s) }}
-                      >
-                        ⏱ {formatTimer(s.minutesSinceLastAction)}
-                      </span>
-                    )}
-
-                    {/* Active event badge */}
-                    {s.activeEvent && (
-                      <span className="text-sm shrink-0" style={{ color: 'hsl(271, 91%, 65%)' }}>
-                        {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.icon || '📍'}{' '}
-                        {EVENTO_ICONS[s.activeEvent.tipo as TipoEventoRuta]?.label || s.activeEvent.tipo}{' '}
-                        · {s.activeEvent.minutosActivo}m
-                      </span>
-                    )}
-
-                    {/* Por iniciar: show appointment time */}
-                    {s.phase === 'por_iniciar' && s.fecha_hora_cita && (
-                      <span className="text-sm font-mono text-blue-400 shrink-0">
-                        {new Date(s.fecha_hora_cita).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                      </span>
-                    )}
-                  </div>
-                </div>
+      {/* Fixed alert zone — always visible, never auto-scrolled */}
+      {hasAlerts && (
+        <div className="shrink-0 max-h-[40%] overflow-y-auto bg-red-950/20 border-b-2 border-red-500/40">
+          {alertGroup.map(group => (
+            <div key={group.key}>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/40 animate-pulse">
+                <div className="h-px flex-1 bg-red-500/30" />
+                <span className="text-sm font-bold tracking-wider shrink-0 text-red-400">
+                  {group.label} ({group.items.length})
+                </span>
+                <div className="h-px flex-1 bg-red-500/30" />
               </div>
-            ))}
+              {group.items.map(renderServiceItem)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Scrollable zone — auto-scroll for remaining groups */}
+      <div ref={scrollRef} className="flex-1 overflow-hidden min-h-0">
+        {restGroups.map(group => (
+          <div key={group.key}>
+            {renderGroupHeader(group)}
+            {group.items.map(renderServiceItem)}
           </div>
         ))}
       </div>
