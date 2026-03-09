@@ -94,8 +94,8 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
         result.push({
           servicioId: svc.id,
           idServicio: key,
-          folio: svc.folio_saphiro || key,
-          cliente: svc.cliente || 'N/A',
+          folio: svc.folio_cliente || key,
+          cliente: svc.nombre_cliente || 'N/A',
           ruta: svc.ruta || 'N/A',
           localForaneo: svc.local_foraneo || 'Local',
           fechaServicio: svc.fecha_hora_cita?.split('T')[0] || '',
