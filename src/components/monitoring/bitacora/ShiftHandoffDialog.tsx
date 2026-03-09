@@ -64,6 +64,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setNotasGenerales('');
       setNotasPorServicio({});
       setManualDistribucion({});
+      setFirmaEntrega(null);
     }
   }, [open, effectiveSelfId]);
 
