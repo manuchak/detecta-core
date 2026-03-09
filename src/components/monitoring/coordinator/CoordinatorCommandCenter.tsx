@@ -87,6 +87,44 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return merged;
   }, [boardLabelMap, missingLabels]);
 
+  // ── Auto-assign services ≤2h before fecha_hora_cita ──
+  const autoAssignedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (enTurno.length === 0 || autoDistribute.isPending) return;
+
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // Services that are active (en curso/evento) but not yet assigned to a monitorista
+    const eligibleIds = activeServiceIds.filter(id => {
+      if (assignedServiceIds.has(id)) return false;
+      if (autoAssignedRef.current.has(id)) return false;
+      const citaStr = serviceHoraCitaMap[id];
+      if (!citaStr) return false;
+      const timeUntil = new Date(citaStr).getTime() - now;
+      return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000; // up to 30min past
+    });
+
+    if (eligibleIds.length === 0) return;
+
+    // Mark as processed immediately to avoid double-fire
+    eligibleIds.forEach(id => autoAssignedRef.current.add(id));
+
+    autoDistribute.mutate(
+      { unassignedServiceIds: eligibleIds, monitoristaIds: enTurno.map(m => m.id) },
+      {
+        onSuccess: (count) => {
+          toast.info(`${count} servicios auto-asignados (próximos 2h)`);
+        },
+        onError: () => {
+          // Allow retry on next cycle
+          eligibleIds.forEach(id => autoAssignedRef.current.delete(id));
+        },
+      }
+    );
+  }, [activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, autoDistribute]);
+
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
