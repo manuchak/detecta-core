@@ -63,9 +63,14 @@ export function useBitacoraBoard() {
   const pendingQuery = useQuery({
     queryKey: ['bitacora-board-pending'],
     queryFn: async () => {
-      const windowHours = 1;
-      const desde = new Date(Date.now() - windowHours * 3600_000);
-      const hasta = new Date(Date.now() + windowHours * 3600_000);
+      // Full-day window in CDMX timezone (UTC-6, no DST since 2023)
+      const now = new Date();
+      const cdmxOffset = -6; // hours
+      const cdmxNow = new Date(now.getTime() + (now.getTimezoneOffset() + cdmxOffset * 60) * 60_000);
+      const startOfDayCDMX = new Date(Date.UTC(cdmxNow.getFullYear(), cdmxNow.getMonth(), cdmxNow.getDate(), -cdmxOffset, 0, 0));
+      const endOfDayCDMX = new Date(startOfDayCDMX.getTime() + 24 * 3600_000 - 1);
+      const desde = startOfDayCDMX;
+      const hasta = endOfDayCDMX;
 
       const { data, error } = await supabase
         .from('servicios_planificados')
