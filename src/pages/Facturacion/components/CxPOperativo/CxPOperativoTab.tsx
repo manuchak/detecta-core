@@ -13,8 +13,20 @@ import {
   useCxPCortesSemanales,
   useCxPCorteDetalle,
   useUpdateCxPCorte,
+  useDeleteCxPCorte,
   ESTADO_CORTE_LABELS,
 } from '../../hooks/useCxPCortesSemanales';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { GenerarCorteDialog } from './CortesSemanales/GenerarCorteDialog';
 import { GenerarCortesMasivosDialog } from './CortesSemanales/GenerarCortesMasivosDialog';
 import { ApoyosPanel } from './ApoyosExtraordinarios/ApoyosPanel';
