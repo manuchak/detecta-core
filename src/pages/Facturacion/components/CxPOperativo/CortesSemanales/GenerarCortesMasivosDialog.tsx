@@ -501,6 +501,11 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                                           <td className="py-1">{truncate(svc.destino)}</td>
                                           <td className="py-1 text-right font-medium">{fmt(svc.costo_custodio || 0)}</td>
                                           <td className="py-1 text-right">{fmt(svc.casetas || 0)}</td>
+                                          <td className="py-1 text-right">
+                                            {svc.estadiaMonto ? (
+                                              <span className="text-primary">{fmt(svc.estadiaMonto)} <span className="text-muted-foreground">({svc.estadiaHrs}h)</span></span>
+                                            ) : '—'}
+                                          </td>
                                         </>
                                       ) : (
                                         <td className="py-1 text-right font-medium">{fmt(svc.tarifa_acordada || 0)}</td>
