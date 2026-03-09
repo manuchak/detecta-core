@@ -10,12 +10,14 @@ interface SignaturePadProps {
   value: string | null;
   onChange: (signature: string | null) => void;
   className?: string;
+  label?: string;
 }
 
 export function SignaturePad({
   value,
   onChange,
   className,
+  label = '✍️ Firma Digital',
 }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -132,8 +134,8 @@ export function SignaturePad({
    return (
      <div className={cn('space-y-3', className)}>
        <div className="flex items-center justify-between">
-         <label className="text-sm font-medium text-foreground flex items-center gap-2">
-           ✍️ Firma Digital
+          <label className="text-sm font-medium text-foreground flex items-center gap-2">
+            {label}
            {hasSignature && (
              <span className="text-xs text-green-600 flex items-center gap-1">
                <Check className="w-3 h-3" />

@@ -53,6 +53,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   const [distribucionMode, setDistribucionMode] = useState<'auto' | 'manual'>('auto');
   const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
   const [firmaEntrega, setFirmaEntrega] = useState<string | null>(null);
+  const [firmaEntrante, setFirmaEntrante] = useState<string | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -64,6 +65,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setNotasPorServicio({});
       setManualDistribucion({});
       setFirmaEntrega(null);
+      setFirmaEntrante(null);
     }
   }, [open, effectiveSelfId]);
 
@@ -118,6 +120,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       distribucion,
       notasGenerales,
       firmaDataUrl: firmaEntrega || undefined,
+      firmaEntranteDataUrl: firmaEntrante || undefined,
     }, {
       onSuccess: async (result) => {
         // Generate and download PDF
@@ -132,6 +135,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             incidentesAbiertos: result.incidentesAbiertos,
             notasGenerales,
             firmaBase64: firmaEntrega || undefined,
+            firmaEntranteBase64: firmaEntrante || undefined,
             firmaEmail: result.userEmail || undefined,
             firmaTimestamp: new Date().toISOString(),
           };
@@ -444,15 +448,23 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                 </div>
               )}
 
-              {/* Firma Digital */}
-              <SignaturePad
-                value={firmaEntrega}
-                onChange={setFirmaEntrega}
-              />
+              {/* Firmas Digitales */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SignaturePad
+                  value={firmaEntrega}
+                  onChange={setFirmaEntrega}
+                  label="✍️ Firma del Monitorista Saliente"
+                />
+                <SignaturePad
+                  value={firmaEntrante}
+                  onChange={setFirmaEntrante}
+                  label="✍️ Firma del Monitorista Entrante"
+                />
+              </div>
 
               <div className="rounded-md border border-muted bg-muted/20 p-3">
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Al firmar, confirmo que los servicios, incidencias y pendientes operativos han sido 
+                  Al firmar, ambas partes confirman que los servicios, incidencias y pendientes operativos han sido 
                   debidamente comunicados y aceptados, en cumplimiento con la normativa operativa vigente.
                 </p>
               </div>
@@ -481,7 +493,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             ) : (
               <Button
                 size="sm"
-                disabled={executeHandoff.isPending || !firmaEntrega}
+                disabled={executeHandoff.isPending || !firmaEntrega || !firmaEntrante}
                 onClick={handleConfirm}
               >
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" />

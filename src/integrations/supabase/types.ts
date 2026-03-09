@@ -1688,6 +1688,7 @@ export type Database = {
           ejecutado_por: string | null
           estado: string
           firma_data_url: string | null
+          firma_entrante_data_url: string | null
           id: string
           incidentes_abiertos: Json | null
           monitoristas_entrantes: Json
@@ -1705,6 +1706,7 @@ export type Database = {
           ejecutado_por?: string | null
           estado?: string
           firma_data_url?: string | null
+          firma_entrante_data_url?: string | null
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
@@ -1722,6 +1724,7 @@ export type Database = {
           ejecutado_por?: string | null
           estado?: string
           firma_data_url?: string | null
+          firma_entrante_data_url?: string | null
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
@@ -20360,6 +20363,7 @@ export type Database = {
           tipo_vehiculo: string
         }[]
       }
+      get_monitoring_user_ids: { Args: never; Returns: string[] }
       get_monthly_productivity_stats: {
         Args: never
         Returns: {
