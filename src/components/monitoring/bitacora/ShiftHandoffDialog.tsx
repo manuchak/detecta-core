@@ -12,10 +12,14 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowRightLeft, AlertTriangle, AlertCircle, Clock, ChevronRight,
-  ChevronLeft, User, Zap, CheckCircle2,
+  ChevronLeft, User, Zap, CheckCircle2, Download,
 } from 'lucide-react';
 import { useMonitoristaAssignment, MonitoristaProfile, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useShiftHandoff, distributeEquitably, type ServiceContext } from '@/hooks/useShiftHandoff';
+import { useUserRole } from '@/hooks/useUserRole';
+import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
+import { pdf } from '@react-pdf/renderer';
+import { HandoffActaPDF, type HandoffActaData } from './pdf/HandoffActaPDF';
 import { useUserRole } from '@/hooks/useUserRole';
 
 const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
