@@ -483,6 +483,7 @@ export function useMonitoristaAssignment() {
     assignService,
     autoDistribute,
     reassignService,
+    rebalanceLoad,
     handoffTurno,
     endTurno,
   };
