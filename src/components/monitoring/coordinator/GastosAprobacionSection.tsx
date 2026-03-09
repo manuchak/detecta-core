@@ -227,6 +227,13 @@ export const GastosAprobacionSection: React.FC = () => {
                   <p className="text-sm mt-0.5">{selected.motivo}</p>
                 </div>
 
+                {selected.notas && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Folio / Notas</span>
+                    <p className="text-sm mt-0.5 font-medium">{selected.notas}</p>
+                  </div>
+                )}
+
                 {selected.comprobante_url && (
                   <div>
                     <span className="text-xs text-muted-foreground">Comprobante</span>
