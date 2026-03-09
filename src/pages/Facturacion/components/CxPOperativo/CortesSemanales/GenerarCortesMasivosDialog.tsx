@@ -22,12 +22,13 @@ interface Props {
 }
 
 interface ServicioDetalle {
-  id: number;
+  id: number | string;
   fecha_hora_cita: string | null;
   origen: string | null;
   destino: string | null;
   costo_custodio: number | null;
   casetas: number | null;
+  tarifa_acordada?: number | null;
 }
 
 interface OperativoPreview {
