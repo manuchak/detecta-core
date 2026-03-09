@@ -17,6 +17,7 @@ import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
 import { AbandonedServicesSection } from './AbandonedServicesSection';
 import { HandoffRevertSection } from './HandoffRevertSection';
+import { AnomaliasBadge } from './AnomaliasBadge';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
 import { cn } from '@/lib/utils';
