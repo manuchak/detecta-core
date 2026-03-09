@@ -36,7 +36,7 @@ const TURNOS = [
   { value: 'nocturno', label: 'Nocturno' },
 ];
 
-const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar'];
+const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar y Firmar'];
 
 export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMonitoristaId }) => {
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
