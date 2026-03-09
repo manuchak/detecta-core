@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, HandCoins } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, ChevronLeft, HandCoins } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
   useCxPCortesSemanales,
@@ -22,12 +23,33 @@ import { ApoyosPanel } from './ApoyosExtraordinarios/ApoyosPanel';
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
 
+type WeekStartDay = 0 | 1; // 0 = Domingo, 1 = Lunes
+
 export function CxPOperativoTab() {
+  const [weekStartsOn, setWeekStartsOn] = useState<WeekStartDay>(1);
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() =>
+    startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 })
+  );
+
+  // Recalculate week boundaries when cycle changes
+  const weekStart = useMemo(
+    () => startOfWeek(currentWeekStart, { weekStartsOn }),
+    [currentWeekStart, weekStartsOn]
+  );
+  const weekEnd = useMemo(
+    () => endOfWeek(currentWeekStart, { weekStartsOn }),
+    [currentWeekStart, weekStartsOn]
+  );
+
+  const semanaInicio = format(weekStart, 'yyyy-MM-dd');
+  const semanaFin = format(weekEnd, 'yyyy-MM-dd');
+
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [showDialog, setShowDialog] = useState(false);
   const [showApoyos, setShowApoyos] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado);
+
+  const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado, semanaInicio, semanaFin);
   const updateMutation = useUpdateCxPCorte();
 
   const totalPendiente = cortes
@@ -47,6 +69,22 @@ export function CxPOperativoTab() {
     updateMutation.mutate({ id, estado, ...extras });
   };
 
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    setCurrentWeekStart(prev =>
+      direction === 'prev' ? subWeeks(prev, 1) : addWeeks(prev, 1)
+    );
+  };
+
+  const toggleCycle = () => {
+    setWeekStartsOn(prev => (prev === 1 ? 0 : 1));
+  };
+
+  const weekLabel = useMemo(() => {
+    const startDay = format(weekStart, 'EEE dd/MMM', { locale: es });
+    const endDay = format(weekEnd, 'EEE dd/MMM yyyy', { locale: es });
+    return `${startDay} – ${endDay}`;
+  }, [weekStart, weekEnd]);
+
   if (showApoyos) {
     return (
       <div className="space-y-4">
@@ -60,6 +98,48 @@ export function CxPOperativoTab() {
 
   return (
     <div className="space-y-4">
+      {/* Week Navigator */}
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek('prev')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium min-w-[260px] text-center capitalize">
+            {weekLabel}
+          </span>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateWeek('next')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Cycle Toggle */}
+        <div
+          className="inline-flex rounded-md border border-border/50 bg-muted/30 p-0.5 cursor-pointer select-none"
+          onClick={toggleCycle}
+        >
+          <span
+            className={cn(
+              'px-2.5 py-1 text-xs font-medium rounded transition-all',
+              weekStartsOn === 1
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground'
+            )}
+          >
+            L–D
+          </span>
+          <span
+            className={cn(
+              'px-2.5 py-1 text-xs font-medium rounded transition-all',
+              weekStartsOn === 0
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground'
+            )}
+          >
+            D–S
+          </span>
+        </div>
+      </div>
+
       {/* Pipeline KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="p-3">
@@ -158,7 +238,7 @@ export function CxPOperativoTab() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : cortes.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Sin cortes semanales</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Sin cortes en esta semana</TableCell></TableRow>
               ) : (
                 cortes.map(c => {
                   const badge = ESTADO_CORTE_LABELS[c.estado] || ESTADO_CORTE_LABELS.borrador;
@@ -221,7 +301,7 @@ export function CxPOperativoTab() {
         </CardContent>
       </Card>
 
-      <GenerarCorteDialog open={showDialog} onOpenChange={setShowDialog} />
+      <GenerarCorteDialog open={showDialog} onOpenChange={setShowDialog} weekStartsOn={weekStartsOn} />
     </div>
   );
 }

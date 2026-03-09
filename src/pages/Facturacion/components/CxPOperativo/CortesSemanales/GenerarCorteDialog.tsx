@@ -16,6 +16,7 @@ import { Search, Loader2 } from 'lucide-react';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  weekStartsOn?: 0 | 1;
 }
 
 interface OperativoOption {

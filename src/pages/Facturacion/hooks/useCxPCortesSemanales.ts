@@ -48,9 +48,9 @@ export interface CxPCorteDetalle {
 
 const QUERY_KEY = 'cxp-cortes-semanales';
 
-export function useCxPCortesSemanales(estado?: string) {
+export function useCxPCortesSemanales(estado?: string, semanaInicio?: string, semanaFin?: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, estado],
+    queryKey: [QUERY_KEY, estado, semanaInicio, semanaFin],
     queryFn: async () => {
       let query = supabase
         .from('cxp_cortes_semanales')
@@ -60,6 +60,13 @@ export function useCxPCortesSemanales(estado?: string) {
 
       if (estado && estado !== 'todos') {
         query = query.eq('estado', estado);
+      }
+
+      if (semanaInicio) {
+        query = query.gte('semana_inicio', semanaInicio);
+      }
+      if (semanaFin) {
+        query = query.lte('semana_fin', semanaFin);
       }
 
       const { data, error } = await query;
