@@ -1,144 +1,97 @@
 
 
-# Evaluación de Producto: Gastos Extraordinarios de Custodios
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Estado Actual
+## Roles confirmados por módulo
 
-Ya tienes **3 tablas** construidas pero **vacías y desconectadas**:
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-| Tabla | Registros | Propósito | ¿Conectada al portal custodio? |
-|-------|-----------|-----------|-------------------------------|
-| `solicitudes_apoyo_extraordinario` | 0 | Apoyos (regreso base, hospedaje) | No |
-| `gastos_extraordinarios_servicio` | 0 | Gastos (casetas, hotel, combustible) | No |
-| `evidencias_gastos_servicio` | 0 | Evidencias/comprobantes | No |
+---
 
-**El backend ya integra estos datos al corte semanal** (líneas 259-307 de `useCxPCortesSemanales.ts`): apoyos aprobados y hoteles con `pagable_custodio=true` ya se suman al total. **Lo que falta es el flujo de entrada** desde el custodio y la **aprobación del coordinador**.
+## Hallazgos actuales
 
-## Análisis RACI
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-```text
-                          Custodio   Coord.Ops   Facturación   Admin
-Solicitar gasto             R          I            -            -
-Subir evidencia (foto)      R          -            -            -
-Aprobar / Rechazar          -          R/A          I            A
-Integrar al corte           -          -            R            A
-Auditar / Disputar          -          C            R            A
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-R=Responsable  A=Aprobador  C=Consultado  I=Informado
-```
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-## Gaps Identificados
+---
 
-1. **No hay UI en el portal custodio** para solicitar gastos ni subir evidencia
-2. **No hay panel de aprobación** para coordinadores de operaciones
-3. **Las 3 tablas están redundantes**: `gastos_extraordinarios_servicio` y `solicitudes_apoyo_extraordinario` cubren casos similares con esquemas diferentes — hay que unificar el flujo
-4. **No hay bucket de storage** `evidencias-gastos` creado (el hook lo referencia pero puede no existir)
-5. **RLS**: No hay políticas que permitan al custodio insertar/ver solo sus propios gastos
+## Plan de corrección
 
-## Diseño Propuesto
-
-### Decisión arquitectónica: Una sola tabla unificada
-
-Usar `solicitudes_apoyo_extraordinario` como tabla principal (tiene mejor esquema: estado workflow, urgencia, aprobación, pago). Los gastos de hotel/caseta/combustible se registran aquí con `tipo_apoyo` expandido. Esto simplifica:
-- Un solo formulario en el portal custodio
-- Un solo panel de aprobación
-- Una sola query en el corte semanal
-
-### Flujo end-to-end
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
 ```text
-CUSTODIO                    COORDINADOR                CORTE SEMANAL
-   │                            │                          │
-   ├─ Abre "Solicitar Apoyo"    │                          │
-   ├─ Selecciona tipo           │                          │
-   ├─ Monto + descripción       │                          │
-   ├─ Sube foto comprobante     │                          │
-   ├─ [Submit] ─────────────────┤                          │
-   │                            ├─ Ve solicitud pendiente  │
-   │                            ├─ Revisa evidencia        │
-   │                            ├─ Aprueba / Rechaza       │
-   │                            │  (monto_aprobado)        │
-   │  ← Notificación estado     │                          │
-   │                            │                          │
-   │                            │     Al generar corte ────┤
-   │                            │     query apoyos         │
-   │                            │     estado='aprobado'    │
-   │                            │     en rango de semana   │
-   │                            │     → detalle corte      │
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
 ```
 
-### Componentes a crear
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-**Portal Custodio (3 archivos nuevos):**
+### Fase 2 — Migrar policies por módulo
 
-1. **`CustodianExpensesPage.tsx`** — Nueva página `/custodian/expenses`
-   - Lista de solicitudes del custodio (mis gastos)
-   - Estado visual: pendiente (amarillo), aprobado (verde), rechazado (rojo), pagado (azul)
-   - Botón "Nueva Solicitud"
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-2. **`CreateExpenseForm.tsx`** — Modal/wizard mobile-first
-   - Tipo de gasto (hotel, caseta riesgo, combustible, alimentación, transporte, otro)
-   - Servicio asociado (selector de servicios recientes)
-   - Monto + descripción + urgencia
-   - Upload de foto con compresión (reusar `CameraUploader`)
-   - Submit → insert en `solicitudes_apoyo_extraordinario`
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-3. **`MobileBottomNavNew.tsx`** — Agregar 5to tab "Gastos" con ícono `Receipt`
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-**Panel Coordinador (2 archivos nuevos):**
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-4. **`AprobacionGastosPanel.tsx`** — Tab o vista en módulo de Facturación o Monitoreo
-   - Lista de solicitudes pendientes con filtros
-   - Ver evidencia (foto), datos del servicio
-   - Botones: Aprobar (con monto), Rechazar (con motivo)
-   - Badge con count de pendientes
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
 
-5. **Ruta en router** — Agregar `/facturacion` sub-tab o `/monitoring/gastos-pendientes`
+### Fase 3 — Frontend: Sidebar ajustes menores
 
-**Cambios en existentes:**
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
 
-6. **`useCxPCortesSemanales.ts`** — Ya integra apoyos aprobados; solo verificar que el campo `comprobante_url` se use para evidencia
-7. **Storage bucket** — Crear `comprobantes-gastos` si no existe
-8. **RLS policies** — Custodio: INSERT + SELECT propios; Coordinador: SELECT all + UPDATE estado
+### Archivos a modificar
 
-### Integridad de datos
-
-- `custodio_id` = `auth.uid()` del custodio (identity link directo)
-- `servicio_custodia_id` opcional para vincular al servicio
-- `comprobante_url` almacena la foto en storage
-- `estado` workflow: `pendiente` → `aprobado`/`rechazado` → `pagado` (al incluirse en corte)
-- Trigger `updated_at` automático
-- El corte semanal ya filtra por `estado = 'aprobado'` y rango de fechas
-
-### Tipos de apoyo expandidos
-
-Agregar al catálogo existente:
-- `caseta_riesgo` — Caseta en zona de riesgo
-- `hotel` — Hospedaje/pernocta
-- `combustible` — Combustible adicional
-- `alimentacion` — Alimentos
-- `reparacion_vehicular` — Reparación vehículo
-- `peaje_adicional` — Peaje no contemplado
-
-## Archivos
-
-| Archivo | Acción |
-|---------|--------|
-| `src/pages/custodian/CustodianExpensesPage.tsx` | Crear — lista de gastos del custodio |
-| `src/components/custodian/CreateExpenseForm.tsx` | Crear — formulario mobile-first |
-| `src/components/custodian/ExpenseCard.tsx` | Crear — tarjeta de gasto con estado |
-| `src/hooks/useCustodianExpenses.ts` | Crear — hook CRUD para custodio |
-| `src/components/custodian/MobileBottomNavNew.tsx` | Modificar — agregar tab "Gastos" |
-| `src/pages/Facturacion/components/AprobacionGastosPanel.tsx` | Crear — panel de aprobación coordinador |
-| `src/App.tsx` | Modificar — agregar ruta `/custodian/expenses` |
-| Storage bucket + RLS | Migration SQL |
-
-## Riesgos y mitigaciones
-
-| Riesgo | Mitigación |
-|--------|-----------|
-| Custodio sube gastos falsos | Evidencia fotográfica obligatoria + aprobación coordinador |
-| Doble conteo en corte | Query filtra `estado = 'aprobado'` (no `pagado`), y al generar corte marca como `pagado` |
-| Coordinador no revisa a tiempo | Badge de pendientes + filtro por urgencia |
-| Fotos pesadas desde móvil | Compresión Canvas API (estándar existente ~400KB) |
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

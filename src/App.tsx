@@ -81,6 +81,7 @@ const RegistroInstaladores = lazy(() => import('@/pages/Installers/RegistroInsta
 const Landing = lazy(() => import('@/pages/Landing/Landing'));
 const WMSPage = lazy(() => import('@/pages/WMS/WMSPage'));
 const CustodianPortal = lazy(() => import('@/pages/custodian/CustodianPortal'));
+const CustodianExpensesPage = lazy(() => import('@/pages/custodian/CustodianExpensesPage'));
 const SandboxTesting = lazy(() => import('@/pages/SandboxTesting'));
 const SandboxDeployment = lazy(() => import('@/pages/SandboxDeployment'));
 const CustodianDashboard = lazy(() => import('@/pages/custodian/CustodianDashboard'));
@@ -951,6 +952,7 @@ function App() {
                   <Route index element={<CustodianDashboard />} />
                   <Route path="services" element={<CustodianServicesPage />} />
                   <Route path="vehicle" element={<CustodianVehiclePage />} />
+                  <Route path="expenses" element={<CustodianExpensesPage />} />
                   <Route path="support" element={<CustodianSupportPage />} />
                   <Route path="tickets" element={<Navigate to="/custodian/support" replace />} />
                 </Route>

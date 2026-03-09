@@ -88,6 +88,7 @@ const CustodianServicesPage = () => {
         if (item === 'home') navigate('/custodian');
         else if (item === 'vehicle') navigate('/custodian/vehicle');
         else if (item === 'support') navigate('/custodian/support');
+        else if (item === 'expenses') navigate('/custodian/expenses');
       }} />
     </div>
   );

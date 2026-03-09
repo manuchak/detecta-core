@@ -1,7 +1,7 @@
-import { Home, ClipboardList, Car, MessageCircle } from "lucide-react";
+import { Home, ClipboardList, Car, MessageCircle, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type NavItem = 'home' | 'services' | 'vehicle' | 'support';
+export type NavItem = 'home' | 'services' | 'vehicle' | 'expenses' | 'support';
 
 interface MobileBottomNavNewProps {
   activeItem: NavItem;
@@ -12,6 +12,7 @@ interface MobileBottomNavNewProps {
 const navItems = [
   { id: 'home' as NavItem, icon: Home, label: 'Inicio' },
   { id: 'services' as NavItem, icon: ClipboardList, label: 'Servicios' },
+  { id: 'expenses' as NavItem, icon: Receipt, label: 'Gastos' },
   { id: 'vehicle' as NavItem, icon: Car, label: 'Vehículo' },
   { id: 'support' as NavItem, icon: MessageCircle, label: 'Soporte' },
 ];
@@ -23,7 +24,7 @@ const MobileBottomNavNew = ({
 }: MobileBottomNavNewProps) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border safe-area-inset-bottom z-50">
-      <div className="flex items-center justify-around px-2 py-2">
+      <div className="flex items-center justify-around px-1 py-2">
         {navItems.map((item) => {
           const isActive = activeItem === item.id;
           const Icon = item.icon;
@@ -34,7 +35,7 @@ const MobileBottomNavNew = ({
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all touch-manipulation min-w-[64px]",
+                "flex flex-col items-center gap-0.5 py-1.5 px-2 rounded-xl transition-all touch-manipulation min-w-[56px]",
                 isActive
                   ? "text-primary bg-primary/10"
                   : "text-muted-foreground hover:text-foreground"
@@ -42,7 +43,7 @@ const MobileBottomNavNew = ({
             >
               <div className="relative">
                 <Icon className={cn(
-                  "w-6 h-6 transition-transform",
+                  "w-5 h-5 transition-transform",
                   isActive && "scale-110"
                 )} />
                 {showBadge && (
