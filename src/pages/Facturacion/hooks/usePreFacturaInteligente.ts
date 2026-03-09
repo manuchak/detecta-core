@@ -116,7 +116,7 @@ export function usePreFacturaInteligente(
       const baseHorasCortesia = regla?.horas_cortesia ?? clienteFiscal?.horas_cortesia ?? 0;
       const horasCortesiaLocal = clienteFiscal?.horas_cortesia_local ?? baseHorasCortesia;
       const horasCortesiaForaneo = clienteFiscal?.horas_cortesia_foraneo ?? baseHorasCortesia;
-      const tarifaHoraExcedente = regla?.tarifa_hora_excedente ?? 0;
+      const tarifaHoraExcedente = regla?.tarifa_hora_excedente ?? clienteFiscal?.tarifa_hora_estadia ?? 0;
       const tarifaPernocta = regla?.tarifa_pernocta ?? clienteFiscal?.pernocta_tarifa ?? 0;
 
       // 4. Build lines per service

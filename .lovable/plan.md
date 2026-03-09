@@ -1,96 +1,97 @@
 
 
-# Fases 1-3: Implementación Secuencial
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-Con la Fase 0 completa (queries corregidos, cortesía local/foráneo unificada, selector de operativos real), el sistema tiene cimientos funcionales. Propongo implementar las fases 1 y 2 juntas — son interdependientes y representan el loop completo cobro↔pago.
+## Roles confirmados por módulo
 
----
-
-## Fase 1: Motor de Estadías Automático
-
-**Problema actual**: `usePreFacturaInteligente` ya calcula estadías desde `servicio_eventos_ruta`, pero `tarifaHoraExcedente` siempre es 0 (viene de `reglas_estadias_cliente` que tiene 0 registros, y `pc_clientes` no tiene ese campo).
-
-**Cambios**:
-
-### 1a. Migración SQL — Agregar `tarifa_hora_estadia` a `pc_clientes`
-- Nueva columna `tarifa_hora_estadia NUMERIC DEFAULT 0` en `pc_clientes`
-- Esto permite que los 54 clientes ya configurados tengan tarifa sin necesidad de crear reglas en la tabla vacía `reglas_estadias_cliente`
-
-### 1b. Actualizar `ClienteFiscal` type + query
-- En `useClientesFiscales.ts`: agregar `tarifa_hora_estadia: number | null` al interface
-- Asegurar que el select incluye este campo (ya usa `select('*')` así que es automático)
-
-### 1c. Actualizar `usePreFacturaInteligente` — usar tarifa de `pc_clientes`
-- Línea 119: cambiar fallback de `tarifaHoraExcedente` para usar `clienteFiscal?.tarifa_hora_estadia ?? 0` cuando no hay regla específica
-
-### 1d. Panel de Revisión de Estadías — Enriquecer `EstadiasPanel.tsx`
-- Actualmente solo muestra reglas vacías. Agregar una vista que muestre los **servicios con estadía calculada** (servicios finalizados del último mes donde el delta llegada→liberación > cortesía)
-- Query: `servicio_eventos_ruta` con join a `servicios_custodia` para traer cliente, ruta, local/foráneo
-- Tabla con columnas: Folio, Cliente, Ruta, L/F, Tiempo en destino, Cortesía, Excedente, Tarifa, Cobro estimado
-- Badge de estado: "Pendiente facturar" / "Facturado" (cruzando con `factura_partidas`)
-
-**Archivos**: migración SQL, `useClientesFiscales.ts`, `usePreFacturaInteligente.ts`, `EstadiasPanel.tsx`, nuevo hook `useEstadiasCalculadas.ts`
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
 ---
 
-## Fase 2: Panel CxP Custodios — Funcional con Data Real
+## Hallazgos actuales
 
-**Estado actual**: `GenerarCorteDialog` y `useCreateCxPCorte` están corregidos (Fase 0). El flujo genera cortes pero falta:
-- Incluir estadías pagables al custodio en el cálculo del corte
-- Preview de servicios encontrados antes de confirmar generación
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-**Cambios**:
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-### 2a. Preview en `GenerarCorteDialog` — mostrar servicios antes de generar
-- Al seleccionar operativo + semana, hacer query preview (mismo query que `useCreateCxPCorte` pero sin insertar)
-- Mostrar tabla resumen: X servicios, $Y base, $Z casetas, $W hoteles, $V apoyos
-- Botón "Generar" solo habilitado si hay servicios
-
-### 2b. Incluir estadías pagables en corte
-- En `useCreateCxPCorte`: después de obtener servicios, consultar `detenciones_servicio` con `pagable_custodio = true` para esos `servicio_id`s
-- Agregar líneas de detalle tipo `'estadia'` al corte
-- Actualizar `monto_estadias` en el header del corte
-
-### 2c. Mejorar `CxPOperativoTab` — KPI de estadías
-- Agregar KPI card: "Estadías" con suma de `monto_estadias` de cortes pendientes
-
-**Archivos**: `GenerarCorteDialog.tsx`, `useCxPCortesSemanales.ts`, `CxPOperativoTab.tsx`
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
 ---
 
-## Fase 3: CxP Proveedores — Cálculo automático al generar
+## Plan de corrección
 
-**Estado actual**: `CxPProveedoresTab` tiene UI completa pero `useCreateCxP` no auto-calcula servicios del proveedor.
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-**Cambios**:
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
 
-### 3a. Enriquecer `useCreateCxP` con auto-cálculo
-- Al crear estado de cuenta de proveedor: consultar `asignacion_armados` donde `tipo_asignacion = 'proveedor'` AND `proveedor_id = X` en el periodo
-- Sumar tarifas acordadas como `monto_servicios`
-- Consultar `gastos_extraordinarios_servicio` asociados como extras
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-### 3b. Agregar campo de conciliación — `factura_proveedor` + `monto_factura_proveedor`
-- En la tabla existente ya hay `factura_proveedor` (texto). Agregar input editable en la fila para capturar número de factura
-- Agregar badge de alerta si `monto_factura_proveedor ≠ monto_total` (delta > 5%)
+### Fase 2 — Migrar policies por módulo
 
-**Archivos**: `useCxPProveedores.ts`, `CxPProveedoresTab.tsx`
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
----
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-## Resumen de Archivos
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
 
-| Fase | Archivo | Tipo |
-|------|---------|------|
-| 1 | Nueva migración SQL | Create |
-| 1 | `useClientesFiscales.ts` | Edit (1 línea al type) |
-| 1 | `usePreFacturaInteligente.ts` | Edit (1 línea fallback tarifa) |
-| 1 | `useEstadiasCalculadas.ts` | Create (hook nuevo) |
-| 1 | `EstadiasPanel.tsx` | Rewrite (vista funcional) |
-| 2 | `GenerarCorteDialog.tsx` | Edit (agregar preview) |
-| 2 | `useCxPCortesSemanales.ts` | Edit (agregar estadías al cálculo) |
-| 2 | `CxPOperativoTab.tsx` | Edit (KPI estadías) |
-| 3 | `useCxPProveedores.ts` | Edit (auto-cálculo) |
-| 3 | `CxPProveedoresTab.tsx` | Edit (conciliación) |
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
 
-Total: 10 archivos, 2 nuevos + 8 edits. Las 3 fases son implementables en un solo ciclo porque comparten infraestructura (mismo hook de clientes fiscales, misma tabla de servicios).
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

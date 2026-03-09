@@ -102,7 +102,7 @@ export function useCreateCxP() {
       // Fetch completed assignments for this provider in the period
       const { data: asignaciones, error: fetchErr } = await supabase
         .from('asignacion_armados')
-        .select('id, tarifa_acordada')
+        .select('id, tarifa_acordada, servicio_custodia_id')
         .eq('proveedor_armado_id', data.proveedor_id)
         .eq('tipo_asignacion', 'proveedor')
         .eq('estado_asignacion', 'completado')
@@ -114,6 +114,25 @@ export function useCreateCxP() {
       const totalServicios = asignaciones?.length || 0;
       const montoServicios = asignaciones?.reduce((s, a) => s + (Number(a.tarifa_acordada) || 0), 0) || 0;
 
+      // Fetch extraordinary expenses for this provider's services
+      let montoGastosExtra = 0;
+      if (asignaciones && asignaciones.length > 0) {
+        const svcIds = asignaciones.map(a => a.servicio_custodia_id).filter(Boolean);
+        if (svcIds.length > 0) {
+          const { data: gastos } = await supabase
+            .from('gastos_extraordinarios_servicio')
+            .select('monto')
+            .in('servicio_custodia_id', svcIds)
+            .eq('pagable_custodio', true);
+
+          if (gastos) {
+            montoGastosExtra = gastos.reduce((s, g) => s + (Number(g.monto) || 0), 0);
+          }
+        }
+      }
+
+      const montoTotal = montoServicios + montoGastosExtra;
+
       // Create CxP header
       const { data: cxp, error } = await supabase
         .from('cxp_proveedores_armados')
@@ -123,7 +142,8 @@ export function useCreateCxP() {
           periodo_fin: data.periodo_fin,
           total_servicios: totalServicios,
           monto_servicios: montoServicios,
-          monto_total: montoServicios,
+          monto_gastos_extra: montoGastosExtra,
+          monto_total: montoTotal,
           notas: data.notas,
           created_by: user.user?.id,
         })

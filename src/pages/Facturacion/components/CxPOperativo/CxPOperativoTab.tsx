@@ -36,6 +36,9 @@ export function CxPOperativoTab() {
   const totalPagado = cortes
     .filter(c => c.estado === 'pagado')
     .reduce((s, c) => s + c.monto_total, 0);
+  const totalEstadias = cortes
+    .filter(c => ['borrador', 'revision_ops', 'aprobado_finanzas'].includes(c.estado))
+    .reduce((s, c) => s + (c.monto_estadias || 0), 0);
 
   const handleTransition = (id: string, estado: string) => {
     const extras: any = {};
@@ -58,7 +61,7 @@ export function CxPOperativoTab() {
   return (
     <div className="space-y-4">
       {/* Pipeline KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card className="p-3">
           <div className="flex items-center gap-2">
             <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 p-1.5 rounded-lg">
@@ -89,6 +92,17 @@ export function CxPOperativoTab() {
             <div>
               <p className="text-[10px] text-muted-foreground uppercase">Cortes</p>
               <p className="text-lg font-bold">{cortes.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-orange-500/10 text-orange-600 dark:text-orange-400 p-1.5 rounded-lg">
+              <ClipboardList className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Estadías</p>
+              <p className="text-lg font-bold">{formatCurrency(totalEstadias)}</p>
             </div>
           </div>
         </Card>

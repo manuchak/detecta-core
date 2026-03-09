@@ -8,22 +8,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Settings2, Search } from 'lucide-react';
+import { Plus, Settings2, Search, Clock, AlertTriangle, DollarSign } from 'lucide-react';
 import { useReglasEstadias, useCreateReglaEstadia } from '../../../hooks/useReglasEstadias';
 import { usePcClientes } from '../../../hooks/usePcClientes';
+import { useEstadiasCalculadas } from '../../../hooks/useEstadiasCalculadas';
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
 
 export function EstadiasPanel() {
   const [showConfig, setShowConfig] = useState(false);
   const [showAddRule, setShowAddRule] = useState(false);
-  const { data: reglas = [], isLoading } = useReglasEstadias();
+  const [filtroCliente, setFiltroCliente] = useState('');
+  const { data: reglas = [], isLoading: loadingReglas } = useReglasEstadias();
   const { data: clientes = [] } = usePcClientes();
+  const { data: estadias = [], isLoading: loadingEstadias } = useEstadiasCalculadas();
 
-  // Map cliente IDs to names for display
   const clienteMap = useMemo(() => {
     const map = new Map<string, string>();
     clientes.forEach(c => map.set(c.id, c.nombre));
     return map;
   }, [clientes]);
+
+  const estadiasFiltradas = useMemo(() => {
+    if (!filtroCliente) return estadias;
+    const q = filtroCliente.toLowerCase();
+    return estadias.filter(e => e.cliente.toLowerCase().includes(q));
+  }, [estadias, filtroCliente]);
+
+  const totalExcedente = estadias.reduce((s, e) => s + e.horasExcedentes, 0);
+  const totalCobro = estadias.reduce((s, e) => s + e.cobroEstimado, 0);
+  const sinTarifa = estadias.filter(e => e.tarifaHora === 0).length;
 
   return (
     <div className="space-y-4">
@@ -31,16 +46,67 @@ export function EstadiasPanel() {
         <div>
           <h3 className="text-base font-semibold">Estadías y Cortesías</h3>
           <p className="text-sm text-muted-foreground">
-            Reglas de horas de cortesía por cliente, tipo de servicio y ruta.
+            Servicios con tiempo en destino que excede la cortesía del cliente.
           </p>
         </div>
         <Button variant="outline" onClick={() => setShowConfig(!showConfig)}>
           <Settings2 className="h-4 w-4 mr-2" />
-          Configurar Reglas
+          {showConfig ? 'Ver Estadías' : 'Configurar Reglas'}
         </Button>
       </div>
 
-      {showConfig && (
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 p-1.5 rounded-lg">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Servicios c/ Excedente</p>
+              <p className="text-lg font-bold">{estadias.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary/10 text-primary p-1.5 rounded-lg">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Horas Excedentes</p>
+              <p className="text-lg font-bold">{Math.round(totalExcedente * 10) / 10}h</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg">
+              <DollarSign className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase">Cobro Estimado</p>
+              <p className="text-lg font-bold">{formatCurrency(totalCobro)}</p>
+            </div>
+          </div>
+        </Card>
+        {sinTarifa > 0 && (
+          <Card className="p-3 border-amber-500/30">
+            <div className="flex items-center gap-2">
+              <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 p-1.5 rounded-lg">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase">Sin Tarifa</p>
+                <p className="text-lg font-bold text-amber-600">{sinTarifa}</p>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {showConfig ? (
+        /* Rules config view */
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -62,19 +128,16 @@ export function EstadiasPanel() {
                   <TableHead className="text-right">Hrs Local</TableHead>
                   <TableHead className="text-right">Hrs Foráneo</TableHead>
                   <TableHead className="text-right">$/Hr Excedente</TableHead>
-                  <TableHead className="text-right">$/Sin Arma</TableHead>
-                  <TableHead className="text-right">$/Con Arma</TableHead>
                   <TableHead>Pernocta</TableHead>
-                  <TableHead>Tickets</TableHead>
                   <TableHead>Notas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
+                {loadingReglas ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Cargando...</TableCell></TableRow>
                 ) : reglas.length === 0 ? (
-                  <TableRow><TableCell colSpan={12} className="text-center py-6 text-muted-foreground">
-                    Sin reglas configuradas. Se usará el fallback de horas_cortesia del cliente.
+                  <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                    Sin reglas override. Se usa tarifa_hora_estadia de pc_clientes como fallback.
                   </TableCell></TableRow>
                 ) : (
                   reglas.map(r => (
@@ -90,18 +153,9 @@ export function EstadiasPanel() {
                       <TableCell className="text-right text-sm">{(r as any).horas_cortesia_local ?? '—'}</TableCell>
                       <TableCell className="text-right text-sm">{(r as any).horas_cortesia_foraneo ?? '—'}</TableCell>
                       <TableCell className="text-right text-sm">${r.tarifa_hora_excedente}</TableCell>
-                      <TableCell className="text-right text-sm">{(r as any).tarifa_sin_arma != null ? `$${(r as any).tarifa_sin_arma}` : '—'}</TableCell>
-                      <TableCell className="text-right text-sm">{(r as any).tarifa_con_arma != null ? `$${(r as any).tarifa_con_arma}` : '—'}</TableCell>
                       <TableCell>
                         {r.cobra_pernocta ? (
                           <Badge variant="secondary" className="text-xs">${r.tarifa_pernocta}</Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {(r as any).requiere_tickets ? (
-                          <Badge variant="outline" className="text-xs">Sí</Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">No</span>
                         )}
@@ -114,20 +168,87 @@ export function EstadiasPanel() {
             </Table>
           </CardContent>
         </Card>
-      )}
-
-      {!showConfig && (
-        <Card className="p-6">
-          <div className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Las estadías se calculan automáticamente comparando las detenciones registradas 
-              contra las horas de cortesía configuradas por cliente.
-            </p>
+      ) : (
+        /* Calculated stays view */
+        <>
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={filtroCliente}
+                onChange={e => setFiltroCliente(e.target.value)}
+                placeholder="Filtrar por cliente..."
+                className="pl-8"
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
-              {reglas.length} regla(s) configurada(s). Click "Configurar Reglas" para gestionar.
+              Últimos 60 días · {estadiasFiltradas.length} servicios con excedente
             </p>
           </div>
-        </Card>
+
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Folio</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Ruta</TableHead>
+                    <TableHead>L/F</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Tiempo Destino</TableHead>
+                    <TableHead className="text-right">Cortesía</TableHead>
+                    <TableHead className="text-right">Excedente</TableHead>
+                    <TableHead className="text-right">Tarifa/Hr</TableHead>
+                    <TableHead className="text-right">Cobro Est.</TableHead>
+                    <TableHead>Estado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingEstadias ? (
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">Calculando estadías...</TableCell></TableRow>
+                  ) : estadiasFiltradas.length === 0 ? (
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                      Sin servicios con excedente de estadía
+                    </TableCell></TableRow>
+                  ) : (
+                    estadiasFiltradas.map(e => (
+                      <TableRow key={e.servicioId}>
+                        <TableCell className="text-xs font-mono">{e.folio}</TableCell>
+                        <TableCell className="text-sm font-medium">{e.cliente}</TableCell>
+                        <TableCell className="text-xs">{e.ruta}</TableCell>
+                        <TableCell>
+                          <Badge variant={e.localForaneo === 'Foráneo' ? 'default' : 'outline'} className="text-[10px]">
+                            {e.localForaneo === 'Foráneo' ? 'F' : 'L'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs">{e.fechaServicio}</TableCell>
+                        <TableCell className="text-right text-sm">{e.horasEnDestino}h</TableCell>
+                        <TableCell className="text-right text-sm text-muted-foreground">{e.horasCortesia}h</TableCell>
+                        <TableCell className="text-right text-sm font-semibold text-amber-600 dark:text-amber-400">
+                          {e.horasExcedentes}h
+                        </TableCell>
+                        <TableCell className="text-right text-sm">
+                          {e.tarifaHora > 0 ? `$${e.tarifaHora}` : (
+                            <span className="text-amber-500 text-xs">Sin tarifa</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-bold">
+                          {e.cobroEstimado > 0 ? formatCurrency(e.cobroEstimado) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={e.facturado ? 'secondary' : 'outline'} className="text-[10px]">
+                            {e.facturado ? 'Facturado' : 'Pendiente'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <AddRuleDialog open={showAddRule} onOpenChange={setShowAddRule} clientes={clientes} />

@@ -118,15 +118,16 @@ export function CxPProveedoresTab() {
                 <TableHead className="text-right">Deducciones</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Factura Prov.</TableHead>
+                <TableHead>Conciliación</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : cxps.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
               ) : (
                 cxps.map(cxp => {
                   const badge = ESTADO_BADGE[cxp.estado] || ESTADO_BADGE.borrador;
@@ -141,7 +142,26 @@ export function CxPProveedoresTab() {
                       <TableCell className="text-right text-sm">{formatCurrency(cxp.monto_gastos_extra)}</TableCell>
                       <TableCell className="text-right text-sm text-destructive">{formatCurrency(cxp.monto_deducciones)}</TableCell>
                       <TableCell className="text-right text-sm font-bold">{formatCurrency(cxp.monto_total)}</TableCell>
-                      <TableCell className="text-xs">{cxp.factura_proveedor || '—'}</TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-7 text-xs w-28"
+                          placeholder="# Factura"
+                          defaultValue={cxp.factura_proveedor || ''}
+                          onBlur={e => {
+                            const val = e.target.value;
+                            if (val !== (cxp.factura_proveedor || '')) {
+                              updateMutation.mutate({ id: cxp.id, factura_proveedor: val || null });
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {cxp.factura_proveedor ? (
+                          <Badge variant="secondary" className="text-[10px]">Registrada</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px]">Sin factura</Badge>
+                        )}
+                      </TableCell>
                       <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
                       <TableCell>
                         {cxp.estado === 'borrador' && (
