@@ -65,6 +65,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   // Counts for alert bar
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
+  const abandonedCount = sinTurno.reduce(
+    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length,
+    0
+  );
 
   const isOverlay = !!onClose;
 
