@@ -30,7 +30,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
 
       const { data: servicios, error: svcErr } = await supabase
         .from('servicios_custodia')
-        .select('id, id_servicio, folio_saphiro, cliente, ruta, local_foraneo, fecha_hora_cita, estado')
+        .select('id, id_servicio, folio_cliente, nombre_cliente, ruta, local_foraneo, fecha_hora_cita, estado')
         .eq('estado', 'Finalizado')
         .gte('fecha_hora_cita', since.toISOString())
         .order('fecha_hora_cita', { ascending: false })
@@ -40,7 +40,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
 
       // 2. Get route events for these services
       const idServicios = servicios
-        .map(s => s.id_servicio || s.folio_saphiro)
+        .map(s => s.id_servicio || s.folio_cliente)
         .filter(Boolean) as string[];
 
       if (!idServicios.length) return [];
@@ -69,7 +69,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
       const result: EstadiaCalculada[] = [];
 
       for (const svc of servicios) {
-        const key = svc.id_servicio || svc.folio_saphiro;
+        const key = svc.id_servicio || svc.folio_cliente;
         if (!key) continue;
         const evts = eventosMap.get(key) || [];
         const llegada = evts.find((e: any) => e.tipo_evento === 'llegada_destino');
@@ -80,7 +80,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
         const deltaHrs = (new Date(liberacion.hora_inicio).getTime() - new Date(llegada.hora_inicio).getTime()) / 3600000;
         if (deltaHrs <= 0) continue;
 
-        const cf = clienteMap.get((svc.cliente || '').toLowerCase());
+        const cf = clienteMap.get((svc.nombre_cliente || '').toLowerCase());
         const isForaneo = svc.local_foraneo === 'Foráneo';
         const cortesia = isForaneo
           ? (cf?.horas_cortesia_foraneo ?? cf?.horas_cortesia ?? 0)
@@ -94,8 +94,8 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
         result.push({
           servicioId: svc.id,
           idServicio: key,
-          folio: svc.folio_saphiro || key,
-          cliente: svc.cliente || 'N/A',
+          folio: svc.folio_cliente || key,
+          cliente: svc.nombre_cliente || 'N/A',
           ruta: svc.ruta || 'N/A',
           localForaneo: svc.local_foraneo || 'Local',
           fechaServicio: svc.fecha_hora_cita?.split('T')[0] || '',

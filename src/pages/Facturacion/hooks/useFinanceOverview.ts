@@ -59,16 +59,16 @@ export function useFinanceOverview() {
         // MTD services (income)
         supabase
           .from('servicios_custodia')
-          .select('cobro_cliente, costo_custodio, estado, fecha_servicio')
-          .gte('fecha_servicio', mtdStart)
-          .lte('fecha_servicio', today)
+          .select('cobro_cliente, costo_custodio, estado, fecha_hora_cita')
+          .gte('fecha_hora_cita', mtdStart)
+          .lte('fecha_hora_cita', today)
           .not('estado', 'eq', 'Cancelado'),
         // Previous MTD services
         supabase
           .from('servicios_custodia')
-          .select('cobro_cliente, costo_custodio, estado, fecha_servicio')
-          .gte('fecha_servicio', prevMtdStart)
-          .lte('fecha_servicio', prevMonthSameDay)
+          .select('cobro_cliente, costo_custodio, estado, fecha_hora_cita')
+          .gte('fecha_hora_cita', prevMtdStart)
+          .lte('fecha_hora_cita', prevMonthSameDay)
           .not('estado', 'eq', 'Cancelado'),
         // All cortes semanales (for pipeline)
         supabase
