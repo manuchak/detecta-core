@@ -29,6 +29,8 @@ interface ServicioDetalle {
   costo_custodio: number | null;
   casetas: number | null;
   tarifa_acordada?: number | null;
+  estadiaHrs?: number;
+  estadiaMonto?: number;
 }
 
 interface OperativoPreview {
