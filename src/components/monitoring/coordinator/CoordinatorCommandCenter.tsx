@@ -3,12 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Radio, ArrowRightLeft, X, Activity, Users } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown } from 'lucide-react';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import { MonitoristaCard } from './MonitoristaCard';
-import { UnassignedServiceRow } from './UnassignedServiceRow';
 import { AutoDistributeButton } from './AutoDistributeButton';
+import { CoordinatorAlertBar } from './CoordinatorAlertBar';
 import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
@@ -27,6 +28,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
+  const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
   const turno = getCurrentTurno();
 
   // Build active service data from the board
@@ -45,11 +47,20 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
+  const unassignedForPopover = unassigned.map(sId => ({
+    id: sId,
+    label: serviceLabelMap[sId] || sId.slice(0, 12),
+    horaCita: serviceHoraCitaMap[sId],
+  }));
+
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
 
   const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
+
+  // Counts for alert bar
+  const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
 
   const isOverlay = !!onClose;
 
@@ -67,9 +78,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
             Turno: {getTurnoLabel(turno)}
-          </Badge>
-          <Badge variant="outline" className="text-[10px] px-2 py-0.5">
-            {allActive.length} activos · {unassigned.length} sin cobertura
           </Badge>
           {totalInferred > 0 && (
             <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-dashed text-chart-2">
@@ -89,7 +97,36 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
 
-          {/* ── Section 1: Monitoristas ── */}
+          {/* ── Alert Bar ── */}
+          <CoordinatorAlertBar
+            unassignedCount={unassigned.length}
+            correctionCount={enDestinoCount}
+            gastosCount={0}
+          />
+
+          {/* ── Global Actions ── */}
+          <div className="flex gap-2">
+            <AutoDistributeButton
+              unassignedCount={unassigned.length}
+              monitoristaCount={enTurno.length}
+              isPending={autoDistribute.isPending}
+              onDistribute={() => autoDistribute.mutate({
+                unassignedServiceIds: unassigned,
+                monitoristaIds: enTurno.map(m => m.id),
+              })}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 text-xs"
+              onClick={() => setHandoffOpen(true)}
+            >
+              <ArrowRightLeft className="h-3 w-3" />
+              Cambio de Turno
+            </Button>
+          </div>
+
+          {/* ── Section 1: Monitoristas en turno ── */}
           <Card className="border-border/60 bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-3 px-5 pt-4">
               <div className="flex items-center justify-between">
@@ -97,15 +134,14 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                   <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Users className="h-4 w-4 text-primary" />
                   </div>
-                  <CardTitle className="text-sm font-semibold">Monitoristas</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Equipo en Turno</CardTitle>
                 </div>
                 <Badge variant="outline" className="text-[10px] tabular-nums">
-                  {enTurno.length} en turno
+                  {enTurno.length} en turno · {allActive.length} activos
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="px-5 pb-4 space-y-3">
-              {/* Monitorista cards */}
+            <CardContent className="px-5 pb-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {enTurno.map(m => (
                   <MonitoristaCard
@@ -114,77 +150,54 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                     assignments={assignmentsByMonitorista[m.id] || []}
                     maxLoad={maxLoad}
                     serviceLabelMap={serviceLabelMap}
-                  />
-                ))}
-                {sinTurno.length > 0 && sinTurno.map(m => (
-                  <MonitoristaCard
-                    key={m.id}
-                    monitorista={m}
-                    assignments={assignmentsByMonitorista[m.id] || []}
-                    maxLoad={maxLoad}
-                    serviceLabelMap={serviceLabelMap}
+                    unassignedServices={unassignedForPopover}
+                    onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
+                    isAssigning={assignService.isPending}
                   />
                 ))}
               </div>
 
-              {monitoristas.length === 0 && (
+              {enTurno.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">
-                  No hay monitoristas registrados
+                  No hay monitoristas en turno
                 </p>
               )}
 
-              {/* Unassigned services */}
-              {unassigned.length > 0 && (
-                <div className="pt-2 border-t border-border/40">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-                    Sin cobertura ({unassigned.length})
-                  </p>
-                  <div className="space-y-1.5">
-                    {unassigned.map(sId => (
-                      <UnassignedServiceRow
-                        key={sId}
-                        servicioId={sId}
-                        label={serviceLabelMap[sId] || sId.slice(0, 12)}
-                        horaCita={serviceHoraCitaMap[sId]}
-                        monitoristas={monitoristas}
-                        disabled={assignService.isPending}
-                        onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
-                      />
-                    ))}
-                  </div>
-                </div>
+              {/* Sin turno — collapsible */}
+              {sinTurno.length > 0 && (
+                <Collapsible open={sinTurnoOpen} onOpenChange={setSinTurnoOpen}>
+                  <CollapsibleTrigger className="w-full mt-3 pt-3 border-t border-border/40">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-widest">
+                      <span>Sin turno ({sinTurno.length})</span>
+                      <ChevronDown className={cn('h-3 w-3 transition-transform', sinTurnoOpen && 'rotate-180')} />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
+                      {sinTurno.map(m => (
+                        <MonitoristaCard
+                          key={m.id}
+                          monitorista={m}
+                          assignments={assignmentsByMonitorista[m.id] || []}
+                          maxLoad={maxLoad}
+                          serviceLabelMap={serviceLabelMap}
+                        />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                <AutoDistributeButton
-                  unassignedCount={unassigned.length}
-                  monitoristaCount={enTurno.length}
-                  isPending={autoDistribute.isPending}
-                  onDistribute={() => autoDistribute.mutate({
-                    unassignedServiceIds: unassigned,
-                    monitoristaIds: enTurno.map(m => m.id),
-                  })}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 h-8 text-xs"
-                  onClick={() => setHandoffOpen(true)}
-                >
-                  <ArrowRightLeft className="h-3 w-3" />
-                  Cambio de Turno
-                </Button>
-              </div>
             </CardContent>
           </Card>
 
-          {/* ── Section 2: Correcciones en Destino ── */}
-          <DestinoCorrectionSection
-            services={enCursoServices}
-            onRevert={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
-            isReverting={revertirEnDestino.isPending}
-          />
+          {/* ── Section 2: Correcciones en Destino (conditional) ── */}
+          {enDestinoCount > 0 && (
+            <DestinoCorrectionSection
+              services={enCursoServices}
+              onRevert={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+              isReverting={revertirEnDestino.isPending}
+            />
+          )}
 
           {/* ── Section 3: Gastos Extraordinarios ── */}
           <GastosAprobacionSection />

@@ -154,10 +154,7 @@ export const GastosAprobacionSection: React.FC = () => {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-sm font-medium">{tipoLabel}</span>
                       {s.urgencia && s.urgencia !== 'normal' && (
-                        <Badge
-                          variant="destructive"
-                          className="text-[9px] px-1.5 py-0"
-                        >
+                        <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
                           <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
                           {s.urgencia}
                         </Badge>
@@ -246,7 +243,7 @@ export const GastosAprobacionSection: React.FC = () => {
                   </div>
                 )}
 
-                {/* Actions */}
+                {/* Actions — rejection reason ABOVE buttons */}
                 <div className="border-t border-border pt-4 space-y-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Monto a aprobar (MXN)</label>
@@ -256,6 +253,16 @@ export const GastosAprobacionSection: React.FC = () => {
                       onChange={(e) => setMontoAprobado(e.target.value)}
                       min="0"
                       step="0.01"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">Motivo de rechazo (obligatorio para rechazar)</label>
+                    <Textarea
+                      placeholder="Indica por qué se rechaza..."
+                      value={motivoRechazo}
+                      onChange={(e) => setMotivoRechazo(e.target.value)}
+                      rows={2}
                     />
                   </div>
 
@@ -273,16 +280,10 @@ export const GastosAprobacionSection: React.FC = () => {
                       Aprobar
                     </Button>
                     <Button
-                      variant="destructive"
-                      className="gap-1.5"
-                      disabled={rechazar.isPending}
-                      onClick={() => {
-                        if (!motivoRechazo.trim()) {
-                          toast.error('Indica un motivo de rechazo');
-                          return;
-                        }
-                        rechazar.mutate({ id: selected.id, motivo: motivoRechazo });
-                      }}
+                      variant="outline"
+                      className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+                      disabled={!motivoRechazo.trim() || rechazar.isPending}
+                      onClick={() => rechazar.mutate({ id: selected.id, motivo: motivoRechazo })}
                     >
                       {rechazar.isPending ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -291,16 +292,6 @@ export const GastosAprobacionSection: React.FC = () => {
                       )}
                       Rechazar
                     </Button>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Motivo de rechazo (obligatorio para rechazar)</label>
-                    <Textarea
-                      placeholder="Indica por qué se rechaza..."
-                      value={motivoRechazo}
-                      onChange={(e) => setMotivoRechazo(e.target.value)}
-                      rows={2}
-                    />
                   </div>
                 </div>
               </div>
