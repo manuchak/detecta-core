@@ -46,6 +46,12 @@ export const CoordinatorAlertBar: React.FC<Props> = ({
             {gastosCount} gastos
           </Badge>
         )}
+        {handoffCount > 0 && (
+          <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5 border-chart-4/40 text-chart-4">
+            <ArrowRightLeft className="h-3 w-3" />
+            {handoffCount} entregas
+          </Badge>
+        )}
       </div>
     </div>
   );
