@@ -438,8 +438,34 @@ export function CxPOperativoTab() {
                         <TableCell>
                           <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                             {c.estado === 'borrador' && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs"
-                                onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
+                              <>
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                  onClick={() => handleTransition(c.id, 'revision_ops')}>Enviar Ops</Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={deleteMutation.isPending}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Eliminar corte borrador?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Se eliminará el corte de "{c.operativo_nombre}" y todos sus detalles. Esta acción no se puede deshacer.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        onClick={() => deleteMutation.mutate(c.id)}
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </>
                             )}
                             {c.estado === 'revision_ops' && (
                               <Button size="sm" variant="outline" className="h-7 text-xs"
