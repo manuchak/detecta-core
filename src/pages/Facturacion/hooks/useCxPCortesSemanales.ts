@@ -131,7 +131,7 @@ export function useCreateCxPCorte() {
             montoServicios += costoBase;
             detalles.push({
               concepto: 'servicio',
-              descripcion: `Servicio ${s.id_servicio || s.id} - ${s.cliente || ''}`,
+              descripcion: `Servicio ${s.id_servicio || s.id} - ${s.nombre_cliente || ''}`,
               monto: costoBase,
               servicio_custodia_id: s.id,
             });
