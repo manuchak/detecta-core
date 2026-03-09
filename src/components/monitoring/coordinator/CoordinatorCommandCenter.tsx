@@ -244,8 +244,8 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             handoffCount={entregasRevertibles.length}
             abandonedCount={abandonedCount}
           />
+          <AnomaliasBadge />
 
-          {/* ── Global Actions ── */}
           <div className="flex gap-2">
             <AutoDistributeButton
               unassignedCount={unassigned.length}
