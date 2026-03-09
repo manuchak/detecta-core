@@ -56,7 +56,7 @@ const CreateExpenseForm = () => {
     setOpen(false);
   };
 
-  const isValid = tipo && motivo.trim() && monto && parseFloat(monto) > 0;
+  const isValid = tipo && motivo.trim() && monto && parseFloat(monto) > 0 && folio.trim();
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
