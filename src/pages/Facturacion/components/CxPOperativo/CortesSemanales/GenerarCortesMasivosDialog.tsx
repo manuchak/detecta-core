@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, CheckCircle2, AlertCircle, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA } from '../../../hooks/useCxPCortesSemanales';
+import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA, CXP_UMBRAL_CORTESIA_HORAS } from '../../../hooks/useCxPCortesSemanales';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
