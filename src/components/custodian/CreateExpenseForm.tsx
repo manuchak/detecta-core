@@ -112,29 +112,14 @@ const CreateExpenseForm = () => {
             />
           </div>
 
-          {/* Urgencia */}
+          {/* Número de Folio */}
           <div className="space-y-1.5">
-            <Label>Urgencia</Label>
-            <Select value={urgencia} onValueChange={setUrgencia}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="baja">Baja</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="alta">Alta</SelectItem>
-                <SelectItem value="critica">Crítica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Notas */}
-          <div className="space-y-1.5">
-            <Label>Notas adicionales</Label>
+            <Label>Número de Folio *</Label>
             <Input
-              placeholder="Número de servicio, cliente, etc."
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Ej. FOL-2026-001"
+              value={folio}
+              onChange={(e) => setFolio(e.target.value)}
+              maxLength={50}
             />
           </div>
 
