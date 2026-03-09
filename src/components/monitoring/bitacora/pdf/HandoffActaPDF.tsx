@@ -39,6 +39,7 @@ export interface HandoffActaData {
   incidentesAbiertos: IncidenteAbierto[];
   notasGenerales: string;
   firmaBase64?: string;
+  firmaEntranteBase64?: string;
   firmaEmail?: string;
   firmaTimestamp?: string;
   logoBase64?: string | null;
