@@ -39,6 +39,7 @@ export interface ClienteFiscal {
   evidencia_requerida: string[] | null;
   observaciones_facturacion: string | null;
   facturacion_intercompania: boolean | null;
+  tarifa_hora_estadia: number | null;
 }
 
 export interface ClienteFiscalUpdate {
