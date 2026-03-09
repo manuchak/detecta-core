@@ -33,6 +33,7 @@ export function CortesPanel() {
   const [showDialog, setShowDialog] = useState(false);
   const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado);
   const updateMutation = useUpdateCxPCorte();
+  const deleteMutation = useDeleteCxPCorte();
 
   const totalPendiente = cortes
     .filter(c => ['borrador', 'revision_ops', 'aprobado_finanzas'].includes(c.estado))
