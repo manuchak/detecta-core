@@ -80,7 +80,7 @@ export function useEstadiasCalculadas(enabled: boolean = true) {
         const deltaHrs = (new Date(liberacion.hora_inicio).getTime() - new Date(llegada.hora_inicio).getTime()) / 3600000;
         if (deltaHrs <= 0) continue;
 
-        const cf = clienteMap.get((svc.cliente || '').toLowerCase());
+        const cf = clienteMap.get((svc.nombre_cliente || '').toLowerCase());
         const isForaneo = svc.local_foraneo === 'Foráneo';
         const cortesia = isForaneo
           ? (cf?.horas_cortesia_foraneo ?? cf?.horas_cortesia ?? 0)
