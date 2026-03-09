@@ -284,7 +284,15 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           firma_data_url: payload.firmaDataUrl || null,
         });
 
-      return { closedCount, transferredCount };
+      return {
+        closedCount,
+        transferredCount,
+        serviciosTransferidos,
+        serviciosCerrados,
+        incidentesAbiertos: allIncidents,
+        payload,
+        userEmail: user?.email,
+      };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
