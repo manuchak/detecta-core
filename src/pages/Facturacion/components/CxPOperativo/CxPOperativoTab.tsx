@@ -81,6 +81,7 @@ export function CxPOperativoTab() {
 
   const { data: cortes = [], isLoading } = useCxPCortesSemanales(filtroEstado, semanaInicio, semanaFin);
   const updateMutation = useUpdateCxPCorte();
+  const deleteMutation = useDeleteCxPCorte();
 
   // Pipeline stats
   const pipeline = useMemo(() => {
