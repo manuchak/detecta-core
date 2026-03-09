@@ -120,6 +120,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       distribucion,
       notasGenerales,
       firmaDataUrl: firmaEntrega || undefined,
+      firmaEntranteDataUrl: firmaEntrante || undefined,
     }, {
       onSuccess: async (result) => {
         // Generate and download PDF
@@ -134,6 +135,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             incidentesAbiertos: result.incidentesAbiertos,
             notasGenerales,
             firmaBase64: firmaEntrega || undefined,
+            firmaEntranteBase64: firmaEntrante || undefined,
             firmaEmail: result.userEmail || undefined,
             firmaTimestamp: new Date().toISOString(),
           };
