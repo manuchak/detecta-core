@@ -109,10 +109,10 @@ export function useCreateCxPCorte() {
         const { data: servicios } = await supabase
           .from('servicios_custodia')
           .select('id, id_servicio, costo_custodio, casetas, cliente')
-          .eq('custodio_asignado', data.operativo_id)
-          .eq('estado', 'completado')
-          .gte('fecha_servicio', data.semana_inicio)
-          .lte('fecha_servicio', data.semana_fin);
+          .eq('id_custodio', data.operativo_id)
+          .eq('estado', 'Finalizado')
+          .gte('fecha_hora_cita', `${data.semana_inicio}T00:00:00`)
+          .lte('fecha_hora_cita', `${data.semana_fin}T23:59:59`);
 
         if (servicios) {
           totalServicios = servicios.length;

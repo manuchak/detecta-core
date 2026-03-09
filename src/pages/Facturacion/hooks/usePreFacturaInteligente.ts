@@ -111,9 +111,11 @@ export function usePreFacturaInteligente(
         }
       }
 
-      // Resolve courtesy rule for client
+      // Resolve courtesy rule for client (base values, may be overridden per-service by local/foráneo)
       const regla = resolveReglaEstadia(reglasEstadias);
-      const horasCortesia = regla?.horas_cortesia ?? clienteFiscal?.horas_cortesia ?? 0;
+      const baseHorasCortesia = regla?.horas_cortesia ?? clienteFiscal?.horas_cortesia ?? 0;
+      const horasCortesiaLocal = clienteFiscal?.horas_cortesia_local ?? baseHorasCortesia;
+      const horasCortesiaForaneo = clienteFiscal?.horas_cortesia_foraneo ?? baseHorasCortesia;
       const tarifaHoraExcedente = regla?.tarifa_hora_excedente ?? 0;
       const tarifaPernocta = regla?.tarifa_pernocta ?? clienteFiscal?.pernocta_tarifa ?? 0;
 
@@ -162,6 +164,11 @@ export function usePreFacturaInteligente(
         const dets = detencionesMap.get(svc.id) || [];
         const minutosDetenciones = dets.reduce((sum: number, d: any) => sum + (d.duracion_minutos || 0), 0);
         horasEstadia += minutosDetenciones / 60;
+
+        // Resolve courtesy hours based on local/foráneo classification
+        const horasCortesia = svc.local_foraneo === 'Foráneo'
+          ? horasCortesiaForaneo
+          : horasCortesiaLocal;
 
         const horasExcedentes = Math.max(0, horasEstadia - horasCortesia);
         if (horasExcedentes > 0 && tarifaHoraExcedente > 0) {
