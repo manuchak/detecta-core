@@ -191,7 +191,7 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
                 </span>
                 <div className="h-px flex-1 bg-red-500/30" />
               </div>
-              {group.items.map(renderServiceItem)}
+              {group.items.map(s => renderServiceItem(s, true))}
             </div>
           ))}
         </div>
