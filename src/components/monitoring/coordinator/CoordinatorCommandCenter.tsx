@@ -154,7 +154,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
           // Reassign
           reassignService.mutate(
-            { assignmentId: assignment.id, newMonitoristaId: target.id },
+            { assignmentId: assignment.id, newMonitoristaId: target.id, servicioId: assignment.servicio_id, turno },
             {
               onSuccess: () => {
                 toast.warning(
