@@ -120,6 +120,7 @@ export function CxPProveedoresTab() {
                 <TableHead>Factura Prov.</TableHead>
                 <TableHead>Conciliación</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
