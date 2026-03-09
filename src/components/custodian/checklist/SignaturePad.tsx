@@ -10,6 +10,7 @@ interface SignaturePadProps {
   value: string | null;
   onChange: (signature: string | null) => void;
   className?: string;
+  label?: string;
 }
 
 export function SignaturePad({
