@@ -32,6 +32,10 @@ export interface RadarService {
   lat: number | null;
   lng: number | null;
   positionSource: 'gps' | 'geocoded';
+  // Route data
+  destLat: number | null;
+  destLng: number | null;
+  corridorId: string | null;
 }
 
 export interface RadarResumen {
