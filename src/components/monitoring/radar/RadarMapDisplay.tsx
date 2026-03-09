@@ -4,6 +4,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { initializeMapboxToken } from '@/lib/mapbox';
 import { RadarService, RadarSafePoint, AlertLevel, ServicePhase } from '@/hooks/useServiciosTurnoLive';
 import { matchRoute, splitRouteAtPosition } from '@/lib/radar/routeMatcher';
+import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
 
 interface RadarMapDisplayProps {
   servicios: RadarService[];
@@ -36,6 +37,8 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
   const currentZoomRef = useRef(5.2);
   const mapLoadedRef = useRef(false);
 
+  const { data: segmentGeometries } = useSegmentGeometries();
+
   // Compute route data for each active service
   const routeData = useMemo(() => {
     return servicios
@@ -44,9 +47,7 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
         const route = matchRoute(s.origen, s.destino);
         if (!route) {
           // Fallback: straight lines
-          const originCoords: [number, number] = s.positionSource === 'gps'
-            ? [s.lng!, s.lat!] // If GPS, we don't know true origin - use current pos
-            : [s.lng!, s.lat!];
+          const originCoords: [number, number] = [s.lng!, s.lat!];
           return {
             service: s,
             traveled: s.positionSource === 'gps'
@@ -58,21 +59,44 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
           };
         }
 
+        // Use road-snapped geometries if available for any corridor in the chain
+        let routeWaypoints = route.waypoints;
+        if (segmentGeometries && route.corridorIds.length > 0) {
+          const snappedSegments: [number, number][][] = [];
+          let allSnapped = true;
+          for (const cId of route.corridorIds) {
+            const geo = segmentGeometries[cId];
+            if (geo && geo.coordinates.length >= 2) {
+              snappedSegments.push(geo.coordinates);
+            } else {
+              allSnapped = false;
+              break;
+            }
+          }
+          if (allSnapped && snappedSegments.length > 0) {
+            // Merge snapped segments, removing junction duplicates
+            let merged = snappedSegments[0];
+            for (let i = 1; i < snappedSegments.length; i++) {
+              merged = [...merged, ...snappedSegments[i].slice(1)];
+            }
+            routeWaypoints = merged;
+          }
+        }
+
         if (s.positionSource === 'gps') {
-          const { traveled, remaining } = splitRouteAtPosition(route.waypoints, [s.lng!, s.lat!]);
+          const { traveled, remaining } = splitRouteAtPosition(routeWaypoints, [s.lng!, s.lat!]);
           return { service: s, traveled, remaining, deadZones: route.deadZones, hasCorridor: true };
         } else {
-          // No GPS yet - show full route as pending
           return {
             service: s,
             traveled: [] as [number, number][],
-            remaining: route.waypoints,
+            remaining: routeWaypoints,
             deadZones: route.deadZones,
             hasCorridor: true,
           };
         }
       });
-  }, [servicios]);
+  }, [servicios, segmentGeometries]);
 
   // Collect all unique dead zones from active routes
   const activeDeadZones = useMemo(() => {

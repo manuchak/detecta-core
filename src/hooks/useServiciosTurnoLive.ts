@@ -36,7 +36,7 @@ export interface RadarService {
   // Route data
   destLat: number | null;
   destLng: number | null;
-  corridorId: string | null;
+  corridorIds: string[];
 }
 
 export interface RadarResumen {
@@ -297,7 +297,7 @@ export function useServiciosTurnoLive() {
       positionSource,
       destLat: destGeo?.lat ?? null,
       destLng: destGeo?.lng ?? null,
-      corridorId: route?.corridorId ?? null,
+      corridorIds: route?.corridorIds ?? [],
     };
   }, [eventsByService, now]);
 

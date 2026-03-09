@@ -1,6 +1,7 @@
 /**
  * Route matcher for Radar Operativo
  * Matches service origin/destination to highway corridors and dead zones
+ * Supports multi-corridor chaining via BFS for long-distance routes
  */
 
 import { HIGHWAY_CORRIDORS, HighwayCorridor } from '@/lib/security/highwayCorridors';
@@ -8,12 +9,12 @@ import { CELLULAR_DEAD_ZONES, CellularDeadZone } from '@/lib/security/cellularCo
 import { CIUDADES_PRINCIPALES, extraerCiudad } from '@/utils/geografico';
 
 export interface MatchedRoute {
-  corridorId: string;
+  corridorIds: string[];
   corridorName: string;
   riskLevel: string;
-  /** Full corridor waypoints [lng, lat] */
+  /** Merged waypoints [lng, lat] across all chained corridors */
   waypoints: [number, number][];
-  /** Dead zones crossing this corridor */
+  /** Dead zones crossing all chained corridors */
   deadZones: CellularDeadZone[];
 }
 
@@ -55,9 +56,151 @@ export function findNearestWaypointIndex(point: [number, number], waypoints: [nu
   return minIdx;
 }
 
+/* ───────── Corridor Adjacency Graph ───────── */
+
+const ADJACENCY_THRESHOLD_KM = 50;
+
+interface CorridorEndpoints {
+  corridor: HighwayCorridor;
+  first: [number, number];
+  last: [number, number];
+}
+
+function getEndpoints(c: HighwayCorridor): CorridorEndpoints {
+  return {
+    corridor: c,
+    first: c.waypoints[0],
+    last: c.waypoints[c.waypoints.length - 1],
+  };
+}
+
 /**
- * Match origin/destination strings to the best highway corridor.
- * Returns null if no corridor is close enough (threshold: 80km from endpoints).
+ * Build adjacency list: corridors are neighbors if an endpoint of one
+ * is within ADJACENCY_THRESHOLD_KM of an endpoint of the other.
+ */
+function buildAdjacency(): Map<string, string[]> {
+  const endpoints = HIGHWAY_CORRIDORS.filter(c => c.waypoints.length >= 2).map(getEndpoints);
+  const adj = new Map<string, string[]>();
+
+  for (const ep of endpoints) {
+    adj.set(ep.corridor.id, []);
+  }
+
+  for (let i = 0; i < endpoints.length; i++) {
+    for (let j = i + 1; j < endpoints.length; j++) {
+      const a = endpoints[i];
+      const b = endpoints[j];
+      // Check all 4 endpoint combinations
+      const dists = [
+        haversineKm(a.first, b.first),
+        haversineKm(a.first, b.last),
+        haversineKm(a.last, b.first),
+        haversineKm(a.last, b.last),
+      ];
+      if (Math.min(...dists) <= ADJACENCY_THRESHOLD_KM) {
+        adj.get(a.corridor.id)!.push(b.corridor.id);
+        adj.get(b.corridor.id)!.push(a.corridor.id);
+      }
+    }
+  }
+  return adj;
+}
+
+// Lazy singleton
+let _adjacency: Map<string, string[]> | null = null;
+function getAdjacency() {
+  if (!_adjacency) _adjacency = buildAdjacency();
+  return _adjacency;
+}
+
+/**
+ * BFS to find shortest corridor chain from startId to endId.
+ * Returns array of corridor IDs or null.
+ */
+function bfsCorridorChain(startId: string, endId: string): string[] | null {
+  if (startId === endId) return [startId];
+  const adj = getAdjacency();
+  const visited = new Set<string>([startId]);
+  const queue: { id: string; path: string[] }[] = [{ id: startId, path: [startId] }];
+
+  while (queue.length > 0) {
+    const { id, path } = queue.shift()!;
+    for (const neighbor of adj.get(id) || []) {
+      if (visited.has(neighbor)) continue;
+      const newPath = [...path, neighbor];
+      if (neighbor === endId) return newPath;
+      visited.add(neighbor);
+      queue.push({ id: neighbor, path: newPath });
+    }
+  }
+  return null;
+}
+
+/**
+ * Orient a corridor's waypoints so the first waypoint is closest to `nearPoint`.
+ */
+function orientWaypoints(wp: [number, number][], nearPoint: [number, number]): [number, number][] {
+  if (wp.length < 2) return wp;
+  const dFirst = haversineKm(nearPoint, wp[0]);
+  const dLast = haversineKm(nearPoint, wp[wp.length - 1]);
+  return dLast < dFirst ? [...wp].reverse() : [...wp];
+}
+
+/**
+ * Merge waypoints from a chain of corridors, removing near-duplicate junction points.
+ */
+function mergeChainWaypoints(
+  corridorIds: string[],
+  origenCoords: [number, number],
+): [number, number][] {
+  const corridorMap = new Map(HIGHWAY_CORRIDORS.map(c => [c.id, c]));
+  if (corridorIds.length === 0) return [];
+
+  // Orient the first corridor towards the origin
+  const first = corridorMap.get(corridorIds[0])!;
+  let merged = orientWaypoints([...first.waypoints], origenCoords);
+
+  for (let i = 1; i < corridorIds.length; i++) {
+    const c = corridorMap.get(corridorIds[i])!;
+    // Orient this corridor so its start is near the end of the current merged path
+    const lastPoint = merged[merged.length - 1];
+    const oriented = orientWaypoints([...c.waypoints], lastPoint);
+
+    // Skip the first point if it's very close to the last merged point (junction)
+    const startIdx = haversineKm(lastPoint, oriented[0]) < ADJACENCY_THRESHOLD_KM ? 1 : 0;
+    merged = [...merged, ...oriented.slice(startIdx)];
+  }
+
+  return merged;
+}
+
+/* ───────── Public API ───────── */
+
+const ENDPOINT_THRESHOLD_KM = 80;
+
+/**
+ * Find the best corridor whose endpoint is closest to a given point.
+ * Returns corridor ID and distance, or null.
+ */
+function findClosestCorridor(point: [number, number]): { id: string; dist: number } | null {
+  let best: { id: string; dist: number } | null = null;
+  for (const c of HIGHWAY_CORRIDORS) {
+    if (c.waypoints.length < 2) continue;
+    const dFirst = haversineKm(point, c.waypoints[0]);
+    const dLast = haversineKm(point, c.waypoints[c.waypoints.length - 1]);
+    const d = Math.min(dFirst, dLast);
+    if (d < ENDPOINT_THRESHOLD_KM && (!best || d < best.dist)) {
+      best = { id: c.id, dist: d };
+    }
+  }
+  return best;
+}
+
+const RISK_PRIORITY: Record<string, number> = { extremo: 3, alto: 2, medio: 1, bajo: 0 };
+
+/**
+ * Match origin/destination to a chain of highway corridors.
+ * Returns merged waypoints across all corridors in the chain.
  */
 export function matchRoute(origen: string, destino: string): MatchedRoute | null {
   const origenKey = extraerCiudad(origen);
@@ -68,42 +211,38 @@ export function matchRoute(origen: string, destino: string): MatchedRoute | null
   const destinoCoords = getCityCoords(destinoKey);
   if (!origenCoords || !destinoCoords) return null;
 
-  const THRESHOLD_KM = 80;
-  let bestCorridor: HighwayCorridor | null = null;
-  let bestScore = Infinity;
+  const startCorridor = findClosestCorridor(origenCoords);
+  const endCorridor = findClosestCorridor(destinoCoords);
+  if (!startCorridor || !endCorridor) return null;
 
-  for (const corridor of HIGHWAY_CORRIDORS) {
-    if (corridor.waypoints.length < 2) continue;
+  // Try BFS chain
+  const chain = bfsCorridorChain(startCorridor.id, endCorridor.id);
+  if (!chain || chain.length === 0) return null;
 
-    const first = corridor.waypoints[0];
-    const last = corridor.waypoints[corridor.waypoints.length - 1];
+  const corridorMap = new Map(HIGHWAY_CORRIDORS.map(c => [c.id, c]));
 
-    // Try both directions
-    const distA = haversineKm(origenCoords, first) + haversineKm(destinoCoords, last);
-    const distB = haversineKm(origenCoords, last) + haversineKm(destinoCoords, first);
-    const score = Math.min(distA, distB);
+  // Merge waypoints
+  const waypoints = mergeChainWaypoints(chain, origenCoords);
 
-    if (score < bestScore && score < THRESHOLD_KM * 2) {
-      bestScore = score;
-      bestCorridor = corridor;
-    }
-  }
+  // Highest risk level in chain
+  const highestRisk = chain.reduce((max, id) => {
+    const c = corridorMap.get(id)!;
+    return (RISK_PRIORITY[c.riskLevel] || 0) > (RISK_PRIORITY[max] || 0) ? c.riskLevel : max;
+  }, 'bajo');
 
-  if (!bestCorridor) return null;
+  // Corridor name
+  const corridorName = chain.length === 1
+    ? corridorMap.get(chain[0])!.name
+    : `${corridorMap.get(chain[0])!.name} → ... → ${corridorMap.get(chain[chain.length - 1])!.name}`;
 
-  // Determine if we need to reverse waypoints (destination closer to first waypoint)
-  const first = bestCorridor.waypoints[0];
-  const last = bestCorridor.waypoints[bestCorridor.waypoints.length - 1];
-  const needsReverse = haversineKm(origenCoords, last) < haversineKm(origenCoords, first);
-  const waypoints = needsReverse ? [...bestCorridor.waypoints].reverse() : bestCorridor.waypoints;
-
-  // Get dead zones for this corridor
-  const deadZones = CELLULAR_DEAD_ZONES.filter(z => z.corridorId === bestCorridor!.id);
+  // Dead zones for all corridors in the chain
+  const chainSet = new Set(chain);
+  const deadZones = CELLULAR_DEAD_ZONES.filter(z => chainSet.has(z.corridorId));
 
   return {
-    corridorId: bestCorridor.id,
-    corridorName: bestCorridor.name,
-    riskLevel: bestCorridor.riskLevel,
+    corridorIds: chain,
+    corridorName,
+    riskLevel: highestRisk,
     waypoints,
     deadZones,
   };
@@ -121,10 +260,7 @@ export function splitRouteAtPosition(
   }
 
   const nearestIdx = findNearestWaypointIndex(currentPosition, waypoints);
-
-  // Traveled: from start up to and including the nearest waypoint, plus the current position
   const traveled = [...waypoints.slice(0, nearestIdx + 1), currentPosition];
-  // Remaining: from current position to the end
   const remaining = [currentPosition, ...waypoints.slice(nearestIdx + 1)];
 
   return { traveled, remaining };
