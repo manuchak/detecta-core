@@ -140,21 +140,21 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
           {step === 0 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
-                  {selfMonitoristaId ? 'Monitorista saliente (tú)' : 'Monitoristas salientes'}
+              <label className="text-xs font-medium text-muted-foreground">
+                  {effectiveSelfId ? 'Monitorista saliente (tú)' : 'Monitoristas salientes'}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {(selfMonitoristaId ? monitoristas.filter(m => m.id === selfMonitoristaId) : monitoristas.filter(m => m.en_turno)).map(m => {
+                  {(effectiveSelfId ? monitoristas.filter(m => m.id === effectiveSelfId) : monitoristas.filter(m => m.en_turno)).map(m => {
                     const count = (assignmentsByMonitorista[m.id] || []).length;
                     const selected = selectedSalienteIds.has(m.id);
                     return (
                       <button
                         key={m.id}
                         onClick={() => toggleSaliente(m.id)}
-                        disabled={!!selfMonitoristaId}
+                        disabled={!!effectiveSelfId}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs transition-colors ${
                           selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-accent'
-                        } ${selfMonitoristaId ? 'cursor-default' : 'cursor-pointer'}`}
+                        } ${effectiveSelfId ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <User className="h-3 w-3" />
                         {m.display_name.split(' ')[0]} · {count} serv.
