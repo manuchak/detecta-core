@@ -275,7 +275,7 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Semana Inicio (Lunes) *</Label>
+              <Label>{startLabel} *</Label>
               <Input
                 type="date"
                 value={form.semana_inicio}
@@ -283,7 +283,7 @@ export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Pro
               />
             </div>
             <div className="space-y-2">
-              <Label>Semana Fin (Domingo) *</Label>
+              <Label>{endLabel} *</Label>
               <Input
                 type="date"
                 value={form.semana_fin}
