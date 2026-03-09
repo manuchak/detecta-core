@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, View, Text } from '@react-pdf/renderer';
 import {
-  ReportPage, SectionHeader, FieldRow, FieldGroup, DataTable, SignatureBlock,
+  ReportPage, SectionHeader, FieldGroup, DataTable, SignatureBlock,
   pdfBaseStyles, PDF_COLORS,
 } from '@/components/pdf';
 import type { DataTableColumn } from '@/components/pdf/DataTable';
