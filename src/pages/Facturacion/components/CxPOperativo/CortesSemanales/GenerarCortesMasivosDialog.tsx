@@ -483,6 +483,7 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
                                         <th className="text-left py-1 font-medium">Destino</th>
                                         <th className="text-right py-1 font-medium">Costo</th>
                                         <th className="text-right py-1 font-medium">Casetas</th>
+                                        <th className="text-right py-1 font-medium">Estadía</th>
                                       </>
                                     ) : (
                                       <th className="text-right py-1 font-medium">Tarifa</th>
