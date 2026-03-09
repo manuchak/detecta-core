@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { EventoRuta } from './useEventosRuta';
 import type { ServicePhase, AlertLevel } from './useBitacoraBoard';
 import { CIUDADES_PRINCIPALES, extraerCiudad } from '@/utils/geografico';
+import { matchRoute, geocodeDestino } from '@/lib/radar/routeMatcher';
 
 export type { ServicePhase, AlertLevel };
 
