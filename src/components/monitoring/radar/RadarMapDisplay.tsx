@@ -1,10 +1,8 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { initializeMapboxToken } from '@/lib/mapbox';
 import { RadarService, RadarSafePoint, AlertLevel, ServicePhase } from '@/hooks/useServiciosTurnoLive';
-import { matchRoute, splitRouteAtPosition } from '@/lib/radar/routeMatcher';
-import { useSegmentGeometries } from '@/hooks/security/useSegmentGeometries';
 
 interface RadarMapDisplayProps {
   servicios: RadarService[];
@@ -21,97 +19,13 @@ function getMarkerStyle(phase: ServicePhase, alertLevel: AlertLevel): { color: s
   return { color: '#22c55e', glow: '#22c55e', pulse: false };
 }
 
-function getRouteColor(phase: ServicePhase, alertLevel: AlertLevel): string {
-  if (alertLevel === 'critical') return '#ef4444';
-  if (alertLevel === 'warning') return '#f59e0b';
-  if (phase === 'evento_especial') return '#a855f7';
-  return '#22c55e';
-}
-
 const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const serviceMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const safePointMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const routeMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const currentZoomRef = useRef(5.2);
   const mapLoadedRef = useRef(false);
-
-  const { data: segmentGeometries } = useSegmentGeometries();
-
-  // Compute route data for each active service
-  const routeData = useMemo(() => {
-    return servicios
-      .filter(s => s.lat && s.lng && s.destLat && s.destLng && (s.phase as string) !== 'completado')
-      .map(s => {
-        const route = matchRoute(s.origen, s.destino);
-        if (!route) {
-          // Fallback: straight lines
-          const originCoords: [number, number] = [s.lng!, s.lat!];
-          return {
-            service: s,
-            traveled: s.positionSource === 'gps'
-              ? [originCoords, [s.lng!, s.lat!] as [number, number]]
-              : [] as [number, number][],
-            remaining: [[s.lng!, s.lat!] as [number, number], [s.destLng!, s.destLat!] as [number, number]],
-            deadZones: [],
-            hasCorridor: false,
-          };
-        }
-
-        // Use road-snapped geometries if available for any corridor in the chain
-        let routeWaypoints = route.waypoints;
-        if (segmentGeometries && route.corridorIds.length > 0) {
-          const snappedSegments: [number, number][][] = [];
-          let allSnapped = true;
-          for (const cId of route.corridorIds) {
-            const geo = segmentGeometries[cId];
-            if (geo && geo.coordinates.length >= 2) {
-              snappedSegments.push(geo.coordinates);
-            } else {
-              allSnapped = false;
-              break;
-            }
-          }
-          if (allSnapped && snappedSegments.length > 0) {
-            // Merge snapped segments, removing junction duplicates
-            let merged = snappedSegments[0];
-            for (let i = 1; i < snappedSegments.length; i++) {
-              merged = [...merged, ...snappedSegments[i].slice(1)];
-            }
-            routeWaypoints = merged;
-          }
-        }
-
-        if (s.positionSource === 'gps') {
-          const { traveled, remaining } = splitRouteAtPosition(routeWaypoints, [s.lng!, s.lat!]);
-          return { service: s, traveled, remaining, deadZones: route.deadZones, hasCorridor: true };
-        } else {
-          return {
-            service: s,
-            traveled: [] as [number, number][],
-            remaining: routeWaypoints,
-            deadZones: route.deadZones,
-            hasCorridor: true,
-          };
-        }
-      });
-  }, [servicios, segmentGeometries]);
-
-  // Collect all unique dead zones from active routes
-  const activeDeadZones = useMemo(() => {
-    const seen = new Set<string>();
-    const zones: { center: [number, number]; polygon: [number, number][]; name: string; severity: string }[] = [];
-    routeData.forEach(r => {
-      r.deadZones.forEach(dz => {
-        if (!seen.has(dz.id)) {
-          seen.add(dz.id);
-          zones.push({ center: dz.center, polygon: dz.polygon, name: dz.name, severity: dz.severity });
-        }
-      });
-    });
-    return zones;
-  }, [routeData]);
 
   // Initialize map once
   useEffect(() => {
@@ -147,159 +61,6 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
     init();
     return () => { map.current?.remove(); };
   }, []);
-
-  // Update route layers (GeoJSON sources)
-  useEffect(() => {
-    if (!map.current || !mapLoadedRef.current) return;
-
-    const m = map.current;
-
-    // Build GeoJSON for traveled segments
-    const traveledFeatures = routeData
-      .filter(r => r.traveled.length >= 2)
-      .map(r => ({
-        type: 'Feature' as const,
-        properties: { color: getRouteColor(r.service.phase, r.service.alertLevel) },
-        geometry: { type: 'LineString' as const, coordinates: r.traveled },
-      }));
-
-    // Build GeoJSON for remaining segments
-    const remainingFeatures = routeData
-      .filter(r => r.remaining.length >= 2)
-      .map(r => ({
-        type: 'Feature' as const,
-        properties: {},
-        geometry: { type: 'LineString' as const, coordinates: r.remaining },
-      }));
-
-    // Build GeoJSON for dead zones (polygons)
-    const deadZoneFeatures = activeDeadZones
-      .filter(dz => dz.polygon.length >= 3)
-      .map(dz => ({
-        type: 'Feature' as const,
-        properties: { name: dz.name, severity: dz.severity },
-        geometry: { type: 'Polygon' as const, coordinates: [[...dz.polygon, dz.polygon[0]]] },
-      }));
-
-    // Dead zone circles for zones without polygon (fallback with center point)
-    const deadZoneCircleFeatures = activeDeadZones.map(dz => ({
-      type: 'Feature' as const,
-      properties: { name: dz.name, severity: dz.severity },
-      geometry: { type: 'Point' as const, coordinates: dz.center },
-    }));
-
-    // Upsert sources and layers
-    const upsertSource = (id: string, data: any) => {
-      const src = m.getSource(id) as mapboxgl.GeoJSONSource | undefined;
-      if (src) {
-        src.setData(data);
-      } else {
-        m.addSource(id, { type: 'geojson', data });
-      }
-    };
-
-    // Traveled routes
-    upsertSource('radar-routes-traveled', { type: 'FeatureCollection', features: traveledFeatures });
-    if (!m.getLayer('radar-routes-traveled-layer')) {
-      m.addLayer({
-        id: 'radar-routes-traveled-layer',
-        type: 'line',
-        source: 'radar-routes-traveled',
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': 3,
-          'line-opacity': 0.85,
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-    }
-
-    // Remaining routes
-    upsertSource('radar-routes-remaining', { type: 'FeatureCollection', features: remainingFeatures });
-    if (!m.getLayer('radar-routes-remaining-layer')) {
-      m.addLayer({
-        id: 'radar-routes-remaining-layer',
-        type: 'line',
-        source: 'radar-routes-remaining',
-        paint: {
-          'line-color': '#ffffff',
-          'line-width': 2,
-          'line-opacity': 0.4,
-          'line-dasharray': [6, 4],
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-      });
-    }
-
-    // Dead zone polygons
-    upsertSource('radar-deadzones-poly', { type: 'FeatureCollection', features: deadZoneFeatures });
-    if (!m.getLayer('radar-deadzones-fill')) {
-      m.addLayer({
-        id: 'radar-deadzones-fill',
-        type: 'fill',
-        source: 'radar-deadzones-poly',
-        paint: {
-          'fill-color': '#ef4444',
-          'fill-opacity': 0.12,
-        },
-        minzoom: 6,
-      });
-      m.addLayer({
-        id: 'radar-deadzones-outline',
-        type: 'line',
-        source: 'radar-deadzones-poly',
-        paint: {
-          'line-color': '#ef4444',
-          'line-width': 1,
-          'line-opacity': 0.3,
-        },
-        minzoom: 6,
-      });
-    }
-
-    // Dead zone center points (circles)
-    upsertSource('radar-deadzones-pts', { type: 'FeatureCollection', features: deadZoneCircleFeatures });
-    if (!m.getLayer('radar-deadzones-circles')) {
-      m.addLayer({
-        id: 'radar-deadzones-circles',
-        type: 'circle',
-        source: 'radar-deadzones-pts',
-        paint: {
-          'circle-radius': 8,
-          'circle-color': '#ef4444',
-          'circle-opacity': 0.2,
-          'circle-stroke-color': '#ef4444',
-          'circle-stroke-width': 1,
-          'circle-stroke-opacity': 0.4,
-        },
-        minzoom: 6,
-      });
-    }
-
-    // Cleanup route endpoint markers
-    routeMarkersRef.current.forEach(m => m.remove());
-    routeMarkersRef.current = [];
-
-    // Add origin (○) and destination (◆) markers for each route
-    routeData.forEach(r => {
-      const s = r.service;
-      if (!s.destLat || !s.destLng) return;
-
-      // Destination marker (diamond)
-      const destEl = document.createElement('div');
-      destEl.style.width = '10px';
-      destEl.style.height = '10px';
-      destEl.style.backgroundColor = '#ffffff';
-      destEl.style.opacity = '0.7';
-      destEl.style.transform = 'rotate(45deg)';
-      destEl.style.border = '1px solid rgba(255,255,255,0.4)';
-      const destMarker = new mapboxgl.Marker({ element: destEl })
-        .setLngLat([s.destLng, s.destLat])
-        .addTo(m);
-      routeMarkersRef.current.push(destMarker);
-    });
-
-  }, [routeData, activeDeadZones]);
 
   // Update service markers
   useEffect(() => {
@@ -404,27 +165,6 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#6b7280' }} />
           <span className="text-xs text-gray-300">Espera</span>
-        </div>
-        {/* Route legend */}
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5" style={{ backgroundColor: '#22c55e' }} />
-          <span className="text-xs text-gray-300">Recorrido</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: 'rgba(255,255,255,0.5)' }} />
-          <span className="text-xs text-gray-300">Pendiente</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.3)' }} />
-          <span className="text-xs text-gray-300">Sin señal</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-0 h-0" style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderBottom: '7px solid rgba(239,68,68,0.6)' }} />
-          <span className="text-xs text-gray-300">Riesgo</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'rgba(34,197,94,0.5)' }} />
-          <span className="text-xs text-gray-300">Safe Point</span>
         </div>
       </div>
     </div>
