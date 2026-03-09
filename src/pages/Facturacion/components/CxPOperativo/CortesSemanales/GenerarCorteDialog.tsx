@@ -16,6 +16,7 @@ import { Search, Loader2 } from 'lucide-react';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  weekStartsOn?: 0 | 1;
 }
 
 interface OperativoOption {
@@ -156,15 +157,19 @@ function usePreviewCorte(
 
 const fmt = (v: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
 
-export function GenerarCorteDialog({ open, onOpenChange }: Props) {
-  const lastMonday = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
-  const lastSunday = endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
+export function GenerarCorteDialog({ open, onOpenChange, weekStartsOn = 1 }: Props) {
+  const wso = weekStartsOn as 0 | 1;
+  const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: wso });
+  const lastWeekEnd = endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: wso });
+
+  const startLabel = wso === 1 ? 'Inicio (Lunes)' : 'Inicio (Domingo)';
+  const endLabel = wso === 1 ? 'Fin (Domingo)' : 'Fin (Sábado)';
 
   const [form, setForm] = useState({
     tipo_operativo: 'custodio' as 'custodio' | 'armado_interno',
     operativo_id: '',
-    semana_inicio: format(lastMonday, 'yyyy-MM-dd'),
-    semana_fin: format(lastSunday, 'yyyy-MM-dd'),
+    semana_inicio: format(lastWeekStart, 'yyyy-MM-dd'),
+    semana_fin: format(lastWeekEnd, 'yyyy-MM-dd'),
     notas: '',
   });
 
@@ -270,7 +275,7 @@ export function GenerarCorteDialog({ open, onOpenChange }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Semana Inicio (Lunes) *</Label>
+              <Label>{startLabel} *</Label>
               <Input
                 type="date"
                 value={form.semana_inicio}
@@ -278,7 +283,7 @@ export function GenerarCorteDialog({ open, onOpenChange }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Semana Fin (Domingo) *</Label>
+              <Label>{endLabel} *</Label>
               <Input
                 type="date"
                 value={form.semana_fin}
