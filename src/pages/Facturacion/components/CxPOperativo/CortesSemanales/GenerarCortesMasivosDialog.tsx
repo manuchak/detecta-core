@@ -5,11 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, CheckCircle2, AlertCircle, Users } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreateCxPCorte, CXP_TARIFA_ESTADIA_HORA } from '../../../hooks/useCxPCortesSemanales';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface Props {
   open: boolean;
@@ -19,6 +21,15 @@ interface Props {
   weekLabel: string;
 }
 
+interface ServicioDetalle {
+  id: number;
+  fecha_hora_cita: string | null;
+  origen: string | null;
+  destino: string | null;
+  costo_custodio: number | null;
+  casetas: number | null;
+}
+
 interface OperativoPreview {
   id: string;
   nombre: string;
@@ -26,6 +37,7 @@ interface OperativoPreview {
   totalServicios: number;
   montoEstimado: number;
   yaGenerado: boolean;
+  servicios: ServicioDetalle[];
 }
 
 const fmt = (v: number) =>
@@ -35,10 +47,10 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
   return useQuery({
     queryKey: ['operativos-con-servicios', semanaInicio, semanaFin],
     queryFn: async (): Promise<OperativoPreview[]> => {
-      // 1) Fetch all finalized services in the week grouped by custodio
+      // 1) Fetch all finalized services in the week with nombre_custodio
       const { data: servicios } = await supabase
         .from('servicios_custodia')
-        .select('id_custodio, costo_custodio, casetas')
+        .select('id, id_custodio, nombre_custodio, costo_custodio, casetas, fecha_hora_cita, origen, destino')
         .eq('estado', 'Finalizado')
         .gte('fecha_hora_cita', `${semanaInicio}T00:00:00`)
         .lte('fecha_hora_cita', `${semanaFin}T23:59:59`)
@@ -54,36 +66,43 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
       const cortesSet = new Set((cortesExistentes || []).map(c => c.operativo_id));
 
       // 3) Group services by custodio
-      const grouped: Record<string, { total: number; monto: number }> = {};
+      const grouped: Record<string, { nombre: string; total: number; monto: number; servicios: ServicioDetalle[] }> = {};
       for (const s of servicios || []) {
         if (!s.id_custodio) continue;
-        if (!grouped[s.id_custodio]) grouped[s.id_custodio] = { total: 0, monto: 0 };
+        if (!grouped[s.id_custodio]) {
+          grouped[s.id_custodio] = {
+            nombre: s.nombre_custodio || `Custodio ${s.id_custodio}`,
+            total: 0,
+            monto: 0,
+            servicios: [],
+          };
+        }
         grouped[s.id_custodio].total += 1;
         grouped[s.id_custodio].monto += (Number(s.costo_custodio) || 0) + (Number(s.casetas) || 0);
+        grouped[s.id_custodio].servicios.push({
+          id: s.id,
+          fecha_hora_cita: s.fecha_hora_cita,
+          origen: s.origen,
+          destino: s.destino,
+          costo_custodio: Number(s.costo_custodio) || 0,
+          casetas: Number(s.casetas) || 0,
+        });
       }
 
       const custodioIds = Object.keys(grouped);
       if (custodioIds.length === 0) return [];
 
-      // 4) Fetch names
-      const { data: perfiles } = await supabase
-        .from('candidatos_custodios')
-        .select('id, nombre')
-        .in('id', custodioIds);
-
-      const nombreMap: Record<string, string> = {};
-      for (const p of perfiles || []) {
-        nombreMap[p.id] = p.nombre;
-      }
-
-      // 5) Build preview list
+      // 4) Build preview list using nombre_custodio directly
       const result: OperativoPreview[] = custodioIds.map(id => ({
         id,
-        nombre: nombreMap[id] || `Custodio ${id.slice(0, 8)}`,
+        nombre: grouped[id].nombre,
         tipo: 'custodio' as const,
         totalServicios: grouped[id].total,
         montoEstimado: Math.round(grouped[id].monto * 100) / 100,
         yaGenerado: cortesSet.has(id),
+        servicios: grouped[id].servicios.sort((a, b) =>
+          (a.fecha_hora_cita || '').localeCompare(b.fecha_hora_cita || '')
+        ),
       }));
 
       // Sort: pending first, then by name
@@ -101,6 +120,7 @@ function useOperativosConServicios(semanaInicio: string, semanaFin: string, enab
 
 export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, semanaFin, weekLabel }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, errors: 0 });
 
@@ -127,6 +147,13 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setSelectedIds(next);
+  };
+
+  const toggleExpand = (id: string) => {
+    const next = new Set(expandedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpandedIds(next);
   };
 
   const totalEstimado = useMemo(
@@ -169,9 +196,23 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
     if (errors === 0) onOpenChange(false);
   };
 
+  const formatFecha = (fecha: string | null) => {
+    if (!fecha) return '—';
+    try {
+      return format(new Date(fecha), 'dd MMM HH:mm', { locale: es });
+    } catch {
+      return fecha;
+    }
+  };
+
+  const truncate = (text: string | null, max = 25) => {
+    if (!text) return '—';
+    return text.length > max ? text.slice(0, max) + '…' : text;
+  };
+
   return (
     <Dialog open={open} onOpenChange={generating ? undefined : onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -213,6 +254,7 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8" />
                 <TableHead className="w-10">
                   <Checkbox
                     checked={allPendientesSelected}
@@ -229,51 +271,105 @@ export function GenerarCortesMasivosDialog({ open, onOpenChange, semanaInicio, s
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : operativos.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No se encontraron operativos con servicios finalizados en esta semana
                   </TableCell>
                 </TableRow>
               ) : (
-                operativos.map(op => (
-                  <TableRow
-                    key={op.id}
-                    className={op.yaGenerado ? 'opacity-50' : undefined}
-                  >
-                    <TableCell>
-                      {!op.yaGenerado && op.totalServicios > 0 ? (
-                        <Checkbox
-                          checked={selectedIds.has(op.id)}
-                          onCheckedChange={() => toggleOne(op.id)}
-                          disabled={generating}
-                        />
-                      ) : op.yaGenerado ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                operativos.map(op => {
+                  const isExpanded = expandedIds.has(op.id);
+                  return (
+                    <>
+                      <TableRow
+                        key={op.id}
+                        className={op.yaGenerado ? 'opacity-50' : 'cursor-pointer'}
+                        onClick={() => !op.yaGenerado && op.totalServicios > 0 && toggleExpand(op.id)}
+                      >
+                        <TableCell className="px-2">
+                          {op.totalServicios > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => { e.stopPropagation(); toggleExpand(op.id); }}
+                            >
+                              {isExpanded
+                                ? <ChevronDown className="h-3.5 w-3.5" />
+                                : <ChevronRight className="h-3.5 w-3.5" />
+                              }
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          {!op.yaGenerado && op.totalServicios > 0 ? (
+                            <Checkbox
+                              checked={selectedIds.has(op.id)}
+                              onCheckedChange={() => toggleOne(op.id)}
+                              disabled={generating}
+                            />
+                          ) : op.yaGenerado ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">{op.nombre}</TableCell>
+                        <TableCell className="text-center">{op.totalServicios}</TableCell>
+                        <TableCell className="text-right font-semibold text-sm">{fmt(op.montoEstimado)}</TableCell>
+                        <TableCell>
+                          {op.yaGenerado ? (
+                            <Badge variant="secondary" className="text-[10px]">Ya generado</Badge>
+                          ) : op.totalServicios === 0 ? (
+                            <Badge variant="outline" className="text-[10px]">Sin servicios</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600 dark:text-amber-400">
+                              Pendiente
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {/* Expandable detail rows */}
+                      {isExpanded && op.servicios.length > 0 && (
+                        <TableRow key={`${op.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={6} className="p-0">
+                            <div className="px-4 py-2">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-muted-foreground">
+                                    <th className="text-left py-1 font-medium">ID</th>
+                                    <th className="text-left py-1 font-medium">Fecha</th>
+                                    <th className="text-left py-1 font-medium">Origen</th>
+                                    <th className="text-left py-1 font-medium">Destino</th>
+                                    <th className="text-right py-1 font-medium">Costo</th>
+                                    <th className="text-right py-1 font-medium">Casetas</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {op.servicios.map(svc => (
+                                    <tr key={svc.id} className="border-t border-border/50">
+                                      <td className="py-1 text-muted-foreground">{svc.id}</td>
+                                      <td className="py-1">{formatFecha(svc.fecha_hora_cita)}</td>
+                                      <td className="py-1">{truncate(svc.origen)}</td>
+                                      <td className="py-1">{truncate(svc.destino)}</td>
+                                      <td className="py-1 text-right font-medium">{fmt(svc.costo_custodio || 0)}</td>
+                                      <td className="py-1 text-right">{fmt(svc.casetas || 0)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">{op.nombre}</TableCell>
-                    <TableCell className="text-center">{op.totalServicios}</TableCell>
-                    <TableCell className="text-right font-semibold text-sm">{fmt(op.montoEstimado)}</TableCell>
-                    <TableCell>
-                      {op.yaGenerado ? (
-                        <Badge variant="secondary" className="text-[10px]">Ya generado</Badge>
-                      ) : op.totalServicios === 0 ? (
-                        <Badge variant="outline" className="text-[10px]">Sin servicios</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600 dark:text-amber-400">
-                          Pendiente
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                    </>
+                  );
+                })
               )}
             </TableBody>
           </Table>
