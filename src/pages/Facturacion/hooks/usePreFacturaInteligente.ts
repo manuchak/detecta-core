@@ -111,9 +111,11 @@ export function usePreFacturaInteligente(
         }
       }
 
-      // Resolve courtesy rule for client
+      // Resolve courtesy rule for client (base values, may be overridden per-service by local/foráneo)
       const regla = resolveReglaEstadia(reglasEstadias);
-      const horasCortesia = regla?.horas_cortesia ?? clienteFiscal?.horas_cortesia ?? 0;
+      const baseHorasCortesia = regla?.horas_cortesia ?? clienteFiscal?.horas_cortesia ?? 0;
+      const horasCortesiaLocal = clienteFiscal?.horas_cortesia_local ?? baseHorasCortesia;
+      const horasCortesiaForaneo = clienteFiscal?.horas_cortesia_foraneo ?? baseHorasCortesia;
       const tarifaHoraExcedente = regla?.tarifa_hora_excedente ?? 0;
       const tarifaPernocta = regla?.tarifa_pernocta ?? clienteFiscal?.pernocta_tarifa ?? 0;
 
