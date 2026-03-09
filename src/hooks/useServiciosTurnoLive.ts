@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { EventoRuta } from './useEventosRuta';
 import type { ServicePhase, AlertLevel } from './useBitacoraBoard';
 import { CIUDADES_PRINCIPALES, extraerCiudad } from '@/utils/geografico';
+import { matchRoute, geocodeDestino } from '@/lib/radar/routeMatcher';
 
 export type { ServicePhase, AlertLevel };
 
@@ -32,6 +33,10 @@ export interface RadarService {
   lat: number | null;
   lng: number | null;
   positionSource: 'gps' | 'geocoded';
+  // Route data
+  destLat: number | null;
+  destLng: number | null;
+  corridorId: string | null;
 }
 
 export interface RadarResumen {
@@ -268,6 +273,10 @@ export function useServiciosTurnoLive() {
       };
     }
 
+    // Route matching
+    const destGeo = geocodeDestino(svc.destino);
+    const route = matchRoute(svc.origen || '', svc.destino || '');
+
     return {
       id: svc.id,
       id_servicio: svc.id_servicio,
@@ -286,6 +295,9 @@ export function useServiciosTurnoLive() {
       lat,
       lng,
       positionSource,
+      destLat: destGeo?.lat ?? null,
+      destLng: destGeo?.lng ?? null,
+      corridorId: route?.corridorId ?? null,
     };
   }, [eventsByService, now]);
 
