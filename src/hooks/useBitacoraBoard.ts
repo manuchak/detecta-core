@@ -458,6 +458,59 @@ export function useBitacoraBoard() {
     onError: (err: Error) => toast.error(err.message || 'Error al liberar custodio'),
   });
 
+  const revertirEnDestino = useMutation({
+    mutationFn: async (params: { serviceUUID: string; servicioIdServicio: string }) => {
+      // Guard: must be en_destino and not completed
+      const { data: svc, error: fetchErr } = await supabase
+        .from('servicios_planificados')
+        .select('en_destino, hora_fin_real')
+        .eq('id', params.serviceUUID)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if (!svc?.en_destino) throw new Error('El servicio no está en destino');
+      if (svc?.hora_fin_real) throw new Error('El servicio ya fue completado, no se puede revertir');
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Revert en_destino flag
+      const { error } = await supabase
+        .from('servicios_planificados')
+        .update({ en_destino: false } as any)
+        .eq('id', params.serviceUUID);
+      if (error) throw error;
+
+      // Delete most recent llegada_destino event
+      const { data: llegadaEvents } = await (supabase as any)
+        .from('servicio_eventos_ruta')
+        .select('id')
+        .eq('servicio_id', params.servicioIdServicio)
+        .eq('tipo_evento', 'llegada_destino')
+        .order('hora_inicio', { ascending: false })
+        .limit(1);
+
+      if (llegadaEvents && llegadaEvents.length > 0) {
+        await (supabase as any)
+          .from('servicio_eventos_ruta')
+          .delete()
+          .eq('id', llegadaEvents[0].id);
+      }
+
+      // Insert audit event
+      await (supabase as any).from('servicio_eventos_ruta').insert({
+        servicio_id: params.servicioIdServicio,
+        tipo_evento: 'checkpoint',
+        descripcion: `⚠️ Reversión: Se devolvió el servicio a "En Ruta" (corrección de estado). Revertido por coordinador.`,
+        foto_urls: [],
+        registrado_por: user?.id || null,
+      });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      toast.success('Servicio devuelto a "En Ruta"');
+    },
+    onError: (err: Error) => toast.error(err.message || 'Error al revertir estado'),
+  });
+
   return {
     // Data
     pendingServices,
@@ -471,6 +524,7 @@ export function useBitacoraBoard() {
     cerrarEventoEspecial,
     registrarLlegadaDestino,
     liberarCustodio,
+    revertirEnDestino,
     // Helpers
     getEventsForService: (idServicio: string) => eventsByService[idServicio] || [],
   };

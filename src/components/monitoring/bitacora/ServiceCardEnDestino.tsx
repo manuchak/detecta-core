@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UserCheck, Timer, MapPinCheck } from 'lucide-react';
+import { UserCheck, Timer, MapPinCheck, RotateCcw } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
@@ -10,12 +10,15 @@ import { cn } from '@/lib/utils';
 interface ServiceCardEnDestinoProps {
   service: BoardService;
   onLiberar: (serviceUUID: string, servicioIdServicio: string) => void;
+  onRevertir?: (serviceUUID: string, servicioIdServicio: string) => void;
   onDoubleClick?: (service: BoardService) => void;
   isPending: boolean;
+  isRevertirPending?: boolean;
 }
 
-export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ service, onLiberar, onDoubleClick, isPending }) => {
+export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ service, onLiberar, onRevertir, onDoubleClick, isPending, isRevertirPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [revertConfirmOpen, setRevertConfirmOpen] = useState(false);
 
   return (
     <>
@@ -46,6 +49,19 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
           <UserCheck className="h-3.5 w-3.5" />
           Liberar Custodio
         </Button>
+
+        {onRevertir && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full h-7 gap-1.5 text-[11px] text-muted-foreground border-muted-foreground/20"
+            onClick={() => setRevertConfirmOpen(true)}
+            disabled={isRevertirPending}
+          >
+            <RotateCcw className="h-3 w-3" />
+            Devolver a En Ruta
+          </Button>
+        )}
       </Card>
 
       <ConfirmTransitionDialog
@@ -61,6 +77,24 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
           setConfirmOpen(false);
         }}
       />
+
+      {onRevertir && (
+        <ConfirmTransitionDialog
+          open={revertConfirmOpen}
+          onOpenChange={setRevertConfirmOpen}
+          title="Devolver servicio a En Ruta"
+          description={`¿Revertir el estado de "${service.nombre_cliente}" a "En Ruta"? Esto corrige un marcado de llegada a destino por error. Se eliminará el evento de llegada y se registrará la corrección en la bitácora.`}
+          confirmLabel="Devolver a En Ruta"
+          destructive={false}
+          isPending={isRevertirPending}
+          requireDoubleConfirm
+          doubleConfirmLabel="Confirmo que esta reversión es una corrección legítima"
+          onConfirm={() => {
+            onRevertir(service.id, service.id_servicio);
+            setRevertConfirmOpen(false);
+          }}
+        />
+      )}
     </>
   );
 };
