@@ -303,7 +303,7 @@ export function useServiciosTurnoLive() {
     () => (completedQuery.data || []).map(s => {
       const svc = computeRadarService(s, false);
       // Override phase since completedQuery already filters by estado_planeacion=completado
-      return { ...svc, phase: 'completado' as ServicePhase };
+      return { ...svc, phase: 'completado' as ServicePhase, alertLevel: 'normal' as AlertLevel };
     }),
     [completedQuery.data, computeRadarService]
   );
