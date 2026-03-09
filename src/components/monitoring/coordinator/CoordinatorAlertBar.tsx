@@ -53,6 +53,12 @@ export const CoordinatorAlertBar: React.FC<Props> = ({
             {handoffCount} entregas
           </Badge>
         )}
+        {abandonedCount > 0 && (
+          <Badge variant="destructive" className="text-[10px] gap-1 px-2 py-0.5">
+            <UserX className="h-3 w-3" />
+            {abandonedCount} abandonados
+          </Badge>
+        )}
       </div>
     </div>
   );
