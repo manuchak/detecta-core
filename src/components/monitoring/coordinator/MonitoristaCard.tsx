@@ -127,7 +127,8 @@ export const MonitoristaCard: React.FC<Props> = ({
                 <Badge variant="outline" className="text-[8px] px-1 py-0">{a.turno}</Badge>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -41,7 +41,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const serviceLabelMap = Object.fromEntries(
     [...pendingServices, ...allActive].map(s => [
       s.id_servicio,
-      `${s.nombre_cliente || s.id_servicio.slice(0, 8)}`,
+      `${s.id_servicio} — ${s.nombre_cliente || ''}`,
     ])
   );
   const serviceHoraCitaMap = Object.fromEntries(
