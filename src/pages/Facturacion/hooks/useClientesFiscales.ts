@@ -117,7 +117,8 @@ export function useClientesFiscales() {
           requiere_tickets_estadia,
           evidencia_requerida,
           observaciones_facturacion,
-          facturacion_intercompania
+          facturacion_intercompania,
+          tarifa_hora_estadia
         `)
         .order('nombre');
 
