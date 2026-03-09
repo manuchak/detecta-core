@@ -243,7 +243,7 @@ export function useCreateCxPCorte() {
 
       const montoTotal = montoServicios + montoCasetas + montoEstadias + montoHoteles + montoApoyos;
 
-      // 4) Insert corte header
+      // 5) Insert corte header
       const { data: corte, error } = await supabase
         .from('cxp_cortes_semanales')
         .insert({
@@ -254,6 +254,7 @@ export function useCreateCxPCorte() {
           semana_fin: data.semana_fin,
           total_servicios: totalServicios,
           monto_servicios: montoServicios,
+          monto_estadias: montoEstadias,
           monto_casetas: montoCasetas,
           monto_hoteles: montoHoteles,
           monto_apoyos_extra: montoApoyos,
