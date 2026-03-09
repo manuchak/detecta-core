@@ -124,9 +124,9 @@ export function CxPProveedoresTab() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>
               ) : cxps.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">Sin estados de cuenta</TableCell></TableRow>
               ) : (
                 cxps.map(cxp => {
                   const badge = ESTADO_BADGE[cxp.estado] || ESTADO_BADGE.borrador;
