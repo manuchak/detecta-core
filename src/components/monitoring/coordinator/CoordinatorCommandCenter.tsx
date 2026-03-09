@@ -200,7 +200,17 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             </CardContent>
           </Card>
 
-          {/* ── Section 2: Correcciones en Destino (conditional) ── */}
+          {/* ── Section 2: Servicios Abandonados ── */}
+          <AbandonedServicesSection
+            monitoristas={monitoristas}
+            assignmentsByMonitorista={assignmentsByMonitorista}
+            serviceLabelMap={serviceLabelMap}
+            onReassign={(p) => reassignService.mutate(p)}
+            isReassigning={reassignService.isPending}
+            currentTurno={turno}
+          />
+
+          {/* ── Section 3: Correcciones en Destino (conditional) ── */}
           {enDestinoCount > 0 && (
             <DestinoCorrectionSection
               services={enCursoServices}
