@@ -36,7 +36,7 @@ export interface RadarService {
   // Route data
   destLat: number | null;
   destLng: number | null;
-  corridorId: string | null;
+  corridorIds: string[];
 }
 
 export interface RadarResumen {
