@@ -2,12 +2,15 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Radio, ArrowRightLeft, X, Activity } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Radio, ArrowRightLeft, X, Activity, Users } from 'lucide-react';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import { MonitoristaCard } from './MonitoristaCard';
 import { UnassignedServiceRow } from './UnassignedServiceRow';
 import { AutoDistributeButton } from './AutoDistributeButton';
+import { DestinoCorrectionSection } from './DestinoCorrectionSection';
+import { GastosAprobacionSection } from './GastosAprobacionSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +24,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     assignService, autoDistribute,
   } = useMonitoristaAssignment();
 
-  const { enCursoServices, eventoEspecialServices, pendingServices } = useBitacoraBoard();
+  const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
   const turno = getCurrentTurno();
@@ -39,7 +42,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
-  // Only truly unassigned = no formal assignment AND no inferred activity
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
@@ -47,9 +49,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const sinTurno = monitoristas.filter(m => !m.en_turno);
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
 
-  // Count inferred vs formal
   const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
-  const totalFormal = Object.values(assignmentsByMonitorista).flat().filter(a => !a.inferred).length;
 
   const isOverlay = !!onClose;
 
@@ -62,7 +62,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
       <div className="flex items-center justify-between px-5 py-3 border-b bg-card rounded-t-lg">
         <div className="flex items-center gap-2.5">
           <Radio className="h-4 w-4 text-chart-2 animate-pulse" />
-          <h2 className="text-sm font-semibold tracking-tight">Coordinación C4</h2>
+          <h2 className="text-sm font-semibold tracking-tight">Coordinación Ops</h2>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
@@ -85,138 +85,112 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Body: 2-column grid */}
-      <div className="flex-1 grid grid-cols-[280px_1fr] min-h-0 border-x">
-        {/* Left: Monitoristas */}
-        <div className="border-r flex flex-col">
-          <div className="px-4 py-2.5 border-b">
-            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Monitoristas ({enTurno.length} activos)
-            </h3>
-          </div>
-          <ScrollArea className="flex-1 px-3 py-2">
-            <div className="space-y-2">
-              {enTurno.map(m => (
-                <MonitoristaCard
-                  key={m.id}
-                  monitorista={m}
-                  assignments={assignmentsByMonitorista[m.id] || []}
-                  maxLoad={maxLoad}
-                  serviceLabelMap={serviceLabelMap}
-                />
-              ))}
-              {sinTurno.length > 0 && (
-                <>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-widest pt-2 px-1">
-                    Sin actividad reciente
-                  </p>
-                  {sinTurno.map(m => (
-                    <MonitoristaCard
-                      key={m.id}
-                      monitorista={m}
-                      assignments={assignmentsByMonitorista[m.id] || []}
-                      maxLoad={maxLoad}
-                      serviceLabelMap={serviceLabelMap}
-                    />
-                  ))}
-                </>
-              )}
+      {/* Scrollable vertical sections */}
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-4">
+
+          {/* ── Section 1: Monitoristas ── */}
+          <Card className="border-border/60 bg-card/80 backdrop-blur-sm">
+            <CardHeader className="pb-3 px-5 pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">Monitoristas</CardTitle>
+                </div>
+                <Badge variant="outline" className="text-[10px] tabular-nums">
+                  {enTurno.length} en turno
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="px-5 pb-4 space-y-3">
+              {/* Monitorista cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {enTurno.map(m => (
+                  <MonitoristaCard
+                    key={m.id}
+                    monitorista={m}
+                    assignments={assignmentsByMonitorista[m.id] || []}
+                    maxLoad={maxLoad}
+                    serviceLabelMap={serviceLabelMap}
+                  />
+                ))}
+                {sinTurno.length > 0 && sinTurno.map(m => (
+                  <MonitoristaCard
+                    key={m.id}
+                    monitorista={m}
+                    assignments={assignmentsByMonitorista[m.id] || []}
+                    maxLoad={maxLoad}
+                    serviceLabelMap={serviceLabelMap}
+                  />
+                ))}
+              </div>
+
               {monitoristas.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">
+                <p className="text-xs text-muted-foreground text-center py-4">
                   No hay monitoristas registrados
                 </p>
               )}
-            </div>
-          </ScrollArea>
-        </div>
 
-        {/* Right: Unassigned services (truly without coverage) */}
-        <div className="flex flex-col">
-          <div className="px-4 py-2.5 border-b flex items-center justify-between">
-            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Sin cobertura ({unassigned.length})
-            </h3>
-          </div>
-          <ScrollArea className="flex-1 px-3 py-2">
-            <div className="space-y-1.5">
-              {unassigned.length === 0 ? (
-                <div className="text-center py-8">
-                  <Activity className="h-8 w-8 mx-auto text-chart-2/40 mb-2" />
-                  <p className="text-xs text-muted-foreground">Todos los servicios tienen cobertura</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {totalFormal} asignados · {totalInferred} detectados por actividad
+              {/* Unassigned services */}
+              {unassigned.length > 0 && (
+                <div className="pt-2 border-t border-border/40">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                    Sin cobertura ({unassigned.length})
                   </p>
+                  <div className="space-y-1.5">
+                    {unassigned.map(sId => (
+                      <UnassignedServiceRow
+                        key={sId}
+                        servicioId={sId}
+                        label={serviceLabelMap[sId] || sId.slice(0, 12)}
+                        horaCita={serviceHoraCitaMap[sId]}
+                        monitoristas={monitoristas}
+                        disabled={assignService.isPending}
+                        onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
+                      />
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                unassigned.map(sId => (
-                  <UnassignedServiceRow
-                    key={sId}
-                    servicioId={sId}
-                    label={serviceLabelMap[sId] || sId.slice(0, 12)}
-                    horaCita={serviceHoraCitaMap[sId]}
-                    monitoristas={monitoristas}
-                    disabled={assignService.isPending}
-                    onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
-                  />
-                ))
               )}
-            </div>
-          </ScrollArea>
 
-          {/* Auto-distribute + Shift handoff */}
-          <div className="px-3 py-3 border-t space-y-2">
-            <AutoDistributeButton
-              unassignedCount={unassigned.length}
-              monitoristaCount={enTurno.length}
-              isPending={autoDistribute.isPending}
-              onDistribute={() => autoDistribute.mutate({
-                unassignedServiceIds: unassigned,
-                monitoristaIds: enTurno.map(m => m.id),
-              })}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2 h-8 text-xs"
-              onClick={() => setHandoffOpen(true)}
-            >
-              <ArrowRightLeft className="h-3 w-3" />
-              Cambio de Turno
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer: distribution bar */}
-      <div className="px-5 py-2.5 border rounded-b-lg bg-card">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Distribución
-          </span>
-          {monitoristas.filter(m => m.en_turno).map(m => {
-            const assignments = assignmentsByMonitorista[m.id] || [];
-            const inferredCount = assignments.filter(a => a.inferred).length;
-            const formalCount = assignments.length - inferredCount;
-            return (
-              <div key={m.id} className="flex items-center gap-1.5">
-                <span className="text-[10px] font-medium text-foreground">
-                  {m.display_name.split(' ')[0]}
-                </span>
-                <div className="flex gap-px">
-                  {Array.from({ length: formalCount }).map((_, i) => (
-                    <div key={`f-${i}`} className="h-2.5 w-1.5 rounded-sm bg-primary" />
-                  ))}
-                  {Array.from({ length: inferredCount }).map((_, i) => (
-                    <div key={`i-${i}`} className="h-2.5 w-1.5 rounded-sm bg-chart-2/60 border border-chart-2/30" />
-                  ))}
-                  {assignments.length === 0 && <div className="h-2.5 w-1.5 rounded-sm bg-muted" />}
-                </div>
-                <span className="text-[10px] tabular-nums text-muted-foreground">{assignments.length}</span>
+              {/* Actions */}
+              <div className="flex gap-2 pt-1">
+                <AutoDistributeButton
+                  unassignedCount={unassigned.length}
+                  monitoristaCount={enTurno.length}
+                  isPending={autoDistribute.isPending}
+                  onDistribute={() => autoDistribute.mutate({
+                    unassignedServiceIds: unassigned,
+                    monitoristaIds: enTurno.map(m => m.id),
+                  })}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-8 text-xs"
+                  onClick={() => setHandoffOpen(true)}
+                >
+                  <ArrowRightLeft className="h-3 w-3" />
+                  Cambio de Turno
+                </Button>
               </div>
-            );
-          })}
+            </CardContent>
+          </Card>
+
+          {/* ── Section 2: Correcciones en Destino ── */}
+          <DestinoCorrectionSection
+            services={enCursoServices}
+            onRevert={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+            isReverting={revertirEnDestino.isPending}
+          />
+
+          {/* ── Section 3: Gastos Extraordinarios ── */}
+          <GastosAprobacionSection />
+
         </div>
-      </div>
+      </ScrollArea>
 
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
     </div>
@@ -226,7 +200,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return (
       <>
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l shadow-2xl flex flex-col animate-in slide-in-from-right-full duration-300">
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-3xl bg-background border-l shadow-2xl flex flex-col animate-in slide-in-from-right-full duration-300">
           {content}
         </div>
       </>
