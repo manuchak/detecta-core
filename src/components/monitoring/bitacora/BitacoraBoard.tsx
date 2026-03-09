@@ -20,6 +20,7 @@ export const BitacoraBoard: React.FC = () => {
     cerrarEventoEspecial,
     registrarLlegadaDestino,
     liberarCustodio,
+    revertirEnDestino,
     getEventsForService,
   } = useBitacoraBoard();
 
