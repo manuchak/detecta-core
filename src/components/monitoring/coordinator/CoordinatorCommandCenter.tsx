@@ -40,7 +40,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   // Build active service data from the board
   const allActive = [...enCursoServices, ...eventoEspecialServices];
   const activeServiceIds = allActive.map(s => s.id_servicio);
-  const serviceLabelMap = Object.fromEntries(
+  const boardLabelMap = Object.fromEntries(
     [...pendingServices, ...allActive].map(s => [
       s.id_servicio,
       `${s.id_servicio} — ${s.nombre_cliente || ''}`,
@@ -49,6 +49,42 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const serviceHoraCitaMap = Object.fromEntries(
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
+
+  // Detect assigned service IDs missing from board data
+  const missingServiceIds = useMemo(() => {
+    const allAssignedIds = Object.values(assignmentsByMonitorista)
+      .flat()
+      .filter(a => a.activo)
+      .map(a => a.servicio_id);
+    return [...new Set(allAssignedIds.filter(id => !boardLabelMap[id]))];
+  }, [assignmentsByMonitorista, boardLabelMap]);
+
+  // Fetch missing service labels from servicios_planificados
+  const { data: missingLabels } = useQuery({
+    queryKey: ['missing-service-labels', missingServiceIds],
+    queryFn: async () => {
+      if (missingServiceIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('servicios_planificados')
+        .select('id_servicio, nombre_cliente')
+        .in('id_servicio', missingServiceIds);
+      if (error) { console.error('Error fetching missing labels:', error); return []; }
+      return data || [];
+    },
+    enabled: missingServiceIds.length > 0,
+    staleTime: 60000,
+  });
+
+  // Merge board labels + supplemental labels
+  const serviceLabelMap = useMemo(() => {
+    const merged = { ...boardLabelMap };
+    if (missingLabels) {
+      for (const s of missingLabels) {
+        merged[s.id_servicio] = `${s.id_servicio} — ${s.nombre_cliente || ''}`;
+      }
+    }
+    return merged;
+  }, [boardLabelMap, missingLabels]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
