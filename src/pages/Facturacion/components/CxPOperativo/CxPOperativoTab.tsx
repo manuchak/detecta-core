@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, ChevronLeft, HandCoins, Users, CheckCircle2, ArrowRightCircle } from 'lucide-react';
+import { Plus, DollarSign, FileCheck2, ClipboardList, ChevronRight, ChevronLeft, HandCoins, Users, CheckCircle2, ArrowRightCircle, Trash2 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, addWeeks } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
