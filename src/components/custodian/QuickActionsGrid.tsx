@@ -64,6 +64,15 @@ const QuickActionsGrid = ({
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",
     },
+    {
+      icon: Receipt,
+      label: "Gastos Extra",
+      sublabel: "Solicitar reembolso",
+      onClick: () => navigate('/custodian/expenses'),
+      color: "text-orange-600",
+      bgColor: "bg-orange-500/10",
+      borderColor: "border-orange-500/20",
+    },
   ];
 
   return (
