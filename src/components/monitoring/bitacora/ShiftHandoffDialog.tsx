@@ -443,6 +443,19 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                   <p className="text-xs bg-muted/30 p-2 rounded-md">{notasGenerales}</p>
                 </div>
               )}
+
+              {/* Firma Digital */}
+              <SignaturePad
+                value={firmaEntrega}
+                onChange={setFirmaEntrega}
+              />
+
+              <div className="rounded-md border border-muted bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Al firmar, confirmo que los servicios, incidencias y pendientes operativos han sido 
+                  debidamente comunicados y aceptados, en cumplimiento con la normativa operativa vigente.
+                </p>
+              </div>
             </div>
           )}
         </ScrollArea>
