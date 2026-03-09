@@ -281,6 +281,7 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           servicios_cerrados: serviciosCerrados,
           incidentes_abiertos: allIncidents,
           notas_generales: payload.notasGenerales,
+          firma_data_url: payload.firmaDataUrl || null,
         });
 
       return { closedCount, transferredCount };
