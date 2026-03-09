@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 /** Tarifa por hora de estadía pagable al custodio (MXN). Centralizada para fácil ajuste. */
 export const CXP_TARIFA_ESTADIA_HORA = 50;
 
+/** Umbral de cortesía en horas antes de cobrar estadía al custodio. */
+export const CXP_UMBRAL_CORTESIA_HORAS = 4;
+
 export interface CxPCorteSemanal {
   id: string;
   tipo_operativo: 'custodio' | 'armado_interno';
