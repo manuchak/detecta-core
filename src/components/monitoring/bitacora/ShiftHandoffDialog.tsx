@@ -12,11 +12,14 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowRightLeft, AlertTriangle, AlertCircle, Clock, ChevronRight,
-  ChevronLeft, User, Zap, CheckCircle2,
+  ChevronLeft, User, Zap, CheckCircle2, Download,
 } from 'lucide-react';
 import { useMonitoristaAssignment, MonitoristaProfile, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useShiftHandoff, distributeEquitably, type ServiceContext } from '@/hooks/useShiftHandoff';
 import { useUserRole } from '@/hooks/useUserRole';
+import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
+import { pdf } from '@react-pdf/renderer';
+import { HandoffActaPDF, type HandoffActaData } from './pdf/HandoffActaPDF';
 
 const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
@@ -33,7 +36,7 @@ const TURNOS = [
   { value: 'nocturno', label: 'Nocturno' },
 ];
 
-const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar'];
+const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar y Firmar'];
 
 export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMonitoristaId }) => {
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
@@ -49,6 +52,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   const [notasPorServicio, setNotasPorServicio] = useState<Record<string, string>>({});
   const [distribucionMode, setDistribucionMode] = useState<'auto' | 'manual'>('auto');
   const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
+  const [firmaEntrega, setFirmaEntrega] = useState<string | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -59,6 +63,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setNotasGenerales('');
       setNotasPorServicio({});
       setManualDistribucion({});
+      setFirmaEntrega(null);
     }
   }, [open, effectiveSelfId]);
 
@@ -112,8 +117,36 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       servicios: enrichedServicios,
       distribucion,
       notasGenerales,
+      firmaDataUrl: firmaEntrega || undefined,
     }, {
-      onSuccess: () => onOpenChange(false),
+      onSuccess: async (result) => {
+        // Generate and download PDF
+        try {
+          const actaData: HandoffActaData = {
+            turnoSaliente: getCurrentTurno(),
+            turnoEntrante,
+            salientes: result.payload.salientes.map(m => ({ id: m.id, display_name: m.display_name })),
+            entrantes: result.payload.entrantes.map(m => ({ id: m.id, display_name: m.display_name })),
+            serviciosTransferidos: result.serviciosTransferidos,
+            serviciosCerrados: result.serviciosCerrados,
+            incidentesAbiertos: result.incidentesAbiertos,
+            notasGenerales,
+            firmaBase64: firmaEntrega || undefined,
+            firmaEmail: result.userEmail || undefined,
+            firmaTimestamp: new Date().toISOString(),
+          };
+          const blob = await pdf(<HandoffActaPDF data={actaData} />).toBlob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `acta-entrega-turno-${new Date().toISOString().slice(0, 10)}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error('Error generando PDF del acta:', e);
+        }
+        onOpenChange(false);
+      },
     });
   };
 
@@ -410,6 +443,19 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                   <p className="text-xs bg-muted/30 p-2 rounded-md">{notasGenerales}</p>
                 </div>
               )}
+
+              {/* Firma Digital */}
+              <SignaturePad
+                value={firmaEntrega}
+                onChange={setFirmaEntrega}
+              />
+
+              <div className="rounded-md border border-muted bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Al firmar, confirmo que los servicios, incidencias y pendientes operativos han sido 
+                  debidamente comunicados y aceptados, en cumplimiento con la normativa operativa vigente.
+                </p>
+              </div>
             </div>
           )}
         </ScrollArea>
@@ -435,7 +481,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
             ) : (
               <Button
                 size="sm"
-                disabled={executeHandoff.isPending}
+                disabled={executeHandoff.isPending || !firmaEntrega}
                 onClick={handleConfirm}
               >
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1" />

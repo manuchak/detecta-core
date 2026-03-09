@@ -36,6 +36,7 @@ export interface HandoffPayload {
   /** Map: servicio_id → entrante monitorista_id */
   distribucion: Record<string, string>;
   notasGenerales: string;
+  firmaDataUrl?: string;
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
@@ -280,9 +281,18 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           servicios_cerrados: serviciosCerrados,
           incidentes_abiertos: allIncidents,
           notas_generales: payload.notasGenerales,
+          firma_data_url: payload.firmaDataUrl || null,
         });
 
-      return { closedCount, transferredCount };
+      return {
+        closedCount,
+        transferredCount,
+        serviciosTransferidos,
+        serviciosCerrados,
+        incidentesAbiertos: allIncidents,
+        payload,
+        userEmail: user?.email,
+      };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });

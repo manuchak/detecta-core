@@ -1586,6 +1586,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bitacora_anomalias_turno: {
+        Row: {
+          created_at: string | null
+          descripcion: string | null
+          ejecutado_por: string | null
+          id: string
+          metadata: Json | null
+          monitorista_original: string | null
+          monitorista_reasignado: string | null
+          servicio_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string | null
+          descripcion?: string | null
+          ejecutado_por?: string | null
+          id?: string
+          metadata?: Json | null
+          monitorista_original?: string | null
+          monitorista_reasignado?: string | null
+          servicio_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string | null
+          descripcion?: string | null
+          ejecutado_por?: string | null
+          id?: string
+          metadata?: Json | null
+          monitorista_original?: string | null
+          monitorista_reasignado?: string | null
+          servicio_id?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       bitacora_asignaciones_monitorista: {
         Row: {
           activo: boolean
@@ -1651,6 +1687,7 @@ export type Database = {
           created_at: string | null
           ejecutado_por: string | null
           estado: string
+          firma_data_url: string | null
           id: string
           incidentes_abiertos: Json | null
           monitoristas_entrantes: Json
@@ -1667,6 +1704,7 @@ export type Database = {
           created_at?: string | null
           ejecutado_por?: string | null
           estado?: string
+          firma_data_url?: string | null
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
@@ -1683,6 +1721,7 @@ export type Database = {
           created_at?: string | null
           ejecutado_por?: string | null
           estado?: string
+          firma_data_url?: string | null
           id?: string
           incidentes_abiertos?: Json | null
           monitoristas_entrantes?: Json
