@@ -14,6 +14,7 @@ import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
 import { HandoffRevertSection } from './HandoffRevertSection';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
+import { useRevertHandoff } from '@/hooks/useRevertHandoff';
 import { cn } from '@/lib/utils';
 
 interface Props {
