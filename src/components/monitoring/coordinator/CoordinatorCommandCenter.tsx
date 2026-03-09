@@ -28,6 +28,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
+  const { entregas: entregasRevertibles } = useRevertHandoff();
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
