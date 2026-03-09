@@ -88,14 +88,16 @@ export const HandoffActaPDF: React.FC<{ data: HandoffActaData }> = ({ data }) =>
         footerText="Documento generado automáticamente — Detecta Core"
       >
         {/* 1. Datos Generales */}
-        <SectionHeader title="1. Datos Generales" />
-        <FieldGroup>
-          <FieldRow label="Fecha" value={fechaStr} />
-          <FieldRow label="Turno Saliente" value={TURNO_LABELS[data.turnoSaliente] || data.turnoSaliente} />
-          <FieldRow label="Turno Entrante" value={TURNO_LABELS[data.turnoEntrante] || data.turnoEntrante} />
-          <FieldRow label="Salientes" value={data.salientes.map(s => s.display_name).join(', ')} />
-          <FieldRow label="Entrantes" value={data.entrantes.map(e => e.display_name).join(', ')} />
-        </FieldGroup>
+        <FieldGroup
+          title="1. Datos Generales"
+          fields={[
+            ['Fecha', fechaStr],
+            ['Turno Saliente', TURNO_LABELS[data.turnoSaliente] || data.turnoSaliente],
+            ['Turno Entrante', TURNO_LABELS[data.turnoEntrante] || data.turnoEntrante],
+            ['Salientes', data.salientes.map(s => s.display_name).join(', ')],
+            ['Entrantes', data.entrantes.map(e => e.display_name).join(', ')],
+          ]}
+        />
 
         {/* 2. Servicios Transferidos */}
         <SectionHeader title="2. Servicios Transferidos" />
