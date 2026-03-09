@@ -103,7 +103,7 @@ export const PauseConfirmDialog: React.FC<PauseConfirmDialogProps> = ({
             <>
               <div className="p-3 rounded-md border bg-muted/20 space-y-2">
                 <p className="text-xs font-medium">
-                  {preview.assignments.length} servicio{preview.assignments.length !== 1 ? 's' : ''} se redistribuirán a:
+                  {preview.assignments.length} servicio{preview.assignments.length !== 1 ? 's' : ''} se redistribuirán <strong>automáticamente</strong> a:
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {preview.available
