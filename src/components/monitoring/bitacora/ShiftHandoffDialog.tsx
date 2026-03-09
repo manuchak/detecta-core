@@ -117,8 +117,36 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       servicios: enrichedServicios,
       distribucion,
       notasGenerales,
+      firmaDataUrl: firmaEntrega || undefined,
     }, {
-      onSuccess: () => onOpenChange(false),
+      onSuccess: async (result) => {
+        // Generate and download PDF
+        try {
+          const actaData: HandoffActaData = {
+            turnoSaliente: getCurrentTurno(),
+            turnoEntrante,
+            salientes: result.payload.salientes.map(m => ({ id: m.id, display_name: m.display_name })),
+            entrantes: result.payload.entrantes.map(m => ({ id: m.id, display_name: m.display_name })),
+            serviciosTransferidos: result.serviciosTransferidos,
+            serviciosCerrados: result.serviciosCerrados,
+            incidentesAbiertos: result.incidentesAbiertos,
+            notasGenerales,
+            firmaBase64: firmaEntrega || undefined,
+            firmaEmail: result.userEmail || undefined,
+            firmaTimestamp: new Date().toISOString(),
+          };
+          const blob = await pdf(<HandoffActaPDF data={actaData} />).toBlob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `acta-entrega-turno-${new Date().toISOString().slice(0, 10)}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.error('Error generando PDF del acta:', e);
+        }
+        onOpenChange(false);
+      },
     });
   };
 
