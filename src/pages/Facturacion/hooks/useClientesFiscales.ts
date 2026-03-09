@@ -23,6 +23,8 @@ export interface ClienteFiscal {
   created_at: string;
   // Fase 1 - Config financiera CFO
   horas_cortesia: number | null;
+  horas_cortesia_local: number | null;
+  horas_cortesia_foraneo: number | null;
   pernocta_tarifa: number | null;
   cobra_pernocta: boolean | null;
   tipo_facturacion: 'inmediata' | 'corte' | null;
