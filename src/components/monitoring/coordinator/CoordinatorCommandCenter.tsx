@@ -29,7 +29,7 @@ interface Props {
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute, reassignService,
+    assignService, autoDistribute, reassignService, rebalanceLoad,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
