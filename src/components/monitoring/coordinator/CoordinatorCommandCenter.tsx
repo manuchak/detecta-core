@@ -91,8 +91,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
 
-  // ── Auto-assign services ≤2h before fecha_hora_cita ──
+  // ── OrphanGuard: consolidated auto-assignment ──
   const autoAssignedRef = useRef<Set<string>>(new Set());
+  const orphanGuardRef = useRef<Set<string>>(new Set());
   const pendingServiceIds = pendingServices.map(s => s.id_servicio);
 
   useEffect(() => {
@@ -101,34 +102,84 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const TWO_HOURS = 2 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // Filter pending (por iniciar) services within 2h of their cita that lack a monitorista assignment
-    const eligibleIds = pendingServiceIds.filter(id => {
-      if (assignedServiceIds.has(id)) return false;
-      if (autoAssignedRef.current.has(id)) return false;
+    // Rule 1: Pending services ≤2h from cita
+    const eligiblePending = pendingServiceIds.filter(id => {
+      if (assignedServiceIds.has(id) || autoAssignedRef.current.has(id)) return false;
       const citaStr = serviceHoraCitaMap[id];
       if (!citaStr) return false;
       const timeUntil = new Date(citaStr).getTime() - now;
       return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
     });
 
-    if (eligibleIds.length === 0) return;
-
-    console.log(`[AutoAssign] ${eligibleIds.length} servicios pendientes dentro de 2h:`, eligibleIds);
-
-    eligibleIds.forEach(id => autoAssignedRef.current.add(id));
-
-    autoDistribute.mutate(
-      { unassignedServiceIds: eligibleIds, monitoristaIds: enTurno.map(m => m.id) },
-      {
-        onSuccess: (count) => {
-          toast.info(`${count} servicios auto-asignados (próximos 2h)`);
-        },
-        onError: () => {
-          eligibleIds.forEach(id => autoAssignedRef.current.delete(id));
-        },
-      }
+    // Rule 2: Active services without any assignment
+    const unassignedActive = activeServiceIds.filter(id =>
+      !assignedServiceIds.has(id) && !autoAssignedRef.current.has(id)
     );
-  }, [pendingServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, autoDistribute]);
+
+    const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
+
+    if (allEligible.length > 0) {
+      console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
+      allEligible.forEach(id => autoAssignedRef.current.add(id));
+      autoDistribute.mutate(
+        { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
+        {
+          onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
+          onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
+        }
+      );
+    }
+
+    // Rule 3: Services assigned to offline monitoristas → reassign + log anomaly
+    const offlineWithServices = sinTurno.filter(m => {
+      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred);
+      return assignments.length > 0;
+    });
+
+    if (offlineWithServices.length > 0 && enTurno.length > 0) {
+      for (const offlineM of offlineWithServices) {
+        const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo && !a.inferred);
+        for (const assignment of assignments) {
+          const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
+          if (orphanGuardRef.current.has(guardKey)) continue;
+          orphanGuardRef.current.add(guardKey);
+
+          // Round-robin: pick monitorista with least load
+          const loads = enTurno.map(m => ({
+            id: m.id,
+            load: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
+          }));
+          const target = loads.sort((a, b) => a.load - b.load)[0];
+          if (!target) continue;
+
+          // Reassign
+          reassignService.mutate(
+            { assignmentId: assignment.id, newMonitoristaId: target.id },
+            {
+              onSuccess: () => {
+                toast.warning(
+                  `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (offline) → monitorista en turno`,
+                  { duration: 8000 }
+                );
+                // Log anomaly
+                supabase.auth.getUser().then(({ data: { user } }) => {
+                  (supabase as any).from('bitacora_anomalias_turno').insert({
+                    tipo: 'servicio_huerfano_auto_reasignado',
+                    descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está fuera de turno`,
+                    servicio_id: assignment.servicio_id,
+                    monitorista_original: offlineM.id,
+                    monitorista_reasignado: target.id,
+                    ejecutado_por: user?.id || null,
+                  });
+                });
+              },
+              onError: () => orphanGuardRef.current.delete(guardKey),
+            }
+          );
+        }
+      }
+    }
+  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, assignmentsByMonitorista, autoDistribute, reassignService]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
