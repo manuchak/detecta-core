@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -6,15 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { ArrowRightLeft, AlertTriangle } from 'lucide-react';
-import { useMonitoristaAssignment, MonitoristaProfile } from '@/hooks/useMonitoristaAssignment';
+import {
+  ArrowRightLeft, AlertTriangle, AlertCircle, Clock, ChevronRight,
+  ChevronLeft, User, Zap, CheckCircle2,
+} from 'lucide-react';
+import { useMonitoristaAssignment, MonitoristaProfile, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
+import { useShiftHandoff, distributeEquitably, type ServiceContext } from '@/hooks/useShiftHandoff';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** If provided, restricts outgoing to only this monitorist (self-handoff) */
+  selfMonitoristaId?: string;
 }
 
 const TURNOS = [
@@ -23,141 +30,412 @@ const TURNOS = [
   { value: 'nocturno', label: 'Nocturno' },
 ];
 
-export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange }) => {
-  const { monitoristas, assignmentsByMonitorista, handoffTurno } = useMonitoristaAssignment();
+const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar'];
 
-  const [fromId, setFromId] = useState<string>('');
-  const [toId, setToId] = useState<string>('');
-  const [turno, setTurno] = useState<string>('matutino');
-  const [notas, setNotas] = useState('');
+export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMonitoristaId }) => {
+  const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const [step, setStep] = useState(0);
+  const [selectedSalienteIds, setSelectedSalienteIds] = useState<Set<string>>(new Set());
+  const [selectedEntranteIds, setSelectedEntranteIds] = useState<Set<string>>(new Set());
+  const [turnoEntrante, setTurnoEntrante] = useState('matutino');
+  const [notasGenerales, setNotasGenerales] = useState('');
+  const [notasPorServicio, setNotasPorServicio] = useState<Record<string, string>>({});
+  const [distribucionMode, setDistribucionMode] = useState<'auto' | 'manual'>('auto');
+  const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
 
-  const fromAssignments = fromId ? (assignmentsByMonitorista[fromId] || []) : [];
-  const hasServices = fromAssignments.length > 0;
+  // Reset on open
+  useEffect(() => {
+    if (open) {
+      setStep(0);
+      setSelectedSalienteIds(selfMonitoristaId ? new Set([selfMonitoristaId]) : new Set());
+      setSelectedEntranteIds(new Set());
+      setNotasGenerales('');
+      setNotasPorServicio({});
+      setManualDistribucion({});
+    }
+  }, [open, selfMonitoristaId]);
 
-  const handleHandoff = () => {
-    if (!fromId || !toId || !notas.trim()) return;
-    handoffTurno.mutate(
-      { fromMonitoristaId: fromId, toMonitoristaId: toId, notas: notas.trim(), turno },
-      {
-        onSuccess: () => {
-          setFromId('');
-          setToId('');
-          setNotas('');
-          onOpenChange(false);
-        },
-      },
-    );
+  const salientes = monitoristas.filter(m => selectedSalienteIds.has(m.id));
+  const { serviciosContext, totalIncidentes, isLoading, executeHandoff } = useShiftHandoff(salientes);
+
+  // Enriched services with per-service notes
+  const enrichedServicios: ServiceContext[] = serviciosContext.map(s => ({
+    ...s,
+    notas_servicio: notasPorServicio[s.servicio_id] || '',
+  }));
+
+  // Available entrantes = monitoristas not in salientes
+  const availableEntrantes = monitoristas.filter(m => !selectedSalienteIds.has(m.id));
+
+  // Distribution
+  const entranteIds = Array.from(selectedEntranteIds);
+  const distribucion = useMemo(() => {
+    if (distribucionMode === 'manual') return manualDistribucion;
+    return distributeEquitably(enrichedServicios, entranteIds);
+  }, [distribucionMode, manualDistribucion, enrichedServicios, entranteIds]);
+
+  // Toggle saliente
+  const toggleSaliente = (id: string) => {
+    if (selfMonitoristaId) return; // locked in self-mode
+    setSelectedSalienteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
-  const availableTo = monitoristas.filter((m: MonitoristaProfile) => m.id !== fromId);
+  const toggleEntrante = (id: string) => {
+    setSelectedEntranteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const canProceedStep0 = selectedSalienteIds.size > 0 && enrichedServicios.length > 0;
+  const canProceedStep1 = selectedEntranteIds.size > 0;
+  const hasIncidents = totalIncidentes > 0;
+
+  const handleConfirm = () => {
+    const entrantes = monitoristas.filter(m => selectedEntranteIds.has(m.id));
+    executeHandoff.mutate({
+      salientes,
+      entrantes,
+      turnoEntrante,
+      servicios: enrichedServicios,
+      distribucion,
+      notasGenerales,
+    }, {
+      onSuccess: () => onOpenChange(false),
+    });
+  };
+
+  const getEntranteName = (id: string) => monitoristas.find(m => m.id === id)?.display_name?.split(' ')[0] || '?';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5" /> Cambio de Turno
+            <ArrowRightLeft className="h-5 w-5" /> Entrega de Turno
           </DialogTitle>
           <DialogDescription>
-            Transfiere todos los servicios activos de un monitorista a otro.
+            {STEP_LABELS.map((label, i) => (
+              <span key={i} className={i === step ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+                {i > 0 && ' → '}{label}
+              </span>
+            ))}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* From */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Monitorista saliente</label>
-            <Select value={fromId} onValueChange={setFromId}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-              <SelectContent>
-                {monitoristas.map((m: MonitoristaProfile) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.display_name} ({(assignmentsByMonitorista[m.id] || []).length} serv.)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <ScrollArea className="flex-1 pr-2">
+          {/* ─── STEP 0: Context ─── */}
+          {step === 0 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  {selfMonitoristaId ? 'Monitorista saliente (tú)' : 'Monitoristas salientes'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(selfMonitoristaId ? monitoristas.filter(m => m.id === selfMonitoristaId) : monitoristas.filter(m => m.en_turno)).map(m => {
+                    const count = (assignmentsByMonitorista[m.id] || []).length;
+                    const selected = selectedSalienteIds.has(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => toggleSaliente(m.id)}
+                        disabled={!!selfMonitoristaId}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs transition-colors ${
+                          selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card hover:bg-accent'
+                        } ${selfMonitoristaId ? 'cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <User className="h-3 w-3" />
+                        {m.display_name.split(' ')[0]} · {count} serv.
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-          {/* Active services of "from" */}
-          {fromId && (
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">
-                Servicios a transferir ({fromAssignments.length})
-              </label>
-              <ScrollArea className="h-[100px] border rounded-md p-2">
-                {fromAssignments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-2">Sin servicios activos</p>
-                ) : (
-                  fromAssignments.map(a => (
-                    <div key={a.id} className="flex items-center gap-2 py-1 text-xs">
-                      <Badge variant="outline" className="text-[10px]">{a.turno}</Badge>
-                      <span className="truncate">{a.servicio_id.slice(0, 12)}</span>
+              {selectedSalienteIds.size > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Servicios activos ({enrichedServicios.length})
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {totalIncidentes > 0 && (
+                        <Badge variant="destructive" className="text-[10px] gap-1">
+                          <AlertCircle className="h-3 w-3" /> {totalIncidentes} incidentes abiertos
+                        </Badge>
+                      )}
                     </div>
-                  ))
-                )}
-              </ScrollArea>
+                  </div>
+
+                  {isLoading ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">Cargando servicios...</p>
+                  ) : enrichedServicios.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">Sin servicios activos para transferir</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {enrichedServicios.map(svc => (
+                        <div
+                          key={svc.servicio_id}
+                          className={`border rounded-md p-2.5 space-y-1.5 ${
+                            svc.tiene_incidente ? 'border-destructive/50 bg-destructive/5' : 'border-border'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {svc.tiene_incidente && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                              <span className="text-xs font-medium truncate">{svc.cliente}</span>
+                              <Badge variant="outline" className="text-[9px] shrink-0">{svc.fase}</Badge>
+                            </div>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                              <Clock className="h-3 w-3" />
+                              {svc.minutos_inactivo > 60
+                                ? `${Math.floor(svc.minutos_inactivo / 60)}h ${svc.minutos_inactivo % 60}m`
+                                : `${svc.minutos_inactivo}m`} sin actividad
+                            </div>
+                          </div>
+
+                          {svc.ultimo_evento && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Último: {svc.ultimo_evento}
+                            </p>
+                          )}
+
+                          {svc.incidentes.map(inc => (
+                            <div key={inc.id} className="flex items-center gap-1.5 text-[10px] text-destructive">
+                              <AlertTriangle className="h-3 w-3" />
+                              <Badge variant="destructive" className="text-[9px]">{inc.severidad}</Badge>
+                              <span className="truncate">{inc.tipo}: {inc.descripcion.slice(0, 60)}</span>
+                            </div>
+                          ))}
+
+                          <Textarea
+                            placeholder="Notas para este servicio..."
+                            className="text-[11px] min-h-[28px] h-7 py-1 px-2 resize-none"
+                            value={notasPorServicio[svc.servicio_id] || ''}
+                            onChange={e => setNotasPorServicio(prev => ({
+                              ...prev,
+                              [svc.servicio_id]: e.target.value,
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* To */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Monitorista entrante</label>
-            <Select value={toId} onValueChange={setToId}>
-              <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
-              <SelectContent>
-                {availableTo.map((m: MonitoristaProfile) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.display_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* ─── STEP 1: Incoming selection ─── */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Turno entrante</label>
+                <Select value={turnoEntrante} onValueChange={setTurnoEntrante}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TURNOS.map(t => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Turno */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Turno entrante</label>
-            <Select value={turno} onValueChange={setTurno}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TURNOS.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Selecciona monitoristas entrantes (1 o más)
+                </label>
+                <div className="space-y-1">
+                  {availableEntrantes.map(m => (
+                    <label
+                      key={m.id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer hover:bg-accent transition-colors"
+                    >
+                      <Checkbox
+                        checked={selectedEntranteIds.has(m.id)}
+                        onCheckedChange={() => toggleEntrante(m.id)}
+                      />
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">{m.display_name}</span>
+                      {m.en_turno && (
+                        <Badge variant="secondary" className="text-[9px]">En turno</Badge>
+                      )}
+                    </label>
+                  ))}
+                  {availableEntrantes.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No hay monitoristas disponibles</p>
+                  )}
+                </div>
+              </div>
 
-          {/* Notes */}
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              Notas de entrega
-              {hasServices && <AlertTriangle className="h-3 w-3 text-warning" />}
-            </label>
-            <Textarea
-              value={notas}
-              onChange={e => setNotas(e.target.value)}
-              placeholder="Describe el estado actual de los servicios, eventos pendientes, etc."
-              rows={3}
-            />
-            {hasServices && !notas.trim() && (
-              <p className="text-[10px] text-destructive">Las notas son obligatorias cuando hay servicios activos.</p>
+              {selectedEntranteIds.size > 1 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Distribución de servicios</label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={distribucionMode === 'auto' ? 'default' : 'outline'}
+                      size="sm"
+                      className="text-[10px] h-7"
+                      onClick={() => setDistribucionMode('auto')}
+                    >
+                      <Zap className="h-3 w-3 mr-1" /> Automática
+                    </Button>
+                    <Button
+                      variant={distribucionMode === 'manual' ? 'default' : 'outline'}
+                      size="sm"
+                      className="text-[10px] h-7"
+                      onClick={() => setDistribucionMode('manual')}
+                    >
+                      Manual
+                    </Button>
+                  </div>
+
+                  {distribucionMode === 'manual' && (
+                    <div className="space-y-1">
+                      {enrichedServicios.map(svc => (
+                        <div key={svc.servicio_id} className="flex items-center gap-2 py-1">
+                          <span className="text-[10px] truncate flex-1">{svc.cliente}</span>
+                          <Select
+                            value={manualDistribucion[svc.servicio_id] || ''}
+                            onValueChange={val => setManualDistribucion(prev => ({
+                              ...prev,
+                              [svc.servicio_id]: val,
+                            }))}
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-36">
+                              <SelectValue placeholder="Asignar a..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {entranteIds.map(id => (
+                                <SelectItem key={id} value={id}>
+                                  {getEntranteName(id)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  Notas generales de entrega
+                  {hasIncidents && <AlertTriangle className="h-3 w-3 text-destructive" />}
+                </label>
+                <Textarea
+                  value={notasGenerales}
+                  onChange={e => setNotasGenerales(e.target.value)}
+                  placeholder="Describe el estado general del turno, pendientes críticos, etc."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 2: Confirmation ─── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                <h4 className="text-xs font-semibold">Resumen de Entrega</h4>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground">Salientes:</span>{' '}
+                    {salientes.map(m => m.display_name.split(' ')[0]).join(', ')}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Entrantes:</span>{' '}
+                    {entranteIds.map(id => getEntranteName(id)).join(', ')}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Turno:</span>{' '}
+                    {getTurnoLabel(getCurrentTurno())} → {getTurnoLabel(turnoEntrante)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Servicios:</span>{' '}
+                    {enrichedServicios.length}
+                  </div>
+                </div>
+              </div>
+
+              {totalIncidentes > 0 && (
+                <div className="rounded-md border border-destructive/50 bg-destructive/5 p-3">
+                  <p className="text-xs font-medium text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {totalIncidentes} incidentes abiertos serán heredados por los entrantes
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Distribución final</label>
+                {enrichedServicios.map(svc => {
+                  const assignedTo = distribucion[svc.servicio_id];
+                  return (
+                    <div key={svc.servicio_id} className="flex items-center justify-between gap-2 py-1.5 border-b last:border-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {svc.tiene_incidente && <AlertCircle className="h-3 w-3 text-destructive shrink-0" />}
+                        <span className="text-[11px] truncate">{svc.cliente}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                        <Badge variant="secondary" className="text-[10px]">
+                          {assignedTo ? getEntranteName(assignedTo) : '—'}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {notasGenerales && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Notas generales</label>
+                  <p className="text-xs bg-muted/30 p-2 rounded-md">{notasGenerales}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </ScrollArea>
+
+        <DialogFooter className="flex-row justify-between gap-2 pt-2 border-t">
+          <div>
+            {step > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setStep(s => s - 1)}>
+                <ChevronLeft className="h-3 w-3 mr-1" /> Atrás
+              </Button>
             )}
           </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button
-            onClick={handleHandoff}
-            disabled={
-              !fromId || !toId || fromId === toId
-              || (hasServices && !notas.trim())
-              || handoffTurno.isPending
-            }
-          >
-            Entregar Turno
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            {step < 2 ? (
+              <Button
+                size="sm"
+                disabled={step === 0 ? !canProceedStep0 : !canProceedStep1}
+                onClick={() => setStep(s => s + 1)}
+              >
+                Siguiente <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                disabled={executeHandoff.isPending}
+                onClick={handleConfirm}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                Entregar Turno
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1625,6 +1625,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bitacora_entregas_turno: {
+        Row: {
+          created_at: string | null
+          ejecutado_por: string | null
+          id: string
+          incidentes_abiertos: Json | null
+          monitoristas_entrantes: Json
+          monitoristas_salientes: Json
+          notas_generales: string | null
+          servicios_cerrados: Json | null
+          servicios_transferidos: Json
+          turno_entrante: string
+          turno_saliente: string
+        }
+        Insert: {
+          created_at?: string | null
+          ejecutado_por?: string | null
+          id?: string
+          incidentes_abiertos?: Json | null
+          monitoristas_entrantes?: Json
+          monitoristas_salientes?: Json
+          notas_generales?: string | null
+          servicios_cerrados?: Json | null
+          servicios_transferidos?: Json
+          turno_entrante: string
+          turno_saliente: string
+        }
+        Update: {
+          created_at?: string | null
+          ejecutado_por?: string | null
+          id?: string
+          incidentes_abiertos?: Json | null
+          monitoristas_entrantes?: Json
+          monitoristas_salientes?: Json
+          notas_generales?: string | null
+          servicios_cerrados?: Json | null
+          servicios_transferidos?: Json
+          turno_entrante?: string
+          turno_saliente?: string
+        }
+        Relationships: []
+      }
       business_targets: {
         Row: {
           created_at: string | null

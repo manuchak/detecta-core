@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Radio, UserPlus, ArrowRightLeft } from 'lucide-react';
+import { User, Radio, UserPlus, ArrowRightLeft, LogOut } from 'lucide-react';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useUserRole } from '@/hooks/useUserRole';
 import { CoordinatorCommandCenter } from '../coordinator/CoordinatorCommandCenter';
 import { ShiftHandoffDialog } from './ShiftHandoffDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface Props {
   activeServiceIds?: string[];
@@ -26,10 +28,22 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
 
   const [commandCenterOpen, setCommandCenterOpen] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [selfHandoffOpen, setSelfHandoffOpen] = useState(false);
+
+  // Get current user id for self-handoff
+  const currentUserQuery = useQuery({
+    queryKey: ['current-user-id'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user?.id || null;
+    },
+    staleTime: Infinity,
+  });
 
   if (isLoading) return null;
 
   const turno = getCurrentTurno();
+  const currentUserId = currentUserQuery.data;
 
   return (
     <>
@@ -69,16 +83,28 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Regular monitorist info */}
+        {/* Regular monitorist info + self-handoff */}
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] gap-1 px-2 py-0.5">
             <User className="h-2.5 w-2.5" />
             Turno: {getTurnoLabel(turno)}
           </Badge>
           {myAssignments.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-              {myAssignments.length} asignados
-            </Badge>
+            <>
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                {myAssignments.length} asignados
+              </Badge>
+              {!isCoordinator && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px] gap-1 px-2"
+                  onClick={() => setSelfHandoffOpen(true)}
+                >
+                  <LogOut className="h-3 w-3" /> Entregar mi turno
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -88,7 +114,17 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
         <CoordinatorCommandCenter onClose={() => setCommandCenterOpen(false)} />
       )}
 
+      {/* Coordinator handoff (full control) */}
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
+
+      {/* Self-handoff (monitorist only delivers their own services) */}
+      {currentUserId && (
+        <ShiftHandoffDialog
+          open={selfHandoffOpen}
+          onOpenChange={setSelfHandoffOpen}
+          selfMonitoristaId={currentUserId}
+        />
+      )}
     </>
   );
 };
