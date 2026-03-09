@@ -441,15 +441,32 @@ export const HIGHWAY_CORRIDORS: HighwayCorridor[] = [
     kilometers: 1800,
     avgEventsPerHex: 3,
     waypoints: [
-      [-99.1700, 19.4200],
-      [-103.5000, 20.1300],  // Macrolibramiento GDL sur-poniente (Acatlán)
-      [-105.2500, 21.5000],
-      [-106.4200, 23.2300],
-      [-107.4000, 24.8000],
-      [-108.9800, 25.8000],
-      [-109.9300, 27.4800],
-      [-110.9700, 29.0700],
-      [-110.9400, 31.3100],
+      [-99.1700, 19.4200],   // CDMX
+      [-99.6600, 19.2900],   // Toluca (Libramiento)
+      [-101.1800, 19.7000],  // Morelia (Libramiento norte)
+      [-102.2800, 19.9800],  // Zamora
+      [-102.5600, 20.2800],  // La Barca
+      [-103.4400, 20.4700],  // Macrolibramiento GDL (Tlajomulco)
+      [-103.0700, 20.6300],  // Macrolibramiento GDL (Zapotlanejo salida)
+      [-104.2200, 21.0000],  // Tequila / Plan de Barrancas
+      [-104.8900, 21.5100],  // Tepic
+      [-105.2000, 21.6600],  // Compostela
+      [-105.3700, 21.3500],  // Las Varas
+      [-105.7500, 22.2300],  // Acaponeta
+      [-106.4200, 23.2300],  // Mazatlán
+      [-106.9700, 23.8800],  // Concordia / Villa Unión
+      [-107.3900, 24.7900],  // Culiacán
+      [-107.8500, 25.4200],  // Guamúchil
+      [-108.4400, 25.7700],  // Guasave
+      [-108.9800, 25.8000],  // Los Mochis
+      [-109.6200, 26.8300],  // Cd. Obregón (Navojoa bypass)
+      [-110.3000, 27.4800],  // Empalme
+      [-110.9200, 27.9200],  // Guaymas
+      [-110.9700, 29.0700],  // Hermosillo
+      [-111.1300, 30.0700],  // Santa Ana
+      [-110.9600, 30.6300],  // Magdalena de Kino
+      [-110.9500, 30.9200],  // Imuris
+      [-110.9400, 31.3100],  // Nogales
     ],
   },
 
