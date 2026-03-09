@@ -27,10 +27,7 @@ const CreateExpenseForm = () => {
     setTipo('');
     setMotivo('');
     setMonto('');
-    setUrgencia('normal');
-    setNotas('');
-    setArchivo(null);
-    setPreview(null);
+    setFolio('');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
