@@ -53,6 +53,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
   const [distribucionMode, setDistribucionMode] = useState<'auto' | 'manual'>('auto');
   const [manualDistribucion, setManualDistribucion] = useState<Record<string, string>>({});
   const [firmaEntrega, setFirmaEntrega] = useState<string | null>(null);
+  const [firmaEntrante, setFirmaEntrante] = useState<string | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -64,6 +65,7 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
       setNotasPorServicio({});
       setManualDistribucion({});
       setFirmaEntrega(null);
+      setFirmaEntrante(null);
     }
   }, [open, effectiveSelfId]);
 
