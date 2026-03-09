@@ -39,7 +39,7 @@ const RadarMapDisplay = ({ servicios, safePoints, className }: RadarMapDisplayPr
   // Compute route data for each active service
   const routeData = useMemo(() => {
     return servicios
-      .filter(s => s.lat && s.lng && s.destLat && s.destLng && s.phase !== 'completado')
+      .filter(s => s.lat && s.lng && s.destLat && s.destLng && (s.phase as string) !== 'completado')
       .map(s => {
         const route = matchRoute(s.origen, s.destino);
         if (!route) {
