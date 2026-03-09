@@ -14,8 +14,7 @@ const CreateExpenseForm = () => {
   const [tipo, setTipo] = useState('');
   const [motivo, setMotivo] = useState('');
   const [monto, setMonto] = useState('');
-  const [urgencia, setUrgencia] = useState('normal');
-  const [notas, setNotas] = useState('');
+  const [folio, setFolio] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,10 +27,7 @@ const CreateExpenseForm = () => {
     setTipo('');
     setMotivo('');
     setMonto('');
-    setUrgencia('normal');
-    setNotas('');
-    setArchivo(null);
-    setPreview(null);
+    setFolio('');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,15 +40,15 @@ const CreateExpenseForm = () => {
   };
 
   const handleSubmit = async () => {
-    if (!tipo || !motivo || !monto) return;
+    if (!tipo || !motivo || !monto || !folio.trim()) return;
 
     await createExpense.mutateAsync({
       tipo_apoyo: tipo,
       motivo,
       monto_solicitado: parseFloat(monto),
-      urgencia,
+      urgencia: 'normal',
       custodio_nombre: profile?.display_name || undefined,
-      notas: notas || undefined,
+      notas: folio.trim(),
       archivo: archivo || undefined,
     });
 
@@ -60,7 +56,7 @@ const CreateExpenseForm = () => {
     setOpen(false);
   };
 
-  const isValid = tipo && motivo.trim() && monto && parseFloat(monto) > 0;
+  const isValid = tipo && motivo.trim() && monto && parseFloat(monto) > 0 && folio.trim();
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
@@ -116,29 +112,14 @@ const CreateExpenseForm = () => {
             />
           </div>
 
-          {/* Urgencia */}
+          {/* Número de Folio */}
           <div className="space-y-1.5">
-            <Label>Urgencia</Label>
-            <Select value={urgencia} onValueChange={setUrgencia}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="baja">Baja</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="alta">Alta</SelectItem>
-                <SelectItem value="critica">Crítica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Notas */}
-          <div className="space-y-1.5">
-            <Label>Notas adicionales</Label>
+            <Label>Número de Folio *</Label>
             <Input
-              placeholder="Número de servicio, cliente, etc."
-              value={notas}
-              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Ej. FOL-2026-001"
+              value={folio}
+              onChange={(e) => setFolio(e.target.value)}
+              maxLength={50}
             />
           </div>
 
