@@ -1,18 +1,19 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Users, RotateCcw, Receipt, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
   unassignedCount: number;
   correctionCount: number;
   gastosCount: number;
+  handoffCount?: number;
 }
 
 export const CoordinatorAlertBar: React.FC<Props> = ({
-  unassignedCount, correctionCount, gastosCount,
+  unassignedCount, correctionCount, gastosCount, handoffCount = 0,
 }) => {
-  const total = unassignedCount + correctionCount + gastosCount;
+  const total = unassignedCount + correctionCount + gastosCount + handoffCount;
 
   if (total === 0) {
     return (
