@@ -37,6 +37,10 @@ const STEP_LABELS = ['Contexto', 'Entrantes', 'Confirmar'];
 
 export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMonitoristaId }) => {
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const { userId, hasAnyRole } = useUserRole();
+  const isPrivileged = hasAnyRole(PRIVILEGED_ROLES as any);
+  // Effective self ID: explicit prop OR auto-detected for non-privileged users
+  const effectiveSelfId = selfMonitoristaId || (!isPrivileged ? userId : null);
   const [step, setStep] = useState(0);
   const [selectedSalienteIds, setSelectedSalienteIds] = useState<Set<string>>(new Set());
   const [selectedEntranteIds, setSelectedEntranteIds] = useState<Set<string>>(new Set());
