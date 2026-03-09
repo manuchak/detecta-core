@@ -20,7 +20,6 @@ import { useUserRole } from '@/hooks/useUserRole';
 import { SignaturePad } from '@/components/custodian/checklist/SignaturePad';
 import { pdf } from '@react-pdf/renderer';
 import { HandoffActaPDF, type HandoffActaData } from './pdf/HandoffActaPDF';
-import { useUserRole } from '@/hooks/useUserRole';
 
 const PRIVILEGED_ROLES = ['admin', 'owner', 'coordinador_operaciones', 'monitoring_supervisor'] as const;
 
