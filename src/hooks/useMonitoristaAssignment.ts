@@ -312,6 +312,14 @@ export function useMonitoristaAssignment() {
 
       const { data: { user } } = await supabase.auth.getUser();
       const turno = getCurrentTurno();
+      const nowTs = new Date().toISOString();
+
+      // Dedup: deactivate existing active assignments for these services
+      await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .update({ activo: false, fin_turno: nowTs })
+        .in('servicio_id', params.unassignedServiceIds)
+        .eq('activo', true);
 
       // Build load map from combined assignments
       const load: Record<string, number> = {};
@@ -343,6 +351,58 @@ export function useMonitoristaAssignment() {
       toast.success(`${count} servicios distribuidos equitativamente`);
     },
     onError: (err: Error) => toast.error(err.message || 'Error al distribuir'),
+  });
+
+  // Reset & Redistribute: deactivate ALL assignments, then distribute ALL active services randomly
+  const resetAndRedistribute = useMutation({
+    mutationFn: async (params: { serviceIds: string[]; monitoristaIds: string[] }) => {
+      if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
+      if (params.serviceIds.length === 0) throw new Error('No hay servicios activos');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const turno = getCurrentTurno();
+      const nowTs = new Date().toISOString();
+
+      // Step 1: Deactivate ALL active assignments
+      await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .update({ activo: false, fin_turno: nowTs })
+        .eq('activo', true);
+
+      // Step 2: Shuffle services randomly
+      const shuffled = [...params.serviceIds].sort(() => Math.random() - 0.5);
+
+      // Step 3: Round-robin distribute
+      const inserts: any[] = [];
+      for (let i = 0; i < shuffled.length; i++) {
+        inserts.push({
+          servicio_id: shuffled[i],
+          monitorista_id: params.monitoristaIds[i % params.monitoristaIds.length],
+          asignado_por: user?.id || null,
+          turno,
+        });
+      }
+
+      const { error } = await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .insert(inserts);
+      if (error) throw error;
+
+      // Log anomaly
+      await (supabase as any).from('bitacora_anomalias_turno').insert({
+        tipo: 'reset_redistribucion',
+        descripcion: `Reset completo: ${inserts.length} servicios redistribuidos entre ${params.monitoristaIds.length} monitoristas`,
+        ejecutado_por: user?.id || null,
+        metadata: { total_services: inserts.length, total_staff: params.monitoristaIds.length },
+      });
+
+      return { total: inserts.length, perPerson: Math.round(inserts.length / params.monitoristaIds.length) };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey });
+      toast.success(`🔄 Reset completo: ${result.total} servicios redistribuidos (~${result.perPerson} c/u)`);
+    },
+    onError: (err: Error) => toast.error(err.message || 'Error al resetear distribución'),
   });
 
   const reassignService = useMutation({
