@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { BoardColumnPorIniciar } from './BoardColumnPorIniciar';
@@ -6,7 +6,10 @@ import { BoardColumnEnCurso } from './BoardColumnEnCurso';
 import { BoardColumnEventoEspecial } from './BoardColumnEventoEspecial';
 import { MonitoristaAssignmentBar } from './MonitoristaAssignmentBar';
 import { ServiceDetailDrawer } from './ServiceDetailDrawer';
-import { Loader2 } from 'lucide-react';
+import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
+import { useUserRole } from '@/hooks/useUserRole';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Eye } from 'lucide-react';
 
 export const BitacoraBoard: React.FC = () => {
   const {
