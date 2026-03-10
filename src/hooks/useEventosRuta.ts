@@ -5,7 +5,7 @@ import { useRouteCalculation } from '@/hooks/security/useRouteCalculation';
 
 export type TipoEventoRuta =
   | 'inicio_servicio' | 'fin_servicio'
-  | 'combustible' | 'baño' | 'descanso' | 'pernocta'
+  | 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'trafico'
   | 'checkpoint' | 'incidencia' | 'foto_evidencia' | 'otro'
   | 'llegada_destino' | 'liberacion_custodio';
 
