@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX, Shuffle } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX, Shuffle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
@@ -104,7 +104,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
     if (enTurno.length < 2) return { loadGap: 0, minLoad: 0, maxLoad: 0, equityLevel: 'balanced' as const };
     const loads = enTurno.map(m =>
-      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length
+      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length
     );
     const min = Math.min(...loads);
     const max = Math.max(...loads);
@@ -122,7 +122,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
-      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
+      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
           assignmentId: a.id, servicioId: a.servicio_id, monitoristaId: m.id,
@@ -199,12 +199,11 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   }));
 
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
-  const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
 
   // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
   const abandonedCount = sinTurno.reduce(
-    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length,
+    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
     0
   );
   const handoffCount = entregasRevertibles.length;
@@ -268,12 +267,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               {equityLevel === 'mild' && '⚠️'}
               {equityLevel === 'critical' && '🔴'}
               {minLoad}↔{maxLoadVal}
-            </Badge>
-          )}
-          {totalInferred > 0 && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-dashed text-chart-2">
-              <Activity className="h-2.5 w-2.5 mr-1" />
-              {totalInferred}
             </Badge>
           )}
           <AnomaliasBadge />

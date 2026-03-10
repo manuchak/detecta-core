@@ -119,11 +119,6 @@ export const MonitoristaCard: React.FC<Props> = ({
                 {cliente && <span className="ml-1">{cliente}</span>}
               </span>
               <div className="ml-auto flex items-center gap-1 shrink-0">
-                {a.inferred && (
-                  <Badge variant="outline" className="text-[7px] px-1 py-0 border-dashed text-chart-2">
-                    auto
-                  </Badge>
-                )}
                 <Badge variant="outline" className="text-[8px] px-1 py-0">{a.turno}</Badge>
               </div>
             </div>

@@ -16,8 +16,6 @@ export interface ServiceContext {
   tiene_incidente: boolean;
   incidentes: IncidenteResumen[];
   notas_servicio: string;
-  /** Whether it was inferred (no formal assignment row) */
-  inferred: boolean;
 }
 
 export interface IncidenteResumen {
@@ -170,7 +168,6 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
         estado: i.estado,
       })),
       notas_servicio: '',
-      inferred: a.id?.startsWith('inferred-') || false,
     };
   });
 
@@ -219,12 +216,10 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
               hora_fin: nowTs,
             });
 
-          if (!svc.inferred) {
-            await (supabase as any)
-              .from('bitacora_asignaciones_monitorista')
-              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-              .eq('id', svc.assignment_id);
-          }
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+            .eq('id', svc.assignment_id);
 
           serviciosCerrados.push({
             servicio_id: svc.servicio_id,
@@ -234,12 +229,10 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           closedCount++;
         } else {
           // Transfer: close old assignment, create new one
-          if (!svc.inferred) {
-            await (supabase as any)
-              .from('bitacora_asignaciones_monitorista')
-              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-              .eq('id', svc.assignment_id);
-          }
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+            .eq('id', svc.assignment_id);
 
           const { error } = await (supabase as any)
             .from('bitacora_asignaciones_monitorista')
