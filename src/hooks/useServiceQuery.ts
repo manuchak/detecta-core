@@ -467,8 +467,9 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente,
         updated_at: service.updated_at,
-        fuente_tabla: 'servicios_planificados'
+        fuente_tabla: 'servicios_planificados' as const
       }));
 
       // ✅ Deduplicar: priorizar servicios_custodia sobre servicios_planificados
