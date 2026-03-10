@@ -494,10 +494,12 @@ export function useMonitoristaAssignment() {
       }
 
       for (const a of assignmentsToTransfer) {
+        // Deactivate ALL active for this service (safe pattern)
         await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
-          .eq('id', a.id);
+          .eq('servicio_id', a.servicio_id)
+          .eq('activo', true);
 
         const { error } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
@@ -508,6 +510,10 @@ export function useMonitoristaAssignment() {
             turno: params.turno,
             notas_handoff: params.notas,
           });
+        if (error && error.code === '23505') {
+          console.log(`[handoffTurno] Duplicate for ${a.servicio_id}, skipping`);
+          continue;
+        }
         if (error) throw error;
       }
 
