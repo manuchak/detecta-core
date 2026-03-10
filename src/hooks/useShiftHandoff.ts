@@ -216,12 +216,10 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
               hora_fin: nowTs,
             });
 
-          if (!svc.inferred) {
-            await (supabase as any)
-              .from('bitacora_asignaciones_monitorista')
-              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-              .eq('id', svc.assignment_id);
-          }
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+            .eq('id', svc.assignment_id);
 
           serviciosCerrados.push({
             servicio_id: svc.servicio_id,
