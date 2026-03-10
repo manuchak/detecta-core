@@ -27,13 +27,34 @@ export const BitacoraBoard: React.FC = () => {
     getEventsForService,
   } = useBitacoraBoard();
 
+  const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
+  const { hasAnyRole } = useUserRole();
+  const isAdminOrCoord = hasAnyRole(['admin', 'owner', 'monitoring_supervisor', 'coordinador_operaciones']);
+
   const [selectedService, setSelectedService] = useState<BoardService | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [filterMonitoristaId, setFilterMonitoristaId] = useState<string>('all');
 
   const handleDoubleClick = useCallback((service: BoardService) => {
     setSelectedService(service);
     setDrawerOpen(true);
   }, []);
+
+  // Compute filtered service IDs when a monitorista is selected
+  const filteredServiceIds = useMemo(() => {
+    if (filterMonitoristaId === 'all') return null;
+    const assignments = assignmentsByMonitorista[filterMonitoristaId] || [];
+    return new Set(assignments.map(a => a.servicio_id));
+  }, [filterMonitoristaId, assignmentsByMonitorista]);
+
+  const filterFn = useCallback((s: BoardService) => {
+    if (!filteredServiceIds) return true;
+    return filteredServiceIds.has(s.id_servicio);
+  }, [filteredServiceIds]);
+
+  const displayPending = useMemo(() => pendingServices.filter(filterFn), [pendingServices, filterFn]);
+  const displayEnCurso = useMemo(() => enCursoServices.filter(filterFn), [enCursoServices, filterFn]);
+  const displayEventoEspecial = useMemo(() => eventoEspecialServices.filter(filterFn), [eventoEspecialServices, filterFn]);
 
   if (isLoading) {
     return (
