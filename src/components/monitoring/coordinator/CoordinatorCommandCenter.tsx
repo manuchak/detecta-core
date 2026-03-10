@@ -199,7 +199,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   }));
 
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
-  const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
 
   // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
