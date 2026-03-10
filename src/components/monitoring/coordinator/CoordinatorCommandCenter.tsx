@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Radio, ArrowRightLeft, X, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX, Shuffle } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
@@ -232,32 +233,37 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     panel: DrawerPanel;
     variant?: 'default' | 'warning' | 'danger';
   }> = ({ icon, label, count, panel, variant = 'default' }) => (
-    <button
-      onClick={() => setActiveDrawer(panel)}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all',
-        'border hover:shadow-sm active:scale-[0.97]',
-        variant === 'default' && 'border-border bg-card text-foreground hover:bg-accent',
-        variant === 'warning' && 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10',
-        variant === 'danger' && 'border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10',
-      )}
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-      {count > 0 && (
-        <span className={cn(
-          'inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold leading-none',
-          variant === 'danger' ? 'bg-destructive text-destructive-foreground' :
-          variant === 'warning' ? 'bg-amber-500 text-white' :
-          'bg-muted text-muted-foreground',
-        )}>
-          {count}
-        </span>
-      )}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={() => setActiveDrawer(panel)}
+          className={cn(
+            'relative flex items-center justify-center w-10 h-10 rounded-lg transition-all',
+            'border hover:shadow-sm active:scale-[0.97]',
+            variant === 'default' && 'border-border bg-card text-foreground hover:bg-accent',
+            variant === 'warning' && 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10',
+            variant === 'danger' && 'border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10',
+          )}
+        >
+          {icon}
+          {count > 0 && (
+            <span className={cn(
+              'absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold leading-none',
+              variant === 'danger' ? 'bg-destructive text-destructive-foreground' :
+              variant === 'warning' ? 'bg-amber-500 text-white' :
+              'bg-muted text-muted-foreground',
+            )}>
+              {count}
+            </span>
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left">{label}</TooltipContent>
+    </Tooltip>
   );
 
   const content = (
+    <TooltipProvider delayDuration={200}>
     <div className={cn(
       'flex flex-col',
       isOverlay ? 'h-full' : 'h-[calc(var(--content-height-with-tabs,calc(100vh-200px)))]',
@@ -314,7 +320,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         </div>
       )}
 
-      {/* ═══ HERO ZONE: Agent Grid (scrollable) ═══ */}
+      {/* ═══ MAIN AREA: Grid + Sidebar ═══ */}
+      <div className="flex flex-1 min-h-0">
+      {/* ═══ Agent Grid (scrollable) ═══ */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-4">
           {/* Section header with action buttons */}
@@ -419,8 +427,8 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         </div>
       </ScrollArea>
 
-      {/* ═══ FOOTER TOOLBAR (fixed) ═══ */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-t bg-card/90 backdrop-blur-sm shrink-0 overflow-x-auto">
+      {/* Right: action pills sidebar */}
+      <div className="flex flex-col gap-2 py-3 px-1.5 border-l bg-card/90 shrink-0">
         <FooterPill
           icon={<RotateCcw className="h-3.5 w-3.5" />}
           label="Correcciones"
@@ -448,6 +456,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           panel="abandoned"
           variant={abandonedCount > 0 ? 'danger' : 'default'}
         />
+      </div>
       </div>
 
       {/* ═══ SHEET DRAWERS ═══ */}
@@ -548,6 +557,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         }}
       />
     </div>
+    </TooltipProvider>
   );
 
   if (isOverlay) {
