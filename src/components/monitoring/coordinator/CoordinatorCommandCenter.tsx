@@ -203,7 +203,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
   const abandonedCount = sinTurno.reduce(
-    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length,
+    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
     0
   );
   const handoffCount = entregasRevertibles.length;
