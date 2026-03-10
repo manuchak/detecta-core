@@ -170,6 +170,12 @@ export function useOrphanGuard() {
   const executeSafeRebalance = useCallback(async (reason: string) => {
     if (enTurno.length < 2 || rebalanceLoad.isPending) return;
 
+    // Respect shared cooldown
+    if (Date.now() - lastMutationTimestampRef.current < 15_000) {
+      console.log(`[BalanceGuard] ${reason}: Skipped — cooldown active`);
+      return;
+    }
+
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
