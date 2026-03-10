@@ -421,8 +421,9 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente || (service as any).referencia_cliente,
         updated_at: service.updated_at,
-        fuente_tabla: 'servicios_custodia'
+        fuente_tabla: 'servicios_custodia' as const
       }));
 
       const planificadosResults: ServiceQueryResult[] = (planificadosData || []).map(service => ({
