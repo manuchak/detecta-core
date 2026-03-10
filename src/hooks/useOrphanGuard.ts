@@ -28,8 +28,12 @@ export function useOrphanGuard() {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
+  // ── Shared cooldown between guards ──
+  const lastMutationTimestampRef = useRef<number>(0);
+
   // ── OrphanGuard ──
-  const autoAssignedRef = useRef<Set<string>>(new Set());
+  // Map<serviceId, timestamp> — persists for 120s before allowing re-assignment
+  const autoAssignedRef = useRef<Map<string, number>>(new Map());
   const orphanGuardRef = useRef<Set<string>>(new Set());
 
   // Dedup sweep: clean up any duplicate active assignments that slipped through
