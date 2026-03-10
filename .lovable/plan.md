@@ -1,97 +1,55 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Análisis Fishbone: Custodios no pueden enviar formularios en móvil
 
-## Roles confirmados por módulo
-
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Causa Raíz Identificada
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+PROBLEMA: El botón "Enviar Solicitud" queda fuera de pantalla en móvil
+                          |
+    ┌─────────────────────┼─────────────────────┐
+    │                     │                     │
+  ZOOM               OVERFLOW              CONTENIDO
+    │                     │                     │
+  dialog.tsx            DialogContent         Foto preview
+  line 43:              max-h-[90vh]          h-40 (160px)
+  zoom: 1.428571        con zoom 1.43x       + campos del form
+  SE APLICA EN          = 128% del           = contenido > viewport
+  MÓVIL (no debería)    viewport real        incluso con scroll
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+**Causa raíz**: `dialog.tsx` línea 43 aplica `zoom: 1.428571` (compensación del zoom 0.7 de escritorio) a TODOS los DialogContent, incluyendo móvil. Esto viola el estándar de zoom que dice "móvil = escala 1:1".
 
-### Fase 2 — Migrar policies por módulo
+Un dialog con `max-h-[90vh]` a zoom 1.43x ocupa ~128% del viewport real. El `overflow-y-auto` no funciona porque el contenedor mismo excede la pantalla.
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+## Impacto: 6 componentes afectados
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+Todos los dialogs del portal custodio usan `max-h-[90vh] overflow-y-auto`:
+1. `CreateExpenseForm.tsx` — **el reportado en la captura**
+2. `CSATSurveyModal.tsx`
+3. `MaintenanceSettingsDialog.tsx`
+4. `BatchMaintenanceDialog.tsx`
+5. `ReportUnavailabilityCard.tsx` (2 dialogs)
+6. `InternalChatModal.tsx`
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+## Solución
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+Un solo cambio en `dialog.tsx`: aplicar el zoom 1.43x solo en pantallas ≥768px. En móvil, zoom nativo 1:1.
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/ui/dialog.tsx` | Reemplazar `style={{ zoom: 1.428571 }}` estático por lógica condicional que use `window.innerWidth >= 768` para aplicar zoom solo en desktop. Usar un hook `useIsMobile` o media query inline. |
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+### Detalle técnico
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+Dado que `DialogContent` es un `forwardRef` sin hooks, la solución más limpia es usar CSS media query en lugar de un hook React:
 
-### Archivos a modificar
+```tsx
+// Reemplazar style={{ zoom: 1.428571 }} con:
+className addition: "[zoom:1.428571] max-sm:[zoom:1]"
+```
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+Esto usa la utilidad de Tailwind para aplicar zoom 1.43x por defecto y resetearlo a 1 en pantallas <640px (o usar un breakpoint custom `max-md:` para <768px consistente con `useIsMobile`).
+
+Alternativa: usar `@media` en el style inline, pero Tailwind arbitrary properties son más limpias.
 
