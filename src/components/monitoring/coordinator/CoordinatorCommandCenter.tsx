@@ -427,8 +427,8 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         </div>
       </ScrollArea>
 
-      {/* ═══ FOOTER TOOLBAR (fixed) ═══ */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-t bg-card/90 backdrop-blur-sm shrink-0 overflow-x-auto">
+      {/* Right: action pills sidebar */}
+      <div className="flex flex-col gap-2 py-3 px-1.5 border-l bg-card/90 shrink-0">
         <FooterPill
           icon={<RotateCcw className="h-3.5 w-3.5" />}
           label="Correcciones"
@@ -456,6 +456,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           panel="abandoned"
           variant={abandonedCount > 0 ? 'danger' : 'default'}
         />
+      </div>
       </div>
 
       {/* ═══ SHEET DRAWERS ═══ */}
