@@ -18,7 +18,22 @@ export function useOrphanGuard() {
   const { enCursoServices, eventoEspecialServices, pendingServices } = useBitacoraBoard();
 
   const turno = getCurrentTurno();
-  const enTurno = monitoristas.filter(m => m.en_turno);
+
+  // Query active pauses to exclude paused monitoristas from guards
+  const { data: pausedIds } = useQuery({
+    queryKey: ['paused-monitorista-ids'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('bitacora_pausas_monitorista')
+        .select('monitorista_id')
+        .eq('estado', 'activa');
+      return new Set<string>((data || []).map((p: any) => p.monitorista_id));
+    },
+    refetchInterval: 15_000,
+  });
+
+  const allEnTurno = monitoristas.filter(m => m.en_turno);
+  const enTurno = allEnTurno.filter(m => !pausedIds?.has(m.id));
   const sinTurno = monitoristas.filter(m => !m.en_turno);
 
   const allActive = [...enCursoServices, ...eventoEspecialServices];
