@@ -190,11 +190,11 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           <div className="flex gap-2">
             <AutoDistributeButton
               unassignedCount={unassigned.length}
-              monitoristaCount={enTurno.length}
+              monitoristaCount={eligibleForAssignment.length}
               isPending={autoDistribute.isPending}
               onDistribute={() => autoDistribute.mutate({
                 unassignedServiceIds: unassigned,
-                monitoristaIds: enTurno.map(m => m.id),
+                monitoristaIds: eligibleForAssignment.map(m => m.id),
               })}
             />
             <Button
