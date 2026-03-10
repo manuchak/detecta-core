@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getCurrentTurno } from './useMonitoristaAssignment';
 
-export type TipoPausa = 'comida' | 'bano' | 'descanso';
+export type TipoPausa = 'comida' | 'bano' | 'descanso' | 'desayuno';
 
 export interface PausaActiva {
   id: string;
@@ -22,12 +22,14 @@ export interface PausaActiva {
 }
 
 const PAUSE_DURATIONS: Record<TipoPausa, number> = {
+  desayuno: 20,
   comida: 60,
   bano: 10,
   descanso: 10,
 };
 
 const PAUSE_LABELS: Record<TipoPausa, string> = {
+  desayuno: 'Desayuno',
   comida: 'Comida',
   bano: 'Baño',
   descanso: 'Descanso visual',

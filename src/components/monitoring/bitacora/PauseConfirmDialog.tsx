@@ -12,7 +12,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Coffee, Bath, Eye, User, Loader2, AlertTriangle } from 'lucide-react';
+import { Coffee, Bath, Eye, Sunrise, User, Loader2, AlertTriangle } from 'lucide-react';
 import type { TipoPausa } from '@/hooks/useMonitoristaPause';
 import { getPauseLabel, getPauseDurationMinutes } from '@/hooks/useMonitoristaPause';
 
@@ -32,6 +32,7 @@ interface PauseConfirmDialogProps {
 }
 
 const PAUSE_ICONS: Record<TipoPausa, React.ReactNode> = {
+  desayuno: <Sunrise className="h-4 w-4" />,
   comida: <Coffee className="h-4 w-4" />,
   bano: <Bath className="h-4 w-4" />,
   descanso: <Eye className="h-4 w-4" />,

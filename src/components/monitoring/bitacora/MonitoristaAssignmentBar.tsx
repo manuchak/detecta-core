@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Play, Pause, ShieldCheck } from 'lucide-react';
+import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Sunrise, Play, Pause, ShieldCheck } from 'lucide-react';
 import { useClaveNoAmago } from '@/hooks/useClaveNoAmago';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useMonitoristaPause, type TipoPausa, getPauseLabel } from '@/hooks/useMonitoristaPause';
@@ -211,6 +211,9 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-[180px]">
+                  <DropdownMenuItem onClick={() => handlePauseSelect('desayuno')} className="text-xs gap-2">
+                    <Sunrise className="h-3.5 w-3.5" /> Desayuno <span className="ml-auto text-muted-foreground">(máx 20m)</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handlePauseSelect('comida')} className="text-xs gap-2">
                     <Coffee className="h-3.5 w-3.5" /> Comida <span className="ml-auto text-muted-foreground">(máx 1h)</span>
                   </DropdownMenuItem>
