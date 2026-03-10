@@ -378,10 +378,19 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      const { error } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .insert(inserts);
-      if (error) throw error;
+      // Insert one by one to handle unique constraint violations gracefully
+      let insertedCount = 0;
+      for (const row of inserts) {
+        const { error } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .insert(row);
+        if (error && error.code === '23505') {
+          console.log(`[resetAndRedistribute] Duplicate for ${row.servicio_id}, skipping`);
+          continue;
+        }
+        if (error) throw error;
+        insertedCount++;
+      }
 
       // Log anomaly
       await (supabase as any).from('bitacora_anomalias_turno').insert({
