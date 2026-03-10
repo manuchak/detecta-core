@@ -174,6 +174,16 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setHandoffOpen(true)}>
               <ArrowRightLeft className="h-3 w-3" /> Cambio Turno
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] gap-1 px-2"
+              onClick={() => repararPausaHuerfana.mutate()}
+              disabled={repararPausaHuerfana.isPending}
+              title="Reparar asignaciones huérfanas por pausas fallidas"
+            >
+              <Wrench className="h-3 w-3" /> {repararPausaHuerfana.isPending ? 'Reparando…' : 'Reparar pausas'}
+            </Button>
           </div>
         )}
 
