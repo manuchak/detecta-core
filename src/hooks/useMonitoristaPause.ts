@@ -240,7 +240,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('finalizar-pausa-monitorista', {
         body: params || {},
       });
-      if (error) throw new Error(error.message || 'Error al finalizar pausa');
+      if (error) {
+        console.error('[useMonitoristaPause] finalizarPausa error:', error);
+        throw new Error(error.message || 'Error al finalizar pausa');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { count: number };
     },
