@@ -347,7 +347,7 @@ export function useOrphanGuard() {
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} movidos, solo fríos)`, { duration: 8000 });
       },
     });
-  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, pendingServices, serviceHoraCitaMap, rebalanceLoad]);
 
   useEffect(() => {
     if (enTurno.length < 2 || rebalanceLoad.isPending) return;
