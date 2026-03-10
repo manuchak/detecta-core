@@ -29,6 +29,7 @@ const PAUSE_DURATIONS: Record<TipoPausa, number> = {
 };
 
 const PAUSE_LABELS: Record<TipoPausa, string> = {
+  desayuno: 'Desayuno',
   comida: 'Comida',
   bano: 'Baño',
   descanso: 'Descanso visual',
