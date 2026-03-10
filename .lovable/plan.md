@@ -1,38 +1,97 @@
 
 
-# Corregir "Días sin servicio" con datos en tiempo real
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Diagnóstico
+## Roles confirmados por módulo
 
-El custodio OMAR FIDENCIO muestra "21d" sin servicio cuando en realidad tiene un servicio HOY ("En origen"). El problema tiene dos capas:
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-1. **Columna estale**: `custodios_operativos.fecha_ultimo_servicio` dice "Feb 19" pero `servicios_custodia` muestra servicios el 2, 4, 5 y 10 de marzo. El trigger que actualiza esta columna no está funcionando correctamente.
+---
 
-2. **Fallback al dato viejo**: Cuando el RPC `verificar_disponibilidad_equitativa_custodio` falla o hace timeout (fail-open), `datos_equidad` queda undefined, y `CustodianCard` usa como fallback `custodios_operativos.fecha_ultimo_servicio` — el dato estale.
+## Hallazgos actuales
 
-3. **El RPC sí calcula bien**: Probé la query del RPC manualmente y devuelve `dias_sin_asignar = 0` para este custodio. Pero eso no ayuda si el RPC falla por timeout en dispositivos lentos, ni resuelve la fecha que se muestra como "(18 feb)".
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-## Solución
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-Agregar **una sola query bulk** en `useProximidadOperacional.ts` para obtener la fecha del último servicio real de cada custodio desde `servicios_custodia` (la fuente en tiempo real). Esto reemplaza el dato estale de `custodios_operativos.fecha_ultimo_servicio`.
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-### Cambios en `src/hooks/useProximidadOperacional.ts`
+---
 
-Después de procesar todos los custodios (línea ~392), agregar:
+## Plan de corrección
 
-1. Extraer todos los nombres de custodios procesados
-2. Query a `servicios_custodia` agrupando por `nombre_custodio`, obteniendo `MAX(fecha_hora_cita)` de los últimos 30 días (excluyendo cancelados)
-3. Complementar con query a `servicios_planificados` por `custodio_asignado`
-4. Para cada custodio, si la fecha real es más reciente que `fecha_ultimo_servicio`, sobreescribir:
-   - `custodio.fecha_ultimo_servicio` → la fecha real
-   - Si `datos_equidad` existe, recalcular `dias_sin_asignar` con `differenceInDays`
-   - Si `datos_equidad` no existe (fail-open), crear un `datos_equidad` mínimo con el valor correcto
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-Esta query adicional es **una sola llamada** para los ~140 custodios, no una por tarjeta.
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
 
-### Impacto
-- El badge "21d" mostrará "0d" (verde) correctamente
-- La fecha "(18 feb)" mostrará "(10 mar)" 
-- Funciona incluso cuando el RPC hace timeout (fail-open)
-- No requiere cambios en la base de datos ni triggers
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+
+### Fase 2 — Migrar policies por módulo
+
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
