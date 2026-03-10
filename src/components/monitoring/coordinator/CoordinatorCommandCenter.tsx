@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
@@ -20,15 +20,17 @@ import { AnomaliasBadge } from './AnomaliasBadge';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
 import { cn } from '@/lib/utils';
+import { ConfirmTransitionDialog } from '@/components/monitoring/bitacora/ConfirmTransitionDialog';
 
 interface Props {
   onClose?: () => void;
+  onManualRebalance?: () => void;
 }
 
-export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
+export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose, onManualRebalance }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute, reassignService,
+    assignService, autoDistribute, reassignService, rebalanceLoad,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
@@ -36,6 +38,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
+  const [rebalanceConfirm, setRebalanceConfirm] = React.useState(false);
   const turno = getCurrentTurno();
 
   // Build active service data from the board
@@ -94,8 +97,18 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     ? enTurno
     : monitoristas.filter(m => (m.event_count || 0) > 0);
 
-  // OrphanGuard + BalanceGuard moved to useOrphanGuard (mounted at page level)
-
+  // ── Equity calculation ──
+  const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
+    if (enTurno.length < 2) return { loadGap: 0, minLoad: 0, maxLoad: 0, equityLevel: 'balanced' as const };
+    const loads = enTurno.map(m =>
+      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length
+    );
+    const min = Math.min(...loads);
+    const max = Math.max(...loads);
+    const gap = max - min;
+    const level = gap <= 1 ? 'balanced' as const : gap <= 3 ? 'mild' as const : 'critical' as const;
+    return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
+  }, [enTurno, assignmentsByMonitorista]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
@@ -201,6 +214,16 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               variant="outline"
               size="sm"
               className="gap-1.5 h-9 text-xs"
+              disabled={loadGap < 2 || rebalanceLoad.isPending}
+              onClick={() => setRebalanceConfirm(true)}
+            >
+              <Scale className="h-3 w-3" />
+              Rebalancear
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 text-xs"
               onClick={() => setHandoffOpen(true)}
             >
               <ArrowRightLeft className="h-3 w-3" />
@@ -218,9 +241,22 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                   </div>
                   <CardTitle className="text-sm font-semibold">Equipo en Turno</CardTitle>
                 </div>
-                <Badge variant="outline" className="text-[10px] tabular-nums">
-                  {enTurno.length} en turno · {allActive.length} activos
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px] tabular-nums">
+                    {enTurno.length} en turno · {allActive.length} activos
+                  </Badge>
+                  {enTurno.length >= 2 && (
+                    <Badge
+                      variant={equityLevel === 'balanced' ? 'success' : equityLevel === 'mild' ? 'default' : 'destructive'}
+                      className="text-[10px] tabular-nums gap-1"
+                    >
+                      {equityLevel === 'balanced' && '⚖️'}
+                      {equityLevel === 'mild' && '⚠️'}
+                      {equityLevel === 'critical' && '🔴'}
+                      {minLoad}↔{maxLoadVal}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="px-5 pb-4">
@@ -301,6 +337,21 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
       </ScrollArea>
 
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
+
+      <ConfirmTransitionDialog
+        open={rebalanceConfirm}
+        onOpenChange={setRebalanceConfirm}
+        title="Rebalancear carga de servicios"
+        description={`Se redistribuirán solo servicios "fríos" (sin eventos registrados) para equilibrar la carga. Rango actual: ${minLoad}↔${maxLoadVal}. Los servicios ya trabajados NO se moverán.`}
+        confirmLabel="Rebalancear"
+        isPending={rebalanceLoad.isPending}
+        onConfirm={() => {
+          if (onManualRebalance) {
+            onManualRebalance();
+          }
+          setRebalanceConfirm(false);
+        }}
+      />
     </div>
   );
 
