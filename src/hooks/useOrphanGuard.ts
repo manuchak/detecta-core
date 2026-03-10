@@ -129,7 +129,7 @@ export function useOrphanGuard() {
     // Gather all formal active assignments
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
-      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
+      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
           assignmentId: a.id,
