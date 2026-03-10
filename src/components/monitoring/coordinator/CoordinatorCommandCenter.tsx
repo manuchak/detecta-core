@@ -158,7 +158,30 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           />
           <AnomaliasBadge />
 
-          <div className="flex gap-2">
+          {/* ── Orphan Banner ── */}
+          {unassigned.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 border-2 border-destructive/30 animate-pulse">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-destructive">
+                  {unassigned.length} servicio{unassigned.length > 1 ? 's' : ''} sin monitorista asignado
+                </p>
+                <p className="text-[10px] text-muted-foreground">Requiere asignación inmediata</p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                disabled={autoDistribute.isPending || enTurno.length === 0}
+                onClick={() => autoDistribute.mutate({
+                  unassignedServiceIds: unassigned,
+                  monitoristaIds: enTurno.map(m => m.id),
+                })}
+              >
+                Asignar ahora
+              </Button>
+            </div>
+          )}
             <AutoDistributeButton
               unassignedCount={unassigned.length}
               monitoristaCount={enTurno.length}
