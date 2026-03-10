@@ -418,11 +418,11 @@ export function useCustodiosConProximidad(
             .order('fecha_hora_cita', { ascending: false }),
           supabase
             .from('servicios_planificados')
-            .select('custodio_asignado, fecha_programada')
+            .select('custodio_asignado, fecha_hora_cita')
             .in('custodio_asignado', allNames)
-            .neq('estado', 'cancelado')
-            .gte('fecha_programada', hace30dISO.slice(0, 10))
-            .order('fecha_programada', { ascending: false })
+            .neq('estado_planeacion', 'cancelado')
+            .gte('fecha_hora_cita', hace30dISO)
+            .order('fecha_hora_cita', { ascending: false })
         ]);
 
         // Construir mapa nombre → fecha más reciente
