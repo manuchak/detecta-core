@@ -251,7 +251,7 @@ export function useOrphanGuard() {
     }
 
     // Gather all formal active assignments — only operationally relevant ones
-    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
+    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean; notasHandoff: string | null; inicioTurno: string }[] = [];
     for (const m of enTurno) {
       for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
@@ -262,6 +262,8 @@ export function useOrphanGuard() {
           monitoristaId: m.id,
           horaCita: serviceHoraCitaMap[a.servicio_id] || '',
           isEnCurso: enCursoServiceIds.has(a.servicio_id),
+          notasHandoff: a.notas_handoff || null,
+          inicioTurno: a.inicio_turno || '',
         });
       }
     }
@@ -311,6 +313,11 @@ export function useOrphanGuard() {
           // Skip services recently auto-assigned (grace period 60s)
           const autoTs = autoAssignedRef.current.get(a.servicioId);
           if (autoTs != null && Date.now() - autoTs < 60_000) return false;
+          // Protect pause-restored assignments for 10 minutes after restoration
+          if (a.notasHandoff === 'retorno_pausa' && a.inicioTurno) {
+            const restoredAt = new Date(a.inicioTurno).getTime();
+            if (Date.now() - restoredAt < 600_000) return false; // 10 min grace
+          }
           return true;
         })
         .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
