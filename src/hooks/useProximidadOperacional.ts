@@ -397,6 +397,95 @@ export function useCustodiosConProximidad(
       
       console.log(`✅ Procesados ${custodiosProcessed.length}/${custodiosDisponibles.length} custodios en paralelo`);
 
+      // ── ENRIQUECIMIENTO EN TIEMPO REAL: fecha_ultimo_servicio ──
+      // La columna custodios_operativos.fecha_ultimo_servicio puede estar desactualizada.
+      // Hacemos UNA query bulk a servicios_custodia + servicios_planificados para corregir.
+      try {
+        const allNames = custodiosProcessed.map(c => c.nombre).filter(Boolean);
+        const hace30d = new Date();
+        hace30d.setDate(hace30d.getDate() - 30);
+        const hace30dISO = hace30d.toISOString();
+
+        // Dual-source: servicios_custodia + servicios_planificados en paralelo
+        const [resCustodia, resPlanificados] = await Promise.all([
+          supabase
+            .from('servicios_custodia')
+            .select('nombre_custodio, fecha_hora_cita')
+            .in('nombre_custodio', allNames)
+            .neq('estado', 'cancelado')
+            .gte('fecha_hora_cita', hace30dISO)
+            .order('fecha_hora_cita', { ascending: false }),
+          supabase
+            .from('servicios_planificados')
+            .select('custodio_asignado, fecha_programada')
+            .in('custodio_asignado', allNames)
+            .neq('estado', 'cancelado')
+            .gte('fecha_programada', hace30dISO.slice(0, 10))
+            .order('fecha_programada', { ascending: false })
+        ]);
+
+        // Construir mapa nombre → fecha más reciente
+        const ultimaFechaReal = new Map<string, Date>();
+
+        if (resCustodia.data) {
+          for (const row of resCustodia.data) {
+            const nombre = row.nombre_custodio;
+            const fecha = new Date(row.fecha_hora_cita);
+            if (!ultimaFechaReal.has(nombre) || fecha > ultimaFechaReal.get(nombre)!) {
+              ultimaFechaReal.set(nombre, fecha);
+            }
+          }
+        }
+
+        if (resPlanificados.data) {
+          for (const row of resPlanificados.data) {
+            const nombre = row.custodio_asignado;
+            const fecha = new Date(row.fecha_programada + 'T00:00:00');
+            if (!ultimaFechaReal.has(nombre) || fecha > ultimaFechaReal.get(nombre)!) {
+              ultimaFechaReal.set(nombre, fecha);
+            }
+          }
+        }
+
+        // Aplicar correcciones
+        const hoy = new Date();
+        let corregidos = 0;
+        for (const custodio of custodiosProcessed) {
+          const fechaReal = ultimaFechaReal.get(custodio.nombre);
+          if (!fechaReal) continue;
+
+          const fechaDB = custodio.fecha_ultimo_servicio ? new Date(custodio.fecha_ultimo_servicio) : null;
+
+          // Solo corregir si la fecha real es más reciente que la de la BD
+          if (!fechaDB || fechaReal > fechaDB) {
+            custodio.fecha_ultimo_servicio = fechaReal.toISOString();
+            const diasReales = Math.max(0, Math.floor((hoy.getTime() - fechaReal.getTime()) / (1000 * 60 * 60 * 24)));
+
+            if (custodio.datos_equidad) {
+              custodio.datos_equidad.dias_sin_asignar = diasReales;
+            } else {
+              // Crear datos_equidad mínimos para fail-open
+              custodio.datos_equidad = {
+                servicios_hoy: 0,
+                dias_sin_asignar: diasReales,
+                nivel_fatiga: 'bajo',
+                score_equidad: 50,
+                score_oportunidad: 50,
+                categoria_disponibilidad: 'libre',
+                balance_recommendation: 'bueno'
+              };
+            }
+            corregidos++;
+          }
+        }
+
+        if (corregidos > 0) {
+          console.log(`🔄 Corregidos ${corregidos} custodios con fecha_ultimo_servicio en tiempo real`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error enriqueciendo fechas en tiempo real (fail-open):', err);
+      }
+
       // ── FILTRAR CUSTODIOS CON RECHAZOS VIGENTES (CONTEXTUAL) ──
       // Query ligera fail-open: si falla, no bloquea asignaciones
       // Rechazos con motivo "armado" solo excluyen de servicios CON armado
