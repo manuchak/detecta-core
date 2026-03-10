@@ -30,6 +30,7 @@ export interface CustodioConProximidad extends CustodioConHistorial {
   datos_equidad?: FactorEquidad;
   conflictos_detectados?: boolean;
   razon_no_disponible?: string;
+  fecha_ultimo_servicio?: string | null;
   
   // Pre-fetched vehicle info (OPTIMIZATION: avoids per-card RPC calls)
   vehiculo_info?: string | null;
