@@ -186,7 +186,7 @@ export function useMonitoristaAssignment() {
 
   // Map servicio_id -> monitorista for badge display
   const monitoristaByService = new Map<string, MonitoristaProfile>();
-  for (const a of combinedAssignments) {
+  for (const a of formalAssignments) {
     const m = monitoristas.find(m => m.id === a.monitorista_id);
     if (m) monitoristaByService.set(a.servicio_id, m);
   }
