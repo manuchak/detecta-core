@@ -25,10 +25,9 @@ import { ConfirmTransitionDialog } from '@/components/monitoring/bitacora/Confir
 
 interface Props {
   onClose?: () => void;
-  onManualRebalance?: () => void;
 }
 
-export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose, onManualRebalance }) => {
+export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
     assignService, autoDistribute, reassignService, rebalanceLoad,
