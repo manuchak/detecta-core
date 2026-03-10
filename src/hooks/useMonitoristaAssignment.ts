@@ -169,43 +169,13 @@ export function useMonitoristaAssignment() {
     };
   });
 
-  // Build inferred assignments from activity (service -> monitorista who last registered event)
-  const inferredServiceMonitorista = new Map<string, string>();
-  for (const evt of (recentActivityQuery.data || [])) {
-    if (!inferredServiceMonitorista.has(evt.servicio_id)) {
-      inferredServiceMonitorista.set(evt.servicio_id, evt.registrado_por);
-    }
-  }
+  const formalAssignments = allAssignments.data || [];
 
-  // Build combined assignments: formal + inferred
-  const formalAssignedServiceIds = new Set((allAssignments.data || []).map(a => a.servicio_id));
+  // Compute assigned service IDs (formal only)
+  const assignedServiceIds = new Set(formalAssignments.map(a => a.servicio_id));
 
-  const inferredAssignments: MonitoristaAssignment[] = [];
-  for (const [servicioId, monitoristaId] of inferredServiceMonitorista.entries()) {
-    if (!formalAssignedServiceIds.has(servicioId)) {
-      inferredAssignments.push({
-        id: `inferred-${servicioId}`,
-        servicio_id: servicioId,
-        monitorista_id: monitoristaId,
-        asignado_por: null,
-        turno: getCurrentTurno(),
-        activo: true,
-        inicio_turno: new Date().toISOString(),
-        fin_turno: null,
-        notas_handoff: null,
-        created_at: new Date().toISOString(),
-        inferred: true,
-      });
-    }
-  }
-
-  const combinedAssignments = [...(allAssignments.data || []), ...inferredAssignments];
-
-  // Compute assigned service IDs (formal + inferred)
-  const assignedServiceIds = new Set(combinedAssignments.map(a => a.servicio_id));
-
-  // Group assignments by monitorista (formal + inferred)
-  const assignmentsByMonitorista = combinedAssignments.reduce<Record<string, MonitoristaAssignment[]>>(
+  // Group assignments by monitorista (formal only)
+  const assignmentsByMonitorista = formalAssignments.reduce<Record<string, MonitoristaAssignment[]>>(
     (acc, a) => {
       if (!acc[a.monitorista_id]) acc[a.monitorista_id] = [];
       acc[a.monitorista_id].push(a);
