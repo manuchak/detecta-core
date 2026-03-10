@@ -684,6 +684,21 @@ export function ScheduledServicesTab() {
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
           />
+          {/* Rechazos Button */}
+          {rechazadosIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRechazosOpen(true)}
+              className="gap-1.5 h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Rechazos
+              <Badge variant="secondary" className="ml-0.5 h-4 text-[10px] px-1 bg-destructive/10 text-destructive">
+                {rechazadosIds.length}
+              </Badge>
+            </Button>
+          )}
           <button
             onClick={() => refetch()}
             className="apple-button-ghost"
