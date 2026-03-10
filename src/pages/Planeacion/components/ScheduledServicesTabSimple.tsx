@@ -25,6 +25,9 @@ import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, Refr
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
+import { RechazosVigentesPanel } from '@/components/planeacion/RechazosVigentesPanel';
+import { useRechazosVigentes } from '@/hooks/useCustodioRechazos';
+import { Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCDMXTime, getCDMXDate } from '@/utils/cdmxTimezone';
