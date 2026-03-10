@@ -68,9 +68,22 @@ export function useOrphanGuard() {
       const TWO_HOURS = 2 * 60 * 60 * 1000;
       const now = Date.now();
 
+      // Purge expired entries from autoAssignedRef (>120s old)
+      for (const [id, ts] of autoAssignedRef.current) {
+        if (now - ts > 120_000) autoAssignedRef.current.delete(id);
+      }
+
+      // Check shared cooldown — skip if another guard mutated recently
+      if (now - lastMutationTimestampRef.current < 15_000) return;
+
+      const isRecentlyAutoAssigned = (id: string) => {
+        const ts = autoAssignedRef.current.get(id);
+        return ts != null && now - ts < 120_000;
+      };
+
       // Rule 1: Pending services ≤2h from cita
       const eligiblePending = pendingServiceIds.filter(id => {
-        if (effectiveAssigned.has(id) || autoAssignedRef.current.has(id)) return false;
+        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id)) return false;
         const citaStr = serviceHoraCitaMap[id];
         if (!citaStr) return false;
         const timeUntil = new Date(citaStr).getTime() - now;
@@ -79,18 +92,21 @@ export function useOrphanGuard() {
 
       // Rule 2: Active services without any assignment
       const unassignedActive = activeServiceIds.filter(id =>
-        !effectiveAssigned.has(id) && !autoAssignedRef.current.has(id)
+        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
       );
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
-        allEligible.forEach(id => autoAssignedRef.current.add(id));
+        allEligible.forEach(id => autoAssignedRef.current.set(id, now));
         autoDistribute.mutate(
           { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
           {
-            onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
+            onSuccess: (count) => {
+              lastMutationTimestampRef.current = Date.now();
+              toast.info(`${count} servicios auto-asignados`);
+            },
             onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
           }
         );
