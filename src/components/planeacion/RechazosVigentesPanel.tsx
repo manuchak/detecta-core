@@ -28,7 +28,8 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useRechazosVigentesDetallados, useSuspenderRechazo, type RechazadoDetalle } from '@/hooks/useCustodioRechazos';
+import { useRechazosVigentesDetallados, useSuspenderRechazo, useRechazosHistorial, type RechazadoDetalle } from '@/hooks/useCustodioRechazos';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface RechazosVigentesPanelProps {
   open: boolean;
@@ -38,6 +39,7 @@ interface RechazosVigentesPanelProps {
 
 export function RechazosVigentesPanel({ open, onOpenChange, inclujeArmado }: RechazosVigentesPanelProps) {
   const { data: rechazados = [], isLoading } = useRechazosVigentesDetallados({ inclujeArmado });
+  const { data: historial = [], isLoading: isLoadingHistorial } = useRechazosHistorial();
   const suspenderRechazo = useSuspenderRechazo();
   const [confirmTarget, setConfirmTarget] = useState<RechazadoDetalle | null>(null);
 
