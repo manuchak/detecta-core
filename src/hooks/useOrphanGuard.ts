@@ -197,11 +197,27 @@ export function useOrphanGuard() {
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
-    // Gather all formal active assignments
+    // Build set of operationally relevant service IDs (in-progress + event + pending within 4h)
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    const operationalServiceIds = new Set<string>();
+    for (const s of enCursoServices) operationalServiceIds.add(s.id_servicio);
+    for (const s of eventoEspecialServices) operationalServiceIds.add(s.id_servicio);
+    for (const s of pendingServices) {
+      const citaStr = serviceHoraCitaMap[s.id_servicio];
+      if (!citaStr) continue;
+      const timeUntil = new Date(citaStr).getTime() - nowMs;
+      if (timeUntil <= FOUR_HOURS_MS && timeUntil > -60 * 60 * 1000) {
+        operationalServiceIds.add(s.id_servicio);
+      }
+    }
+
+    // Gather all formal active assignments — only operationally relevant ones
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
       for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
+        if (!operationalServiceIds.has(a.servicio_id)) continue; // Skip services outside operational window
         allFormalActive.push({
           assignmentId: a.id,
           servicioId: a.servicio_id,
