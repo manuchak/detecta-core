@@ -344,6 +344,16 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               <Button
                 variant="outline"
                 size="sm"
+                className="gap-1 h-8 text-[11px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                disabled={resetAndRedistribute.isPending || allActive.length === 0 || eligibleForAssignment.length === 0}
+                onClick={() => setResetConfirm(true)}
+              >
+                <Shuffle className="h-3 w-3" />
+                Reset
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="gap-1 h-8 text-[11px]"
                 onClick={() => setHandoffOpen(true)}
               >
