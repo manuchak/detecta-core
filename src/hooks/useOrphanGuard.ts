@@ -271,6 +271,7 @@ export function useOrphanGuard() {
     const perPerson = Math.round(totalServices / totalStaff);
     rebalanceLoad.mutate({ reassignments }, {
       onSuccess: () => {
+        lastMutationTimestampRef.current = Date.now();
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} movidos, solo fríos)`, { duration: 8000 });
       },
     });
