@@ -11381,6 +11381,21 @@ export type Database = {
         }
         Relationships: []
       }
+      monitorista_heartbeat: {
+        Row: {
+          last_ping: string
+          user_id: string
+        }
+        Insert: {
+          last_ping?: string
+          user_id: string
+        }
+        Update: {
+          last_ping?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       movimientos_comodato: {
         Row: {
           comodato_id: string
