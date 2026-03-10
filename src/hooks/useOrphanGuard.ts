@@ -95,7 +95,12 @@ export function useOrphanGuard() {
         !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
       );
 
-      const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
+      // Rule 2b: Pending services that have NO active assignment at all (orphaned by ping-pong)
+      const pendingWithoutAssignment = pendingServiceIds.filter(id =>
+        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
+      );
+
+      const allEligible = [...new Set([...eligiblePending, ...unassignedActive, ...pendingWithoutAssignment])];
 
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
