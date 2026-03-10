@@ -196,7 +196,7 @@ export function useMonitoristaAssignment() {
   // Triple fallback for en_turno detection
   const monitoristasIds = new Set((monitoristasQuery.data || []).map(m => m.id));
   const monitoristasOnline = new Set(
-    [...onlineUserIds].filter(id => monitoristasIds.has(id))
+    [...onlineUserIds].filter((id: string) => monitoristasIds.has(id))
   );
 
   const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
