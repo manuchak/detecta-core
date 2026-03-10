@@ -407,7 +407,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                     <MonitoristaCard
                       key={m.id}
                       monitorista={m}
-                      assignments={assignmentsByMonitorista[m.id] || []}
+                      assignments={filteredAssignmentsByMonitorista[m.id] || []}
                       maxLoad={maxLoad}
                       serviceLabelMap={serviceLabelMap}
                     />
