@@ -97,26 +97,23 @@ export function useOrphanGuard() {
         return ts != null && now - ts < 120_000;
       };
 
-      // Rule 1: Pending services ≤2h from cita
+      // Rule 1: Pending services with cita between -60min and +4h (unified window)
+      const FOUR_HOURS = 4 * 60 * 60 * 1000;
+      const SIXTY_MIN_AGO = -60 * 60 * 1000;
       const eligiblePending = pendingServiceIds.filter(id => {
         if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id)) return false;
         const citaStr = serviceHoraCitaMap[id];
         if (!citaStr) return false;
         const timeUntil = new Date(citaStr).getTime() - now;
-        return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
+        return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
       });
 
-      // Rule 2: Active services without any assignment
+      // Rule 2: Active services without any assignment (already started, urgent)
       const unassignedActive = activeServiceIds.filter(id =>
         !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
       );
 
-      // Rule 2b: Pending services that have NO active assignment at all (orphaned by ping-pong)
-      const pendingWithoutAssignment = pendingServiceIds.filter(id =>
-        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
-      );
-
-      const allEligible = [...new Set([...eligiblePending, ...unassignedActive, ...pendingWithoutAssignment])];
+      const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
