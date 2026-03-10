@@ -485,7 +485,8 @@ export function useMonitoristaAssignment() {
           await (supabase as any)
             .from('bitacora_asignaciones_monitorista')
             .update({ activo: false, fin_turno: nowTs, notas_handoff: params.notas })
-            .eq('id', a.id);
+            .eq('servicio_id', a.servicio_id)
+            .eq('activo', true);
 
           closedCount++;
         } else {
