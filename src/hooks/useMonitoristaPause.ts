@@ -22,6 +22,7 @@ export interface PausaActiva {
 }
 
 const PAUSE_DURATIONS: Record<TipoPausa, number> = {
+  desayuno: 20,
   comida: 60,
   bano: 10,
   descanso: 10,
