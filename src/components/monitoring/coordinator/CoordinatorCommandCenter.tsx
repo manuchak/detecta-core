@@ -58,6 +58,20 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
+  // Build set of active service IDs from the board (non-completed)
+  const activeBoardServiceIds = useMemo(() => {
+    return new Set([...pendingServices, ...allActive].map(s => s.id_servicio));
+  }, [pendingServices, allActive]);
+
+  // Filter assignmentsByMonitorista to only include services still on the board
+  const filteredAssignmentsByMonitorista = useMemo(() => {
+    const result: Record<string, typeof assignmentsByMonitorista[string]> = {};
+    for (const [mId, assignments] of Object.entries(assignmentsByMonitorista)) {
+      result[mId] = assignments.filter(a => a.activo && activeBoardServiceIds.has(a.servicio_id));
+    }
+    return result;
+  }, [assignmentsByMonitorista, activeBoardServiceIds]);
+
   // Detect assigned service IDs missing from board data
   const missingServiceIds = useMemo(() => {
     const allAssignedIds = Object.values(assignmentsByMonitorista)
@@ -104,14 +118,14 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
     if (enTurno.length < 2) return { loadGap: 0, minLoad: 0, maxLoad: 0, equityLevel: 'balanced' as const };
     const loads = enTurno.map(m =>
-      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length
+      (filteredAssignmentsByMonitorista[m.id] || []).length
     );
     const min = Math.min(...loads);
     const max = Math.max(...loads);
     const gap = max - min;
     const level = gap <= 1 ? 'balanced' as const : gap <= 3 ? 'mild' as const : 'critical' as const;
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
-  }, [enTurno, assignmentsByMonitorista]);
+  }, [enTurno, filteredAssignmentsByMonitorista]);
 
   // ── Manual safe rebalance ──
   const handleManualRebalance = useCallback(async () => {
@@ -122,7 +136,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
-      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
+      for (const a of (filteredAssignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
           assignmentId: a.id, servicioId: a.servicio_id, monitoristaId: m.id,
@@ -187,7 +201,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} fríos movidos)`, { duration: 8000 });
       },
     });
-  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+  }, [enTurno, filteredAssignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
@@ -198,12 +212,12 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     horaCita: serviceHoraCitaMap[sId],
   }));
 
-  const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
+  const maxLoad = Math.max(8, ...Object.values(filteredAssignmentsByMonitorista).map(a => a.length));
 
   // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
   const abandonedCount = sinTurno.reduce(
-    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
+    (sum, m) => sum + (filteredAssignmentsByMonitorista[m.id] || []).length,
     0
   );
   const handoffCount = entregasRevertibles.length;
@@ -362,7 +376,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               <MonitoristaCard
                 key={m.id}
                 monitorista={m}
-                assignments={assignmentsByMonitorista[m.id] || []}
+                assignments={filteredAssignmentsByMonitorista[m.id] || []}
                 maxLoad={maxLoad}
                 serviceLabelMap={serviceLabelMap}
                 unassignedServices={unassignedForPopover}
@@ -393,7 +407,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                     <MonitoristaCard
                       key={m.id}
                       monitorista={m}
-                      assignments={assignmentsByMonitorista[m.id] || []}
+                      assignments={filteredAssignmentsByMonitorista[m.id] || []}
                       maxLoad={maxLoad}
                       serviceLabelMap={serviceLabelMap}
                     />
@@ -489,7 +503,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             <div className="p-4">
               <AbandonedServicesSection
                 monitoristas={monitoristas}
-                assignmentsByMonitorista={assignmentsByMonitorista}
+                assignmentsByMonitorista={filteredAssignmentsByMonitorista}
                 serviceLabelMap={serviceLabelMap}
                 onReassign={(p) => reassignService.mutate(p)}
                 isReassigning={reassignService.isPending}
