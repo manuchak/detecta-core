@@ -67,6 +67,8 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
     prioridad_cobranza: 'normal',
     notas_cobranza: '',
     horas_cortesia: null,
+    horas_cortesia_local: null,
+    horas_cortesia_foraneo: null,
     pernocta_tarifa: null,
     cobra_pernocta: false,
     tipo_facturacion: 'corte',
