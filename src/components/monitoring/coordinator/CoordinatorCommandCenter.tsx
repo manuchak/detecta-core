@@ -89,6 +89,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
+  // Fallback: if no one is en_turno, use monitoristas with recent activity for assignment eligibility
+  const eligibleForAssignment = enTurno.length > 0
+    ? enTurno
+    : monitoristas.filter(m => (m.event_count || 0) > 0);
 
   // OrphanGuard + BalanceGuard moved to useOrphanGuard (mounted at page level)
 
@@ -172,10 +176,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 variant="destructive"
                 size="sm"
                 className="h-8 text-xs gap-1.5"
-                disabled={autoDistribute.isPending || enTurno.length === 0}
+                disabled={autoDistribute.isPending || eligibleForAssignment.length === 0}
                 onClick={() => autoDistribute.mutate({
                   unassignedServiceIds: unassigned,
-                  monitoristaIds: enTurno.map(m => m.id),
+                  monitoristaIds: eligibleForAssignment.map(m => m.id),
                 })}
               >
                 Asignar ahora
@@ -186,11 +190,11 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           <div className="flex gap-2">
             <AutoDistributeButton
               unassignedCount={unassigned.length}
-              monitoristaCount={enTurno.length}
+              monitoristaCount={eligibleForAssignment.length}
               isPending={autoDistribute.isPending}
               onDistribute={() => autoDistribute.mutate({
                 unassignedServiceIds: unassigned,
-                monitoristaIds: enTurno.map(m => m.id),
+                monitoristaIds: eligibleForAssignment.map(m => m.id),
               })}
             />
             <Button

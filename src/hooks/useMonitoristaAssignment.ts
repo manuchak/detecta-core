@@ -193,15 +193,32 @@ export function useMonitoristaAssignment() {
     (allAssignments.data || []).filter(a => a.activo).map(a => a.monitorista_id)
   );
 
-  // en_turno: heartbeat-based, with fallback when heartbeat table is empty (adoption period)
-  const useHeartbeatFallback = onlineUserIds.size === 0 && formallyAssignedUserIds.size > 0;
+  // Triple fallback for en_turno detection
+  const monitoristasIds = new Set((monitoristasQuery.data || []).map(m => m.id));
+  const monitoristasOnline = new Set(
+    [...onlineUserIds].filter((id: string) => monitoristasIds.has(id))
+  );
+
   const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
     const activity = activityByMonitorista.get(m.id);
+    let enTurno: boolean;
+
+    if (monitoristasOnline.size > 0) {
+      // Primary: heartbeat from actual monitoristas
+      enTurno = monitoristasOnline.has(m.id);
+    } else if (activityByMonitorista.size > 0) {
+      // Fallback 1: recent event activity (last 10 min)
+      const TEN_MIN = 10 * 60_000;
+      enTurno = !!activity?.lastActivity &&
+        (Date.now() - new Date(activity.lastActivity).getTime()) < TEN_MIN;
+    } else {
+      // Fallback 2: formal assignments
+      enTurno = formallyAssignedUserIds.has(m.id);
+    }
+
     return {
       ...m,
-      en_turno: useHeartbeatFallback
-        ? formallyAssignedUserIds.has(m.id)
-        : onlineUserIds.has(m.id),
+      en_turno: enTurno,
       last_activity: activity?.lastActivity,
       event_count: activity?.eventCount || 0,
     };
