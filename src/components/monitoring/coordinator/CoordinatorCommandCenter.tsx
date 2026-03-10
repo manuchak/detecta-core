@@ -7,7 +7,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import { MonitoristaCard } from './MonitoristaCard';
