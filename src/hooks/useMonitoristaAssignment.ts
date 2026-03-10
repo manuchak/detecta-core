@@ -44,11 +44,6 @@ export function getTurnoLabel(turno: string): string {
   return map[turno] || turno;
 }
 
-interface RecentActivity {
-  registrado_por: string;
-  servicio_id: string;
-  created_at: string;
-}
 
 export function useMonitoristaAssignment() {
   const queryClient = useQueryClient();
