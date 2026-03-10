@@ -251,7 +251,7 @@ export function useOrphanGuard() {
     }
 
     // Gather all formal active assignments — only operationally relevant ones
-    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
+    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean; notasHandoff: string | null; inicioTurno: string }[] = [];
     for (const m of enTurno) {
       for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
@@ -262,6 +262,8 @@ export function useOrphanGuard() {
           monitoristaId: m.id,
           horaCita: serviceHoraCitaMap[a.servicio_id] || '',
           isEnCurso: enCursoServiceIds.has(a.servicio_id),
+          notasHandoff: a.notas_handoff || null,
+          inicioTurno: a.inicio_turno || '',
         });
       }
     }
