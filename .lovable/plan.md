@@ -1,97 +1,68 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Análisis completo del módulo de pausas de monitoreo
 
-## Roles confirmados por módulo
+## Estado actual de la base de datos
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+### Pausas huérfanas confirmadas (Karla Galvez)
+Hay **2 asignaciones `pausa_interina` activas** sin pausa correspondiente:
+- `ASCAAST-1528` → asignado a Cintia Chavez (originalmente de Karla)
+- `LOERLLO-387` → asignado a Ma. Fernanda Martinez (originalmente de Karla)
 
----
+No existe registro en `bitacora_pausas_monitorista` con `estado = 'activa'` para Karla (`4e32f256...`). Esto confirma que la pausa de Karla falló parcialmente: los servicios se redistribuyeron pero el registro de pausa nunca se creó.
 
-## Hallazgos actuales
+### Edge functions nunca estuvieron desplegadas
+Las 3 edge functions (`iniciar-pausa-monitorista`, `finalizar-pausa-monitorista`, `reparar-pausa-huerfana`) **no tenían logs** — nunca fueron desplegadas. Esto significa que **todas las invocaciones desde el hook fallaron silenciosamente** con un error HTTP (probablemente 404).
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+**Ya las desplegué** durante este análisis. Ahora están activas.
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+## Bugs identificados
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+### Bug 1: Error silencioso en `supabase.functions.invoke`
+Cuando `supabase.functions.invoke()` falla porque la función no existe (404), la librería de Supabase devuelve `{ data: null, error: FunctionsHttpError }`. Sin embargo, el error puede venir como un `FunctionsHttpError` cuyo `.message` es genérico. El hook actual maneja esto correctamente pero el toast solo muestra el mensaje genérico.
 
----
+### Bug 2: Operaciones no son transaccionales
+Aunque el comentario dice "transactional", la edge function `iniciar-pausa-monitorista` ejecuta ~12 queries individuales secuenciales (no en una transacción SQL). Si falla entre el paso 6 (desactivar/crear asignaciones) y el paso 7 (insertar pausa), se produce exactamente el estado huérfano de Karla.
+
+### Bug 3: La edge function `reparar-pausa-huerfana` busca por `asignado_por`
+La función busca asignaciones donde `asignado_por` = el monitorista original. Pero en el flujo actual, `asignado_por` se setea como `userId` (el monitorista que inicia la pausa), que **es** el monitorista original. Esto es correcto — funciona para reparar.
+
+### Bug 4: PauseOverlay condicionado incorrectamente
+```typescript
+const showPauseOverlay = !!pausaActiva && isMonitorista && !isAdminOrCoord;
+```
+Si un usuario tiene roles `monitoring` + `monitoring_supervisor`, `isAdminOrCoord` será `true` y el overlay nunca se muestra. Esto puede afectar a supervisores que también monitorean.
 
 ## Plan de corrección
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+### A. Reparar datos huérfanos de Karla (inmediato)
+Ejecutar la edge function `reparar-pausa-huerfana` ahora que está desplegada, o ejecutar un SQL directo para:
+1. Desactivar las 2 asignaciones `pausa_interina` activas de Karla
+2. Re-crear las asignaciones originales para Karla
 
-```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+### B. Hacer la edge function verdaderamente transaccional
+Refactorizar `iniciar-pausa-monitorista` para usar una **función RPC de PostgreSQL** que ejecute todo en una sola transacción SQL:
+- Crear un RPC `fn_iniciar_pausa(p_user_id, p_tipo_pausa)` que haga toda la lógica en PL/pgSQL
+- La edge function solo valida auth y llama al RPC
+- Si cualquier paso falla → ROLLBACK automático de PostgreSQL
+
+### C. Mejorar la condición del PauseOverlay
+Cambiar la lógica para que el overlay se muestre siempre que haya una pausa activa del usuario actual, independientemente del rol:
+```typescript
+const showPauseOverlay = !!pausaActiva;
 ```
+Los coordinadores que no están en pausa nunca tendrán `pausaActiva`, así que no les afecta.
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+### D. Agregar logging de errores más descriptivo
+En el hook, loggear el error completo de `functions.invoke` para facilitar debugging futuro.
 
-### Fase 2 — Migrar policies por módulo
+### Archivos afectados
+- `supabase/functions/iniciar-pausa-monitorista/index.ts` — refactorizar a RPC transaccional
+- `supabase/functions/finalizar-pausa-monitorista/index.ts` — refactorizar a RPC transaccional
+- `src/components/monitoring/bitacora/BitacoraBoard.tsx` — fix condición del overlay
+- `src/hooks/useMonitoristaPause.ts` — mejorar error logging
+- Migración SQL: crear funciones RPC `fn_iniciar_pausa` y `fn_finalizar_pausa`
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
-
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+### Reparación inmediata de Karla
+Se puede hacer con el botón "Reparar pausas" de la UI del coordinador ahora que la edge function está desplegada, o si se prefiere certeza, con un SQL directo.
 
