@@ -563,7 +563,7 @@ export function useMonitoristaAssignment() {
 
   return {
     myAssignments: myAssignments.data || [],
-    allAssignments: combinedAssignments,
+    allAssignments: formalAssignments,
     monitoristas,
     assignedServiceIds,
     assignmentsByMonitorista,

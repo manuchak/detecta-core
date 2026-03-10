@@ -233,7 +233,7 @@ export function useOrphanGuard() {
     // Path A: New member joins with 0 load
     if (prevIds.size > 0 && newMembers.length > 0) {
       const newWithZero = newMembers.filter(m => {
-        const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred);
+        const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
         return assignments.length === 0;
       });
       if (newWithZero.length > 0) {

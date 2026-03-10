@@ -46,7 +46,7 @@ export const AbandonedServicesSection: React.FC<Props> = ({
     return offDuty
       .map(m => ({
         monitorista: m,
-        assignments: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred),
+        assignments: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo),
       }))
       .filter(g => g.assignments.length > 0);
   }, [monitoristas, assignmentsByMonitorista]);

@@ -269,12 +269,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               {minLoad}↔{maxLoadVal}
             </Badge>
           )}
-          {totalInferred > 0 && (
-            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-dashed text-chart-2">
-              <Activity className="h-2.5 w-2.5 mr-1" />
-              {totalInferred}
-            </Badge>
-          )}
           <AnomaliasBadge />
           {isOverlay && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>

@@ -229,12 +229,10 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
           closedCount++;
         } else {
           // Transfer: close old assignment, create new one
-          if (!svc.inferred) {
-            await (supabase as any)
-              .from('bitacora_asignaciones_monitorista')
-              .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
-              .eq('id', svc.assignment_id);
-          }
+          await (supabase as any)
+            .from('bitacora_asignaciones_monitorista')
+            .update({ activo: false, fin_turno: nowTs, notas_handoff: svc.notas_servicio || payload.notasGenerales })
+            .eq('id', svc.assignment_id);
 
           const { error } = await (supabase as any)
             .from('bitacora_asignaciones_monitorista')
