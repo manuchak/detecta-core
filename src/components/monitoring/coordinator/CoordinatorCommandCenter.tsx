@@ -212,12 +212,12 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     horaCita: serviceHoraCitaMap[sId],
   }));
 
-  const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
+  const maxLoad = Math.max(8, ...Object.values(filteredAssignmentsByMonitorista).map(a => a.length));
 
   // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
   const abandonedCount = sinTurno.reduce(
-    (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
+    (sum, m) => sum + (filteredAssignmentsByMonitorista[m.id] || []).length,
     0
   );
   const handoffCount = entregasRevertibles.length;
