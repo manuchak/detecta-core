@@ -458,8 +458,9 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         <FooterPill
           icon={<Receipt className="h-3.5 w-3.5" />}
           label="Gastos"
-          count={0}
+          count={gastosPendientes}
           panel="gastos"
+          variant={gastosPendientes > 0 ? 'warning' : 'default'}
         />
         <FooterPill
           icon={<UserX className="h-3.5 w-3.5" />}
