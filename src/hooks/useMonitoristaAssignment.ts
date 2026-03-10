@@ -19,7 +19,7 @@ export interface MonitoristaProfile {
   id: string;
   display_name: string;
   role: string;
-  /** Derived: has real activity in recent hours OR formal assignment */
+  /** Derived: has heartbeat OR formal assignment */
   en_turno: boolean;
   /** Timestamp of last registered event (ISO string) */
   last_activity?: string;
