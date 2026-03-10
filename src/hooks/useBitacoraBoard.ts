@@ -191,6 +191,9 @@ export function useBitacoraBoard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'servicio_eventos_ruta' }, () => {
         queryClient.invalidateQueries({ queryKey: ['bitacora-board-events'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bitacora_asignaciones_monitorista' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['bitacora-my-assignments'] });
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [queryClient]);
