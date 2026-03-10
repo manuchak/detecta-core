@@ -77,6 +77,9 @@ export interface ServiceQueryResult {
   motivo_posicionamiento_falso?: string;
   
   // Metadata
+  // Referencia interna del cliente
+  id_interno_cliente?: string;
+  
   fuente_tabla: 'servicios_custodia' | 'servicios_planificados';
   updated_at?: string;
 }
