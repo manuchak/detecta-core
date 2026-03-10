@@ -263,6 +263,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   );
 
   const content = (
+    <TooltipProvider delayDuration={200}>
     <div className={cn(
       'flex flex-col',
       isOverlay ? 'h-full' : 'h-[calc(var(--content-height-with-tabs,calc(100vh-200px)))]',
