@@ -31,14 +31,24 @@ import { BitacoraPanel } from "@/components/monitoring/bitacora";
 import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
 import { ServiceTimesPanel } from "@/components/monitoring/tiempos/ServiceTimesPanel";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useHeartbeatPing } from "@/hooks/useHeartbeatPing";
+import { useOrphanGuard } from "@/hooks/useOrphanGuard";
 
 const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
+const MONITORING_ROLES = ['monitoring', 'monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
 
 const MonitoringPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const { hasAnyRole } = useUserRole();
   const isCoordinator = hasAnyRole(COORDINATOR_ROLES as any);
+  const isMonitoringStaff = hasAnyRole(MONITORING_ROLES as any);
+
+  // Global heartbeat — runs regardless of active tab
+  useHeartbeatPing();
+
+  // OrphanGuard + BalanceGuard — coordinators only, runs continuously
+  useOrphanGuard();
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);

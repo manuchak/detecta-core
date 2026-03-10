@@ -188,12 +188,20 @@ export function useMonitoristaAssignment() {
     }
   }
 
-  // en_turno is now determined ONLY by heartbeat (online in last 5 min)
+  // Formal assignment IDs for fallback
+  const formallyAssignedUserIds = new Set(
+    (allAssignments.data || []).filter(a => a.activo).map(a => a.monitorista_id)
+  );
+
+  // en_turno: heartbeat-based, with fallback when heartbeat table is empty (adoption period)
+  const useHeartbeatFallback = onlineUserIds.size === 0 && formallyAssignedUserIds.size > 0;
   const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
     const activity = activityByMonitorista.get(m.id);
     return {
       ...m,
-      en_turno: onlineUserIds.has(m.id),
+      en_turno: useHeartbeatFallback
+        ? formallyAssignedUserIds.has(m.id)
+        : onlineUserIds.has(m.id),
       last_activity: activity?.lastActivity,
       event_count: activity?.eventCount || 0,
     };
