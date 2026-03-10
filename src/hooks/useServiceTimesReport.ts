@@ -23,6 +23,7 @@ export interface ServiceTimeRow {
   descanso: number;
   pernocta: number;
   incidencia: number;
+  trafico: number;
   // Calculated deltas in minutes
   deltaOrigen: number | null;
   deltaDestino: number | null;
