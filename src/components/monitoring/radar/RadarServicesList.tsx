@@ -230,7 +230,7 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
       </div>
 
       {/* 2x2 grid of blocks */}
-      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
+      <div className="flex-1 grid grid-cols-2 grid-rows-[1fr_1fr] min-h-0">
         {groupedData.map((group, i) => (
           <div
             key={group.key}
