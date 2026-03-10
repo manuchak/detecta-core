@@ -327,12 +327,21 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      const { error } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .insert(inserts);
-      if (error) throw error;
+      // Insert one by one to handle unique constraint violations gracefully
+      let inserted = 0;
+      for (const row of inserts) {
+        const { error } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .insert(row);
+        if (error && error.code === '23505') {
+          console.log(`[autoDistribute] Duplicate for ${row.servicio_id}, skipping`);
+          continue;
+        }
+        if (error) throw error;
+        inserted++;
+      }
 
-      return inserts.length;
+      return inserted;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey });
