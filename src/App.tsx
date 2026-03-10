@@ -317,7 +317,7 @@ function App() {
                     <ProtectedRoute>
                       <PermissionProtectedRoute permissionType="page" permissionId="dashboard" showMessage={true}>
                         <UnifiedLayout>
-                          <StarMapPage />
+                          <ExecutiveDashboard />
                         </UnifiedLayout>
                       </PermissionProtectedRoute>
                     </ProtectedRoute>
