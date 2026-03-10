@@ -51,6 +51,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
     excedido,
     iniciarPausa,
     finalizarPausa,
+    repararPausaHuerfana,
     previewRedistribution,
     pausasPorMonitorista,
   } = useMonitoristaPause();
