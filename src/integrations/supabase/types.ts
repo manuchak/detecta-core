@@ -19572,6 +19572,18 @@ export type Database = {
         }
         Returns: string
       }
+      fn_finalizar_pausa: {
+        Args: {
+          p_caller_id: string
+          p_monitorista_id?: string
+          p_pausa_id?: string
+        }
+        Returns: Json
+      }
+      fn_iniciar_pausa: {
+        Args: { p_tipo_pausa: string; p_user_id: string }
+        Returns: Json
+      }
       forensic_audit_servicios_enero_actual: {
         Args: never
         Returns: {
