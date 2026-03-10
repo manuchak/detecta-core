@@ -71,33 +71,59 @@ function formatTimer(mins: number): string {
   return `${h}h${m > 0 ? ` ${m}m` : ''}`;
 }
 
-/** Auto-scroll hook for a single block */
+/** Auto-scroll hook for a single block — stable across data refreshes */
 function useBlockAutoScroll(items: RadarService[]) {
   const ref = useRef<HTMLDivElement>(null);
+  const animFrameRef = useRef<number>(0);
+  const isRunningRef = useRef(false);
+  const isPausedRef = useRef(false);
 
-  useEffect(() => {
+  const startScroll = useCallback(() => {
     const el = ref.current;
-    if (!el) return;
-    let animFrame: number;
+    if (!el || isRunningRef.current) return;
+    if (el.scrollHeight <= el.clientHeight + 10) return;
+    isRunningRef.current = true;
     const speed = 0.4;
     const step = () => {
-      if (!el) return;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
-        el.scrollTop = 0;
+      if (isPausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(step);
+        return;
+      }
+      if (!ref.current) return;
+      if (ref.current.scrollTop + ref.current.clientHeight >= ref.current.scrollHeight - 2) {
+        ref.current.scrollTop = 0;
       } else {
-        el.scrollTop += speed;
+        ref.current.scrollTop += speed;
       }
-      animFrame = requestAnimationFrame(step);
+      animFrameRef.current = requestAnimationFrame(step);
     };
-    const timer = setTimeout(() => {
-      if (el.scrollHeight > el.clientHeight + 10) {
-        animFrame = requestAnimationFrame(step);
-      }
-    }, 3000);
-    return () => { clearTimeout(timer); cancelAnimationFrame(animFrame); };
-  }, [items]);
+    animFrameRef.current = requestAnimationFrame(step);
+  }, []);
 
-  return ref;
+  // Start once after mount, never restart on data changes
+  useEffect(() => {
+    const timer = setTimeout(() => startScroll(), 3000);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(animFrameRef.current);
+      isRunningRef.current = false;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If content grows and scroll wasn't needed before, start it
+  useEffect(() => {
+    if (!isRunningRef.current) {
+      const el = ref.current;
+      if (el && el.scrollHeight > el.clientHeight + 10) {
+        startScroll();
+      }
+    }
+  }, [items.length, startScroll]);
+
+  const onMouseEnter = useCallback(() => { isPausedRef.current = true; }, []);
+  const onMouseLeave = useCallback(() => { isPausedRef.current = false; }, []);
+
+  return { ref, onMouseEnter, onMouseLeave };
 }
 
 /** A single equitable block with its own scroll */
