@@ -42,19 +42,24 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
     : 0;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-background/80 rounded-lg">
-      <div className="flex flex-col items-center gap-6 max-w-sm text-center px-6">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+      {/* Top banner */}
+      <div className={`absolute top-0 inset-x-0 py-3 text-center font-bold text-sm tracking-widest uppercase ${excedido ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground'}`}>
+        Pausa de {getPauseLabel(tipo).toLowerCase()} {excedido ? '— Tiempo excedido' : '— En curso'}
+      </div>
+
+      <div className="flex flex-col items-center gap-8 max-w-md text-center px-6">
         {/* Icon */}
-        <div className={`p-6 rounded-full ${excedido ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-primary/10 text-primary'}`}>
-          {PAUSE_ICONS[tipo]}
+        <div className={`p-8 rounded-full ${excedido ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-primary/10 text-primary'}`}>
+          {React.cloneElement(PAUSE_ICONS[tipo] as React.ReactElement, { className: 'h-20 w-20' })}
         </div>
 
         {/* Title */}
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-foreground">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-foreground">
             Pausa de {getPauseLabel(tipo).toLowerCase()}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             {excedido
               ? 'Tu tiempo de pausa ha sido excedido'
               : 'Tus servicios están siendo atendidos por el equipo en turno'}
@@ -62,17 +67,17 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
         </div>
 
         {/* Countdown */}
-        <div className={`font-mono text-5xl font-bold tracking-wider tabular-nums ${excedido ? 'text-destructive' : 'text-foreground'}`}>
+        <div className={`font-mono text-7xl font-bold tracking-wider tabular-nums ${excedido ? 'text-destructive' : 'text-foreground'}`}>
           {timeDisplay}
         </div>
 
         {/* Progress bar */}
-        <div className="w-full max-w-xs">
+        <div className="w-full max-w-sm">
           <Progress
             value={excedido ? 100 : progressValue}
-            className={`h-2 ${excedido ? '[&>div]:bg-destructive' : ''}`}
+            className={`h-3 ${excedido ? '[&>div]:bg-destructive' : ''}`}
           />
-          <p className="text-[10px] text-muted-foreground mt-1.5">
+          <p className="text-xs text-muted-foreground mt-2">
             {excedido
               ? 'Por favor retoma tu turno lo antes posible'
               : `${getPauseDurationMinutes(tipo)} min autorizados`}
@@ -84,11 +89,11 @@ export const PauseOverlay: React.FC<PauseOverlayProps> = ({
           size="lg"
           onClick={onRetomar}
           disabled={isRetomando}
-          className={excedido ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
+          className={`text-base px-8 py-6 ${excedido ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}`}
         >
           {isRetomando ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
               Retomando…
             </>
           ) : (

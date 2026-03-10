@@ -118,11 +118,10 @@ export const BitacoraBoard: React.FC = () => {
         serviceHoraCitaMap={serviceHoraCitaMap}
       />
 
-      <div className="relative h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
-        {showPauseOverlay && (
-          <PauseOverlay
-            pausaActiva={pausaActiva}
-            segundosRestantes={segundosRestantes}
+      {showPauseOverlay && (
+        <PauseOverlay
+          pausaActiva={pausaActiva}
+          segundosRestantes={segundosRestantes}
             excedido={excedido}
             onRetomar={() => finalizarPausa.mutate()}
             isRetomando={finalizarPausa.isPending}
