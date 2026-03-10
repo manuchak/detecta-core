@@ -6,7 +6,9 @@ import { BoardColumnEnCurso } from './BoardColumnEnCurso';
 import { BoardColumnEventoEspecial } from './BoardColumnEventoEspecial';
 import { MonitoristaAssignmentBar } from './MonitoristaAssignmentBar';
 import { ServiceDetailDrawer } from './ServiceDetailDrawer';
+import { PauseOverlay } from './PauseOverlay';
 import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
+import { useMonitoristaPause } from '@/hooks/useMonitoristaPause';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Eye } from 'lucide-react';
@@ -28,8 +30,11 @@ export const BitacoraBoard: React.FC = () => {
   } = useBitacoraBoard();
 
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
-  const { hasAnyRole } = useUserRole();
+  const { pausaActiva, segundosRestantes, excedido, finalizarPausa } = useMonitoristaPause();
+  const { hasAnyRole, hasRole } = useUserRole();
   const isAdminOrCoord = hasAnyRole(['admin', 'owner', 'monitoring_supervisor', 'coordinador_operaciones']);
+  const isMonitorista = hasRole('monitoring');
+  const showPauseOverlay = !!pausaActiva && isMonitorista && !isAdminOrCoord;
 
   const [selectedService, setSelectedService] = useState<BoardService | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -113,38 +118,50 @@ export const BitacoraBoard: React.FC = () => {
         serviceHoraCitaMap={serviceHoraCitaMap}
       />
 
-      <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
-        {/* Column 1: Por Iniciar */}
-        <BoardColumnPorIniciar
-          services={displayPending}
-          onIniciar={(id) => iniciarServicio.mutate(id)}
-          onDoubleClick={handleDoubleClick}
-          isPending={iniciarServicio.isPending}
-        />
+      <div className="relative h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
+        {showPauseOverlay && (
+          <PauseOverlay
+            pausaActiva={pausaActiva}
+            segundosRestantes={segundosRestantes}
+            excedido={excedido}
+            onRetomar={() => finalizarPausa.mutate()}
+            isRetomando={finalizarPausa.isPending}
+          />
+        )}
 
-        {/* Column 2: En Curso + En Destino */}
-        <BoardColumnEnCurso
-          services={displayEnCurso}
-          onEventoEspecial={(sid, tipo) => iniciarEventoEspecial.mutate({ servicioIdServicio: sid, tipo })}
-          onCheckpoint={(data) => registrarCheckpoint.mutate(data)}
-          onLlegadaDestino={(uuid, sid) => registrarLlegadaDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
-          onLiberar={(uuid, sid) => liberarCustodio.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
-          onRevertir={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
-          onDoubleClick={handleDoubleClick}
-          isCheckpointPending={registrarCheckpoint.isPending}
-          isEventoPending={iniciarEventoEspecial.isPending}
-          isLlegadaPending={registrarLlegadaDestino.isPending}
-          isLiberarPending={liberarCustodio.isPending}
-          isRevertirPending={revertirEnDestino.isPending}
-        />
+        <div className={`grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-full ${showPauseOverlay ? 'pointer-events-none select-none opacity-10' : ''}`}>
+          {/* Column 1: Por Iniciar */}
+          <BoardColumnPorIniciar
+            services={displayPending}
+            onIniciar={(id) => iniciarServicio.mutate(id)}
+            onDoubleClick={handleDoubleClick}
+            isPending={iniciarServicio.isPending}
+          />
 
-        {/* Column 3: Evento Especial */}
-        <BoardColumnEventoEspecial
-          services={displayEventoEspecial}
-          onCerrar={(eventoId) => cerrarEventoEspecial.mutate(eventoId)}
-          onDoubleClick={handleDoubleClick}
-          isPending={cerrarEventoEspecial.isPending}
-        />
+          {/* Column 2: En Curso + En Destino */}
+          <BoardColumnEnCurso
+            services={displayEnCurso}
+            onEventoEspecial={(sid, tipo) => iniciarEventoEspecial.mutate({ servicioIdServicio: sid, tipo })}
+            onCheckpoint={(data) => registrarCheckpoint.mutate(data)}
+            onLlegadaDestino={(uuid, sid) => registrarLlegadaDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+            onLiberar={(uuid, sid) => liberarCustodio.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+            onRevertir={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+            onDoubleClick={handleDoubleClick}
+            isCheckpointPending={registrarCheckpoint.isPending}
+            isEventoPending={iniciarEventoEspecial.isPending}
+            isLlegadaPending={registrarLlegadaDestino.isPending}
+            isLiberarPending={liberarCustodio.isPending}
+            isRevertirPending={revertirEnDestino.isPending}
+          />
+
+          {/* Column 3: Evento Especial */}
+          <BoardColumnEventoEspecial
+            services={displayEventoEspecial}
+            onCerrar={(eventoId) => cerrarEventoEspecial.mutate(eventoId)}
+            onDoubleClick={handleDoubleClick}
+            isPending={cerrarEventoEspecial.isPending}
+          />
+        </div>
       </div>
 
       <ServiceDetailDrawer

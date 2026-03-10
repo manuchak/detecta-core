@@ -18,3 +18,4 @@ export { BoardColumnPorIniciar } from './BoardColumnPorIniciar';
 export { BoardColumnEnCurso } from './BoardColumnEnCurso';
 export { BoardColumnEventoEspecial } from './BoardColumnEventoEspecial';
 export { PauseConfirmDialog } from './PauseConfirmDialog';
+export { PauseOverlay } from './PauseOverlay';

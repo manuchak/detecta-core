@@ -1,50 +1,97 @@
 
 
-# Evaluación UX/UI Crítica + Plan de Overlay de Pausa
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Evaluación del estado actual
+## Roles confirmados por módulo
 
-**Problemas identificados:**
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
-1. **Visibilidad del estado de pausa es mínima** — Solo un Badge de 10px en la barra superior. Un monitorista que no mire esa esquina podría no saber que está en pausa.
+---
 
-2. **Los servicios siguen visibles durante la pausa** — Esto genera ansiedad innecesaria: el monitorista ve servicios "desaparecer" de su lista mientras se redistribuyen, o peor, ve servicios ajenos si el guard los reasigna de vuelta. La visibilidad de este proceso interno genera confusión operativa.
+## Hallazgos actuales
 
-3. **No hay separación cognitiva** — El monitorista en pausa sigue viendo la misma interfaz de trabajo. Psicológicamente no "suelta" su turno.
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-## Evaluación de la propuesta
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-**La propuesta es correcta desde el punto de vista UX:**
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
-- **Principio de "no preocupar al usuario"**: Ocultar el mecanismo interno de redistribución es la decisión correcta. El monitorista no necesita saber a quién se le asignaron sus servicios, solo que el sistema se encarga.
-- **Reducción de carga cognitiva**: Durante una pausa de 10 minutos, ver un tablero vacío con un timer es más relajante que ver servicios moviéndose.
-- **Prevención de errores**: Si el monitorista ve servicios durante su pausa, podría intentar operar sobre ellos, causando conflictos con quien los tiene asignados temporalmente.
+---
 
-**Un riesgo a mitigar:** El overlay debe ser lo suficientemente prominente para que el monitorista no piense que el sistema se rompió. El mensaje debe ser claro: "Estás en pausa, tus servicios están siendo atendidos".
+## Plan de corrección
 
-## Cambios propuestos
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-### Archivo nuevo: `src/components/monitoring/bitacora/PauseOverlay.tsx`
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
 
-Componente overlay de pantalla completa que se renderiza **sobre** el board cuando `pausaActiva` existe:
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
-- Fondo semi-opaco con blur que cubre las 3 columnas del board
-- Ícono grande del tipo de pausa (Sunrise/Coffee/Bath/Eye)
-- Título: "Pausa de [tipo] activa"
-- Countdown prominente en fuente monospaced grande (ej: `14:32`)
-- Indicador de progreso circular o barra
-- Si el tiempo se excede: cambio visual a rojo con pulso y mensaje "Tiempo excedido"
-- Texto de tranquilidad: "Tus servicios están siendo atendidos por el equipo en turno"
-- Botón "Retomar" prominente
-- **Solo visible para rol `monitoring`** (no coordinadores, quienes necesitan ver todo)
+### Fase 2 — Migrar policies por módulo
 
-### Archivo modificado: `src/components/monitoring/bitacora/BitacoraBoard.tsx`
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-- Importar `PauseOverlay` y `useMonitoristaPause`
-- Cuando `pausaActiva` existe y el usuario NO es coordinador: renderizar el overlay sobre el grid de columnas
-- Las columnas siguen montadas debajo (para que React Query no pierda estado), pero el overlay las cubre completamente
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
 
-### Sin cambios en:
-- `useMonitoristaPause.ts` (ya expone `pausaActiva`, `segundosRestantes`, `excedido`)
-- `MonitoristaAssignmentBar.tsx` (mantiene su badge como respaldo, visible si el overlay falla)
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
