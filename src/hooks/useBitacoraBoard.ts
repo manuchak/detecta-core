@@ -67,17 +67,32 @@ export function useBitacoraBoard() {
   }, []);
 
   /* ── Q0: Assigned service IDs for monitoring role ── */
+  /* Merge formal assignments + services where this user registered events (inferred) */
   const assignedIdsQuery = useQuery({
     queryKey: ['bitacora-my-assignments', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+
+      // 1. Formal assignments
+      const { data: formal, error: e1 } = await supabase
         .from('bitacora_asignaciones_monitorista')
         .select('servicio_id')
         .eq('monitorista_id', user.id)
         .eq('activo', true);
-      if (error) throw error;
-      return (data || []).map(r => r.servicio_id);
+      if (e1) throw e1;
+
+      // 2. Inferred: services where this user registered events
+      const { data: inferred, error: e2 } = await (supabase as any)
+        .from('servicio_eventos_ruta')
+        .select('servicio_id')
+        .eq('registrado_por', user.id);
+      if (e2) throw e2;
+
+      // Merge unique IDs
+      return [...new Set([
+        ...(formal || []).map((r: any) => r.servicio_id),
+        ...(inferred || []).map((r: any) => r.servicio_id),
+      ])];
     },
     enabled: needsFilter && !!user?.id,
     refetchInterval: 30_000,
