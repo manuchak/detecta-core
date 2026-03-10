@@ -162,6 +162,15 @@ export function useMonitoristaPause() {
 
       const allMonitoristas = [...new Set((roles || []).map(r => r.user_id))];
 
+      // Filter to only on-shift staff (heartbeat within last 5 min)
+      const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+      const { data: heartbeats } = await (supabase as any)
+        .from('monitorista_heartbeat')
+        .select('user_id')
+        .gte('last_ping', fiveMinAgo);
+      const onlineIds = new Set((heartbeats || []).map((h: any) => h.user_id));
+      const onShiftMonitoristas = allMonitoristas.filter(id => onlineIds.has(id));
+
       // Exclude self and others currently on pause
       const { data: activePauses } = await (supabase as any)
         .from('bitacora_pausas_monitorista')
@@ -169,7 +178,7 @@ export function useMonitoristaPause() {
         .eq('estado', 'activa');
 
       const pausedIds = new Set((activePauses || []).map((p: any) => p.monitorista_id));
-      const availableIds = allMonitoristas.filter(id => id !== currentUserId && !pausedIds.has(id));
+      const availableIds = onShiftMonitoristas.filter(id => id !== currentUserId && !pausedIds.has(id));
 
       if (availableIds.length === 0) {
         return { assignments: myAssignments, available: [] };
