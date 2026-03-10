@@ -125,7 +125,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     const gap = max - min;
     const level = gap <= 1 ? 'balanced' as const : gap <= 3 ? 'mild' as const : 'critical' as const;
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
-  }, [enTurno, assignmentsByMonitorista]);
+  }, [enTurno, filteredAssignmentsByMonitorista]);
 
   // ── Manual safe rebalance ──
   const handleManualRebalance = useCallback(async () => {
