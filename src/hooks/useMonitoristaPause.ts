@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { getCurrentTurno } from './useMonitoristaAssignment';
 
 export type TipoPausa = 'comida' | 'bano' | 'descanso' | 'desayuno';
 
@@ -119,7 +118,7 @@ export function useMonitoristaPause() {
 
   const excedido = segundosRestantes !== null && segundosRestantes < 0;
 
-  // Redistribute helper: distribute service IDs to available monitoristas
+  // Redistribute helper for preview only
   const distributeEquitably = useCallback(
     (serviceIds: string[], monitoristaIds: string[], currentLoads: Record<string, number>) => {
       const load = { ...currentLoads };
@@ -137,12 +136,11 @@ export function useMonitoristaPause() {
     []
   );
 
-  // Preview redistribution (for confirm dialog)
+  // Preview redistribution (for confirm dialog) — client-side preview only
   const previewRedistribution = useCallback(
     async (tipo: TipoPausa) => {
       if (!currentUserId) return { assignments: [], available: [] };
 
-      // Get my active assignments
       const { data: myAssignments } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .select('id, servicio_id, monitorista_id')
@@ -153,7 +151,6 @@ export function useMonitoristaPause() {
         return { assignments: [], available: [] };
       }
 
-      // Get all monitoring users
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -162,7 +159,6 @@ export function useMonitoristaPause() {
 
       const allMonitoristas = [...new Set((roles || []).map(r => r.user_id))];
 
-      // Filter to only on-shift staff (heartbeat within last 5 min)
       const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
       const { data: heartbeats } = await (supabase as any)
         .from('monitorista_heartbeat')
@@ -171,7 +167,6 @@ export function useMonitoristaPause() {
       const onlineIds = new Set((heartbeats || []).map((h: any) => h.user_id));
       const onShiftMonitoristas = allMonitoristas.filter(id => onlineIds.has(id));
 
-      // Exclude self and others currently on pause
       const { data: activePauses } = await (supabase as any)
         .from('bitacora_pausas_monitorista')
         .select('monitorista_id')
@@ -184,7 +179,6 @@ export function useMonitoristaPause() {
         return { assignments: myAssignments, available: [] };
       }
 
-      // Get current loads
       const { data: allActive } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .select('monitorista_id')
@@ -196,7 +190,6 @@ export function useMonitoristaPause() {
         loads[a.monitorista_id] = (loads[a.monitorista_id] || 0) + 1;
       }
 
-      // Get profiles via SECURITY DEFINER RPC (bypasses RLS on profiles)
       const { data: staffProfiles } = await supabase.rpc('get_monitoring_staff_profiles' as any);
       const profileMap = new Map(
         ((staffProfiles || []) as Array<{ id: string; display_name: string }>)
@@ -220,177 +213,62 @@ export function useMonitoristaPause() {
     [currentUserId, distributeEquitably]
   );
 
-  // Start pause mutation
+  // Start pause via edge function (transactional)
   const iniciarPausa = useMutation({
     mutationFn: async (tipo: TipoPausa) => {
-      if (!currentUserId) throw new Error('No autenticado');
-
-      const duracionMin = PAUSE_DURATIONS[tipo];
-      const finEsperado = new Date(Date.now() + duracionMin * 60_000).toISOString();
-
-      // Get my active assignments
-      const { data: myAssignments, error: fetchErr } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .select('id, servicio_id, monitorista_id, turno')
-        .eq('monitorista_id', currentUserId)
-        .eq('activo', true);
-      if (fetchErr) throw fetchErr;
-
-      if (!myAssignments || myAssignments.length === 0) {
-        throw new Error('No tienes servicios asignados');
-      }
-
-      // Get available monitoristas (exclude self + paused)
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', ['monitoring', 'monitoring_supervisor'])
-        .eq('is_active', true);
-
-      const allMonitoristas = [...new Set((roles || []).map(r => r.user_id))];
-
-      // Filter to only on-shift staff (heartbeat within last 5 min)
-      const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
-      const { data: heartbeats } = await (supabase as any)
-        .from('monitorista_heartbeat')
-        .select('user_id')
-        .gte('last_ping', fiveMinAgo);
-      const onlineIds = new Set((heartbeats || []).map((h: any) => h.user_id));
-      const onShiftMonitoristas = allMonitoristas.filter(id => onlineIds.has(id));
-
-      const { data: activePauses } = await (supabase as any)
-        .from('bitacora_pausas_monitorista')
-        .select('monitorista_id')
-        .eq('estado', 'activa');
-
-      const pausedIds = new Set((activePauses || []).map((p: any) => p.monitorista_id));
-      const availableIds = onShiftMonitoristas.filter(id => id !== currentUserId && !pausedIds.has(id));
-
-      if (availableIds.length === 0) {
-        throw new Error('No hay monitoristas disponibles para cubrir tu pausa');
-      }
-
-      // Get current loads
-      const { data: allActive } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .select('monitorista_id')
-        .eq('activo', true)
-        .in('monitorista_id', availableIds);
-
-      const loads: Record<string, number> = {};
-      for (const a of (allActive || [])) {
-        loads[a.monitorista_id] = (loads[a.monitorista_id] || 0) + 1;
-      }
-
-      // Distribute
-      const distribution = distributeEquitably(
-        myAssignments.map((a: any) => a.servicio_id),
-        availableIds,
-        loads
-      );
-
-      const nowTs = new Date().toISOString();
-      const turno = getCurrentTurno();
-      const redistribuidos: PausaActiva['servicios_redistribuidos'] = [];
-
-      // Deactivate originals and create temporary assignments
-      for (const orig of myAssignments) {
-        const target = distribution.find(d => d.servicio_id === orig.servicio_id);
-        if (!target) continue;
-
-        // Deactivate original
-        await (supabase as any)
-          .from('bitacora_asignaciones_monitorista')
-          .update({ activo: false, fin_turno: nowTs })
-          .eq('id', orig.id);
-
-        // Create temporary
-        const { data: newAssignment, error: insertErr } = await (supabase as any)
-          .from('bitacora_asignaciones_monitorista')
-          .insert({
-            servicio_id: orig.servicio_id,
-            monitorista_id: target.asignado_a,
-            asignado_por: currentUserId,
-            turno,
-            notas_handoff: `pausa_interina`,
-          })
-          .select('id')
-          .single();
-        if (insertErr) throw insertErr;
-
-        redistribuidos.push({
-          servicio_id: orig.servicio_id,
-          assignment_original_id: orig.id,
-          asignado_temporalmente_a: target.asignado_a,
-        });
-      }
-
-      // Insert pause record
-      const { error: pauseErr } = await (supabase as any)
-        .from('bitacora_pausas_monitorista')
-        .insert({
-          monitorista_id: currentUserId,
-          tipo_pausa: tipo,
-          servicios_redistribuidos: redistribuidos,
-          fin_esperado: finEsperado,
-        });
-      if (pauseErr) throw pauseErr;
-
-      return { count: redistribuidos.length, tipo };
+      const { data, error } = await supabase.functions.invoke('iniciar-pausa-monitorista', {
+        body: { tipo_pausa: tipo },
+      });
+      if (error) throw new Error(error.message || 'Error al iniciar pausa');
+      if (data?.error) throw new Error(data.error);
+      return data as { count: number; tipo: string };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
-      toast.success(`Pausa de ${getPauseLabel(result.tipo)} iniciada · ${result.count} servicios redistribuidos`);
+      toast.success(`Pausa de ${getPauseLabel(result.tipo as TipoPausa)} iniciada · ${result.count} servicios redistribuidos`);
     },
     onError: (err: Error) => toast.error(err.message || 'Error al iniciar pausa'),
   });
 
-  // End pause mutation (Retomar)
+  // End pause via edge function (transactional)
   const finalizarPausa = useMutation({
-    mutationFn: async () => {
-      if (!pausaActiva || !currentUserId) throw new Error('No hay pausa activa');
-
-      const nowTs = new Date().toISOString();
-      const turno = getCurrentTurno();
-      const redistribuidos = pausaActiva.servicios_redistribuidos;
-
-      // Deactivate temporary assignments and restore originals
-      for (const item of redistribuidos) {
-        // Deactivate temporary assignment for this service
-        await (supabase as any)
-          .from('bitacora_asignaciones_monitorista')
-          .update({ activo: false, fin_turno: nowTs })
-          .eq('servicio_id', item.servicio_id)
-          .eq('monitorista_id', item.asignado_temporalmente_a)
-          .eq('activo', true);
-
-        // Re-create assignment for original monitorista
-        await (supabase as any)
-          .from('bitacora_asignaciones_monitorista')
-          .insert({
-            servicio_id: item.servicio_id,
-            monitorista_id: currentUserId,
-            asignado_por: currentUserId,
-            turno,
-            notas_handoff: 'retorno_pausa',
-          });
-      }
-
-      // Mark pause as finalizada
-      await (supabase as any)
-        .from('bitacora_pausas_monitorista')
-        .update({ estado: 'finalizada', fin_real: nowTs })
-        .eq('id', pausaActiva.id);
-
-      return redistribuidos.length;
+    mutationFn: async (params?: { pausa_id?: string; monitorista_id?: string }) => {
+      const { data, error } = await supabase.functions.invoke('finalizar-pausa-monitorista', {
+        body: params || {},
+      });
+      if (error) throw new Error(error.message || 'Error al finalizar pausa');
+      if (data?.error) throw new Error(data.error);
+      return data as { count: number };
     },
-    onSuccess: (count) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
-      toast.success(`Pausa finalizada · ${count} servicios restaurados`);
+      toast.success(`Pausa finalizada · ${result.count} servicios restaurados`);
     },
     onError: (err: Error) => toast.error(err.message || 'Error al retomar'),
+  });
+
+  // Repair orphan pauses (coordinator only)
+  const repararPausaHuerfana = useMutation({
+    mutationFn: async (monitoristaId?: string) => {
+      const { data, error } = await supabase.functions.invoke('reparar-pausa-huerfana', {
+        body: { monitorista_id: monitoristaId },
+      });
+      if (error) throw new Error(error.message || 'Error al reparar');
+      if (data?.error) throw new Error(data.error);
+      return data as { repaired: number };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
+      if (result.repaired > 0) {
+        toast.success(`${result.repaired} asignaciones restauradas`);
+      } else {
+        toast.info('No se encontraron pausas huérfanas');
+      }
+    },
+    onError: (err: Error) => toast.error(err.message || 'Error al reparar'),
   });
 
   // Map of monitorista_id -> active pause (for coordinator chips)
@@ -408,6 +286,7 @@ export function useMonitoristaPause() {
     excedido,
     iniciarPausa,
     finalizarPausa,
+    repararPausaHuerfana,
     previewRedistribution,
     pausasPorMonitorista,
     isLoading: pausaActivaQuery.isLoading,

@@ -191,3 +191,12 @@ verify_jwt = false
 
 [functions.generate-recovery-link]
 verify_jwt = false
+
+[functions.iniciar-pausa-monitorista]
+verify_jwt = false
+
+[functions.finalizar-pausa-monitorista]
+verify_jwt = false
+
+[functions.reparar-pausa-huerfana]
+verify_jwt = false

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Sunrise, Play, Pause, ShieldCheck } from 'lucide-react';
+import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Sunrise, Play, Pause, ShieldCheck, Wrench, RotateCcw } from 'lucide-react';
 import { useClaveNoAmago } from '@/hooks/useClaveNoAmago';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useMonitoristaPause, type TipoPausa, getPauseLabel } from '@/hooks/useMonitoristaPause';
@@ -51,6 +51,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
     excedido,
     iniciarPausa,
     finalizarPausa,
+    repararPausaHuerfana,
     previewRedistribution,
     pausasPorMonitorista,
   } = useMonitoristaPause();
@@ -90,7 +91,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
   };
 
   const handleRetomar = () => {
-    finalizarPausa.mutate();
+    finalizarPausa.mutate({});
   };
 
   return (
@@ -127,25 +128,38 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
               const count = (assignmentsByMonitorista[m.id] || []).length;
               const pausa = pausasPorMonitorista.get(m.id);
               return (
-                <Badge
-                  key={m.id}
-                  variant="outline"
-                  className={`text-[10px] gap-1 px-2 py-0.5 ${
-                    pausa
-                      ? 'border-chart-4/50 bg-chart-4/10 text-chart-4'
-                      : ''
-                  }`}
-                >
-                  {pausa ? (
-                    <Pause className="h-2.5 w-2.5" />
-                  ) : (
-                    <User className="h-2.5 w-2.5" />
+                <div key={m.id} className="flex items-center gap-0.5">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] gap-1 px-2 py-0.5 ${
+                      pausa
+                        ? 'border-chart-4/50 bg-chart-4/10 text-chart-4'
+                        : ''
+                    }`}
+                  >
+                    {pausa ? (
+                      <Pause className="h-2.5 w-2.5" />
+                    ) : (
+                      <User className="h-2.5 w-2.5" />
+                    )}
+                    {m.display_name.split(' ')[0]}
+                    {pausa
+                      ? ` · ${getPauseLabel(pausa.tipo_pausa as TipoPausa)}`
+                      : ` · ${count}`}
+                  </Badge>
+                  {pausa && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 text-chart-4 hover:text-destructive"
+                      title="Forzar retorno de pausa"
+                      onClick={() => finalizarPausa.mutate({ monitorista_id: m.id })}
+                      disabled={finalizarPausa.isPending}
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
                   )}
-                  {m.display_name.split(' ')[0]}
-                  {pausa
-                    ? ` · ${getPauseLabel(pausa.tipo_pausa as TipoPausa)}`
-                    : ` · ${count}`}
-                </Badge>
+                </div>
               );
             })}
           </div>
@@ -159,6 +173,16 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
             </Button>
             <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => setHandoffOpen(true)}>
               <ArrowRightLeft className="h-3 w-3" /> Cambio Turno
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[10px] gap-1 px-2"
+              onClick={() => repararPausaHuerfana.mutate(undefined)}
+              disabled={repararPausaHuerfana.isPending}
+              title="Reparar asignaciones huérfanas por pausas fallidas"
+            >
+              <Wrench className="h-3 w-3" /> {repararPausaHuerfana.isPending ? 'Reparando…' : 'Reparar pausas'}
             </Button>
           </div>
         )}
