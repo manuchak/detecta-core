@@ -541,6 +541,10 @@ export function useMonitoristaAssignment() {
             asignado_por: user?.id || null,
             turno: turnoActual,
           });
+        if (error && error.code === '23505') {
+          console.log(`[rebalanceLoad] Duplicate for ${r.servicioId}, skipping`);
+          continue;
+        }
         if (error) throw error;
       }
 

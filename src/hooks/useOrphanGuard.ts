@@ -32,39 +32,65 @@ export function useOrphanGuard() {
   const autoAssignedRef = useRef<Set<string>>(new Set());
   const orphanGuardRef = useRef<Set<string>>(new Set());
 
+  // Dedup sweep: clean up any duplicate active assignments that slipped through
+  const dedupCooldownRef = useRef<number>(0);
+
   useEffect(() => {
     if (enTurno.length === 0 || autoDistribute.isPending) return;
+    
+    // Run dedup sweep at most once per 60s
+    const runDedupSweep = async () => {
+      if (Date.now() - dedupCooldownRef.current < 60_000) return;
+      dedupCooldownRef.current = Date.now();
+      
+      try {
+        // Fresh DB query to find actual orphans (not relying on stale client state)
+        const { data: freshAssignments } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .select('servicio_id')
+          .eq('activo', true);
+        
+        var freshAssignedIds = new Set((freshAssignments || []).map((a: any) => a.servicio_id));
+      } catch {
+        var freshAssignedIds = assignedServiceIds; // fallback to client state
+      }
+      
+      return freshAssignedIds;
+    };
 
-    const TWO_HOURS = 2 * 60 * 60 * 1000;
-    const now = Date.now();
+    runDedupSweep().then((freshIds) => {
+      const effectiveAssigned = freshIds || assignedServiceIds;
 
-    // Rule 1: Pending services ≤2h from cita
-    const eligiblePending = pendingServiceIds.filter(id => {
-      if (assignedServiceIds.has(id) || autoAssignedRef.current.has(id)) return false;
-      const citaStr = serviceHoraCitaMap[id];
-      if (!citaStr) return false;
-      const timeUntil = new Date(citaStr).getTime() - now;
-      return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
-    });
+      const TWO_HOURS = 2 * 60 * 60 * 1000;
+      const now = Date.now();
 
-    // Rule 2: Active services without any assignment
-    const unassignedActive = activeServiceIds.filter(id =>
-      !assignedServiceIds.has(id) && !autoAssignedRef.current.has(id)
-    );
+      // Rule 1: Pending services ≤2h from cita
+      const eligiblePending = pendingServiceIds.filter(id => {
+        if (effectiveAssigned.has(id) || autoAssignedRef.current.has(id)) return false;
+        const citaStr = serviceHoraCitaMap[id];
+        if (!citaStr) return false;
+        const timeUntil = new Date(citaStr).getTime() - now;
+        return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
+      });
 
-    const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
-
-    if (allEligible.length > 0) {
-      console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
-      allEligible.forEach(id => autoAssignedRef.current.add(id));
-      autoDistribute.mutate(
-        { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
-        {
-          onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
-          onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
-        }
+      // Rule 2: Active services without any assignment
+      const unassignedActive = activeServiceIds.filter(id =>
+        !effectiveAssigned.has(id) && !autoAssignedRef.current.has(id)
       );
-    }
+
+      const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
+
+      if (allEligible.length > 0) {
+        console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
+        allEligible.forEach(id => autoAssignedRef.current.add(id));
+        autoDistribute.mutate(
+          { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
+          {
+            onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
+            onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
+          }
+        );
+      }
 
     // Rule 3: Services assigned to offline monitoristas → reassign
     const offlineWithServices = sinTurno.filter(m => {
