@@ -122,13 +122,14 @@ export const BitacoraBoard: React.FC = () => {
         <PauseOverlay
           pausaActiva={pausaActiva}
           segundosRestantes={segundosRestantes}
-            excedido={excedido}
-            onRetomar={() => finalizarPausa.mutate()}
-            isRetomando={finalizarPausa.isPending}
-          />
-        )}
+          excedido={excedido}
+          onRetomar={() => finalizarPausa.mutate()}
+          isRetomando={finalizarPausa.isPending}
+        />
+      )}
 
-        <div className={`grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-full ${showPauseOverlay ? 'pointer-events-none select-none opacity-10' : ''}`}>
+      <div className="relative h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
+        <div className={`grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-full`}>
           {/* Column 1: Por Iniciar */}
           <BoardColumnPorIniciar
             services={displayPending}
