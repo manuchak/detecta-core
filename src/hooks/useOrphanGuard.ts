@@ -115,11 +115,23 @@ export function useOrphanGuard() {
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
+      // Build operational board set for weighted load calculation
+      const operationalBoardIds = new Set<string>([
+        ...activeServiceIds,
+        ...eligiblePending,
+        ...pendingServiceIds.filter(id => {
+          const citaStr = serviceHoraCitaMap[id];
+          if (!citaStr) return false;
+          const timeUntil = new Date(citaStr).getTime() - now;
+          return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
+        }),
+      ]);
+
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
         allEligible.forEach(id => autoAssignedRef.current.set(id, now));
         autoDistribute.mutate(
-          { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
+          { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id), activeBoardServiceIds: operationalBoardIds },
           {
             onSuccess: (count) => {
               lastMutationTimestampRef.current = Date.now();
@@ -128,6 +140,32 @@ export function useOrphanGuard() {
             onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
           }
         );
+      }
+
+      // Rule 4: Cleanup — deactivate assignments for pending services with cita >4h away
+      const farFutureAssignments: { id: string; servicio_id: string }[] = [];
+      for (const m of [...enTurno, ...sinTurno]) {
+        for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
+          // Only target pending services (not in-progress or events)
+          if (activeServiceIds.includes(a.servicio_id)) continue;
+          const citaStr = serviceHoraCitaMap[a.servicio_id];
+          if (!citaStr) continue;
+          const timeUntil = new Date(citaStr).getTime() - now;
+          if (timeUntil > FOUR_HOURS) {
+            farFutureAssignments.push({ id: a.id, servicio_id: a.servicio_id });
+          }
+        }
+      }
+      if (farFutureAssignments.length > 0) {
+        console.log(`[OrphanGuard] Rule 4: Deactivating ${farFutureAssignments.length} assignments for services >4h away`);
+        const ids = farFutureAssignments.map(a => a.id);
+        (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .update({ activo: false, fin_turno: new Date().toISOString() })
+          .in('id', ids)
+          .then(() => {
+            lastMutationTimestampRef.current = Date.now();
+          });
       }
 
       // Rule 3: Services assigned to offline monitoristas → reassign
