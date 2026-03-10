@@ -538,11 +538,12 @@ export function useMonitoristaAssignment() {
       const turnoActual = getCurrentTurno();
 
       for (const r of params.reassignments) {
-        // Deactivate old assignment
+        // Deactivate ALL active for this service (safe pattern)
         await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .update({ activo: false, fin_turno: nowTs })
-          .eq('id', r.fromAssignmentId);
+          .eq('servicio_id', r.servicioId)
+          .eq('activo', true);
 
         // Create new assignment
         const { error } = await (supabase as any)
