@@ -166,6 +166,13 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                 label="Origen de Datos"
                 value={service.fuente_tabla === 'servicios_custodia' ? 'Servicio Ejecutado' : 'Servicio Planificado'}
               />
+              {(service as any).id_interno_cliente && (
+                <DetailRow
+                  icon={FileText}
+                  label="Ref. Cliente"
+                  value={(service as any).id_interno_cliente}
+                />
+              )}
               {isPF && (
                 <>
                   <div className="pt-4 mt-4 border-t border-violet-200 dark:border-violet-800">

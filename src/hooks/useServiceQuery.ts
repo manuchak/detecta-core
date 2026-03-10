@@ -584,6 +584,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         telefono_custodio: service.telefono_custodio || service.telefono,
         km_recorridos: service.km_recorridos,
         cobro_cliente: service.cobro_cliente,
+        id_interno_cliente: (service as any).id_interno_cliente || (service as any).referencia_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_custodia'
       }));
@@ -603,6 +604,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         nombre_custodio: service.custodio_asignado,
         custodio_id: service.custodio_id,
         estado_planeacion: service.estado_planeacion,
+        id_interno_cliente: (service as any).id_interno_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_planificados'
       }));

@@ -1226,6 +1226,11 @@ export function ScheduledServicesTab() {
         onConfirm={handleFalsePositioning}
         isLoading={isMarkingFalsePositioning}
       />
+
+      <RechazosVigentesPanel
+        open={rechazosOpen}
+        onOpenChange={setRechazosOpen}
+      />
     </div>
   );
 }
