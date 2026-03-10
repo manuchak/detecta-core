@@ -89,6 +89,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
+  // Fallback: if no one is en_turno, use monitoristas with recent activity for assignment eligibility
+  const eligibleForAssignment = enTurno.length > 0
+    ? enTurno
+    : monitoristas.filter(m => (m.event_count || 0) > 0);
 
   // OrphanGuard + BalanceGuard moved to useOrphanGuard (mounted at page level)
 
