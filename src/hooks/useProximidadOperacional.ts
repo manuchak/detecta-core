@@ -102,26 +102,34 @@ export function useCustodiosConProximidad(
         
         // FALLBACK: Try direct table query if RPC fails (permission issue or function not found)
         console.log('🔄 Intentando fallback a custodios_operativos...');
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('custodios_operativos')
-          .select('*')
-          .eq('estado', 'activo')
-          .in('disponibilidad', ['disponible', 'parcial']);
+        const [fallbackRes, indispRes] = await Promise.all([
+          supabase
+            .from('custodios_operativos')
+            .select('*')
+            .eq('estado', 'activo')
+            .in('disponibilidad', ['disponible', 'parcial']),
+          supabase
+            .from('custodio_indisponibilidades')
+            .select('custodio_id')
+            .eq('estado', 'activo')
+            .or('fecha_fin_estimada.is.null,fecha_fin_estimada.gt.' + new Date().toISOString()),
+        ]);
           
-        if (fallbackError) {
-          console.error('❌ Fallback también falló:', fallbackError);
-          // Throw descriptive error for UI to display
+        if (fallbackRes.error) {
+          console.error('❌ Fallback también falló:', fallbackRes.error);
           throw new Error(
             `Sin permisos para ver custodios. Tu rol actual no tiene acceso a esta función. ` +
-            `Código: ${fallbackError.code || error.code}`
+            `Código: ${fallbackRes.error.code || error.code}`
           );
         }
         
-        if (fallbackData && fallbackData.length > 0) {
-          console.log(`✅ Fallback exitoso: ${fallbackData.length} custodios`);
-          // Return fallback data as "disponibles" with minimal processing
+        if (fallbackRes.data && fallbackRes.data.length > 0) {
+          // Filter out custodians with active unavailabilities
+          const indispIds = new Set((indispRes.data || []).map(r => r.custodio_id));
+          const filtered = fallbackRes.data.filter(c => !indispIds.has(c.id));
+          console.log(`✅ Fallback exitoso: ${filtered.length} custodios (${indispIds.size} excluidos por indisponibilidad)`);
           return {
-            disponibles: fallbackData.map(c => ({
+            disponibles: filtered.map(c => ({
               ...c,
               fuente: 'custodios_operativos' as const,
               performance_level: 'nuevo' as const,
