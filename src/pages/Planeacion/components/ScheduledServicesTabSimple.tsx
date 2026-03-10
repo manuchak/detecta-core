@@ -199,6 +199,10 @@ export function ScheduledServicesTab() {
   // Filtro por cliente del día
   const [clienteFilter, setClienteFilter] = useState<string | null>(null);
 
+  // Rechazos panel state
+  const [rechazosOpen, setRechazosOpen] = useState(false);
+  const { data: rechazadosIds = [] } = useRechazosVigentes();
+
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
   const getOperationalStatus = (service: any) => {
