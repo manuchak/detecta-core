@@ -205,6 +205,11 @@ export function useMonitoristaAssignment() {
           asignado_por: user?.id || null,
           turno: params.turno || getCurrentTurno(),
         });
+      // Unique constraint violation = another process already assigned → safe to ignore
+      if (error && error.code === '23505') {
+        console.log('[assignService] Duplicate caught by DB constraint, skipping');
+        return;
+      }
       if (error) throw error;
     },
     onSuccess: () => {
