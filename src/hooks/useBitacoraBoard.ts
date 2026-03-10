@@ -88,8 +88,11 @@ export function useBitacoraBoard() {
 
   /* ── Q1: Pending services (Por Iniciar) ── */
   const pendingQuery = useQuery({
-    queryKey: ['bitacora-board-pending'],
+    queryKey: ['bitacora-board-pending', needsFilter ? assignedIds : 'all'],
     queryFn: async () => {
+      // If monitoring role with no assignments, return empty
+      if (needsFilter && (!assignedIds || assignedIds.length === 0)) return [];
+
       // Full-day window in CDMX timezone (UTC-6, no DST since 2023)
       const now = new Date();
       const cdmxOffset = -6; // hours
@@ -99,7 +102,7 @@ export function useBitacoraBoard() {
       const desde = startOfDayCDMX;
       const hasta = endOfDayCDMX;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('servicios_planificados')
         .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
         .is('hora_inicio_real', null)
@@ -109,18 +112,29 @@ export function useBitacoraBoard() {
         .lte('fecha_hora_cita', hasta.toISOString())
         .order('fecha_hora_cita', { ascending: true });
 
+      // Filter by assigned services for monitoring role
+      if (needsFilter && assignedIds && assignedIds.length > 0) {
+        query = query.in('id_servicio', assignedIds);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       return (data || []) as any[];
     },
+    enabled: !needsFilter || (assignedIdsQuery.isFetched),
     refetchInterval: 30_000,
     staleTime: 10_000,
   });
 
   /* ── Q2: Active services (En Curso / En Destino) ── */
   const activeQuery = useQuery({
-    queryKey: ['bitacora-board-active'],
+    queryKey: ['bitacora-board-active', needsFilter ? assignedIds : 'all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // If monitoring role with no assignments, return empty
+      if (needsFilter && (!assignedIds || assignedIds.length === 0)) return [];
+
+      let query = supabase
         .from('servicios_planificados')
         .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
         .not('hora_inicio_real', 'is', null)
@@ -128,9 +142,17 @@ export function useBitacoraBoard() {
         .not('estado_planeacion', 'in', '(cancelado,completado)')
         .order('hora_inicio_real', { ascending: true });
 
+      // Filter by assigned services for monitoring role
+      if (needsFilter && assignedIds && assignedIds.length > 0) {
+        query = query.in('id_servicio', assignedIds);
+      }
+
+      const { data, error } = await query;
+
       if (error) throw error;
       return (data || []) as any[];
     },
+    enabled: !needsFilter || (assignedIdsQuery.isFetched),
     refetchInterval: 15_000,
     staleTime: 5_000,
   });
