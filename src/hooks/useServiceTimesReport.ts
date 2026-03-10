@@ -4,9 +4,9 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'America/Mexico_City';
 
-export type EventoTipo = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia';
+export type EventoTipo = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia' | 'trafico';
 
-const SPECIAL_EVENTS: EventoTipo[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia'];
+const SPECIAL_EVENTS: EventoTipo[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'];
 
 export interface ServiceTimeRow {
   id: string;
