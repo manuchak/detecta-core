@@ -503,7 +503,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             <div className="p-4">
               <AbandonedServicesSection
                 monitoristas={monitoristas}
-                assignmentsByMonitorista={assignmentsByMonitorista}
+                assignmentsByMonitorista={filteredAssignmentsByMonitorista}
                 serviceLabelMap={serviceLabelMap}
                 onReassign={(p) => reassignService.mutate(p)}
                 isReassigning={reassignService.isPending}
