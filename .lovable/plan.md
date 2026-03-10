@@ -1,97 +1,70 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Análisis Causa Raíz — Auto-scroll no funciona en cuadrantes Alerta y En Ruta
 
-## Roles confirmados por módulo
-
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Diagrama Fishbone (Ishikawa)
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+                            AUTO-SCROLL NO SE ACTIVA
+                                      │
+    ┌─────────────────┬───────────────┼───────────────┬─────────────────┐
+    │                 │               │               │                 │
+ CSS HEIGHT       OVERFLOW         DETECCIÓN       LIFECYCLE        TIMING
+ CHAIN            STACKING        DE OVERFLOW     DE REACT
+    │                 │               │               │                 │
+    ├─ grid-rows-2    ├─ cell:        ├─ condición    ├─ []deps en      ├─ 3s timeout
+    │   sin height    │   overflow-   │   line 84:    │   useEffect     │   puede ser
+    │   explícito     │   hidden      │   scrollH <=  │   no re-evalúa  │   insuficiente
+    │   (1fr=auto?)   │               │   clientH+10  │   si servicios  │
+    │                 ├─ ServiceBlock: │               │   llegan tarde  ├─ ResizeObserver
+    ├─ h-full en      │   overflow-   ├─ h-0+flex-1   │                 │   observa el div
+    │   grid cell     │   hidden      │   puede dar   ├─ isRunningRef   │   no su contenido
+    │   sin parent    │               │   clientH=0   │   nunca se      │
+    │   height        ├─ scroll div:  │   en ciertas  │   resetea en    │
+    │   definido      │   overflow-y- │   condiciones  │   re-render     │
+    │                 │   hidden      │               │                 │
+    ├─ min-h-0 en     │               │               │                 │
+    │   múltiples     │  ← 3 CAPAS    │               │                 │
+    │   niveles       │    DE CLIP    │               │                 │
+    │                 │               │               │                 │
+    ▼                 ▼               ▼               ▼                 ▼
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Causa Raíz Más Probable: Cadena de alturas rota + overflow triple
 
-### Fase 2 — Migrar policies por módulo
+Hay **3 capas de `overflow-hidden`** apiladas:
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+| Nivel | Elemento | Overflow | Problema |
+|-------|----------|----------|----------|
+| 1 | Cell wrapper (L237) | `overflow-hidden` | Clip visual del grid cell |
+| 2 | ServiceBlock (L148) | `overflow-hidden` | Clip del flex parent |
+| 3 | Scroll div (L162) | `overflow-y-hidden` | El que debería scrollear |
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+El `overflow-hidden` en el **ServiceBlock** (nivel 2) es el principal sospechoso. Al estar en el flex parent del scroll div, puede causar que el contenido se recorte **antes** de que el scroll div lo detecte como overflow propio. Resultado: `scrollHeight === clientHeight` → condición línea 84 nunca se cumple → el loop nunca arranca.
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+Adicionalmente, `h-full` en el cell wrapper (L237) puede no resolver a una altura definida porque CSS Grid con `grid-rows-2` (que genera `1fr 1fr`) no siempre proporciona una altura explícita para que `height: 100%` se resuelva correctamente en hijos.
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+## Plan de Corrección
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+### `src/components/monitoring/radar/RadarServicesList.tsx`
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+1. **Eliminar `overflow-hidden` de ServiceBlock** (L148) — solo el scroll div necesita controlar overflow
+2. **Cambiar grid a alturas explícitas**: Reemplazar `grid-rows-2` por `grid-rows-[1fr_1fr]` o usar `grid-template-rows` con altura fija para asegurar que los hijos resuelvan `h-full`
+3. **Agregar log de diagnóstico temporal** en `startScroll` para confirmar valores de `scrollHeight` vs `clientHeight` (se elimina después)
+4. **Simplificar la cadena**: El cell wrapper tampoco necesita `overflow-hidden` si el scroll div ya lo maneja — cambiar a `overflow-clip` o eliminarlo
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+### Cambios concretos:
 
-### Archivos a modificar
+```tsx
+// ServiceBlock — QUITAR overflow-hidden del contenedor padre
+<div className={`h-full flex flex-col min-h-0 ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+// Cell wrapper — cambiar overflow-hidden por overflow-clip (no afecta scrollHeight)  
+<div className={`min-h-0 h-full ${i % 2 === 0 ? 'border-r...' : ''} ...`}>
+
+// Grid container — asegurar rows explícitas
+<div className="flex-1 grid grid-cols-2 grid-rows-[1fr_1fr] min-h-0 overflow-hidden">
+```
+
+Esto elimina las 2 capas de clip intermedias, dejando solo el scroll div como dueño del overflow, y asegura que la condición `scrollHeight > clientHeight` se evalúe correctamente.
 
