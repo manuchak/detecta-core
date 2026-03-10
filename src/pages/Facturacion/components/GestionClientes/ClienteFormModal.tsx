@@ -67,6 +67,8 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
     prioridad_cobranza: 'normal',
     notas_cobranza: '',
     horas_cortesia: null,
+    horas_cortesia_local: null,
+    horas_cortesia_foraneo: null,
     pernocta_tarifa: null,
     cobra_pernocta: false,
     tipo_facturacion: 'corte',
@@ -105,6 +107,8 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
         prioridad_cobranza: cliente.prioridad_cobranza || 'normal',
         notas_cobranza: cliente.notas_cobranza || '',
         horas_cortesia: cliente.horas_cortesia,
+        horas_cortesia_local: cliente.horas_cortesia_local ?? null,
+        horas_cortesia_foraneo: cliente.horas_cortesia_foraneo ?? null,
         pernocta_tarifa: cliente.pernocta_tarifa,
         cobra_pernocta: cliente.cobra_pernocta ?? false,
         tipo_facturacion: cliente.tipo_facturacion || 'corte',
@@ -346,10 +350,25 @@ export function ClienteFormModal({ open, onOpenChange, cliente }: ClienteFormMod
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Horas de Cortesía</Label>
-                  <Input type="number" step="0.5" placeholder="Ej: 2, 4, 8" value={formData.horas_cortesia ?? ''} onChange={(e) => setFormData({ ...formData, horas_cortesia: e.target.value ? parseFloat(e.target.value) : null })} />
-                  <p className="text-[10px] text-muted-foreground">Horas de espera sin cobro adicional</p>
+                  <Label>Hrs Cortesía Local</Label>
+                  <Input type="number" step="0.5" placeholder="Ej: 2, 4" value={formData.horas_cortesia_local ?? ''} onChange={(e) => {
+                    const val = e.target.value ? parseFloat(e.target.value) : null;
+                    const foraneo = formData.horas_cortesia_foraneo;
+                    setFormData({ ...formData, horas_cortesia_local: val, horas_cortesia: Math.max(val ?? 0, foraneo ?? 0) || null });
+                  }} />
+                  <p className="text-[10px] text-muted-foreground">Servicios locales</p>
                 </div>
+                <div className="space-y-2">
+                  <Label>Hrs Cortesía Foráneo</Label>
+                  <Input type="number" step="0.5" placeholder="Ej: 4, 8" value={formData.horas_cortesia_foraneo ?? ''} onChange={(e) => {
+                    const val = e.target.value ? parseFloat(e.target.value) : null;
+                    const local = formData.horas_cortesia_local;
+                    setFormData({ ...formData, horas_cortesia_foraneo: val, horas_cortesia: Math.max(local ?? 0, val ?? 0) || null });
+                  }} />
+                  <p className="text-[10px] text-muted-foreground">Servicios foráneos</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tarifa de Pernocta</Label>
                   <Input type="number" placeholder="$0.00" value={formData.pernocta_tarifa ?? ''} onChange={(e) => setFormData({ ...formData, pernocta_tarifa: e.target.value ? parseFloat(e.target.value) : null })} />
