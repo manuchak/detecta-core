@@ -136,9 +136,12 @@ export const PauseConfirmDialog: React.FC<PauseConfirmDialogProps> = ({
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending} onClick={(e) => { if (isPending) e.preventDefault(); }}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => onConfirm(tipoPausa)}
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm(tipoPausa);
+            }}
             disabled={isPending || !checked || noAvailable || noServices}
           >
             {isPending ? 'Procesando…' : 'Iniciar pausa'}
