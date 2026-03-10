@@ -502,6 +502,13 @@ export function useBitacoraBoard() {
         } as any)
         .eq('id', params.serviceUUID);
       if (error) throw error;
+
+      // Deactivate monitorista assignment to keep coordinator view in sync
+      await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .update({ activo: false, fin_turno: nowTs })
+        .eq('servicio_id', params.servicioIdServicio)
+        .eq('activo', true);
     },
     onSuccess: () => {
       invalidateAll();
