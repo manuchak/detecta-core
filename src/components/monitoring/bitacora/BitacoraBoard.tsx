@@ -124,7 +124,7 @@ export const BitacoraBoard: React.FC = () => {
 
         {/* Column 2: En Curso + En Destino */}
         <BoardColumnEnCurso
-          services={enCursoServices}
+          services={displayEnCurso}
           onEventoEspecial={(sid, tipo) => iniciarEventoEspecial.mutate({ servicioIdServicio: sid, tipo })}
           onCheckpoint={(data) => registrarCheckpoint.mutate(data)}
           onLlegadaDestino={(uuid, sid) => registrarLlegadaDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
