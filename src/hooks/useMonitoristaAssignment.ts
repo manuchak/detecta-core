@@ -412,10 +412,12 @@ export function useMonitoristaAssignment() {
   const reassignService = useMutation({
     mutationFn: async (params: { assignmentId: string; newMonitoristaId: string; servicioId: string; turno: string }) => {
       const nowTs = new Date().toISOString();
+      // Deactivate ALL active assignments for this service (not just one record)
       await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .update({ activo: false, fin_turno: nowTs })
-        .eq('id', params.assignmentId);
+        .eq('servicio_id', params.servicioId)
+        .eq('activo', true);
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
@@ -425,6 +427,10 @@ export function useMonitoristaAssignment() {
           asignado_por: user?.id || null,
           turno: params.turno,
         });
+      if (error && error.code === '23505') {
+        console.log(`[reassignService] Duplicate for ${params.servicioId}, skipping`);
+        return;
+      }
       if (error) throw error;
     },
     onSuccess: () => {
