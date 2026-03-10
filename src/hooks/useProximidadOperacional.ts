@@ -441,7 +441,7 @@ export function useCustodiosConProximidad(
         if (resPlanificados.data) {
           for (const row of resPlanificados.data) {
             const nombre = row.custodio_asignado;
-            const fecha = new Date(row.fecha_programada + 'T00:00:00');
+            const fecha = new Date(row.fecha_hora_cita);
             if (!ultimaFechaReal.has(nombre) || fecha > ultimaFechaReal.get(nombre)!) {
               ultimaFechaReal.set(nombre, fecha);
             }
