@@ -125,6 +125,7 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesO
       descanso: sumDuration('descanso'),
       pernocta: sumDuration('pernocta'),
       incidencia: sumDuration('incidencia'),
+      trafico: sumDuration('trafico'),
       deltaOrigen,
       deltaDestino,
       deltaTotal,

@@ -15,7 +15,7 @@ interface ServiceCardSpecialEventProps {
   isPending: boolean;
 }
 
-const ROUTINE_TYPES = ['combustible', 'baño', 'descanso'];
+const ROUTINE_TYPES = ['combustible', 'baño', 'descanso', 'trafico'];
 
 export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = ({ service, onCerrar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);

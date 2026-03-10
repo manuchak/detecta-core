@@ -30,6 +30,7 @@ export const TIPOS_DETENCION: Record<TipoDetencion, string> = {
   espera_cliente: 'Espera Cliente',
   mecanica: 'Mecánica',
   accidente: 'Accidente',
+  trafico: 'Tráfico',
   otro: 'Otro',
 };
 

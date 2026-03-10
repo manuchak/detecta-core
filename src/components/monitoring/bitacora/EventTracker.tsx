@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 const TRANSITION_TYPES: TipoEventoRuta[] = ['inicio_servicio', 'fin_servicio', 'llegada_destino', 'liberacion_custodio'];
 
 const EVENT_TYPES: TipoEventoRuta[] = [
-  'combustible', 'baño', 'descanso',
+  'combustible', 'baño', 'descanso', 'trafico',
   'pernocta', 'checkpoint', 'incidencia', 'foto_evidencia', 'otro',
 ];
 

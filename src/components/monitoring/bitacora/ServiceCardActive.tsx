@@ -25,6 +25,7 @@ const SPECIAL_EVENTS: { tipo: SpecialEventType; icon: React.ReactNode; label: st
   { tipo: 'baño', icon: <Bath className="h-3.5 w-3.5" />, label: 'Baño' },
   { tipo: 'descanso', icon: <Coffee className="h-3.5 w-3.5" />, label: 'Descanso' },
   { tipo: 'pernocta', icon: <BedDouble className="h-3.5 w-3.5" />, label: 'Pernocta' },
+  { tipo: 'trafico', icon: <Construction className="h-3.5 w-3.5" />, label: 'Tráfico' },
   { tipo: 'incidencia', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Incidencia' },
 ];
 
