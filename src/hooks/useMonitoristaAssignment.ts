@@ -279,6 +279,14 @@ export function useMonitoristaAssignment() {
   const assignService = useMutation({
     mutationFn: async (params: { servicioId: string; monitoristaId: string; turno?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
+      const nowTs = new Date().toISOString();
+      // Dedup: deactivate any existing active assignments for this service
+      await (supabase as any)
+        .from('bitacora_asignaciones_monitorista')
+        .update({ activo: false, fin_turno: nowTs })
+        .eq('servicio_id', params.servicioId)
+        .eq('activo', true);
+
       const { error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
         .insert({
