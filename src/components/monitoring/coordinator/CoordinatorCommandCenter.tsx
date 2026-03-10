@@ -1,18 +1,18 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
 import { MonitoristaCard } from './MonitoristaCard';
 import { AutoDistributeButton } from './AutoDistributeButton';
-import { CoordinatorAlertBar } from './CoordinatorAlertBar';
 import { DestinoCorrectionSection } from './DestinoCorrectionSection';
 import { GastosAprobacionSection } from './GastosAprobacionSection';
 import { AbandonedServicesSection } from './AbandonedServicesSection';
@@ -27,6 +27,8 @@ interface Props {
   onClose?: () => void;
 }
 
+type DrawerPanel = 'corrections' | 'handoffs' | 'gastos' | 'abandoned' | null;
+
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
@@ -36,9 +38,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
   const { entregas: entregasRevertibles } = useRevertHandoff();
 
-  const [handoffOpen, setHandoffOpen] = React.useState(false);
-  const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
-  const [rebalanceConfirm, setRebalanceConfirm] = React.useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [sinTurnoOpen, setSinTurnoOpen] = useState(false);
+  const [rebalanceConfirm, setRebalanceConfirm] = useState(false);
+  const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null);
   const turno = getCurrentTurno();
 
   // Build active service data from the board
@@ -92,7 +95,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
-  // Fallback: if no one is en_turno, use monitoristas with recent activity for assignment eligibility
   const eligibleForAssignment = enTurno.length > 0
     ? enTurno
     : monitoristas.filter(m => (m.event_count || 0) > 0);
@@ -110,7 +112,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
   }, [enTurno, assignmentsByMonitorista]);
 
-  // ── Manual safe rebalance: only moves cold services ──
+  // ── Manual safe rebalance ──
   const handleManualRebalance = useCallback(async () => {
     if (enTurno.length < 2) return;
 
@@ -136,7 +138,6 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     for (const m of enTurno) loadByM[m.id] = 0;
     for (const a of allFormalActive) loadByM[a.monitoristaId]++;
 
-    // Query events to protect services with activity
     const servicioIds = allFormalActive.map(a => a.servicioId);
     const { data: eventosData } = await supabase
       .from('bitacora_eventos' as any)
@@ -197,39 +198,84 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   }));
 
   const maxLoad = Math.max(8, ...Object.values(assignmentsByMonitorista).map(a => a.length));
-
   const totalInferred = Object.values(assignmentsByMonitorista).flat().filter(a => a.inferred).length;
 
-  // Counts for alert bar
+  // Counts for footer pills
   const enDestinoCount = enCursoServices.filter(s => s.phase === 'en_destino').length;
   const abandonedCount = sinTurno.reduce(
     (sum, m) => sum + (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length,
     0
   );
+  const handoffCount = entregasRevertibles.length;
 
   const isOverlay = !!onClose;
+
+  // ── Pill button helper ──
+  const FooterPill: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    count: number;
+    panel: DrawerPanel;
+    variant?: 'default' | 'warning' | 'danger';
+  }> = ({ icon, label, count, panel, variant = 'default' }) => (
+    <button
+      onClick={() => setActiveDrawer(panel)}
+      className={cn(
+        'flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all',
+        'border hover:shadow-sm active:scale-[0.97]',
+        variant === 'default' && 'border-border bg-card text-foreground hover:bg-accent',
+        variant === 'warning' && 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10',
+        variant === 'danger' && 'border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10',
+      )}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+      {count > 0 && (
+        <span className={cn(
+          'inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold leading-none',
+          variant === 'danger' ? 'bg-destructive text-destructive-foreground' :
+          variant === 'warning' ? 'bg-amber-500 text-white' :
+          'bg-muted text-muted-foreground',
+        )}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
 
   const content = (
     <div className={cn(
       'flex flex-col',
       isOverlay ? 'h-full' : 'h-[calc(var(--content-height-with-tabs,calc(100vh-200px)))]',
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b bg-card rounded-t-lg">
+      {/* ═══ HEADER ═══ */}
+      <div className="flex items-center justify-between px-5 py-2.5 border-b bg-card shrink-0">
         <div className="flex items-center gap-2.5">
           <Radio className="h-4 w-4 text-chart-2 animate-pulse" />
           <h2 className="text-sm font-semibold tracking-tight">Coordinación Ops</h2>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-            Turno: {getTurnoLabel(turno)}
+            {getTurnoLabel(turno)}
           </Badge>
+          {enTurno.length >= 2 && (
+            <Badge
+              variant={equityLevel === 'balanced' ? 'success' : equityLevel === 'mild' ? 'default' : 'destructive'}
+              className="text-[10px] tabular-nums gap-1"
+            >
+              {equityLevel === 'balanced' && '⚖️'}
+              {equityLevel === 'mild' && '⚠️'}
+              {equityLevel === 'critical' && '🔴'}
+              {minLoad}↔{maxLoadVal}
+            </Badge>
+          )}
           {totalInferred > 0 && (
             <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-dashed text-chart-2">
               <Activity className="h-2.5 w-2.5 mr-1" />
-              {totalInferred} auto-detectados
+              {totalInferred}
             </Badge>
           )}
+          <AnomaliasBadge />
           {isOverlay && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -238,180 +284,217 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Scrollable vertical sections */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
+      {/* ═══ ORPHAN BANNER (compact, fixed) ═══ */}
+      {unassigned.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-destructive/8 border-b border-destructive/20 shrink-0">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-xs font-semibold text-destructive flex-1">
+            {unassigned.length} sin monitorista
+          </p>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-7 text-[11px] gap-1 px-2.5"
+            disabled={autoDistribute.isPending || eligibleForAssignment.length === 0}
+            onClick={() => autoDistribute.mutate({
+              unassignedServiceIds: unassigned,
+              monitoristaIds: eligibleForAssignment.map(m => m.id),
+            })}
+          >
+            Asignar ahora
+          </Button>
+        </div>
+      )}
 
-          {/* ── Alert Bar ── */}
-          <CoordinatorAlertBar
-            unassignedCount={unassigned.length}
-            correctionCount={enDestinoCount}
-            gastosCount={0}
-            handoffCount={entregasRevertibles.length}
-            abandonedCount={abandonedCount}
-          />
-          <AnomaliasBadge />
-
-          {/* ── Orphan Banner ── */}
-          {unassigned.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 border-2 border-destructive/30 animate-pulse">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-destructive">
-                  {unassigned.length} servicio{unassigned.length > 1 ? 's' : ''} sin monitorista asignado
-                </p>
-                <p className="text-[10px] text-muted-foreground">Requiere asignación inmediata</p>
+      {/* ═══ HERO ZONE: Agent Grid (scrollable) ═══ */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-4">
+          {/* Section header with action buttons */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-3.5 w-3.5 text-primary" />
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 text-xs gap-1.5"
-                disabled={autoDistribute.isPending || eligibleForAssignment.length === 0}
-                onClick={() => autoDistribute.mutate({
+              <span className="text-sm font-semibold">Equipo en Turno</span>
+              <Badge variant="outline" className="text-[10px] tabular-nums">
+                {enTurno.length} · {allActive.length} activos
+              </Badge>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <AutoDistributeButton
+                unassignedCount={unassigned.length}
+                monitoristaCount={eligibleForAssignment.length}
+                isPending={autoDistribute.isPending}
+                onDistribute={() => autoDistribute.mutate({
                   unassignedServiceIds: unassigned,
                   monitoristaIds: eligibleForAssignment.map(m => m.id),
                 })}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 h-8 text-[11px]"
+                disabled={loadGap < 2 || rebalanceLoad.isPending}
+                onClick={() => setRebalanceConfirm(true)}
               >
-                Asignar ahora
+                <Scale className="h-3 w-3" />
+                Rebalancear
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 h-8 text-[11px]"
+                onClick={() => setHandoffOpen(true)}
+              >
+                <ArrowRightLeft className="h-3 w-3" />
+                Cambio Turno
               </Button>
             </div>
-          )}
-
-          <div className="flex gap-2">
-            <AutoDistributeButton
-              unassignedCount={unassigned.length}
-              monitoristaCount={eligibleForAssignment.length}
-              isPending={autoDistribute.isPending}
-              onDistribute={() => autoDistribute.mutate({
-                unassignedServiceIds: unassigned,
-                monitoristaIds: eligibleForAssignment.map(m => m.id),
-              })}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-9 text-xs"
-              disabled={loadGap < 2 || rebalanceLoad.isPending}
-              onClick={() => setRebalanceConfirm(true)}
-            >
-              <Scale className="h-3 w-3" />
-              Rebalancear
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 h-9 text-xs"
-              onClick={() => setHandoffOpen(true)}
-            >
-              <ArrowRightLeft className="h-3 w-3" />
-              Cambio de Turno
-            </Button>
           </div>
 
-          {/* ── Section 1: Monitoristas en turno ── */}
-          <Card className="border-border/60 bg-card/80 backdrop-blur-sm">
-            <CardHeader className="pb-3 px-5 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                  <CardTitle className="text-sm font-semibold">Equipo en Turno</CardTitle>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px] tabular-nums">
-                    {enTurno.length} en turno · {allActive.length} activos
-                  </Badge>
-                  {enTurno.length >= 2 && (
-                    <Badge
-                      variant={equityLevel === 'balanced' ? 'success' : equityLevel === 'mild' ? 'default' : 'destructive'}
-                      className="text-[10px] tabular-nums gap-1"
-                    >
-                      {equityLevel === 'balanced' && '⚖️'}
-                      {equityLevel === 'mild' && '⚠️'}
-                      {equityLevel === 'critical' && '🔴'}
-                      {minLoad}↔{maxLoadVal}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {enTurno.map(m => (
-                  <MonitoristaCard
-                    key={m.id}
-                    monitorista={m}
-                    assignments={assignmentsByMonitorista[m.id] || []}
-                    maxLoad={maxLoad}
-                    serviceLabelMap={serviceLabelMap}
-                    unassignedServices={unassignedForPopover}
-                    onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
-                    isAssigning={assignService.isPending}
-                  />
-                ))}
-              </div>
+          {/* Agent grid — expanded columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {enTurno.map(m => (
+              <MonitoristaCard
+                key={m.id}
+                monitorista={m}
+                assignments={assignmentsByMonitorista[m.id] || []}
+                maxLoad={maxLoad}
+                serviceLabelMap={serviceLabelMap}
+                unassignedServices={unassignedForPopover}
+                onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
+                isAssigning={assignService.isPending}
+              />
+            ))}
+          </div>
 
-              {enTurno.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  No hay monitoristas en turno
-                </p>
-              )}
-
-              {/* Sin turno — collapsible */}
-              {sinTurno.length > 0 && (
-                <Collapsible open={sinTurnoOpen} onOpenChange={setSinTurnoOpen}>
-                  <CollapsibleTrigger className="w-full mt-3 pt-3 border-t border-border/40">
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-widest">
-                      <span>Sin turno ({sinTurno.length})</span>
-                      <ChevronDown className={cn('h-3 w-3 transition-transform', sinTurnoOpen && 'rotate-180')} />
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-2">
-                      {sinTurno.map(m => (
-                        <MonitoristaCard
-                          key={m.id}
-                          monitorista={m}
-                          assignments={assignmentsByMonitorista[m.id] || []}
-                          maxLoad={maxLoad}
-                          serviceLabelMap={serviceLabelMap}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Section 2: Servicios Abandonados ── */}
-          <AbandonedServicesSection
-            monitoristas={monitoristas}
-            assignmentsByMonitorista={assignmentsByMonitorista}
-            serviceLabelMap={serviceLabelMap}
-            onReassign={(p) => reassignService.mutate(p)}
-            isReassigning={reassignService.isPending}
-            currentTurno={turno}
-          />
-
-          {/* ── Section 3: Correcciones en Destino (conditional) ── */}
-          {enDestinoCount > 0 && (
-            <DestinoCorrectionSection
-              services={enCursoServices}
-              onRevert={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
-              isReverting={revertirEnDestino.isPending}
-            />
+          {enTurno.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-8">
+              No hay monitoristas en turno
+            </p>
           )}
 
-          {/* ── Section 3: Reversión de Entregas de Turno ── */}
-          <HandoffRevertSection />
-
-          {/* ── Section 4: Gastos Extraordinarios ── */}
-          <GastosAprobacionSection />
-
+          {/* Sin turno — collapsible */}
+          {sinTurno.length > 0 && (
+            <Collapsible open={sinTurnoOpen} onOpenChange={setSinTurnoOpen}>
+              <CollapsibleTrigger className="w-full mt-4 pt-3 border-t border-border/40">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-widest">
+                  <span>Sin turno ({sinTurno.length})</span>
+                  <ChevronDown className={cn('h-3 w-3 transition-transform', sinTurnoOpen && 'rotate-180')} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-2">
+                  {sinTurno.map(m => (
+                    <MonitoristaCard
+                      key={m.id}
+                      monitorista={m}
+                      assignments={assignmentsByMonitorista[m.id] || []}
+                      maxLoad={maxLoad}
+                      serviceLabelMap={serviceLabelMap}
+                    />
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
       </ScrollArea>
+
+      {/* ═══ FOOTER TOOLBAR (fixed) ═══ */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-t bg-card/90 backdrop-blur-sm shrink-0 overflow-x-auto">
+        <FooterPill
+          icon={<RotateCcw className="h-3.5 w-3.5" />}
+          label="Correcciones"
+          count={enDestinoCount}
+          panel="corrections"
+          variant={enDestinoCount > 0 ? 'warning' : 'default'}
+        />
+        <FooterPill
+          icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+          label="Entregas"
+          count={handoffCount}
+          panel="handoffs"
+          variant={handoffCount > 0 ? 'warning' : 'default'}
+        />
+        <FooterPill
+          icon={<Receipt className="h-3.5 w-3.5" />}
+          label="Gastos"
+          count={0}
+          panel="gastos"
+        />
+        <FooterPill
+          icon={<UserX className="h-3.5 w-3.5" />}
+          label="Abandonados"
+          count={abandonedCount}
+          panel="abandoned"
+          variant={abandonedCount > 0 ? 'danger' : 'default'}
+        />
+      </div>
+
+      {/* ═══ SHEET DRAWERS ═══ */}
+      <Sheet open={activeDrawer === 'corrections'} onOpenChange={(v) => !v && setActiveDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="px-5 pt-4 pb-3 border-b">
+            <SheetTitle className="text-sm">Correcciones en Destino</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100%-60px)]">
+            <div className="p-4">
+              <DestinoCorrectionSection
+                services={enCursoServices}
+                onRevert={(uuid, sid) => revertirEnDestino.mutate({ serviceUUID: uuid, servicioIdServicio: sid })}
+                isReverting={revertirEnDestino.isPending}
+              />
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={activeDrawer === 'handoffs'} onOpenChange={(v) => !v && setActiveDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="px-5 pt-4 pb-3 border-b">
+            <SheetTitle className="text-sm">Entregas de Turno</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100%-60px)]">
+            <div className="p-4">
+              <HandoffRevertSection />
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={activeDrawer === 'gastos'} onOpenChange={(v) => !v && setActiveDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="px-5 pt-4 pb-3 border-b">
+            <SheetTitle className="text-sm">Gastos Extraordinarios</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100%-60px)]">
+            <div className="p-4">
+              <GastosAprobacionSection />
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={activeDrawer === 'abandoned'} onOpenChange={(v) => !v && setActiveDrawer(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0">
+          <SheetHeader className="px-5 pt-4 pb-3 border-b">
+            <SheetTitle className="text-sm">Servicios Abandonados</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100%-60px)]">
+            <div className="p-4">
+              <AbandonedServicesSection
+                monitoristas={monitoristas}
+                assignmentsByMonitorista={assignmentsByMonitorista}
+                serviceLabelMap={serviceLabelMap}
+                onReassign={(p) => reassignService.mutate(p)}
+                isReassigning={reassignService.isPending}
+                currentTurno={turno}
+              />
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
 
