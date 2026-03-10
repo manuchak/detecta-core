@@ -41,8 +41,14 @@ const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descan
 
 export function useBitacoraBoard() {
   const queryClient = useQueryClient();
+  const { user, userRole } = useAuth();
   const [now, setNow] = useState(Date.now());
   const tickRef = useRef<ReturnType<typeof setInterval>>();
+
+  // Roles that see ALL services (supervisors, coordinators, admins)
+  const FULL_VIEW_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'];
+  const isFilteredMonitorista = userRole === 'monitoring' || (userRole && !FULL_VIEW_ROLES.includes(userRole) && userRole !== 'monitoring');
+  const needsFilter = userRole === 'monitoring';
 
   // Tick every 15s for timer updates
   useEffect(() => {
@@ -59,6 +65,26 @@ export function useBitacoraBoard() {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
+
+  /* ── Q0: Assigned service IDs for monitoring role ── */
+  const assignedIdsQuery = useQuery({
+    queryKey: ['bitacora-my-assignments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('bitacora_asignaciones_monitorista')
+        .select('servicio_id')
+        .eq('monitorista_id', user.id)
+        .eq('activo', true);
+      if (error) throw error;
+      return (data || []).map(r => r.servicio_id);
+    },
+    enabled: needsFilter && !!user?.id,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+
+  const assignedIds = needsFilter ? (assignedIdsQuery.data || []) : null;
 
   /* ── Q1: Pending services (Por Iniciar) ── */
   const pendingQuery = useQuery({
