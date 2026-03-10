@@ -147,6 +147,17 @@ export function ServiceQueryCard({ service, onDoubleClick }: ServiceQueryCardPro
         </div>
       </div>
 
+      {/* Referencia Cliente */}
+      {(service as any).id_interno_cliente && (
+        <div className="flex items-center space-x-2 mb-2">
+          <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <span className="apple-text-caption text-muted-foreground">Ref:</span>
+          <span className="apple-text-caption font-medium text-foreground">
+            {(service as any).id_interno_cliente}
+          </span>
+        </div>
+      )}
+
       {/* Personal Asignado */}
       {(service.nombre_custodio || service.incluye_armado || service.armado_asignado) && (
         <div className="flex items-center space-x-4">

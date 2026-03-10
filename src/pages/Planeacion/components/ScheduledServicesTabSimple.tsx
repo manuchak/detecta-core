@@ -25,6 +25,9 @@ import { Clock, MapPin, User, Car, Shield, CheckCircle2, AlertCircle, Edit, Refr
 import { CancelServiceButton } from '@/components/planeacion/CancelServiceButton';
 import { QuickCommentButton } from '@/components/planeacion/QuickCommentButton';
 import { FalsePositioningDialog } from '@/components/planeacion/FalsePositioningDialog';
+import { RechazosVigentesPanel } from '@/components/planeacion/RechazosVigentesPanel';
+import { useRechazosVigentes } from '@/hooks/useCustodioRechazos';
+import { Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatCDMXTime, getCDMXDate } from '@/utils/cdmxTimezone';
@@ -195,6 +198,10 @@ export function ScheduledServicesTab() {
 
   // Filtro por cliente del día
   const [clienteFilter, setClienteFilter] = useState<string | null>(null);
+
+  // Rechazos panel state
+  const [rechazosOpen, setRechazosOpen] = useState(false);
+  const { data: rechazadosIds = [] } = useRechazosVigentes();
 
   // Import operational status from CompactServiceCard
   // Estado operativo basado en hora_inicio_real y hora_fin_real
@@ -677,6 +684,21 @@ export function ScheduledServicesTab() {
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
           />
+          {/* Rechazos Button */}
+          {rechazadosIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRechazosOpen(true)}
+              className="gap-1.5 h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Rechazos
+              <Badge variant="secondary" className="ml-0.5 h-4 text-[10px] px-1 bg-destructive/10 text-destructive">
+                {rechazadosIds.length}
+              </Badge>
+            </Button>
+          )}
           <button
             onClick={() => refetch()}
             className="apple-button-ghost"
@@ -1203,6 +1225,11 @@ export function ScheduledServicesTab() {
         service={falsePositioningService}
         onConfirm={handleFalsePositioning}
         isLoading={isMarkingFalsePositioning}
+      />
+
+      <RechazosVigentesPanel
+        open={rechazosOpen}
+        onOpenChange={setRechazosOpen}
       />
     </div>
   );

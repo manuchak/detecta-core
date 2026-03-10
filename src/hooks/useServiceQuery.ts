@@ -77,6 +77,9 @@ export interface ServiceQueryResult {
   motivo_posicionamiento_falso?: string;
   
   // Metadata
+  // Referencia interna del cliente
+  id_interno_cliente?: string;
+  
   fuente_tabla: 'servicios_custodia' | 'servicios_planificados';
   updated_at?: string;
 }
@@ -191,6 +194,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente || (service as any).referencia_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_custodia'
       }));
@@ -235,6 +239,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_planificados'
       }));
@@ -416,8 +421,9 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente || (service as any).referencia_cliente,
         updated_at: service.updated_at,
-        fuente_tabla: 'servicios_custodia'
+        fuente_tabla: 'servicios_custodia' as const
       }));
 
       const planificadosResults: ServiceQueryResult[] = (planificadosData || []).map(service => ({
@@ -461,8 +467,9 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         contacto_emergencia_nombre: service.contacto_emergencia_nombre,
         contacto_emergencia_telefono: service.contacto_emergencia_telefono,
         
+        id_interno_cliente: (service as any).id_interno_cliente,
         updated_at: service.updated_at,
-        fuente_tabla: 'servicios_planificados'
+        fuente_tabla: 'servicios_planificados' as const
       }));
 
       // ✅ Deduplicar: priorizar servicios_custodia sobre servicios_planificados
@@ -579,6 +586,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         telefono_custodio: service.telefono_custodio || service.telefono,
         km_recorridos: service.km_recorridos,
         cobro_cliente: service.cobro_cliente,
+        id_interno_cliente: (service as any).id_interno_cliente || (service as any).referencia_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_custodia'
       }));
@@ -598,6 +606,7 @@ export function useServiceQuery(options: UseServiceQueryOptions = {}) {
         nombre_custodio: service.custodio_asignado,
         custodio_id: service.custodio_id,
         estado_planeacion: service.estado_planeacion,
+        id_interno_cliente: (service as any).id_interno_cliente,
         updated_at: service.updated_at,
         fuente_tabla: 'servicios_planificados'
       }));

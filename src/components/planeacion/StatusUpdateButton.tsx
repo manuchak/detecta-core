@@ -33,7 +33,7 @@ export function StatusUpdateButton({
   className
 }: StatusUpdateButtonProps) {
   // Solo mostrar para estados donde el cambio manual tiene sentido
-  const canMarkOnSite = ['programado', 'armado_pendiente', 'pendiente_inicio'].includes(currentStatus);
+  const canMarkOnSite = ['programado', 'armado_pendiente', 'pendiente_inicio', 'en_curso'].includes(currentStatus);
   const canRevert = currentStatus === 'en_sitio';
   
   // No mostrar para estados que no permiten cambio manual

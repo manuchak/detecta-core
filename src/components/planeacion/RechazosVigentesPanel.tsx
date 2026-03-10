@@ -28,7 +28,8 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useRechazosVigentesDetallados, useSuspenderRechazo, type RechazadoDetalle } from '@/hooks/useCustodioRechazos';
+import { useRechazosVigentesDetallados, useSuspenderRechazo, useRechazosHistorial, type RechazadoDetalle } from '@/hooks/useCustodioRechazos';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface RechazosVigentesPanelProps {
   open: boolean;
@@ -38,6 +39,7 @@ interface RechazosVigentesPanelProps {
 
 export function RechazosVigentesPanel({ open, onOpenChange, inclujeArmado }: RechazosVigentesPanelProps) {
   const { data: rechazados = [], isLoading } = useRechazosVigentesDetallados({ inclujeArmado });
+  const { data: historial = [], isLoading: isLoadingHistorial } = useRechazosHistorial();
   const suspenderRechazo = useSuspenderRechazo();
   const [confirmTarget, setConfirmTarget] = useState<RechazadoDetalle | null>(null);
 
@@ -71,55 +73,113 @@ export function RechazosVigentesPanel({ open, onOpenChange, inclujeArmado }: Rec
             </DialogDescription>
           </DialogHeader>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : rechazados.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No hay rechazos vigentes
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Custodio</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Vigencia</TableHead>
-                  <TableHead>Reportado por</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rechazados.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.nombre}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                      {r.motivo || '—'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {format(new Date(r.vigencia_hasta), "d 'de' MMM", { locale: es })}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {r.reportado_por_nombre || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 h-7 px-2"
-                        onClick={() => setConfirmTarget(r)}
-                        disabled={suspenderRechazo.isPending}
-                      >
-                        <ShieldOff className="h-3.5 w-3.5" />
-                        Levantar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          <Tabs defaultValue="vigentes" className="mt-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="vigentes">
+                Vigentes
+                {rechazados.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 h-4 text-[10px] px-1">{rechazados.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="historial">
+                Historial (30d)
+                {historial.length > 0 && (
+                  <Badge variant="outline" className="ml-1.5 h-4 text-[10px] px-1">{historial.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="vigentes">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : rechazados.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay rechazos vigentes
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Custodio</TableHead>
+                      <TableHead>Motivo</TableHead>
+                      <TableHead>Vigencia</TableHead>
+                      <TableHead>Reportado por</TableHead>
+                      <TableHead className="w-[100px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rechazados.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.nombre}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                          {r.motivo || '—'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(r.vigencia_hasta), "d 'de' MMM", { locale: es })}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {r.reportado_por_nombre || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 h-7 px-2"
+                            onClick={() => setConfirmTarget(r)}
+                            disabled={suspenderRechazo.isPending}
+                          >
+                            <ShieldOff className="h-3.5 w-3.5" />
+                            Levantar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+
+            <TabsContent value="historial">
+              {isLoadingHistorial ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : historial.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Sin rechazos expirados en los últimos 30 días
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Custodio</TableHead>
+                      <TableHead>Motivo</TableHead>
+                      <TableHead>Expiró</TableHead>
+                      <TableHead>Reportado por</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historial.map((r) => (
+                      <TableRow key={r.id} className="opacity-70">
+                        <TableCell className="font-medium">{r.nombre}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                          {r.motivo || '—'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(r.vigencia_hasta), "d 'de' MMM", { locale: es })}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {r.reportado_por_nombre || '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

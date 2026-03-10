@@ -166,6 +166,13 @@ export function ServiceDetailsModal({ open, onOpenChange, service }: ServiceDeta
                 label="Origen de Datos"
                 value={service.fuente_tabla === 'servicios_custodia' ? 'Servicio Ejecutado' : 'Servicio Planificado'}
               />
+              {(service as any).id_interno_cliente && (
+                <DetailRow
+                  icon={FileText}
+                  label="Ref. Cliente"
+                  value={(service as any).id_interno_cliente}
+                />
+              )}
               {isPF && (
                 <>
                   <div className="pt-4 mt-4 border-t border-violet-200 dark:border-violet-800">
@@ -649,7 +656,7 @@ function TimelineItem({
   color?: string;
   detail?: string;
 }) {
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'bg-blue-500',
     purple: 'bg-purple-500',
     cyan: 'bg-cyan-500',
@@ -658,13 +665,27 @@ function TimelineItem({
     yellow: 'bg-yellow-500',
     teal: 'bg-teal-500',
     red: 'bg-red-500',
-    gray: 'bg-gray-500'
+    gray: 'bg-gray-500',
+    indigo: 'bg-indigo-500',
+  };
+
+  // Safe timestamp formatting: handle time-only strings (HH:mm:ss) and invalid dates
+  const formatTimestamp = (ts: string): string => {
+    try {
+      // If it looks like a time-only string, just return it as-is
+      if (/^\d{2}:\d{2}(:\d{2})?$/.test(ts)) return ts;
+      const parsed = new Date(ts);
+      if (isNaN(parsed.getTime())) return ts;
+      return format(parsed, 'PPP HH:mm:ss', { locale: es });
+    } catch {
+      return ts;
+    }
   };
 
   return (
     <div className="relative">
       <div className="absolute -left-8 top-0">
-        <div className={`w-6 h-6 rounded-full ${colorClasses[color]} flex items-center justify-center`}>
+        <div className={`w-6 h-6 rounded-full ${colorClasses[color] || colorClasses.gray} flex items-center justify-center`}>
           <Icon className="w-3 h-3 text-white" />
         </div>
       </div>
@@ -672,7 +693,7 @@ function TimelineItem({
       <div>
         <div className="apple-text-body font-medium">{label}</div>
         <div className="apple-text-caption text-muted-foreground">
-          {format(new Date(timestamp), 'PPP HH:mm:ss', { locale: es })}
+          {formatTimestamp(timestamp)}
         </div>
         {detail && (
           <Badge variant="secondary" className="mt-1">

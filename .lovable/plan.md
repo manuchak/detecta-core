@@ -1,77 +1,97 @@
 
 
-# Correcciones del módulo de Planeación — 4 observaciones
+# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
 
-## Problema 1: "No podemos colocar en sitio a los servicios"
+## Roles confirmados por módulo
 
-**Diagnóstico**: El botón `StatusUpdateButton` existe y funciona técnicamente. El problema es que solo se muestra cuando el estado operativo es `programado`, `armado_pendiente` o `pendiente_inicio`. Sin embargo, hay un estado adicional `en_curso` que se activa cuando monitoreo establece `hora_inicio_real` — en ese punto el botón desaparece incluso si planeación nunca marcó "en sitio". Además, el botón solo aparece dentro de las acciones de la tarjeta que son visibles al hacer hover, lo cual puede pasar desapercibido.
-
-**Solución**: 
-- Incluir `en_curso` en la lista de estados que permiten marcar "En sitio" (el custodio puede haber llegado a sitio aunque monitoreo ya haya iniciado seguimiento)
-- Hacer el botón siempre visible (no solo en hover) para estados pendientes de arribar
-
-**Archivo**: `src/components/planeacion/StatusUpdateButton.tsx`, `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx`
-
----
-
-## Problema 2: "La asignación no sale actualizada al día — último servicio, locales/foráneos"
-
-**Diagnóstico**: En el flujo de asignación de custodio (CustodianStep), la lista de candidatos no muestra de manera prominente: fecha del último servicio, conteo de servicios locales vs foráneos en los últimos 15 días. Estos datos existen parcialmente en los indicadores de equidad pero no como un resumen claro "Conteo/Historial".
-
-**Solución**: Agregar un mini-panel informativo "Historial 15d" en cada tarjeta de custodio candidato que muestre:
-- Fecha del último servicio asignado
-- Conteo Local / Foráneo en los últimos 15 días
-- Esto se obtiene de `servicios_planificados` agrupando por `tipo_servicio` o campo local/foráneo
-
-**Archivos**: 
-- Nuevo hook o extensión de `useCustodiosConProximidad` para traer stats de 15 días
-- `src/pages/Planeacion/ServiceCreation/steps/CustodianStep/components/CustodianCard.tsx` (o equivalente) para mostrar los datos
+| Módulo | Lectura | Escritura/Gestión |
+|---|---|---|
+| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
+| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
+| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
+| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
+| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
 
 ---
 
-## Problema 3: "Consultas — fechas incorrectas, modal en blanco, falta referencia"
+## Hallazgos actuales
 
-**Diagnóstico**: Tres sub-problemas:
+### Seguridad critica
+- **`facturas`**: 3 policies con `true` — abierta a todos
+- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
+- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
+- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
 
-1. **Modal en blanco**: `TimelineItem` usa `format(new Date(timestamp))` con valores que pueden ser time-only strings (`HH:mm:ss`) sin fecha, causando un crash silencioso. Además, el color `'indigo'` usado en la Cita Programada no existe en el mapa `colorClasses`, resultando en `className undefined`.
+### Roles obsoletos
+- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
+- `manager` en `is_admin_bypass_rls()` → eliminar
 
-2. **Fechas incorrectas**: Las tarjetas `ServiceQueryCard` usan `formatCDMXTime` correctamente, pero el campo `fecha_hora_cita` de `servicios_custodia` puede tener discrepancias con la fecha real del servicio cuando el servicio cruza medianoche UTC.
-
-3. **Falta referencia del cliente**: El campo `id_interno_cliente` no está mapeado en `ServiceQueryResult` ni se muestra en la tarjeta de consultas ni en el modal de detalles.
-
-**Solución**:
-- Agregar `'indigo'` al mapa de colores en `TimelineItem`
-- Envolver `TimelineItem` en try/catch o validar que el timestamp sea parseable
-- Agregar `id_interno_cliente` al interface `ServiceQueryResult` y a los 3 mappers (searchById custodia, searchById planificados, searchByClient)
-- Mostrar `id_interno_cliente` como "Ref. Cliente" en `ServiceQueryCard` y en la pestaña General del `ServiceDetailsModal`
-
-**Archivos**: `src/hooks/useServiceQuery.ts`, `src/pages/Planeacion/components/ServiceQueryCard.tsx`, `src/pages/Planeacion/components/ServiceDetailsModal.tsx`
+### Policies duplicadas
+- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
+- Zonas: 15 policies donde con 2 bastaría
 
 ---
 
-## Problema 4: "Ya no salen los rechazos — solo por trimestre"
+## Plan de corrección
 
-**Diagnóstico**: El panel `RechazosVigentesPanel` solo es accesible desde dentro del wizard de creación de servicio (CustodianStep). Fuera de ese contexto, no hay forma de consultar los rechazos activos ni su historial. La consulta `useRechazosVigentes` solo trae rechazos con `vigencia_hasta > now()`, así que rechazos expirados no se ven.
+### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
 
-**Solución**: Agregar un acceso directo a rechazos desde la vista principal de Planeación (ScheduledServicesTab):
-- Botón "Rechazos" en la barra de herramientas superior con badge del conteo de vigentes
-- Al hacer click, abre el `RechazosVigentesPanel` existente
-- Agregar una pestaña/toggle "Historial" dentro del panel que muestre rechazos expirados de los últimos 30 días (con `vigencia_hasta <= now()`) para trazabilidad
+```text
+has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
+has_monitoring_write_role() → admin, owner, coordinador_operaciones
+has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
+has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
+has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
+has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
+has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
+has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
+has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+```
 
-**Archivos**: `src/pages/Planeacion/components/ScheduledServicesTabSimple.tsx`, `src/components/planeacion/RechazosVigentesPanel.tsx`, `src/hooks/useCustodioRechazos.ts`
+Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
 
----
+### Fase 2 — Migrar policies por módulo
 
-## Resumen de archivos afectados
+**Monitoreo (6 tablas, ~17 policies → ~6)**
+- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
+- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
+- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
+- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
 
-| Archivo | Cambio |
-|---------|--------|
-| `StatusUpdateButton.tsx` | Incluir `en_curso` como estado válido para "En sitio" |
-| `ScheduledServicesTabSimple.tsx` | Botón visible sin hover + acceso a Rechazos |
-| `useServiceQuery.ts` | Mapear `id_interno_cliente` en los 3 flujos de búsqueda |
-| `ServiceQueryCard.tsx` | Mostrar referencia del cliente |
-| `ServiceDetailsModal.tsx` | Fix crash de colores/timestamps + mostrar referencia |
-| `RechazosVigentesPanel.tsx` | Agregar pestaña de historial de rechazos |
-| `useCustodioRechazos.ts` | Nuevo hook `useRechazosHistorial` para rechazos expirados |
-| CustodianStep/cards | Mini-stats de 15 días (último servicio, local/foráneo) |
+**WMS (12 tablas, ~36 policies → ~24)**
+- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
+- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
+- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+
+**Facturación (4 tablas, ~9 policies)**
+- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
+- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
+- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
+- `pagos_instaladores`: Migrar subquery a función
+
+**CRM (4 tablas, ~8 policies)**
+- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
+- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
+- Mantener INSERT/UPDATE con `true` (service role)
+
+**Tickets (7 tablas, ~14 policies)**
+- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
+- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
+- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
+- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
+- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+
+### Fase 3 — Frontend: Sidebar ajustes menores
+
+- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
+- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
+- `wms` module (L369): Ya tiene roles, sin cambios
+- Eliminar `manager` del módulo `recruitment` (L217)
+
+### Archivos a modificar
+
+| Capa | Archivo | Cambio |
+|---|---|---|
+| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
+| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 

@@ -256,6 +256,63 @@ export function useSuspenderRechazo() {
 }
 
 /**
+ * Hook para obtener historial de rechazos expirados (últimos 30 días)
+ */
+export function useRechazosHistorial() {
+  return useQuery({
+    queryKey: ['custodio-rechazos-historial'],
+    queryFn: async (): Promise<RechazadoDetalle[]> => {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('custodio_rechazos')
+        .select('id, custodio_id, motivo, vigencia_hasta, reportado_por')
+        .lte('vigencia_hasta', now.toISOString())
+        .gte('vigencia_hasta', thirtyDaysAgo)
+        .order('vigencia_hasta', { ascending: false });
+
+      if (error) {
+        console.warn('⚠️ Error fetching rejection history:', error);
+        return [];
+      }
+
+      if (!data || data.length === 0) return [];
+
+      // Fetch custodian names
+      const ids = [...new Set(data.map(r => r.custodio_id))];
+      const { data: custodios } = await supabase
+        .from('custodios_operativos')
+        .select('id, nombre')
+        .in('id', ids);
+      const nombreMap = new Map((custodios || []).map(c => [c.id, c.nombre]));
+
+      // Resolve reportado_por
+      const reportadorIds = [...new Set(data.map(r => r.reportado_por).filter((id): id is string => !!id))];
+      const reportadorMap = new Map<string, string>();
+      if (reportadorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, email')
+          .in('id', reportadorIds);
+        (profiles || []).forEach(p => {
+          reportadorMap.set(p.id, p.display_name || p.email || 'Usuario');
+        });
+      }
+
+      return data.map(r => ({
+        id: r.id,
+        nombre: nombreMap.get(r.custodio_id) || 'Desconocido',
+        vigencia_hasta: r.vigencia_hasta,
+        motivo: r.motivo,
+        reportado_por_nombre: r.reportado_por ? (reportadorMap.get(r.reportado_por) || 'Desconocido') : null,
+      }));
+    },
+    staleTime: 120000,
+  });
+}
+
+/**
  * Hook combinado para filtrar custodios rechazados de una lista
  */
 export function useFilterRechazados<T extends { id: string }>(custodios: T[], options?: { inclujeArmado?: boolean }) {
