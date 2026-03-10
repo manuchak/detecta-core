@@ -261,7 +261,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('reparar-pausa-huerfana', {
         body: { monitorista_id: monitoristaId },
       });
-      if (error) throw new Error(error.message || 'Error al reparar');
+      if (error) {
+        console.error('[useMonitoristaPause] repararPausaHuerfana error:', error);
+        throw new Error(error.message || 'Error al reparar');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { repaired: number };
     },
