@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
@@ -20,6 +21,7 @@ import { AnomaliasBadge } from './AnomaliasBadge';
 import { ShiftHandoffDialog } from '@/components/monitoring/bitacora/ShiftHandoffDialog';
 import { useRevertHandoff } from '@/hooks/useRevertHandoff';
 import { cn } from '@/lib/utils';
+import { ConfirmTransitionDialog } from '@/components/monitoring/bitacora/ConfirmTransitionDialog';
 
 interface Props {
   onClose?: () => void;
@@ -28,7 +30,7 @@ interface Props {
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute, reassignService,
+    assignService, autoDistribute, reassignService, rebalanceLoad,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
@@ -36,6 +38,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
   const [handoffOpen, setHandoffOpen] = React.useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = React.useState(false);
+  const [rebalanceConfirm, setRebalanceConfirm] = React.useState(false);
   const turno = getCurrentTurno();
 
   // Build active service data from the board
@@ -94,8 +97,95 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     ? enTurno
     : monitoristas.filter(m => (m.event_count || 0) > 0);
 
-  // OrphanGuard + BalanceGuard moved to useOrphanGuard (mounted at page level)
+  // ── Equity calculation ──
+  const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
+    if (enTurno.length < 2) return { loadGap: 0, minLoad: 0, maxLoad: 0, equityLevel: 'balanced' as const };
+    const loads = enTurno.map(m =>
+      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred).length
+    );
+    const min = Math.min(...loads);
+    const max = Math.max(...loads);
+    const gap = max - min;
+    const level = gap <= 1 ? 'balanced' as const : gap <= 3 ? 'mild' as const : 'critical' as const;
+    return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
+  }, [enTurno, assignmentsByMonitorista]);
 
+  // ── Manual safe rebalance: only moves cold services ──
+  const handleManualRebalance = useCallback(async () => {
+    if (enTurno.length < 2) return;
+
+    const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
+    const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
+
+    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
+    for (const m of enTurno) {
+      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
+        if (eventoServiceIds.has(a.servicio_id)) continue;
+        allFormalActive.push({
+          assignmentId: a.id, servicioId: a.servicio_id, monitoristaId: m.id,
+          horaCita: serviceHoraCitaMap[a.servicio_id] || '', isEnCurso: enCursoServiceIds.has(a.servicio_id),
+        });
+      }
+    }
+
+    const totalServices = allFormalActive.length;
+    if (totalServices === 0) return;
+
+    const totalStaff = enTurno.length;
+    const loadByM: Record<string, number> = {};
+    for (const m of enTurno) loadByM[m.id] = 0;
+    for (const a of allFormalActive) loadByM[a.monitoristaId]++;
+
+    // Query events to protect services with activity
+    const servicioIds = allFormalActive.map(a => a.servicioId);
+    const { data: eventosData } = await supabase
+      .from('bitacora_eventos' as any)
+      .select('servicio_id, monitorista_id')
+      .in('servicio_id', servicioIds);
+
+    const hotPairs = new Set<string>();
+    if (eventosData) {
+      for (const e of eventosData as any[]) {
+        hotPairs.add(`${e.servicio_id}::${e.monitorista_id}`);
+      }
+    }
+
+    const targetLoad = Math.floor(totalServices / totalStaff);
+    const remainder = totalServices % totalStaff;
+    const targetByM: Record<string, number> = {};
+    const sorted = enTurno.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
+    sorted.forEach((m, i) => { targetByM[m.id] = targetLoad + (i < remainder ? 1 : 0); });
+
+    const reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] = [];
+    const currentLoad = { ...loadByM };
+    for (const m of sorted) {
+      const excess = currentLoad[m.id] - targetByM[m.id];
+      if (excess <= 0) continue;
+      const coldServices = allFormalActive
+        .filter(a => a.monitoristaId === m.id && !a.isEnCurso && !hotPairs.has(`${a.servicioId}::${a.monitoristaId}`))
+        .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
+      for (const service of coldServices.slice(0, excess)) {
+        const underloaded = sorted.filter(mm => currentLoad[mm.id] < targetByM[mm.id]);
+        if (underloaded.length === 0) break;
+        const dest = underloaded.sort((a, b) => currentLoad[a.id] - currentLoad[b.id])[0];
+        reassignments.push({ fromAssignmentId: service.assignmentId, toMonitoristaId: dest.id, servicioId: service.servicioId });
+        currentLoad[dest.id]++;
+        currentLoad[service.monitoristaId]--;
+      }
+    }
+
+    if (reassignments.length === 0) {
+      toast.info('No hay servicios fríos que mover. Los servicios activos están protegidos.');
+      return;
+    }
+
+    const perPerson = Math.round(totalServices / totalStaff);
+    rebalanceLoad.mutate({ reassignments }, {
+      onSuccess: () => {
+        toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} fríos movidos)`, { duration: 8000 });
+      },
+    });
+  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
@@ -201,6 +291,16 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               variant="outline"
               size="sm"
               className="gap-1.5 h-9 text-xs"
+              disabled={loadGap < 2 || rebalanceLoad.isPending}
+              onClick={() => setRebalanceConfirm(true)}
+            >
+              <Scale className="h-3 w-3" />
+              Rebalancear
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9 text-xs"
               onClick={() => setHandoffOpen(true)}
             >
               <ArrowRightLeft className="h-3 w-3" />
@@ -218,9 +318,22 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                   </div>
                   <CardTitle className="text-sm font-semibold">Equipo en Turno</CardTitle>
                 </div>
-                <Badge variant="outline" className="text-[10px] tabular-nums">
-                  {enTurno.length} en turno · {allActive.length} activos
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px] tabular-nums">
+                    {enTurno.length} en turno · {allActive.length} activos
+                  </Badge>
+                  {enTurno.length >= 2 && (
+                    <Badge
+                      variant={equityLevel === 'balanced' ? 'success' : equityLevel === 'mild' ? 'default' : 'destructive'}
+                      className="text-[10px] tabular-nums gap-1"
+                    >
+                      {equityLevel === 'balanced' && '⚖️'}
+                      {equityLevel === 'mild' && '⚠️'}
+                      {equityLevel === 'critical' && '🔴'}
+                      {minLoad}↔{maxLoadVal}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="px-5 pb-4">
@@ -301,6 +414,19 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
       </ScrollArea>
 
       <ShiftHandoffDialog open={handoffOpen} onOpenChange={setHandoffOpen} />
+
+      <ConfirmTransitionDialog
+        open={rebalanceConfirm}
+        onOpenChange={setRebalanceConfirm}
+        title="Rebalancear carga de servicios"
+        description={`Se redistribuirán solo servicios "fríos" (sin eventos registrados) para equilibrar la carga. Rango actual: ${minLoad}↔${maxLoadVal}. Los servicios ya trabajados NO se moverán.`}
+        confirmLabel="Rebalancear"
+        isPending={rebalanceLoad.isPending}
+        onConfirm={() => {
+          handleManualRebalance();
+          setRebalanceConfirm(false);
+        }}
+      />
     </div>
   );
 
