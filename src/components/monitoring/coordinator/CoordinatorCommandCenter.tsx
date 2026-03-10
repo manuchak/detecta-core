@@ -110,6 +110,83 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return { loadGap: gap, minLoad: min, maxLoad: max, equityLevel: level };
   }, [enTurno, assignmentsByMonitorista]);
 
+  // ── Manual safe rebalance: only moves cold services ──
+  const handleManualRebalance = useCallback(async () => {
+    if (enTurno.length < 2) return;
+
+    const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
+    const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
+
+    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
+    for (const m of enTurno) {
+      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
+        if (eventoServiceIds.has(a.servicio_id)) continue;
+        allFormalActive.push({
+          assignmentId: a.id, servicioId: a.servicio_id, monitoristaId: m.id,
+          horaCita: serviceHoraCitaMap[a.servicio_id] || '', isEnCurso: enCursoServiceIds.has(a.servicio_id),
+        });
+      }
+    }
+
+    const totalServices = allFormalActive.length;
+    if (totalServices === 0) return;
+
+    const totalStaff = enTurno.length;
+    const loadByM: Record<string, number> = {};
+    for (const m of enTurno) loadByM[m.id] = 0;
+    for (const a of allFormalActive) loadByM[a.monitoristaId]++;
+
+    // Query events to protect services with activity
+    const servicioIds = allFormalActive.map(a => a.servicioId);
+    const { data: eventosData } = await supabase
+      .from('bitacora_eventos' as any)
+      .select('servicio_id, monitorista_id')
+      .in('servicio_id', servicioIds);
+
+    const hotPairs = new Set<string>();
+    if (eventosData) {
+      for (const e of eventosData as any[]) {
+        hotPairs.add(`${e.servicio_id}::${e.monitorista_id}`);
+      }
+    }
+
+    const targetLoad = Math.floor(totalServices / totalStaff);
+    const remainder = totalServices % totalStaff;
+    const targetByM: Record<string, number> = {};
+    const sorted = enTurno.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
+    sorted.forEach((m, i) => { targetByM[m.id] = targetLoad + (i < remainder ? 1 : 0); });
+
+    const reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] = [];
+    const currentLoad = { ...loadByM };
+    for (const m of sorted) {
+      const excess = currentLoad[m.id] - targetByM[m.id];
+      if (excess <= 0) continue;
+      const coldServices = allFormalActive
+        .filter(a => a.monitoristaId === m.id && !a.isEnCurso && !hotPairs.has(`${a.servicioId}::${a.monitoristaId}`))
+        .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
+      for (const service of coldServices.slice(0, excess)) {
+        const underloaded = sorted.filter(mm => currentLoad[mm.id] < targetByM[mm.id]);
+        if (underloaded.length === 0) break;
+        const dest = underloaded.sort((a, b) => currentLoad[a.id] - currentLoad[b.id])[0];
+        reassignments.push({ fromAssignmentId: service.assignmentId, toMonitoristaId: dest.id, servicioId: service.servicioId });
+        currentLoad[dest.id]++;
+        currentLoad[service.monitoristaId]--;
+      }
+    }
+
+    if (reassignments.length === 0) {
+      toast.info('No hay servicios fríos que mover. Los servicios activos están protegidos.');
+      return;
+    }
+
+    const perPerson = Math.round(totalServices / totalStaff);
+    rebalanceLoad.mutate({ reassignments }, {
+      onSuccess: () => {
+        toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} fríos movidos)`, { duration: 8000 });
+      },
+    });
+  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
 
