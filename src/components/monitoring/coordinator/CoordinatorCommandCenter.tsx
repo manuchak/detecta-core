@@ -1,12 +1,11 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
 import { useBitacoraBoard } from '@/hooks/useBitacoraBoard';
@@ -29,7 +28,7 @@ interface Props {
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute, reassignService, rebalanceLoad,
+    assignService, autoDistribute, reassignService,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
@@ -91,208 +90,8 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const enTurno = monitoristas.filter(m => m.en_turno);
   const sinTurno = monitoristas.filter(m => !m.en_turno);
 
-  // ── BalanceGuard: auto-rebalance when a new monitorista joins ──
-  const prevEnTurnoRef = useRef<Set<string>>(new Set());
-  const balanceCooldownRef = useRef<number>(0);
+  // OrphanGuard + BalanceGuard moved to useOrphanGuard (mounted at page level)
 
-  useEffect(() => {
-    if (enTurno.length < 2 || rebalanceLoad.isPending) return;
-    // Cooldown check
-    if (Date.now() - balanceCooldownRef.current < 60_000) return;
-
-    const currentIds = new Set(enTurno.map(m => m.id));
-    const prevIds = prevEnTurnoRef.current;
-
-    // Detect new members
-    const newMembers = enTurno.filter(m => !prevIds.has(m.id));
-    prevEnTurnoRef.current = currentIds;
-
-    // Only act if there's a genuinely new member (not initial load)
-    if (prevIds.size === 0 || newMembers.length === 0) return;
-
-    // Check if any new member has 0 formal assignments
-    const newWithZero = newMembers.filter(m => {
-      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred);
-      return assignments.length === 0;
-    });
-    if (newWithZero.length === 0) return;
-
-    // Get all active formal assignments across en_turno monitoristas
-    const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
-    const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
-    const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
-
-    for (const m of enTurno) {
-      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
-        // Never move services with active evento especial
-        if (eventoServiceIds.has(a.servicio_id)) continue;
-        allFormalActive.push({
-          assignmentId: a.id,
-          servicioId: a.servicio_id,
-          monitoristaId: m.id,
-          horaCita: serviceHoraCitaMap[a.servicio_id] || '',
-          isEnCurso: enCursoServiceIds.has(a.servicio_id),
-        });
-      }
-    }
-
-    const totalServices = allFormalActive.length;
-    if (totalServices === 0) return;
-
-    const totalStaff = enTurno.length;
-    const target = Math.floor(totalServices / totalStaff);
-    const remainder = totalServices % totalStaff;
-
-    // Check if imbalance is significant (max - min >= 2)
-    const loadByM: Record<string, number> = {};
-    for (const m of enTurno) loadByM[m.id] = 0;
-    for (const a of allFormalActive) loadByM[a.monitoristaId]++;
-    const loads = Object.values(loadByM);
-    if (Math.max(...loads) - Math.min(...loads) < 2) return;
-
-    // Calculate how many each should have (first `remainder` get target+1)
-    const targetByM: Record<string, number> = {};
-    const sorted = enTurno.slice().sort((a, b) => (loadByM[b.id] || 0) - (loadByM[a.id] || 0));
-    sorted.forEach((m, i) => { targetByM[m.id] = target + (i < remainder ? 1 : 0); });
-
-    // Collect services to move: from overloaded, prioritize pending > en_curso, far cita first
-    const reassignments: { fromAssignmentId: string; toMonitoristaId: string; servicioId: string }[] = [];
-
-    // Pool of services available to move (from overloaded monitoristas)
-    const movable: typeof allFormalActive = [];
-    for (const m of sorted) {
-      const excess = loadByM[m.id] - targetByM[m.id];
-      if (excess <= 0) continue;
-      const mServices = allFormalActive
-        .filter(a => a.monitoristaId === m.id)
-        // Prefer pending over en_curso
-        .sort((a, b) => {
-          if (a.isEnCurso !== b.isEnCurso) return a.isEnCurso ? 1 : -1;
-          // Among same status, move farthest cita first
-          return (b.horaCita || '').localeCompare(a.horaCita || '');
-        });
-      movable.push(...mServices.slice(0, excess));
-    }
-
-    // Assign movable services to under-loaded monitoristas
-    const currentLoad = { ...loadByM };
-    for (const service of movable) {
-      // Find the most under-loaded monitorista
-      const underloaded = sorted.filter(m => currentLoad[m.id] < targetByM[m.id]);
-      if (underloaded.length === 0) break;
-      const dest = underloaded.sort((a, b) => currentLoad[a.id] - currentLoad[b.id])[0];
-
-      reassignments.push({
-        fromAssignmentId: service.assignmentId,
-        toMonitoristaId: dest.id,
-        servicioId: service.servicioId,
-      });
-      currentLoad[dest.id]++;
-      currentLoad[service.monitoristaId]--;
-    }
-
-    if (reassignments.length === 0) return;
-
-    console.log(`[BalanceGuard] Rebalancing ${reassignments.length} services across ${totalStaff} monitoristas (target: ~${target})`);
-    balanceCooldownRef.current = Date.now();
-
-    const perPerson = Math.round(totalServices / totalStaff);
-    rebalanceLoad.mutate({ reassignments }, {
-      onSuccess: () => {
-        toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u entre ${totalStaff} monitoristas`, { duration: 8000 });
-      },
-    });
-  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
-
-  // ── OrphanGuard: consolidated auto-assignment ──
-  const autoAssignedRef = useRef<Set<string>>(new Set());
-  const orphanGuardRef = useRef<Set<string>>(new Set());
-  const pendingServiceIds = pendingServices.map(s => s.id_servicio);
-
-  useEffect(() => {
-    if (enTurno.length === 0 || autoDistribute.isPending) return;
-
-    const TWO_HOURS = 2 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    // Rule 1: Pending services ≤2h from cita
-    const eligiblePending = pendingServiceIds.filter(id => {
-      if (assignedServiceIds.has(id) || autoAssignedRef.current.has(id)) return false;
-      const citaStr = serviceHoraCitaMap[id];
-      if (!citaStr) return false;
-      const timeUntil = new Date(citaStr).getTime() - now;
-      return timeUntil <= TWO_HOURS && timeUntil > -30 * 60 * 1000;
-    });
-
-    // Rule 2: Active services without any assignment
-    const unassignedActive = activeServiceIds.filter(id =>
-      !assignedServiceIds.has(id) && !autoAssignedRef.current.has(id)
-    );
-
-    const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
-
-    if (allEligible.length > 0) {
-      console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
-      allEligible.forEach(id => autoAssignedRef.current.add(id));
-      autoDistribute.mutate(
-        { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
-        {
-          onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
-          onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
-        }
-      );
-    }
-
-    // Rule 3: Services assigned to offline monitoristas → reassign + log anomaly
-    const offlineWithServices = sinTurno.filter(m => {
-      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred);
-      return assignments.length > 0;
-    });
-
-    if (offlineWithServices.length > 0 && enTurno.length > 0) {
-      for (const offlineM of offlineWithServices) {
-        const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo && !a.inferred);
-        for (const assignment of assignments) {
-          const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
-          if (orphanGuardRef.current.has(guardKey)) continue;
-          orphanGuardRef.current.add(guardKey);
-
-          // Round-robin: pick monitorista with least load
-          const loads = enTurno.map(m => ({
-            id: m.id,
-            load: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
-          }));
-          const target = loads.sort((a, b) => a.load - b.load)[0];
-          if (!target) continue;
-
-          // Reassign
-          reassignService.mutate(
-            { assignmentId: assignment.id, newMonitoristaId: target.id, servicioId: assignment.servicio_id, turno },
-            {
-              onSuccess: () => {
-                toast.warning(
-                  `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (offline) → monitorista en turno`,
-                  { duration: 8000 }
-                );
-                // Log anomaly
-                supabase.auth.getUser().then(({ data: { user } }) => {
-                  (supabase as any).from('bitacora_anomalias_turno').insert({
-                    tipo: 'servicio_huerfano_auto_reasignado',
-                    descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está fuera de turno`,
-                    servicio_id: assignment.servicio_id,
-                    monitorista_original: offlineM.id,
-                    monitorista_reasignado: target.id,
-                    ejecutado_por: user?.id || null,
-                  });
-                });
-              },
-              onError: () => orphanGuardRef.current.delete(guardKey),
-            }
-          );
-        }
-      }
-    }
-  }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, assignmentsByMonitorista, autoDistribute, reassignService]);
 
   const unassigned = activeServiceIds.filter(id => !assignedServiceIds.has(id))
     .sort((a, b) => (serviceHoraCitaMap[a] || '').localeCompare(serviceHoraCitaMap[b] || ''));
@@ -358,6 +157,31 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
             abandonedCount={abandonedCount}
           />
           <AnomaliasBadge />
+
+          {/* ── Orphan Banner ── */}
+          {unassigned.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 border-2 border-destructive/30 animate-pulse">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-destructive">
+                  {unassigned.length} servicio{unassigned.length > 1 ? 's' : ''} sin monitorista asignado
+                </p>
+                <p className="text-[10px] text-muted-foreground">Requiere asignación inmediata</p>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                disabled={autoDistribute.isPending || enTurno.length === 0}
+                onClick={() => autoDistribute.mutate({
+                  unassignedServiceIds: unassigned,
+                  monitoristaIds: enTurno.map(m => m.id),
+                })}
+              >
+                Asignar ahora
+              </Button>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <AutoDistributeButton
