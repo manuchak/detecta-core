@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { User, Radio, UserPlus, ArrowRightLeft, LogOut, Coffee, Bath, Eye, Play, Pause, ShieldCheck } from 'lucide-react';
@@ -70,6 +70,25 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
     },
     staleTime: Infinity,
   });
+
+  // ── Heartbeat: ping every 2 min so coordinator knows we're online ──
+  useEffect(() => {
+    if (!currentUserQuery.data) return;
+    const userId = currentUserQuery.data;
+
+    const ping = () => {
+      (supabase as any)
+        .from('monitorista_heartbeat')
+        .upsert({ user_id: userId, last_ping: new Date().toISOString() }, { onConflict: 'user_id' })
+        .then(({ error }: any) => {
+          if (error) console.warn('Heartbeat ping failed:', error.message);
+        });
+    };
+
+    ping(); // immediate
+    const interval = setInterval(ping, 120_000); // every 2 min
+    return () => clearInterval(interval);
+  }, [currentUserQuery.data]);
 
   if (isLoading) return null;
 
