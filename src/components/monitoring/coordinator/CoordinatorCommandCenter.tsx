@@ -41,6 +41,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = useState(false);
   const [rebalanceConfirm, setRebalanceConfirm] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null);
   const turno = getCurrentTurno();
 
