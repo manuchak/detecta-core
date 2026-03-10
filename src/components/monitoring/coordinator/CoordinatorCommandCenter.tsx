@@ -122,7 +122,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
 
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
-      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo && !x.inferred)) {
+      for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
         allFormalActive.push({
           assignmentId: a.id, servicioId: a.servicio_id, monitoristaId: m.id,
