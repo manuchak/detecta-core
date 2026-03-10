@@ -81,6 +81,32 @@ export const BitacoraBoard: React.FC = () => {
 
   return (
     <div className="space-y-3">
+      {isAdminOrCoord && (
+        <div className="flex items-center gap-2">
+          <Eye className="h-4 w-4 text-muted-foreground" />
+          <Select value={filterMonitoristaId} onValueChange={setFilterMonitoristaId}>
+            <SelectTrigger className="w-[220px] h-8 text-xs">
+              <SelectValue placeholder="Ver como monitorista…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los servicios</SelectItem>
+              {monitoristas
+                .sort((a, b) => a.display_name.localeCompare(b.display_name))
+                .map(m => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.display_name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {filterMonitoristaId !== 'all' && (
+            <span className="text-[10px] text-muted-foreground">
+              {displayPending.length + displayEnCurso.length + displayEventoEspecial.length} servicios
+            </span>
+          )}
+        </div>
+      )}
+
       <MonitoristaAssignmentBar
         activeServiceIds={activeServiceIds}
         serviceLabelMap={serviceLabelMap}
@@ -90,7 +116,7 @@ export const BitacoraBoard: React.FC = () => {
       <div className="grid grid-cols-[minmax(200px,1fr)_minmax(400px,2.5fr)_minmax(200px,1fr)] gap-2 h-[calc(var(--content-height-with-tabs,calc(100vh-120px)))]">
         {/* Column 1: Por Iniciar */}
         <BoardColumnPorIniciar
-          services={pendingServices}
+          services={displayPending}
           onIniciar={(id) => iniciarServicio.mutate(id)}
           onDoubleClick={handleDoubleClick}
           isPending={iniciarServicio.isPending}
