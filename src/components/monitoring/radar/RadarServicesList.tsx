@@ -234,7 +234,7 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
         {groupedData.map((group, i) => (
           <div
             key={group.key}
-            className={`min-h-0 h-full overflow-hidden ${i % 2 === 0 ? 'border-r border-white/10' : ''} ${i < 2 ? 'border-b border-white/10' : ''}`}
+            className={`min-h-0 h-full ${i % 2 === 0 ? 'border-r border-white/10' : ''} ${i < 2 ? 'border-b border-white/10' : ''}`}
           >
             <ServiceBlock group={group} items={group.items} />
           </div>
