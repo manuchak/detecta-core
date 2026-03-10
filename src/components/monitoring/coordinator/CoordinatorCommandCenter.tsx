@@ -521,6 +521,25 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           setRebalanceConfirm(false);
         }}
       />
+
+      <ConfirmTransitionDialog
+        open={resetConfirm}
+        onOpenChange={setResetConfirm}
+        title="Reset y redistribución completa"
+        description={`Se desactivarán TODAS las asignaciones actuales y se redistribuirán ${allActive.length} servicios aleatoriamente entre ${eligibleForAssignment.length} monitoristas en turno. Esta acción no se puede deshacer.`}
+        confirmLabel="Resetear y redistribuir"
+        destructive
+        isPending={resetAndRedistribute.isPending}
+        requireDoubleConfirm
+        doubleConfirmLabel="Confirmo que quiero resetear todas las asignaciones"
+        onConfirm={() => {
+          resetAndRedistribute.mutate({
+            serviceIds: activeServiceIds,
+            monitoristaIds: eligibleForAssignment.map(m => m.id),
+          });
+          setResetConfirm(false);
+        }}
+      />
     </div>
   );
 
