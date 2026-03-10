@@ -1,97 +1,79 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Fix: "0 monitoristas en turno" — Heartbeat & OrphanGuard Architecture
 
-## Roles confirmados por módulo
+## Root Cause Analysis
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
-
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+Three structural problems compound to produce the "0 en turno" false negative:
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+PROBLEMA: "0 en turno · 32 activos"
+              |
+  ┌───────────┼───────────────┐──────────────┐
+  │           │               │              │
+HEARTBEAT   ORPHANGUARD    BALANCEGUARD    ADOPCIÓN
+  │           │               │              │
+Ping solo    Solo corre      Solo corre     Tabla nueva
+en Bitácora  dentro del      dentro del     = vacía
+tab          overlay C4      overlay C4     = 0 online
+(no en C4)   (no continuo)   (no continuo)
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+1. **Heartbeat solo en Bitácora**: El ping se emite desde `MonitoristaAssignmentBar` (montado solo en la tab Bitácora). Cuando el coordinador ve Coordinación C4, el componente no está montado → no hay pings → tabla vacía → 0 en turno.
 
-### Fase 2 — Migrar policies por módulo
+2. **OrphanGuard/BalanceGuard acoplados al overlay**: Ambos viven como `useEffect` dentro de `CoordinatorCommandCenter`. Solo corren cuando el coordinador tiene esa tab activa, no de forma continua.
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+3. **Sin fallback de adopción**: La tabla `monitorista_heartbeat` es nueva. No hay mecanismo de transición: si la tabla está vacía, todos aparecen offline.
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+## Solución
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### Cambio 1: Mover heartbeat a MonitoringPage (nivel página)
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+Extraer el heartbeat ping de `MonitoristaAssignmentBar` y crear un hook `useHeartbeatPing` que se monte en `MonitoringPage.tsx`. Así el ping se ejecuta independientemente de la tab activa.
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useHeartbeatPing.ts` | **Nuevo**. Hook que obtiene el user ID y hace upsert cada 2 min |
+| `src/pages/Monitoring/MonitoringPage.tsx` | Importar y montar `useHeartbeatPing()` al nivel de página |
+| `src/components/monitoring/bitacora/MonitoristaAssignmentBar.tsx` | Eliminar el `useEffect` del heartbeat (ya no es responsabilidad de este componente) |
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+### Cambio 2: Fallback en detección de presencia
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
+En `useMonitoristaAssignment.ts`, si la tabla heartbeat devuelve 0 resultados (adopción inicial), usar un fallback basado en asignaciones formales activas del turno actual. Esto es temporal hasta que todos los monitoristas generen heartbeats.
 
-### Archivos a modificar
+```text
+en_turno = heartbeat.has(user_id)
+         || (heartbeat.size === 0 && hasFormalAssignment)  ← fallback
+```
 
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useMonitoristaAssignment.ts` | Si `onlineUserIds.size === 0`, usar fallback: marcar como `en_turno` a quienes tengan asignaciones formales activas |
+
+### Cambio 3: Extraer OrphanGuard a hook independiente
+
+Mover la lógica de OrphanGuard y BalanceGuard de `CoordinatorCommandCenter.tsx` a un hook `useOrphanGuard.ts` que se monte en `MonitoringPage` (solo para coordinadores). Esto garantiza ejecución continua sin depender de qué tab esté activa.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useOrphanGuard.ts` | **Nuevo**. Contiene la lógica de auto-asignación (pending ≤2h), reasignación de servicios huérfanos (monitorista offline), y BalanceGuard. Consume `useMonitoristaAssignment` y `useBitacoraBoard` |
+| `src/pages/Monitoring/MonitoringPage.tsx` | Si `isCoordinator`, montar `useOrphanGuard()` |
+| `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` | Eliminar los `useEffect` de OrphanGuard y BalanceGuard (ya viven en el hook) |
+
+### Cambio 4: UI clara para servicios huérfanos
+
+En `CoordinatorCommandCenter`, agregar un banner prominente cuando hay servicios huérfanos (sin asignar + activos), con conteo y botón de acción directa.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` | Agregar banner de alerta rojo cuando `unassigned.length > 0` con texto "X servicios sin monitorista" y botón "Asignar ahora" |
+
+## Archivos totales a modificar
+
+1. `src/hooks/useHeartbeatPing.ts` — **nuevo**
+2. `src/hooks/useOrphanGuard.ts` — **nuevo**
+3. `src/hooks/useMonitoristaAssignment.ts` — fallback de adopción
+4. `src/pages/Monitoring/MonitoringPage.tsx` — montar heartbeat + OrphanGuard
+5. `src/components/monitoring/bitacora/MonitoristaAssignmentBar.tsx` — remover heartbeat
+6. `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` — remover OrphanGuard/BalanceGuard, agregar banner huérfanos
 
