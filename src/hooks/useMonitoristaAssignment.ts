@@ -304,7 +304,84 @@ export function useMonitoristaAssignment() {
     onError: () => toast.error('Error al asignar servicio'),
   });
 
-  // Auto-distribute: assign all unassigned services equitably
+  /**
+   * Client-affinity distribution algorithm.
+   * Priority 1: balanced workload. Priority 2: group same-client services together.
+   */
+  async function distributeWithAffinity(
+    serviceIds: string[],
+    monitoristaIds: string[],
+    initialLoad: Record<string, number>,
+    userId: string | null,
+    turno: string,
+  ) {
+    // 1. Fetch client names for each service
+    const { data: svcData } = await (supabase as any)
+      .from('servicios_planificados')
+      .select('id_servicio, nombre_cliente')
+      .in('id_servicio', serviceIds);
+
+    const clientByService = new Map<string, string>();
+    for (const s of (svcData || [])) {
+      clientByService.set(s.id_servicio, s.nombre_cliente || '__sin_cliente__');
+    }
+
+    // 2. Group services by client
+    const clientGroups = new Map<string, string[]>();
+    for (const sId of serviceIds) {
+      const client = clientByService.get(sId) || '__sin_cliente__';
+      if (!clientGroups.has(client)) clientGroups.set(client, []);
+      clientGroups.get(client)!.push(sId);
+    }
+
+    // 3. Sort groups largest-first for better packing
+    const sortedGroups = [...clientGroups.entries()].sort((a, b) => b[1].length - a[1].length);
+
+    // 4. Max per agent = ceil(total / agents)
+    const totalServices = serviceIds.length;
+    const maxPerAgent = Math.ceil(totalServices / monitoristaIds.length);
+
+    const load = { ...initialLoad };
+    const inserts: any[] = [];
+
+    const getLeastLoaded = () =>
+      monitoristaIds.reduce((a, b) => (load[a] <= load[b] ? a : b));
+
+    for (const [, groupServiceIds] of sortedGroups) {
+      const target = getLeastLoaded();
+
+      // How many can fit on this agent without exceeding max?
+      const available = Math.max(0, maxPerAgent - load[target]);
+      const fitCount = Math.min(groupServiceIds.length, available || 1); // at least 1
+
+      // Assign the fitting portion to the primary target
+      for (let i = 0; i < fitCount; i++) {
+        inserts.push({
+          servicio_id: groupServiceIds[i],
+          monitorista_id: target,
+          asignado_por: userId,
+          turno,
+        });
+        load[target]++;
+      }
+
+      // Overflow: distribute remaining to next least-loaded agents
+      for (let i = fitCount; i < groupServiceIds.length; i++) {
+        const overflow = getLeastLoaded();
+        inserts.push({
+          servicio_id: groupServiceIds[i],
+          monitorista_id: overflow,
+          asignado_por: userId,
+          turno,
+        });
+        load[overflow]++;
+      }
+    }
+
+    return inserts;
+  }
+
+  // Auto-distribute: assign all unassigned services equitably with client affinity
   const autoDistribute = useMutation({
     mutationFn: async (params: { unassignedServiceIds: string[]; monitoristaIds: string[] }) => {
       if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
@@ -321,23 +398,19 @@ export function useMonitoristaAssignment() {
         .in('servicio_id', params.unassignedServiceIds)
         .eq('activo', true);
 
-      // Build load map from combined assignments
+      // Build current load from combined assignments
       const load: Record<string, number> = {};
       for (const mId of params.monitoristaIds) {
         load[mId] = (assignmentsByMonitorista[mId] || []).length;
       }
 
-      const inserts: any[] = [];
-      for (const sId of params.unassignedServiceIds) {
-        const target = params.monitoristaIds.reduce((a, b) => (load[a] <= load[b] ? a : b));
-        inserts.push({
-          servicio_id: sId,
-          monitorista_id: target,
-          asignado_por: user?.id || null,
-          turno,
-        });
-        load[target]++;
-      }
+      const inserts = await distributeWithAffinity(
+        params.unassignedServiceIds,
+        params.monitoristaIds,
+        load,
+        user?.id || null,
+        turno,
+      );
 
       const { error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
@@ -348,12 +421,12 @@ export function useMonitoristaAssignment() {
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey });
-      toast.success(`${count} servicios distribuidos equitativamente`);
+      toast.success(`${count} servicios distribuidos (balanceo + afinidad por cliente)`);
     },
     onError: (err: Error) => toast.error(err.message || 'Error al distribuir'),
   });
 
-  // Reset & Redistribute: deactivate ALL assignments, then distribute ALL active services randomly
+  // Reset & Redistribute: deactivate ALL assignments, then distribute ALL with client affinity
   const resetAndRedistribute = useMutation({
     mutationFn: async (params: { serviceIds: string[]; monitoristaIds: string[] }) => {
       if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
@@ -369,19 +442,17 @@ export function useMonitoristaAssignment() {
         .update({ activo: false, fin_turno: nowTs })
         .eq('activo', true);
 
-      // Step 2: Shuffle services randomly
-      const shuffled = [...params.serviceIds].sort(() => Math.random() - 0.5);
+      // Step 2: Distribute with affinity (starting from zero load)
+      const load: Record<string, number> = {};
+      for (const mId of params.monitoristaIds) load[mId] = 0;
 
-      // Step 3: Round-robin distribute
-      const inserts: any[] = [];
-      for (let i = 0; i < shuffled.length; i++) {
-        inserts.push({
-          servicio_id: shuffled[i],
-          monitorista_id: params.monitoristaIds[i % params.monitoristaIds.length],
-          asignado_por: user?.id || null,
-          turno,
-        });
-      }
+      const inserts = await distributeWithAffinity(
+        params.serviceIds,
+        params.monitoristaIds,
+        load,
+        user?.id || null,
+        turno,
+      );
 
       const { error } = await (supabase as any)
         .from('bitacora_asignaciones_monitorista')
@@ -391,7 +462,7 @@ export function useMonitoristaAssignment() {
       // Log anomaly
       await (supabase as any).from('bitacora_anomalias_turno').insert({
         tipo: 'reset_redistribucion',
-        descripcion: `Reset completo: ${inserts.length} servicios redistribuidos entre ${params.monitoristaIds.length} monitoristas`,
+        descripcion: `Reset completo: ${inserts.length} servicios redistribuidos con afinidad por cliente entre ${params.monitoristaIds.length} monitoristas`,
         ejecutado_por: user?.id || null,
         metadata: { total_services: inserts.length, total_staff: params.monitoristaIds.length },
       });
