@@ -556,6 +556,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
           setResetConfirm(false);
         }}
       />
+    </TooltipProvider>
     </div>
   );
 
