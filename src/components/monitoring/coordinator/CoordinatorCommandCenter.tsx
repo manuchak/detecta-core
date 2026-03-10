@@ -176,10 +176,10 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 variant="destructive"
                 size="sm"
                 className="h-8 text-xs gap-1.5"
-                disabled={autoDistribute.isPending || enTurno.length === 0}
+                disabled={autoDistribute.isPending || eligibleForAssignment.length === 0}
                 onClick={() => autoDistribute.mutate({
                   unassignedServiceIds: unassigned,
-                  monitoristaIds: enTurno.map(m => m.id),
+                  monitoristaIds: eligibleForAssignment.map(m => m.id),
                 })}
               >
                 Asignar ahora
