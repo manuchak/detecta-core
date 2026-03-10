@@ -132,7 +132,7 @@ const ServiceBlock = ({ group, items }: { group: GroupDef; items: RadarService[]
   const isAlert = group.key === 'alerta';
 
   return (
-    <div className={`flex flex-col min-h-0 overflow-hidden ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
+    <div className={`h-full flex flex-col min-h-0 overflow-hidden ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
       {/* Group header */}
       <div className={`flex items-center gap-2 px-3 py-1 shrink-0 ${isAlert && items.length > 0 ? 'bg-red-950/40' : 'bg-white/[0.07]'}`}>
         <div className="h-px flex-1 bg-white/20" />
