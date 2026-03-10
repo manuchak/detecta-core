@@ -8,8 +8,8 @@ import { matchRoute, geocodeDestino } from '@/lib/radar/routeMatcher';
 
 export type { ServicePhase, AlertLevel };
 
-type SpecialEventType = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia';
-const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia'];
+type SpecialEventType = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia' | 'trafico';
+const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'];
 
 /* ───────── Types ───────── */
 

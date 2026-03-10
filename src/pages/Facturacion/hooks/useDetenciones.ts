@@ -20,7 +20,7 @@ export interface Detencion {
   updated_at: string;
 }
 
-export type TipoDetencion = 'carga' | 'descarga' | 'revision' | 'pernocta' | 'espera_cliente' | 'mecanica' | 'accidente' | 'otro';
+export type TipoDetencion = 'carga' | 'descarga' | 'revision' | 'pernocta' | 'espera_cliente' | 'mecanica' | 'accidente' | 'trafico' | 'otro';
 
 export const TIPOS_DETENCION: Record<TipoDetencion, string> = {
   carga: 'Carga',
@@ -30,6 +30,7 @@ export const TIPOS_DETENCION: Record<TipoDetencion, string> = {
   espera_cliente: 'Espera Cliente',
   mecanica: 'Mecánica',
   accidente: 'Accidente',
+  trafico: 'Tráfico',
   otro: 'Otro',
 };
 

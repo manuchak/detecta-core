@@ -4,9 +4,9 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 const TZ = 'America/Mexico_City';
 
-export type EventoTipo = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia';
+export type EventoTipo = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia' | 'trafico';
 
-const SPECIAL_EVENTS: EventoTipo[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia'];
+const SPECIAL_EVENTS: EventoTipo[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'];
 
 export interface ServiceTimeRow {
   id: string;
@@ -23,6 +23,7 @@ export interface ServiceTimeRow {
   descanso: number;
   pernocta: number;
   incidencia: number;
+  trafico: number;
   // Calculated deltas in minutes
   deltaOrigen: number | null;
   deltaDestino: number | null;
@@ -124,6 +125,7 @@ async function fetchServiceTimes({ dateFrom, dateTo, cliente }: UseServiceTimesO
       descanso: sumDuration('descanso'),
       pernocta: sumDuration('pernocta'),
       incidencia: sumDuration('incidencia'),
+      trafico: sumDuration('trafico'),
       deltaOrigen,
       deltaDestino,
       deltaTotal,

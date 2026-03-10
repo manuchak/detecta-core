@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User, Shield } from 'lucide-react';
+import { Fuel, Coffee, Bath, BedDouble, AlertTriangle, MapPinCheck, Timer, MoreHorizontal, User, Shield, Construction } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
 import { CheckpointPopover } from './CheckpointPopover';
 import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
@@ -25,6 +25,7 @@ const SPECIAL_EVENTS: { tipo: SpecialEventType; icon: React.ReactNode; label: st
   { tipo: 'baño', icon: <Bath className="h-3.5 w-3.5" />, label: 'Baño' },
   { tipo: 'descanso', icon: <Coffee className="h-3.5 w-3.5" />, label: 'Descanso' },
   { tipo: 'pernocta', icon: <BedDouble className="h-3.5 w-3.5" />, label: 'Pernocta' },
+  { tipo: 'trafico', icon: <Construction className="h-3.5 w-3.5" />, label: 'Tráfico' },
   { tipo: 'incidencia', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Incidencia' },
 ];
 

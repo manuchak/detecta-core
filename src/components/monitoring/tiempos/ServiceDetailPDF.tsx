@@ -44,6 +44,7 @@ const LABEL_MAP: Record<string, string> = {
   pernocta: 'Parada — Pernocta',
   checkpoint: 'Checkpoint',
   incidencia: 'Incidencia',
+  trafico: 'Parada — Tráfico',
   foto_evidencia: 'Evidencia fotográfica',
   otro: 'Otro evento',
   llegada_destino: 'Llegada a Destino',
@@ -124,6 +125,7 @@ const ServiceTimePDF: React.FC<PDFDocProps> = ({ service, eventos }) => {
             { label: '🚻 Baño', value: fmtDur(service.baño) },
             { label: '☕ Descanso', value: fmtDur(service.descanso) },
             { label: '🛏️ Pernocta', value: fmtDur(service.pernocta) },
+            { label: '🚧 Tráfico', value: fmtDur(service.trafico) },
             { label: '⚠️ Incidencia', value: fmtDur(service.incidencia) },
           ].map((row, i, arr) => (
             <View key={i} style={i === arr.length - 1 ? s.summaryRowLast : s.summaryRow}>

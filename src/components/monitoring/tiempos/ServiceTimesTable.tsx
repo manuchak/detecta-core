@@ -119,6 +119,12 @@ export const ServiceTimesTable: React.FC<Props> = ({ onSelectService, defaultDat
       size: 50,
     },
     {
+      accessorKey: 'trafico',
+      header: '🚧',
+      cell: ({ getValue }) => fmtDur(getValue() as number),
+      size: 50,
+    },
+    {
       accessorKey: 'incidencia',
       header: '⚠️',
       cell: ({ getValue }) => fmtDur(getValue() as number),

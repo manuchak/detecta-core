@@ -33,9 +33,9 @@ export interface BoardService {
   alertLevel: AlertLevel;
 }
 
-export type SpecialEventType = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia';
+export type SpecialEventType = 'combustible' | 'baño' | 'descanso' | 'pernocta' | 'incidencia' | 'trafico';
 
-const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia'];
+const SPECIAL_EVENT_TYPES: SpecialEventType[] = ['combustible', 'baño', 'descanso', 'pernocta', 'incidencia', 'trafico'];
 
 /* ───────── Hook ───────── */
 
