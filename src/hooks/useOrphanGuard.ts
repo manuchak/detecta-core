@@ -92,52 +92,53 @@ export function useOrphanGuard() {
         );
       }
 
-    // Rule 3: Services assigned to offline monitoristas → reassign
-    const offlineWithServices = sinTurno.filter(m => {
-      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
-      return assignments.length > 0;
-    });
+      // Rule 3: Services assigned to offline monitoristas → reassign
+      const offlineWithServices = sinTurno.filter(m => {
+        const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
+        return assignments.length > 0;
+      });
 
-    if (offlineWithServices.length > 0 && enTurno.length > 0) {
-      for (const offlineM of offlineWithServices) {
-        const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
-        for (const assignment of assignments) {
-          const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
-          if (orphanGuardRef.current.has(guardKey)) continue;
-          orphanGuardRef.current.add(guardKey);
+      if (offlineWithServices.length > 0 && enTurno.length > 0) {
+        for (const offlineM of offlineWithServices) {
+          const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
+          for (const assignment of assignments) {
+            const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
+            if (orphanGuardRef.current.has(guardKey)) continue;
+            orphanGuardRef.current.add(guardKey);
 
-          const loads = enTurno.map(m => ({
-            id: m.id,
-            load: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
-          }));
-          const target = loads.sort((a, b) => a.load - b.load)[0];
-          if (!target) continue;
+            const loads = enTurno.map(m => ({
+              id: m.id,
+              load: (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length,
+            }));
+            const target = loads.sort((a, b) => a.load - b.load)[0];
+            if (!target) continue;
 
-          reassignService.mutate(
-            { assignmentId: assignment.id, newMonitoristaId: target.id, servicioId: assignment.servicio_id, turno },
-            {
-              onSuccess: () => {
-                toast.warning(
-                  `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (offline) → monitorista en turno`,
-                  { duration: 8000 }
-                );
-                supabase.auth.getUser().then(({ data: { user } }) => {
-                  (supabase as any).from('bitacora_anomalias_turno').insert({
-                    tipo: 'servicio_huerfano_auto_reasignado',
-                    descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está fuera de turno`,
-                    servicio_id: assignment.servicio_id,
-                    monitorista_original: offlineM.id,
-                    monitorista_reasignado: target.id,
-                    ejecutado_por: user?.id || null,
+            reassignService.mutate(
+              { assignmentId: assignment.id, newMonitoristaId: target.id, servicioId: assignment.servicio_id, turno },
+              {
+                onSuccess: () => {
+                  toast.warning(
+                    `⚠️ Servicio ${assignment.servicio_id.slice(0, 8)} reasignado: ${offlineM.display_name} (offline) → monitorista en turno`,
+                    { duration: 8000 }
+                  );
+                  supabase.auth.getUser().then(({ data: { user } }) => {
+                    (supabase as any).from('bitacora_anomalias_turno').insert({
+                      tipo: 'servicio_huerfano_auto_reasignado',
+                      descripcion: `Servicio reasignado automáticamente porque ${offlineM.display_name} está fuera de turno`,
+                      servicio_id: assignment.servicio_id,
+                      monitorista_original: offlineM.id,
+                      monitorista_reasignado: target.id,
+                      ejecutado_por: user?.id || null,
+                    });
                   });
-                });
-              },
-              onError: () => orphanGuardRef.current.delete(guardKey),
-            }
-          );
+                },
+                onError: () => orphanGuardRef.current.delete(guardKey),
+              }
+            );
+          }
         }
       }
-    }
+    });
   }, [pendingServiceIds, activeServiceIds, assignedServiceIds, serviceHoraCitaMap, enTurno, sinTurno, assignmentsByMonitorista, autoDistribute, reassignService]);
 
   // ── BalanceGuard ──
