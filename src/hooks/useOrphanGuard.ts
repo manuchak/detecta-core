@@ -236,6 +236,9 @@ export function useOrphanGuard() {
           // Only move "cold" services: not en_curso AND no events from this monitorista
           if (a.isEnCurso) return false;
           if (hotPairs.has(`${a.servicioId}::${a.monitoristaId}`)) return false;
+          // Skip services recently auto-assigned (grace period 60s)
+          const autoTs = autoAssignedRef.current.get(a.servicioId);
+          if (autoTs != null && Date.now() - autoTs < 60_000) return false;
           return true;
         })
         .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
