@@ -46,6 +46,18 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null);
   const turno = getCurrentTurno();
 
+  const { data: gastosPendientes = 0 } = useQuery({
+    queryKey: ['gastos-pendientes-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('solicitudes_apoyo_extraordinario')
+        .select('*', { count: 'exact', head: true })
+        .eq('estado', 'pendiente');
+      return count || 0;
+    },
+    refetchInterval: 30_000,
+  });
+
   // Build active service data from the board
   const allActive = [...enCursoServices, ...eventoEspecialServices];
   const activeServiceIds = allActive.map(s => s.id_servicio);
