@@ -1,97 +1,73 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Fix: "0 monitoristas en turno" + botón "Asignar ahora" deshabilitado
 
-## Roles confirmados por módulo
+## Diagnóstico confirmado con datos reales
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+La tabla `monitorista_heartbeat` solo tiene 1 registro: el del admin (`131bdb62`). Los 4 monitoristas activos (`4a4dc16`, `c5a26dd`, `4e32f25`, `1079b6f`) NO tienen heartbeat porque aún no han recargado su navegador desde que se desplegó el código del heartbeat.
 
----
-
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
-
+**El fallback está roto.** La lógica actual:
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+useHeartbeatFallback = onlineUserIds.size === 0 && formallyAssignedUserIds.size > 0
+```
+`onlineUserIds.size` es 1 (el admin), no 0. Pero el admin NO es monitorista. Resultado: el fallback no se activa y 0 monitoristas aparecen "en turno". El botón "Asignar ahora" queda deshabilitado porque depende de `enTurno.length > 0`.
+
+## Solución: Triple fallback robusto
+
+Cambiar la lógica de presencia en `useMonitoristaAssignment.ts` para que:
+
+1. **Primary**: Heartbeat (si algún monitorista tiene heartbeat reciente)
+2. **Fallback 1**: Actividad reciente de eventos (si ningún monitorista tiene heartbeat pero sí eventos en los últimos 10 min)
+3. **Fallback 2**: Asignaciones formales activas (si no hay datos de ningún tipo)
+
+### Cambio en `useMonitoristaAssignment.ts`
+
+Reemplazar la lógica de líneas 192-208:
+```typescript
+// Check how many MONITORISTAS (not just any user) are online via heartbeat
+const monitoristasIds = new Set((monitoristasQuery.data || []).map(m => m.id));
+const monitoristasOnline = new Set(
+  [...onlineUserIds].filter(id => monitoristasIds.has(id))
+);
+
+const monitoristas = (monitoristasQuery.data || []).map(m => {
+  const activity = activityByMonitorista.get(m.id);
+  let enTurno: boolean;
+
+  if (monitoristasOnline.size > 0) {
+    // Primary: heartbeat
+    enTurno = monitoristasOnline.has(m.id);
+  } else if (activityByMonitorista.size > 0) {
+    // Fallback 1: recent event activity (any monitorista with events in last 10 min)
+    const TEN_MIN = 10 * 60_000;
+    enTurno = !!activity?.lastActivity &&
+      (Date.now() - new Date(activity.lastActivity).getTime()) < TEN_MIN;
+  } else {
+    // Fallback 2: formal assignments
+    enTurno = formallyAssignedUserIds.has(m.id);
+  }
+
+  return { ...m, en_turno: enTurno, last_activity: activity?.lastActivity, event_count: activity?.eventCount || 0 };
+});
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+### Cambio en `CoordinatorCommandCenter.tsx`
 
-### Fase 2 — Migrar policies por módulo
+Hacer que "Asignar ahora" funcione incluso con 0 en_turno, usando monitoristas con actividad reciente como alternativa:
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+```typescript
+// If no en_turno but there are monitoristas with recent activity, use those
+const eligibleForAssignment = enTurno.length > 0
+  ? enTurno
+  : monitoristas.filter(m => (m.event_count || 0) > 0);
+```
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+Y usar `eligibleForAssignment` en lugar de `enTurno` para los botones de asignación.
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+## Archivos a modificar
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| Archivo | Cambio |
+|---------|--------|
+| `src/hooks/useMonitoristaAssignment.ts` | Corregir fallback: verificar intersección de heartbeats con IDs de monitoristas, no tamaño total del set. Agregar fallback por actividad de eventos. |
+| `src/components/monitoring/coordinator/CoordinatorCommandCenter.tsx` | Usar monitoristas con actividad como alternativa cuando `enTurno.length === 0` para habilitar "Asignar ahora". |
 
