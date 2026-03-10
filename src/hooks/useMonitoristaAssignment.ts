@@ -13,8 +13,6 @@ export interface MonitoristaAssignment {
   fin_turno: string | null;
   notas_handoff: string | null;
   created_at: string;
-  /** Whether this assignment was inferred from event activity (not formal) */
-  inferred?: boolean;
 }
 
 export interface MonitoristaProfile {
