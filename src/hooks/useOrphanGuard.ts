@@ -28,8 +28,12 @@ export function useOrphanGuard() {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
+  // ── Shared cooldown between guards ──
+  const lastMutationTimestampRef = useRef<number>(0);
+
   // ── OrphanGuard ──
-  const autoAssignedRef = useRef<Set<string>>(new Set());
+  // Map<serviceId, timestamp> — persists for 120s before allowing re-assignment
+  const autoAssignedRef = useRef<Map<string, number>>(new Map());
   const orphanGuardRef = useRef<Set<string>>(new Set());
 
   // Dedup sweep: clean up any duplicate active assignments that slipped through
@@ -64,9 +68,22 @@ export function useOrphanGuard() {
       const TWO_HOURS = 2 * 60 * 60 * 1000;
       const now = Date.now();
 
+      // Purge expired entries from autoAssignedRef (>120s old)
+      for (const [id, ts] of autoAssignedRef.current) {
+        if (now - ts > 120_000) autoAssignedRef.current.delete(id);
+      }
+
+      // Check shared cooldown — skip if another guard mutated recently
+      if (now - lastMutationTimestampRef.current < 15_000) return;
+
+      const isRecentlyAutoAssigned = (id: string) => {
+        const ts = autoAssignedRef.current.get(id);
+        return ts != null && now - ts < 120_000;
+      };
+
       // Rule 1: Pending services ≤2h from cita
       const eligiblePending = pendingServiceIds.filter(id => {
-        if (effectiveAssigned.has(id) || autoAssignedRef.current.has(id)) return false;
+        if (effectiveAssigned.has(id) || isRecentlyAutoAssigned(id)) return false;
         const citaStr = serviceHoraCitaMap[id];
         if (!citaStr) return false;
         const timeUntil = new Date(citaStr).getTime() - now;
@@ -75,18 +92,21 @@ export function useOrphanGuard() {
 
       // Rule 2: Active services without any assignment
       const unassignedActive = activeServiceIds.filter(id =>
-        !effectiveAssigned.has(id) && !autoAssignedRef.current.has(id)
+        !effectiveAssigned.has(id) && !isRecentlyAutoAssigned(id)
       );
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
-        allEligible.forEach(id => autoAssignedRef.current.add(id));
+        allEligible.forEach(id => autoAssignedRef.current.set(id, now));
         autoDistribute.mutate(
           { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
           {
-            onSuccess: (count) => toast.info(`${count} servicios auto-asignados`),
+            onSuccess: (count) => {
+              lastMutationTimestampRef.current = Date.now();
+              toast.info(`${count} servicios auto-asignados`);
+            },
             onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
           }
         );
@@ -150,6 +170,12 @@ export function useOrphanGuard() {
   const executeSafeRebalance = useCallback(async (reason: string) => {
     if (enTurno.length < 2 || rebalanceLoad.isPending) return;
 
+    // Respect shared cooldown
+    if (Date.now() - lastMutationTimestampRef.current < 15_000) {
+      console.log(`[BalanceGuard] ${reason}: Skipped — cooldown active`);
+      return;
+    }
+
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
@@ -210,6 +236,9 @@ export function useOrphanGuard() {
           // Only move "cold" services: not en_curso AND no events from this monitorista
           if (a.isEnCurso) return false;
           if (hotPairs.has(`${a.servicioId}::${a.monitoristaId}`)) return false;
+          // Skip services recently auto-assigned (grace period 60s)
+          const autoTs = autoAssignedRef.current.get(a.servicioId);
+          if (autoTs != null && Date.now() - autoTs < 60_000) return false;
           return true;
         })
         .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
@@ -242,6 +271,7 @@ export function useOrphanGuard() {
     const perPerson = Math.round(totalServices / totalStaff);
     rebalanceLoad.mutate({ reassignments }, {
       onSuccess: () => {
+        lastMutationTimestampRef.current = Date.now();
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} movidos, solo fríos)`, { duration: 8000 });
       },
     });
