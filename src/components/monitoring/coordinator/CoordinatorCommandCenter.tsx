@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX } from 'lucide-react';
+import { Radio, ArrowRightLeft, X, Activity, Users, ChevronDown, AlertTriangle, Scale, RotateCcw, Receipt, UserX, Shuffle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useMonitoristaAssignment, getCurrentTurno, getTurnoLabel } from '@/hooks/useMonitoristaAssignment';
@@ -32,7 +32,7 @@ type DrawerPanel = 'corrections' | 'handoffs' | 'gastos' | 'abandoned' | null;
 export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const {
     monitoristas, assignedServiceIds, assignmentsByMonitorista,
-    assignService, autoDistribute, reassignService, rebalanceLoad,
+    assignService, autoDistribute, reassignService, rebalanceLoad, resetAndRedistribute,
   } = useMonitoristaAssignment();
 
   const { enCursoServices, eventoEspecialServices, pendingServices, revertirEnDestino } = useBitacoraBoard();
@@ -41,6 +41,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [sinTurnoOpen, setSinTurnoOpen] = useState(false);
   const [rebalanceConfirm, setRebalanceConfirm] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [activeDrawer, setActiveDrawer] = useState<DrawerPanel>(null);
   const turno = getCurrentTurno();
 
@@ -343,6 +344,16 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               <Button
                 variant="outline"
                 size="sm"
+                className="gap-1 h-8 text-[11px] border-destructive/30 text-destructive hover:bg-destructive/10"
+                disabled={resetAndRedistribute.isPending || allActive.length === 0 || eligibleForAssignment.length === 0}
+                onClick={() => setResetConfirm(true)}
+              >
+                <Shuffle className="h-3 w-3" />
+                Reset
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 className="gap-1 h-8 text-[11px]"
                 onClick={() => setHandoffOpen(true)}
               >
@@ -508,6 +519,25 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         onConfirm={() => {
           handleManualRebalance();
           setRebalanceConfirm(false);
+        }}
+      />
+
+      <ConfirmTransitionDialog
+        open={resetConfirm}
+        onOpenChange={setResetConfirm}
+        title="Reset y redistribución completa"
+        description={`Se desactivarán TODAS las asignaciones actuales y se redistribuirán ${allActive.length} servicios aleatoriamente entre ${eligibleForAssignment.length} monitoristas en turno. Esta acción no se puede deshacer.`}
+        confirmLabel="Resetear y redistribuir"
+        destructive
+        isPending={resetAndRedistribute.isPending}
+        requireDoubleConfirm
+        doubleConfirmLabel="Confirmo que quiero resetear todas las asignaciones"
+        onConfirm={() => {
+          resetAndRedistribute.mutate({
+            serviceIds: activeServiceIds,
+            monitoristaIds: eligibleForAssignment.map(m => m.id),
+          });
+          setResetConfirm(false);
         }}
       />
     </div>
