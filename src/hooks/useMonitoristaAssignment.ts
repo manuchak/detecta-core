@@ -141,51 +141,6 @@ export function useMonitoristaAssignment() {
 
   const onlineUserIds = heartbeatQuery.data || new Set<string>();
 
-  // Fetch recent activity for inferred assignments (still needed for service mapping)
-  const recentActivityQuery = useQuery({
-    queryKey: [...queryKey, 'recent-activity'],
-    queryFn: async () => {
-      const { data: roles, error: rolesErr } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .in('role', ['monitoring', 'monitoring_supervisor'])
-        .eq('is_active', true);
-      if (rolesErr) throw rolesErr;
-      const mIds = [...new Set((roles || []).map(r => r.user_id))];
-      if (mIds.length === 0) return [] as RecentActivity[];
-
-      const twoHoursAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
-      const { data, error } = await (supabase as any)
-        .from('servicio_eventos_ruta')
-        .select('registrado_por, servicio_id, created_at')
-        .in('registrado_por', mIds)
-        .gte('created_at', twoHoursAgo)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as RecentActivity[];
-    },
-    refetchInterval: 30_000,
-  });
-
-  // Compute activity stats from real event data
-  const activityByMonitorista = new Map<string, { lastActivity: string; eventCount: number; serviceIds: Set<string> }>();
-  for (const evt of (recentActivityQuery.data || [])) {
-    const existing = activityByMonitorista.get(evt.registrado_por);
-    if (!existing) {
-      activityByMonitorista.set(evt.registrado_por, {
-        lastActivity: evt.created_at,
-        eventCount: 1,
-        serviceIds: new Set([evt.servicio_id]),
-      });
-    } else {
-      existing.eventCount++;
-      existing.serviceIds.add(evt.servicio_id);
-      if (evt.created_at > existing.lastActivity) {
-        existing.lastActivity = evt.created_at;
-      }
-    }
-  }
-
   // Formal assignment IDs for fallback
   const formallyAssignedUserIds = new Set(
     (allAssignments.data || []).filter(a => a.activo).map(a => a.monitorista_id)
