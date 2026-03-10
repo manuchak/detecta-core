@@ -140,7 +140,7 @@ export const BitacoraBoard: React.FC = () => {
 
         {/* Column 3: Evento Especial */}
         <BoardColumnEventoEspecial
-          services={eventoEspecialServices}
+          services={displayEventoEspecial}
           onCerrar={(eventoId) => cerrarEventoEspecial.mutate(eventoId)}
           onDoubleClick={handleDoubleClick}
           isPending={cerrarEventoEspecial.isPending}
