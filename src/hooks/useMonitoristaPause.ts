@@ -219,7 +219,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('iniciar-pausa-monitorista', {
         body: { tipo_pausa: tipo },
       });
-      if (error) throw new Error(error.message || 'Error al iniciar pausa');
+      if (error) {
+        console.error('[useMonitoristaPause] iniciarPausa error:', error);
+        throw new Error(error.message || 'Error al iniciar pausa');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { count: number; tipo: string };
     },
@@ -237,7 +240,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('finalizar-pausa-monitorista', {
         body: params || {},
       });
-      if (error) throw new Error(error.message || 'Error al finalizar pausa');
+      if (error) {
+        console.error('[useMonitoristaPause] finalizarPausa error:', error);
+        throw new Error(error.message || 'Error al finalizar pausa');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { count: number };
     },
@@ -255,7 +261,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('reparar-pausa-huerfana', {
         body: { monitorista_id: monitoristaId },
       });
-      if (error) throw new Error(error.message || 'Error al reparar');
+      if (error) {
+        console.error('[useMonitoristaPause] repararPausaHuerfana error:', error);
+        throw new Error(error.message || 'Error al reparar');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { repaired: number };
     },
