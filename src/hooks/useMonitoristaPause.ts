@@ -219,7 +219,10 @@ export function useMonitoristaPause() {
       const { data, error } = await supabase.functions.invoke('iniciar-pausa-monitorista', {
         body: { tipo_pausa: tipo },
       });
-      if (error) throw new Error(error.message || 'Error al iniciar pausa');
+      if (error) {
+        console.error('[useMonitoristaPause] iniciarPausa error:', error);
+        throw new Error(error.message || 'Error al iniciar pausa');
+      }
       if (data?.error) throw new Error(data.error);
       return data as { count: number; tipo: string };
     },
