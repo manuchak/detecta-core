@@ -178,7 +178,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
               variant="outline"
               size="sm"
               className="h-6 text-[10px] gap-1 px-2"
-              onClick={() => repararPausaHuerfana.mutate()}
+              onClick={() => repararPausaHuerfana.mutate(undefined)}
               disabled={repararPausaHuerfana.isPending}
               title="Reparar asignaciones huérfanas por pausas fallidas"
             >
