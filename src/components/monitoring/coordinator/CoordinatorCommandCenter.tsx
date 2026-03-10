@@ -423,9 +423,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
         confirmLabel="Rebalancear"
         isPending={rebalanceLoad.isPending}
         onConfirm={() => {
-          if (onManualRebalance) {
-            onManualRebalance();
-          }
+          handleManualRebalance();
           setRebalanceConfirm(false);
         }}
       />
