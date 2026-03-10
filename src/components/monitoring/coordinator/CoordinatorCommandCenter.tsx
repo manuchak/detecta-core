@@ -58,6 +58,20 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     [...pendingServices, ...allActive].map(s => [s.id_servicio, s.fecha_hora_cita || ''])
   );
 
+  // Build set of active service IDs from the board (non-completed)
+  const activeBoardServiceIds = useMemo(() => {
+    return new Set([...pendingServices, ...allActive].map(s => s.id_servicio));
+  }, [pendingServices, allActive]);
+
+  // Filter assignmentsByMonitorista to only include services still on the board
+  const filteredAssignmentsByMonitorista = useMemo(() => {
+    const result: Record<string, typeof assignmentsByMonitorista[string]> = {};
+    for (const [mId, assignments] of Object.entries(assignmentsByMonitorista)) {
+      result[mId] = assignments.filter(a => a.activo && activeBoardServiceIds.has(a.servicio_id));
+    }
+    return result;
+  }, [assignmentsByMonitorista, activeBoardServiceIds]);
+
   // Detect assigned service IDs missing from board data
   const missingServiceIds = useMemo(() => {
     const allAssignedIds = Object.values(assignmentsByMonitorista)
