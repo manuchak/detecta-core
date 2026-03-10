@@ -123,7 +123,7 @@ export const BitacoraBoard: React.FC = () => {
           pausaActiva={pausaActiva}
           segundosRestantes={segundosRestantes}
           excedido={excedido}
-          onRetomar={() => finalizarPausa.mutate()}
+          onRetomar={() => finalizarPausa.mutate({})}
           isRetomando={finalizarPausa.isPending}
         />
       )}

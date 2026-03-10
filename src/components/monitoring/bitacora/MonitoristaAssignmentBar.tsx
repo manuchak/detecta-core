@@ -90,7 +90,7 @@ export const MonitoristaAssignmentBar: React.FC<Props> = ({
   };
 
   const handleRetomar = () => {
-    finalizarPausa.mutate();
+    finalizarPausa.mutate({});
   };
 
   return (
