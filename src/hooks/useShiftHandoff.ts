@@ -16,8 +16,6 @@ export interface ServiceContext {
   tiene_incidente: boolean;
   incidentes: IncidenteResumen[];
   notas_servicio: string;
-  /** Whether it was inferred (no formal assignment row) */
-  inferred: boolean;
 }
 
 export interface IncidenteResumen {
