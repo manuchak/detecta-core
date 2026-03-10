@@ -68,13 +68,13 @@ export function useOrphanGuard() {
 
     // Rule 3: Services assigned to offline monitoristas → reassign
     const offlineWithServices = sinTurno.filter(m => {
-      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo && !a.inferred);
+      const assignments = (assignmentsByMonitorista[m.id] || []).filter(a => a.activo);
       return assignments.length > 0;
     });
 
     if (offlineWithServices.length > 0 && enTurno.length > 0) {
       for (const offlineM of offlineWithServices) {
-        const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo && !a.inferred);
+        const assignments = (assignmentsByMonitorista[offlineM.id] || []).filter(a => a.activo);
         for (const assignment of assignments) {
           const guardKey = `${assignment.servicio_id}-${offlineM.id}`;
           if (orphanGuardRef.current.has(guardKey)) continue;
