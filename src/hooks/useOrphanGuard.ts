@@ -313,6 +313,11 @@ export function useOrphanGuard() {
           // Skip services recently auto-assigned (grace period 60s)
           const autoTs = autoAssignedRef.current.get(a.servicioId);
           if (autoTs != null && Date.now() - autoTs < 60_000) return false;
+          // Protect pause-restored assignments for 10 minutes after restoration
+          if (a.notasHandoff === 'retorno_pausa' && a.inicioTurno) {
+            const restoredAt = new Date(a.inicioTurno).getTime();
+            if (Date.now() - restoredAt < 600_000) return false; // 10 min grace
+          }
           return true;
         })
         .sort((a, b) => (b.horaCita || '').localeCompare(a.horaCita || ''));
