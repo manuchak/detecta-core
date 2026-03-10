@@ -205,6 +205,11 @@ export function useMonitoristaAssignment() {
           asignado_por: user?.id || null,
           turno: params.turno || getCurrentTurno(),
         });
+      // Unique constraint violation = another process already assigned → safe to ignore
+      if (error && error.code === '23505') {
+        console.log('[assignService] Duplicate caught by DB constraint, skipping');
+        return;
+      }
       if (error) throw error;
     },
     onSuccess: () => {
@@ -322,12 +327,21 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      const { error } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .insert(inserts);
-      if (error) throw error;
+      // Insert one by one to handle unique constraint violations gracefully
+      let inserted = 0;
+      for (const row of inserts) {
+        const { error } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .insert(row);
+        if (error && error.code === '23505') {
+          console.log(`[autoDistribute] Duplicate for ${row.servicio_id}, skipping`);
+          continue;
+        }
+        if (error) throw error;
+        inserted++;
+      }
 
-      return inserts.length;
+      return inserted;
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey });
@@ -364,10 +378,19 @@ export function useMonitoristaAssignment() {
         turno,
       );
 
-      const { error } = await (supabase as any)
-        .from('bitacora_asignaciones_monitorista')
-        .insert(inserts);
-      if (error) throw error;
+      // Insert one by one to handle unique constraint violations gracefully
+      let insertedCount = 0;
+      for (const row of inserts) {
+        const { error } = await (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .insert(row);
+        if (error && error.code === '23505') {
+          console.log(`[resetAndRedistribute] Duplicate for ${row.servicio_id}, skipping`);
+          continue;
+        }
+        if (error) throw error;
+        insertedCount++;
+      }
 
       // Log anomaly
       await (supabase as any).from('bitacora_anomalias_turno').insert({
@@ -518,6 +541,10 @@ export function useMonitoristaAssignment() {
             asignado_por: user?.id || null,
             turno: turnoActual,
           });
+        if (error && error.code === '23505') {
+          console.log(`[rebalanceLoad] Duplicate for ${r.servicioId}, skipping`);
+          continue;
+        }
         if (error) throw error;
       }
 
