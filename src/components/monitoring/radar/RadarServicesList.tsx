@@ -128,7 +128,7 @@ function useBlockAutoScroll(items: RadarService[]) {
 
 /** A single equitable block with its own scroll */
 const ServiceBlock = ({ group, items }: { group: GroupDef; items: RadarService[] }) => {
-  const scrollRef = useBlockAutoScroll(items);
+  const { ref: scrollRef, onMouseEnter, onMouseLeave } = useBlockAutoScroll(items);
   const isAlert = group.key === 'alerta';
 
   return (
