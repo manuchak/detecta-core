@@ -30,8 +30,11 @@ export const BitacoraBoard: React.FC = () => {
   } = useBitacoraBoard();
 
   const { monitoristas, assignmentsByMonitorista } = useMonitoristaAssignment();
-  const { hasAnyRole } = useUserRole();
+  const { pausaActiva, segundosRestantes, excedido, finalizarPausa } = useMonitoristaPause();
+  const { hasAnyRole, hasRole } = useUserRole();
   const isAdminOrCoord = hasAnyRole(['admin', 'owner', 'monitoring_supervisor', 'coordinador_operaciones']);
+  const isMonitorista = hasRole('monitoring');
+  const showPauseOverlay = !!pausaActiva && isMonitorista && !isAdminOrCoord;
 
   const [selectedService, setSelectedService] = useState<BoardService | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
