@@ -298,7 +298,7 @@ export function useMonitoristaAssignment() {
 
   // Auto-distribute: assign all unassigned services equitably with client affinity
   const autoDistribute = useMutation({
-    mutationFn: async (params: { unassignedServiceIds: string[]; monitoristaIds: string[] }) => {
+    mutationFn: async (params: { unassignedServiceIds: string[]; monitoristaIds: string[]; activeBoardServiceIds?: Set<string> }) => {
       if (params.monitoristaIds.length === 0) throw new Error('No hay monitoristas en turno');
       if (params.unassignedServiceIds.length === 0) throw new Error('No hay servicios sin asignar');
 
@@ -313,10 +313,14 @@ export function useMonitoristaAssignment() {
         .in('servicio_id', params.unassignedServiceIds)
         .eq('activo', true);
 
-      // Build current load from combined assignments
+      // Build current load — only count operationally relevant services
+      const activeBoardIds = params.activeBoardServiceIds;
       const load: Record<string, number> = {};
       for (const mId of params.monitoristaIds) {
-        load[mId] = (assignmentsByMonitorista[mId] || []).length;
+        const assignments = assignmentsByMonitorista[mId] || [];
+        load[mId] = activeBoardIds
+          ? assignments.filter(a => activeBoardIds.has(a.servicio_id)).length
+          : assignments.length;
       }
 
       const inserts = await distributeWithAffinity(

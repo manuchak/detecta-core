@@ -115,11 +115,23 @@ export function useOrphanGuard() {
 
       const allEligible = [...new Set([...eligiblePending, ...unassignedActive])];
 
+      // Build operational board set for weighted load calculation
+      const operationalBoardIds = new Set<string>([
+        ...activeServiceIds,
+        ...eligiblePending,
+        ...pendingServiceIds.filter(id => {
+          const citaStr = serviceHoraCitaMap[id];
+          if (!citaStr) return false;
+          const timeUntil = new Date(citaStr).getTime() - now;
+          return timeUntil <= FOUR_HOURS && timeUntil > SIXTY_MIN_AGO;
+        }),
+      ]);
+
       if (allEligible.length > 0) {
         console.log(`[OrphanGuard] Auto-assigning ${allEligible.length} services:`, allEligible);
         allEligible.forEach(id => autoAssignedRef.current.set(id, now));
         autoDistribute.mutate(
-          { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id) },
+          { unassignedServiceIds: allEligible, monitoristaIds: enTurno.map(m => m.id), activeBoardServiceIds: operationalBoardIds },
           {
             onSuccess: (count) => {
               lastMutationTimestampRef.current = Date.now();
@@ -128,6 +140,32 @@ export function useOrphanGuard() {
             onError: () => allEligible.forEach(id => autoAssignedRef.current.delete(id)),
           }
         );
+      }
+
+      // Rule 4: Cleanup — deactivate assignments for pending services with cita >4h away
+      const farFutureAssignments: { id: string; servicio_id: string }[] = [];
+      for (const m of [...enTurno, ...sinTurno]) {
+        for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
+          // Only target pending services (not in-progress or events)
+          if (activeServiceIds.includes(a.servicio_id)) continue;
+          const citaStr = serviceHoraCitaMap[a.servicio_id];
+          if (!citaStr) continue;
+          const timeUntil = new Date(citaStr).getTime() - now;
+          if (timeUntil > FOUR_HOURS) {
+            farFutureAssignments.push({ id: a.id, servicio_id: a.servicio_id });
+          }
+        }
+      }
+      if (farFutureAssignments.length > 0) {
+        console.log(`[OrphanGuard] Rule 4: Deactivating ${farFutureAssignments.length} assignments for services >4h away`);
+        const ids = farFutureAssignments.map(a => a.id);
+        (supabase as any)
+          .from('bitacora_asignaciones_monitorista')
+          .update({ activo: false, fin_turno: new Date().toISOString() })
+          .in('id', ids)
+          .then(() => {
+            lastMutationTimestampRef.current = Date.now();
+          });
       }
 
       // Rule 3: Services assigned to offline monitoristas → reassign
@@ -197,11 +235,27 @@ export function useOrphanGuard() {
     const enCursoServiceIds = new Set(enCursoServices.map(s => s.id_servicio));
     const eventoServiceIds = new Set(eventoEspecialServices.map(s => s.id_servicio));
 
-    // Gather all formal active assignments
+    // Build set of operationally relevant service IDs (in-progress + event + pending within 4h)
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    const operationalServiceIds = new Set<string>();
+    for (const s of enCursoServices) operationalServiceIds.add(s.id_servicio);
+    for (const s of eventoEspecialServices) operationalServiceIds.add(s.id_servicio);
+    for (const s of pendingServices) {
+      const citaStr = serviceHoraCitaMap[s.id_servicio];
+      if (!citaStr) continue;
+      const timeUntil = new Date(citaStr).getTime() - nowMs;
+      if (timeUntil <= FOUR_HOURS_MS && timeUntil > -60 * 60 * 1000) {
+        operationalServiceIds.add(s.id_servicio);
+      }
+    }
+
+    // Gather all formal active assignments — only operationally relevant ones
     const allFormalActive: { assignmentId: string; servicioId: string; monitoristaId: string; horaCita: string; isEnCurso: boolean }[] = [];
     for (const m of enTurno) {
       for (const a of (assignmentsByMonitorista[m.id] || []).filter(x => x.activo)) {
         if (eventoServiceIds.has(a.servicio_id)) continue;
+        if (!operationalServiceIds.has(a.servicio_id)) continue; // Skip services outside operational window
         allFormalActive.push({
           assignmentId: a.id,
           servicioId: a.servicio_id,
@@ -293,7 +347,7 @@ export function useOrphanGuard() {
         toast.info(`⚖️ Carga rebalanceada: ~${perPerson} servicios c/u (${reassignments.length} movidos, solo fríos)`, { duration: 8000 });
       },
     });
-  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, serviceHoraCitaMap, rebalanceLoad]);
+  }, [enTurno, assignmentsByMonitorista, enCursoServices, eventoEspecialServices, pendingServices, serviceHoraCitaMap, rebalanceLoad]);
 
   useEffect(() => {
     if (enTurno.length < 2 || rebalanceLoad.isPending) return;
