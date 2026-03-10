@@ -117,7 +117,7 @@ export function useMonitoristaAssignment() {
             id: r.user_id,
             display_name: profileMap.get(r.user_id) || r.user_id.slice(0, 8),
             role: r.role,
-            en_turno: false, // Will be computed from activity
+            en_turno: false, // Will be computed from heartbeat
           });
         }
       }
@@ -126,12 +126,27 @@ export function useMonitoristaAssignment() {
     refetchInterval: 60_000,
   });
 
-  // NEW: Fetch recent activity from servicio_eventos_ruta to determine who is actively working
-  // Uses its own sub-query for monitorista IDs to avoid hook ordering issues
+  // NEW: Heartbeat-based presence detection (replaces heuristic)
+  const heartbeatQuery = useQuery({
+    queryKey: [...queryKey, 'heartbeat'],
+    queryFn: async () => {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60_000).toISOString();
+      const { data, error } = await (supabase as any)
+        .from('monitorista_heartbeat')
+        .select('user_id, last_ping')
+        .gte('last_ping', fiveMinAgo);
+      if (error) throw error;
+      return new Set((data || []).map((r: any) => r.user_id as string));
+    },
+    refetchInterval: 30_000,
+  });
+
+  const onlineUserIds = heartbeatQuery.data || new Set<string>();
+
+  // Fetch recent activity for inferred assignments (still needed for service mapping)
   const recentActivityQuery = useQuery({
     queryKey: [...queryKey, 'recent-activity'],
     queryFn: async () => {
-      // First get monitoring user IDs independently
       const { data: roles, error: rolesErr } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -154,7 +169,7 @@ export function useMonitoristaAssignment() {
     refetchInterval: 30_000,
   });
 
-  // Compute en_turno + activity stats from real event data
+  // Compute activity stats from real event data
   const activityByMonitorista = new Map<string, { lastActivity: string; eventCount: number; serviceIds: Set<string> }>();
   for (const evt of (recentActivityQuery.data || [])) {
     const existing = activityByMonitorista.get(evt.registrado_por);
@@ -173,17 +188,12 @@ export function useMonitoristaAssignment() {
     }
   }
 
-  // Also consider formal assignments for en_turno
-  const eightHoursAgo = new Date(Date.now() - 8 * 3600_000).toISOString();
-
+  // en_turno is now determined ONLY by heartbeat (online in last 5 min)
   const monitoristas: MonitoristaProfile[] = (monitoristasQuery.data || []).map(m => {
     const activity = activityByMonitorista.get(m.id);
-    const hasFormalAssignment = (allAssignments.data || []).some(
-      a => a.monitorista_id === m.id && a.activo && a.inicio_turno >= eightHoursAgo
-    );
     return {
       ...m,
-      en_turno: !!activity || hasFormalAssignment,
+      en_turno: onlineUserIds.has(m.id),
       last_activity: activity?.lastActivity,
       event_count: activity?.eventCount || 0,
     };
