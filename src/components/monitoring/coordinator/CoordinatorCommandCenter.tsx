@@ -182,6 +182,8 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
               </Button>
             </div>
           )}
+
+          <div className="flex gap-2">
             <AutoDistributeButton
               unassignedCount={unassigned.length}
               monitoristaCount={enTurno.length}
