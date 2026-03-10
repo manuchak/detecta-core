@@ -43,16 +43,16 @@ export function useOrphanGuard() {
       if (Date.now() - dedupCooldownRef.current < 60_000) return;
       dedupCooldownRef.current = Date.now();
       
+      let freshAssignedIds: Set<string>;
       try {
-        // Fresh DB query to find actual orphans (not relying on stale client state)
         const { data: freshAssignments } = await (supabase as any)
           .from('bitacora_asignaciones_monitorista')
           .select('servicio_id')
           .eq('activo', true);
         
-        var freshAssignedIds = new Set((freshAssignments || []).map((a: any) => a.servicio_id));
+        freshAssignedIds = new Set((freshAssignments || []).map((a: any) => a.servicio_id as string));
       } catch {
-        var freshAssignedIds = assignedServiceIds; // fallback to client state
+        freshAssignedIds = assignedServiceIds as Set<string>;
       }
       
       return freshAssignedIds;
