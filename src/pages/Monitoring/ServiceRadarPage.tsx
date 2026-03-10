@@ -58,9 +58,9 @@ const ServiceRadarPage = () => {
         <RadarMapDisplay
           servicios={servicios}
           safePoints={safePoints}
-          className="col-span-8 h-full"
+          className="col-span-7 h-full"
         />
-        <div className="col-span-4 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+        <div className="col-span-5 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
           <RadarServicesList servicios={servicios} />
         </div>
       </div>

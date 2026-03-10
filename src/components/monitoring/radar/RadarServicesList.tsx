@@ -132,7 +132,7 @@ const ServiceBlock = ({ group, items }: { group: GroupDef; items: RadarService[]
   const isAlert = group.key === 'alerta';
 
   return (
-    <div className={`h-1/4 flex flex-col min-h-0 border-b border-white/10 last:border-b-0 ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
+    <div className={`h-full flex flex-col min-h-0 overflow-hidden ${isAlert && items.length > 0 ? 'bg-red-950/20' : ''}`}>
       {/* Group header */}
       <div className={`flex items-center gap-2 px-3 py-1 shrink-0 ${isAlert && items.length > 0 ? 'bg-red-950/40' : 'bg-white/[0.07]'}`}>
         <div className="h-px flex-1 bg-white/20" />
@@ -216,10 +216,15 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
         SERVICIOS ({servicios.length})
       </div>
 
-      {/* 4 equitable blocks */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {groupedData.map(group => (
-          <ServiceBlock key={group.key} group={group} items={group.items} />
+      {/* 2x2 grid of blocks */}
+      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
+        {groupedData.map((group, i) => (
+          <div
+            key={group.key}
+            className={`min-h-0 overflow-hidden ${i % 2 === 0 ? 'border-r border-white/10' : ''} ${i < 2 ? 'border-b border-white/10' : ''}`}
+          >
+            <ServiceBlock group={group} items={group.items} />
+          </div>
         ))}
       </div>
     </div>
