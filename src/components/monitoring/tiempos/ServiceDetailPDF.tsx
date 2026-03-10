@@ -44,6 +44,7 @@ const LABEL_MAP: Record<string, string> = {
   pernocta: 'Parada — Pernocta',
   checkpoint: 'Checkpoint',
   incidencia: 'Incidencia',
+  trafico: 'Parada — Tráfico',
   foto_evidencia: 'Evidencia fotográfica',
   otro: 'Otro evento',
   llegada_destino: 'Llegada a Destino',
