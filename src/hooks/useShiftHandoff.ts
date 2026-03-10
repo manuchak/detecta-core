@@ -168,7 +168,6 @@ export function useShiftHandoff(salientes: MonitoristaProfile[]) {
         estado: i.estado,
       })),
       notas_servicio: '',
-      inferred: a.id?.startsWith('inferred-') || false,
     };
   });
 
