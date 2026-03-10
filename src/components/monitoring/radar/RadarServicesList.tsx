@@ -110,7 +110,7 @@ function useBlockAutoScroll(items: RadarService[]) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // If content grows and scroll wasn't needed before, start it
+  // If content grows or container resizes, start scroll if not running
   useEffect(() => {
     if (!isRunningRef.current) {
       const el = ref.current;
@@ -119,6 +119,19 @@ function useBlockAutoScroll(items: RadarService[]) {
       }
     }
   }, [items.length, startScroll]);
+
+  // ResizeObserver fallback: detect when container gets its real height
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (!isRunningRef.current && el.scrollHeight > el.clientHeight + 10) {
+        startScroll();
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [startScroll]);
 
   const onMouseEnter = useCallback(() => { isPausedRef.current = true; }, []);
   const onMouseLeave = useCallback(() => { isPausedRef.current = false; }, []);
