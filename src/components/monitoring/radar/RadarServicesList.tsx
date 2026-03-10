@@ -146,7 +146,7 @@ const ServiceBlock = ({ group, items }: { group: GroupDef; items: RadarService[]
       </div>
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
+      <div ref={scrollRef} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} className="flex-1 overflow-y-auto min-h-0">
         {items.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-600 text-xs">
             Sin servicios
