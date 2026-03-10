@@ -216,10 +216,15 @@ const RadarServicesList = ({ servicios }: RadarServicesListProps) => {
         SERVICIOS ({servicios.length})
       </div>
 
-      {/* 4 equitable blocks */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {groupedData.map(group => (
-          <ServiceBlock key={group.key} group={group} items={group.items} />
+      {/* 2x2 grid of blocks */}
+      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
+        {groupedData.map((group, i) => (
+          <div
+            key={group.key}
+            className={`min-h-0 overflow-hidden ${i % 2 === 0 ? 'border-r border-white/10' : ''} ${i < 2 ? 'border-b border-white/10' : ''}`}
+          >
+            <ServiceBlock group={group} items={group.items} />
+          </div>
         ))}
       </div>
     </div>
