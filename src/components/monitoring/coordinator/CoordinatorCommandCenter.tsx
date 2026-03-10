@@ -118,7 +118,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
   const { loadGap, minLoad, maxLoad: maxLoadVal, equityLevel } = useMemo(() => {
     if (enTurno.length < 2) return { loadGap: 0, minLoad: 0, maxLoad: 0, equityLevel: 'balanced' as const };
     const loads = enTurno.map(m =>
-      (assignmentsByMonitorista[m.id] || []).filter(a => a.activo).length
+      (filteredAssignmentsByMonitorista[m.id] || []).length
     );
     const min = Math.min(...loads);
     const max = Math.max(...loads);
