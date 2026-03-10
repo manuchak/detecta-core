@@ -60,6 +60,8 @@ export interface ClienteFiscalUpdate {
   prioridad_cobranza?: string | null;
   notas_cobranza?: string | null;
   horas_cortesia?: number | null;
+  horas_cortesia_local?: number | null;
+  horas_cortesia_foraneo?: number | null;
   pernocta_tarifa?: number | null;
   cobra_pernocta?: boolean | null;
   tipo_facturacion?: 'inmediata' | 'corte' | null;
