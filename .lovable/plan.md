@@ -1,83 +1,70 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Bug: Candidatos armados se insertan en tabla equivocada al aprobar lead
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Causa raíz
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+El flujo de aprobación de leads (`handleApproveLead` en `useLeadApprovals.ts`) **siempre** llama al RPC `sync_lead_to_candidato`, que inserta exclusivamente en `candidatos_custodios`. No existe lógica para verificar el `tipo_custodio` del lead (almacenado en `notas.tipo_custodio`) y redirigir a `candidatos_armados` cuando corresponde.
 
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
-
-## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
-- Mensaje de sistema al marcar "En Sitio"
-- Separadores visuales en `CustodioChat.tsx`
-- Bloqueo de escritura post-handoff
-
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
-
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
-
-## Fase Dev 8 — Broadcast multi-contacto (pendiente)
-- Checkboxes de contactos en tab Cliente
-- Envío individual por contacto
-- Agrupación visual en timeline
-
-## Fase Dev 9 — Testing E2E (pendiente)
-- CommTestPanel: flujos por canal
-- Edge cases: multi-servicio, ventana 24h, handoff
-
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+```text
+Lead (notas.tipo_custodio = "armado")
+        │
+        ▼
+handleApproveLead()
+        │
+        ▼
+sync_lead_to_candidato()  ← siempre inserta en candidatos_custodios ❌
+        │
+        ▼
+EvaluacionesPage (tipoOperativo = "custodio")
+        │
+        ▼
+DocumentsTab muestra: licencia_frente, licencia_reverso ❌
+(debería mostrar: portacion_arma, registro_arma)
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
+### Datos de Sergio Zuñiga:
+- Lead `f1d3fe5e...` con `notas.tipo_custodio = "armado"`
+- Insertado en `candidatos_custodios` (id: `30b5922c...`) — **tabla incorrecta**
+- No existe en `candidatos_armados`
+- El sistema le exige licencia de conducir (requisito de custodio) en lugar de portación/registro de arma
+
+## Corrección propuesta
+
+### 1. Migración SQL — Crear RPC `sync_lead_to_candidato_armado`
+
+Nuevo RPC que inserta en `candidatos_armados` en lugar de `candidatos_custodios`, con los campos específicos de armados (tipo_armado, experiencia, etc.).
+
+### 2. Modificar `handleApproveLead` en `useLeadApprovals.ts`
+
+Antes de llamar al RPC, leer `tipo_custodio` de las notas del lead:
+
+```typescript
+const notesData = lead.notas ? JSON.parse(lead.notas) : {};
+const tipoCustodio = notesData.tipo_custodio || 'custodio_vehiculo';
+const esArmado = tipoCustodio === 'armado';
+
+if (esArmado) {
+  // Llamar RPC para candidatos_armados
+  await supabase.rpc('sync_lead_to_candidato_armado', { ... });
+} else {
+  // Flujo actual: candidatos_custodios
+  await supabase.rpc('sync_lead_to_candidato', { ... });
+}
+```
+
+También condicionar la migración de datos vehiculares (líneas 382-416) para que solo aplique a custodios, y migrar datos de seguridad armada a `candidatos_armados` cuando corresponda.
+
+### 3. Fix retroactivo para Sergio Zuñiga (SQL)
+
+- Migrar su registro de `candidatos_custodios` a `candidatos_armados` 
+- Reasociar sus documentos existentes (`documentos_candidato.candidato_id`)
+- Actualizar `leads.candidato_custodio_id` (o agregar un campo `candidato_armado_id` si existe)
+
+### Archivos impactados
+
+| Archivo | Cambio |
 |---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+| Nueva migración SQL | RPC `sync_lead_to_candidato_armado` + fix retroactivo de Sergio |
+| `src/hooks/useLeadApprovals.ts` | Bifurcar flujo según `tipo_custodio` del lead |
+
