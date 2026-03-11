@@ -664,6 +664,12 @@ const ConversationSection: React.FC<{
         event: 'INSERT',
         schema: 'public',
         table: 'whatsapp_messages',
+        filter: `chat_id=eq.521${phone}`,
+      }, () => { fetchMessages(); })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'whatsapp_messages',
         filter: `chat_id=eq.${phone}`,
       }, () => { fetchMessages(); })
       .subscribe();
