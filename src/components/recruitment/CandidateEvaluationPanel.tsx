@@ -151,7 +151,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const gates: Gate[] = useMemo(() => {
     const g: Gate[] = [];
 
-    // BLOCKERS
+    // BLOCKERS — todos obligatorios para liberar
     g.push({
       id: 'docs', label: 'Documentación completa', level: 'blocker',
       passed: docsProgress.isComplete,
@@ -167,51 +167,51 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       tabTarget: 'toxicology',
     });
 
+    const socioOk = !!latestSocioeconomico && latestSocioeconomico.resultado_general !== 'desfavorable';
     g.push({
-      id: 'socio', label: 'Socioeconómico no desfavorable', level: 'blocker',
-      passed: !latestSocioeconomico || latestSocioeconomico.resultado_general !== 'desfavorable',
-      detail: !latestSocioeconomico ? 'Sin estudio — se puede proceder' : latestSocioeconomico.resultado_general === 'desfavorable' ? 'DESFAVORABLE' : `${latestSocioeconomico.resultado_general}`,
+      id: 'socio', label: 'Estudio socioeconómico', level: 'blocker',
+      passed: socioOk,
+      detail: !latestSocioeconomico ? 'Sin estudio registrado — requerido' : latestSocioeconomico.resultado_general === 'desfavorable' ? 'DESFAVORABLE' : `${latestSocioeconomico.resultado_general}`,
       tabTarget: 'socioeconomico',
     });
 
-    // WARNINGS
     g.push({
-      id: 'interview', label: 'Entrevista estructurada', level: 'warning',
+      id: 'interview', label: 'Entrevista estructurada', level: 'blocker',
       passed: !!latestInterview,
       detail: latestInterview ? `Rating: ${latestInterview.rating_promedio?.toFixed(1)}/5` : 'Sin entrevista registrada',
       tabTarget: 'interview',
     });
 
     g.push({
-      id: 'risk', label: 'Checklist de riesgo', level: 'warning',
+      id: 'risk', label: 'Checklist de riesgo', level: 'blocker',
       passed: !!riskChecklist,
       detail: riskChecklist ? `Nivel: ${riskChecklist.risk_level}` : 'Sin evaluación de riesgo',
       tabTarget: 'risk',
     });
 
     g.push({
-      id: 'psico', label: 'Evaluación psicométrica', level: 'warning',
+      id: 'psico', label: 'Evaluación psicométrica', level: 'blocker',
       passed: !!latestPsicometrico,
       detail: latestPsicometrico ? `Score: ${latestPsicometrico.score_global}` : 'Sin evaluación',
       tabTarget: 'psychometric',
     });
 
     g.push({
-      id: 'midot', label: 'Evaluación Midot', level: 'warning',
+      id: 'midot', label: 'Evaluación Midot', level: 'blocker',
       passed: !!latestMidot,
       detail: latestMidot ? `${latestMidot.resultado_semaforo}` : 'Sin evaluación',
       tabTarget: 'midot',
     });
 
     g.push({
-      id: 'contracts', label: 'Contratos firmados', level: 'warning',
+      id: 'contracts', label: 'Contratos firmados', level: 'blocker',
       passed: contractsProgress.isComplete,
       detail: `${contractsProgress.firmados}/${contractsProgress.totalRequeridos} contratos`,
       tabTarget: 'contracts',
     });
 
     g.push({
-      id: 'training', label: 'Capacitación completa', level: 'warning',
+      id: 'training', label: 'Capacitación completa', level: 'blocker',
       passed: trainingComplete,
       detail: trainingComplete ? 'Módulos completados' : 'Pendiente',
       tabTarget: 'training',
@@ -219,7 +219,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
     const refsOk = (refsProgress?.totalOk ?? 0) >= 4;
     g.push({
-      id: 'refs', label: 'Referencias verificadas (4/4)', level: 'warning',
+      id: 'refs', label: 'Referencias verificadas (4/4)', level: 'blocker',
       passed: refsOk,
       detail: `${refsProgress?.totalOk ?? 0}/${refsProgress?.totalRefs ?? 0} verificadas`,
       tabTarget: 'references',
