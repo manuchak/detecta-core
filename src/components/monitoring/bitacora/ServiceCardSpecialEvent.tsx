@@ -51,15 +51,30 @@ export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = (
             <span>{eventMeta.icon}</span>
             {eventMeta.label}
           </Badge>
-          <Badge variant="outline" className={cn(
-            'text-xs font-mono gap-1 px-2 py-0.5',
-            eventAlertLevel === 'critical' ? 'text-destructive' :
-            eventAlertLevel === 'warning' ? 'text-chart-4' :
-            'text-muted-foreground'
-          )}>
-            <Timer className="h-3 w-3" />
-            {minsOpen}min
-          </Badge>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[11px] px-1.5 gap-0.5 text-muted-foreground hover:text-foreground relative"
+              onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
+            >
+              <MessageCircle className="h-3 w-3" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 rounded-full bg-destructive text-destructive-foreground text-[7px] flex items-center justify-center px-0.5 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+            <Badge variant="outline" className={cn(
+              'text-xs font-mono gap-1 px-2 py-0.5',
+              eventAlertLevel === 'critical' ? 'text-destructive' :
+              eventAlertLevel === 'warning' ? 'text-chart-4' :
+              'text-muted-foreground'
+            )}>
+              <Timer className="h-3 w-3" />
+              {minsOpen}min
+            </Badge>
+          </div>
         </div>
 
         <div className="text-sm font-medium truncate">{service.nombre_cliente}</div>
