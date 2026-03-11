@@ -18324,6 +18324,8 @@ export type Database = {
       whatsapp_messages: {
         Row: {
           chat_id: string
+          comm_channel: string
+          comm_phase: string
           created_at: string | null
           delivery_status: string | null
           id: string
@@ -18335,12 +18337,15 @@ export type Database = {
           message_type: string | null
           sender_name: string | null
           sender_phone: string | null
+          sender_type: string
           sent_by_user_id: string | null
           servicio_id: string | null
           ticket_id: string | null
         }
         Insert: {
           chat_id: string
+          comm_channel?: string
+          comm_phase?: string
           created_at?: string | null
           delivery_status?: string | null
           id?: string
@@ -18352,12 +18357,15 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          sender_type?: string
           sent_by_user_id?: string | null
           servicio_id?: string | null
           ticket_id?: string | null
         }
         Update: {
           chat_id?: string
+          comm_channel?: string
+          comm_phase?: string
           created_at?: string | null
           delivery_status?: string | null
           id?: string
@@ -18369,6 +18377,7 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          sender_type?: string
           sent_by_user_id?: string | null
           servicio_id?: string | null
           ticket_id?: string | null
