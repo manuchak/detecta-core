@@ -107,7 +107,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { data: candidatoData } = useQuery({
     queryKey: ['candidato-vehiculo', candidatoId],
     queryFn: async () => {
-      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio').eq('id', candidatoId).single();
+      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia').eq('id', candidatoId).single();
       return data;
     },
     enabled: !!candidatoId,
