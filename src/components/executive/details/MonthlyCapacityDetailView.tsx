@@ -114,7 +114,7 @@ export function MonthlyCapacityDetailView() {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
-              <div className="text-2xl font-bold text-foreground">
+              <div className="text-lg md:text-2xl font-bold text-foreground">
                 {capacityData.monthlyCapacity.total.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground">
