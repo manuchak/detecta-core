@@ -64,6 +64,7 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
 
         if (uploadError) {
           setUploading(false);
+          toast({ title: 'Error al subir PDF', description: uploadError.message, variant: 'destructive' });
           return;
         }
 
