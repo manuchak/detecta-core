@@ -806,7 +806,7 @@ const PersistenceSection: React.FC<{ phone: string }> = ({ phone }) => {
     const { data, error } = await supabase
       .from('whatsapp_messages')
       .select('id, chat_id, message_text, message_type, is_from_bot, is_read, delivery_status, servicio_id, sent_by_user_id, media_url, created_at')
-      .eq('chat_id', phone)
+      .in('chat_id', [phone, `521${phone}`])
       .order('created_at', { ascending: false })
       .limit(20);
     if (!error) setRows((data || []) as DbMessage[]);
