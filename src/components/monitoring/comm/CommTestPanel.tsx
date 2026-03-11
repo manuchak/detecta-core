@@ -9,9 +9,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TEMPLATE_VARIABLES, type DetectaTemplateName } from '@/types/kapso';
 import {
   Table,
   TableBody,
@@ -70,28 +72,15 @@ interface DbMessage {
   created_at: string;
 }
 
-/* ─── Template definitions ─── */
+/* ─── Template definitions (loaded from DB) ─── */
 
-const TEMPLATES = [
-  {
-    name: 'nudge_status_custodio',
-    label: 'Nudge Status Custodio',
-    params: [
-      { key: 'nombre_custodio', label: 'Nombre Custodio', default: 'Juan Pérez' },
-      { key: 'folio_servicio', label: 'Folio Servicio', default: 'SVC-001' },
-    ],
-  },
-  {
-    name: 'reporte_servicio_cliente',
-    label: 'Reporte Servicio Cliente',
-    params: [
-      { key: 'nombre_cliente', label: 'Nombre Cliente', default: 'Empresa ABC' },
-      { key: 'folio_servicio', label: 'Folio Servicio', default: 'SVC-001' },
-      { key: 'estado', label: 'Estado', default: 'en curso' },
-      { key: 'observaciones', label: 'Observaciones', default: 'Sin novedades' },
-    ],
-  },
-];
+interface TemplateDefinition {
+  name: string;
+  label: string;
+  category: string;
+  variable_count: number;
+  params: Array<{ key: string; label: string; default: string }>;
+}
 
 /* ─── Main Component ─── */
 
@@ -334,20 +323,66 @@ const TemplateTestSection: React.FC<{
   servicioId: string;
   onLog: (action: string, success: boolean, payload: any, response: any) => void;
 }> = ({ phone, servicioId, onLog }) => {
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0].name);
+  const [templates, setTemplates] = useState<TemplateDefinition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const [params, setParams] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [showPayload, setShowPayload] = useState(false);
 
-  const template = TEMPLATES.find(t => t.name === selectedTemplate)!;
-
+  // Fetch approved templates from DB
   useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('whatsapp_templates')
+          .select('name, content, category, variable_count, meta_status, is_active')
+          .eq('meta_status', 'approved')
+          .eq('is_active', true)
+          .order('category')
+          .order('name');
+
+        if (error) throw error;
+
+        const mapped: TemplateDefinition[] = (data || []).map((t: any) => {
+          const vars = TEMPLATE_VARIABLES[t.name as DetectaTemplateName] || [];
+          return {
+            name: t.name,
+            label: t.name.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            category: t.category,
+            variable_count: t.variable_count,
+            params: vars.map(v => ({
+              key: v,
+              label: v.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              default: `Test ${v}`,
+            })),
+          };
+        });
+
+        setTemplates(mapped);
+        if (mapped.length > 0) setSelectedTemplate(mapped[0].name);
+      } catch (err) {
+        console.error('Error fetching templates:', err);
+        toast.error('Error al cargar templates aprobados');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  const template = templates.find(t => t.name === selectedTemplate);
+
+  // Reset params when template changes
+  useEffect(() => {
+    if (!template) return;
     const defaults: Record<string, string> = {};
     template.params.forEach(p => { defaults[p.key] = p.default; });
     setParams(defaults);
-  }, [selectedTemplate]);
+  }, [selectedTemplate, template]);
 
   const buildPayload = () => {
+    if (!template) return {};
     const parameters = template.params.map(p => ({
       type: 'text' as const,
       text: params[p.key] || p.default,
@@ -363,6 +398,7 @@ const TemplateTestSection: React.FC<{
 
   const handleSend = async () => {
     if (!phone) { toast.error('Configura un teléfono destino'); return; }
+    if (!template) return;
     setSending(true);
     const { data: { user } } = await supabase.auth.getUser();
     const payload = { ...buildPayload(), sent_by_user_id: user?.id || null };
@@ -380,25 +416,79 @@ const TemplateTestSection: React.FC<{
     }
   };
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Prueba de Templates</CardTitle>
+          <CardDescription>Cargando templates aprobados...</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (templates.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Prueba de Templates</CardTitle>
+          <CardDescription>No hay templates aprobados disponibles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+            <FileText className="h-10 w-10 mb-3" />
+            <p className="text-sm">No se encontraron templates con status "approved" y activos</p>
+            <p className="text-xs mt-1">Ve a Configuración → Kapso → Templates para aprobar templates</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Group templates by category for the select
+  const grouped = templates.reduce((acc, t) => {
+    if (!acc[t.category]) acc[t.category] = [];
+    acc[t.category].push(t);
+    return acc;
+  }, {} as Record<string, TemplateDefinition[]>);
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Prueba de Templates</CardTitle>
-        <CardDescription>Envía templates reales vía kapso-send-template</CardDescription>
+        <CardDescription>
+          Envía templates aprobados vía kapso-send-template ({templates.length} disponibles)
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
           <SelectTrigger>
-            <SelectValue />
+            <SelectValue placeholder="Selecciona un template" />
           </SelectTrigger>
           <SelectContent>
-            {TEMPLATES.map(t => (
-              <SelectItem key={t.name} value={t.name}>{t.label}</SelectItem>
+            {Object.entries(grouped).map(([category, catTemplates]) => (
+              <React.Fragment key={category}>
+                <SelectLabel className="text-xs uppercase text-muted-foreground">{category}</SelectLabel>
+                {catTemplates.map(t => (
+                  <SelectItem key={t.name} value={t.name}>{t.label}</SelectItem>
+                ))}
+              </React.Fragment>
             ))}
           </SelectContent>
         </Select>
 
-        {template.params.map(p => (
+        {template && (
+          <Badge variant="outline" className="text-xs">
+            {template.variable_count} variables · {template.category}
+          </Badge>
+        )}
+
+        {template?.params.map(p => (
           <div key={p.key} className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">{p.label}</label>
             <Input
@@ -422,7 +512,7 @@ const TemplateTestSection: React.FC<{
           </pre>
         )}
 
-        <Button onClick={handleSend} disabled={sending || !phone} className="w-full">
+        <Button onClick={handleSend} disabled={sending || !phone || !template} className="w-full">
           {sending ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
           Enviar Template
         </Button>
