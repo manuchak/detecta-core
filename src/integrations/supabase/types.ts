@@ -4633,27 +4633,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "custodio_liberacion_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: true
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-          {
             foreignKeyName: "custodio_liberacion_estado_residencia_id_fkey"
             columns: ["estado_residencia_id"]
             isOneToOne: false
@@ -6199,27 +6178,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "documentos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documentos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documentos_candidato_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-          {
             foreignKeyName: "documentos_candidato_subido_por_fkey"
             columns: ["subido_por"]
             isOneToOne: false
@@ -6918,27 +6876,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_ticket_agent_workload"
             referencedColumns: ["agent_id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_psicometricas_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
           },
           {
             foreignKeyName: "evaluaciones_psicometricas_evaluador_id_fkey"
@@ -9801,27 +9738,6 @@ export type Database = {
           zona_preferida_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "leads_candidato_custodio_id_fkey"
-            columns: ["candidato_custodio_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_candidato_custodio_id_fkey"
-            columns: ["candidato_custodio_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_candidato_custodio_id_fkey"
-            columns: ["candidato_custodio_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
           {
             foreignKeyName: "leads_zona_preferida_id_fkey"
             columns: ["zona_preferida_id"]
