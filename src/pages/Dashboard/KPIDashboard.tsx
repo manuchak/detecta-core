@@ -417,21 +417,9 @@ const KPIDashboard = () => {
                 <ClientAnalytics />
               </TabsContent>
 
-              {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
-              <TabsContent value="kpis-cost" className="space-y-4">
+              {/* ── MOBILE: KPIs ── */}
+              <TabsContent value="kpis" className="space-y-4">
                 <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
-
-                <div className="relative py-2">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
-                    Costos
-                  </span>
-                </div>
-
-                <ExpenseMetricsCards />
-                <ExpenseDistributionChart />
-                <ExpenseForm />
-                <ExpensesList />
               </TabsContent>
 
               {/* ── MOBILE: Resumen (Resumen + Calibración) ── */}
