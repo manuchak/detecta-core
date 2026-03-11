@@ -40,70 +40,70 @@ export function CPADetailView() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5" />
               CPA Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-red-600">
               {formatCurrency(cpaData.overallCPA)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               Costo por adquisición
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
               Nuevos Custodios
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
               {cpaData.yearlyBreakdown.totalNewCustodians.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               Total adquiridos
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <Target className="h-3.5 w-3.5" />
               Inversión Total
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-purple-600">
               {formatCurrency(cpaData.yearlyBreakdown.totalCosts)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               Total invertido
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingDown className="h-4 w-4" />
+          <CardHeader className="pb-1 md:pb-2 p-2 md:p-6">
+            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+              <TrendingDown className="h-3.5 w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
+          <CardContent className="p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-orange-600">
               {formatCurrency(cpaData.currentMonthData.cpa)}
             </div>
-            <p className="text-xs text-muted-foreference">
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               {cpaData.currentMonthData.month}
             </p>
           </CardContent>
