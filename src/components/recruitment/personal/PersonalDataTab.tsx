@@ -147,7 +147,7 @@ export function PersonalDataTab({ candidatoId }: Props) {
   };
 
   const updateField = (field: keyof PersonalData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    updateData({ [field]: value } as Partial<PersonalData>);
     if (errors[field]) {
       setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
     }
