@@ -107,35 +107,35 @@ export function RetentionDetailView() {
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Clock className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Tiempo Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-purple-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-purple-600">
               {retentionData.yearlyData.tiempoPromedioPermanenciaGeneral.toFixed(1)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              meses de permanencia
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              meses permanencia
             </p>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Mes Actual
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-orange-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-orange-600">
               {formatPercentage(retentionData.currentMonthData.tasaRetencion)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
               Tasa de retención
             </p>
           </CardContent>
