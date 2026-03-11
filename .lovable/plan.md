@@ -1,67 +1,100 @@
-# Centro de Comunicaciones WhatsApp — Bitácora
 
-## Estado: Fase 1 completada ✅
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+# Vista Móvil del Módulo de Monitoreo
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+## Problema
 
-## Fase 2 — Backend (pendiente parcial)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+El módulo `/monitoring` tiene 10 pestañas diseñadas exclusivamente para desktop. No usa `useIsMobile`, no desactiva el zoom 0.7, y los layouts de columnas (3-col grid en Bitácora, mapas de 500px, tablas anchas) son inutilizables en móvil.
 
-## Fase 2.5 — Trazabilidad monitorista ✅
-- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
-- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
-- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
-- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
-- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
+## Estrategia General
 
-## Fase 2.6 — Debug E2E Comunicación ✅
-- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
-- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
-- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
-- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
-- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
-- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
-- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
-- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
+1. **Wrapper `MonitoringMobileLayout`** que detecta `useIsMobile()` y renderiza una experiencia completamente diferente
+2. **Zoom reset** a 1.0 en móvil (como hacen TVPage y LMSZoomReset)
+3. **Bottom navigation** con iconos para las pestañas principales en lugar del TabsList horizontal
+4. **Stack vertical** en lugar de grids multi-columna
+5. Cada pestaña recibe adaptaciones específicas para táctil
 
-## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
+## Arquitectura
 
-### Gate de Visibilidad (Q1)
-- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
-- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
+```text
+MonitoringPage.tsx
+  └── useIsMobile() ?
+       ├── true  → <MonitoringMobilePage />
+       │            ├── Zoom reset (html.style.zoom = '1')
+       │            ├── Header compacto (título + refresh)
+       │            ├── Scrollable tab selector (horizontal pills)
+       │            └── Contenido por tab (componentes adaptados)
+       └── false → Layout desktop actual (sin cambios)
+```
 
-### Guard de Inicio
-- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
-- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
+## Plan por Pestaña
 
-### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
-- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
-- ✅ Solo limpia asignaciones automáticas >4h en el futuro
+### 1. Performance
+- Metric cards en grid 2x2 (en vez de row)
+- Charts con `h-[180px]` y scroll horizontal si necesario
+- Tabla de problemas en cards apiladas en vez de tabla
 
-### Supresión de Alertas en Pernocta
-- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
+### 2. Posicionamiento
+- Mapa full-width `h-[250px]`
+- Summary cards horizontales scrollables (pills)
+- Lista de servicios debajo del mapa (sin sidebar)
+- Weather widget colapsable
 
-### Contador Total por Monitorista
-- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
-- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
-- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
+### 3. Checklists
+- Dashboard pills horizontales scrollables
+- Tabla → lista de cards con badge de estado
+- Panel de alertas inline debajo (no sidebar)
 
-## Fase 4 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
+### 4. Adopción Digital
+- Dashboard metrics en pills
+- Tabla → cards apiladas con avatar + estado
+
+### 5. Incidentes
+- Ya es panel único — verificar que formularios usen sheets/drawers correctamente
+- Ajustar anchos de columnas de tabla
+
+### 6. Bitácora (MÁS COMPLEJO)
+- Grid de 3 columnas → **tabs horizontales internos** ("Por Iniciar", "En Curso", "Eventos")
+- Cada sub-tab es una lista vertical scrollable
+- MonitoristaAssignmentBar → colapsable o en sheet
+- Filtro de monitorista en header compacto
+- Cards con acciones inline (swipe o botones visibles)
+
+### 7. Tiempos
+- Tabla → cards con deltas prominentes
+- Vista de detalle: mapa arriba, datos abajo (stack)
+
+### 8. Coordinación C4
+- MonitoristaCards en lista vertical
+- Footer pills → bottom sheet con secciones
+- Handoff dialog → full-screen sheet
+
+### 9. Pruebas Comm / Reglas
+- Ya son contenido scrollable — ajustar padding y font sizes
+
+## Componentes Nuevos
+
+| Archivo | Descripción |
+|---|---|
+| `src/components/monitoring/mobile/MonitoringMobileShell.tsx` | Shell con zoom reset, header, tab selector horizontal |
+| `src/components/monitoring/mobile/MobileTabSelector.tsx` | Pills scrollables horizontalmente para las 10 pestañas |
+| `src/components/monitoring/mobile/MobileBitacoraBoard.tsx` | Bitácora adaptada con sub-tabs internos en vez de 3 columnas |
+| `src/components/monitoring/mobile/MobilePerformanceView.tsx` | Performance con cards 2x2 y charts compactos |
+| `src/components/monitoring/mobile/MobilePositioningView.tsx` | Mapa + lista apilados verticalmente |
+| `src/components/monitoring/mobile/MobileCoordinatorView.tsx` | C4 con monitoristas en lista y sheets para tools |
+
+## Archivos Modificados
+
+| Archivo | Cambio |
+|---|---|
+| `src/pages/Monitoring/MonitoringPage.tsx` | Bifurcación `useIsMobile()` → render móvil o desktop |
+
+## Patrones Reutilizados
+
+- **Zoom reset**: `html.style.zoom = '1'` en useEffect (patrón TVPage/LMS)
+- **Safe area**: `safe-area-inset-bottom` para bottom nav
+- **Scroll momentum**: `overflow-y-auto` sin `overscroll-y-contain`
+- **GPU layer forcing**: `transform: translateZ(0)` en contenedores de iconos
+- **Touch targets**: mínimo 44px para botones de acción
+- **Sheets para modales**: Vaul drawers en vez de Dialog en móvil
+
