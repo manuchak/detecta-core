@@ -41,8 +41,21 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
         </div>
 
         <div className="text-sm font-medium truncate">{service.nombre_cliente}</div>
-        <div className="text-xs text-muted-foreground truncate">
-          {service.custodio_asignado || 'Sin custodio'} · {service.id_servicio}
+        <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
+          <span className="truncate">{service.custodio_asignado || 'Sin custodio'} · {service.id_servicio}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground relative shrink-0"
+            onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
+          >
+            <MessageCircle className="h-3 w-3" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[10px] h-2.5 rounded-full bg-destructive text-destructive-foreground text-[6px] flex items-center justify-center px-0.5 animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </Button>
         </div>
 
         <Button
