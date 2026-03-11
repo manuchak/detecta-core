@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UserCheck, Timer, MapPinCheck, RotateCcw } from 'lucide-react';
+import { UserCheck, Timer, MapPinCheck, RotateCcw, MessageCircle } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
+import { ServiceCommSheet } from './ServiceCommSheet';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
