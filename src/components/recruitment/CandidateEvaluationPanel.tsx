@@ -297,6 +297,12 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   // Build section items with content
   const sectionItems: SectionItem[] = useMemo(() => [
     {
+      id: 'personal_data', label: 'Datos Personales', icon: <UserCircle className="h-4 w-4" />,
+      badge: <PersonalDataBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'personal_data'),
+      content: <PersonalDataTab candidatoId={candidatoId} />,
+    },
+    {
       id: 'interview', label: 'Entrevista', icon: <MessageSquare className="h-4 w-4" />,
       badge: latestInterview ? <Badge variant="outline" className="text-xs gap-1"><Star className="h-2.5 w-2.5" />{latestInterview.rating_promedio?.toFixed(1)}</Badge> : null,
       gate: gates.find(g => g.id === 'interview'),
