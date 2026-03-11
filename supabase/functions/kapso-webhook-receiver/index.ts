@@ -171,15 +171,18 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
   // Extraer contenido del mensaje
   let messageText = '';
   let mediaUrl = null;
+  let mediaId: string | null = null;
   
   if (data.text) {
     messageText = data.text.body;
   } else if (data.image) {
     messageText = data.image.caption || '[Imagen]';
     mediaUrl = data.image.id;
+    mediaId = data.image.id;
   } else if (data.document) {
     messageText = `[Documento: ${data.document.filename}]`;
     mediaUrl = data.document.id;
+    mediaId = data.document.id;
   } else if (data.interactive) {
     // Respuesta a botón o lista
     const reply = data.interactive.button_reply || data.interactive.list_reply;
@@ -191,8 +194,31 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
     }
   }
   
+  // ── Buscar servicio activo del custodio ──
+  // Normalizar teléfono a últimos 10 dígitos para matching
+  const phoneLast10 = senderPhone.replace(/\D/g, '').slice(-10);
+  
+  let servicioId: string | null = null;
+  
+  // Buscar en servicios_planificados donde el custodio tiene servicio activo
+  // (hora_inicio_real IS NOT NULL, hora_fin_real IS NULL)
+  const { data: activeService } = await supabase
+    .from('servicios_planificados')
+    .select('id, id_servicio, custodio_telefono')
+    .is('hora_fin_real', null)
+    .not('hora_inicio_real', 'is', null)
+    .or(`custodio_telefono.ilike.%${phoneLast10}%,custodio_telefono.eq.${senderPhone}`)
+    .order('hora_inicio_real', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (activeService) {
+    servicioId = activeService.id;
+    console.log(`🔗 Mensaje vinculado a servicio activo: ${activeService.id_servicio}`);
+  }
+  
   // Guardar mensaje en base de datos
-  const messageRecord = {
+  const messageRecord: any = {
     chat_id: senderPhone,
     message_id: data.id,
     sender_phone: senderPhone,
@@ -205,6 +231,11 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
     delivery_status: 'delivered',
     created_at: new Date().toISOString()
   };
+
+  // Link to active service if found
+  if (servicioId) {
+    messageRecord.servicio_id = servicioId;
+  }
   
   const { data: insertedMsg, error: msgError } = await supabase
     .from('whatsapp_messages')
@@ -214,6 +245,36 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
   
   if (msgError) {
     console.error('Error guardando mensaje:', msgError);
+  }
+
+  // ── Trigger media download if message has media and is linked to a service ──
+  if (mediaId && servicioId && insertedMsg) {
+    try {
+      const downloadRes = await fetch(
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/kapso-download-media`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            media_id: mediaId,
+            servicio_id: servicioId,
+            whatsapp_message_id: insertedMsg.id,
+            media_type: messageType,
+          }),
+        }
+      );
+      const downloadResult = await downloadRes.json();
+      if (downloadResult.success) {
+        console.log(`📸 Media descargado y persistido: ${downloadResult.public_url}`);
+      } else {
+        console.error('⚠️ Error descargando media:', downloadResult.error);
+      }
+    } catch (err) {
+      console.error('⚠️ Error invocando kapso-download-media:', err);
+    }
   }
   
   // Buscar si hay un ticket abierto con este chat
@@ -258,42 +319,47 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
       .maybeSingle();
     
     if (custodio) {
-      // Crear ticket automático para custodio
-      const ticketNumber = `TKT-WA-${Date.now().toString(36).toUpperCase()}`;
-      
-      const { data: newTicket, error: ticketError } = await supabase
-        .from('tickets')
-        .insert({
-          ticket_number: ticketNumber,
-          customer_phone: senderPhone,
-          customer_name: custodio.full_name,
-          subject: `Mensaje de WhatsApp de ${custodio.full_name}`,
-          description: messageText,
-          status: 'abierto',
-          priority: 'media',
-          category: 'soporte_custodio',
-          source: 'whatsapp',
-          whatsapp_chat_id: senderPhone,
-          custodio_id: custodio.id,
-          custodio_telefono: senderPhone,
-          tipo_ticket: 'soporte_whatsapp'
-        })
-        .select()
-        .single();
-      
-      if (!ticketError && newTicket) {
-        // Actualizar mensaje con ticket_id
-        if (insertedMsg) {
-          await supabase
-            .from('whatsapp_messages')
-            .update({ ticket_id: newTicket.id })
-            .eq('id', insertedMsg.id);
+      // Si tiene servicio activo, no crear ticket automático (la comunicación va por la bitácora)
+      if (servicioId) {
+        console.log(`📋 Mensaje de custodio con servicio activo — no se crea ticket, se gestiona en bitácora`);
+      } else {
+        // Crear ticket automático para custodio sin servicio activo
+        const ticketNumber = `TKT-WA-${Date.now().toString(36).toUpperCase()}`;
+        
+        const { data: newTicket, error: ticketError } = await supabase
+          .from('tickets')
+          .insert({
+            ticket_number: ticketNumber,
+            customer_phone: senderPhone,
+            customer_name: custodio.full_name,
+            subject: `Mensaje de WhatsApp de ${custodio.full_name}`,
+            description: messageText,
+            status: 'abierto',
+            priority: 'media',
+            category: 'soporte_custodio',
+            source: 'whatsapp',
+            whatsapp_chat_id: senderPhone,
+            custodio_id: custodio.id,
+            custodio_telefono: senderPhone,
+            tipo_ticket: 'soporte_whatsapp'
+          })
+          .select()
+          .single();
+        
+        if (!ticketError && newTicket) {
+          // Actualizar mensaje con ticket_id
+          if (insertedMsg) {
+            await supabase
+              .from('whatsapp_messages')
+              .update({ ticket_id: newTicket.id })
+              .eq('id', insertedMsg.id);
+          }
+          
+          console.log(`✅ Ticket creado automáticamente: ${ticketNumber}`);
+          
+          // Enviar respuesta automática
+          await sendAutoReply(senderPhone, custodio.full_name, ticketNumber);
         }
-        
-        console.log(`✅ Ticket creado automáticamente: ${ticketNumber}`);
-        
-        // Enviar respuesta automática
-        await sendAutoReply(senderPhone, custodio.full_name, ticketNumber);
       }
     } else {
       console.log(`⚠️ Mensaje de número desconocido: ${senderPhone}`);
