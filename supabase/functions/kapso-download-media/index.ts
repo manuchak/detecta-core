@@ -35,7 +35,8 @@ serve(async (req) => {
       throw new Error('media_id is required');
     }
 
-    console.log(`📥 Downloading media ${media_id} for service ${servicio_id}`);
+    const folder = servicio_id || 'unlinked';
+    console.log(`📥 Downloading media ${media_id} for ${servicio_id ? `service ${servicio_id}` : 'unlinked'}`);
 
     // Step 1: Get media URL from Kapso/Meta API
     const mediaInfoRes = await fetch(
