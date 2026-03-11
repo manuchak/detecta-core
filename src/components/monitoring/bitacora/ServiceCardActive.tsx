@@ -157,7 +157,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
               size="sm"
               className={cn(
                 'gap-1 text-muted-foreground hover:text-foreground',
-                isMobile ? 'h-9 min-h-[44px] text-xs px-3' : 'h-6 text-[11px] px-2'
+                isMobile ? 'h-8 text-xs px-3' : 'h-6 text-[11px] px-2'
               )}
             >
               <Timer className={cn(isMobile ? 'h-4 w-4' : 'h-3 w-3')} />
