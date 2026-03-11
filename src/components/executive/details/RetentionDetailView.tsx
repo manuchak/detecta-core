@@ -90,19 +90,19 @@ export function RetentionDetailView() {
           </CardContent>
         </Card>
 
-        <Card className="min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="h-3.5 w-3.5" />
+        <Card className="min-h-0 md:min-h-[140px] flex flex-col">
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Users className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Custodios {retentionData.yearlyData.labelUltimoQCompletado}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-blue-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-blue-600">
               {retentionData.yearlyData.custodiosUltimoQCompletado.toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Último trimestre completado
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              Último trimestre
             </p>
           </CardContent>
         </Card>
