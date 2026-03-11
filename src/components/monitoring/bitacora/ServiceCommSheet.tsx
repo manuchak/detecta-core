@@ -40,11 +40,13 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   const handleSendNudge = async () => {
     if (!service) return;
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('kapso-send-template', {
         body: {
           phone: service.custodio_asignado,
           template_name: 'nudge_status_custodio',
           language_code: 'es_MX',
+          sent_by_user_id: user?.id || null,
           components: [
             { type: 'body', parameters: [
               { type: 'text', text: service.custodio_asignado || 'Custodio' },
@@ -64,10 +66,12 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   const handleSendMessage = async (text: string) => {
     if (!service) return;
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('kapso-send-message', {
         body: {
           phone: service.custodio_asignado,
           message: text,
+          sent_by_user_id: user?.id || null,
         },
       });
       if (error) throw error;
