@@ -1,83 +1,102 @@
-# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Resumen ejecutivo
-Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
-Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-## Fase Dev 1 — Modelo de datos ✅
-- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
-- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
-- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
-- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
-- ✅ Índice `idx_wm_channel_sender` para queries de cliente
-- ✅ Backfill de registros existentes
+# Causa Raíz: Evaluación SIERCP de Alfonso Avalos Barajas no visible en leads
 
-## Fase Dev 2 — Router de contexto en webhook ✅
-- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
-- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
-- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
-- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
-- ✅ Cliente con servicio activo → visible en tab, no crea ticket
-- ✅ Cliente sin servicio → crea ticket de atención
+## Diagnóstico
 
-## Fase Dev 3 — Clasificación en mensajes salientes ✅
-- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
-- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
-- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
-
-## Fase Dev 4 — Chat de Planeación con custodio ✅
-- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
-- ✅ Filtra por `comm_channel='custodio_planeacion'`
-- ✅ Read-only después del handoff (`isHandedOff` prop)
-- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
-- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
-
-## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
-- Mensaje de sistema al marcar "En Sitio"
-- Separadores visuales en `CustodioChat.tsx`
-- Bloqueo de escritura post-handoff
-
-## Fase Dev 6 — Tab Cliente bidireccional ✅
-- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
-- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
-- ✅ WindowPill con countdown en tiempo real
-- ✅ Input deshabilitado cuando ventana cerrada, solo templates
-- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
-- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
-- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
-
-## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
-- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
-- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
-- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
-- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
-- ✅ Fire-and-forget: no bloquea el flujo principal
-
-## Fase Dev 8 — Broadcast multi-contacto (pendiente)
-- Checkboxes de contactos en tab Cliente
-- Envío individual por contacto
-- Agrupación visual en timeline
-
-## Fase Dev 9 — Testing E2E (pendiente)
-- CommTestPanel: flujos por canal
-- Edge cases: multi-servicio, ventana 24h, handoff
-
-## Dependencias
-```
-Fase 1 → Fase 2, Fase 3 (paralelas)
-Fase 2+3 → Fase 4, Fase 6 (paralelas)
-Fase 4 → Fase 5
-Fase 5+6 → Fase 7
-Fase 6 → Fase 8
-Todas → Fase 9
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  SIERCP completado pero no visible en el módulo de leads    │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+     ┌─────────────────────┼─────────────────────────────┐
+     │                     │                             │
+┌────┴─────┐        ┌─────┴──────┐               ┌──────┴──────┐
+│ INVITACIÓN│       │  RPC INSERT │              │  UI QUERY    │
+│ CREADA SIN│       │ candidato_id│              │ .eq(candidato│
+│ candidato_│       │ = NULL      │              │ _id, X)      │
+│ custodio  │       │ (hereda NULL│              │ nunca matchea│
+│ _id       │       │ de invitación)             │ NULL         │
+└────┬──────┘       └─────┬──────┘               └──────┬──────┘
+     │                    │                             │
+  ★ CAUSA               EFECTO 1                    EFECTO 2
+  RAÍZ                                           (invisible)
 ```
 
-## Templates Meta pendientes
-| Template | Estado |
+### Datos en BD
+
+| Entidad | Valor |
 |---|---|
-| posicionamiento_cliente | Por crear |
-| cierre_servicio_cliente | Por crear |
-| incidencia_servicio_cliente | Por crear |
-| nudge_status_custodio | No aprobado aún |
-| reporte_servicio_cliente | No aprobado aún |
+| Lead | `848baf03...` — "ALFONSO AVALOS BARAJAS", estado `aprobado` |
+| Invitación | `022fe5b4...` — `candidato_custodio_id = NULL`, status `completed` |
+| Evaluación | `a20fb51e...` — score 72, semáforo verde, **`candidato_id = NULL`** |
+| Candidato custodio | **No existe** registro en `candidatos_custodios` para este lead |
+
+### Cadena causal
+
+1. **La invitación SIERCP fue creada sin `candidato_custodio_id`** — el lead no tenía un registro vinculado en `candidatos_custodios` al momento de crear la invitación (el campo es opcional en `CreateInvitationData`).
+
+2. **El RPC `complete_siercp_assessment`** inserta en `evaluaciones_psicometricas` usando `v_invitation.candidato_custodio_id` como `candidato_id`. Como era NULL, la evaluación se guardó con `candidato_id = NULL`.
+
+3. **El hook `useEvaluacionesPsicometricas`** filtra por `.eq('candidato_id', candidatoId)`. Una evaluación con `candidato_id = NULL` nunca es retornada por ningún query, quedando huérfana e invisible.
+
+## Corrección
+
+### 1. Migración SQL — Vincular la evaluación huérfana (fix inmediato)
+
+Actualizar el `candidato_id` de la evaluación existente. Como no hay registro en `candidatos_custodios`, hay dos opciones:
+- **Opción A**: Crear el registro en `candidatos_custodios` y vincular.
+- **Opción B**: Hacer que el RPC y la UI soporten buscar evaluaciones por `lead_id` además de `candidato_id`.
+
+**Recomendación: Opción B** — es más resiliente porque no todos los leads tienen candidato_custodio al momento de la evaluación.
+
+### 2. Modificar la tabla `evaluaciones_psicometricas` — Agregar columna `lead_id`
+
+```sql
+ALTER TABLE evaluaciones_psicometricas ADD COLUMN lead_id text;
+```
+
+### 3. Modificar RPC `complete_siercp_assessment`
+
+Además de `candidato_id`, guardar `lead_id` desde la invitación:
+
+```sql
+INSERT INTO evaluaciones_psicometricas (
+  candidato_id, lead_id, ...
+) VALUES (
+  v_invitation.candidato_custodio_id,
+  v_invitation.lead_id,
+  ...
+);
+```
+
+### 4. Retroactive patch — Vincular evaluaciones huérfanas existentes
+
+```sql
+UPDATE evaluaciones_psicometricas ep
+SET lead_id = si.lead_id
+FROM siercp_invitations si
+WHERE si.evaluacion_id = ep.id
+  AND ep.lead_id IS NULL;
+```
+
+### 5. Modificar hook `useEvaluacionesPsicometricas`
+
+Agregar fallback: si no se encuentra por `candidato_id`, buscar por `lead_id`:
+
+```typescript
+// En useEvaluacionesPsicometricas y useLatestEvaluacionPsicometrica
+// Cambiar el query para usar OR logic via .or()
+.or(`candidato_id.eq.${candidatoId},lead_id.eq.${leadId}`)
+```
+
+Alternativamente, crear un hook separado `useEvaluacionesByLeadId` que el componente de leads use cuando no hay `candidato_custodio_id`.
+
+### Archivos impactados
+
+| Archivo | Cambio |
+|---|---|
+| Nueva migración SQL | Agregar columna `lead_id`, patch retroactivo, actualizar RPC |
+| `src/hooks/useEvaluacionesPsicometricas.ts` | Soporte para buscar por `lead_id` como fallback |
+| `src/components/recruitment/psychometrics/PsychometricEvaluationTab.tsx` | Pasar `leadId` además de `candidatoId` |
+
