@@ -239,9 +239,10 @@ export function useBitacoraBoard() {
     const lastEventAt = lastActionTime || (svc.hora_inicio_real ? new Date(svc.hora_inicio_real) : null);
     const minutesSinceLastAction = lastEventAt ? Math.floor((now - lastEventAt.getTime()) / 60_000) : 0;
 
-    // Alert level
+    // Alert level — suppress for active pernocta events
     let alertLevel: AlertLevel = 'normal';
-    if (phase === 'en_curso' || phase === 'en_destino') {
+    const isPernocta = activeEvent?.tipo_evento === 'pernocta';
+    if ((phase === 'en_curso' || phase === 'en_destino') && !isPernocta) {
       if (minutesSinceLastAction >= 45) alertLevel = 'critical';
       else if (minutesSinceLastAction >= 30) alertLevel = 'warning';
     }
