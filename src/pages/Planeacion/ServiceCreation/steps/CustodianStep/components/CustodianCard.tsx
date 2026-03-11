@@ -158,6 +158,11 @@ function CustodianCardComponent({
               <span className="font-medium truncate text-sm">{custodio.nombre}</span>
               <span className="text-xs text-muted-foreground">{scorePercentage}%</span>
               {getEquidadBadge()}
+              {custodio.conflictos_detectados && (
+                <Badge className="text-[10px] bg-warning/10 text-warning border-warning/30">
+                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Conflicto
+                </Badge>
+              )}
               {hasAccepted && (
                 <Badge className="text-[10px] bg-success/10 text-success border-success/30">
                   <Check className="h-2.5 w-2.5 mr-0.5" /> Asignado
@@ -333,7 +338,15 @@ function CustodianCardComponent({
           </div>
 
           {/* Availability status */}
-          {!disabled && !hasRejected && (
+          {!disabled && !hasRejected && custodio.conflictos_detectados && (
+            <div className="mt-2 flex items-center gap-1.5 p-2 bg-warning/10 border border-warning/30 rounded-lg">
+              <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+              <span className="apple-text-caption text-warning font-medium">
+                ⚠️ Conflicto de horario — {custodio.razon_no_disponible || 'Verificar antes de asignar'}
+              </span>
+            </div>
+          )}
+          {!disabled && !hasRejected && !custodio.conflictos_detectados && (
             <div className="mt-2 flex items-center gap-1.5">
               <span className="apple-text-caption text-success flex items-center gap-1">
                 <Check className="h-3 w-3" /> Sin conflictos

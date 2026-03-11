@@ -306,9 +306,9 @@ export function useCustodiosConProximidad(
                                        razon.includes('alcanzado');
 
               if (esConflictoHorario) {
-                // Real schedule conflict - must use override
-                custodioProcessed.disponibilidad_efectiva = 'temporalmente_indisponible';
-                custodioProcessed.categoria_disponibilidad = 'no_disponible';
+                // Schedule conflict - show as warning badge but keep selectable (non-blocking)
+                custodioProcessed.disponibilidad_efectiva = 'disponible';
+                custodioProcessed.categoria_disponibilidad = 'ocupado';
                 custodioProcessed.conflictos_detectados = true;
                 custodioProcessed.razon_no_disponible = disponibilidadEquitativa.razon_no_disponible || 'Conflicto de horario';
               } else if (esLimiteWorkload) {
@@ -541,9 +541,10 @@ export function useCustodiosConProximidad(
       };
 
       for (const custodio of custodiosFiltrados) {
-        // CRÍTICO: Filtrar completamente indisponibles y con conflictos
-        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' || 
-            custodio.conflictos_detectados) {
+        // Solo indisponibilidades reales (falla mecánica, emergencia) van a noDisponibles
+        // Conflictos de horario se muestran como advertencia en la lista principal
+        if (custodio.disponibilidad_efectiva === 'temporalmente_indisponible' && 
+            !custodio.conflictos_detectados) {
           categorizado.noDisponibles.push(custodio);
           continue;
         }
