@@ -118,26 +118,87 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const payload: KapsoWebhookPayload = await req.json();
+    const payload = await req.json();
     
     console.log('📥 Webhook recibido:', JSON.stringify(payload, null, 2));
-    
-    // Procesar según tipo de evento
+
+    // ── Formato Kapso nativo (sin campo "event" top-level) ──
+    if (!payload.event && payload.message?.kapso) {
+      const kapsoMeta = payload.message.kapso;
+      const kapsoStatus = kapsoMeta.status as string; // sent|delivered|read|failed
+      const direction = kapsoMeta.direction as string; // inbound|outbound
+      const messageId = payload.message.id as string;
+
+      console.log(`📡 Formato Kapso detectado — direction: ${direction}, status: ${kapsoStatus}, messageId: ${messageId}`);
+
+      if (direction === 'outbound') {
+        // Actualizar delivery_status del mensaje saliente
+        if (messageId) {
+          const { error: updErr } = await supabase
+            .from('whatsapp_messages')
+            .update({
+              delivery_status: kapsoStatus,
+              is_read: kapsoStatus === 'read',
+            })
+            .eq('message_id', messageId);
+
+          if (updErr) {
+            console.error(`⚠️ Error actualizando delivery_status para ${messageId}:`, updErr);
+          } else {
+            console.log(`📬 Mensaje ${messageId} → ${kapsoStatus}`);
+          }
+        }
+
+        // Loguear errores detallados si falló
+        if (kapsoStatus === 'failed') {
+          const errors = kapsoMeta.statuses?.[0]?.errors || payload.message?.kapso?.errors;
+          if (errors) {
+            console.error('❌ Error de entrega detallado:', JSON.stringify(errors));
+          }
+        }
+      } else if (direction === 'inbound') {
+        // Adaptar payload al formato interno para reutilizar handleIncomingMessage
+        const msgData = payload.message;
+        const adaptedPayload: KapsoWebhookPayload = {
+          event: 'whatsapp.message.received',
+          timestamp: msgData.timestamp || new Date().toISOString(),
+          data: {
+            id: msgData.id,
+            from: msgData.from || msgData.chat_id,
+            to: msgData.to,
+            type: msgData.type || 'text',
+            text: msgData.text ? { body: msgData.text.body || msgData.text } : undefined,
+            image: msgData.image,
+            document: msgData.document,
+            interactive: msgData.interactive,
+          },
+        };
+        await handleIncomingMessage(supabase, adaptedPayload);
+      } else {
+        console.log(`⚠️ Dirección Kapso desconocida: ${direction}`);
+      }
+
+      return new Response(JSON.stringify({ received: true, format: 'kapso_native' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Formato genérico (con campo "event") ──
     switch (payload.event) {
       case 'whatsapp.message.received':
-        await handleIncomingMessage(supabase, payload);
+        await handleIncomingMessage(supabase, payload as KapsoWebhookPayload);
         break;
         
       case 'whatsapp.message.delivered':
-        await handleDeliveryStatus(supabase, payload, 'delivered');
+        await handleDeliveryStatus(supabase, payload as KapsoWebhookPayload, 'delivered');
         break;
         
       case 'whatsapp.message.read':
-        await handleDeliveryStatus(supabase, payload, 'read');
+        await handleDeliveryStatus(supabase, payload as KapsoWebhookPayload, 'read');
         break;
         
       case 'whatsapp.message.failed':
-        await handleDeliveryStatus(supabase, payload, 'failed');
+        await handleDeliveryStatus(supabase, payload as KapsoWebhookPayload, 'failed');
         break;
         
       default:
