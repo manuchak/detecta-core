@@ -62,6 +62,9 @@ export function useCreateMidot() {
 
   return useMutation({
     mutationFn: async (input: CreateMidotInput) => {
+      if (!user?.id) {
+        throw new Error('Debes iniciar sesión para registrar una evaluación.');
+      }
       const score_global = Math.round(
         (input.score_integridad + input.score_honestidad + input.score_lealtad) / 3
       );
@@ -71,7 +74,7 @@ export function useCreateMidot() {
         .from('evaluaciones_midot')
         .insert({
           candidato_id: input.candidato_id,
-          evaluador_id: user?.id || '',
+          evaluador_id: user.id,
           score_integridad: input.score_integridad,
           score_honestidad: input.score_honestidad,
           score_lealtad: input.score_lealtad,

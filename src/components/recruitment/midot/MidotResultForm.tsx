@@ -44,11 +44,21 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
     rojo: 'text-red-600',
   };
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB bucket limit
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === 'application/pdf') {
-      setPdfFile(file);
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast({ title: 'Archivo inválido', description: 'Solo se permiten archivos PDF.', variant: 'destructive' });
+      return;
     }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({ title: 'Archivo demasiado grande', description: `El PDF no debe exceder 10MB. Tu archivo pesa ${(file.size / 1024 / 1024).toFixed(1)}MB.`, variant: 'destructive' });
+      e.target.value = '';
+      return;
+    }
+    setPdfFile(file);
   };
 
   const handleSubmit = async () => {
