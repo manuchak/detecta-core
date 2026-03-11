@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,6 +64,7 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
 
         if (uploadError) {
           setUploading(false);
+          toast({ title: 'Error al subir PDF', description: uploadError.message, variant: 'destructive' });
           return;
         }
 
@@ -97,9 +99,9 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
       }
 
       onSuccess?.();
-    } catch (error) {
-      // Hook onError already shows toast; ensure uploading state is clean
+    } catch (error: any) {
       setUploading(false);
+      toast({ title: 'Error', description: error?.message || 'No se pudo guardar la evaluación', variant: 'destructive' });
     }
   };
 
