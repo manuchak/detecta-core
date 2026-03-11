@@ -76,6 +76,15 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     return new Set([...pendingServices, ...allActive].map(s => s.id_servicio));
   }, [pendingServices, allActive]);
 
+  // Phase breakdown by service ID for coordinator cards
+  const servicePhaseMap = useMemo(() => {
+    const map: Record<string, 'pending' | 'enCurso' | 'evento'> = {};
+    for (const s of pendingServices) map[s.id_servicio] = 'pending';
+    for (const s of enCursoServices) map[s.id_servicio] = 'enCurso';
+    for (const s of eventoEspecialServices) map[s.id_servicio] = 'evento';
+    return map;
+  }, [pendingServices, enCursoServices, eventoEspecialServices]);
+
   // Filter assignmentsByMonitorista to only include services still on the board
   const filteredAssignmentsByMonitorista = useMemo(() => {
     const result: Record<string, typeof assignmentsByMonitorista[string]> = {};
@@ -84,6 +93,22 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
     }
     return result;
   }, [assignmentsByMonitorista, activeBoardServiceIds]);
+
+  // Phase breakdown per monitorista
+  const phaseBreakdownByMonitorista = useMemo(() => {
+    const result: Record<string, { pending: number; enCurso: number; evento: number }> = {};
+    for (const [mId, assignments] of Object.entries(filteredAssignmentsByMonitorista)) {
+      const bd = { pending: 0, enCurso: 0, evento: 0 };
+      for (const a of assignments) {
+        const phase = servicePhaseMap[a.servicio_id];
+        if (phase === 'pending') bd.pending++;
+        else if (phase === 'enCurso') bd.enCurso++;
+        else if (phase === 'evento') bd.evento++;
+      }
+      result[mId] = bd;
+    }
+    return result;
+  }, [filteredAssignmentsByMonitorista, servicePhaseMap]);
 
   // Detect assigned service IDs missing from board data
   const missingServiceIds = useMemo(() => {
