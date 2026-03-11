@@ -110,6 +110,13 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
           setConfirmOpen(false);
         }}
       />
+
+      <ServiceCommSheet
+        servicioId={service.id_servicio}
+        clienteLabel={service.nombre_cliente}
+        open={commOpen}
+        onOpenChange={setCommOpen}
+      />
     </>
   );
 };

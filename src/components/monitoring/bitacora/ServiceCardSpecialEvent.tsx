@@ -116,6 +116,13 @@ export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = (
           setConfirmOpen(false);
         }}
       />
+
+      <ServiceCommSheet
+        servicioId={service.id_servicio}
+        clienteLabel={service.nombre_cliente}
+        open={commOpen}
+        onOpenChange={setCommOpen}
+      />
     </>
   );
 };
