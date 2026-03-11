@@ -93,7 +93,7 @@ serve(async (req) => {
     };
     const ext = extMap[mimeType] || 'bin';
     const timestamp = Date.now();
-    const storagePath = `${servicio_id}/${timestamp}_${media_id.slice(-8)}.${ext}`;
+    const storagePath = `${folder}/${timestamp}_${media_id.slice(-8)}.${ext}`;
 
     console.log(`💾 Uploading ${fileSize} bytes to whatsapp-media/${storagePath}`);
 
