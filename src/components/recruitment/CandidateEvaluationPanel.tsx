@@ -104,10 +104,16 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
   const { liberarCustodio } = useCustodioLiberacion();
 
+  const isArmado = tipoOperativo === 'armado';
+  const candidatoTable = isArmado ? 'candidatos_armados' : 'candidatos_custodios';
+
   const { data: candidatoData } = useQuery({
-    queryKey: ['candidato-vehiculo', candidatoId],
+    queryKey: ['candidato-vehiculo', candidatoId, tipoOperativo],
     queryFn: async () => {
-      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia').eq('id', candidatoId).single();
+      const selectFields = isArmado
+        ? 'nombre, telefono, email, vehiculo_propio'
+        : 'vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia';
+      const { data } = await supabase.from(candidatoTable).select(selectFields).eq('id', candidatoId).single();
       return data;
     },
     enabled: !!candidatoId,
