@@ -210,7 +210,7 @@ export function CPADetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <PieChart>
                 <Pie
                   data={costBreakdownData}
