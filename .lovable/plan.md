@@ -1,73 +1,72 @@
-# Centro de Comunicaciones WhatsApp — Bitácora
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
-## Estado: Fase 1 completada ✅
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+## Fase Dev 2 — Router de contexto en webhook (pendiente)
+- Refactorizar `handleIncomingMessage` en `kapso-webhook-receiver`
+- Clasificar sender: custodio vs cliente vs desconocido
+- Desambiguación multi-servicio por `hora_inicio_real DESC`
+- Registrar comm_channel, comm_phase, sender_type en cada insert
 
-## Fase 2 — Backend (pendiente parcial)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+## Fase Dev 3 — Clasificación en mensajes salientes (pendiente)
+- `kapso-send-message`: aceptar context.comm_channel
+- `kapso-send-template`: aceptar context.comm_channel
+- `ServiceCommSheet`: pasar comm_channel al enviar
 
-## Fase 2.5 — Trazabilidad monitorista ✅
-- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
-- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
-- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
-- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
-- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
+## Fase Dev 4 — Chat de Planeación con custodio (pendiente)
+- NUEVO: `PlanningCustodioComm.tsx`
+- `useServicioComm.ts`: filtro por commChannel opcional
+- Integrar en `CustodianAssignmentStep.tsx`
 
-## Fase 2.6 — Debug E2E Comunicación ✅
-- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
-- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
-- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
-- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
-- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
-- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
-- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
-- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
+## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
+- Mensaje de sistema al marcar "En Sitio"
+- Separadores visuales en `CustodioChat.tsx`
+- Bloqueo de escritura post-handoff
 
-## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
+## Fase Dev 6 — Tab Cliente bidireccional (pendiente)
+- NUEVO: `ClientChat.tsx` (reemplaza ClientReportComposer)
+- Ventana 24h con countdown
+- Selector de contacto desde pc_clientes_contactos
 
-### Gate de Visibilidad (Q1)
-- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
-- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
+## Fase Dev 7 — Automatizaciones de ciclo de vida (pendiente)
+- Auto-envío posicionamiento_cliente al marcar "En Sitio"
+- Auto-envío cierre_servicio_cliente al completar
+- Guard anti-duplicado 5 min
 
-### Guard de Inicio
-- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
-- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
 
-### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
-- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
-- ✅ Solo limpia asignaciones automáticas >4h en el futuro
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
 
-### Supresión de Alertas en Pernocta
-- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
+```
 
-### Contador Total por Monitorista
-- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
-- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
-- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
-
-## Fase 2.7 — Fix Formato Webhook Kapso ✅
-- ✅ `kapso-webhook-receiver` ahora parsea formato nativo Kapso (`message.kapso.status/direction`) además del formato genérico (`event`)
-- ✅ Outbound: actualiza `delivery_status` y loguea errores detallados en `failed`
-- ✅ Inbound: adapta payload Kapso al formato interno y reutiliza `handleIncomingMessage`
-- ⚠️ Pendiente: Resolver error Meta 131042 (pago Business Manager) — problema externo, no de código
-
-## Fase 4 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
+## Templates Meta pendientes
+| Template | Estado |
+|---|---|
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
