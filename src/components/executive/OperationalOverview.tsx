@@ -298,9 +298,9 @@ export const OperationalOverview = () => {
       />
 
       <DoDTrendChart 
-        data={metrics.dailyTrend}
+        data={realTrendData}
         fillRateTarget={95}
-        otpTarget={90}
+        otpTarget={95}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
