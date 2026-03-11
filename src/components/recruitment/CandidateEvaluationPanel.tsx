@@ -243,7 +243,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
     });
 
     return g;
-  }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion]);
+  }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion, candidatoData]);
 
   const blockers = gates.filter(g => g.level === 'blocker' && !g.passed);
   const warnings = gates.filter(g => g.level === 'warning' && !g.passed);
