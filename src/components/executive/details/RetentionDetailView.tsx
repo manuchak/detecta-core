@@ -151,7 +151,7 @@ export function RetentionDetailView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 220 : 350}>
             <BarChart data={retentionData.monthlyBreakdown}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
