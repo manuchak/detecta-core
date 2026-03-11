@@ -491,14 +491,21 @@ export const ShiftHandoffDialog: React.FC<Props> = ({ open, onOpenChange, selfMo
                 Siguiente <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             ) : (
-              <Button
-                size="sm"
-                disabled={executeHandoff.isPending || !firmaEntrega || !firmaEntrante}
-                onClick={handleConfirm}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                Entregar Turno
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                {(!firmaEntrega || !firmaEntrante) && (
+                  <span className="text-xs text-destructive animate-pulse flex items-center gap-1">
+                    ✍️ {!firmaEntrega && !firmaEntrante ? 'Faltan ambas firmas ↓' : !firmaEntrega ? 'Falta firma saliente ↓' : 'Falta firma entrante ↓'}
+                  </span>
+                )}
+                <Button
+                  size="sm"
+                  disabled={executeHandoff.isPending || !firmaEntrega || !firmaEntrante}
+                  onClick={handleConfirm}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                  Entregar Turno
+                </Button>
+              </div>
             )}
           </div>
         </DialogFooter>
