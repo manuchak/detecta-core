@@ -1,4 +1,3 @@
-
 # Centro de Comunicaciones WhatsApp — Bitácora
 
 ## Estado: Fase 1 completada ✅
@@ -40,7 +39,29 @@
 - ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
 - ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
 
-## Fase 3 — Escalamiento y métricas (pendiente)
+## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
+
+### Gate de Visibilidad (Q1)
+- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
+- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
+
+### Guard de Inicio
+- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
+- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
+
+### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
+- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
+- ✅ Solo limpia asignaciones automáticas >4h en el futuro
+
+### Supresión de Alertas en Pernocta
+- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
+
+### Contador Total por Monitorista
+- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
+- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
+- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
+
+## Fase 4 — Escalamiento y métricas (pendiente)
 - Auto-escalamiento si custodio no responde a nudge en 15/30 min
 - Dashboard de métricas de comunicación
 - Bulk nudge para todos los custodios activos
