@@ -766,7 +766,6 @@ export const LeadEditDialog = ({ open, onOpenChange, lead, onUpdate }: LeadEditD
                         <SelectItem value="entrevista">En entrevista</SelectItem>
                         <SelectItem value="documentos">Documentos</SelectItem>
                         <SelectItem value="en_proceso">En proceso</SelectItem>
-                        <SelectItem value="aprobado">Aprobado</SelectItem>
                         <SelectItem value="rechazado">Rechazado</SelectItem>
                       </SelectContent>
                     </Select>
