@@ -1,97 +1,75 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Unificar Navegacion Movil del Dashboard
 
-## Roles confirmados por módulo
+## Problema
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+Actualmente hay **dos componentes separados** que renderizan en rutas distintas:
+- `ExecutiveDashboard` → `/dashboard`, `/dashboard/plan`, `/dashboard/starmap`, `/dashboard/operativo` — tiene su propia barra de tabs (Proyecciones, Plan 2026, StarMap, KPIs, Operativo)
+- `KPIDashboard` → `/dashboard/kpis` — tiene su **propio header duplicado** (greeting, tabs Proy./KPIs, botón refresh) + 4 sub-tabs (Ops, Clientes, KPIs, Resumen)
 
----
+En movil, al navegar a KPIs se pierde la barra unificada del ExecutiveDashboard y aparece un header redundante con greeting y tabs duplicadas.
 
-## Hallazgos actuales
+## Solucion
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+**Eliminar la ruta separada de KPIDashboard en movil** e integrar su contenido directamente dentro de ExecutiveDashboard, como ya se hace con StarMap, Plan 2026 y Operativo.
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+### Cambios
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+#### 1. `src/pages/Dashboard/ExecutiveDashboard.tsx`
+- Cuando `currentTab === 'kpis'` en movil, renderizar el contenido de KPIDashboard inline (las 4 sub-tabs: Ops, Clientes, KPIs, Resumen) en lugar de navegar a `/dashboard/kpis`
+- Extraer la logica de contenido del KPIDashboard a un componente reutilizable `KPIInlineContent`
+- Mantener la barra de tabs unificada visible en todo momento
 
----
+#### 2. `src/pages/Dashboard/KPIDashboard.tsx`
+- En movil: eliminar el header duplicado (greeting, tabs Proy./KPIs, refresh button)
+- Renderizar solo las 4 sub-tabs y su contenido
+- En desktop: mantener el layout actual sin cambios
 
-## Plan de corrección
+#### 3. `src/App.tsx`
+- En movil, `/dashboard/kpis` puede redirigir a `/dashboard` con tab=kpis, o simplemente el KPIDashboard detecta `isMobile` y omite su header propio
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+### Enfoque elegido: KPIDashboard sin header en movil
+
+La forma mas limpia es que **KPIDashboard en movil no renderice su propio header** (greeting, tabs de nivel 1, refresh). Solo muestra las 4 sub-tabs y contenido. La navegacion de nivel 1 ya la provee ExecutiveDashboard.
+
+Para que funcione sin cambiar rutas:
+- `ExecutiveDashboard` tab "KPIs" en movil: `navigate('/dashboard/kpis')` (ya lo hace)
+- `KPIDashboard` en movil: oculta greeting, oculta tabs Proy./KPIs, solo muestra sub-tabs + contenido
+- Agregar un boton "← Volver" compacto en KPIDashboard movil que regresa a `/dashboard`
+
+### Optimizacion de tarjetas de indicadores
+
+Las HeroCards del `OperationalHeroBar` (Fill Rate, On-Time, Servicios, GMV) actualmente usan `text-3xl` para el valor y padding generoso. En movil:
+- Reducir a `text-2xl` el valor principal
+- Comprimir padding de `p-4` a `p-3`
+- Grid de 2 columnas en movil (`grid-cols-2`) en vez de 1 columna, para ver 4 KPIs sin scroll
+
+## Archivos a modificar
+- `src/pages/Dashboard/KPIDashboard.tsx` — ocultar header en movil, agregar back button
+- `src/components/executive/OperationalHeroBar.tsx` — grid 2-col y tipografia compacta en movil
+
+## Resultado en 390px
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌───────────────────────────┐
+│ detecta      🔔  AD       │  ← TopBar (UnifiedLayout)
+├───────────────────────────┤
+│ Dashboard Ejecutivo       │
+│ [📈][🎯][⭐][📊][📡]     │  ← Tabs unificadas (ExecutiveDashboard)
+│         ↑ KPIs activo     │
+├───────────────────────────┤
+│ ← Volver                  │
+│ [Ops] [Client] [KPIs] [+] │  ← Sub-tabs KPI
+├───────────────────────────┤
+│ FILL RATE  │ ON-TIME      │
+│ 93.4%  🟡  │ 100%   🟢   │  ← 2-col compact
+│ Meta:95%   │ Meta:90%     │
+│ ↘-4%      │ —+0%         │
+├────────────┼──────────────┤
+│ SERVICIOS  │ GMV MTD      │
+│ 318    🟢  │ $4.2M   🟢  │
+│ ↗+44.5%   │ ↗+12%        │
+└───────────────────────────┘
 ```
-
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
-
-### Fase 2 — Migrar policies por módulo
-
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
-
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
 
