@@ -42,6 +42,7 @@ const COORDINATOR_ROLES = ['monitoring_supervisor', 'coordinador_operaciones', '
 const MONITORING_ROLES = ['monitoring', 'monitoring_supervisor', 'coordinador_operaciones', 'admin', 'owner'] as const;
 
 const MonitoringPage = () => {
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab');
   const { hasAnyRole } = useUserRole();
