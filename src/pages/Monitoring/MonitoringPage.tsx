@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RefreshCw, FlaskConical, BookOpen } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileMonitoringPage } from "@/components/monitoring/mobile/MobileMonitoringPage";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
