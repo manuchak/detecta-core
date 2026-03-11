@@ -295,7 +295,7 @@ export function MonthlyCapacityDetailView() {
       </Card>
 
       {/* Service Type Distribution */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Distribución por Tipo de Servicio</CardTitle>
