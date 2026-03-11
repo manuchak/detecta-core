@@ -26,20 +26,26 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ `useServicioComm`: soporta filtro opcional `commChannel`
 - ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-## Fase Dev 4 — Chat de Planeación con custodio (pendiente)
-- NUEVO: `PlanningCustodioComm.tsx`
-- `useServicioComm.ts`: filtro por commChannel opcional
-- Integrar en `CustodianAssignmentStep.tsx`
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
 ## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
 - Mensaje de sistema al marcar "En Sitio"
 - Separadores visuales en `CustodioChat.tsx`
 - Bloqueo de escritura post-handoff
 
-## Fase Dev 6 — Tab Cliente bidireccional (pendiente)
-- NUEVO: `ClientChat.tsx` (reemplaza ClientReportComposer)
-- Ventana 24h con countdown
-- Selector de contacto desde pc_clientes_contactos
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
 ## Fase Dev 7 — Automatizaciones de ciclo de vida (pendiente)
 - Auto-envío posicionamiento_cliente al marcar "En Sitio"
