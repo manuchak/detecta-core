@@ -158,6 +158,11 @@ function CustodianCardComponent({
               <span className="font-medium truncate text-sm">{custodio.nombre}</span>
               <span className="text-xs text-muted-foreground">{scorePercentage}%</span>
               {getEquidadBadge()}
+              {custodio.conflictos_detectados && (
+                <Badge className="text-[10px] bg-warning/10 text-warning border-warning/30">
+                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Conflicto
+                </Badge>
+              )}
               {hasAccepted && (
                 <Badge className="text-[10px] bg-success/10 text-success border-success/30">
                   <Check className="h-2.5 w-2.5 mr-0.5" /> Asignado
