@@ -153,6 +153,9 @@ verify_jwt = true
 [functions.kapso-webhook-receiver]
 verify_jwt = false
 
+[functions.kapso-download-media]
+verify_jwt = false
+
 [functions.cs-health-snapshot]
 verify_jwt = false
 
