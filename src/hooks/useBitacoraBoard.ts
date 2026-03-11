@@ -251,6 +251,8 @@ export function useBitacoraBoard() {
       nombre_cliente: svc.nombre_cliente,
       custodio_asignado: svc.custodio_asignado,
       custodio_id: svc.custodio_id,
+      custodio_telefono: svc.custodio_telefono || null,
+      telefono_cliente: svc.telefono_cliente || null,
       origen: svc.origen,
       destino: svc.destino,
       fecha_hora_cita: svc.fecha_hora_cita,
