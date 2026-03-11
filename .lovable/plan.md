@@ -26,10 +26,12 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ `useServicioComm`: soporta filtro opcional `commChannel`
 - ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-## Fase Dev 4 — Chat de Planeación con custodio (pendiente)
-- NUEVO: `PlanningCustodioComm.tsx`
-- `useServicioComm.ts`: filtro por commChannel opcional
-- Integrar en `CustodianAssignmentStep.tsx`
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
 ## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
 - Mensaje de sistema al marcar "En Sitio"
