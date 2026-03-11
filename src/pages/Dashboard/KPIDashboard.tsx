@@ -53,9 +53,27 @@ const KPIDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Mobile tab mapping: 4 consolidated tabs
+  const MOBILE_TAB_MAP: Record<string, string> = {
+    operacional: 'ops',
+    adquisicion: 'client',
+    clientes: 'client',
+    kpis: 'kpis-cost',
+    costos: 'kpis-cost',
+    resumen: 'summary',
+    calibracion: 'summary',
+  };
+
   // Read active internal tab from URL query params, default to 'operacional'
   const searchParams = new URLSearchParams(location.search);
-  const activeTab = searchParams.get('tab') || 'operacional';
+  const rawTab = searchParams.get('tab') || 'operacional';
+  // On mobile, normalize desktop tab values to mobile groups
+  const activeTab = useMemo(() => {
+    if (isMobile && !['ops', 'client', 'kpis-cost', 'summary'].includes(rawTab)) {
+      return MOBILE_TAB_MAP[rawTab] || 'ops';
+    }
+    return rawTab;
+  }, [rawTab, isMobile]);
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
