@@ -106,7 +106,7 @@ export function useBitacoraBoard() {
 
       let query = supabase
         .from('servicios_planificados')
-        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, custodio_telefono, telefono_cliente, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
         .is('hora_inicio_real', null)
         .not('custodio_asignado', 'is', null)
         .in('estado_planeacion', ['confirmado', 'planificado'])
