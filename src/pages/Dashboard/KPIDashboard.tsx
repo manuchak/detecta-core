@@ -676,7 +676,8 @@ const KPIDashboard = () => {
         {selectedKPI && (
           <KPIDetailView 
             selectedKPI={selectedKPI as any}
-            onClose={() => setSelectedKPI(null)}
+            onClose={() => { setSelectedKPI(null); setSelectedKPITooltip(null); }}
+            tooltipContent={selectedKPITooltip}
           />
         )}
       </div>
