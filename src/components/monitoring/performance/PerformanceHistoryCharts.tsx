@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { usePerformanceHistorico } from '@/hooks/usePerformanceHistorico';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp } from 'lucide-react';
+import { MobileChartBlock } from '@/components/executive/MobileChartBlock';
 import SingleMetricChart from './SingleMetricChart';
 
 const horizons = [
@@ -25,6 +27,9 @@ const metrics = [
 export default function PerformanceHistoryCharts() {
   const { data, isLoading } = usePerformanceHistorico();
   const [horizon, setHorizon] = useState<Horizon>('monthly');
+  const isMobile = useIsMobile();
+
+  const chartHeight = isMobile ? 160 : 200;
 
   return (
     <Card>
@@ -34,39 +39,56 @@ export default function PerformanceHistoryCharts() {
       </CardHeader>
       <CardContent>
         <Tabs value={horizon} onValueChange={v => setHorizon(v as Horizon)}>
-          <TabsList className="mb-4">
+          <TabsList className={isMobile ? 'mb-3 w-full overflow-x-auto flex justify-start' : 'mb-4'}>
             {horizons.map(h => (
-              <TabsTrigger key={h.value} value={h.value}>
-                {h.label}
+              <TabsTrigger key={h.value} value={h.value} className={isMobile ? 'text-xs flex-shrink-0' : ''}>
+                {isMobile ? h.label.split(' ')[0] : h.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {isLoading ? (
-            <Skeleton className="h-[460px] w-full rounded-lg" />
+            <Skeleton className="h-[260px] w-full rounded-lg" />
           ) : (
             horizons.map(h => (
               <TabsContent key={h.value} value={h.value}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {metrics.map(m => (
-                    <Card key={m.key} className="border border-border/50">
-                      <CardHeader className="py-3 px-4 pb-0">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
-                          <CardTitle className="text-sm font-medium">{m.title}</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="px-2 pb-2 pt-0">
+                {isMobile ? (
+                  <MobileChartBlock
+                    tabs={metrics.map(m => ({
+                      label: m.title,
+                      content: (
                         <SingleMetricChart
                           data={data?.[h.value] || []}
                           dataKey={m.key}
                           color={m.color}
                           target={m.target}
+                          height={chartHeight}
                         />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      ),
+                    }))}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {metrics.map(m => (
+                      <Card key={m.key} className="border border-border/50">
+                        <CardHeader className="py-3 px-4 pb-0">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
+                            <CardTitle className="text-sm font-medium">{m.title}</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-2 pb-2 pt-0">
+                          <SingleMetricChart
+                            data={data?.[h.value] || []}
+                            dataKey={m.key}
+                            color={m.color}
+                            target={m.target}
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             ))
           )}
