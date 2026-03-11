@@ -51,7 +51,10 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   isCheckpointPending, isEventoPending, isLlegadaPending,
 }) => {
   const [llegadaConfirm, setLlegadaConfirm] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
   const { monitoristaByService, monitoristas } = useMonitoristaAssignment();
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
 
   const assignedMonitorista = monitoristaByService.get(service.id_servicio);
   const monitoristaColorIndex = assignedMonitorista
