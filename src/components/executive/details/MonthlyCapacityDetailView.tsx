@@ -101,7 +101,7 @@ export function MonthlyCapacityDetailView() {
   return (
     <div className="space-y-6">
       {/* Hero Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-2 md:gap-4">
         {/* Card 1: Capacidad Total Mensual */}
         <Card className="flex flex-col">
           <CardHeader className="pb-3">
