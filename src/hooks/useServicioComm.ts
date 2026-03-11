@@ -109,7 +109,7 @@ export function useServicioComm(servicioId: string | null, commChannel?: string)
           filter: `servicio_id=eq.${servicioId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['servicio-comm', servicioId] });
+          queryClient.invalidateQueries({ queryKey: ['servicio-comm', servicioId, commChannel] });
           queryClient.invalidateQueries({ queryKey: ['servicio-comm-unread'] });
         }
       )
