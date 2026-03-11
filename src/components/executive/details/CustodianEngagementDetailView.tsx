@@ -216,7 +216,7 @@ export function CustodianEngagementDetailView() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.horasPromedioPorCustodio}h</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.horasPromedioPorCustodio}h</div>
             <p className="text-xs text-muted-foreground">
               {resumenGeneral.horasPromedioPorCustodio > 200 ? 'Alto riesgo' : 
                resumenGeneral.horasPromedioPorCustodio > 160 ? 'Moderado' : 'Saludable'}
