@@ -339,7 +339,7 @@ export function SupplyGrowthDetailView() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 md:gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-lg md:text-2xl font-bold text-green-600">
                     {qualityMetrics.custodiosConMas5Servicios}
                   </div>
                   <div className="text-xs text-muted-foreground">
