@@ -20,8 +20,13 @@ import {
   Zap,
   BarChart3,
   Settings,
-  Brain
+  Brain,
+  DollarSign
 } from "lucide-react";
+import { ExpenseMetricsCards } from "@/components/recruitment/ExpenseMetricsCards";
+import { ExpenseDistributionChart } from "@/components/recruitment/ExpenseDistributionChart";
+import { ExpenseForm } from "@/components/recruitment/ExpenseForm";
+import { ExpensesList } from "@/components/recruitment/ExpensesList";
 import { useSupplyDashboard } from "@/hooks/useSupplyDashboard";
 import { Link } from "react-router-dom";
 import { DailyCallStats } from "@/components/supply/DailyCallStats";
