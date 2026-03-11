@@ -277,6 +277,24 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
     servicioId = activeService.id;
     console.log(`🔗 Mensaje vinculado a servicio activo: ${activeService.id_servicio}`);
   }
+
+  // Fallback: heredar servicio_id del último mensaje saliente al mismo chat_id
+  if (!servicioId) {
+    const { data: lastOutbound } = await supabase
+      .from('whatsapp_messages')
+      .select('servicio_id')
+      .eq('chat_id', senderPhone)
+      .eq('is_from_bot', true)
+      .not('servicio_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastOutbound?.servicio_id) {
+      servicioId = lastOutbound.servicio_id;
+      console.log(`🔗 Servicio heredado del último mensaje saliente: ${servicioId}`);
+    }
+  }
   
   // Guardar mensaje en base de datos
   const messageRecord: any = {
