@@ -106,9 +106,10 @@ export function useBitacoraBoard() {
 
       let query = supabase
         .from('servicios_planificados')
-        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, custodio_telefono, telefono_cliente, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado')
+        .select('id, id_servicio, nombre_cliente, custodio_asignado, custodio_id, custodio_telefono, telefono_cliente, origen, destino, fecha_hora_cita, hora_inicio_real, hora_fin_real, estado_planeacion, en_destino, tipo_servicio, requiere_armado, hora_llegada_custodio')
         .is('hora_inicio_real', null)
         .not('custodio_asignado', 'is', null)
+        .not('hora_llegada_custodio', 'is', null)  // Gate: only show services where Planning confirmed "En Sitio"
         .in('estado_planeacion', ['confirmado', 'planificado'])
         .gte('fecha_hora_cita', desde.toISOString())
         .lte('fecha_hora_cita', hasta.toISOString())
