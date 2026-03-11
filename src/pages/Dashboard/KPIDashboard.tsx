@@ -56,8 +56,7 @@ const KPIDashboard = () => {
     adquisicion: 'client',
     clientes: 'client',
     kpis: 'kpis',
-    resumen: 'summary',
-    calibracion: 'summary',
+    calibracion: 'calibracion',
   };
 
   // Read active internal tab from URL query params, default to 'operacional'
