@@ -81,7 +81,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
       <div
         className={cn(
           'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 transition-colors group cursor-pointer select-none',
-          isMobile ? 'px-4 py-4' : 'px-3 py-3',
+          isMobile ? 'px-3 py-2.5' : 'px-3 py-3',
           borderAccent
         )}
         onDoubleClick={() => onDoubleClick?.(service)}
