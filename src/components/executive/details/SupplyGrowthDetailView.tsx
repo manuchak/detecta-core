@@ -202,7 +202,7 @@ export function SupplyGrowthDetailView() {
                     size={24}
                     color="hsl(var(--primary))"
                   />
-                  <div className="text-2xl font-bold">{summary.qualityRating.stars}/5</div>
+                  <div className="text-lg md:text-2xl font-bold">{summary.qualityRating.stars}/5</div>
                   <p className="text-xs text-muted-foreground text-center">
                     {summary.qualityRating.stars >= 5 ? 'Excelente' :
                      summary.qualityRating.stars >= 4 ? 'Muy Bueno' :
