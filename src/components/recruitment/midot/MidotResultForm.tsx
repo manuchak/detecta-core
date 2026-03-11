@@ -99,9 +99,9 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
       }
 
       onSuccess?.();
-    } catch (error) {
-      // Hook onError already shows toast; ensure uploading state is clean
+    } catch (error: any) {
       setUploading(false);
+      toast({ title: 'Error', description: error?.message || 'No se pudo guardar la evaluación', variant: 'destructive' });
     }
   };
 
