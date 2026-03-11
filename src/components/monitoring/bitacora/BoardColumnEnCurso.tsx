@@ -69,6 +69,34 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
           <div className="text-xs text-muted-foreground/50 text-center py-8 w-full">
             {isFiltered ? 'Sin resultados' : 'Sin servicios en curso'}
           </div>
+        ) : isMobile ? (
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {filtered.map(s =>
+              s.phase === 'en_destino' ? (
+                <ServiceCardEnDestino
+                  key={s.id}
+                  service={s}
+                  onLiberar={onLiberar}
+                  onRevertir={onRevertir}
+                  onDoubleClick={onDoubleClick}
+                  isPending={isLiberarPending}
+                  isRevertirPending={isRevertirPending}
+                />
+              ) : (
+                <ServiceCardActive
+                  key={s.id}
+                  service={s}
+                  onEventoEspecial={onEventoEspecial}
+                  onCheckpoint={onCheckpoint}
+                  onLlegadaDestino={onLlegadaDestino}
+                  onDoubleClick={onDoubleClick}
+                  isCheckpointPending={isCheckpointPending}
+                  isEventoPending={isEventoPending}
+                  isLlegadaPending={isLlegadaPending}
+                />
+              )
+            )}
+          </div>
         ) : (
           (() => {
             const half = Math.ceil(filtered.length / 2);
