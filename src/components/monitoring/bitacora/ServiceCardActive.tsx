@@ -204,6 +204,12 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
           setLlegadaConfirm(false);
         }}
       />
+
+      <ServiceCommSheet
+        open={commOpen}
+        onOpenChange={setCommOpen}
+        service={service}
+      />
     </>
   );
 };
