@@ -1,44 +1,73 @@
+# Centro de Comunicaciones WhatsApp — Bitácora
 
+## Estado: Fase 1 completada ✅
 
-# Fix: Mensajes no visibles en la Vista de Conversación
+### DB (migración aplicada)
+- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
+- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
+- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
+- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
+- ✅ Realtime habilitado en `servicio_comm_media`
 
-## Diagnóstico
+### Frontend (creado)
+- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
+- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
+- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
+- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
+- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
+- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
 
-El problema es un **mismatch de formato de teléfono** entre la UI y la base de datos:
+## Fase 2 — Backend (pendiente parcial)
+- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
+- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
+- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
 
-```text
-UI (normalizePhone):     5518095686        ← últimos 10 dígitos
-DB (chat_id real):       5215518095686     ← 13 dígitos con prefijo 521
-```
+## Fase 2.5 — Trazabilidad monitorista ✅
+- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
+- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
+- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
+- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
+- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
 
-La función `normalizePhone()` en `src/lib/phoneUtils.ts` devuelve los últimos 10 dígitos, pero `kapso-send-message` normaliza a 13 dígitos con prefijo `521` antes de guardar en `whatsapp_messages.chat_id`. La consulta en `ConversationSection` filtra `.eq('chat_id', phone)` con el formato de 10 dígitos, por lo que nunca encuentra los mensajes.
+## Fase 2.6 — Debug E2E Comunicación ✅
+- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
+- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
+- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
+- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
+- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
+- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
+- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
+- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
 
-El mismo problema afecta a `PersistenceSection` y `ReceiveSimSection`.
+## Fase 3 — Blindaje Workflow Planeación → Monitoreo ✅
 
-## Solución
+### Gate de Visibilidad (Q1)
+- ✅ `useBitacoraBoard.ts` — pendingQuery ahora filtra `.not('hora_llegada_custodio', 'is', null)` 
+- ✅ Monitoreo SOLO ve servicios donde Planeación confirmó "En Sitio"
 
-En `CommTestPanel.tsx`, modificar las queries de `ConversationSection` y `PersistenceSection` para buscar por **ambas variantes del teléfono** (10 dígitos y 13 dígitos con prefijo `521`):
+### Guard de Inicio
+- ✅ `iniciarServicio` verifica `hora_llegada_custodio IS NOT NULL` antes de escribir `hora_inicio_real`
+- ✅ Toast de error explícito si custodio no ha sido marcado "En Sitio"
 
-```typescript
-// Antes:
-.eq('chat_id', phone)
+### Protección de Asignaciones Manuales (OrphanGuard Rule 4)
+- ✅ `useOrphanGuard.ts` — Rule 4 excluye asignaciones con `asignado_por != null` (coordinador)
+- ✅ Solo limpia asignaciones automáticas >4h en el futuro
 
-// Después:
-.in('chat_id', [phone, `521${phone}`])
-```
+### Supresión de Alertas en Pernocta
+- ✅ `computePhaseAndTimers` no escala `alertLevel` cuando evento activo es `pernocta`
 
-También aplicar lo mismo al filtro del canal realtime, que actualmente usa `filter: chat_id=eq.${phone}` — cambiar para escuchar ambos formatos o usar el formato largo.
+### Contador Total por Monitorista
+- ✅ `BitacoraBoard.tsx` — Badge desglosado: `N pendientes · M en curso · K evento = T total`
+- ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
+- ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
 
-### Cambios concretos en `src/components/monitoring/comm/CommTestPanel.tsx`:
+## Fase 2.7 — Fix Formato Webhook Kapso ✅
+- ✅ `kapso-webhook-receiver` ahora parsea formato nativo Kapso (`message.kapso.status/direction`) además del formato genérico (`event`)
+- ✅ Outbound: actualiza `delivery_status` y loguea errores detallados en `failed`
+- ✅ Inbound: adapta payload Kapso al formato interno y reutiliza `handleIncomingMessage`
+- ⚠️ Pendiente: Resolver error Meta 131042 (pago Business Manager) — problema externo, no de código
 
-1. **`ConversationSection.fetchMessages`** (~línea 647): Cambiar `.eq('chat_id', phone)` → `.in('chat_id', [phone, '521' + phone])`
-2. **`ConversationSection` realtime** (~línea 667): Suscribirse a ambas variantes del chat_id
-3. **`ConversationSection.handleQuickSend`** — el envío como monitorista ya usa la edge function que normaliza correctamente; el envío como custodio (sim) inserta directo con `chat_id: phone` (10 dígitos), lo que también causa un mismatch. Cambiar a usar `521${phone}` para consistencia.
-4. **`PersistenceSection.fetchRows`** (~línea 803): Mismo cambio `.in('chat_id', [phone, '521' + phone])`
-
-### Archivo a modificar
-
-| Archivo | Cambio |
-|---|---|
-| `src/components/monitoring/comm/CommTestPanel.tsx` | Queries y realtime usan ambas variantes de chat_id |
-
+## Fase 4 — Escalamiento y métricas (pendiente)
+- Auto-escalamiento si custodio no responde a nudge en 15/30 min
+- Dashboard de métricas de comunicación
+- Bulk nudge para todos los custodios activos
