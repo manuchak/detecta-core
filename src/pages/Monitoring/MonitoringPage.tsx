@@ -30,6 +30,7 @@ import PerformanceDashboard from "@/components/monitoring/performance/Performanc
 import { BitacoraPanel } from "@/components/monitoring/bitacora";
 import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
 import { ServiceTimesPanel } from "@/components/monitoring/tiempos/ServiceTimesPanel";
+import { CommTestPanel } from "@/components/monitoring/comm/CommTestPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useHeartbeatPing } from "@/hooks/useHeartbeatPing";
 import { useOrphanGuard } from "@/hooks/useOrphanGuard";
