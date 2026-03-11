@@ -304,9 +304,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const sectionItems: SectionItem[] = useMemo(() => [
     {
       id: 'personal_data', label: 'Datos Personales', icon: <UserCircle className="h-4 w-4" />,
-      badge: <PersonalDataBadge candidatoId={candidatoId} size="sm" />,
+      badge: <PersonalDataBadge candidatoId={candidatoId} tipoOperativo={tipoOperativo} size="sm" />,
       gate: gates.find(g => g.id === 'personal_data'),
-      content: <PersonalDataTab candidatoId={candidatoId} />,
+      content: <PersonalDataTab candidatoId={candidatoId} tipoOperativo={tipoOperativo} />,
     },
     {
       id: 'interview', label: 'Entrevista', icon: <MessageSquare className="h-4 w-4" />,
