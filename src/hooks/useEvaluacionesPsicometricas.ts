@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 export interface EvaluacionPsicometrica {
   id: string;
+  lead_id: string | null;
   candidato_id: string;
   evaluador_id: string;
   score_integridad: number | null;
