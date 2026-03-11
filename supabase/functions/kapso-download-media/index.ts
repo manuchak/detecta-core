@@ -34,9 +34,6 @@ serve(async (req) => {
     if (!media_id) {
       throw new Error('media_id is required');
     }
-    if (!servicio_id) {
-      throw new Error('servicio_id is required');
-    }
 
     console.log(`📥 Downloading media ${media_id} for service ${servicio_id}`);
 
