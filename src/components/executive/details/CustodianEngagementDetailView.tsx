@@ -128,13 +128,13 @@ export function CustodianEngagementDetailView() {
   const { metricas, tendenciaMensual, resumenGeneral } = engagementData;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start md:items-center gap-2">
         <div>
-          <h1 className="text-3xl font-bold">Engagement de Custodios</h1>
-          <p className="text-muted-foreground">
-            Análisis detallado del engagement y bienestar laboral
+          <h1 className="text-xl md:text-3xl font-bold">Engagement de Custodios</h1>
+          <p className="text-xs md:text-sm text-muted-foreground">
+            Análisis detallado del engagement
           </p>
         </div>
         <Button onClick={refreshData} variant="outline" size="sm">
