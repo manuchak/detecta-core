@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ArrowRight, Shield } from 'lucide-react';
+import { Clock, ArrowRight, Shield, MessageCircle } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
+import { ServiceCommSheet } from './ServiceCommSheet';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +23,9 @@ interface ServiceCardPendingProps {
 
 export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service, onIniciar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
 
   const cita = new Date(service.fecha_hora_cita);
   const now = new Date();
@@ -66,7 +71,20 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
         </div>
 
         {/* Row 3: Action */}
-        <div className="flex justify-end mt-1">
+        <div className="flex items-center justify-between mt-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-5 text-[11px] px-1.5 gap-0.5 text-muted-foreground hover:text-foreground relative"
+            onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
+          >
+            <MessageCircle className="h-3 w-3" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 rounded-full bg-destructive text-destructive-foreground text-[7px] flex items-center justify-center px-0.5 animate-pulse">
+                {unreadCount}
+              </span>
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -91,6 +109,12 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
           onIniciar(service.id);
           setConfirmOpen(false);
         }}
+      />
+
+      <ServiceCommSheet
+        open={commOpen}
+        onOpenChange={setCommOpen}
+        service={service}
       />
     </>
   );

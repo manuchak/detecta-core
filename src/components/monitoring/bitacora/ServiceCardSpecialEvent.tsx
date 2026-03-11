@@ -2,8 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, Timer, AlertTriangle } from 'lucide-react';
+import { X, Timer, AlertTriangle, MessageCircle } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
+import { ServiceCommSheet } from './ServiceCommSheet';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import { EVENTO_ICONS } from '@/hooks/useEventosRuta';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
@@ -19,6 +21,9 @@ const ROUTINE_TYPES = ['combustible', 'baño', 'descanso', 'trafico'];
 
 export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = ({ service, onCerrar, onDoubleClick, isPending }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const unreadMap = useUnreadCounts();
+  const unreadCount = unreadMap.get(service.id) || 0;
   const event = service.activeEvent;
   if (!event) return null;
 
@@ -46,15 +51,30 @@ export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = (
             <span>{eventMeta.icon}</span>
             {eventMeta.label}
           </Badge>
-          <Badge variant="outline" className={cn(
-            'text-xs font-mono gap-1 px-2 py-0.5',
-            eventAlertLevel === 'critical' ? 'text-destructive' :
-            eventAlertLevel === 'warning' ? 'text-chart-4' :
-            'text-muted-foreground'
-          )}>
-            <Timer className="h-3 w-3" />
-            {minsOpen}min
-          </Badge>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[11px] px-1.5 gap-0.5 text-muted-foreground hover:text-foreground relative"
+              onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
+            >
+              <MessageCircle className="h-3 w-3" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 rounded-full bg-destructive text-destructive-foreground text-[7px] flex items-center justify-center px-0.5 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </Button>
+            <Badge variant="outline" className={cn(
+              'text-xs font-mono gap-1 px-2 py-0.5',
+              eventAlertLevel === 'critical' ? 'text-destructive' :
+              eventAlertLevel === 'warning' ? 'text-chart-4' :
+              'text-muted-foreground'
+            )}>
+              <Timer className="h-3 w-3" />
+              {minsOpen}min
+            </Badge>
+          </div>
         </div>
 
         <div className="text-sm font-medium truncate">{service.nombre_cliente}</div>
@@ -95,6 +115,12 @@ export const ServiceCardSpecialEvent: React.FC<ServiceCardSpecialEventProps> = (
           onCerrar(event.id);
           setConfirmOpen(false);
         }}
+      />
+
+      <ServiceCommSheet
+        open={commOpen}
+        onOpenChange={setCommOpen}
+        service={service}
       />
     </>
   );
