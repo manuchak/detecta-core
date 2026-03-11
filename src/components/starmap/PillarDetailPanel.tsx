@@ -7,6 +7,8 @@ import type { StarMapPillar, StarMapKPI } from '@/hooks/useStarMapKPIs';
 
 interface Props {
   pillar: StarMapPillar;
+  /** When true, renders without Card wrapper (for use inside Drawer) */
+  inDrawer?: boolean;
 }
 
 const StatusIcon = ({ status }: { status: string }) => {
@@ -44,9 +46,121 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-export const PillarDetailPanel: React.FC<Props> = ({ pillar }) => {
+const PillarContent: React.FC<{ pillar: StarMapPillar }> = ({ pillar }) => {
   const measurable = pillar.kpis.filter(k => k.status !== 'no-data');
   const missing = pillar.kpis.filter(k => k.status === 'no-data');
+
+  return (
+    <div className="space-y-4">
+      {/* Measurable KPIs */}
+      {measurable.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">KPIs con datos</p>
+          <div className="grid gap-2">
+            {measurable.map(kpi => (
+              <div
+                key={kpi.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between py-2 px-3 rounded-md bg-secondary/30 gap-1.5"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">{kpi.id}</span>
+                  <span className="text-sm font-medium truncate">{kpi.name}</span>
+                  {kpi.isProxy && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">proxy</span>
+                        </TooltipTrigger>
+                        <TooltipContent>Calculado con datos aproximados</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <span className="text-sm font-bold tabular-nums">
+                    {kpi.value !== null ? `${kpi.value.toLocaleString('es-MX')}${kpi.unit === '%' ? '%' : ''}` : '—'}
+                  </span>
+                  {kpi.unit !== '%' && kpi.value !== null && (
+                    <span className="text-[10px] text-muted-foreground">{kpi.unit}</span>
+                  )}
+                  <StatusBadge status={kpi.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Missing KPIs */}
+      {missing.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+            <Database className="h-3 w-3" />
+            Requieren instrumentación ({missing.length})
+          </p>
+          <div className="grid gap-1.5">
+            {missing.map(kpi => (
+              <div
+                key={kpi.id}
+                className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30 opacity-70"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-muted-foreground">{kpi.id}</span>
+                  <span className="text-xs text-muted-foreground">{kpi.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {kpi.missingFields && kpi.missingFields.length > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <span className="text-[9px] text-muted-foreground underline decoration-dotted cursor-help">
+                            {kpi.missingFields.length} campo{kpi.missingFields.length > 1 ? 's' : ''}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-xs font-semibold mb-1">Campos faltantes:</p>
+                          <ul className="text-xs space-y-0.5">
+                            {kpi.missingFields.map((f, i) => (
+                              <li key={i}>• {f}</li>
+                            ))}
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <StatusBadge status="no-data" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const PillarDetailPanel: React.FC<Props> = ({ pillar, inDrawer = false }) => {
+  if (inDrawer) {
+    return (
+      <div className="px-4 pb-6 space-y-4">
+        {/* Header inside drawer */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-base font-semibold">
+            <span>{pillar.icon}</span>
+            {pillar.name}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground text-lg">{pillar.score}</span>
+            <span>/ 100</span>
+          </div>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {Math.round(pillar.coverage)}% cobertura de datos
+        </div>
+        <PillarContent pillar={pillar} />
+      </div>
+    );
+  }
 
   return (
     <Card className="border-t-2" style={{ borderTopColor: pillar.color }}>
@@ -63,90 +177,8 @@ export const PillarDetailPanel: React.FC<Props> = ({ pillar }) => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Measurable KPIs */}
-        {measurable.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">KPIs con datos</p>
-            <div className="grid gap-2">
-              {measurable.map(kpi => (
-                <div
-                  key={kpi.id}
-                  className="flex items-center justify-between py-2 px-3 rounded-md bg-secondary/30"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[10px] font-mono text-muted-foreground">{kpi.id}</span>
-                    <span className="text-sm font-medium truncate">{kpi.name}</span>
-                    {kpi.isProxy && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">proxy</span>
-                          </TooltipTrigger>
-                          <TooltipContent>Calculado con datos aproximados</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold tabular-nums">
-                      {kpi.value !== null ? `${kpi.value.toLocaleString('es-MX')}${kpi.unit === '%' ? '%' : ''}` : '—'}
-                    </span>
-                    {kpi.unit !== '%' && kpi.value !== null && (
-                      <span className="text-[10px] text-muted-foreground">{kpi.unit}</span>
-                    )}
-                    <StatusBadge status={kpi.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Missing KPIs */}
-        {missing.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-              <Database className="h-3 w-3" />
-              Requieren instrumentación ({missing.length})
-            </p>
-            <div className="grid gap-1.5">
-              {missing.map(kpi => (
-                <div
-                  key={kpi.id}
-                  className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30 opacity-70"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-muted-foreground">{kpi.id}</span>
-                    <span className="text-xs text-muted-foreground">{kpi.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {kpi.missingFields && kpi.missingFields.length > 0 && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <span className="text-[9px] text-muted-foreground underline decoration-dotted cursor-help">
-                              {kpi.missingFields.length} campo{kpi.missingFields.length > 1 ? 's' : ''}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-xs font-semibold mb-1">Campos faltantes:</p>
-                            <ul className="text-xs space-y-0.5">
-                              {kpi.missingFields.map((f, i) => (
-                                <li key={i}>• {f}</li>
-                              ))}
-                            </ul>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <StatusBadge status="no-data" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      <CardContent>
+        <PillarContent pillar={pillar} />
       </CardContent>
     </Card>
   );
