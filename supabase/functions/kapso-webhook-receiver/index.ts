@@ -159,6 +159,7 @@ serve(async (req) => {
       } else if (direction === 'inbound') {
         // Adaptar payload al formato interno para reutilizar handleIncomingMessage
         const msgData = payload.message;
+        const kapsoMediaUrl = kapsoMeta.media_url || null;
         const adaptedPayload: KapsoWebhookPayload = {
           event: 'whatsapp.message.received',
           timestamp: msgData.timestamp || new Date().toISOString(),
@@ -168,7 +169,7 @@ serve(async (req) => {
             to: msgData.to,
             type: msgData.type || 'text',
             text: msgData.text ? { body: msgData.text.body || msgData.text } : undefined,
-            image: msgData.image,
+            image: msgData.image ? { ...msgData.image, link: kapsoMediaUrl || msgData.image?.link } : undefined,
             document: msgData.document,
             interactive: msgData.interactive,
           },
