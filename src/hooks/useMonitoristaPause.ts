@@ -245,12 +245,12 @@ export function useMonitoristaPause() {
         throw new Error(error.message || 'Error al finalizar pausa');
       }
       if (data?.error) throw new Error(data.error);
-      return data as { count: number };
+      return data as { ok: boolean; restored: number; skipped: number };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['monitorista-assignments'] });
-      toast.success(`Pausa finalizada · ${result.count} servicios restaurados`);
+      toast.success(`Pausa finalizada · ${result.restored} servicios restaurados`);
     },
     onError: (err: Error) => toast.error(err.message || 'Error al retomar'),
   });
