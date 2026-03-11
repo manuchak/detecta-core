@@ -27,7 +27,6 @@ import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
-  const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
