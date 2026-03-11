@@ -207,7 +207,12 @@ const MonitoringPage = () => {
               Pruebas Comm
             </TabsTrigger>
           )}
-        </TabsList>
+          {isCoordinator && (
+            <TabsTrigger value="reglas" className="gap-1.5">
+              <BookOpen className="h-3.5 w-3.5" />
+              Reglas
+            </TabsTrigger>
+          )}
 
         {/* Tab: Performance */}
         <TabsContent value="performance" className="space-y-6 mt-0">
