@@ -55,7 +55,7 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
       >
         {/* Row 1: Client + Timer */}
         <div className="flex items-baseline justify-between gap-2">
-          <span className={cn('font-medium truncate flex-1', isMobile ? 'text-sm' : 'text-xs')}>{service.nombre_cliente}</span>
+          <span className={cn('font-medium truncate flex-1', isMobile ? 'text-xs' : 'text-xs')}>{service.nombre_cliente}</span>
           <span className={cn('font-mono tabular-nums', urgencyColor, isMobile ? 'text-sm' : 'text-xs')}>
             <Clock className={cn('inline mr-0.5 relative -top-px', isMobile ? 'h-3 w-3' : 'h-2.5 w-2.5')} />
             {timeLabel}
