@@ -23,6 +23,7 @@ interface Props {
   assignments: MonitoristaAssignment[];
   maxLoad: number;
   serviceLabelMap: Record<string, string>;
+  phaseBreakdown?: PhaseBreakdown;
   unassignedServices?: UnassignedService[];
   onAssign?: (servicioId: string, monitoristaId: string) => void;
   isAssigning?: boolean;
