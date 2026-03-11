@@ -46,11 +46,16 @@ interface SendTemplateRequest {
 }
 
 function normalizePhoneNumber(phone: string): string {
-  let cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
-  if (!cleaned.startsWith('+') && !cleaned.startsWith('52')) {
-    cleaned = '52' + cleaned;
+  let cleaned = phone.replace(/[\s\-\(\)\.\+]/g, '');
+  
+  if (cleaned.length === 10) {
+    return '521' + cleaned;
+  } else if (cleaned.length === 12 && cleaned.startsWith('52')) {
+    return '521' + cleaned.slice(2);
+  } else if (cleaned.length === 13 && cleaned.startsWith('521')) {
+    return cleaned;
   }
-  cleaned = cleaned.replace(/^\+/, '');
+  
   return cleaned;
 }
 
