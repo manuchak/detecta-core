@@ -76,6 +76,7 @@ const KPIDashboard = () => {
     return rawTab;
   }, [rawTab, isMobile]);
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
+  const [selectedKPITooltip, setSelectedKPITooltip] = useState<React.ReactNode>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
   // Dynamic date label for current month
@@ -423,7 +424,7 @@ const KPIDashboard = () => {
 
               {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
               <TabsContent value="kpis-cost" className="space-y-4">
-                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
 
                 <div className="relative py-2">
                   <Separator />
@@ -555,7 +556,7 @@ const KPIDashboard = () => {
               </TabsContent>
 
               <TabsContent value="kpis" className="space-y-6">
-                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={setSelectedKPI} />
+                <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
               </TabsContent>
 
               <TabsContent value="costos" className="space-y-6">
@@ -675,7 +676,8 @@ const KPIDashboard = () => {
         {selectedKPI && (
           <KPIDetailView 
             selectedKPI={selectedKPI as any}
-            onClose={() => setSelectedKPI(null)}
+            onClose={() => { setSelectedKPI(null); setSelectedKPITooltip(null); }}
+            tooltipContent={selectedKPITooltip}
           />
         )}
       </div>

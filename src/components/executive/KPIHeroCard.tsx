@@ -76,7 +76,9 @@ export function KPIHeroCard({
   };
 
   const handleCardClick = () => {
-    if (isMobile && tooltip) {
+    if (isMobile && onClick) {
+      onClick();
+    } else if (isMobile && tooltip) {
       setDrawerOpen(true);
     } else {
       onClick?.();

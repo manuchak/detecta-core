@@ -1,8 +1,9 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { RetentionDetailView } from './details/RetentionDetailView';
 import { SupplyGrowthDetailView } from './details/SupplyGrowthDetailView';
@@ -18,6 +19,7 @@ export type KPIType = 'retention' | 'ltv' | 'cpa' | 'conversion' | 'engagement' 
 interface KPIDetailViewProps {
   selectedKPI: KPIType;
   onClose: () => void;
+  tooltipContent?: React.ReactNode;
 }
 
 const KPI_TITLES: Record<KPIType, string> = {
@@ -69,9 +71,10 @@ function DetailContent({ selectedKPI }: { selectedKPI: KPIType }) {
   }
 }
 
-export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
+export function KPIDetailView({ selectedKPI, onClose, tooltipContent }: KPIDetailViewProps) {
   const isMobile = useIsMobile();
   const title = KPI_TITLES[selectedKPI];
+  const [tooltipOpen, setTooltipOpen] = useState(false);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -98,6 +101,19 @@ export function KPIDetailView({ selectedKPI, onClose }: KPIDetailViewProps) {
             </DrawerClose>
           </DrawerHeader>
           <div className="flex-1 overflow-y-auto px-3 py-3">
+            {/* Tooltip summary collapsible */}
+            {tooltipContent && (
+              <Collapsible open={tooltipOpen} onOpenChange={setTooltipOpen} className="mb-3">
+                <CollapsibleTrigger className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+                  <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <span className="flex-1">Resumen y fórmula</span>
+                  {tooltipOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 px-3 py-3 rounded-lg border border-border/50 bg-card">
+                  {tooltipContent}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
             <div className="animate-fade-in">
               <DetailContent selectedKPI={selectedKPI} />
             </div>
