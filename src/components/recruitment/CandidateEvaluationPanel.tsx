@@ -233,6 +233,15 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       tabTarget: 'installation',
     });
 
+    const personalCompletion = computePersonalDataCompletion(candidatoData);
+    const personalHasBasics = !!(candidatoData?.nombre && candidatoData?.telefono && candidatoData?.email);
+    g.push({
+      id: 'personal_data', label: 'Datos personales verificados', level: 'info',
+      passed: personalHasBasics,
+      detail: `${personalCompletion.completed}/${personalCompletion.total} campos completados`,
+      tabTarget: 'personal_data',
+    });
+
     return g;
   }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion]);
 
