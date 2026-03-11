@@ -74,18 +74,18 @@ export function RetentionDetailView() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <Card className="min-h-0 md:min-h-[140px] flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-3.5 w-3.5" />
+          <CardHeader className="pb-1 md:pb-3 p-2 md:p-6">
+            <CardTitle className="text-[10px] md:text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Target className="h-3 w-3 md:h-3.5 md:w-3.5" />
               Retención Promedio
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center">
-            <div className="text-3xl font-bold text-emerald-600">
+          <CardContent className="flex-1 flex flex-col justify-center p-2 md:p-6 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-emerald-600">
               {formatPercentage(retentionData.yearlyData.retentionPromedio)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Últimos {retentionData.yearlyData.mesesConDatos} meses completos
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+              Últimos {retentionData.yearlyData.mesesConDatos} meses
             </p>
           </CardContent>
         </Card>
