@@ -38,7 +38,7 @@ import { ArmedServicesMoMChart } from '@/components/executive/ArmedServicesMoMCh
 // Existing
 import { FinancialSummaryPanel } from '@/components/executive/FinancialSummaryPanel';
 import { AnnualComparisonCard } from '@/components/executive/AnnualComparisonCard';
-import { AdvancedForecastDashboard } from '@/components/advanced/AdvancedForecastDashboard';
+
 import { MobileOperationalDashboard } from '@/components/executive/MobileOperationalDashboard';
 
 // StarMap
@@ -504,10 +504,7 @@ const ExecutiveDashboard = () => {
 
             {/* Existentes: Finanzas + Comparativa + Forecast */}
             <FinancialSummaryPanel />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <AnnualComparisonCard />
-              <AdvancedForecastDashboard />
-            </div>
+            <AnnualComparisonCard />
           </>
         )}
       </div>
