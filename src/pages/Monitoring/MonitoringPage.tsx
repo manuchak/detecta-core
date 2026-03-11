@@ -154,6 +154,10 @@ const MonitoringPage = () => {
     }
   }, [serviciosChecklist]);
 
+  if (isMobile) {
+    return <MobileMonitoringPage />;
+  }
+
   return (
     <div className="p-4 lg:p-6 space-y-6">
       {/* Header */}
