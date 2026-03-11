@@ -151,7 +151,7 @@ export function SupplyGrowthDetailView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
               +{yearSummary.custodiosNuevosAnual}
             </div>
             <p className="text-xs text-muted-foreground">
