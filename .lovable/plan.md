@@ -12,16 +12,19 @@ Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeaci
 - ✅ Índice `idx_wm_channel_sender` para queries de cliente
 - ✅ Backfill de registros existentes
 
-## Fase Dev 2 — Router de contexto en webhook (pendiente)
-- Refactorizar `handleIncomingMessage` en `kapso-webhook-receiver`
-- Clasificar sender: custodio vs cliente vs desconocido
-- Desambiguación multi-servicio por `hora_inicio_real DESC`
-- Registrar comm_channel, comm_phase, sender_type en cada insert
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-## Fase Dev 3 — Clasificación en mensajes salientes (pendiente)
-- `kapso-send-message`: aceptar context.comm_channel
-- `kapso-send-template`: aceptar context.comm_channel
-- `ServiceCommSheet`: pasar comm_channel al enviar
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
 ## Fase Dev 4 — Chat de Planeación con custodio (pendiente)
 - NUEVO: `PlanningCustodioComm.tsx`

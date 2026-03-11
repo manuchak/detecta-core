@@ -42,6 +42,7 @@ interface SendTemplateRequest {
     custodio_telefono?: string;
     tipo_notificacion?: string;
     invitation_id?: string;
+    comm_channel?: string;
   };
 }
 
@@ -169,6 +170,9 @@ serve(async (req) => {
       servicio_id: request.context?.servicio_id || null,
       created_at: new Date().toISOString(),
       sent_by_user_id: request.sent_by_user_id || null,
+      comm_channel: request.context?.comm_channel || 'unknown',
+      comm_phase: request.context?.servicio_id ? 'en_servicio' : 'sin_servicio',
+      sender_type: 'staff',
     };
     
     const { error: dbError } = await supabase.from('whatsapp_messages').insert(messageRecord);
