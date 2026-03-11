@@ -176,8 +176,8 @@ export const LeadForm = ({ editingLead, onSuccess, onCancel }: LeadFormProps) =>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="nuevo">Nuevo</SelectItem>
+              <SelectItem value="contactado">Contactado</SelectItem>
               <SelectItem value="en_proceso">En Proceso</SelectItem>
-              <SelectItem value="aprobado">Aprobado</SelectItem>
               <SelectItem value="rechazado">Rechazado</SelectItem>
               <SelectItem value="pendiente">Pendiente</SelectItem>
             </SelectContent>

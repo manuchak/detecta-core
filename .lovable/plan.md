@@ -1,60 +1,83 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Fix: Leads marcados como "aprobado" sin crear registro en candidatos_custodios
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Causa raíz
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-Existen **3 puntos de entrada** donde un analista puede cambiar el estado de un lead a "aprobado" **sin pasar por el workflow de aprobación** (`useLeadApprovals.ts`):
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-1. **`LeadForm.tsx`** — Select con opción "Aprobado" (línea 180)
-2. **`LeadsTable.tsx`** — Filtro por estado incluye "Aprobado" (línea 605) 
-3. **`LeadEditDialog.tsx`** — Select con opción "Aprobado" (línea 769)
-4. **`EnhancedLeadForm.tsx`** — Campo `estado_lead` que se guarda directamente
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-El RPC `sync_lead_to_candidato` que crea el registro en `candidatos_custodios` **solo se invoca desde `useLeadApprovals.ts`**. Si alguien cambia el estado directamente desde los formularios, el lead queda como "aprobado" pero **nunca se crea el candidato**.
+## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
+- Mensaje de sistema al marcar "En Sitio"
+- Separadores visuales en `CustodioChat.tsx`
+- Bloqueo de escritura post-handoff
 
-Esto es exactamente lo que pasó con Alfonso Avalos: Jenifer lo creó/editó desde el formulario y le puso estado "aprobado" sin pasar por el flujo de aprobaciones.
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
-## Solución: Doble protección
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
 
-### 1. Remover "aprobado" de los selectores manuales
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
 
-En **LeadForm.tsx**, **LeadEditDialog.tsx** y **EnhancedLeadForm.tsx**, eliminar "aprobado" como opción seleccionable en los dropdowns de estado. La aprobación **solo debe ocurrir** a través del flujo formal en `useLeadApprovals`.
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
 
-Los estados disponibles en formularios manuales serán: `nuevo`, `contactado`, `en_revision`, `en_proceso`, `pendiente`, `rechazado`.
-
-### 2. Agregar guard en el backend (migración SQL)
-
-Crear un **trigger** en la tabla `leads` que, al detectar un cambio de estado a `aprobado`, verifique si ya existe un registro en `candidatos_custodios` con ese `lead_id`. Si no existe, **bloquear la actualización** y lanzar un error descriptivo. Esto actúa como red de seguridad contra cualquier bypass futuro.
-
-```sql
-CREATE OR REPLACE FUNCTION check_lead_approval_has_candidato()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.estado = 'aprobado' AND OLD.estado IS DISTINCT FROM 'aprobado' THEN
-    IF NOT EXISTS (
-      SELECT 1 FROM candidatos_custodios 
-      WHERE lead_id = NEW.id
-    ) THEN
-      RAISE EXCEPTION 'No se puede aprobar un lead sin crear el registro de candidato. Use el flujo de aprobaciones.';
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_check_lead_approval
-  BEFORE UPDATE ON leads
-  FOR EACH ROW
-  EXECUTE FUNCTION check_lead_approval_has_candidato();
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-### Archivos impactados
-
-| Archivo | Cambio |
+## Templates Meta pendientes
+| Template | Estado |
 |---|---|
-| `src/components/leads/LeadForm.tsx` | Remover "aprobado" del Select de estados |
-| `src/components/leads/LeadEditDialog.tsx` | Remover "aprobado" del Select de estados |
-| `src/components/leads/EnhancedLeadForm.tsx` | Verificar que no permita estado "aprobado" manual |
-| Migración SQL | Trigger de protección en tabla `leads` |
-
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
