@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, FlaskConical } from "lucide-react";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
@@ -30,6 +30,7 @@ import PerformanceDashboard from "@/components/monitoring/performance/Performanc
 import { BitacoraPanel } from "@/components/monitoring/bitacora";
 import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
 import { ServiceTimesPanel } from "@/components/monitoring/tiempos/ServiceTimesPanel";
+import { CommTestPanel } from "@/components/monitoring/comm/CommTestPanel";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useHeartbeatPing } from "@/hooks/useHeartbeatPing";
 import { useOrphanGuard } from "@/hooks/useOrphanGuard";
@@ -199,6 +200,12 @@ const MonitoringPage = () => {
           {isCoordinator && (
             <TabsTrigger value="coordinacion">Coordinación C4</TabsTrigger>
           )}
+          {isCoordinator && (
+            <TabsTrigger value="comm-test" className="gap-1.5">
+              <FlaskConical className="h-3.5 w-3.5" />
+              Pruebas Comm
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab: Performance */}
@@ -324,6 +331,11 @@ const MonitoringPage = () => {
         {isCoordinator && (
           <TabsContent value="coordinacion" className="space-y-4 mt-0">
             <CoordinatorCommandCenter />
+          </TabsContent>
+        )}
+        {isCoordinator && (
+          <TabsContent value="comm-test" className="space-y-4 mt-0">
+            <CommTestPanel />
           </TabsContent>
         )}
       </Tabs>
