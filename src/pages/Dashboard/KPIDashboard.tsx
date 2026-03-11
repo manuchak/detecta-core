@@ -55,8 +55,7 @@ const KPIDashboard = () => {
     operacional: 'ops',
     adquisicion: 'client',
     clientes: 'client',
-    kpis: 'kpis-cost',
-    costos: 'kpis-cost',
+    kpis: 'kpis',
     resumen: 'summary',
     calibracion: 'summary',
   };
