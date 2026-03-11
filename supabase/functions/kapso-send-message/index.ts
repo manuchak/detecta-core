@@ -45,6 +45,7 @@ interface SendMessageRequest {
     ticket_id?: string;
     custodio_telefono?: string;
     tipo_notificacion?: string;
+    comm_channel?: string;
   };
 }
 
