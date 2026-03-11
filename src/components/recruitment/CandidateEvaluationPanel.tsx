@@ -25,6 +25,8 @@ import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
 import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
+import { PersonalDataTab, computePersonalDataCompletion } from './personal/PersonalDataTab';
+import { PersonalDataBadge } from './personal/PersonalDataBadge';
 import { LiberacionSuccessModal } from '@/components/liberacion/LiberacionSuccessModal';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
