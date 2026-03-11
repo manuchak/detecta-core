@@ -203,7 +203,7 @@ export function CustodianEngagementDetailView() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{resumenGeneral.custodiosTotal}</div>
+            <div className="text-lg md:text-2xl font-bold">{resumenGeneral.custodiosTotal}</div>
             <p className="text-xs text-muted-foreground">
               {resumenGeneral.custodiosSaludables} saludables, {resumenGeneral.custodiosEnRiesgo} en riesgo
             </p>
