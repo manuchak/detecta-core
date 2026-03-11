@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, FlaskConical } from "lucide-react";
+import { RefreshCw, FlaskConical, BookOpen } from "lucide-react";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
