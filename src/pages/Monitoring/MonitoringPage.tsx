@@ -213,6 +213,7 @@ const MonitoringPage = () => {
               Reglas
             </TabsTrigger>
           )}
+        </TabsList>
 
         {/* Tab: Performance */}
         <TabsContent value="performance" className="space-y-6 mt-0">
