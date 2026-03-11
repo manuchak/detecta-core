@@ -109,7 +109,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
         </div>
 
         {/* Row 3: Folio + Monitorista badge + Actions */}
-        <div className={cn('flex items-center gap-1', isMobile ? 'mt-3' : 'mt-2')}>
+        <div className={cn('flex items-center gap-1', isMobile ? 'mt-1.5' : 'mt-2')}>
           <span className={cn('font-mono text-muted-foreground/60', isMobile ? 'text-xs' : 'text-[10px]')}>{service.id_servicio}</span>
 
           {assignedMonitorista && (
