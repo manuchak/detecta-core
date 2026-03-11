@@ -475,7 +475,7 @@ export function useBitacoraBoard() {
       // Guard: must be en_destino
       const { data: svc } = await supabase
         .from('servicios_planificados')
-        .select('en_destino')
+        .select('en_destino, custodio_telefono')
         .eq('id', params.serviceUUID)
         .single();
       if (!svc?.en_destino) throw new Error('El servicio no ha llegado a destino');
@@ -517,10 +517,19 @@ export function useBitacoraBoard() {
         .update({ activo: false, fin_turno: nowTs })
         .eq('servicio_id', params.servicioIdServicio)
         .eq('activo', true);
+
+      return { custodioTelefono: (svc as any)?.custodio_telefono || null };
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       invalidateAll();
       toast.success('Custodio liberado — servicio completado');
+
+      // Fase 7: Auto-envío cierre_servicio_cliente + servicio_completado al custodio
+      sendCompletionNotifications(
+        variables.servicioIdServicio,
+        variables.serviceUUID,
+        result?.custodioTelefono,
+      );
     },
     onError: (err: Error) => toast.error(err.message || 'Error al liberar custodio'),
   });
