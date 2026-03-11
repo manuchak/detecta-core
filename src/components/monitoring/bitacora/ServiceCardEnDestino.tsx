@@ -42,7 +42,7 @@ export const ServiceCardEnDestino: React.FC<ServiceCardEnDestinoProps> = ({ serv
             <MapPinCheck className="h-2.5 w-2.5" />
             EN DESTINO
           </Badge>
-          <Badge variant="outline" className={cn('font-mono gap-1 px-2 py-0.5 text-muted-foreground', isMobile ? 'text-sm' : 'text-xs')}>
+          <Badge variant="outline" className={cn('font-mono gap-1 px-2 py-0.5 text-muted-foreground', isMobile ? 'text-xs' : 'text-xs')}>
             <Timer className="h-3 w-3" />
             {service.minutesSinceLastAction}min
           </Badge>
