@@ -82,7 +82,7 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
             size="sm"
             className={cn(
               'gap-0.5 text-muted-foreground hover:text-foreground relative',
-              isMobile ? 'h-9 min-h-[44px] text-xs px-2' : 'h-5 text-[11px] px-1.5'
+              isMobile ? 'h-7 text-xs px-2' : 'h-5 text-[11px] px-1.5'
             )}
             onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
           >
