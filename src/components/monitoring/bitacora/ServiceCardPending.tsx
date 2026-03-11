@@ -48,7 +48,7 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
       <div
         className={cn(
           'rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer select-none',
-          isMobile ? 'px-4 py-3' : 'px-3 py-2'
+          isMobile ? 'px-3 py-2' : 'px-3 py-2'
         )}
         onDoubleClick={() => onDoubleClick?.(service)}
         title="Doble clic para ver detalle"
