@@ -25,6 +25,8 @@ import { InstallationTab } from '@/components/leads/evaluaciones/InstallationTab
 import { InstallationProgressBadge } from '@/components/leads/evaluaciones/InstallationProgressBadge';
 import { SocioeconomicoTab } from './socioeconomico/SocioeconomicoTab';
 import { SocioeconomicoBadge } from './socioeconomico/SocioeconomicoBadge';
+import { PersonalDataTab, computePersonalDataCompletion } from './personal/PersonalDataTab';
+import { PersonalDataBadge } from './personal/PersonalDataBadge';
 import { LiberacionSuccessModal } from '@/components/liberacion/LiberacionSuccessModal';
 import { useStructuredInterviews } from '@/hooks/useStructuredInterview';
 import { useRiskChecklist } from '@/hooks/useRiskChecklist';
@@ -45,7 +47,8 @@ import {
   User, Loader2, Plus, Star, Clock,
   MessageSquare, Shield, Brain, ShieldCheck, TestTube,
   FileText, FileSignature, Users, GraduationCap, Cpu, Home,
-  GitBranch, ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info
+  GitBranch, ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info,
+  UserCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -104,7 +107,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { data: candidatoData } = useQuery({
     queryKey: ['candidato-vehiculo', candidatoId],
     queryFn: async () => {
-      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio').eq('id', candidatoId).single();
+      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia').eq('id', candidatoId).single();
       return data;
     },
     enabled: !!candidatoId,
@@ -230,8 +233,17 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       tabTarget: 'installation',
     });
 
+    const personalCompletion = computePersonalDataCompletion(candidatoData);
+    const personalHasBasics = !!(candidatoData?.nombre && candidatoData?.telefono && candidatoData?.email);
+    g.push({
+      id: 'personal_data', label: 'Datos personales verificados', level: 'info',
+      passed: personalHasBasics,
+      detail: `${personalCompletion.completed}/${personalCompletion.total} campos completados`,
+      tabTarget: 'personal_data',
+    });
+
     return g;
-  }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion]);
+  }, [docsProgress, latestToxicologia, latestSocioeconomico, latestInterview, riskChecklist, latestPsicometrico, latestMidot, contractsProgress, trainingComplete, refsProgress, instalacionCompletada, ultimaInstalacion, candidatoData]);
 
   const blockers = gates.filter(g => g.level === 'blocker' && !g.passed);
   const warnings = gates.filter(g => g.level === 'warning' && !g.passed);
@@ -284,6 +296,12 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
 
   // Build section items with content
   const sectionItems: SectionItem[] = useMemo(() => [
+    {
+      id: 'personal_data', label: 'Datos Personales', icon: <UserCircle className="h-4 w-4" />,
+      badge: <PersonalDataBadge candidatoId={candidatoId} size="sm" />,
+      gate: gates.find(g => g.id === 'personal_data'),
+      content: <PersonalDataTab candidatoId={candidatoId} />,
+    },
     {
       id: 'interview', label: 'Entrevista', icon: <MessageSquare className="h-4 w-4" />,
       badge: latestInterview ? <Badge variant="outline" className="text-xs gap-1"><Star className="h-2.5 w-2.5" />{latestInterview.rating_promedio?.toFixed(1)}</Badge> : null,

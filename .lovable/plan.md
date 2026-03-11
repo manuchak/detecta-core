@@ -1,55 +1,83 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Pestaña "Datos Personales" en el Panel de Evaluación
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Contexto
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-El `CandidateEvaluationPanel` ya tiene 11 secciones (entrevista, riesgo, psicométricos, etc.). Se necesita agregar una sección para editar datos personales y de vehículo del candidato, ya que la información capturada en fases previas (entrevistas, leads) puede ser incorrecta o no verificable.
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-La tabla `candidatos_custodios` ya tiene todos los campos necesarios: `nombre`, `telefono`, `email`, `direccion`, `curp`, `marca_vehiculo`, `modelo_vehiculo`, `placas_vehiculo`, `color_vehiculo`, `vehiculo_propio`, `numero_licencia`, `numero_serie`, `numero_motor`, etc.
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-## Diseño UI
+## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
+- Mensaje de sistema al marcar "En Sitio"
+- Separadores visuales en `CustodioChat.tsx`
+- Bloqueo de escritura post-handoff
 
-La nueva sección se integra como un **item más** dentro del sistema de gates existente, posicionada al inicio (antes de Entrevista) con nivel `info` ya que no es bloqueante ni advertencia. Se muestra como las demás secciones: fila colapsable con icono, label y badge.
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
-Al expandirla, se muestra un formulario dividido en dos bloques:
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
 
-1. **Datos Personales**: nombre, teléfono, email, CURP, dirección
-2. **Datos del Vehículo**: vehículo propio (toggle), marca, modelo, placas, color, número de serie, número de motor, licencia
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
 
-Cada campo se pre-llena con los datos actuales de `candidatos_custodios`. Un botón "Guardar datos verificados" persiste los cambios.
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
 
-## Impacto en workflows
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
+```
 
-| Workflow | Impacto | Acción |
-|---|---|---|
-| Liberación (`LiberacionChecklistModal`) | Ya tiene su propia sección de datos/ubicación. Los datos editados aquí se reflejan automáticamente porque ambos leen de `candidatos_custodios` | Ninguno |
-| Perfiles Operativos (`useProfileVehicle`, `useProfileUbicacion`) | Leen de tablas post-liberación (`custodios_vehiculos`, `custodio_liberacion`). No se afectan | Ninguno |
-| Documentos/Contratos | Usan `candidatoId` como FK, no dependen de los datos personales | Ninguno |
-| Gate de vehículo en evaluación | Actualmente no existe un gate para datos personales completos. Se puede agregar como `info` para indicar si faltan datos | Se agrega gate informativo |
-
-No hay efectos secundarios negativos: el formulario solo hace UPDATE sobre `candidatos_custodios` para el candidato actual.
-
-## Archivos a crear/modificar
-
-| Archivo | Cambio |
+## Templates Meta pendientes
+| Template | Estado |
 |---|---|
-| `src/components/recruitment/personal/PersonalDataTab.tsx` | **Nuevo** — Formulario de edición con dos secciones (personal + vehículo) |
-| `src/components/recruitment/personal/PersonalDataBadge.tsx` | **Nuevo** — Badge que muestra completitud de datos |
-| `src/components/recruitment/CandidateEvaluationPanel.tsx` | Agregar la nueva sección al array `sectionItems` y su gate correspondiente |
-
-## Detalle técnico
-
-### `PersonalDataTab.tsx`
-- Hook `useQuery` para cargar datos actuales de `candidatos_custodios` por `candidatoId`
-- Estado local con `usePersistedForm` (nivel `light`) para evitar pérdida de datos
-- Campos editables con validación básica (teléfono 10 dígitos, email formato válido)
-- Mutación `UPDATE candidatos_custodios SET ... WHERE id = candidatoId`
-- Toast de confirmación al guardar
-- Marca visual "Datos verificados" con timestamp del último `updated_at`
-
-### Gate
-- Nivel: `info`
-- Passed: cuando al menos nombre + teléfono + email están presentes
-- Detail: "X/Y campos completados"
-
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
