@@ -209,44 +209,47 @@ export function ExecutiveMetricsGrid({ kpis, loading = false, className, onKPICl
 
       {/* Últimas 5 tarjetas - KPIs de Capacidad */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-6">
-        {kpiConfig.slice(10).map((kpi) => (
-          <KPIHeroCard
-            key={kpi.key}
-            title={kpi.title}
-            value={kpi.value}
-            unit={kpi.unit}
-            trend={kpi.trend}
-            loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading) || (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && capacityLoading)}
-            onClick={() => {
-              const kpiTypeMap: Record<string, string> = {
-                'cpa': 'cpa',
-                'crate': 'conversion', 
-                'ltv': 'ltv',
-                'rrate': 'retention',
-                'roiMkt': 'roi',
-                'engagement': 'engagement',
-                'supplyGrowth': 'supply_growth',
-                'dailyCapacity': 'daily_capacity',
-                'monthlyCapacity': 'monthly_capacity',
-                'healthyUtilization': 'healthy_utilization',
-                'gapForecast': 'gap_forecast',
-                'fleetEfficiency': 'fleet_efficiency'
-              };
-              onKPIClick?.(kpiTypeMap[kpi.key] || kpi.key);
-            }}
-            tooltip={
-              kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
-              kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
-              kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
-              kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
-              kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
-              kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
-              kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails} /> :
-              (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && !capacityLoading) ? <ServiceCapacityTooltip data={capacityData} kpiType={kpi.key} /> :
-              undefined
-            }
-          />
-        ))}
+        {kpiConfig.slice(10).map((kpi) => {
+          const tooltipNode = 
+            kpi.key === 'cpa' && !cpaLoading ? <CPATooltip cpaDetails={cpaDetails} /> :
+            kpi.key === 'crate' && !conversionRateDetails.loading ? <ConversionRateTooltip data={conversionRateDetails} /> :
+            kpi.key === 'ltv' && !ltvDetails.loading ? <LTVTooltip data={ltvDetails} /> :
+            kpi.key === 'rrate' && !retentionDetails.loading ? <RetentionTooltip data={retentionDetails} /> :
+            kpi.key === 'roiMkt' && !roiMarketingMonthly.loading ? <ROIMarketingTooltip data={roiMarketingDetails.metrics} /> :
+            kpi.key === 'engagement' && !engagementDetails.loading ? <EngagementTooltip data={engagementDetails.engagementDetails} /> :
+            kpi.key === 'supplyGrowth' && !supplyGrowthDetails.loading ? <SupplyGrowthTooltip data={supplyGrowthDetails} /> :
+            (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && !capacityLoading) ? <ServiceCapacityTooltip data={capacityData} kpiType={kpi.key} /> :
+            undefined;
+
+          return (
+            <KPIHeroCard
+              key={kpi.key}
+              title={kpi.title}
+              value={kpi.value}
+              unit={kpi.unit}
+              trend={kpi.trend}
+              loading={loading || (kpi.key === 'cpa' && cpaLoading) || (kpi.key === 'crate' && conversionRateDetails.loading) || (kpi.key === 'ltv' && ltvDetails.loading) || (kpi.key === 'rrate' && retentionDetails.loading) || (kpi.key === 'roiMkt' && roiMarketingMonthly.loading) || (kpi.key === 'engagement' && engagementDetails.loading) || (kpi.key === 'supplyGrowth' && supplyGrowthDetails.loading) || (['dailyCapacity', 'monthlyCapacity', 'healthyUtilization', 'gapForecast', 'fleetEfficiency'].includes(kpi.key) && capacityLoading)}
+              onClick={() => {
+                const kpiTypeMap: Record<string, string> = {
+                  'cpa': 'cpa',
+                  'crate': 'conversion', 
+                  'ltv': 'ltv',
+                  'rrate': 'retention',
+                  'roiMkt': 'roi',
+                  'engagement': 'engagement',
+                  'supplyGrowth': 'supply_growth',
+                  'dailyCapacity': 'daily_capacity',
+                  'monthlyCapacity': 'monthly_capacity',
+                  'healthyUtilization': 'healthy_utilization',
+                  'gapForecast': 'gap_forecast',
+                  'fleetEfficiency': 'fleet_efficiency'
+                };
+                onKPIClick?.(kpiTypeMap[kpi.key] || kpi.key, tooltipNode);
+              }}
+              tooltip={tooltipNode}
+            />
+          );
+        })}
       </div>
     </div>
   );
