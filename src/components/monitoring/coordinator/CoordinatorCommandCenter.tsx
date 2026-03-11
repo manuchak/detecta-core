@@ -424,6 +424,7 @@ export const CoordinatorCommandCenter: React.FC<Props> = ({ onClose }) => {
                 assignments={filteredAssignmentsByMonitorista[m.id] || []}
                 maxLoad={maxLoad}
                 serviceLabelMap={serviceLabelMap}
+                phaseBreakdown={phaseBreakdownByMonitorista[m.id]}
                 unassignedServices={unassignedForPopover}
                 onAssign={(sid, mid) => assignService.mutate({ servicioId: sid, monitoristaId: mid })}
                 isAssigning={assignService.isPending}
