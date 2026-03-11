@@ -239,7 +239,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       tabTarget: 'installation',
     });
 
-    const personalCompletion = computePersonalDataCompletion(candidatoData);
+    const personalCompletion = computePersonalDataCompletion(candidatoData, tipoOperativo);
     const personalHasBasics = !!(candidatoData?.nombre && candidatoData?.telefono && candidatoData?.email);
     g.push({
       id: 'personal_data', label: 'Datos personales verificados', level: 'info',
