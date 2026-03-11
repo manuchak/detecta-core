@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 export interface EvaluacionPsicometrica {
   id: string;
+  lead_id: string | null;
   candidato_id: string;
   evaluador_id: string;
   score_integridad: number | null;
@@ -48,47 +49,68 @@ export interface CreateEvaluacionData {
   risk_flags?: string[];
 }
 
-export const useEvaluacionesPsicometricas = (candidatoId: string) => {
+export const useEvaluacionesPsicometricas = (candidatoId: string, leadId?: string) => {
   return useQuery({
-    queryKey: ['evaluaciones-psicometricas', candidatoId],
+    queryKey: ['evaluaciones-psicometricas', candidatoId, leadId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('evaluaciones_psicometricas')
         .select(`
           *,
           evaluador:evaluador_id(display_name),
           aval_coordinacion:aval_coordinacion_id(display_name)
         `)
-        .eq('candidato_id', candidatoId)
         .order('created_at', { ascending: false });
 
+      // Build OR filter: candidato_id OR lead_id
+      const filters: string[] = [];
+      if (candidatoId) filters.push(`candidato_id.eq.${candidatoId}`);
+      if (leadId) filters.push(`lead_id.eq.${leadId}`);
+
+      if (filters.length > 0) {
+        query = query.or(filters.join(','));
+      } else {
+        // No filters means no results
+        return [] as EvaluacionPsicometrica[];
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as EvaluacionPsicometrica[];
     },
-    enabled: !!candidatoId,
+    enabled: !!(candidatoId || leadId),
   });
 };
 
-export const useLatestEvaluacionPsicometrica = (candidatoId: string) => {
+export const useLatestEvaluacionPsicometrica = (candidatoId: string, leadId?: string) => {
   return useQuery({
-    queryKey: ['evaluacion-psicometrica-latest', candidatoId],
+    queryKey: ['evaluacion-psicometrica-latest', candidatoId, leadId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('evaluaciones_psicometricas')
         .select(`
           *,
           evaluador:evaluador_id(display_name),
           aval_coordinacion:aval_coordinacion_id(display_name)
         `)
-        .eq('candidato_id', candidatoId)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
+      const filters: string[] = [];
+      if (candidatoId) filters.push(`candidato_id.eq.${candidatoId}`);
+      if (leadId) filters.push(`lead_id.eq.${leadId}`);
+
+      if (filters.length > 0) {
+        query = query.or(filters.join(','));
+      } else {
+        return null;
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data as EvaluacionPsicometrica | null;
     },
-    enabled: !!candidatoId,
+    enabled: !!(candidatoId || leadId),
   });
 };
 

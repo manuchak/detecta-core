@@ -15,11 +15,12 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Props {
   candidatoId: string;
   candidatoNombre: string;
+  leadId?: string;
 }
 
-export function PsychometricEvaluationTab({ candidatoId, candidatoNombre }: Props) {
+export function PsychometricEvaluationTab({ candidatoId, candidatoNombre, leadId }: Props) {
   const [showApplyDialog, setShowApplyDialog] = useState(false);
-  const { data: evaluaciones, isLoading } = useEvaluacionesPsicometricas(candidatoId);
+  const { data: evaluaciones, isLoading } = useEvaluacionesPsicometricas(candidatoId, leadId);
   const { userRole } = useAuth();
   
   const isCoordinador = userRole === 'coordinador_operaciones' || userRole === 'admin' || userRole === 'owner' || userRole === 'supply_admin';

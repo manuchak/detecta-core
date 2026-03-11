@@ -6833,6 +6833,7 @@ export type Database = {
           fecha_evaluacion: string | null
           id: string
           interpretacion_clinica: string | null
+          lead_id: string | null
           percentiles: Json | null
           requiere_aval_coordinacion: boolean | null
           resultado_semaforo: string
@@ -6860,6 +6861,7 @@ export type Database = {
           fecha_evaluacion?: string | null
           id?: string
           interpretacion_clinica?: string | null
+          lead_id?: string | null
           percentiles?: Json | null
           requiere_aval_coordinacion?: boolean | null
           resultado_semaforo: string
@@ -6887,6 +6889,7 @@ export type Database = {
           fecha_evaluacion?: string | null
           id?: string
           interpretacion_clinica?: string | null
+          lead_id?: string | null
           percentiles?: Json | null
           requiere_aval_coordinacion?: boolean | null
           resultado_semaforo?: string
