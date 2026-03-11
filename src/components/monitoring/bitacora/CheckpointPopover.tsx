@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MapPin, Upload, Send, X, Loader2, Radio } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
+import { MapPin, Upload, Send, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 interface CheckpointPopoverProps {
@@ -42,15 +44,20 @@ async function compressImage(file: File): Promise<Blob> {
   });
 }
 
-export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId, clienteLabel, isPending, onSubmit, children }) => {
-  const [open, setOpen] = useState(false);
+const CheckpointForm: React.FC<{
+  servicioId: string;
+  clienteLabel: string;
+  isPending: boolean;
+  isMobile: boolean;
+  onSubmit: CheckpointPopoverProps['onSubmit'];
+  onClose: () => void;
+}> = ({ servicioId, clienteLabel, isPending, isMobile, onSubmit, onClose }) => {
   const [descripcion, setDescripcion] = useState('');
   const [coords, setCoords] = useState('');
   const [photos, setPhotos] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
@@ -127,87 +134,148 @@ export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId
         foto_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
       });
       setDescripcion(''); setCoords(''); setPhotos([]);
-      setOpen(false);
+      onClose();
     } catch { toast.error('Error al subir evidencia'); }
     finally { setUploading(false); }
   };
 
+  const photoSize = isMobile ? 'h-12 w-12' : 'h-9 w-9';
+
+  return (
+    <div
+      className={cn('space-y-3 relative', isMobile ? 'p-4' : 'p-3')}
+      onDrop={handleDrop}
+      onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onPaste={handlePaste}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 z-10 rounded-md border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center pointer-events-none">
+          <span className="text-xs font-medium text-primary">Suelta aquí tus fotos</span>
+        </div>
+      )}
+
+      <div className={cn('font-medium text-muted-foreground truncate', isMobile ? 'text-sm' : 'text-xs')}>
+        Checkpoint — {clienteLabel}
+      </div>
+
+      <Textarea
+        placeholder="Descripción / novedad..."
+        value={descripcion}
+        onChange={e => setDescripcion(e.target.value)}
+        className={cn('resize-none', isMobile ? 'min-h-[72px] text-base' : 'min-h-[56px] text-xs')}
+        disabled={busy}
+      />
+
+      <div className="flex gap-1.5">
+        <Input
+          placeholder="Coords / Google Maps link *"
+          value={coords}
+          onChange={e => setCoords(e.target.value)}
+          className={cn(
+            !coordsValid && coords.length > 0 && 'border-destructive',
+            isMobile ? 'h-11 text-base' : 'h-7 text-xs'
+          )}
+          disabled={busy}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn('shrink-0', isMobile ? 'h-11 w-11 min-h-[44px]' : 'h-7 w-7')}
+          onClick={requestGeo}
+          disabled={busy || geoLoading}
+        >
+          {geoLoading ? <Loader2 className={cn('animate-spin', isMobile ? 'h-4 w-4' : 'h-3 w-3')} /> : <MapPin className={cn(isMobile ? 'h-4 w-4' : 'h-3 w-3')} />}
+        </Button>
+      </div>
+
+      {/* Photo strip */}
+      <div className={cn('flex items-center gap-2 flex-wrap rounded p-1 -m-1', !hasPhotos && 'ring-1 ring-destructive/40')}>
+        {photos.map((p, i) => (
+          <div key={i} className={cn('relative rounded border overflow-hidden group', photoSize)}>
+            <img src={URL.createObjectURL(p)} className="h-full w-full object-cover" alt="" />
+            <button
+              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+              onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+            >
+              <X className="h-3 w-3 text-white" />
+            </button>
+          </div>
+        ))}
+        {photos.length < 5 && (
+          <button
+            className={cn(
+              'rounded border border-dashed flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors',
+              busy && 'opacity-50 pointer-events-none',
+              photoSize
+            )}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className={cn(isMobile ? 'h-5 w-5' : 'h-3.5 w-3.5')} />
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && addFiles(e.target.files)} />
+      </div>
+
+      <Button
+        size="sm"
+        className={cn('w-full gap-1', isMobile ? 'h-11 min-h-[44px] text-sm' : 'h-7 text-xs')}
+        onClick={handleSubmit}
+        disabled={!canSubmit}
+      >
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+        Enviar Checkpoint
+      </Button>
+    </div>
+  );
+};
+
+export const CheckpointPopover: React.FC<CheckpointPopoverProps> = ({ servicioId, clienteLabel, isPending, onSubmit, children }) => {
+  const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  const handleClose = () => {
+    setOpen(false);
+    // Vaul drawer body overflow cleanup
+    if (isMobile) {
+      requestAnimationFrame(() => {
+        document.body.style.overflow = '';
+        document.body.style.pointerEvents = '';
+      });
+    }
+  };
+
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true); }}>
+        <DrawerTrigger asChild>{children}</DrawerTrigger>
+        <DrawerContent>
+          <CheckpointForm
+            servicioId={servicioId}
+            clienteLabel={clienteLabel}
+            isPending={isPending}
+            isMobile
+            onSubmit={onSubmit}
+            onClose={handleClose}
+          />
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent
-        className="w-80 p-3 space-y-2.5 relative"
-        side="bottom"
-        align="start"
-        onDrop={handleDrop}
-        onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onPaste={handlePaste}
-      >
-        {/* Drag overlay */}
-        {isDragging && (
-          <div className="absolute inset-0 z-10 rounded-md border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center pointer-events-none">
-            <span className="text-xs font-medium text-primary">Suelta aquí tus fotos</span>
-          </div>
-        )}
-
-        <div className="text-xs font-medium text-muted-foreground truncate">
-          Checkpoint — {clienteLabel}
-        </div>
-
-        <Textarea
-          placeholder="Descripción / novedad..."
-          value={descripcion}
-          onChange={e => setDescripcion(e.target.value)}
-          className="min-h-[56px] text-xs resize-none"
-          disabled={busy}
+      <PopoverContent className="w-80" side="bottom" align="start">
+        <CheckpointForm
+          servicioId={servicioId}
+          clienteLabel={clienteLabel}
+          isPending={isPending}
+          isMobile={false}
+          onSubmit={onSubmit}
+          onClose={() => setOpen(false)}
         />
-
-        <div className="flex gap-1.5">
-          <Input
-            placeholder="Coords / Google Maps link *"
-            value={coords}
-            onChange={e => setCoords(e.target.value)}
-            className={cn("h-7 text-xs", !coordsValid && coords.length > 0 && "border-destructive")}
-            disabled={busy}
-          />
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={requestGeo} disabled={busy || geoLoading}>
-            {geoLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <MapPin className="h-3 w-3" />}
-          </Button>
-        </div>
-
-        {/* Photo strip — required */}
-        <div className={cn("flex items-center gap-1.5 flex-wrap rounded p-1 -m-1", !hasPhotos && "ring-1 ring-destructive/40")}>
-          {photos.map((p, i) => (
-            <div key={i} className="relative h-9 w-9 rounded border overflow-hidden group">
-              <img src={URL.createObjectURL(p)} className="h-full w-full object-cover" alt="" />
-              <button
-                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
-              >
-                <X className="h-3 w-3 text-white" />
-              </button>
-            </div>
-          ))}
-          {photos.length < 5 && (
-            <button
-              className={cn(
-                "h-9 w-9 rounded border border-dashed flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors",
-                busy && "opacity-50 pointer-events-none"
-              )}
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && addFiles(e.target.files)} />
-        </div>
-
-        <Button size="sm" className="w-full h-7 text-xs gap-1" onClick={handleSubmit} disabled={!canSubmit}>
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-          Enviar Checkpoint
-        </Button>
       </PopoverContent>
     </Popover>
   );

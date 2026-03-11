@@ -8,6 +8,7 @@ import { CheckpointPopover } from './CheckpointPopover';
 import { ServiceCommSheet } from './ServiceCommSheet';
 import { useMonitoristaAssignment } from '@/hooks/useMonitoristaAssignment';
 import { useUnreadCounts } from '@/hooks/useServicioComm';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { BoardService, SpecialEventType } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +32,6 @@ const SPECIAL_EVENTS: { tipo: SpecialEventType; icon: React.ReactNode; label: st
   { tipo: 'incidencia', icon: <AlertTriangle className="h-3.5 w-3.5" />, label: 'Incidencia' },
 ];
 
-// Color palette for monitorista badges
 const MONITORISTA_COLORS = [
   'bg-chart-1/15 text-chart-1 border-chart-1/30',
   'bg-chart-2/15 text-chart-2 border-chart-2/30',
@@ -55,6 +55,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
   const { monitoristaByService, monitoristas } = useMonitoristaAssignment();
   const unreadMap = useUnreadCounts();
   const unreadCount = unreadMap.get(service.id) || 0;
+  const isMobile = useIsMobile();
 
   const assignedMonitorista = monitoristaByService.get(service.id_servicio);
   const monitoristaColorIndex = assignedMonitorista
@@ -79,7 +80,8 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
     <>
       <div
         className={cn(
-          'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 px-3 py-3 transition-colors group cursor-pointer select-none',
+          'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 transition-colors group cursor-pointer select-none',
+          isMobile ? 'px-4 py-4' : 'px-3 py-3',
           borderAccent
         )}
         onDoubleClick={() => onDoubleClick?.(service)}
@@ -87,34 +89,35 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
       >
         {/* Row 1: Timer hero — right aligned, dominant */}
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs font-medium truncate flex-1">{service.nombre_cliente}</span>
-          <span className={cn('text-lg font-mono tabular-nums leading-none', timerColor)}>
-            {service.minutesSinceLastAction}<span className="text-xs ml-0.5">m</span>
+          <span className={cn('font-medium truncate flex-1', isMobile ? 'text-sm' : 'text-xs')}>{service.nombre_cliente}</span>
+          <span className={cn('font-mono tabular-nums leading-none', timerColor, isMobile ? 'text-xl' : 'text-lg')}>
+            {service.minutesSinceLastAction}<span className={cn('ml-0.5', isMobile ? 'text-sm' : 'text-xs')}>m</span>
           </span>
         </div>
 
         {/* Row 2: Custodio · Route + badges */}
         <div className="flex items-center gap-1 mt-1">
-          <span className="text-[11px] text-muted-foreground truncate flex-1">
+          <span className={cn('text-muted-foreground truncate flex-1', isMobile ? 'text-xs' : 'text-[11px]')}>
             {service.requiere_armado && <Shield className="h-2.5 w-2.5 inline mr-0.5 text-chart-4 relative -top-px" />}
             {service.custodio_asignado || 'Sin custodio'} · {service.origen} → {service.destino}
           </span>
           {tipoMeta && (
-            <Badge variant="outline" className={cn('text-[8px] px-1.5 py-0 shrink-0', tipoMeta.class)}>
+            <Badge variant="outline" className={cn('px-1.5 py-0 shrink-0', tipoMeta.class, isMobile ? 'text-[10px]' : 'text-[8px]')}>
               {tipoMeta.label}
             </Badge>
           )}
         </div>
 
         {/* Row 3: Folio + Monitorista badge + Actions */}
-        <div className="flex items-center gap-1 mt-2">
-          <span className="text-[10px] font-mono text-muted-foreground/60">{service.id_servicio}</span>
+        <div className={cn('flex items-center gap-1', isMobile ? 'mt-3' : 'mt-2')}>
+          <span className={cn('font-mono text-muted-foreground/60', isMobile ? 'text-xs' : 'text-[10px]')}>{service.id_servicio}</span>
 
           {assignedMonitorista && (
             <Badge
               variant="outline"
               className={cn(
-                'text-[8px] px-1.5 py-0 gap-0.5 ml-1 border',
+                'px-1.5 py-0 gap-0.5 ml-1 border',
+                isMobile ? 'text-[10px]' : 'text-[8px]',
                 monitoristaColorIndex >= 0 ? MONITORISTA_COLORS[monitoristaColorIndex] : '',
               )}
             >
@@ -127,10 +130,13 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 text-[11px] px-1.5 gap-0.5 text-muted-foreground hover:text-foreground relative"
+            className={cn(
+              'gap-0.5 text-muted-foreground hover:text-foreground relative',
+              isMobile ? 'h-9 min-h-[44px] text-xs px-2' : 'h-6 text-[11px] px-1.5'
+            )}
             onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
           >
-            <MessageCircle className="h-3 w-3" />
+            <MessageCircle className={cn(isMobile ? 'h-4 w-4' : 'h-3 w-3')} />
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[12px] h-3 rounded-full bg-destructive text-destructive-foreground text-[7px] flex items-center justify-center px-0.5 animate-pulse">
                 {unreadCount}
@@ -149,9 +155,12 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 text-[11px] px-2 gap-1 text-muted-foreground hover:text-foreground"
+              className={cn(
+                'gap-1 text-muted-foreground hover:text-foreground',
+                isMobile ? 'h-9 min-h-[44px] text-xs px-3' : 'h-6 text-[11px] px-2'
+              )}
             >
-              <Timer className="h-3 w-3" />
+              <Timer className={cn(isMobile ? 'h-4 w-4' : 'h-3 w-3')} />
               Reportar
             </Button>
           </CheckpointPopover>
@@ -161,18 +170,21 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-muted-foreground/50"
+                className={cn(
+                  'text-muted-foreground/50',
+                  isMobile ? 'h-9 w-9 min-h-[44px]' : 'h-6 w-6'
+                )}
               >
-                <MoreHorizontal className="h-3.5 w-3.5" />
+                <MoreHorizontal className={cn(isMobile ? 'h-5 w-5' : 'h-3.5 w-3.5')} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" side={isMobile ? 'top' : 'bottom'} className="w-44">
               {SPECIAL_EVENTS.map(evt => (
                 <DropdownMenuItem
                   key={evt.tipo}
                   onClick={() => onEventoEspecial(service.id_servicio, evt.tipo)}
                   disabled={isEventoPending}
-                  className="text-xs gap-2"
+                  className={cn('gap-2', isMobile ? 'text-sm min-h-[44px]' : 'text-xs')}
                 >
                   {evt.icon}
                   {evt.label}
@@ -182,7 +194,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
               <DropdownMenuItem
                 onClick={() => setLlegadaConfirm(true)}
                 disabled={isLlegadaPending}
-                className="text-xs gap-2"
+                className={cn('gap-2', isMobile ? 'text-sm min-h-[44px]' : 'text-xs')}
               >
                 <MapPinCheck className="h-3.5 w-3.5 text-chart-2" />
                 Llegada a Destino
