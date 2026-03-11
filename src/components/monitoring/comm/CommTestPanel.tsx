@@ -9,9 +9,11 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TEMPLATE_VARIABLES, type DetectaTemplateName } from '@/types/kapso';
 import {
   Table,
   TableBody,
