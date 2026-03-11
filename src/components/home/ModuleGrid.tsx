@@ -24,6 +24,7 @@ export const ModuleGrid = ({ modules }: ModuleGridProps) => {
               className="p-2 rounded-xl"
               style={{ 
                 backgroundColor: `${module.color}15`,
+                transform: 'translateZ(0)',
               }}
             >
               <Icon 
