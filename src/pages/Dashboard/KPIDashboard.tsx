@@ -36,10 +36,6 @@ import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsCh
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
 import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
-import { ExpenseForm } from '@/components/recruitment/ExpenseForm';
-import { ExpensesList } from '@/components/recruitment/ExpensesList';
-import { ExpenseMetricsCards } from '@/components/recruitment/ExpenseMetricsCards';
-import { ExpenseDistributionChart } from '@/components/recruitment/ExpenseDistributionChart';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -59,8 +55,7 @@ const KPIDashboard = () => {
     operacional: 'ops',
     adquisicion: 'client',
     clientes: 'client',
-    kpis: 'kpis-cost',
-    costos: 'kpis-cost',
+    kpis: 'kpis',
     resumen: 'summary',
     calibracion: 'summary',
   };
@@ -70,7 +65,7 @@ const KPIDashboard = () => {
   const rawTab = searchParams.get('tab') || 'operacional';
   // On mobile, normalize desktop tab values to mobile groups
   const activeTab = useMemo(() => {
-    if (isMobile && !['ops', 'client', 'kpis-cost', 'summary'].includes(rawTab)) {
+    if (isMobile && !['ops', 'client', 'kpis', 'summary'].includes(rawTab)) {
       return MOBILE_TAB_MAP[rawTab] || 'ops';
     }
     return rawTab;
@@ -367,7 +362,7 @@ const KPIDashboard = () => {
                 <Building2 className="h-3.5 w-3.5" />
                 Clientes
               </TabsTrigger>
-              <TabsTrigger value="kpis-cost" className="flex items-center gap-1 min-h-[44px] text-xs">
+              <TabsTrigger value="kpis" className="flex items-center gap-1 min-h-[44px] text-xs">
                 <BarChart3 className="h-3.5 w-3.5" />
                 KPIs
               </TabsTrigger>
@@ -378,7 +373,7 @@ const KPIDashboard = () => {
             </TabsList>
           ) : (
             /* ── Desktop: 7 tabs ── */
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Activity className="h-4 w-4" />
                 Operacional
@@ -394,10 +389,6 @@ const KPIDashboard = () => {
               <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <BarChart3 className="h-4 w-4" />
                 KPIs
-              </TabsTrigger>
-              <TabsTrigger value="costos" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-                <DollarSign className="h-4 w-4" />
-                Costos
               </TabsTrigger>
               <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Building className="h-4 w-4" />
@@ -422,21 +413,9 @@ const KPIDashboard = () => {
                 <ClientAnalytics />
               </TabsContent>
 
-              {/* ── MOBILE: KPIs (KPIs + Costos) ── */}
-              <TabsContent value="kpis-cost" className="space-y-4">
+              {/* ── MOBILE: KPIs ── */}
+              <TabsContent value="kpis" className="space-y-4">
                 <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
-
-                <div className="relative py-2">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
-                    Costos
-                  </span>
-                </div>
-
-                <ExpenseMetricsCards />
-                <ExpenseDistributionChart />
-                <ExpenseForm />
-                <ExpensesList />
               </TabsContent>
 
               {/* ── MOBILE: Resumen (Resumen + Calibración) ── */}
@@ -559,14 +538,6 @@ const KPIDashboard = () => {
                 <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
               </TabsContent>
 
-              <TabsContent value="costos" className="space-y-6">
-                <ExpenseMetricsCards />
-                <ExpenseDistributionChart />
-                <div className="space-y-6">
-                  <ExpenseForm />
-                  <ExpensesList />
-                </div>
-              </TabsContent>
 
               <TabsContent value="resumen" className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

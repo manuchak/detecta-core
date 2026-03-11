@@ -20,8 +20,13 @@ import {
   Zap,
   BarChart3,
   Settings,
-  Brain
+  Brain,
+  DollarSign
 } from "lucide-react";
+import { ExpenseMetricsCards } from "@/components/recruitment/ExpenseMetricsCards";
+import { ExpenseDistributionChart } from "@/components/recruitment/ExpenseDistributionChart";
+import { ExpenseForm } from "@/components/recruitment/ExpenseForm";
+import { ExpensesList } from "@/components/recruitment/ExpensesList";
 import { useSupplyDashboard } from "@/hooks/useSupplyDashboard";
 import { Link } from "react-router-dom";
 import { DailyCallStats } from "@/components/supply/DailyCallStats";
@@ -77,11 +82,15 @@ const SupplyDashboardExtended = () => {
         <DailyCallStats />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Resumen General</TabsTrigger>
             <TabsTrigger value="processing">Procesamiento Leads</TabsTrigger>
             <TabsTrigger value="custodians">Custodios</TabsTrigger>
             <TabsTrigger value="liberacion">Liberación</TabsTrigger>
+            <TabsTrigger value="costos" className="flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4" />
+              Costos
+            </TabsTrigger>
             <TabsTrigger value="automation">Automatización</TabsTrigger>
           </TabsList>
 
@@ -356,6 +365,15 @@ const SupplyDashboardExtended = () => {
                   </Button>
                 </CardContent>
               </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="costos" className="space-y-6">
+            <ExpenseMetricsCards />
+            <ExpenseDistributionChart />
+            <div className="space-y-6">
+              <ExpenseForm />
+              <ExpensesList />
             </div>
           </TabsContent>
 
