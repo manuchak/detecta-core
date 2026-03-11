@@ -746,8 +746,21 @@ const ConversationSection: React.FC<{
                   : 'mr-auto bg-secondary text-secondary-foreground rounded-bl-md'
               )}
             >
+              {/* Inline image preview */}
+              {msg.media_url && /^https?:\/\//i.test(msg.media_url) && (msg.message_type === 'image' || /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(msg.media_url)) && (
+                <img
+                  src={msg.media_url}
+                  alt="media"
+                  className="rounded-lg max-w-[220px] max-h-48 object-cover cursor-pointer mb-1"
+                  onClick={() => window.open(msg.media_url!, '_blank')}
+                  loading="lazy"
+                />
+              )}
               <p className="break-words">{msg.message_text || `[${msg.message_type}]`}</p>
-              {msg.media_url && (
+              {msg.media_url && !/^https?:\/\//i.test(msg.media_url) && (
+                <span className="text-[10px] opacity-50 block mt-0.5">📎 Media ID: {msg.media_url}</span>
+              )}
+              {msg.media_url && /^https?:\/\//i.test(msg.media_url) && msg.message_type !== 'image' && !/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(msg.media_url) && (
                 <a href={msg.media_url} target="_blank" rel="noopener" className="text-[10px] underline opacity-70 block mt-1">
                   📎 Ver media
                 </a>

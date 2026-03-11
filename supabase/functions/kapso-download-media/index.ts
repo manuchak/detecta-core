@@ -34,11 +34,9 @@ serve(async (req) => {
     if (!media_id) {
       throw new Error('media_id is required');
     }
-    if (!servicio_id) {
-      throw new Error('servicio_id is required');
-    }
 
-    console.log(`📥 Downloading media ${media_id} for service ${servicio_id}`);
+    const folder = servicio_id || 'unlinked';
+    console.log(`📥 Downloading media ${media_id} for ${servicio_id ? `service ${servicio_id}` : 'unlinked'}`);
 
     // Step 1: Get media URL from Kapso/Meta API
     const mediaInfoRes = await fetch(
@@ -95,7 +93,7 @@ serve(async (req) => {
     };
     const ext = extMap[mimeType] || 'bin';
     const timestamp = Date.now();
-    const storagePath = `${servicio_id}/${timestamp}_${media_id.slice(-8)}.${ext}`;
+    const storagePath = `${folder}/${timestamp}_${media_id.slice(-8)}.${ext}`;
 
     console.log(`💾 Uploading ${fileSize} bytes to whatsapp-media/${storagePath}`);
 
@@ -126,22 +124,28 @@ serve(async (req) => {
       : mimeType.startsWith('audio/') ? 'audio'
       : 'document';
 
-    const { data: commMedia, error: insertError } = await supabase
-      .from('servicio_comm_media')
-      .insert({
-        servicio_id: servicio_id,
-        whatsapp_message_id: whatsapp_message_id || null,
-        storage_path: storagePath,
-        media_type: media_type || detectedType,
-        original_media_id: media_id,
-        validado: false,
-        enviado_a_cliente: false,
-      })
-      .select()
-      .single();
+    let commMedia: any = null;
+    if (servicio_id) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('servicio_comm_media')
+        .insert({
+          servicio_id: servicio_id,
+          whatsapp_message_id: whatsapp_message_id || null,
+          storage_path: storagePath,
+          media_type: media_type || detectedType,
+          original_media_id: media_id,
+          validado: false,
+          enviado_a_cliente: false,
+        })
+        .select()
+        .single();
 
-    if (insertError) {
-      console.error('Error inserting servicio_comm_media:', insertError);
+      if (insertError) {
+        console.error('Error inserting servicio_comm_media:', insertError);
+      }
+      commMedia = inserted;
+    } else {
+      console.log('⚠️ No servicio_id — skipping servicio_comm_media insert');
     }
 
     // Step 6: Update the whatsapp_message media_url with the public URL

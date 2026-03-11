@@ -159,6 +159,7 @@ serve(async (req) => {
       } else if (direction === 'inbound') {
         // Adaptar payload al formato interno para reutilizar handleIncomingMessage
         const msgData = payload.message;
+        const kapsoMediaUrl = kapsoMeta.media_url || null;
         const adaptedPayload: KapsoWebhookPayload = {
           event: 'whatsapp.message.received',
           timestamp: msgData.timestamp || new Date().toISOString(),
@@ -168,7 +169,7 @@ serve(async (req) => {
             to: msgData.to,
             type: msgData.type || 'text',
             text: msgData.text ? { body: msgData.text.body || msgData.text } : undefined,
-            image: msgData.image,
+            image: msgData.image ? { ...msgData.image, link: kapsoMediaUrl || msgData.image?.link } : undefined,
             document: msgData.document,
             interactive: msgData.interactive,
           },
@@ -238,8 +239,9 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
     messageText = data.text.body;
   } else if (data.image) {
     messageText = data.image.caption || '[Imagen]';
-    mediaUrl = data.image.id;
     mediaId = data.image.id;
+    // Use direct Kapso URL if available, fallback to media ID
+    mediaUrl = (data.image as any).link || data.image.id;
   } else if (data.document) {
     messageText = `[Documento: ${data.document.filename}]`;
     mediaUrl = data.document.id;
@@ -327,7 +329,7 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
   }
 
   // ── Trigger media download if message has media and is linked to a service ──
-  if (mediaId && servicioId && insertedMsg) {
+  if (mediaId && insertedMsg) {
     try {
       const downloadRes = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/kapso-download-media`,
@@ -339,6 +341,7 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
           },
           body: JSON.stringify({
             media_id: mediaId,
+            servicio_id: servicioId || null,
             servicio_id: servicioId,
             whatsapp_message_id: insertedMsg.id,
             media_type: messageType,
