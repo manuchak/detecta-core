@@ -151,17 +151,17 @@ export function CPADetailView() {
       </Card>
 
       {/* Detailed Analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         {/* Cost vs Acquisitions */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5" />
+          <CardHeader className="p-3 md:p-6">
+            <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+              <TrendingDown className="h-4 w-4 md:h-5 md:w-5" />
               Costos vs Adquisiciones
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+          <CardContent className="p-3 md:p-6 pt-0">
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <LineChart data={cpaData.yearlyBreakdown.monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
