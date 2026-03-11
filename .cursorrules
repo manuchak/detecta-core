@@ -1,0 +1,91 @@
+# Detecta Core — AI Coding Rules
+# For Cursor, Copilot, Windsurf, and other LLM-assisted editors.
+
+## Stack
+- React 18 + Vite + TypeScript + Tailwind CSS + shadcn/ui
+- Supabase (PostgreSQL, Auth, Edge Functions, Realtime, Storage)
+- TanStack Query v5 for server state
+- react-router-dom v6 for routing
+- NO Next.js, NO SSR, NO Angular/Vue/Svelte
+- NO backend server code (Python, Node, Ruby) — all server logic in Supabase Edge Functions
+
+## Architecture Reference
+- Read `ARCHITECTURE.md` in project root for full structure, hooks, and domain map.
+
+## Imports
+- ALWAYS use `@/` alias for absolute imports: `import { X } from '@/components/...'`
+- Supabase client: `import { supabase } from '@/integrations/supabase/client'`
+- Roles/access: `import { ADMIN_ROLES, ... } from '@/constants/accessControl'`
+- Role types: `import { Role } from '@/types/roleTypes'`
+- DO NOT create new Supabase client instances
+
+## Security — CRITICAL
+- Roles MUST be stored in `user_roles` table — NEVER on `profiles` table
+- NEVER check auth/roles via localStorage, sessionStorage, or hardcoded credentials
+- Server-validated role: `supabase.rpc('get_current_user_role_secure')`
+- All data access must respect RLS (Row Level Security) policies
+- Role lists must come from `src/constants/accessControl.ts` — never hardcode in components
+- Use `RoleProtectedRoute` or `RoleBlockedRoute` for route-level access control
+- Field operators (custodio, armado, instalador) have dedicated portals and CANNOT access admin modules
+
+## Data Fetching
+- Use `useAuthenticatedQuery()` from `@/hooks/useAuthenticatedQuery` for authenticated queries
+- Use `supabase.rpc()` for complex queries, aggregations, and security-sensitive operations
+- Use `supabase.from('table').select()` for simple CRUD
+- TanStack Query for ALL server state — no Redux, no Zustand, no global stores
+- Choose query config: 'standard' (30s), 'static' (10min), 'critical' (10s + auto-refetch)
+
+## UI Components
+- Use shadcn/ui for ALL base components (Button, Dialog, Card, Input, Select, etc.)
+- DO NOT create custom base components that duplicate shadcn functionality
+- Use Tailwind semantic tokens: `bg-background`, `text-foreground`, `border-border`, `bg-primary`, etc.
+- NEVER hardcode colors (no `text-white`, `bg-black`, `text-blue-500` in components)
+- All colors defined as CSS variables in `src/index.css` using HSL format
+- Framer Motion is NOT installed — use CSS transitions or Tailwind animate classes
+
+## Mobile Responsiveness
+- ALWAYS check `useIsMobile()` from `@/hooks/use-mobile` when building UI
+- Mobile: compact pills, stacked cards, bottom sheets, smaller padding
+- Desktop: full tables, side-by-side layouts, larger spacing
+- Every new page/component MUST be responsive
+
+## Forms
+- Use react-hook-form + zod for validation
+- Use shadcn/ui Form components
+
+## File Organization
+- Hooks: `src/hooks/use[Entity].ts` — one hook per file
+- Pages: `src/pages/[Module]/` — PascalCase folder, index.tsx entry
+- Components: `src/components/[domain]/[ComponentName].tsx`
+- Keep components small and focused — extract sub-components when > 200 lines
+
+## Edge Functions
+- Located in `supabase/functions/[name]/index.ts`
+- Deno runtime, TypeScript
+- Standard CORS headers pattern
+- Always validate auth token in function body
+
+## Key Files to Read First
+- `src/constants/accessControl.ts` — role-based access control (SINGLE SOURCE OF TRUTH)
+- `src/types/roleTypes.ts` — all role definitions
+- `src/contexts/AuthContext.tsx` — auth provider
+- `src/App.tsx` — all route definitions
+- `src/index.css` — design tokens and CSS variables
+- `ARCHITECTURE.md` — full architecture documentation
+
+## Business Domain
+- This is a security/logistics operations platform (armed custody, GPS monitoring, escort services)
+- "Servicio" = custody service, "Custodio" = custody agent, "Armado" = armed guard
+- "Instalador" = GPS installer, "C5" = monitoring center, "SIERCP" = risk evaluation
+- Spanish is the primary UI language — keep all user-facing text in Spanish
+- Code identifiers (variables, functions) can be English or Spanish — follow existing patterns
+
+## Common Mistakes to Avoid
+1. Adding roles to `profiles` table instead of `user_roles`
+2. Using localStorage for auth state
+3. Hardcoding role checks instead of importing from `accessControl.ts`
+4. Creating new Supabase client instances
+5. Not checking mobile responsiveness
+6. Using `any` types when proper types exist in `types/` folder
+7. Direct color values instead of semantic design tokens
+8. Skipping `useAuthenticatedQuery` for authenticated data fetching
