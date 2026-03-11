@@ -1,97 +1,77 @@
 
+# Mejora del Dashboard Ops para Movil
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+## Estado actual del tab Ops (390px)
 
-## Roles confirmados por módulo
+El tab "Ops" renderiza `OperationalOverview` que tiene 4 secciones apiladas verticalmente:
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+1. **OperationalHeroBar** — 4 tarjetas semaforizadas (Fill Rate, On-Time, Servicios MTD, GMV MTD) en grid 2x2
+2. **DoDTrendChart** — Grafica Recharts de 14 dias con Fill Rate + OTP + lineas de meta (dificil de leer en 390px, ejes cortados)
+3. **Secondary KPIs** (4 cards: Cumplimiento, Custodios, AOV, KM) + **OperationalAlerts** (card separada) — en movil se apilan verticalmente, mucho scroll
+4. **Estado de Servicios** + **Top 5 Custodios** — 2 cards grandes
 
----
+Datos disponibles en `useOperationalMetrics`:
+- Fill Rate MTD/ayer/mes anterior + target
+- On-Time MTD + cambio vs mes anterior
+- Servicios MTD (completados, pendientes, cancelados + conteos + cambio %)
+- GMV MTD + cambio %
+- AOV + KM promedio + cambio %
+- Custodios activos + cambio %
+- Daily trend 14 dias (solicitados, realizados, fillRate, aTiempo, conRetraso, otpRate)
+- Top 10 custodios (name, services, gmv, margen)
+- Top 10 clientes (name, services, gmv, aov)
+- Monthly breakdown (12 meses)
+- Alertas operativas (critical/warning/info/success)
 
-## Hallazgos actuales
+## Mejoras propuestas
 
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
+### 1. DoDTrendChart compacto para movil
+El grafico actual usa `ComposedChart` con Area + Line + 2 ReferenceLine + tooltip complejo. En 390px los labels del eje X se superponen y el tooltip es incomodo.
 
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
+**Cambio**: En movil, reducir a los ultimos 7 dias (no 14), ocultar el eje Y, reducir altura de 300px a 180px, y simplificar labels del eje X a solo dia numerico (ej: "7", "8", "9").
 
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
+### 2. Secondary KPIs inline con Hero Bar
+En lugar de 4 cards separadas debajo del grafico, integrar Cumplimiento, Custodios, AOV y KM como una fila compacta de "pills" debajo del Hero Bar. Esto ahorra ~160px de altura.
 
----
+**Cambio**: En `OperationalOverview`, cuando `isMobile`, renderizar los 4 secondary KPIs como una fila horizontal scrollable de mini-badges en lugar de cards completas.
 
-## Plan de corrección
+### 3. Alertas como banner compacto
+`OperationalAlerts` ocupa una card completa con header. En movil, convertirla en un banner inline de 1 linea (similar a `CriticalAlertsBar`) que solo muestra el conteo de alertas criticas.
 
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+**Cambio**: En movil, reemplazar `<OperationalAlerts>` por un banner compacto inline.
+
+### 4. Estado de Servicios + Top Custodios compactos
+Las 2 cards de Estado de Servicios y Top Custodios son verbosas. En movil:
+- Estado de Servicios: solo mostrar los 3 numeros (Completados/Pendientes/Cancelados) en una fila, sin las barras de progreso
+- Top Custodios: limitar a 3 (no 5) y layout mas compacto
+
+## Resultado esperado en 390px
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌─────────────────────────────┐
+│ FILL RATE  │ ON-TIME        │ ← Hero 2x2
+│ 93.4% 🟡   │ 100% 🟢       │
+├────────────┼────────────────┤
+│ SERVICIOS  │ GMV MTD        │
+│ 318 🟢     │ $4.2M 🟢      │
+├─────────────────────────────┤
+│ 94%│ 122│ $13K│ 245km       │ ← Pills compactas
+│ Cmpl│Cust│ AOV │ KM         │
+├─────────────────────────────┤
+│ 🔴 2 alertas │ Fill Rate... │ ← Banner 1 linea
+├─────────────────────────────┤
+│ ▓▓▓▓▓▓▓░░  7d trend        │ ← Grafico 180px, 7d
+│            Fill Rate + OTP  │
+├─────────────────────────────┤
+│ ✅ 285  ⏳ 12  ❌ 5         │ ← Servicios inline
+├─────────────────────────────┤
+│ 1. Custodio A  42svs $280K  │ ← Top 3 compacto
+│ 2. Custodio B  38svs $250K  │
+│ 3. Custodio C  35svs $220K  │
+└─────────────────────────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Archivos a modificar
 
-### Fase 2 — Migrar policies por módulo
-
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
-
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
-
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
-
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
-
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
-
-### Fase 3 — Frontend: Sidebar ajustes menores
-
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
-|---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
-
+- **`src/components/executive/OperationalOverview.tsx`** — Reestructurar layout movil: pills compactas para secondary KPIs, banner de alertas, Top 3 en vez de 5, servicios inline
+- **`src/components/executive/DoDTrendChart.tsx`** — En movil: 7 dias, altura 180px, eje Y oculto, labels simplificados
