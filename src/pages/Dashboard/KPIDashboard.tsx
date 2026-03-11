@@ -365,9 +365,9 @@ const KPIDashboard = () => {
                 <BarChart3 className="h-3.5 w-3.5" />
                 KPIs
               </TabsTrigger>
-              <TabsTrigger value="summary" className="flex items-center gap-1 min-h-[44px] text-xs">
-                <Building className="h-3.5 w-3.5" />
-                Resumen
+              <TabsTrigger value="calibracion" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <Settings className="h-3.5 w-3.5" />
+                Calibración
               </TabsTrigger>
             </TabsList>
           ) : (
