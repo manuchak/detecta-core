@@ -1026,6 +1026,11 @@ export function useServiciosPlanificados() {
         : 'Servicio revertido a "Programado"';
       toast.success(message);
       queryClient.invalidateQueries({ queryKey: ['scheduled-services'] });
+
+      // Fase 7: Auto-envío posicionamiento_cliente al marcar "En Sitio"
+      if (variables.action === 'mark_on_site') {
+        sendPositioningNotification(variables.serviceId, variables.serviceId);
+      }
     },
     onError: (error) => {
       logger.error('updateOperationalStatus', 'Mutation failed', error);
