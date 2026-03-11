@@ -218,9 +218,9 @@ export const OperationalOverview = () => {
 
         {/* Section 4: Compact 7d Trend Chart */}
         <DoDTrendChart 
-          data={metrics.dailyTrend}
+          data={realTrendData}
           fillRateTarget={95}
-          otpTarget={90}
+          otpTarget={95}
         />
 
         {/* Section 5: Services inline */}
