@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, ArrowRight, Shield } from 'lucide-react';
+import { Clock, ArrowRight, Shield, MessageCircle } from 'lucide-react';
 import { ConfirmTransitionDialog } from './ConfirmTransitionDialog';
+import { ServiceCommSheet } from './ServiceCommSheet';
+import { useUnreadCounts } from '@/hooks/useServicioComm';
 import type { BoardService } from '@/hooks/useBitacoraBoard';
 import { cn } from '@/lib/utils';
 
