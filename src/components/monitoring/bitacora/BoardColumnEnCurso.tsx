@@ -26,6 +26,7 @@ export const BoardColumnEnCurso: React.FC<BoardColumnEnCursoProps> = ({
   isCheckpointPending, isEventoPending, isLlegadaPending, isLiberarPending, isRevertirPending,
 }) => {
   const [filter, setFilter] = useState('');
+  const isMobile = useIsMobile();
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return services;
