@@ -204,7 +204,7 @@ export function MonthlyCapacityDetailView() {
           <CardContent className="flex-1 flex flex-col justify-between">
             <div className="space-y-1">
               <div className="flex items-baseline gap-2">
-                <div className={`text-2xl font-bold ${calculations.gapVsForecast >= 0 ? 'text-success' : 'text-destructive'}`}>
+                <div className={`text-lg md:text-2xl font-bold ${calculations.gapVsForecast >= 0 ? 'text-success' : 'text-destructive'}`}>
                   {calculations.gapVsForecast >= 0 ? '+' : ''}{calculations.gapVsForecast.toLocaleString()}
                 </div>
                 {calculations.gapVsForecast >= 0 ? (
