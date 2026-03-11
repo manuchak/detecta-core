@@ -34,19 +34,24 @@ export interface CommMedia {
 
 /* ───────── Hook ───────── */
 
-export function useServicioComm(servicioId: string | null) {
+export function useServicioComm(servicioId: string | null, commChannel?: string) {
   const queryClient = useQueryClient();
 
-  // Fetch messages for this service
+  // Fetch messages for this service (optionally filtered by comm_channel)
   const { data: messages = [], isLoading: messagesLoading } = useQuery({
-    queryKey: ['servicio-comm', servicioId],
+    queryKey: ['servicio-comm', servicioId, commChannel],
     queryFn: async () => {
       if (!servicioId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('whatsapp_messages')
-        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read, sent_by_user_id')
+        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read, sent_by_user_id, comm_channel, comm_phase, sender_type')
         .eq('servicio_id', servicioId)
         .order('created_at', { ascending: true });
+      if (commChannel) {
+        query = query.eq('comm_channel', commChannel);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
       if (error) throw error;
 
       // Resolve display names for monitorist-sent messages
