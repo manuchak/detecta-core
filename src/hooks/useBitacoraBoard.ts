@@ -16,6 +16,8 @@ export interface BoardService {
   nombre_cliente: string;
   custodio_asignado: string | null;
   custodio_id: string | null;
+  custodio_telefono: string | null;
+  telefono_cliente: string | null;
   origen: string;
   destino: string;
   fecha_hora_cita: string;
