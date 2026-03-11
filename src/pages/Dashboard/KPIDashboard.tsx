@@ -263,53 +263,68 @@ const KPIDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
-        {/* Header with Navigation */}
-        <div className={isMobile ? "space-y-3" : "flex items-center justify-between"}>
-          <div className="space-y-3 md:space-y-4">
-            <div className="space-y-1">
-              <h1 className="text-xl md:text-3xl font-light tracking-tight text-foreground">
-                {getGreeting()}, {getUserName()}
-              </h1>
-              {!isMobile && (
-                <p className="text-muted-foreground">
-                  Dashboard ejecutivo completo con métricas operativas, adquisición y KPIs avanzados.
-                </p>
-              )}
-            </div>
-            
-            {/* Navigation Tabs */}
-            <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
-              <TabsList className={isMobile ? "flex w-auto gap-1" : "grid w-full grid-cols-2"}>
-                <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
-                  <TrendingUp className="h-4 w-4" />
-                  {!isMobile && 'Proyecciones'}
-                  {isMobile && 'Proy.'}
-                </TabsTrigger>
-                <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
-                  <BarChart3 className="h-4 w-4" />
-                  KPIs
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          <div className={isMobile ? "flex items-center gap-3" : "flex items-center gap-4"}>
+      <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-8">
+        {/* Header — hidden on mobile since ExecutiveDashboard provides top-level nav */}
+        {isMobile ? (
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px]"
+            >
+              <span className="text-base">←</span>
+              <span>Volver</span>
+            </button>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={refreshData}
-              className="gap-2"
+              className="gap-1.5 h-8"
             >
-              <RefreshCw size={16} />
-              {!isMobile && 'Actualizar'}
+              <RefreshCw size={14} />
             </Button>
-            {!isMobile && (
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div className="space-y-3 md:space-y-4">
+              <div className="space-y-1">
+                <h1 className="text-xl md:text-3xl font-light tracking-tight text-foreground">
+                  {getGreeting()}, {getUserName()}
+                </h1>
+                <p className="text-muted-foreground">
+                  Dashboard ejecutivo completo con métricas operativas, adquisición y KPIs avanzados.
+                </p>
+              </div>
+              
+              {/* Navigation Tabs — desktop only */}
+              <Tabs value={currentTab} onValueChange={handleTabChange} className="w-fit">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                    <TrendingUp className="h-4 w-4" />
+                    Proyecciones
+                  </TabsTrigger>
+                  <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                    <BarChart3 className="h-4 w-4" />
+                    KPIs
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refreshData}
+                className="gap-2"
+              >
+                <RefreshCw size={16} />
+                Actualizar
+              </Button>
               <div className="text-xs text-muted-foreground">
                 Última actualización: {currentTime}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Executive Dashboard Tabs */}
         <Tabs value={activeTab} onValueChange={handleInternalTabChange} className="space-y-4 md:space-y-6">

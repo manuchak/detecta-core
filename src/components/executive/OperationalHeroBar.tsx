@@ -75,47 +75,48 @@ const HeroCard: React.FC<{
   return (
     <div 
       className={cn(
-        'relative p-4 rounded-lg transition-all duration-200 hover:shadow-md',
+        'relative rounded-lg transition-all duration-200 hover:shadow-md',
+        'p-3 md:p-4',
         styles.border,
         styles.bg,
         'border border-border/50'
       )}
     >
       {/* Semaphore indicator dot */}
-      <div className="absolute top-3 right-3">
-        <div className={cn('w-2.5 h-2.5 rounded-full animate-pulse', styles.indicator)} />
+      <div className="absolute top-2.5 right-2.5 md:top-3 md:right-3">
+        <div className={cn('w-2 h-2 md:w-2.5 md:h-2.5 rounded-full animate-pulse', styles.indicator)} />
       </div>
       
       {/* Label */}
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+      <p className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5 md:mb-1">
         {metric.label}
       </p>
       
       {/* Value */}
-      <p className="text-3xl font-bold text-foreground tracking-tight">
+      <p className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
         {metric.value}
-        {metric.unit && <span className="text-lg font-normal text-muted-foreground ml-1">{metric.unit}</span>}
+        {metric.unit && <span className="text-sm md:text-lg font-normal text-muted-foreground ml-0.5 md:ml-1">{metric.unit}</span>}
       </p>
       
       {/* Target if exists */}
       {metric.target && (
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5">
           Meta: {metric.target}%
         </p>
       )}
       
       {/* Change indicator */}
-      <div className="flex items-center gap-1.5 mt-2">
+      <div className="flex items-center gap-1 md:gap-1.5 mt-1.5 md:mt-2">
         <div className={cn(
-          'flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium',
+          'flex items-center gap-0.5 px-1 md:px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium',
           isPositiveChange 
             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
             : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
         )}>
-          <TrendIcon className="h-3 w-3" />
+          <TrendIcon className="h-2.5 w-2.5 md:h-3 md:w-3" />
           <span>{metric.change >= 0 ? '+' : ''}{metric.change}%</span>
         </div>
-        <span className="text-xs text-muted-foreground truncate">
+        <span className="text-[10px] md:text-xs text-muted-foreground truncate">
           {metric.changeLabel}
         </span>
       </div>
@@ -138,7 +139,7 @@ export const OperationalHeroBar: React.FC<OperationalHeroBarProps> = ({
 
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
         {metrics.map(({ key, metric, semaphore }) => (
           <HeroCard 
             key={key} 
