@@ -267,22 +267,48 @@ const KPIDashboard = () => {
       <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-8">
         {/* Header — hidden on mobile since ExecutiveDashboard provides top-level nav */}
         {isMobile ? (
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px]"
-            >
-              <span className="text-base">←</span>
-              <span>Volver</span>
-            </button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={refreshData}
-              className="gap-1.5 h-8"
-            >
-              <RefreshCw size={14} />
-            </Button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                KPIs de la Organización
+              </h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={refreshData}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw size={14} />
+              </Button>
+            </div>
+            <Tabs value="kpis" onValueChange={(val) => {
+              const routes: Record<string, string> = {
+                executive: '/dashboard',
+                plan: '/dashboard/plan',
+                starmap: '/dashboard/starmap',
+                kpis: '/dashboard/kpis',
+                operativo: '/dashboard/operativo',
+              };
+              if (routes[val]) navigate(routes[val]);
+            }}>
+              <TabsList className="flex w-auto gap-1">
+                <TabsTrigger value="executive" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <TrendingUp className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger value="plan" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Target className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger value="starmap" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Star className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger value="kpis" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <BarChart3 className="h-4 w-4" />
+                </TabsTrigger>
+                <TabsTrigger value="operativo" className="flex items-center gap-2 min-h-[44px] shrink-0">
+                  <Radio className="h-4 w-4" />
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         ) : (
           <div className="flex items-center justify-between">
