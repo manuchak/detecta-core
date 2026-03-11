@@ -1,31 +1,20 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
 import { 
   TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Users, 
-  Target, 
-  UserCheck, 
-  Star, 
   BarChart3, 
-  Clock, 
   RefreshCw,
   Activity,
   Settings,
-  Building,
   UserPlus,
   Building2,
-  Radio
+  Radio,
+  Target,
+  Star
 } from 'lucide-react';
 import { useExecutiveDashboardKPIs } from '@/hooks/useExecutiveDashboardKPIs';
-import { useDynamicServiceData } from '@/hooks/useDynamicServiceData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { OperationalOverview } from '@/components/executive/OperationalOverview';
@@ -34,17 +23,10 @@ import { ExecutiveMetricsGrid } from '@/components/executive/ExecutiveMetricsGri
 import { ClientAnalytics } from '@/components/executive/ClientAnalytics';
 import { DailyLeadsCallsChart } from '@/components/recruitment/DailyLeadsCallsChart';
 import { KPIDetailView } from '@/components/executive/KPIDetailView';
-import { CustodianEngagementDetailView } from '@/components/executive/details/CustodianEngagementDetailView';
 import CalibrationDashboard from '@/components/executive/CalibrationDashboard';
-
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
 
 const KPIDashboard = () => {
   const { kpis, loading: kpisLoading, refreshData } = useExecutiveDashboardKPIs();
-  const { data: serviceData, isLoading: serviceDataLoading } = useDynamicServiceData();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -56,8 +38,7 @@ const KPIDashboard = () => {
     adquisicion: 'client',
     clientes: 'client',
     kpis: 'kpis',
-    resumen: 'summary',
-    calibracion: 'summary',
+    calibracion: 'calibracion',
   };
 
   // Read active internal tab from URL query params, default to 'operacional'
@@ -65,7 +46,7 @@ const KPIDashboard = () => {
   const rawTab = searchParams.get('tab') || 'operacional';
   // On mobile, normalize desktop tab values to mobile groups
   const activeTab = useMemo(() => {
-    if (isMobile && !['ops', 'client', 'kpis', 'summary'].includes(rawTab)) {
+    if (isMobile && !['ops', 'client', 'kpis', 'calibracion'].includes(rawTab)) {
       return MOBILE_TAB_MAP[rawTab] || 'ops';
     }
     return rawTab;
@@ -73,10 +54,6 @@ const KPIDashboard = () => {
   const [selectedKPI, setSelectedKPI] = useState<string | null>(null);
   const [selectedKPITooltip, setSelectedKPITooltip] = useState<React.ReactNode>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
-
-  // Dynamic date label for current month
-  const now = new Date();
-  const currentMonthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const handleTabChange = (value: string) => {
     if (value === 'kpis') {
@@ -113,130 +90,7 @@ const KPIDashboard = () => {
     return 'Usuario';
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${value.toFixed(1)}%`;
-  };
-
-  const mainKPIs = [
-    {
-      title: 'CPA',
-      value: formatCurrency(kpis.cpa),
-      description: 'Costo por Adquisición',
-      trend: -5.2,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      icon: DollarSign
-    },
-    {
-      title: 'LTV',
-      value: formatCurrency(kpis.ltv),
-      description: 'Valor de Vida del Cliente',
-      trend: 8.5,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      icon: TrendingUp
-    },
-    {
-      title: 'ROI Marketing',
-      value: formatPercentage(kpis.roiMkt),
-      description: 'Retorno de Inversión',
-      trend: 12.3,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      icon: BarChart3
-    }
-  ];
-
-  const secondaryKPIs = [
-    {
-      title: 'CRATE',
-      value: formatPercentage(kpis.crate),
-      description: 'Tasa de Conversión',
-      progress: kpis.crate,
-      target: 15,
-      icon: Target
-    },
-    {
-      title: 'RRATE',
-      value: formatPercentage(kpis.rrate),
-      description: 'Tasa de Retención',
-      progress: kpis.rrate,
-      target: 100,
-      icon: UserCheck
-    },
-    {
-      title: 'NPS',
-      value: kpis.nps.toString(),
-      description: 'Net Promoter Score',
-      progress: kpis.nps,
-      target: 70,
-      icon: Star
-    },
-    {
-      title: 'Supply Growth',
-      value: formatPercentage(kpis.supplyGrowth),
-      description: 'Crecimiento de Oferta',
-      progress: Math.abs(kpis.supplyGrowth),
-      target: 20,
-      icon: Users
-    }
-  ];
-
-  const operationalMetrics = [
-    {
-      label: 'Engagement Score',
-      value: kpis.engagement.toFixed(1),
-      unit: 'pts',
-      trend: 2.1
-    },
-    {
-      label: 'Onboarding Time',
-      value: kpis.onboardingTime.toString(),
-      unit: 'días',
-      trend: -0.5
-    },
-    {
-      label: 'ARATE',
-      value: formatPercentage(kpis.arate),
-      unit: '',
-      trend: 1.2
-    }
-  ];
-
-  const recentActivities = [
-    {
-      id: 'KPI001',
-      activity: 'Actualización CPA',
-      value: formatCurrency(kpis.cpa),
-      status: 'Completado',
-      time: '2 min ago'
-    },
-    {
-      id: 'KPI002', 
-      activity: 'Análisis ROI Marketing',
-      value: formatPercentage(kpis.roiMkt),
-      status: 'En Progreso',
-      time: '5 min ago'
-    },
-    {
-      id: 'KPI003',
-      activity: 'Reporte NPS',
-      value: kpis.nps.toString(),
-      status: 'Completado',
-      time: '10 min ago'
-    }
-  ];
-
-  if (kpisLoading || serviceDataLoading) {
+  if (kpisLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="container mx-auto space-y-6">
@@ -366,14 +220,14 @@ const KPIDashboard = () => {
                 <BarChart3 className="h-3.5 w-3.5" />
                 KPIs
               </TabsTrigger>
-              <TabsTrigger value="summary" className="flex items-center gap-1 min-h-[44px] text-xs">
-                <Building className="h-3.5 w-3.5" />
-                Resumen
+              <TabsTrigger value="calibracion" className="flex items-center gap-1 min-h-[44px] text-xs">
+                <Settings className="h-3.5 w-3.5" />
+                Calibración
               </TabsTrigger>
             </TabsList>
           ) : (
             /* ── Desktop: 7 tabs ── */
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="operacional" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Activity className="h-4 w-4" />
                 Operacional
@@ -389,10 +243,6 @@ const KPIDashboard = () => {
               <TabsTrigger value="kpis" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <BarChart3 className="h-4 w-4" />
                 KPIs
-              </TabsTrigger>
-              <TabsTrigger value="resumen" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
-                <Building className="h-4 w-4" />
-                Resumen
               </TabsTrigger>
               <TabsTrigger value="calibracion" className="flex items-center gap-1.5 min-h-[44px] shrink-0 whitespace-nowrap">
                 <Settings className="h-4 w-4" />
@@ -418,101 +268,8 @@ const KPIDashboard = () => {
                 <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
               </TabsContent>
 
-              {/* ── MOBILE: Resumen (Resumen + Calibración) ── */}
-              <TabsContent value="summary" className="space-y-4">
-                {/* Main KPIs cards */}
-                <div className="grid grid-cols-2 gap-3">
-                  {mainKPIs.map((kpi, index) => {
-                    const Icon = kpi.icon;
-                    const isPositive = kpi.trend > 0;
-                    return (
-                      <Card key={index} className="relative overflow-hidden">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-3">
-                          <CardTitle className="text-xs font-medium text-muted-foreground">{kpi.title}</CardTitle>
-                          <div className={`p-1.5 rounded-lg ${kpi.bgColor}`}>
-                            <Icon className={`h-3.5 w-3.5 ${kpi.color}`} />
-                          </div>
-                        </CardHeader>
-                        <CardContent className="px-3 pb-3">
-                          <div className="text-lg font-bold">{kpi.value}</div>
-                          <div className="flex items-center gap-1 text-xs mt-1">
-                            {isPositive ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                            <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                              {Math.abs(kpi.trend)}%
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {/* Service data summary */}
-                {serviceData && (
-                  <Card>
-                    <CardHeader className="pb-2 px-4 pt-4">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" />
-                        Resumen {currentMonthLabel}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Servicios</span>
-                        <p className="text-base font-bold text-primary">{serviceData.currentMonth.services.toLocaleString()}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">GMV</span>
-                        <p className="text-base font-bold">${serviceData.currentMonth.gmv.toFixed(1)}M</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">AOV</span>
-                        <p className="text-base font-bold">{formatCurrency(serviceData.currentMonth.aov)}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Ritmo Diario</span>
-                        <p className="text-base font-bold">{serviceData.currentMonth.dailyPace}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Secondary KPIs */}
-                <Card>
-                  <CardHeader className="pb-2 px-4 pt-4">
-                    <CardTitle className="text-sm">KPIs Principales</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-4 pb-4 space-y-3">
-                    {secondaryKPIs.slice(0, 4).map((kpi, index) => {
-                      const Icon = kpi.icon;
-                      const progressPercentage = (kpi.progress / kpi.target) * 100;
-                      return (
-                        <div key={index} className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-xs font-medium">{kpi.title}</span>
-                            </div>
-                            <span className="text-xs font-bold">{kpi.value}</span>
-                          </div>
-                          <Progress value={Math.min(progressPercentage, 100)} className="h-1.5" />
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </Card>
-
-                <div className="relative py-2">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs font-medium text-muted-foreground">
-                    Calibración
-                  </span>
-                </div>
-
+              {/* ── MOBILE: Calibración ── */}
+              <TabsContent value="calibracion" className="space-y-4">
                 <CalibrationDashboard />
               </TabsContent>
             </>
@@ -539,102 +296,7 @@ const KPIDashboard = () => {
               </TabsContent>
 
 
-              <TabsContent value="resumen" className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                  {mainKPIs.map((kpi, index) => {
-                    const Icon = kpi.icon;
-                    const isPositive = kpi.trend > 0;
-                    return (
-                      <Card key={index} className="relative overflow-hidden">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                          <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-                          <div className={`p-2 rounded-lg ${kpi.bgColor}`}>
-                            <Icon className={`h-4 w-4 ${kpi.color}`} />
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{kpi.value}</div>
-                          <p className="text-xs text-muted-foreground mb-2">{kpi.description}</p>
-                          <div className="flex items-center gap-1 text-xs">
-                            {isPositive ? (
-                              <TrendingUp className="h-3 w-3 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-3 w-3 text-red-500" />
-                            )}
-                            <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
-                              {Math.abs(kpi.trend)}%
-                            </span>
-                            <span className="text-muted-foreground">vs mes anterior</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <Card className="lg:col-span-2">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5" />
-                        Resumen {currentMonthLabel}
-                      </CardTitle>
-                      <CardDescription>Métricas consolidadas del mes actual</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {serviceData && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center py-2 border-b">
-                              <span className="text-sm">Servicios Totales</span>
-                              <span className="text-lg font-bold text-primary">{serviceData.currentMonth.services.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b">
-                              <span className="text-sm">GMV Acumulado</span>
-                              <span className="text-lg font-bold text-green-600">${serviceData.currentMonth.gmv.toFixed(1)}M</span>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center py-2 border-b">
-                              <span className="text-sm">AOV Promedio</span>
-                              <span className="text-lg font-bold text-purple-600">{formatCurrency(serviceData.currentMonth.aov)}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b">
-                              <span className="text-sm">Ritmo Diario</span>
-                              <span className="text-lg font-bold text-orange-600">{serviceData.currentMonth.dailyPace}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>KPIs Principales</CardTitle>
-                      <CardDescription>Indicadores clave de rendimiento</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {secondaryKPIs.slice(0, 4).map((kpi, index) => {
-                        const Icon = kpi.icon;
-                        const progressPercentage = (kpi.progress / kpi.target) * 100;
-                        return (
-                          <div key={index} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{kpi.title}</span>
-                              </div>
-                              <span className="text-sm font-bold">{kpi.value}</span>
-                            </div>
-                            <Progress value={Math.min(progressPercentage, 100)} className="h-2" />
-                          </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
 
               <TabsContent value="calibracion" className="space-y-6">
                 <CalibrationDashboard />
