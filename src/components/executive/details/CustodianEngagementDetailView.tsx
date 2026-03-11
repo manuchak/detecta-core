@@ -241,7 +241,7 @@ export function CustodianEngagementDetailView() {
       </div>
 
       {/* Tendencia y Distribución */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
