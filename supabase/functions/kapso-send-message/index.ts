@@ -263,6 +263,7 @@ serve(async (req) => {
       is_from_bot: true,
       delivery_status: 'sent',
       ticket_id: request.context?.ticket_id || null,
+      servicio_id: request.context?.servicio_id || null,
       created_at: new Date().toISOString(),
       sent_by_user_id: request.sent_by_user_id || null,
     };

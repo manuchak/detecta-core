@@ -39,20 +39,29 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
   const handleSendNudge = async () => {
     if (!service) return;
+    if (!service.custodio_telefono) {
+      toast.error('No hay número de teléfono registrado para este custodio');
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('kapso-send-template', {
         body: {
-          phone: service.custodio_asignado,
-          template_name: 'nudge_status_custodio',
-          language_code: 'es_MX',
+          to: service.custodio_telefono,
+          templateName: 'nudge_status_custodio',
+          languageCode: 'es_MX',
           sent_by_user_id: user?.id || null,
-          components: [
-            { type: 'body', parameters: [
-              { type: 'text', text: service.custodio_asignado || 'Custodio' },
-              { type: 'text', text: service.id_servicio },
-            ]},
-          ],
+          components: {
+            body: {
+              parameters: [
+                { type: 'text', text: service.custodio_asignado || 'Custodio' },
+                { type: 'text', text: service.id_servicio },
+              ],
+            },
+          },
+          context: {
+            servicio_id: service.id,
+          },
         },
       });
       if (error) throw error;
@@ -65,13 +74,21 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
 
   const handleSendMessage = async (text: string) => {
     if (!service) return;
+    if (!service.custodio_telefono) {
+      toast.error('No hay número de teléfono registrado para este custodio');
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('kapso-send-message', {
         body: {
-          phone: service.custodio_asignado,
-          message: text,
+          to: service.custodio_telefono,
+          type: 'text',
+          text: text,
           sent_by_user_id: user?.id || null,
+          context: {
+            servicio_id: service.id,
+          },
         },
       });
       if (error) throw error;
@@ -89,19 +106,26 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
   }) => {
     if (!service) return;
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.functions.invoke('kapso-send-template', {
         body: {
-          phone: data.destinatario,
-          template_name: 'reporte_servicio_cliente',
-          language_code: 'es_MX',
-          components: [
-            { type: 'body', parameters: [
-              { type: 'text', text: service.nombre_cliente },
-              { type: 'text', text: service.id_servicio },
-              { type: 'text', text: 'en curso' },
-              { type: 'text', text: data.observaciones || 'Sin observaciones' },
-            ]},
-          ],
+          to: data.destinatario,
+          templateName: 'reporte_servicio_cliente',
+          languageCode: 'es_MX',
+          sent_by_user_id: user?.id || null,
+          components: {
+            body: {
+              parameters: [
+                { type: 'text', text: service.nombre_cliente },
+                { type: 'text', text: service.id_servicio },
+                { type: 'text', text: 'en curso' },
+                { type: 'text', text: data.observaciones || 'Sin observaciones' },
+              ],
+            },
+          },
+          context: {
+            servicio_id: service.id,
+          },
         },
       });
       if (error) throw error;
@@ -216,6 +240,7 @@ export const ServiceCommSheet: React.FC<ServiceCommSheetProps> = ({
               folioServicio={service.id_servicio}
               custodioName={service.custodio_asignado || 'Sin custodio'}
               media={media}
+              contactoWhatsapp={service.telefono_cliente}
               onSendReport={handleSendReport}
               onValidateMedia={validateMedia}
             />
