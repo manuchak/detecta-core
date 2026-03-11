@@ -1,29 +1,21 @@
 
-# Centro de Comunicaciones WhatsApp — Bitácora
 
-## Estado: Fase 1 completada ✅
+# Add Communication Button to "Por Iniciar" and "Evento Especial" Cards
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+## Context
+The `ServiceCommSheet` (chat + client report) is currently wired only into `ServiceCardActive` and `ServiceCardEnDestino`. The "Por Iniciar" and "Evento Especial" cards have no way to open the communication panel, even though a monitorist may need to contact the custodio before a service starts or during a special event.
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+## Changes
 
-## Fase 2 — Backend (pendiente)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+### 1. `ServiceCardPending.tsx`
+- Import `ServiceCommSheet`, `useUnreadCounts`, and `MessageCircle` icon
+- Add a chat icon button (matching the style used in Active/EnDestino cards) with unread badge
+- Wire `ServiceCommSheet` with `commOpen` state
 
-## Fase 3 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
+### 2. `ServiceCardSpecialEvent.tsx`
+- Same integration: import `ServiceCommSheet`, `useUnreadCounts`, `MessageCircle`
+- Add chat button in the card header row (next to the event badge/timer)
+- Wire `ServiceCommSheet` with `commOpen` state
+
+Both cards already have `service.id_servicio` available, which is all `ServiceCommSheet` needs.
+
