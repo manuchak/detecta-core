@@ -1,97 +1,109 @@
 
 
-# Corrección RLS — Monitoreo, WMS, Facturación, CRM, Tickets
+# Integración del Centro de Comunicaciones WhatsApp en la Bitácora
 
-## Roles confirmados por módulo
+## Diagnóstico de compatibilidad
 
-| Módulo | Lectura | Escritura/Gestión |
-|---|---|---|
-| **Monitoreo** | admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador | admin, owner, coordinador_operaciones |
-| **WMS** | admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones | admin, owner, supply_admin, coordinador_operaciones |
-| **Tickets** | admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor + own tickets | admin, owner, soporte, coordinador_operaciones |
-| **CRM** | admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success | admin, owner (service role for inserts) |
-| **Facturación** | admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones | admin, owner, facturacion_admin, finanzas_admin |
+El UI actual de la Bitácora sigue un patrón consistente:
+- **ServiceCards** compactas (3 filas: cliente+timer, custodio+ruta, folio+acciones)
+- **ServiceDetailDrawer** como Sheet lateral derecho (380-420px) para auditoría
+- **CheckpointPopover** para acciones rápidas inline
+- **Interacciones**: single-click acciones, double-click detalle
 
----
+La comunicación WhatsApp se integra en **dos puntos de contacto** sin romper nada:
 
-## Hallazgos actuales
-
-### Seguridad critica
-- **`facturas`**: 3 policies con `true` — abierta a todos
-- **`servicios_monitoreo`**: ALL policy abierta a todos los autenticados
-- **`ordenes_compra`**, **`recepciones_mercancia`**, **`proveedores`**, **`stock_productos`**: ALL policies abiertas a todos los autenticados (redundantes con las nuevas)
-- **`zonas_operacion_nacional`**: 15 policies duplicadas (mezcla de subqueries directas y funciones DEFINER)
-
-### Roles obsoletos
-- `manager` en tickets → eliminar (reemplazado por `coordinador_operaciones`)
-- `manager` en `is_admin_bypass_rls()` → eliminar
-
-### Policies duplicadas
-- WMS: cada tabla tiene ~3 policies superpuestas (legacy ALL + nuevas granulares + read via `user_has_wms_access()`)
-- Zonas: 15 policies donde con 2 bastaría
-
----
-
-## Plan de corrección
-
-### Fase 1 — Crear/actualizar funciones SECURITY DEFINER
+## Estrategia de integración
 
 ```text
-has_monitoring_role()     → admin, owner, monitoring, monitoring_supervisor, coordinador_operaciones, jefe_seguridad, analista_seguridad, planificador
-has_monitoring_write_role() → admin, owner, coordinador_operaciones
-has_wms_role()            → (actualizar user_has_wms_access) admin, owner, supply_admin, supply_lead, monitoring_supervisor, coordinador_operaciones
-has_wms_write_role()      → (actualizar can_manage_wms) admin, owner, supply_admin, coordinador_operaciones
-has_ticket_role()         → admin, owner, soporte, coordinador_operaciones, planificador, monitoring, monitoring_supervisor
-has_ticket_admin_role()   → admin, owner, soporte, coordinador_operaciones
-has_crm_role()            → admin, owner, ejecutivo_ventas, coordinador_operaciones, supply_admin, bi, customer_success
-has_facturacion_role()    → admin, owner, facturacion_admin, finanzas_admin, bi, coordinador_operaciones
-has_facturacion_write_role() → admin, owner, facturacion_admin, finanzas_admin
+┌─ ServiceCardActive (existente) ──────────────────────┐
+│ Row 1: Cliente          │                   45m      │
+│ Row 2: Custodio · Ruta → Destino                     │
+│ Row 3: Folio [Mon] [💬 2] ─nuevo─  [Reportar] [⋮]   │
+│                  ↑                                    │
+│         Badge con conteo de                           │
+│         mensajes sin leer                             │
+└──────────────────────────────────────────────────────┘
+         │ click en 💬
+         ▼
+┌─ ServiceCommSheet (NUEVO — Sheet lateral) ───────────┐
+│  ┌─ Tabs ──────────────────────────────────────────┐ │
+│  │ [💬 Custodio]  [📋 Reportar a Cliente]          │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                       │
+│  Tab 1: Chat con custodio (iMessage-style)           │
+│  ┌─────────────────────────────────────────────────┐ │
+│  │ 🟢 Custodio: "Llegando a punto de carga" 10:23 │ │
+│  │ 📸 [foto inline]                         10:24  │ │
+│  │ 🔵 Monitorista: "Recibido, gracias"      10:25  │ │
+│  │                                                  │ │
+│  │ ┌──────────────────┐ ┌──────────────────┐       │ │
+│  │ │ 📸 Pedir Status  │ │ 💬 Msg libre     │       │ │
+│  │ └──────────────────┘ └──────────────────┘       │ │
+│  │ [  Escribe un mensaje...        ] [Enviar]      │ │
+│  └─────────────────────────────────────────────────┘ │
+│                                                       │
+│  Tab 2: Reportar a Cliente                           │
+│  ┌─────────────────────────────────────────────────┐ │
+│  │ Fotos del custodio (seleccionar ☑):             │ │
+│  │ [☑ foto1] [☑ foto2] [☐ foto3]                  │ │
+│  │                                                  │ │
+│  │ Template: reporte_servicio_cliente               │ │
+│  │ Observaciones: [_______________]                 │ │
+│  │ Destinatario: +52 55 1234 5678                  │ │
+│  │                                                  │ │
+│  │ [Enviar Reporte al Cliente]                     │ │
+│  └─────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────┘
 ```
 
-Actualizar `is_admin_bypass_rls()` para eliminar rol obsoleto `manager`.
+## Por que es seamless
 
-### Fase 2 — Migrar policies por módulo
+1. El 💬 se agrega como **un icono mas** en Row 3 del ServiceCardActive, junto al badge de monitorista y antes de "Reportar" — misma escala visual (h-6, text-[11px])
+2. El CommSheet usa el **mismo componente Sheet** que ya usa ServiceDetailDrawer — misma animacion, mismo ancho, mismo patron de scroll
+3. Las quick actions ("Pedir Status", "Msg libre") siguen el patron del **DropdownMenu** que ya existe en el menu de eventos especiales
+4. Las fotos en el chat usan el mismo patron de thumbnails del **CheckpointPopover** (h-9 w-9 rounded)
+5. Solo se agrega a **ServiceCardActive** y **ServiceCardEnDestino** (servicios donde hay comunicacion activa) — no a Pending ni Especial
 
-**Monitoreo (6 tablas, ~17 policies → ~6)**
-- `servicios_monitoreo`: Drop ALL abierta, crear SELECT con `has_monitoring_role()`, UPDATE con `has_monitoring_write_role()`
-- `zonas_operacion_nacional`: Drop las 15 policies, crear SELECT con `has_monitoring_role()` + ALL con `has_monitoring_write_role()`
-- `activos_monitoreo`: Ya usa `user_has_role_direct()` — dejar como está
-- `alertas_sistema_nacional`: Ya usa `check_admin_secure()` — dejar como está
+## Fase 1 — Lo que construimos primero (solo frontend + DB)
 
-**WMS (12 tablas, ~36 policies → ~24)**
-- Drop legacy ALL policies abiertas (`ordenes_compra`, `recepciones_mercancia`, `proveedores`, `stock_productos`)
-- Drop legacy `wms_admins_*` subquery policies (duplicadas con las granulares que ya usan `is_admin_bypass_rls`)
-- Mantener estructura: SELECT vía `user_has_wms_access()`, INSERT/UPDATE/DELETE vía `can_manage_wms()`
+### Base de datos (migración SQL)
+- `ALTER TABLE whatsapp_messages ADD COLUMN servicio_id UUID REFERENCES servicios_planificados(id)`
+- `ALTER TABLE whatsapp_messages ADD COLUMN is_read BOOLEAN DEFAULT false`
+- Tabla `servicio_comm_media` (servicio_id, storage_path, media_type, validado, enviado_a_cliente)
+- `ALTER TABLE pc_clientes ADD COLUMN contacto_whatsapp TEXT`
+- Bucket `whatsapp-media` en Storage
+- RLS con `has_monitoring_role()` / `has_monitoring_write_role()`
 
-**Facturación (4 tablas, ~9 policies)**
-- `facturas`: Drop 3 policies abiertas, crear SELECT/INSERT/UPDATE con `has_facturacion_role()`, UPDATE con `has_facturacion_write_role()`
-- `audit_facturacion_accesos`: Migrar subquery a `has_facturacion_role()`
-- `pagos_proveedores_armados`: Migrar 5 subqueries a funciones DEFINER
-- `pagos_instaladores`: Migrar subquery a función
+### Frontend — 4 componentes nuevos
+| Componente | Descripcion |
+|---|---|
+| `ServiceCommSheet.tsx` | Sheet lateral con Tabs (Chat / Reportar), reutiliza Sheet existente |
+| `CustodioChat.tsx` | Timeline iMessage-style con Realtime, input bar + quick actions |
+| `ClientReportComposer.tsx` | Galeria de fotos seleccionables + template + envio |
+| `useServicioComm.ts` | Hook: mensajes por servicio, Realtime subscription, conteo sin leer |
 
-**CRM (4 tablas, ~8 policies)**
-- `crm_activities`, `crm_deals`, `crm_deal_stage_history`: Migrar SELECT subqueries a `has_crm_role()`
-- `crm_webhook_logs`: Migrar subquery a `check_admin_secure()`
-- Mantener INSERT/UPDATE con `true` (service role)
+### Modificaciones a componentes existentes
+| Archivo | Cambio |
+|---|---|
+| `ServiceCardActive.tsx` | Agregar boton 💬 con badge en Row 3 (entre monitorista badge y CheckpointPopover) |
+| `ServiceCardEnDestino.tsx` | Agregar boton 💬 con badge antes del boton Liberar |
+| `bitacora/index.ts` | Exportar nuevos componentes |
 
-**Tickets (7 tablas, ~14 policies)**
-- `tickets`: Reemplazar `manager` con `coordinador_operaciones`, migrar subqueries a `has_ticket_role()` / `has_ticket_admin_role()`
-- `ticket_business_hours`, `ticket_escalation_rules`: Migrar subqueries a `check_admin_secure()`
-- `ticket_categorias_custodio`, `ticket_subcategorias_custodio`: Migrar a `has_ticket_admin_role()`
-- `ticket_response_templates`: Migrar a `has_ticket_admin_role()`
-- `ticket_respuestas`: Migrar subquery interna a `has_ticket_admin_role()`
+### Backend (Fase 2 — posterior)
+- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo
+- Nueva edge function `kapso-download-media` para persistir imagenes
+- Nuevos templates en Meta Business Manager
 
-### Fase 3 — Frontend: Sidebar ajustes menores
+## Archivos totales a crear/modificar
 
-- `monitoring` module (L444): Agregar `roles` al padre con los roles de monitoreo
-- `tickets` module (L490): Agregar `roles` al padre con los roles de tickets
-- `wms` module (L369): Ya tiene roles, sin cambios
-- Eliminar `manager` del módulo `recruitment` (L217)
-
-### Archivos a modificar
-
-| Capa | Archivo | Cambio |
+| Capa | Archivo | Accion |
 |---|---|---|
-| DB | Nueva migración SQL | Crear ~9 funciones DEFINER, recrear ~80 policies, eliminar ~50 legacy |
-| Frontend | `src/config/navigationConfig.ts` | Agregar `roles` a monitoring y tickets parent; eliminar `manager` de recruitment |
+| DB | Nueva migracion | Crear tabla, columnas, bucket, RLS |
+| Frontend | `src/components/monitoring/bitacora/ServiceCommSheet.tsx` | Crear |
+| Frontend | `src/components/monitoring/bitacora/CustodioChat.tsx` | Crear |
+| Frontend | `src/components/monitoring/bitacora/ClientReportComposer.tsx` | Crear |
+| Frontend | `src/hooks/useServicioComm.ts` | Crear |
+| Frontend | `src/components/monitoring/bitacora/ServiceCardActive.tsx` | Modificar (agregar 💬) |
+| Frontend | `src/components/monitoring/bitacora/ServiceCardEnDestino.tsx` | Modificar (agregar 💬) |
+| Frontend | `src/components/monitoring/bitacora/index.ts` | Modificar (exports) |
 
