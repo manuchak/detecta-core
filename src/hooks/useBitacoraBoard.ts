@@ -303,14 +303,15 @@ export function useBitacoraBoard() {
 
   const iniciarServicio = useMutation({
     mutationFn: async (serviceId: string) => {
-      // Guard: check not already started
+      // Guard: check not already started + verify "En Sitio" from Planning
       const { data: svc, error: fetchErr } = await supabase
         .from('servicios_planificados')
-        .select('hora_inicio_real, id_servicio')
+        .select('hora_inicio_real, id_servicio, hora_llegada_custodio')
         .eq('id', serviceId)
         .single();
       if (fetchErr) throw fetchErr;
       if (svc.hora_inicio_real) throw new Error('Servicio ya iniciado');
+      if (!svc.hora_llegada_custodio) throw new Error('El custodio aún no ha sido marcado "En Sitio" por Planeación. No se puede iniciar.');
 
       const nowTs = new Date().toISOString();
       const { error } = await supabase
