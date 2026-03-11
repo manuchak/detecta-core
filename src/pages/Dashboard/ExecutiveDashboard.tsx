@@ -48,7 +48,7 @@ import { PillarDetailPanel } from '@/components/starmap/PillarDetailPanel';
 import { DataHealthSummary } from '@/components/starmap/DataHealthSummary';
 import { IncidentPanel } from '@/components/starmap/IncidentPanel';
 import { Card, CardContent } from '@/components/ui/card';
-
+import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 const StarMapInlineContent = () => {
   const { northStar, pillars, overallScore, overallCoverage, loading } = useStarMapKPIs();
   const [selectedPillar, setSelectedPillar] = useState<string | null>(null);
