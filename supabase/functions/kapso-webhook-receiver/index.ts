@@ -238,8 +238,9 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
     messageText = data.text.body;
   } else if (data.image) {
     messageText = data.image.caption || '[Imagen]';
-    mediaUrl = data.image.id;
     mediaId = data.image.id;
+    // Use direct Kapso URL if available, fallback to media ID
+    mediaUrl = (data.image as any).link || data.image.id;
   } else if (data.document) {
     messageText = `[Documento: ${data.document.filename}]`;
     mediaUrl = data.document.id;
