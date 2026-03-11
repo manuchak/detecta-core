@@ -6747,29 +6747,7 @@ export type Database = {
           score_lealtad?: number | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "candidatos_custodios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_candidato_evaluaciones_completas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "evaluaciones_midot_candidato_id_fkey"
-            columns: ["candidato_id"]
-            isOneToOne: false
-            referencedRelation: "v_capacitacion_progreso_candidato"
-            referencedColumns: ["candidato_id"]
-          },
-        ]
+        Relationships: []
       }
       evaluaciones_normas: {
         Row: {

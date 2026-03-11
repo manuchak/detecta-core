@@ -51,51 +51,56 @@ export function MidotResultForm({ candidatoId, evaluacionExistente, onSuccess }:
   };
 
   const handleSubmit = async () => {
-    let pdfUrl: string | undefined = evaluacionExistente?.reporte_pdf_url ?? undefined;
+    try {
+      let pdfUrl: string | undefined = evaluacionExistente?.reporte_pdf_url ?? undefined;
 
-    if (pdfFile) {
-      setUploading(true);
-      const fileName = `midot/${candidatoId}/${Date.now()}_${pdfFile.name.replace(/\s+/g, '_')}`;
-      const { error: uploadError } = await supabase.storage
-        .from('candidato-documentos')
-        .upload(fileName, pdfFile);
+      if (pdfFile) {
+        setUploading(true);
+        const fileName = `midot/${candidatoId}/${Date.now()}_${pdfFile.name.replace(/\s+/g, '_')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('candidato-documentos')
+          .upload(fileName, pdfFile);
 
-      if (uploadError) {
+        if (uploadError) {
+          setUploading(false);
+          return;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('candidato-documentos')
+          .getPublicUrl(fileName);
+        pdfUrl = urlData.publicUrl;
         setUploading(false);
-        return;
       }
 
-      const { data: urlData } = supabase.storage
-        .from('candidato-documentos')
-        .getPublicUrl(fileName);
-      pdfUrl = urlData.publicUrl;
+      if (isEditMode) {
+        await updateMidot.mutateAsync({
+          id: evaluacionExistente.id,
+          candidato_id: candidatoId,
+          score_integridad: scores.integridad,
+          score_honestidad: scores.honestidad,
+          score_lealtad: scores.lealtad,
+          reporte_pdf_url: pdfUrl,
+          notas: notas || undefined,
+          fecha_evaluacion: fechaEvaluacion,
+        });
+      } else {
+        await createMidot.mutateAsync({
+          candidato_id: candidatoId,
+          score_integridad: scores.integridad,
+          score_honestidad: scores.honestidad,
+          score_lealtad: scores.lealtad,
+          reporte_pdf_url: pdfUrl,
+          notas: notas || undefined,
+          fecha_evaluacion: fechaEvaluacion,
+        });
+      }
+
+      onSuccess?.();
+    } catch (error) {
+      // Hook onError already shows toast; ensure uploading state is clean
       setUploading(false);
     }
-
-    if (isEditMode) {
-      await updateMidot.mutateAsync({
-        id: evaluacionExistente.id,
-        candidato_id: candidatoId,
-        score_integridad: scores.integridad,
-        score_honestidad: scores.honestidad,
-        score_lealtad: scores.lealtad,
-        reporte_pdf_url: pdfUrl,
-        notas: notas || undefined,
-        fecha_evaluacion: fechaEvaluacion,
-      });
-    } else {
-      await createMidot.mutateAsync({
-        candidato_id: candidatoId,
-        score_integridad: scores.integridad,
-        score_honestidad: scores.honestidad,
-        score_lealtad: scores.lealtad,
-        reporte_pdf_url: pdfUrl,
-        notas: notas || undefined,
-        fecha_evaluacion: fechaEvaluacion,
-      });
-    }
-
-    onSuccess?.();
   };
 
   const isSubmitting = createMidot.isPending || updateMidot.isPending || uploading;
