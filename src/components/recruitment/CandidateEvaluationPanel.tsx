@@ -104,11 +104,17 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const { modulos, progreso, calcularProgresoGeneral } = useCapacitacion(candidatoId);
   const { liberarCustodio } = useCustodioLiberacion();
 
+  const isArmado = tipoOperativo === 'armado';
+  const candidatoTable = isArmado ? 'candidatos_armados' : 'candidatos_custodios';
+
   const { data: candidatoData } = useQuery({
-    queryKey: ['candidato-vehiculo', candidatoId],
+    queryKey: ['candidato-vehiculo', candidatoId, tipoOperativo],
     queryFn: async () => {
-      const { data } = await supabase.from('candidatos_custodios').select('vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia').eq('id', candidatoId).single();
-      return data;
+      const selectFields = isArmado
+        ? 'nombre, telefono, email, vehiculo_propio'
+        : 'vehiculo_propio, nombre, telefono, email, curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia';
+      const { data } = await supabase.from(candidatoTable as any).select(selectFields).eq('id', candidatoId).single();
+      return data as any;
     },
     enabled: !!candidatoId,
   });
@@ -233,7 +239,7 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
       tabTarget: 'installation',
     });
 
-    const personalCompletion = computePersonalDataCompletion(candidatoData);
+    const personalCompletion = computePersonalDataCompletion(candidatoData, tipoOperativo);
     const personalHasBasics = !!(candidatoData?.nombre && candidatoData?.telefono && candidatoData?.email);
     g.push({
       id: 'personal_data', label: 'Datos personales verificados', level: 'info',
@@ -298,9 +304,9 @@ export function CandidateEvaluationPanel({ candidatoId, candidatoNombre, current
   const sectionItems: SectionItem[] = useMemo(() => [
     {
       id: 'personal_data', label: 'Datos Personales', icon: <UserCircle className="h-4 w-4" />,
-      badge: <PersonalDataBadge candidatoId={candidatoId} size="sm" />,
+      badge: <PersonalDataBadge candidatoId={candidatoId} tipoOperativo={tipoOperativo} size="sm" />,
       gate: gates.find(g => g.id === 'personal_data'),
-      content: <PersonalDataTab candidatoId={candidatoId} />,
+      content: <PersonalDataTab candidatoId={candidatoId} tipoOperativo={tipoOperativo} />,
     },
     {
       id: 'interview', label: 'Entrevista', icon: <MessageSquare className="h-4 w-4" />,

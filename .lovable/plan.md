@@ -1,74 +1,83 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Debug: Módulo de Evaluaciones de Supply
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Problemas encontrados
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-### 1. CRÍTICO — Queries hardcoded a `candidatos_custodios` para candidatos armados
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
 
-Cuando el usuario selecciona un candidato armado, el `CandidateEvaluationPanel` recibe `tipoOperativo='armado'` pero **no lo usa** en sus queries internos. Tres componentes consultan/actualizan exclusivamente `candidatos_custodios`:
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
 
-| Componente | Línea | Problema |
-|---|---|---|
-| `CandidateEvaluationPanel.tsx` | 110 | `candidatoData` query hardcoded a `candidatos_custodios` — retorna `null` para armados |
-| `PersonalDataTab.tsx` | 59, 105 | SELECT y UPDATE hardcoded a `candidatos_custodios` |
-| `PersonalDataBadge.tsx` | 16 | SELECT hardcoded a `candidatos_custodios` |
+## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
+- Mensaje de sistema al marcar "En Sitio"
+- Separadores visuales en `CustodioChat.tsx`
+- Bloqueo de escritura post-handoff
 
-**Efecto**: Para candidatos armados, `candidatoData` es `null`, lo que causa:
-- Gate `personal_data` siempre falla (nombre/telefono/email son `undefined`)
-- PersonalDataTab muestra formulario vacío y al guardar intenta UPDATE en tabla incorrecta
-- `vehiculoPropio` siempre es `false`
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
 
-### 2. CRÍTICO — `useCustodioLiberacion` hardcoded a `candidatos_custodios`
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
 
-Al liberar un candidato armado, la sincronización de estado (línea 92) hace UPDATE a `candidatos_custodios` con el ID del armado — no encuentra fila, el estado no se actualiza.
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
 
-### 3. MEDIO — `candidatos_armados` no tiene campos de vehículo ni CURP
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
 
-La tabla `candidatos_armados` solo tiene: `nombre, telefono, email, vehiculo_propio`. No tiene: `curp, direccion, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia`. El formulario de datos personales necesita adaptarse.
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
+```
 
-### 4. BAJO — FK triggers ya aplicados (confirmado)
-
-La migración SQL del mensaje anterior se ejecutó correctamente. Los 5 triggers `validate_candidato_id_dual` están activos y las FKs exclusivas fueron eliminadas. Las evaluaciones ya pueden insertarse con IDs de ambas tablas.
-
-### 5. BAJO — Warning `React.Fragment` con `data-lov-id`
-
-`UnifiedSidebar.tsx:373` pasa `data-lov-id` a `React.Fragment`. Es un warning del framework de desarrollo, no afecta funcionalidad.
-
-## Plan de corrección
-
-### A. Propagar `tipoOperativo` a queries dinámicos
-
-**`CandidateEvaluationPanel.tsx`**:
-- Cambiar el query de `candidatoData` (línea 107-114) para usar `tipoOperativo === 'armado' ? 'candidatos_armados' : 'candidatos_custodios'`
-- Para armados, SELECT solo los campos que existen (`nombre, telefono, email, vehiculo_propio`)
-
-**`PersonalDataTab.tsx`**:
-- Recibir prop `tipoOperativo`
-- Usar tabla dinámica en SELECT y UPDATE
-- Ocultar campos que no existen en `candidatos_armados` (curp, direccion, datos vehículo detallados)
-- Ajustar `FIELD_LIST` y `EMPTY_FORM` según tipo
-
-**`PersonalDataBadge.tsx`**:
-- Recibir prop `tipoOperativo`
-- Query dinámico con campos correctos
-
-### B. Fix liberación para armados
-
-**`useCustodioLiberacion.ts`**:
-- Aceptar parámetro opcional `tipoOperativo`
-- Usar tabla correcta para UPDATE de estado
-
-### C. Pasar `tipoOperativo` en la cadena de componentes
-
-`CandidateEvaluationPanel` → `PersonalDataTab`, `PersonalDataBadge`
-
-### Archivos a modificar
-
-| Archivo | Cambio |
+## Templates Meta pendientes
+| Template | Estado |
 |---|---|
-| `src/components/recruitment/CandidateEvaluationPanel.tsx` | Query dinámico + pasar prop a PersonalDataTab/Badge |
-| `src/components/recruitment/personal/PersonalDataTab.tsx` | Tabla dinámica, campos condicionales |
-| `src/components/recruitment/personal/PersonalDataBadge.tsx` | Tabla dinámica |
-| `src/hooks/useCustodioLiberacion.ts` | Tabla dinámica para sync de estado |
-
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |

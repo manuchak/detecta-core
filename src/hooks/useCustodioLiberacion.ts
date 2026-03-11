@@ -87,14 +87,20 @@ export const useCustodioLiberacion = () => {
       
       if (error) throw error;
 
-      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato
-      const { error: candidatoError } = await supabase
+      // 🔄 SINCRONIZACIÓN CRÍTICA: Actualizar estado del candidato (intentar ambas tablas)
+      let candidatoError: any = null;
+      const { error: custodioErr } = await supabase
         .from('candidatos_custodios')
-        .update({
-          estado_proceso: 'en_liberacion',
-          updated_at: new Date().toISOString()
-        })
+        .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
         .eq('id', candidato_id);
+      if (custodioErr) {
+        // Intentar en candidatos_armados
+        const { error: armadoErr } = await supabase
+          .from('candidatos_armados')
+          .update({ estado_proceso: 'en_liberacion', updated_at: new Date().toISOString() })
+          .eq('id', candidato_id);
+        candidatoError = armadoErr;
+      }
 
       if (candidatoError) {
         console.error('Error actualizando estado del candidato:', candidatoError);
@@ -161,19 +167,31 @@ export const useCustodioLiberacion = () => {
       
       if (error) throw error;
 
-      // Si hay updates del candidato, actualizar candidatos_custodios
+      // Si hay updates del candidato, actualizar la tabla correcta (intentar ambas)
       if (candidatoUpdates && Object.keys(candidatoUpdates).length > 0 && data?.candidato_id) {
-        const { error: candidatoError } = await supabase
+        const payload = { ...candidatoUpdates, updated_at: new Date().toISOString() };
+        const { error: custErr } = await supabase
           .from('candidatos_custodios')
-          .update({
-            ...candidatoUpdates,
-            updated_at: new Date().toISOString()
-          })
+          .update(payload)
           .eq('id', data.candidato_id);
         
-        if (candidatoError) {
-          console.error('Error actualizando datos del candidato:', candidatoError);
-          throw new Error('Error actualizando datos del candidato: ' + candidatoError.message);
+        if (custErr) {
+          // Intentar en candidatos_armados (solo campos que existen)
+          const armadoPayload: any = { updated_at: payload.updated_at };
+          if ('nombre' in candidatoUpdates) armadoPayload.nombre = candidatoUpdates.nombre;
+          if ('telefono' in candidatoUpdates) armadoPayload.telefono = candidatoUpdates.telefono;
+          if ('email' in candidatoUpdates) armadoPayload.email = candidatoUpdates.email;
+          if ('vehiculo_propio' in candidatoUpdates) armadoPayload.vehiculo_propio = candidatoUpdates.vehiculo_propio;
+          
+          const { error: armErr } = await supabase
+            .from('candidatos_armados')
+            .update(armadoPayload)
+            .eq('id', data.candidato_id);
+          
+          if (armErr) {
+            console.error('Error actualizando datos del candidato:', armErr);
+            throw new Error('Error actualizando datos del candidato: ' + armErr.message);
+          }
         }
       }
 

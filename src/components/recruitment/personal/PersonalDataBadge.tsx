@@ -5,25 +5,32 @@ import { computePersonalDataCompletion } from './PersonalDataTab';
 
 interface Props {
   candidatoId: string;
+  tipoOperativo?: 'custodio' | 'armado';
   size?: 'sm' | 'default';
 }
 
-export function PersonalDataBadge({ candidatoId, size = 'default' }: Props) {
+export function PersonalDataBadge({ candidatoId, tipoOperativo = 'custodio', size = 'default' }: Props) {
+  const isArmado = tipoOperativo === 'armado';
+  const tableName = isArmado ? 'candidatos_armados' : 'candidatos_custodios';
+  const selectFields = isArmado
+    ? 'nombre, telefono, email, vehiculo_propio'
+    : 'nombre, telefono, email, curp, direccion, vehiculo_propio, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia';
+
   const { data } = useQuery({
-    queryKey: ['candidato-personal-data', candidatoId],
+    queryKey: ['candidato-personal-data', candidatoId, tipoOperativo],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('candidatos_custodios')
-        .select('nombre, telefono, email, curp, direccion, vehiculo_propio, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia')
+      const { data, error } = await (supabase as any)
+        .from(tableName)
+        .select(selectFields)
         .eq('id', candidatoId)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!candidatoId,
   });
 
-  const { completed, total } = computePersonalDataCompletion(data);
+  const { completed, total } = computePersonalDataCompletion(data, tipoOperativo);
   const isComplete = completed >= 3; // nombre + telefono + email minimum
 
   return (

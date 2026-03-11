@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const personalDataSchema = z.object({
+const personalDataSchemaCustodio = z.object({
   nombre: z.string().trim().min(2, 'Nombre requerido').max(200),
   telefono: z.string().trim().regex(/^\d{10}$/, 'Debe ser un teléfono de 10 dígitos').optional().or(z.literal('')),
   email: z.string().trim().email('Email inválido').max(255).optional().or(z.literal('')),
@@ -29,44 +29,71 @@ const personalDataSchema = z.object({
   numero_licencia: z.string().trim().max(50).optional().or(z.literal('')),
 });
 
-type PersonalData = z.infer<typeof personalDataSchema>;
+const personalDataSchemaArmado = z.object({
+  nombre: z.string().trim().min(2, 'Nombre requerido').max(200),
+  telefono: z.string().trim().regex(/^\d{10}$/, 'Debe ser un teléfono de 10 dígitos').optional().or(z.literal('')),
+  email: z.string().trim().email('Email inválido').max(255).optional().or(z.literal('')),
+  vehiculo_propio: z.boolean(),
+});
 
-const FIELD_LIST: (keyof PersonalData)[] = [
+type PersonalDataCustodio = z.infer<typeof personalDataSchemaCustodio>;
+type PersonalDataArmado = z.infer<typeof personalDataSchemaArmado>;
+type PersonalData = PersonalDataCustodio;
+
+const FIELD_LIST_CUSTODIO: (keyof PersonalDataCustodio)[] = [
   'nombre', 'telefono', 'email', 'curp', 'direccion',
   'vehiculo_propio', 'marca_vehiculo', 'modelo_vehiculo',
   'placas_vehiculo', 'color_vehiculo', 'numero_serie',
   'numero_motor', 'numero_licencia',
 ];
 
-const EMPTY_FORM: PersonalData = {
+const FIELD_LIST_ARMADO: (keyof PersonalDataArmado)[] = [
+  'nombre', 'telefono', 'email', 'vehiculo_propio',
+];
+
+const EMPTY_FORM_CUSTODIO: PersonalDataCustodio = {
   nombre: '', telefono: '', email: '', curp: '', direccion: '',
   vehiculo_propio: false, marca_vehiculo: '', modelo_vehiculo: '',
   placas_vehiculo: '', color_vehiculo: '', numero_serie: '',
   numero_motor: '', numero_licencia: '',
 };
 
+const EMPTY_FORM_ARMADO: PersonalDataArmado = {
+  nombre: '', telefono: '', email: '', vehiculo_propio: false,
+};
+
 interface Props {
   candidatoId: string;
+  tipoOperativo?: 'custodio' | 'armado';
 }
 
-export function PersonalDataTab({ candidatoId }: Props) {
+export function PersonalDataTab({ candidatoId, tipoOperativo = 'custodio' }: Props) {
   const queryClient = useQueryClient();
+  const isArmado = tipoOperativo === 'armado';
+  const tableName = isArmado ? 'candidatos_armados' : 'candidatos_custodios';
+  const FIELD_LIST = isArmado ? FIELD_LIST_ARMADO : FIELD_LIST_CUSTODIO;
+  const EMPTY_FORM = isArmado ? EMPTY_FORM_ARMADO : EMPTY_FORM_CUSTODIO;
+  const schema = isArmado ? personalDataSchemaArmado : personalDataSchemaCustodio;
+
+  const selectFields = isArmado
+    ? 'nombre, telefono, email, vehiculo_propio, updated_at'
+    : 'nombre, telefono, email, curp, direccion, vehiculo_propio, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia, updated_at';
 
   const { data: candidato, isLoading } = useQuery({
-    queryKey: ['candidato-personal-data', candidatoId],
+    queryKey: ['candidato-personal-data', candidatoId, tipoOperativo],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('candidatos_custodios')
-        .select('nombre, telefono, email, curp, direccion, vehiculo_propio, marca_vehiculo, modelo_vehiculo, placas_vehiculo, color_vehiculo, numero_serie, numero_motor, numero_licencia, updated_at')
+      const { data, error } = await (supabase as any)
+        .from(tableName)
+        .select(selectFields)
         .eq('id', candidatoId)
         .single();
       if (error) throw error;
-      return data;
+      return data as any;
     },
     enabled: !!candidatoId,
   });
 
-  const { data: formData, setData: setFormData, updateData, clearDraft, hasDraft } = useFormPersistence<PersonalData>({
+  const { data: formData, setData: setFormData, updateData, clearDraft, hasDraft } = useFormPersistence<any>({
     key: `personal-data-${candidatoId}`,
     initialData: EMPTY_FORM,
     level: 'light',
@@ -75,49 +102,54 @@ export function PersonalDataTab({ candidatoId }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [initialized, setInitialized] = useState(false);
 
-  // Populate form from DB on first load (if no draft)
   useEffect(() => {
     if (candidato && !initialized) {
       if (!hasDraft) {
-        setFormData({
+        const baseData: any = {
           nombre: candidato.nombre || '',
           telefono: candidato.telefono || '',
           email: candidato.email || '',
-          curp: candidato.curp || '',
-          direccion: candidato.direccion || '',
           vehiculo_propio: candidato.vehiculo_propio ?? false,
-          marca_vehiculo: candidato.marca_vehiculo || '',
-          modelo_vehiculo: candidato.modelo_vehiculo || '',
-          placas_vehiculo: candidato.placas_vehiculo || '',
-          color_vehiculo: candidato.color_vehiculo || '',
-          numero_serie: candidato.numero_serie || '',
-          numero_motor: candidato.numero_motor || '',
-          numero_licencia: candidato.numero_licencia || '',
-        });
+        };
+        if (!isArmado) {
+          baseData.curp = (candidato as any).curp || '';
+          baseData.direccion = (candidato as any).direccion || '';
+          baseData.marca_vehiculo = (candidato as any).marca_vehiculo || '';
+          baseData.modelo_vehiculo = (candidato as any).modelo_vehiculo || '';
+          baseData.placas_vehiculo = (candidato as any).placas_vehiculo || '';
+          baseData.color_vehiculo = (candidato as any).color_vehiculo || '';
+          baseData.numero_serie = (candidato as any).numero_serie || '';
+          baseData.numero_motor = (candidato as any).numero_motor || '';
+          baseData.numero_licencia = (candidato as any).numero_licencia || '';
+        }
+        setFormData(baseData);
       }
       setInitialized(true);
     }
-  }, [candidato, initialized, hasDraft, setFormData]);
+  }, [candidato, initialized, hasDraft, setFormData, isArmado]);
 
   const mutation = useMutation({
-    mutationFn: async (data: PersonalData) => {
-      const { error } = await supabase
-        .from('candidatos_custodios')
-        .update({
-          nombre: data.nombre.trim(),
-          telefono: data.telefono?.trim() || null,
-          email: data.email?.trim() || null,
-          curp: data.curp?.trim() || null,
-          direccion: data.direccion?.trim() || null,
-          vehiculo_propio: data.vehiculo_propio,
-          marca_vehiculo: data.marca_vehiculo?.trim() || null,
-          modelo_vehiculo: data.modelo_vehiculo?.trim() || null,
-          placas_vehiculo: data.placas_vehiculo?.trim() || null,
-          color_vehiculo: data.color_vehiculo?.trim() || null,
-          numero_serie: data.numero_serie?.trim() || null,
-          numero_motor: data.numero_motor?.trim() || null,
-          numero_licencia: data.numero_licencia?.trim() || null,
-        })
+    mutationFn: async (data: any) => {
+      const updatePayload: any = {
+        nombre: data.nombre.trim(),
+        telefono: data.telefono?.trim() || null,
+        email: data.email?.trim() || null,
+        vehiculo_propio: data.vehiculo_propio,
+      };
+      if (!isArmado) {
+        updatePayload.curp = data.curp?.trim() || null;
+        updatePayload.direccion = data.direccion?.trim() || null;
+        updatePayload.marca_vehiculo = data.marca_vehiculo?.trim() || null;
+        updatePayload.modelo_vehiculo = data.modelo_vehiculo?.trim() || null;
+        updatePayload.placas_vehiculo = data.placas_vehiculo?.trim() || null;
+        updatePayload.color_vehiculo = data.color_vehiculo?.trim() || null;
+        updatePayload.numero_serie = data.numero_serie?.trim() || null;
+        updatePayload.numero_motor = data.numero_motor?.trim() || null;
+        updatePayload.numero_licencia = data.numero_licencia?.trim() || null;
+      }
+      const { error } = await (supabase as any)
+        .from(tableName)
+        .update(updatePayload)
         .eq('id', candidatoId);
       if (error) throw error;
     },
@@ -133,7 +165,7 @@ export function PersonalDataTab({ candidatoId }: Props) {
   });
 
   const handleSave = () => {
-    const result = personalDataSchema.safeParse(formData);
+    const result = schema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach(e => {
@@ -146,8 +178,8 @@ export function PersonalDataTab({ candidatoId }: Props) {
     mutation.mutate(result.data);
   };
 
-  const updateField = (field: keyof PersonalData, value: string | boolean) => {
-    updateData({ [field]: value } as Partial<PersonalData>);
+  const updateField = (field: string, value: string | boolean) => {
+    updateData({ [field]: value });
     if (errors[field]) {
       setErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
     }
@@ -157,15 +189,14 @@ export function PersonalDataTab({ candidatoId }: Props) {
     return <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
   }
 
-  const completedFields = FIELD_LIST.filter(f => {
+  const completedFields = (FIELD_LIST as string[]).filter(f => {
     const v = formData[f];
-    if (typeof v === 'boolean') return true; // toggle always counts
+    if (typeof v === 'boolean') return true;
     return !!v && String(v).trim() !== '';
   }).length;
 
   return (
     <div className="space-y-5">
-      {/* Last update indicator */}
       {candidato?.updated_at && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CheckCircle2 className="h-3 w-3" />
@@ -183,14 +214,18 @@ export function PersonalDataTab({ candidatoId }: Props) {
           <Field label="Nombre completo" value={formData.nombre} onChange={v => updateField('nombre', v)} error={errors.nombre} required />
           <Field label="Teléfono (10 dígitos)" value={formData.telefono || ''} onChange={v => updateField('telefono', v)} error={errors.telefono} maxLength={10} />
           <Field label="Email" value={formData.email || ''} onChange={v => updateField('email', v)} error={errors.email} type="email" />
-          <Field label="CURP" value={formData.curp || ''} onChange={v => updateField('curp', v.toUpperCase())} error={errors.curp} maxLength={18} />
-          <div className="sm:col-span-2">
-            <Field label="Dirección" value={formData.direccion || ''} onChange={v => updateField('direccion', v)} error={errors.direccion} />
-          </div>
+          {!isArmado && (
+            <>
+              <Field label="CURP" value={formData.curp || ''} onChange={v => updateField('curp', v.toUpperCase())} error={errors.curp} maxLength={18} />
+              <div className="sm:col-span-2">
+                <Field label="Dirección" value={formData.direccion || ''} onChange={v => updateField('direccion', v)} error={errors.direccion} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Datos del Vehículo */}
+      {/* Datos del Vehículo — solo custodios tienen campos detallados */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Car className="h-4 w-4 text-primary" />
@@ -203,15 +238,17 @@ export function PersonalDataTab({ candidatoId }: Props) {
           />
           <Label className="text-sm">Vehículo propio</Label>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Marca" value={formData.marca_vehiculo || ''} onChange={v => updateField('marca_vehiculo', v)} />
-          <Field label="Modelo" value={formData.modelo_vehiculo || ''} onChange={v => updateField('modelo_vehiculo', v)} />
-          <Field label="Placas" value={formData.placas_vehiculo || ''} onChange={v => updateField('placas_vehiculo', v)} maxLength={20} />
-          <Field label="Color" value={formData.color_vehiculo || ''} onChange={v => updateField('color_vehiculo', v)} />
-          <Field label="Número de serie" value={formData.numero_serie || ''} onChange={v => updateField('numero_serie', v)} />
-          <Field label="Número de motor" value={formData.numero_motor || ''} onChange={v => updateField('numero_motor', v)} />
-          <Field label="Número de licencia" value={formData.numero_licencia || ''} onChange={v => updateField('numero_licencia', v)} />
-        </div>
+        {!isArmado && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Marca" value={formData.marca_vehiculo || ''} onChange={v => updateField('marca_vehiculo', v)} />
+            <Field label="Modelo" value={formData.modelo_vehiculo || ''} onChange={v => updateField('modelo_vehiculo', v)} />
+            <Field label="Placas" value={formData.placas_vehiculo || ''} onChange={v => updateField('placas_vehiculo', v)} maxLength={20} />
+            <Field label="Color" value={formData.color_vehiculo || ''} onChange={v => updateField('color_vehiculo', v)} />
+            <Field label="Número de serie" value={formData.numero_serie || ''} onChange={v => updateField('numero_serie', v)} />
+            <Field label="Número de motor" value={formData.numero_motor || ''} onChange={v => updateField('numero_motor', v)} />
+            <Field label="Número de licencia" value={formData.numero_licencia || ''} onChange={v => updateField('numero_licencia', v)} />
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -254,13 +291,14 @@ function Field({ label, value, onChange, error, required, type = 'text', maxLeng
 }
 
 // Helper to compute completion for external use (badge/gate)
-export function computePersonalDataCompletion(data: Record<string, any> | null): { completed: number; total: number } {
-  if (!data) return { completed: 0, total: FIELD_LIST.length };
+export function computePersonalDataCompletion(data: Record<string, any> | null, tipoOperativo: 'custodio' | 'armado' = 'custodio'): { completed: number; total: number } {
+  const fieldList = tipoOperativo === 'armado' ? FIELD_LIST_ARMADO : FIELD_LIST_CUSTODIO;
+  if (!data) return { completed: 0, total: fieldList.length };
   let completed = 0;
-  for (const f of FIELD_LIST) {
+  for (const f of fieldList) {
     const v = data[f];
     if (typeof v === 'boolean') { completed++; continue; }
     if (v && String(v).trim() !== '') completed++;
   }
-  return { completed, total: FIELD_LIST.length };
+  return { completed, total: fieldList.length };
 }
