@@ -1,4 +1,5 @@
 import { ProblemEntry } from '@/hooks/usePerformanceDiario';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Table,
   TableBody,
@@ -23,7 +24,28 @@ function rateBadgeVariant(rate: number) {
   return 'destructive';
 }
 
+function MobileRow({ entry }: { entry: ProblemEntry }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+      <div className="flex-1 min-w-0 mr-2">
+        <p className="text-sm font-medium truncate">{entry.nombre}</p>
+        <p className="text-xs text-muted-foreground">
+          {entry.totalServicios} svcs
+          {entry.late > 0 && (
+            <span className="text-destructive font-medium"> · {entry.late} tarde</span>
+          )}
+        </p>
+      </div>
+      <Badge variant={rateBadgeVariant(entry.onTimeRate)} className="flex-shrink-0">
+        {entry.onTimeRate}%
+      </Badge>
+    </div>
+  );
+}
+
 export default function OnTimeProblemsTable({ title, data, loading }: Props) {
+  const isMobile = useIsMobile();
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -40,6 +62,12 @@ export default function OnTimeProblemsTable({ title, data, loading }: Props) {
           <p className="text-sm text-muted-foreground text-center py-6">
             Sin datos suficientes (mín. 2 servicios)
           </p>
+        ) : isMobile ? (
+          <div className="max-h-[300px] overflow-y-auto">
+            {data.map((entry) => (
+              <MobileRow key={entry.nombre} entry={entry} />
+            ))}
+          </div>
         ) : (
           <div className="relative w-full overflow-auto max-h-[400px]">
             <Table>
