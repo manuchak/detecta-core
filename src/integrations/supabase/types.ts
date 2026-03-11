@@ -18335,6 +18335,7 @@ export type Database = {
           message_type: string | null
           sender_name: string | null
           sender_phone: string | null
+          sent_by_user_id: string | null
           servicio_id: string | null
           ticket_id: string | null
         }
@@ -18351,6 +18352,7 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          sent_by_user_id?: string | null
           servicio_id?: string | null
           ticket_id?: string | null
         }
@@ -18367,6 +18369,7 @@ export type Database = {
           message_type?: string | null
           sender_name?: string | null
           sender_phone?: string | null
+          sent_by_user_id?: string | null
           servicio_id?: string | null
           ticket_id?: string | null
         }
