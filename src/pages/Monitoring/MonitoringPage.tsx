@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, FlaskConical } from "lucide-react";
+import { RefreshCw, FlaskConical, BookOpen } from "lucide-react";
 import ShiftSummaryCards from "@/components/monitoring/ShiftSummaryCards";
 import ShiftServicesMap from "@/components/monitoring/ShiftServicesMap";
 import ShiftServicesTable from "@/components/monitoring/ShiftServicesTable";
@@ -31,6 +31,7 @@ import { BitacoraPanel } from "@/components/monitoring/bitacora";
 import { CoordinatorCommandCenter } from "@/components/monitoring/coordinator/CoordinatorCommandCenter";
 import { ServiceTimesPanel } from "@/components/monitoring/tiempos/ServiceTimesPanel";
 import { CommTestPanel } from "@/components/monitoring/comm/CommTestPanel";
+import { SystemRulesGuide } from "@/components/monitoring/rules/SystemRulesGuide";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useHeartbeatPing } from "@/hooks/useHeartbeatPing";
 import { useOrphanGuard } from "@/hooks/useOrphanGuard";
@@ -206,6 +207,12 @@ const MonitoringPage = () => {
               Pruebas Comm
             </TabsTrigger>
           )}
+          {isCoordinator && (
+            <TabsTrigger value="reglas" className="gap-1.5">
+              <BookOpen className="h-3.5 w-3.5" />
+              Reglas
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab: Performance */}
@@ -336,6 +343,11 @@ const MonitoringPage = () => {
         {isCoordinator && (
           <TabsContent value="comm-test" className="space-y-4 mt-0">
             <CommTestPanel />
+          </TabsContent>
+        )}
+        {isCoordinator && (
+          <TabsContent value="reglas" className="space-y-4 mt-0">
+            <SystemRulesGuide />
           </TabsContent>
         )}
       </Tabs>
