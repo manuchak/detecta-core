@@ -65,7 +65,7 @@ const KPIDashboard = () => {
   const rawTab = searchParams.get('tab') || 'operacional';
   // On mobile, normalize desktop tab values to mobile groups
   const activeTab = useMemo(() => {
-    if (isMobile && !['ops', 'client', 'kpis-cost', 'summary'].includes(rawTab)) {
+    if (isMobile && !['ops', 'client', 'kpis', 'summary'].includes(rawTab)) {
       return MOBILE_TAB_MAP[rawTab] || 'ops';
     }
     return rawTab;
