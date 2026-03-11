@@ -3,6 +3,7 @@ import { ServiceCardActive } from './ServiceCardActive';
 import { ServiceCardEnDestino } from './ServiceCardEnDestino';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { BoardService, SpecialEventType } from '@/hooks/useBitacoraBoard';
 
 interface BoardColumnEnCursoProps {
