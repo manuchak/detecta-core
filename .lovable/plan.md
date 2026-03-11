@@ -1,36 +1,70 @@
 
-# Centro de Comunicaciones WhatsApp — Bitácora
 
-## Estado: Fase 1 completada ✅
+# Debug Completo: Módulo de Comunicación WhatsApp
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+## Hallazgos Críticos (7 bugs que impiden el funcionamiento)
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+### Bug 1: Nombres de campo incorrectos en las llamadas a Edge Functions
 
-## Fase 2 — Backend (pendiente parcial)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+`ServiceCommSheet.tsx` envía campos que las Edge Functions no reconocen:
 
-## Fase 2.5 — Trazabilidad monitorista ✅
-- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
-- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
-- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
-- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
-- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
+| Lo que envía el frontend | Lo que espera la Edge Function |
+|---|---|
+| `phone` | `to` |
+| `template_name` | `templateName` |
+| `language_code` | `languageCode` |
+| `message` | `text` |
+| *(omitido)* | `type: 'text'` |
 
-## Fase 3 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
+**Resultado:** Cada mensaje enviado desde el chat falla silenciosamente -- la Edge Function recibe `undefined` en campos críticos.
+
+### Bug 2: Se envía el NOMBRE del custodio como número de teléfono
+
+`service.custodio_asignado` contiene `"RODRIGO RAINIER BECERRIL VELAZCO"`, NO un número telefónico. El campo correcto es `custodio_telefono` de `servicios_planificados`, pero `BoardService` no lo incluye.
+
+### Bug 3: `BoardService` no carga `custodio_telefono` ni `telefono_cliente`
+
+La query en `useBitacoraBoard` no selecciona estos campos. Sin ellos, es imposible enviar mensajes a nadie.
+
+### Bug 4: `servicio_id` nunca se inserta en los mensajes enviados
+
+Ni `kapso-send-message` ni `kapso-send-template` insertan `servicio_id` en el registro de `whatsapp_messages`. Sin este campo, los mensajes enviados NO aparecen en el chat del servicio (que filtra por `servicio_id`).
+
+### Bug 5: Formato de `components` incorrecto para templates
+
+El frontend envía un **array** (`components: [{ type: 'body', ... }]`), pero la Edge Function espera un **objeto** (`components: { body: { parameters: [...] } }`).
+
+### Bug 6: `telefono_cliente` no disponible para el reporte al cliente
+
+`ClientReportComposer` pide al monitorista escribir manualmente el teléfono del cliente. El campo `telefono_cliente` existe en la BD pero no se pasa al componente.
+
+### Bug 7: `servicio_id` es UUID en BD pero se pasa como string de ID
+
+El campo `servicio_id` en `whatsapp_messages` es tipo `uuid`, y `BoardService.id` es el UUID correcto. Pero hay que asegurarse de que se pase `service.id` (UUID) y no `service.id_servicio` (código alfanumérico).
+
+---
+
+## Plan de Corrección
+
+### 1. Ampliar `BoardService` con campos de teléfono
+
+En `useBitacoraBoard.ts`, agregar `custodio_telefono` y `telefono_cliente` al `select` de `servicios_planificados` y a la interfaz `BoardService`.
+
+### 2. Corregir `ServiceCommSheet.tsx` -- todas las llamadas
+
+- **handleSendNudge**: Cambiar `phone` → `to`, `template_name` → `templateName`, `language_code` → `languageCode`, usar `service.custodio_telefono` en vez de `service.custodio_asignado`, y convertir `components` de array a objeto `{ body: { parameters: [...] } }`.
+- **handleSendMessage**: Cambiar `phone` → `to`, `message` → `text`, agregar `type: 'text'`, usar `service.custodio_telefono`, y pasar `context: { servicio_id: service.id }`.
+- **handleSendReport**: Mismo fix de `components` format, y pasar `context: { servicio_id: service.id }`.
+
+### 3. Corregir Edge Functions -- insertar `servicio_id`
+
+En `kapso-send-message/index.ts` y `kapso-send-template/index.ts`, aceptar `servicio_id` del `context` y insertarlo en el registro de `whatsapp_messages`.
+
+### 4. Pre-popular `telefono_cliente` en `ClientReportComposer`
+
+Pasar `service.telefono_cliente` como valor default del campo destinatario.
+
+### 5. Validación de teléfono antes de enviar
+
+Agregar guard en `handleSendMessage` y `handleSendNudge`: si `custodio_telefono` no existe, mostrar toast de error en lugar de intentar enviar.
+
