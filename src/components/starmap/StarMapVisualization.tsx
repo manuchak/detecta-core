@@ -1,5 +1,6 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { StarMapPillar, StarMapKPI } from '@/hooks/useStarMapKPIs';
 
 interface Props {
@@ -17,30 +18,26 @@ export const StarMapVisualization: React.FC<Props> = ({
   onPillarClick,
   selectedPillar,
 }) => {
+  const isMobile = useIsMobile();
   const cx = 200;
   const cy = 200;
-  const outerR = 160;
-  const innerR = 65;
+  const outerR = isMobile ? 145 : 160;
+  const innerR = isMobile ? 60 : 65;
 
-  // Generate 5 outer points + 5 inner points for a 5-pointed star
-  // We have 6 pillars, so we use a hexagon-star hybrid
   const numPoints = 6;
   const points: { x: number; y: number; pillar: StarMapPillar }[] = [];
 
   for (let i = 0; i < numPoints; i++) {
     const angle = (Math.PI * 2 * i) / numPoints - Math.PI / 2;
-    const r = outerR;
     points.push({
-      x: cx + r * Math.cos(angle),
-      y: cy + r * Math.sin(angle),
+      x: cx + outerR * Math.cos(angle),
+      y: cy + outerR * Math.sin(angle),
       pillar: pillars[i],
     });
   }
 
-  // Create star path with alternating outer/inner vertices
   const starPath = points
     .flatMap((p, i) => {
-      const nextI = (i + 1) % numPoints;
       const midAngle = (Math.PI * 2 * (i + 0.5)) / numPoints - Math.PI / 2;
       const ix = cx + innerR * Math.cos(midAngle);
       const iy = cy + innerR * Math.sin(midAngle);
@@ -51,7 +48,6 @@ export const StarMapVisualization: React.FC<Props> = ({
     })
     .join(' ') + ' Z';
 
-  // Score-based filled star (radar-like)
   const filledPoints = points.map((p, i) => {
     const angle = (Math.PI * 2 * i) / numPoints - Math.PI / 2;
     const score = pillars[i]?.score || 0;
@@ -68,6 +64,13 @@ export const StarMapVisualization: React.FC<Props> = ({
     if (score >= 50) return 'hsl(var(--warning))';
     return 'hsl(var(--destructive))';
   };
+
+  // Mobile: larger touch targets (28/34), bigger fonts, no external labels
+  const baseNodeR = isMobile ? 28 : 22;
+  const selectedNodeR = isMobile ? 34 : 28;
+  const scoreFontSize = isMobile ? 13 : 11;
+  const nameFontSize = isMobile ? 9 : 7;
+  const centerR = isMobile ? 36 : 32;
 
   return (
     <div className="flex items-center justify-center">
@@ -123,7 +126,7 @@ export const StarMapVisualization: React.FC<Props> = ({
           const pillar = pillars[i];
           if (!pillar) return null;
           const isSelected = selectedPillar === pillar.id;
-          const nodeR = isSelected ? 28 : 22;
+          const nodeR = isSelected ? selectedNodeR : baseNodeR;
 
           return (
             <g
@@ -132,7 +135,17 @@ export const StarMapVisualization: React.FC<Props> = ({
               className="cursor-pointer"
               role="button"
               tabIndex={0}
+              style={{ touchAction: 'manipulation' }}
             >
+              {/* Invisible larger hit area for touch */}
+              {isMobile && (
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={44}
+                  fill="transparent"
+                />
+              )}
               {/* Node circle */}
               <circle
                 cx={p.x}
@@ -148,7 +161,7 @@ export const StarMapVisualization: React.FC<Props> = ({
                 x={p.x}
                 y={p.y - 4}
                 textAnchor="middle"
-                fontSize="11"
+                fontSize={scoreFontSize}
                 fontWeight="700"
                 fill={isSelected ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground))'}
               >
@@ -156,25 +169,27 @@ export const StarMapVisualization: React.FC<Props> = ({
               </text>
               <text
                 x={p.x}
-                y={p.y + 8}
+                y={p.y + 10}
                 textAnchor="middle"
-                fontSize="7"
+                fontSize={nameFontSize}
                 fill={isSelected ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))'}
               >
                 {pillar.shortName}
               </text>
 
-              {/* Label outside */}
-              <text
-                x={p.x + (p.x > cx ? 20 : p.x < cx ? -20 : 0)}
-                y={p.y + (p.y > cy ? 38 : p.y < cy ? -30 : p.y === cy ? 0 : 0)}
-                textAnchor="middle"
-                fontSize="9"
-                fill="hsl(var(--muted-foreground))"
-                fontWeight="500"
-              >
-                {Math.round(pillar.coverage)}% datos
-              </text>
+              {/* External label: coverage % — hidden on mobile (shown in pillar list instead) */}
+              {!isMobile && (
+                <text
+                  x={p.x + (p.x > cx ? 20 : p.x < cx ? -20 : 0)}
+                  y={p.y + (p.y > cy ? 38 : p.y < cy ? -30 : 0)}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill="hsl(var(--muted-foreground))"
+                  fontWeight="500"
+                >
+                  {Math.round(pillar.coverage)}% datos
+                </text>
+              )}
             </g>
           );
         })}
@@ -183,7 +198,7 @@ export const StarMapVisualization: React.FC<Props> = ({
         <circle
           cx={cx}
           cy={cy}
-          r={32}
+          r={centerR}
           fill="hsl(var(--card))"
           stroke="hsl(var(--primary))"
           strokeWidth="2.5"
@@ -192,7 +207,7 @@ export const StarMapVisualization: React.FC<Props> = ({
           x={cx}
           y={cy - 8}
           textAnchor="middle"
-          fontSize="8"
+          fontSize={isMobile ? 9 : 8}
           fill="hsl(var(--muted-foreground))"
           fontWeight="500"
         >
@@ -202,7 +217,7 @@ export const StarMapVisualization: React.FC<Props> = ({
           x={cx}
           y={cy + 6}
           textAnchor="middle"
-          fontSize="14"
+          fontSize={isMobile ? 16 : 14}
           fontWeight="800"
           fill="hsl(var(--foreground))"
         >
@@ -212,7 +227,7 @@ export const StarMapVisualization: React.FC<Props> = ({
           x={cx}
           y={cy + 18}
           textAnchor="middle"
-          fontSize="7"
+          fontSize={isMobile ? 8 : 7}
           fill="hsl(var(--muted-foreground))"
         >
           SCNV (proxy)
