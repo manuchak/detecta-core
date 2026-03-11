@@ -95,7 +95,7 @@ function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean 
   const isBot = msg.is_from_bot;
   const time = format(new Date(msg.created_at), 'HH:mm');
   const hasMedia = !!msg.media_url && !msg.media_url?.match(/^[a-f0-9]+$/i); // Skip raw Kapso media IDs
-  const hasContent = !!msg.content && msg.content !== '[Imagen]';
+  const hasContent = !!msg.message_text && msg.message_text !== '[Imagen]';
 
   return (
     <div
@@ -119,14 +119,14 @@ function MessageBubble({ msg, showTail }: { msg: CommMessage; showTail: boolean 
           'shadow-sm'
         )}
       >
-        {hasMedia && <MediaBubble url={msg.media_url!} caption={msg.content || undefined} />}
+        {hasMedia && <MediaBubble url={msg.media_url!} caption={msg.message_text || undefined} />}
         {hasContent && (
           <span className={cn(hasMedia && 'block mt-1.5')}>
-            {msg.content}
+            {msg.message_text}
           </span>
         )}
-        {!hasContent && !hasMedia && msg.content && (
-          <span className="italic text-muted-foreground/50 text-xs">{msg.content}</span>
+        {!hasContent && !hasMedia && msg.message_text && (
+          <span className="italic text-muted-foreground/50 text-xs">{msg.message_text}</span>
         )}
       </div>
 

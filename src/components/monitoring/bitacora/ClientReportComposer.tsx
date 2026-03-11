@@ -37,7 +37,7 @@ export const ClientReportComposer: React.FC<ClientReportComposerProps> = ({
   const [destinatario, setDestinatario] = useState(contactoWhatsapp || '');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  const imageMedia = media.filter(m => m.media_type === 'image');
+  const imageMedia = media.filter(m => m.media_type?.startsWith('image') || m.media_type === 'image');
   const validatedCount = imageMedia.filter(m => m.validado).length;
 
   const toggleMedia = (id: string) => {

@@ -8,9 +8,9 @@ import { toast } from 'sonner';
 export interface CommMessage {
   id: string;
   chat_id: string;
-  content: string | null;
+  message_text: string | null;
   media_url: string | null;
-  media_type: string | null;
+  message_type: string | null;
   is_from_bot: boolean;
   delivery_status: string | null;
   created_at: string;
@@ -42,7 +42,7 @@ export function useServicioComm(servicioId: string | null) {
       if (!servicioId) return [];
       const { data, error } = await supabase
         .from('whatsapp_messages')
-        .select('id, chat_id, content, media_url, media_type, is_from_bot, delivery_status, created_at, servicio_id, is_read')
+        .select('id, chat_id, message_text, media_url, message_type, is_from_bot, delivery_status, created_at, servicio_id, is_read')
         .eq('servicio_id', servicioId)
         .order('created_at', { ascending: true });
       if (error) throw error;
