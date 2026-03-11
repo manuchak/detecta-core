@@ -19,6 +19,9 @@ export interface CommMessage {
   sender_name?: string;
   sent_by_user_id: string | null;
   sender_display_name: string | null;
+  comm_channel: string | null;
+  comm_phase: string | null;
+  sender_type: string | null;
 }
 
 export interface CommMedia {
