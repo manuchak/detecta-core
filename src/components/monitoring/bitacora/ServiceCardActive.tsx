@@ -172,7 +172,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
                 size="icon"
                 className={cn(
                   'text-muted-foreground/50',
-                  isMobile ? 'h-9 w-9 min-h-[44px]' : 'h-6 w-6'
+                  isMobile ? 'h-8 w-8' : 'h-6 w-6'
                 )}
               >
                 <MoreHorizontal className={cn(isMobile ? 'h-5 w-5' : 'h-3.5 w-3.5')} />
