@@ -61,6 +61,12 @@
 - ✅ `MonitoristaCard.tsx` — Badge `(NP · MC · KE)` por fase
 - ✅ `CoordinatorCommandCenter.tsx` — Calcula `phaseBreakdownByMonitorista` y lo pasa a cards
 
+## Fase 2.7 — Fix Formato Webhook Kapso ✅
+- ✅ `kapso-webhook-receiver` ahora parsea formato nativo Kapso (`message.kapso.status/direction`) además del formato genérico (`event`)
+- ✅ Outbound: actualiza `delivery_status` y loguea errores detallados en `failed`
+- ✅ Inbound: adapta payload Kapso al formato interno y reutiliza `handleIncomingMessage`
+- ⚠️ Pendiente: Resolver error Meta 131042 (pago Business Manager) — problema externo, no de código
+
 ## Fase 4 — Escalamiento y métricas (pendiente)
 - Auto-escalamiento si custodio no responde a nudge en 15/30 min
 - Dashboard de métricas de comunicación
