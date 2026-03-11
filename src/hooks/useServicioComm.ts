@@ -17,6 +17,8 @@ export interface CommMessage {
   servicio_id: string | null;
   is_read: boolean;
   sender_name?: string;
+  sent_by_user_id: string | null;
+  sender_display_name: string | null;
 }
 
 export interface CommMedia {
