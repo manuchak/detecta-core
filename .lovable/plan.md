@@ -1,103 +1,83 @@
+# Plan Maestro: Comunicación WhatsApp Multi-Fase — Número Único
 
+## Resumen ejecutivo
+Integrar routing multi-canal + gestión de clientes en 9 fases de desarrollo.
+Sistema completo de 4 canales lógicos con routing inteligente, handoff Planeación → C4, y chat bidireccional con clientes.
 
-# Análisis Fishbone — MiDot no guarda para armados (Sergio Zúñiga)
+## Fase Dev 1 — Modelo de datos ✅
+- ✅ `comm_channel` TEXT (custodio_planeacion | custodio_c4 | cliente_c4 | sistema | unknown)
+- ✅ `comm_phase` TEXT (pre_servicio | en_servicio | post_servicio | sin_servicio)
+- ✅ `sender_type` TEXT (custodio | cliente | staff | sistema | unknown)
+- ✅ Índice compuesto `idx_wm_servicio_channel` (servicio_id, comm_channel)
+- ✅ Índice `idx_wm_channel_sender` para queries de cliente
+- ✅ Backfill de registros existentes
 
-## Diagrama Ishikawa
+## Fase Dev 2 — Router de contexto en webhook ✅
+- ✅ `resolveMessageContext()` clasifica sender como custodio/cliente/unknown
+- ✅ Priorización: servicio en monitoreo > servicio pre-servicio > herencia de último saliente
+- ✅ Lookup en: profiles (custodio), servicios_planificados.telefono_cliente, pc_clientes_contactos, pc_clientes.contacto_whatsapp
+- ✅ Registra comm_channel, comm_phase, sender_type en cada insert
+- ✅ Cliente con servicio activo → visible en tab, no crea ticket
+- ✅ Cliente sin servicio → crea ticket de atención
 
-```text
-                          ┌──────────────────────────────────┐
-                          │  MiDot se queda en loop          │
-                          │  de guardado para armados        │
-                          └───────────────┬──────────────────┘
-                                          │
-        ┌─────────────────┬───────────────┼───────────────┬────────────────┐
-        │                 │               │               │                │
-   ┌────┴────┐      ┌────┴────┐    ┌─────┴─────┐   ┌────┴────┐    ┌──────┴──────┐
-   │  BASE   │      │  CÓDIGO │    │    UI      │   │ STORAGE │    │  SILENCIO   │
-   │ DE DATOS│      │ FRONTEND│    │  FEEDBACK  │   │         │    │  DE ERROR   │
-   └────┬────┘      └────┬────┘    └─────┬─────┘   └────┬────┘    └──────┬──────┘
-        │                │               │               │                │
-   ★ FK apunta      Hook no tiene   No muestra      Upload PDF      mutateAsync
-   SOLO a            manejo de       el error de     puede fallar    no tiene
-   candidatos_       error en        FK al usuario   silenciosamente try/catch
-   custodios(id)     handleSubmit                                   en handleSubmit
-        │                │
-   candidatos_       Reintenta
-   armados NO        porque el
-   está referenciado usuario no
-                     sabe que falló
+## Fase Dev 3 — Clasificación en mensajes salientes ✅
+- ✅ `kapso-send-message`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `kapso-send-template`: acepta context.comm_channel, registra sender_type='staff'
+- ✅ `useServicioComm`: soporta filtro opcional `commChannel`
+- ✅ `CommMessage` interface incluye comm_channel, comm_phase, sender_type
+
+## Fase Dev 4 — Chat de Planeación con custodio ✅
+- ✅ NUEVO: `PlanningCustodioComm.tsx` con burbujas, quick actions, input
+- ✅ Filtra por `comm_channel='custodio_planeacion'`
+- ✅ Read-only después del handoff (`isHandedOff` prop)
+- ✅ Acciones rápidas: "¿En posición?", "Pedir foto", "Recibido"
+- ✅ Pendiente: integrar en `CustodianAssignmentStep` (requiere refactor del flujo de asignación)
+
+## Fase Dev 5 — Handoff Planeación → C4 (pendiente)
+- Mensaje de sistema al marcar "En Sitio"
+- Separadores visuales en `CustodioChat.tsx`
+- Bloqueo de escritura post-handoff
+
+## Fase Dev 6 — Tab Cliente bidireccional ✅
+- ✅ NUEVO: `ClientChat.tsx` — chat bidireccional con ventana 24h
+- ✅ Selector de contacto: `telefono_cliente` + `pc_clientes_contactos`
+- ✅ WindowPill con countdown en tiempo real
+- ✅ Input deshabilitado cuando ventana cerrada, solo templates
+- ✅ Burbujas diferenciadas cliente (verde) vs staff (azul)
+- ✅ `ServiceCommSheet` actualizado: tab "Cliente" con badge de unread
+- ✅ Pasa `comm_channel` en context de nudge y mensajes salientes
+
+## Fase Dev 7 — Automatizaciones de ciclo de vida ✅
+- ✅ `sendLifecycleTemplate()` utility con guard anti-duplicado 5 min
+- ✅ `sendPositioningNotification()` — auto-envío `posicionamiento_cliente` al marcar "En Sitio"
+- ✅ `sendCompletionNotifications()` — auto-envío `cierre_servicio_cliente` + `servicio_completado` al liberar custodio
+- ✅ Resolución automática de contactos del cliente (telefono_cliente + pc_clientes_contactos)
+- ✅ Fire-and-forget: no bloquea el flujo principal
+
+## Fase Dev 8 — Broadcast multi-contacto (pendiente)
+- Checkboxes de contactos en tab Cliente
+- Envío individual por contacto
+- Agrupación visual en timeline
+
+## Fase Dev 9 — Testing E2E (pendiente)
+- CommTestPanel: flujos por canal
+- Edge cases: multi-servicio, ventana 24h, handoff
+
+## Dependencias
+```
+Fase 1 → Fase 2, Fase 3 (paralelas)
+Fase 2+3 → Fase 4, Fase 6 (paralelas)
+Fase 4 → Fase 5
+Fase 5+6 → Fase 7
+Fase 6 → Fase 8
+Todas → Fase 9
 ```
 
-## CAUSA RAÍZ (★)
-
-**Línea 5 de la migración original:**
-```sql
-candidato_id uuid NOT NULL REFERENCES public.candidatos_custodios(id) ON DELETE CASCADE
-```
-
-La FK `evaluaciones_midot.candidato_id` apunta **exclusivamente** a `candidatos_custodios`. Cuando se intenta insertar un registro con el `candidato_id` de un armado (que vive en `candidatos_armados`), PostgreSQL rechaza el INSERT con error de violación de FK. El frontend no muestra el error porque `handleSubmit` en `MidotResultForm.tsx` no tiene try/catch, así que `mutateAsync` lanza una excepción no capturada que se pierde, y el usuario ve el botón volver a estado normal sin feedback, intenta de nuevo → loop.
-
-## Causas contribuyentes
-
-1. **`handleSubmit` sin try/catch (línea 53-98):** El `await mutateAsync()` lanza pero nada lo captura. El toast de error del hook `onError` sí se dispara, pero el estado `uploading` puede quedar inconsistente si el upload de PDF sí fue exitoso.
-
-2. **Sin feedback visual del error FK:** El toast genérico dice "No se pudo guardar la evaluación" pero no explica que es un problema de compatibilidad de tabla.
-
-3. **Upload PDF exitoso pero insert falla:** El usuario ve que el PDF se subió (progreso completo) y asume que todo está bien, pero el registro en BD falla después.
-
-## Plan de corrección
-
-### 1. Migración SQL — Flexibilizar FK para soportar ambas tablas
-
-Eliminar la FK actual y reemplazarla con un CHECK constraint que valide que el `candidato_id` exista en **cualquiera** de las dos tablas:
-
-```sql
--- Eliminar FK restrictiva
-ALTER TABLE evaluaciones_midot
-  DROP CONSTRAINT evaluaciones_midot_candidato_id_fkey;
-
--- Crear función de validación dual
-CREATE OR REPLACE FUNCTION check_candidato_exists(cid uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM candidatos_custodios WHERE id = cid
-    UNION ALL
-    SELECT 1 FROM candidatos_armados WHERE id = cid
-  );
-$$;
-
--- Agregar CHECK constraint
-ALTER TABLE evaluaciones_midot
-  ADD CONSTRAINT evaluaciones_midot_candidato_check
-  CHECK (check_candidato_exists(candidato_id));
-```
-
-### 2. Frontend — Agregar try/catch en handleSubmit
-
-En `MidotResultForm.tsx`, envolver el submit en try/catch para prevenir estados inconsistentes y dar feedback claro:
-
-```typescript
-const handleSubmit = async () => {
-  try {
-    // ... upload PDF logic (ya existente) ...
-    
-    if (isEditMode) {
-      await updateMidot.mutateAsync({ ... });
-    } else {
-      await createMidot.mutateAsync({ ... });
-    }
-    onSuccess?.();
-  } catch (error) {
-    // El hook ya muestra toast, pero aseguramos estado limpio
-    setUploading(false);
-  }
-};
-```
-
-### Archivos impactados
-
-| Archivo | Cambio |
+## Templates Meta pendientes
+| Template | Estado |
 |---|---|
-| Nueva migración SQL | Drop FK + crear función + CHECK constraint |
-| `src/components/recruitment/midot/MidotResultForm.tsx` | try/catch en handleSubmit |
-
+| posicionamiento_cliente | Por crear |
+| cierre_servicio_cliente | Por crear |
+| incidencia_servicio_cliente | Por crear |
+| nudge_status_custodio | No aprobado aún |
+| reporte_servicio_cliente | No aprobado aún |
