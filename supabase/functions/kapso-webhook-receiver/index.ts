@@ -329,7 +329,7 @@ async function handleIncomingMessage(supabase: any, payload: KapsoWebhookPayload
   }
 
   // ── Trigger media download if message has media and is linked to a service ──
-  if (mediaId && servicioId && insertedMsg) {
+  if (mediaId && insertedMsg) {
     try {
       const downloadRes = await fetch(
         `${Deno.env.get('SUPABASE_URL')}/functions/v1/kapso-download-media`,
