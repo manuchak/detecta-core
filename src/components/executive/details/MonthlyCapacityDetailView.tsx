@@ -335,7 +335,7 @@ export function MonthlyCapacityDetailView() {
             <CardDescription>Comparación de capacidad promedio por día</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? 180 : 250}>
               <BarChart data={calculations.comparisonData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="name" className="text-xs" />
