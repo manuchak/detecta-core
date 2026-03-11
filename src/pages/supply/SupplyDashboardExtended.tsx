@@ -368,6 +368,15 @@ const SupplyDashboardExtended = () => {
             </div>
           </TabsContent>
 
+          <TabsContent value="costos" className="space-y-6">
+            <ExpenseMetricsCards />
+            <ExpenseDistributionChart />
+            <div className="space-y-6">
+              <ExpenseForm />
+              <ExpensesList />
+            </div>
+          </TabsContent>
+
           <TabsContent value="automation" className="space-y-6">
             {/* Email Automations */}
             <Card>

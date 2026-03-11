@@ -542,14 +542,6 @@ const KPIDashboard = () => {
                 <ExecutiveMetricsGrid kpis={kpis} loading={kpisLoading} onKPIClick={(kpi, tooltip) => { setSelectedKPI(kpi); setSelectedKPITooltip(tooltip || null); }} />
               </TabsContent>
 
-              <TabsContent value="costos" className="space-y-6">
-                <ExpenseMetricsCards />
-                <ExpenseDistributionChart />
-                <div className="space-y-6">
-                  <ExpenseForm />
-                  <ExpensesList />
-                </div>
-              </TabsContent>
 
               <TabsContent value="resumen" className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
