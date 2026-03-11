@@ -54,6 +54,11 @@ const MonitoringPage = () => {
 
   // OrphanGuard + BalanceGuard — coordinators only, runs continuously
   useOrphanGuard();
+
+  // Mobile fork — render completely different layout
+  if (isMobile) {
+    return <MobileMonitoringPage />;
+  }
   
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [filterEstado, setFilterEstado] = useState<EstadoVisual | null>(null);
