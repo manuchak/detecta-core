@@ -18,10 +18,17 @@
 - ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
 - ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
 
-## Fase 2 — Backend (pendiente)
+## Fase 2 — Backend (pendiente parcial)
 - Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
 - Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
 - Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+
+## Fase 2.5 — Trazabilidad monitorista ✅
+- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
+- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
+- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
+- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
+- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
 
 ## Fase 3 — Escalamiento y métricas (pendiente)
 - Auto-escalamiento si custodio no responde a nudge en 15/30 min
