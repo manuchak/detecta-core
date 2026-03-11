@@ -55,9 +55,42 @@ const KPIDashboard = () => {
   const [selectedKPITooltip, setSelectedKPITooltip] = useState<React.ReactNode>(null);
   const currentTab = location.pathname === '/dashboard/kpis' ? 'kpis' : 'executive';
 
+  const handleTabChange = (value: string) => {
+    if (value === 'kpis') {
+      navigate('/dashboard/kpis');
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
+  const handleInternalTabChange = (newTab: string) => {
+    navigate(`/dashboard/kpis?tab=${newTab}`, { replace: true });
+  };
 
-  if (kpisLoading || serviceDataLoading) {
+  const currentTime = new Date().toLocaleTimeString('es-MX', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true 
+  });
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Buenos días';
+    if (hour < 18) return 'Buenas tardes';
+    return 'Buenas noches';
+  };
+
+  const getUserName = () => {
+    if (user?.user_metadata?.display_name) {
+      return user.user_metadata.display_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Usuario';
+  };
+
+  if (kpisLoading) {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="container mx-auto space-y-6">
