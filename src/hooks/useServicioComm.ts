@@ -8,9 +8,9 @@ import { toast } from 'sonner';
 export interface CommMessage {
   id: string;
   chat_id: string;
-  content: string | null;
+  message_text: string | null;
   media_url: string | null;
-  media_type: string | null;
+  message_type: string | null;
   is_from_bot: boolean;
   delivery_status: string | null;
   created_at: string;
