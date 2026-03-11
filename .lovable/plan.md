@@ -1,46 +1,64 @@
 
-# Centro de Comunicaciones WhatsApp — Bitácora
 
-## Estado: Fase 1 completada ✅
+# Panel de Pruebas Comm -- Ampliado con Simulación de Conversaciones
 
-### DB (migración aplicada)
-- ✅ `whatsapp_messages`: columnas `servicio_id` (FK) e `is_read` agregadas con índices
-- ✅ `servicio_comm_media`: tabla creada con RLS (`has_monitoring_role` / `has_monitoring_write_role`)
-- ✅ `pc_clientes`: columna `contacto_whatsapp` agregada
-- ✅ Bucket `whatsapp-media` creado (público, RLS para upload)
-- ✅ Realtime habilitado en `servicio_comm_media`
+## Respuesta corta
 
-### Frontend (creado)
-- ✅ `useServicioComm.ts` — hook con mensajes por servicio, Realtime, conteo sin leer
-- ✅ `ServiceCommSheet.tsx` — Sheet lateral con Tabs (Chat / Reportar)
-- ✅ `CustodioChat.tsx` — Timeline iMessage-style con quick actions
-- ✅ `ClientReportComposer.tsx` — Galería de fotos + template + envío
-- ✅ `ServiceCardActive.tsx` — Botón 💬 con badge de mensajes sin leer
-- ✅ `ServiceCardEnDestino.tsx` — Botón 💬 con badge de mensajes sin leer
+El plan original solo cubría **envío**. Pero si, podemos ampliarlo para también **simular recepción** y conversaciones bidireccionales completas. La clave es que el webhook de Kapso (`kapso-webhook-receiver`) inserta mensajes con `is_from_bot: false` en `whatsapp_messages`. Podemos replicar esa inserción directamente desde el panel de pruebas sin necesidad del webhook real.
 
-## Fase 2 — Backend (pendiente parcial)
-- Actualizar `kapso-webhook-receiver` para vincular mensajes a servicio activo del custodio
-- Crear edge function `kapso-download-media` (Kapso Media API → Supabase Storage)
-- Registrar templates en Meta: `nudge_status_custodio`, `reporte_servicio_cliente`, `cierre_servicio_cliente`
+## Plan ampliado
 
-## Fase 2.5 — Trazabilidad monitorista ✅
-- ✅ `whatsapp_messages.sent_by_user_id` — columna UUID con FK a auth.users
-- ✅ Edge functions `kapso-send-message` y `kapso-send-template` registran `sent_by_user_id`
-- ✅ `ServiceCommSheet` envía `user.id` al invocar edge functions
-- ✅ `useServicioComm` resuelve `display_name` desde `profiles`
-- ✅ `CustodioChat` muestra nombre del monitorista en burbujas y separadores de handoff
+### Secciones del `CommTestPanel.tsx`
 
-## Fase 2.6 — Debug E2E Comunicación ✅
-- ✅ Bug 1: Nombres de campo corregidos (`phone`→`to`, `template_name`→`templateName`, `language_code`→`languageCode`, `message`→`text`, agregado `type:'text'`)
-- ✅ Bug 2: Se usa `service.custodio_telefono` en lugar de `service.custodio_asignado` como número de teléfono
-- ✅ Bug 3: `BoardService` ahora incluye `custodio_telefono` y `telefono_cliente` en la query e interfaz
-- ✅ Bug 4: Edge functions insertan `servicio_id` desde `context.servicio_id` en `whatsapp_messages`
-- ✅ Bug 5: Formato de `components` corregido de array a objeto `{ body: { parameters: [...] } }`
-- ✅ Bug 6: `telefono_cliente` se pasa a `ClientReportComposer` como `contactoWhatsapp`
-- ✅ Bug 7: Se pasa `service.id` (UUID) como `servicio_id` en context
-- ✅ Validación: guard de teléfono antes de enviar nudge o mensaje libre
+**1. Configuración de destino** (sin cambios)
+- Input de teléfono + botón "Usar mi número"
 
-## Fase 3 — Escalamiento y métricas (pendiente)
-- Auto-escalamiento si custodio no responde a nudge en 15/30 min
-- Dashboard de métricas de comunicación
-- Bulk nudge para todos los custodios activos
+**2. Envío de mensaje libre** (sin cambios)
+- Tipo text/image/document → invoca `kapso-send-message`
+
+**3. Envío de template** (sin cambios)
+- Selector de templates → invoca `kapso-send-template`
+
+**4. Simulador de mensaje entrante** (NUEVO)
+- Inserta directamente en `whatsapp_messages` con `is_from_bot: false`, simulando lo que haría el webhook cuando un custodio responde
+- Campos: texto del mensaje, tipo (text/image/location), media_url opcional
+- Opción de vincular a un `servicio_id` (selector de servicios activos) para que el mensaje aparezca en el chat de ese servicio
+- El mensaje se inserta con `chat_id` = número del custodio simulado, lo que dispara el realtime subscription en `CustodioChat`
+
+**5. Simulador de conversación** (NUEVO)
+- Vista de chat en tiempo real que muestra todos los mensajes del número destino (query por `chat_id`)
+- Permite alternar entre "enviar como monitorista" (edge function real) y "simular respuesta custodio" (insert directo)
+- Verifica visualmente: burbujas azules (bot) vs grises (custodio), autoría del monitorista, separadores de handoff
+
+**6. Verificación de persistencia** (sin cambios)
+- Tabla con últimos 20 registros filtrados por número, mostrando todos los campos críticos
+
+### Integración
+
+- Nueva tab `comm-test` en `MonitoringPage.tsx` con icono `FlaskConical`, visible solo para coordinadores/admin
+- Un solo componente `CommTestPanel.tsx` con sub-tabs internas (Envío | Recepción | Conversación | Persistencia)
+
+### Archivos
+
+| Archivo | Cambio |
+|---|---|
+| `src/components/monitoring/comm/CommTestPanel.tsx` | Nuevo |
+| `src/pages/Monitoring/MonitoringPage.tsx` | Agregar tab |
+
+### Detalle: Insert directo para simular recepción
+
+```text
+whatsapp_messages INSERT:
+  chat_id:          → número simulado
+  message_text:     → texto del tester
+  message_type:     → 'text' | 'image'
+  is_from_bot:      → false
+  is_read:          → false
+  delivery_status:  → 'delivered'
+  servicio_id:      → UUID del servicio (opcional)
+  sent_by_user_id:  → null (es "custodio")
+  media_url:        → URL opcional
+```
+
+Esto dispara el canal realtime `comm-{servicioId}` y el mensaje aparece instantáneamente en el `CustodioChat` del servicio, validando el flujo completo de recepción + UI + realtime.
+
