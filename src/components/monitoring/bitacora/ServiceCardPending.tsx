@@ -48,14 +48,14 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
       <div
         className={cn(
           'rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer select-none',
-          isMobile ? 'px-4 py-3' : 'px-3 py-2'
+          isMobile ? 'px-3 py-2' : 'px-3 py-2'
         )}
         onDoubleClick={() => onDoubleClick?.(service)}
         title="Doble clic para ver detalle"
       >
         {/* Row 1: Client + Timer */}
         <div className="flex items-baseline justify-between gap-2">
-          <span className={cn('font-medium truncate flex-1', isMobile ? 'text-sm' : 'text-xs')}>{service.nombre_cliente}</span>
+          <span className={cn('font-medium truncate flex-1', isMobile ? 'text-xs' : 'text-xs')}>{service.nombre_cliente}</span>
           <span className={cn('font-mono tabular-nums', urgencyColor, isMobile ? 'text-sm' : 'text-xs')}>
             <Clock className={cn('inline mr-0.5 relative -top-px', isMobile ? 'h-3 w-3' : 'h-2.5 w-2.5')} />
             {timeLabel}
@@ -82,7 +82,7 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
             size="sm"
             className={cn(
               'gap-0.5 text-muted-foreground hover:text-foreground relative',
-              isMobile ? 'h-9 min-h-[44px] text-xs px-2' : 'h-5 text-[11px] px-1.5'
+              isMobile ? 'h-7 text-xs px-2' : 'h-5 text-[11px] px-1.5'
             )}
             onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
           >
@@ -98,7 +98,7 @@ export const ServiceCardPending: React.FC<ServiceCardPendingProps> = ({ service,
             size="sm"
             className={cn(
               'gap-0.5 text-muted-foreground hover:text-foreground',
-              isMobile ? 'h-9 min-h-[44px] text-xs px-3' : 'h-5 text-[11px] px-1.5'
+              isMobile ? 'h-7 text-xs px-3' : 'h-5 text-[11px] px-1.5'
             )}
             onClick={() => setConfirmOpen(true)}
             disabled={isPending}

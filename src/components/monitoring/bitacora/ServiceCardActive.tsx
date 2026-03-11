@@ -81,7 +81,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
       <div
         className={cn(
           'rounded-lg bg-muted/30 hover:bg-muted/50 border-l-2 transition-colors group cursor-pointer select-none',
-          isMobile ? 'px-4 py-4' : 'px-3 py-3',
+          isMobile ? 'px-3 py-2.5' : 'px-3 py-3',
           borderAccent
         )}
         onDoubleClick={() => onDoubleClick?.(service)}
@@ -90,7 +90,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
         {/* Row 1: Timer hero — right aligned, dominant */}
         <div className="flex items-baseline justify-between gap-2">
           <span className={cn('font-medium truncate flex-1', isMobile ? 'text-sm' : 'text-xs')}>{service.nombre_cliente}</span>
-          <span className={cn('font-mono tabular-nums leading-none', timerColor, isMobile ? 'text-xl' : 'text-lg')}>
+          <span className={cn('font-mono tabular-nums leading-none', timerColor, isMobile ? 'text-lg' : 'text-lg')}>
             {service.minutesSinceLastAction}<span className={cn('ml-0.5', isMobile ? 'text-sm' : 'text-xs')}>m</span>
           </span>
         </div>
@@ -109,7 +109,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
         </div>
 
         {/* Row 3: Folio + Monitorista badge + Actions */}
-        <div className={cn('flex items-center gap-1', isMobile ? 'mt-3' : 'mt-2')}>
+        <div className={cn('flex items-center gap-1', isMobile ? 'mt-1.5' : 'mt-2')}>
           <span className={cn('font-mono text-muted-foreground/60', isMobile ? 'text-xs' : 'text-[10px]')}>{service.id_servicio}</span>
 
           {assignedMonitorista && (
@@ -132,7 +132,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
             size="sm"
             className={cn(
               'gap-0.5 text-muted-foreground hover:text-foreground relative',
-              isMobile ? 'h-9 min-h-[44px] text-xs px-2' : 'h-6 text-[11px] px-1.5'
+              isMobile ? 'h-8 text-xs px-2' : 'h-6 text-[11px] px-1.5'
             )}
             onClick={(e) => { e.stopPropagation(); setCommOpen(true); }}
           >
@@ -157,7 +157,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
               size="sm"
               className={cn(
                 'gap-1 text-muted-foreground hover:text-foreground',
-                isMobile ? 'h-9 min-h-[44px] text-xs px-3' : 'h-6 text-[11px] px-2'
+                isMobile ? 'h-8 text-xs px-3' : 'h-6 text-[11px] px-2'
               )}
             >
               <Timer className={cn(isMobile ? 'h-4 w-4' : 'h-3 w-3')} />
@@ -172,7 +172,7 @@ export const ServiceCardActive: React.FC<ServiceCardActiveProps> = ({
                 size="icon"
                 className={cn(
                   'text-muted-foreground/50',
-                  isMobile ? 'h-9 w-9 min-h-[44px]' : 'h-6 w-6'
+                  isMobile ? 'h-8 w-8' : 'h-6 w-6'
                 )}
               >
                 <MoreHorizontal className={cn(isMobile ? 'h-5 w-5' : 'h-3.5 w-3.5')} />
